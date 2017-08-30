@@ -11,7 +11,7 @@ if [[ "$DISTRIB_RELEASE" == "14.04" || "$DISTRIB_RELEASE" == "17" ]]; then
     add-apt-repository ppa:rtcamp/nginx
 
     # Add MariaDB key servers
-    apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xcbcb082a1bb943db
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0xcbcb082a1bb943db
 elif [[ "$DISTRIB_RELEASE" == "16.04" || "$DISTRIB_RELEASE" == "18" || "$DISTRIB_RELEASE" == "18.1" || "$DISTRIB_RELEASE" == "18.2" ]]; then
     # Ubuntu release 16.04, LinuxMint 18
     DISTRIB_REPO="xenial"
@@ -21,7 +21,7 @@ elif [[ "$DISTRIB_RELEASE" == "16.04" || "$DISTRIB_RELEASE" == "18" || "$DISTRIB
     sh -c "echo 'deb http://download.opensuse.org/repositories/home:/rtCamp:/EasyEngine/xUbuntu_16.04/ /' >> /etc/apt/sources.list.d/nginx-xenial.list"
 
     # Add MariaDB key servers
-    apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0xF1656F24C74CD1D8
 else
     echo "Sorry, this installation script only work for Ubuntu 14.04 & 16.04 and Linux Mint 17 & 18."
     exit 1
@@ -40,7 +40,7 @@ fi
 
 # Add PHP (5.6/7.0/7.1 latest stable) from Ondrej's repo
 # Source: https://launchpad.net/~ondrej/+archive/ubuntu/php
-add-apt-repository ppa:ondrej/php
+add-apt-repository ppa:ondrej/php -y
 # Fix for NO_PUBKEY key servers error
 apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 4F4EA0AAE5267A6C
 
