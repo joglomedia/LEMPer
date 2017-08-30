@@ -12,7 +12,7 @@ if [[ "$DISTRIB_RELEASE" == "14.04" || "$DISTRIB_RELEASE" == "17" ]]; then
 
     # Add MariaDB key servers
     apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xcbcb082a1bb943db
-else if [[ "$DISTRIB_RELEASE" == "16.04" || "$DISTRIB_RELEASE" == "18" || "$DISTRIB_RELEASE" == "18.1" || "$DISTRIB_RELEASE" == "18.2" ]]; then
+elif [[ "$DISTRIB_RELEASE" == "16.04" || "$DISTRIB_RELEASE" == "18" || "$DISTRIB_RELEASE" == "18.1" || "$DISTRIB_RELEASE" == "18.2" ]]; then
     # Ubuntu release 16.04, LinuxMint 18
     DISTRIB_REPO="xenial"
 
@@ -51,3 +51,4 @@ apt-get update -y
 
 # Install pre-requirements
 apt-get install -y software-properties-common python-software-properties build-essential git unzip curl rsync openssl snmp spawn-fcgi fcgiwrap geoip-database
+
