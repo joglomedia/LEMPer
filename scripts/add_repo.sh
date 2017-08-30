@@ -2,7 +2,7 @@
 
 echo "Adding repositories..."
 
-if [[ "$DISTRIB_RELEASE" == "14.04" || "$DISTRIB_RELEASE" == "17" ]]
+if [[ "$DISTRIB_RELEASE" == "14.04" || "$DISTRIB_RELEASE" == "17" ]]; then
     # Ubuntu release 14.04, LinuxMint 17
     DISTRIB_REPO="trusty"
 
