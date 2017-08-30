@@ -28,6 +28,8 @@ fi
 clear
 
 # Remove nginx
+echo "Uninstalling Nginx..."
+
 if [[ -n $(which nginx) ]]; then
     # Stop Nginx web server
     service nginx stop
@@ -50,6 +52,8 @@ if [[ -n $(which nginx) ]]; then
 fi
 
 # Remove PHP
+echo "Uninstalling PHP FPM..."
+
 if [[ -n $(which which php-fpm5.6) || -n $(which which php-fpm7.0) || -n $(which which php-fpm7.1) ]]; then
     # Stop php5-fpm server
     service php5.6-fpm stop
@@ -74,6 +78,8 @@ if [[ -n $(which which php-fpm5.6) || -n $(which which php-fpm7.0) || -n $(which
 fi
 
 # Remove MySQL
+echo "Uninstalling MySQL DBMS..."
+
 if [[ -n $(which mysql) ]]; then
     # Stop MariaDB mysql server
     service mysql stop
