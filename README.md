@@ -20,7 +20,7 @@ Features
 Usage
 =====
 
-# Install Nginx, PHP 5 / 7 &amp; MariaDB
+### Install Nginx, PHP 5 / 7 &amp; MariaDB
 
 ```bash
 git clone https://github.com/joglomedia/lemper.git
@@ -33,7 +33,7 @@ Nginx vHost Configuration Tool (Ngxvhost)
 This script also include Nginx vHost configuration tool to help you add new website (domain) easily. 
 The Ngxvhost must be run as root (recommended using sudo).
 
-# Ngxvhost Usage
+### Ngxvhost Usage
 
 ```bash
 sudo ngxvhost -u username -s example.com -t default -d /home/username/Webs/example.com
@@ -61,6 +61,7 @@ http://YOUR_IP_ADDRESS/tools/
 or
 ```bash
 http://YOUR_DOMAIN_NAME:8082/tools/
+```
 
 TODO
 =====
