@@ -1,4 +1,4 @@
-[L]inux [E]ngine-X (Nginx) [M]ySQL (MariaDB) [P]HP Install[ER]
+[L]inux [E]ngine-X [M]ariaDB [P]HP Install[ER]
 =====
 LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Ubuntu-LEMP stack. LEMPer is _ServerPilot alternative_ and _EasyEngine alternative_ for crazy sysadmin :v:
 
@@ -68,7 +68,9 @@ Please send your PR on the Github repository to help improve this script.
 ## TLDR;
 Do not use this script if you're looking for rich feature and advanced tool like premium service.
 
-Copyright
-=====
+## DONATION
+**[Buy Me a Bottle of Milk](https://paypal.me/masedi)**
+
+## Copyright
 (c) 2015-2017
 <a href="http://masedi.net/">MasEDI.Net</a>
