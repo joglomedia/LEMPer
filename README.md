@@ -5,7 +5,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer. This is ju
 * Nginx 1.10 custom build from RtCamp repository
 * Nginx with FastCGI cache enable & disable feature
 * Nginx pre-configured optimization for low-end VPS
-* Nginx vhost configuration optimized for Wordpress, Laravel, and Phalcon PHP Framework
+* Nginx vhost configuration optimized for WordPress, Laravel, and Phalcon PHP Framework
 * MariaDB 10 (MySQL drop-in replacement)
 * PHP 5.6, 7.0, 7.1 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php)
 * PHP-FPM sets as user running the PHP script (pool), Feel the faster Nginx like a trully shared hosting
@@ -21,7 +21,12 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer. This is ju
 ```bash
 git clone https://github.com/joglomedia/LEMPer.git
 cd lemper
-sudo ./install.sh
+sudo ./lemper.sh
+```
+
+### Uninstall Nginx, PHP 5 / 7 &amp; MariaDB
+```bash
+sudo ./uninstall.sh
 ```
 
 ## Nginx vHost Configuration Tool (Ngxvhost)
@@ -65,7 +70,7 @@ http://YOUR_DOMAIN_NAME:8082/tools/
 Please send your PR on the Github repository to help improve this script.
 
 ## TLDR;
-Do not use this script if you're looking for rich feature and advanced tool like premium service.
+Do not use this script if you're looking for feature rich and advanced tool like premium service.
 
 ## DONATION
 **[Buy Me a Bottle of Milk](https://paypal.me/masedi)**
