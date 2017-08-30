@@ -15,6 +15,6 @@ header_msg
 echo -n "Do you want to install Postfix Mail Server? [Y/n]: "
 read pfinstall
 
-if [[ "$plinstall" == "Y" || "$plinstall" == "y" || "$plinstall" == "yes" ]]; then
+if [[ "$pfinstall" == "Y" || "$pfinstall" == "y" || "$pfinstall" == "yes" ]]; then
     install_postfix
 fi
