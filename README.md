@@ -64,6 +64,8 @@ http://YOUR_DOMAIN_NAME:8082/tools/
 ## TODO
 * Custom build latest Nginx
 * Add [Let's Encrypt SSL](https://letsencrypt.org/)
+* Add security hardening (iptable rules, firewall, else?)
+* Add server monitoring (nagios, monit, else?)
 * Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new)
 
 ## Contribution
