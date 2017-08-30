@@ -1,8 +1,20 @@
 #!/usr/bin/env bash
 
 # Install Postfix mail server
-apt-get install -y mailutils postfix
+function install_postfix {
+    echo "Installing Postfix Mail Server..."
 
-# Update local time
-apt-get install -y ntpdate
-ntpdate -d cn.pool.ntp.org
+    apt-get install -y mailutils postfix
+
+    # Update local time
+    apt-get install -y ntpdate
+    ntpdate -d cn.pool.ntp.org
+}
+
+header_msg
+echo -n "Do you want to install Postfix Mail Server? [Y/n]: "
+read pfinstall
+
+if [[ "$plinstall" == "Y" || "$plinstall" == "y" || "$plinstall" == "yes" ]]; then
+    install_postfix
+fi

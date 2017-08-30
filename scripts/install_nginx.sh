@@ -28,9 +28,15 @@ unlink /etc/nginx/sites-enabled/default
 ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/01-default
 
 # Nginx cache directory
-mkdir /var/cache/nginx/
-mkdir /var/cache/nginx/fastcgi_temp
-mkdir /var/cache/nginx/proxy_temp
+if [ ! -d "/var/cache/nginx/" ]; then
+    mkdir /var/cache/nginx/
+fi
+if [ ! -d "/var/cache/nginx/fastcgi_temp" ]; then
+    mkdir /var/cache/nginx/fastcgi_temp
+fi
+if [ ! -d "/var/cache/nginx/proxy_temp" ]; then
+    mkdir /var/cache/nginx/proxy_temp
+fi
 
 # Check IP Address
 IPAddr=$(curl -s http://ipecho.net/plain)

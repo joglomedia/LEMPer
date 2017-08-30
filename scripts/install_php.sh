@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+header_msg
+echo "Installing PHP..."
+
 # Install PHP
 function install_php {
     if [[ -n $1 ]]; then
@@ -122,8 +125,6 @@ function optimize_php {
 
 # Start PHP Installation #
 
-echo "Installing PHP..."
-
 # Install PHP, fpm, and modules
 echo "Which version of PHP you want to install? (default is all)
 Supported PHP version:
@@ -157,6 +158,7 @@ case $phpveropt in
 esac
 
 # Install PHP loader
+header_msg
 echo -n "Do you want to install PHP loader? [Y/n]: "
 read plinstall
 

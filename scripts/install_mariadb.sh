@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+header_msg
 echo "Installing MariaDB server..."
 
 # Install MariaDB
