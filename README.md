@@ -7,9 +7,9 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer. This is ju
 * Nginx with FastCGI cache enable & disable feature
 * Nginx pre-configured optimization for low-end VPS
 * Nginx vhost configuration optimized for Wordpress, Laravel, and Phalcon PHP Framework
-* MariaDB 10.1 (MySQL drop-in replacement)
-* PHP 5.6, 7.0, 7.1 from Ondrej's repository
-* PHP-FPM sets as user running the PHP script (pool)
+* MariaDB 10 (MySQL drop-in replacement)
+* PHP 5.6, 7.0, 7.1 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php)
+* PHP-FPM sets as user running the PHP script (pool), Feel the faster Nginx like a trully shared hosting
 * Zend OPcache
 * Memcached 1.4
 * ionCube PHP Loader
@@ -26,7 +26,7 @@ sudo ./install.sh
 ```
 
 ## Nginx vHost Configuration Tool (Ngxvhost)
-This script also include Nginx Virtual Host (vHost) configuration tool to help you add new website (domain) easily. Feel the faster Nginx like shared hosting.
+This script also include Nginx Virtual Host (vHost) configuration tool to help you add new website (domain) easily. Feel the faster Nginx like a trully shared hosting.
 The Ngxvhost must be run as root (recommended using sudo).
 
 ### Ngxvhost Usage
@@ -37,7 +37,7 @@ Ngxvhost Parameters:
 
 * -u your username (DO NOT use root login)
 * -s your website domain name
-* -t website type, available options: default, laravel, phalcon, wordpress, wordpress-ms
+* -t website type, available options: default, laravel, phalcon, wordpress, wordpress-ms (multisite)
 * -d absolute path to your site directory containing the index file
 
 for more helps
@@ -58,9 +58,9 @@ http://YOUR_DOMAIN_NAME:8082/tools/
 ```
 
 ## TODO
-* Add Let's Encrypt SSL
-* Add Nginx Redis Module
-* Add MongoDB
+* Custom build latest Nginx
+* Add [Let's Encrypt SSL](https://letsencrypt.org/)
+* Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new)
 
 ## Contribution
 Please send your PR on the Github repository to help improve this script.
