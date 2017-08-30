@@ -42,7 +42,6 @@ if [[ -n $(which nginx) ]]; then
     read rmngxconf
     if [[ "$rmngxconf" = "Y" ]]; then
 	    echo "All your Nginx configuration files deleted..."
-	    sleep 2
 	    rm -fr /etc/nginx
 	    # rm nginx-cache
 	    rm -fr /var/cache/nginx
@@ -70,7 +69,6 @@ if [[ -n $(which which php-fpm5.6) || -n $(which which php-fpm7.0) || -n $(which
     read rmfpmconf
     if [[ "${rmfpmconf}" = "Y" ]]; then
 	    echo "All your PHP-FPM configuration files deleted permanently..."
-	    sleep 2
 	    rm -fr /etc/php/
 	    # Remove ioncube
         rm -fr /usr/lib/php/loaders/
@@ -91,7 +89,6 @@ if [[ -n $(which mysql) ]]; then
     read rmsqlconf
     if [[ "${rmsqlconf}" = "Y" ]]; then
 	    echo "All your SQL database and configuration files deleted permanently..."
-	    sleep 2
 	    rm -fr /etc/mysql
 	    rm -fr /var/lib/mysql
     fi
