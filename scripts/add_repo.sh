@@ -50,5 +50,5 @@ echo "Update repository and install pre-requisites..."
 apt-get update -y
 
 # Install pre-requirements
-apt-get install -y software-properties-common python-software-properties build-essential git unzip curl rsync openssl snmp spawn-fcgi fcgiwrap geoip-database
+apt-get install -y software-properties-common python-software-properties build-essential git unzip cron curl rsync openssl snmp spawn-fcgi fcgiwrap geoip-database
 

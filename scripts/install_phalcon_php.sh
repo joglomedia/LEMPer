@@ -22,7 +22,7 @@ echo "+=========================================================================
 sleep 1
 
 # Prerequisite packages
-apt-get install re2c libpcre3-dev php5-dev gcc make
+apt-get install re2c libpcre3-dev gcc make
 
 # Install Zephir
 echo -n "Should we install Zephir Interpreter? [Y/n]: "

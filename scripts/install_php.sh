@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
+# PHP installer
+# Min requirement   : GNU/Linux Ubuntu 14.04
+# Last Build        : 13/11/2015
+# Author            : MasEDI.Net (hi@masedi.net)
+
+# Make sure only root can run this installer script
+if [ $(id -u) -ne 0 ]; then
+    echo "This script must be run as root..."
+    exit 1
+fi
+
 header_msg
 echo "Installing PHP..."
 
@@ -13,7 +24,7 @@ function install_php {
 
     echo "Installing PHP $phpv..."
 
-    apt-get install -y php${phpv} php${phpv}-common php${phpv}-fpm php${phpv}-cli php${phpv}-mysql php${phpv}-curl php${phpv}-gd php${phpv}-intl php${phpv}-json php${phpv}-mcrypt php${phpv}-mbstring php${phpv}-imap php${phpv}-pspell php${phpv}-pspell php${phpv}-recode php${phpv}-snmp php${phpv}-sqlite3 php${phpv}-tidy php${phpv}-readline php${phpv}-xml php${phpv}-xmlrpc php${phpv}-xsl php${phpv}-gmp php${phpv}-opcache php${phpv}-soap php${phpv}-zip php-geoip php-pear pkg-php-tools php-phalcon
+    apt-get install -y php${phpv} php${phpv}-common php${phpv}-fpm php${phpv}-cli php${phpv}-mysql php${phpv}-curl php${phpv}-gd php${phpv}-intl php${phpv}-json php${phpv}-mcrypt php${phpv}-mbstring php${phpv}-imap php${phpv}-pspell php${phpv}-pspell php${phpv}-recode php${phpv}-snmp php${phpv}-sqlite3 php${phpv}-tidy php${phpv}-readline php${phpv}-xml php${phpv}-xmlrpc php${phpv}-xsl php${phpv}-gmp php${phpv}-opcache php${phpv}-soap php${phpv}-zip php${phpv}-dev php-geoip php-pear pkg-php-tools php-phalcon
 }
 
 # Install ionCube Loader
