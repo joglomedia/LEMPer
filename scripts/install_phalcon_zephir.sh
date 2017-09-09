@@ -6,9 +6,9 @@
 # Author			: MasEDI.Net (hi@masedi.net)
 
 # Make sure only root can run this installer script
-if [ "$(id -u)" != "0" ]; then
-	echo "This script must be run as root..." 1>&2
-	exit 1
+if [ $(id -u) -ne 0 ]; then
+    echo "This script must be run as root..."
+    exit 1
 fi
 
 # Prerequisite packages
