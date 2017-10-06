@@ -11,20 +11,35 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-header_msg
-echo "Installing PHP..."
-
 # Install PHP
 function install_php {
     if [[ -n $1 ]]; then
-        phpv=$1
+        PHPv=$1
     else
-        phpv="7.0" # default php install 7.0 (latest stable recommendation)
+        PHPv="7.0" # default php install 7.0 (latest stable recommendation)
     fi
 
-    echo "Installing PHP $phpv..."
+    echo "Installing PHP $PHPv..."
 
-    apt-get install -y php${phpv} php${phpv}-common php${phpv}-fpm php${phpv}-cli php${phpv}-mysql php${phpv}-curl php${phpv}-gd php${phpv}-intl php${phpv}-json php${phpv}-mcrypt php${phpv}-mbstring php${phpv}-imap php${phpv}-pspell php${phpv}-pspell php${phpv}-recode php${phpv}-snmp php${phpv}-sqlite3 php${phpv}-tidy php${phpv}-readline php${phpv}-xml php${phpv}-xmlrpc php${phpv}-xsl php${phpv}-gmp php${phpv}-opcache php${phpv}-soap php${phpv}-zip php${phpv}-dev php-geoip php-pear pkg-php-tools php-phalcon
+    apt-get install -y php${PHPv} php${PHPv}-common php${PHPv}-fpm php${PHPv}-cli php${PHPv}-mysql php${PHPv}-curl php${PHPv}-gd php${PHPv}-intl php${PHPv}-json php${PHPv}-mcrypt php${PHPv}-mbstring php${PHPv}-imap php${PHPv}-pspell php${PHPv}-recode php${PHPv}-snmp php${PHPv}-sqlite3 php${PHPv}-tidy php${PHPv}-readline php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-gmp php${PHPv}-opcache php${PHPv}-soap php${PHPv}-zip php${PHPv}-dev php-geoip php-pear pkg-php-tools php-phalcon
+}
+
+# Remove PHP
+function remove_php {
+    if [[ -n $1 ]]; then
+        PHPv=$1
+    else
+        PHPv="7.0" # default php install 7.0 (latest stable recommendation)
+    fi
+
+    echo "Uninstalling PHP $PHPv..."
+
+    if [ -n $(which php-fpm${PHPver}) ]; then
+        apt-get remove -y php${PHPv} php${PHPv}-common php${PHPv}-fpm php${PHPv}-cli php${PHPv}-mysql php${PHPv}-curl php${PHPv}-gd php${PHPv}-intl php${PHPv}-json php${PHPv}-mcrypt php${PHPv}-mbstring php${PHPv}-imap php${PHPv}-pspell php${PHPv}-recode php${PHPv}-snmp php${PHPv}-sqlite3 php${PHPv}-tidy php${PHPv}-readline php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-gmp php${PHPv}-opcache php${PHPv}-soap php${PHPv}-zip php${PHPv}-dev php-geoip php-pear pkg-php-tools php-phalcon
+        echo "PHP $PHPv installation has been removed"
+    else
+        echo "PHP $PHPv installation couldn't be found"
+    fi
 }
 
 # Install ionCube Loader
@@ -48,20 +63,60 @@ function install_ic {
 # Enable ionCube Loader
 function enable_ic {
 if [[ -n $1 ]]; then
-    phpv=$1
+    PHPv=$1
 else
-    phpv="7.0" # default php install 7.0 (latest stable recommendation)
+    PHPv="7.0" # default php install 7.0 (latest stable recommendation)
 fi
 
-echo "Enabling IonCube PHP ${phpv} loader..."
+echo "Enabling IonCube PHP ${PHPv} loader"
 
-cat > /etc/php/${phpv}/mods-available/ioncube.ini <<EOL
+cat > /etc/php/${PHPv}/mods-available/ioncube.ini <<EOL
 [ioncube]
-zend_extension=/usr/lib/php/loaders/ioncube/ioncube_loader_lin_${phpv}.so
+zend_extension=/usr/lib/php/loaders/ioncube/ioncube_loader_lin_${PHPv}.so
 EOL
 
-ln -s /etc/php/${phpv}/mods-available/ioncube.ini /etc/php/${phpv}/fpm/conf.d/05-ioncube.ini
-ln -s /etc/php/${phpv}/mods-available/ioncube.ini /etc/php/${phpv}/cli/conf.d/05-ioncube.ini
+ln -s /etc/php/${PHPv}/mods-available/ioncube.ini /etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini
+ln -s /etc/php/${PHPv}/mods-available/ioncube.ini /etc/php/${PHPv}/cli/conf.d/05-ioncube.ini
+}
+
+# Disable ionCube Loader
+function disable_ic {
+    if [[ -n $1 ]]; then
+        PHPv=$1
+    else
+        PHPv="7.0" # default php install 7.0 (latest stable recommendation)
+    fi
+
+    echo "Disabling IonCube PHP ${PHPv} loader"
+
+    unlink /etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini
+    unlink /etc/php/${PHPv}/cli/conf.d/05-ioncube.ini
+}
+
+# Remove ionCube Loader
+function remove_ic {
+    if [[ -n $1 ]]; then
+        PHPv=$1
+    else
+        PHPv="7.0" # default php install 7.0 (latest stable recommendation)
+    fi
+
+    echo "Uninstalling IonCube PHP ${PHPv} loader..."
+
+    if [[ -f /etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini || -f /etc/php/${PHPv}/cli/conf.d/05-ioncube.ini ]]; then
+        disable_ic $PHPv
+    fi
+
+    if [ -d /usr/lib/php/loaders/ioncube ]; then
+        echo "Removing IonCube PHP ${PHPv} loader installation"
+        rm -fr /usr/lib/php/loaders/ioncube
+        removed="has been"
+    elif
+        echo "IonCube PHP ${PHPv} loader installation couldn't be found"
+        removed="may be"
+    fi
+
+    echo "IonCube PHP ${PHPv} loader $removed removed"
 }
 
 # Install SourceGuardian
@@ -89,54 +144,97 @@ function install_sg {
 # Enable SourceGuardian
 function enable_sg {
 if [[ -n $1 ]]; then
-    phpv=$1
+    PHPv=$1
 else
-    phpv="7.0" # default php install 7.0 (latest stable recommendation)
+    PHPv="7.0" # default php install 7.0 (latest stable recommendation)
 fi
 
-echo "Enabling SourceGuardian PHP ${phpv} loader..."
+echo "Enabling SourceGuardian PHP ${PHPv} loader..."
 
-cat > /etc/php/${phpv}/mods-available/sourceguardian.ini <<EOL
+cat > /etc/php/${PHPv}/mods-available/sourceguardian.ini <<EOL
 [sourceguardian]
-zend_extension=/usr/lib/php/loaders/sourceguardian/ixed.${phpv}.lin
+zend_extension=/usr/lib/php/loaders/sourceguardian/ixed.${PHPv}.lin
 EOL
 
-ln -s /etc/php/${phpv}/mods-available/sourceguardian.ini /etc/php/${phpv}/fpm/conf.d/05-sourceguardian.ini
-ln -s /etc/php/${phpv}/mods-available/sourceguardian.ini /etc/php/${phpv}/cli/conf.d/05-sourceguardian.ini
+ln -s /etc/php/${PHPv}/mods-available/sourceguardian.ini /etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini
+ln -s /etc/php/${PHPv}/mods-available/sourceguardian.ini /etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini
+}
+
+# Disable SourceGuardian Loader
+function disable_sg {
+    if [[ -n $1 ]]; then
+        PHPv=$1
+    else
+        PHPv="7.0" # default php install 7.0 (latest stable recommendation)
+    fi
+
+    echo "Disabling SourceGuardian PHP ${PHPv} loader"
+
+    unlink /etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini
+    unlink /etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini
+}
+
+# Remove SourceGuardian Loader
+function remove_sg {
+    if [[ -n $1 ]]; then
+        PHPv=$1
+    else
+        PHPv="7.0" # default php install 7.0 (latest stable recommendation)
+    fi
+
+    echo "Uninstalling SourceGuardian PHP ${PHPv} loader..."
+
+    if [[ -f /etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini || -f /etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini ]]; then
+        disable_sg $PHPv
+    fi
+
+    if [ -d /usr/lib/php/loaders/sourceguardian ]; then
+        echo "Removing SourceGuardian PHP ${PHPv} loader installation"
+        rm -fr /usr/lib/php/loaders/sourceguardian
+        removed='has been'
+    elif
+        echo "SourceGuardian PHP ${PHPv} loader installation couldn't be found"
+        removed='may be'
+    fi
+
+    echo "SourceGuardian PHP ${PHPv} loader $removed removed"
 }
 
 # PHP Setting + Optimization
 function optimize_php {
     if [[ -n $1 ]]; then
-        phpv=$1
+        PHPv=$1
     else
-        phpv="7.0" # default php install 7.0 (latest stable recommendation)
+        PHPv="7.0" # default php install 7.0 (latest stable recommendation)
     fi
 
-    echo "Optimizing PHP ${phpv} configuration..."
+    echo "Optimizing PHP ${PHPv} configuration..."
 
     # Copy custom php.ini
-    mv /etc/php/${phpv}/fpm/php.ini /etc/php/${phpv}/fpm/php.ini~
-    cp php/${phpv}/fpm/php.ini /etc/php/${phpv}/fpm/
+    mv /etc/php/${PHPv}/fpm/php.ini /etc/php/${PHPv}/fpm/php.ini~
+    cp php/${PHPv}/fpm/php.ini /etc/php/${PHPv}/fpm/
 
     # Copy the optimized-version of php fpm config file
-    mv /etc/php/${phpv}/fpm/php-fpm.conf /etc/php/${phpv}/fpm/php-fpm.conf~
-    cp php/${phpv}/fpm/php-fpm.conf /etc/php/${phpv}/fpm/
+    mv /etc/php/${PHPv}/fpm/php-fpm.conf /etc/php/${PHPv}/fpm/php-fpm.conf~
+    cp php/${PHPv}/fpm/php-fpm.conf /etc/php/${PHPv}/fpm/
 
     # Copy the optimized-version of php fpm default pool
-    mv /etc/php/${phpv}/fpm/pool.d/www.conf /etc/php/${phpv}/fpm/pool.d/www.conf~
-    cp php/${phpv}/fpm/pool.d/www.conf /etc/php/${phpv}/fpm/pool.d/
+    mv /etc/php/${PHPv}/fpm/pool.d/www.conf /etc/php/${PHPv}/fpm/pool.d/www.conf~
+    cp php/${PHPv}/fpm/pool.d/www.conf /etc/php/${PHPv}/fpm/pool.d/
 
     # Fix cgi.fix_pathinfo
-    sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${phpv}/fpm/php.ini
+    sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
 
     # Restart Php-fpm server
-    service php${phpv}-fpm restart
+    service php${PHPv}-fpm restart
 }
 
-# Start PHP Installation #
-
-# Install PHP, fpm, and modules
+## Main Function, Start PHP Installation ##
+function init_php_install() {
+# Menu Install PHP, fpm, and modules
+header_msg
+echo "Welcome to PHP installation"
+sleep 1
 echo "Which version of PHP you want to install? (default is all)
 Supported PHP version:
 1). PHP 7.1 (latest stable)
@@ -145,9 +243,9 @@ Supported PHP version:
 4). All versions (PHP 5.6, 7.0, 7.1)
 -------------------------------------"
 echo -n "Select your option [1/2/3/4]: "
-read phpveropt
+read PhpVersionInstall
 
-case $phpveropt in
+case $PhpVersionInstall in
     1)
         PHPver="7.1"
         install_php $PHPver
@@ -168,23 +266,23 @@ case $phpveropt in
     ;;
 esac
 
-# Install PHP loader
+# Menu Install PHP loader
 header_msg
 echo -n "Do you want to install PHP loader? [Y/n]: "
-read plinstall
+read PhpLoaderInstall
 
-if [[ "$plinstall" == "Y" || "$plinstall" == "y" || "$plinstall" == "yes" ]]; then
+if [[ "$PhpLoaderInstall" == "Y" || "$PhpLoaderInstall" == "y" || "$PhpLoaderInstall" == "yes" ]]; then
     echo "Available PHP loaders:
     1). IonCube Loader (latest stable)
     2). SourceGuardian (latest stable)
     3). All loaders (IonCube, SourceGuardian)
     ------------------------------------------"
     echo -n "Select your loader [1/2/3]: "
-    read plopt
+    read PhpLoaderOpt
 
     mkdir /usr/lib/php/loaders
 
-    case $plopt in
+    case $PhpLoaderOpt in
         1)
             install_ic
 
@@ -226,7 +324,7 @@ if [[ "$plinstall" == "Y" || "$plinstall" == "y" || "$plinstall" == "yes" ]]; th
     esac
 fi
 
-# Optimizing PHP
+# Menu Optimizing PHP
 if [ "$PHPver" != "all" ]; then
     optimize_php $PHPver
 else
@@ -234,3 +332,6 @@ else
     optimize_php "7.0"
     optimize_php "5.6"
 fi
+}
+
+init_php_install
