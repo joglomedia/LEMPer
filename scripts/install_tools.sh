@@ -27,3 +27,11 @@ wget --no-check-certificate https://github.com/vrana/adminer/releases/download/v
 cat > /usr/share/nginx/html/tools/phpinfo.php <<EOL
 <?php phpinfo(); ?>
 EOL
+
+cat > /usr/share/nginx/html/tools/phpinfo.php70 <<EOL
+<?php phpinfo(); ?>
+EOL
+
+cat > /usr/share/nginx/html/tools/phpinfo.php71 <<EOL
+<?php phpinfo(); ?>
+EOL
