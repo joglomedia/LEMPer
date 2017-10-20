@@ -225,6 +225,10 @@ function optimize_php {
     # Fix cgi.fix_pathinfo
     sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
 
+    # Add custom php extension (ex .php70, .php71)
+    PHPExt=".php${PHPv//.}"
+    sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/" /etc/php/${PHPv}/fpm/pool.d/www.conf
+
     # Restart Php-fpm server
     service php${PHPv}-fpm restart
 }
