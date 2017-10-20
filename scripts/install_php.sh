@@ -338,4 +338,4 @@ else
 fi
 }
 
-init_php_install
+init_php_install()
