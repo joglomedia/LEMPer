@@ -19,7 +19,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer. This is ju
 
 ### Install Nginx, PHP 5 / 7 &amp; MariaDB
 ```bash
-apt-get install git
+sudo apt-get install git
 git clone https://github.com/joglomedia/LEMPer.git
 cd LEMPer
 sudo ./lemper.sh
@@ -80,4 +80,3 @@ Do not use this script if you're looking for feature rich and advanced tool like
 
 ## Copyright
 (c) 2015-2017
-<a href="http://masedi.net/">MasEDI.Net</a>
