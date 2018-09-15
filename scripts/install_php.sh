@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # PHP installer
-# Min requirement   : GNU/Linux Ubuntu 14.04
-# Last Build        : 13/11/2015
-# Author            : MasEDI.Net (hi@masedi.net)
+# Min requirement   : GNU/Linux Ubuntu 14.04 & 16.04
+# Last Build        : 15/09/2018
+# Author            : ESLabs.id (eslabs.id@gmail.com)
 
 # Make sure only root can run this installer script
 if [ $(id -u) -ne 0 ]; then
@@ -111,12 +111,12 @@ function remove_ic {
         echo "Removing IonCube PHP ${PHPv} loader installation"
         rm -fr /usr/lib/php/loaders/ioncube
         removed="has been"
-    elif
-        echo "IonCube PHP ${PHPv} loader installation couldn't be found"
+    else
+        echo "IonCube PHP ${PHPv} loader installation couldnt be found"
         removed="may be"
     fi
 
-    echo "IonCube PHP ${PHPv} loader $removed removed"
+    echo "IonCube PHP ${PHPv} loader ${removed} removed"
 }
 
 # Install SourceGuardian
@@ -192,12 +192,12 @@ function remove_sg {
         echo "Removing SourceGuardian PHP ${PHPv} loader installation"
         rm -fr /usr/lib/php/loaders/sourceguardian
         removed='has been'
-    elif
+    else
         echo "SourceGuardian PHP ${PHPv} loader installation couldn't be found"
         removed='may be'
     fi
 
-    echo "SourceGuardian PHP ${PHPv} loader $removed removed"
+    echo "SourceGuardian PHP ${PHPv} loader ${removed} removed"
 }
 
 # PHP Setting + Optimization
@@ -234,7 +234,7 @@ function optimize_php {
 }
 
 ## Main Function, Start PHP Installation ##
-function init_php_install() {
+function init_php_install {
 # Menu Install PHP, fpm, and modules
 header_msg
 echo "Welcome to PHP installation"
@@ -338,4 +338,4 @@ else
 fi
 }
 
-init_php_install()
+init_php_install
