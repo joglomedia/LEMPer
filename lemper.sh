@@ -17,14 +17,14 @@
 # | Author            : ESLabs.ID (eslabs.id@gmail.com)                     |
 # | Version           : 1.0.0                                               |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2019 NgxTools (http://www.ngxtools.cf)               |
+# | Copyright (c) 2014-2019 NgxTools (https://ngxtools.eslabs.id)           |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the New BSD License that is bundled      |
 # | with this package in the file docs/LICENSE.txt.                         |
 # |                                                                         |
 # | If you did not receive a copy of the license and are unable to          |
 # | obtain it through the world-wide-web, please send an email              |
-# | to license@ngxtools.cf so we can send you a copy immediately.           |
+# | to license@eslabs.id so we can send you a copy immediately.             |
 # +-------------------------------------------------------------------------+
 # | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
 # +-------------------------------------------------------------------------+
@@ -106,5 +106,5 @@ echo "#        Found any bugs / errors / suggestions? please let me know        
 echo "#    If this script useful, don't forget to buy me a coffee or milk :D     #"
 echo "# My PayPal is always open for donation, send your tips here hi@masedi.net #"
 echo "#                                                                          #"
-echo "#             (c) 2015-2019 - ESLabs.ID - http://eslabs.id ;)              #"
+echo "#             (c) 2014-2019 - ESLabs.ID - http://eslabs.id ;)              #"
 echo "#==========================================================================#"

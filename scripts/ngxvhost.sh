@@ -3,7 +3,7 @@
 #  +------------------------------------------------------------------------+
 #  | NgxVhost - Simple Nginx vHost Configs File Generator                   |
 #  +------------------------------------------------------------------------+
-#  | Copyright (c) 2014-2018 NgxTools (https://ngxtools.eslabs.id)          |
+#  | Copyright (c) 2014-2019 NgxTools (https://ngxtools.eslabs.id)          |
 #  +------------------------------------------------------------------------+
 #  | This source file is subject to the New BSD License that is bundled     |
 #  | with this package in the file docs/LICENSE.txt.                        |
@@ -12,7 +12,7 @@
 #  | obtain it through the world-wide-web, please send an email             |
 #  | to license@eslabs.id so we can send you a copy immediately.            |
 #  +------------------------------------------------------------------------+
-#  | Authors: Edi Septriyanto <edi@eslabs.id>                               |
+#  | Authors: Edi Septriyanto <eslabs.id@gmail.com>                         |
 #  |          Fideloper <https://gist.github.com/fideloper/9063376>         |
 #  +------------------------------------------------------------------------+
 
@@ -26,14 +26,14 @@ INSTALL_DIR=$(pwd)
 # I have it in /usr/local/bin and run command 'ngxvhost' from anywhere, using sudo.
 if [ $(id -u) -ne 0 ]; then
     echo "You must be root: \"sudo ngxvhost\""
-    exit 1
+    exit 1  #error
 fi
 
 # Check prerequisite packages
 if [[ ! -f $(which unzip) || ! -f $(which git) || ! -f $(which rsync) ]]; then
     echo "Ngxvhost requires rsync, unzip and git, please install it first"
     echo "help: sudo apt-get install rsync unzip git"
-    exit 1;
+    exit 1
 fi
 
 #
@@ -490,7 +490,7 @@ function ngxvhost() {
     # Sanity check
     if [ $# -lt 8  ]; then
         show_usage
-        exit 1
+        exit 0
     fi
 
     eval set -- "$opts"

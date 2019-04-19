@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
+
 #  +------------------------------------------------------------------------+
-#  | NgxrmVhost - Simple Nginx vHost Configs File Generator                 |
+#  | NgxVhost - Simple Nginx vHost Configs File Generator                   |
 #  +------------------------------------------------------------------------+
-#  | Copyright (c) 2014-2017 NgxTools (http://www.ngxtools.cf)              |
+#  | Copyright (c) 2014-2019 NgxTools (https://ngxtools.eslabs.id)          |
 #  +------------------------------------------------------------------------+
 #  | This source file is subject to the New BSD License that is bundled     |
 #  | with this package in the file docs/LICENSE.txt.                        |
 #  |                                                                        |
 #  | If you did not receive a copy of the license and are unable to         |
 #  | obtain it through the world-wide-web, please send an email             |
-#  | to license@ngxtools.cf so we can send you a copy immediately.          |
+#  | to license@eslabs.id so we can send you a copy immediately.            |
 #  +------------------------------------------------------------------------+
-#  | Authors: Edi Septriyanto <hi@masedi.net>                               |
+#  | Authors: Edi Septriyanto <eslabs.id@gmail.com>                         |
 #  +------------------------------------------------------------------------+
 
 # Version Control
@@ -22,7 +23,7 @@ VERSION="1.5.0-beta"
 # I have it in /usr/local/bin and run command 'ngxvhost' from anywhere, using sudo.
 if [ $(id -u) -ne 0 ]; then
     echo "You must be root: 'sudo $APPNAME'" >&2
-    exit 1
+    exit 1  #error
 fi
 
 # Help
@@ -50,7 +51,6 @@ Example:
 For more details visit http://masedi.net.
 Mail bug reports and suggestions to <hi@masedi.net>.
 _EOF_
-exit 1
 }
 
 #ngxrmvhost --enable vhost
@@ -65,7 +65,7 @@ function enable_vhost {
     else
         echo "Sorry, we can't find $1. Probably, it has been enabled or not yet created..."
     fi
-    exit 1
+    exit 0
 }
 
 #ngxvhost --disable vhost
@@ -80,7 +80,7 @@ function disable_vhost {
     else
         echo "Sorry, we can't find $1. Probably, it has been disabled or removed..."
     fi
-    exit 1
+    exit 0  #success
 }
 
 #ngxvhost --remove sitename
@@ -115,7 +115,7 @@ function remove_vhost {
         service nginx reload -s
         echo "Your site $1 has been removed..."
     fi
-    exit 1
+    exit 0  #success
 }
 
 # Sanity Check - are there an arguments with value?
@@ -132,7 +132,7 @@ eval set -- "$OPTS"
 
 while true ; do
     case "$1" in
-        -h | --help) show_usage; shift;;
+        -h | --help) show_usage; exit 0; shift;;
         -e | --enable) enable_vhost $2; shift 2;;
         -d | --disable) disable_vhost $2; shift 2;;
         -r | --remove) remove_vhost $2; shift 2;;
