@@ -5,7 +5,7 @@
 # |-------------------------------------------------------------------------+
 # | Features    :                                                           |
 # |     - Nginx 1.10                                                        |
-# |     - PHP 5.6/7.0/7.1                                                   |
+# |     - PHP 5.6/7.0/7.1/7.2/7.3                                           |
 # |     - Zend OpCache 7.0.3                                                |
 # |     - Memcached 1.4.14                                                  |
 # |     - ionCube Loader                                                    |
@@ -13,11 +13,11 @@
 # |     - MariaDB 10 (MySQL drop-in replacement)                            |
 # |     - Adminer (PhpMyAdmin replacement)                                  |
 # | Min requirement   : GNU/Linux Ubuntu 14.04 or Linux Mint 17             |
-# | Last Update       : 30/08/2017                                          |
-# | Author            : MasEDI.Net (hi@masedi.net)                          |
+# | Last Update       : 19/04/2019                                          |
+# | Author            : ESLabs.ID (eslabs.id@gmail.com)                     |
 # | Version           : 1.0.0                                               |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2017 NgxTools (http://www.ngxtools.cf)               |
+# | Copyright (c) 2014-2019 NgxTools (http://www.ngxtools.cf)               |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the New BSD License that is bundled      |
 # | with this package in the file docs/LICENSE.txt.                         |
@@ -26,27 +26,33 @@
 # | obtain it through the world-wide-web, please send an email              |
 # | to license@ngxtools.cf so we can send you a copy immediately.           |
 # +-------------------------------------------------------------------------+
-# | Authors: Edi Septriyanto <hi@masedi.net>                                |
+# | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
 # +-------------------------------------------------------------------------+
+
+set -e  # Work even if somebody does "sh thisscript.sh".
 
 # Make sure only root can run this installer script
 if [ $(id -u) -ne 0 ]; then
     echo "This script must be run as root..."
-    exit 1
+    exit 0
 fi
 
 # Make sure this script only run on Ubuntu install
 if [ ! -f "/etc/lsb-release" ]; then
     echo "This installer only work on Ubuntu server..."
-    exit 1
+    exit 0
 else
     # Variables
     arch=$(uname -p)
     IPAddr=$(hostname -i)
-    . /etc/lsb-release
+
+    # export lsb-release vars
+    . /etc/lsb-release 
+
+    MAJOR_RELEASE_NUMBER=$(echo $DISTRIB_RELEASE | awk -F. '{print $1}')
 fi
 
-function header_msg {
+function header_msg() {
 clear
 cat <<- _EOF_
 #========================================================================#
@@ -62,7 +68,7 @@ sleep 1
 header_msg
 
 echo "Starting LEMP installation, ensure that you're on a fresh box install!"
-read -t 10 -p "Press Enter to continue..." </dev/tty
+read -t 10 -p "Press [Enter] to continue..." </dev/tty
 
 ### Clean up ###
 . scripts/remove_apache.sh
@@ -100,5 +106,5 @@ echo "#        Found any bugs / errors / suggestions? please let me know        
 echo "#    If this script useful, don't forget to buy me a coffee or milk :D     #"
 echo "# My PayPal is always open for donation, send your tips here hi@masedi.net #"
 echo "#                                                                          #"
-echo "#            (c) 2015-2017 - MasEDI.Net - http://masedi.net ;)             #"
+echo "#             (c) 2015-2019 - ESLabs.ID - http://eslabs.id ;)              #"
 echo "#==========================================================================#"

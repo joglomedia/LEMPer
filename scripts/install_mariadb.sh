@@ -17,4 +17,6 @@ apt-get install -y mariadb-server-10.1 mariadb-client-10.1 mariadb-server-core-1
 mysql_secure_installation
 
 # Restart MariaDB MySQL server
-service mysql restart
+if [[ $(ps -ef | grep -v grep | grep mysql | wc -l) > 0 ]]; then
+    service mysql restart
+fi

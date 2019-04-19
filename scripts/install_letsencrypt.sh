@@ -8,7 +8,7 @@
 # Make sure only root can run this installer script
 if [ $(id -u) -ne 0 ]; then
     echo "This script must be run as root..."
-    exit 1
+    exit 0
 fi
 
 clear

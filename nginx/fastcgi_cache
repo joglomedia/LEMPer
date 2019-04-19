@@ -1,7 +1,7 @@
 ## Include this file if you want to use fastcgi_cache across many sites
 # Designed to be included in /etc/nginx/nginx.conf http {} block
 
-fastcgi_cache_path	/var/cache/nginx/fastcgi_temp levels=1:2 keys_zone=WORDPRESS:100m max_size=1g inactive=60m;
+fastcgi_cache_path	/var/cache/nginx/fastcgi_cache levels=1:2 keys_zone=FASTCGICACHE:100m max_size=1g inactive=60m;
 fastcgi_cache_key	"$scheme$request_method$host$request_uri";
 fastcgi_cache_use_stale	error timeout invalid_header updating http_500;
 #fastcgi_cache_lock	on;

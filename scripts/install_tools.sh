@@ -20,8 +20,8 @@ git clone https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/
 
 # Install Adminer for Web-based MySQL Administration Tool
 mkdir /usr/share/nginx/html/tools/adminer/
-wget --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.3.1/adminer-4.3.1.php -O /usr/share/nginx/html/tools/adminer/index.php
-wget --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.3.1/editor-4.3.1.php -O /usr/share/nginx/html/tools/adminer/editor.php
+wget --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/adminer-4.7.1.php -O /usr/share/nginx/html/tools/adminer/index.php
+wget --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/editor-4.7.1.php -O /usr/share/nginx/html/tools/adminer/editor.php
 
 # Install PHP Info
 cat > /usr/share/nginx/html/tools/phpinfo.php <<EOL
@@ -33,5 +33,11 @@ cat > /usr/share/nginx/html/tools/phpinfo.php70 <<EOL
 EOL
 
 cat > /usr/share/nginx/html/tools/phpinfo.php71 <<EOL
+<?php phpinfo(); ?>
+EOL
+
+sudo bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.php72'
+
+cat > /usr/share/nginx/html/tools/phpinfo.php73 <<EOL
 <?php phpinfo(); ?>
 EOL

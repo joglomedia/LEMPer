@@ -7,7 +7,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer. This is ju
 * Nginx pre-configured optimization for low-end VPS
 * Nginx vhost configuration optimized for WordPress, Laravel, and Phalcon PHP Framework
 * MariaDB 10 (MySQL drop-in replacement)
-* PHP 5.6, 7.0, 7.1 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php)
+* PHP 5.6, 7.0, 7.1, 7.2, 7.3 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php)
 * PHP-FPM sets as user running the PHP script (pool), Feel the faster Nginx like a trully shared hosting
 * Zend OPcache
 * Memcached 1.4

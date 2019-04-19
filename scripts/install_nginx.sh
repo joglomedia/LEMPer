@@ -3,7 +3,7 @@
 echo "Installing Nginx webserver..."
 
 # Install Nginx custom
-apt-get install -y --allow-unauthenticated nginx-custom
+apt-get install -y --allow-unauthenticated nginx-stable
 
 # Copy custom Nginx Config
 mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.old
@@ -29,13 +29,16 @@ ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/01-default
 
 # Nginx cache directory
 if [ ! -d "/var/cache/nginx/" ]; then
-    mkdir /var/cache/nginx/
+    mkdir /var/cache/nginx
+    chown -hR www-data: /var/cache/nginx
 fi
-if [ ! -d "/var/cache/nginx/fastcgi_temp" ]; then
-    mkdir /var/cache/nginx/fastcgi_temp
+if [ ! -d "/var/cache/nginx/fastcgi_cache" ]; then
+    mkdir /var/cache/nginx/fastcgi_cache
+    chown -hR www-data: /var/cache/nginx/fastcgi_cache
 fi
-if [ ! -d "/var/cache/nginx/proxy_temp" ]; then
-    mkdir /var/cache/nginx/proxy_temp
+if [ ! -d "/var/cache/nginx/proxy_cache" ]; then
+    mkdir /var/cache/nginx/proxy_cache
+    chown -hR www-data: /var/cache/nginx/proxy_cache
 fi
 
 # Check IP Address
@@ -44,4 +47,7 @@ IPAddr=$(curl -s http://ipecho.net/plain)
 sed -i "s@localhost.localdomain@$IPAddr@g" /etc/nginx/sites-available/default
 
 # Restart Nginx server
-service nginx restart
+if [[ $(ps -ef | grep -v grep | grep nginx | wc -l) > 0 ]]; then
+    service nginx restart
+fi
+

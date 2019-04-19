@@ -527,7 +527,8 @@ add support for dynamic modules in a way compatible with ngx_pagespeed until
           elif [ "$redhat_major_version" == 6 ]; then
             slc_version=6
           else
-            fail "Unexpected major version $redhat_major_version in /etc/redhat-release:
+            fail "
+Unexpected major version $redhat_major_version in /etc/redhat-release:
 $(cat /etc/redhat-release) Expected 5 or 6."
           fi
 

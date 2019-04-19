@@ -2,7 +2,7 @@
 
 echo "Adding repositories..."
 
-if [[ "$DISTRIB_RELEASE" == "14.04" || "$DISTRIB_RELEASE" == "17" ]]; then
+if [[ "$DISTRIB_RELEASE" == "14.04" || "$MAJOR_RELEASE_NUMBER" == "17" ]]; then
     # Ubuntu release 14.04, LinuxMint 17
     DISTRIB_REPO="trusty"
 
@@ -12,7 +12,7 @@ if [[ "$DISTRIB_RELEASE" == "14.04" || "$DISTRIB_RELEASE" == "17" ]]; then
 
     # Add MariaDB key servers
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0xcbcb082a1bb943db
-elif [[ "$DISTRIB_RELEASE" == "16.04" || "$DISTRIB_RELEASE" == "18" || "$DISTRIB_RELEASE" == "18.1" || "$DISTRIB_RELEASE" == "18.2" ]]; then
+elif [[ "$DISTRIB_RELEASE" == "16.04" || "$MAJOR_RELEASE_NUMBER" == "18" ]]; then
     # Ubuntu release 16.04, LinuxMint 18
     DISTRIB_REPO="xenial"
 
@@ -22,9 +22,15 @@ elif [[ "$DISTRIB_RELEASE" == "16.04" || "$DISTRIB_RELEASE" == "18" || "$DISTRIB
 
     # Add MariaDB key servers
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0xF1656F24C74CD1D8
+elif [[ "$DISTRIB_RELEASE" == "18.04" || "$MAJOR_RELEASE_NUMBER" == "19" ]]; then
+    # Ubuntu release 18.04, LinuxMint 19
+    DISTRIB_REPO="bionic"
+
+    apt-key fingerprint ABF5BD827BD9BF62
+    add-apt-repository ppa:nginx/stable
 else
-    echo "Sorry, this installation script only work for Ubuntu 14.04 & 16.04 and Linux Mint 17 & 18."
-    exit 1
+    echo "Sorry, this installation script only work for Ubuntu 14.04, 16.04 & 18.04 and Linux Mint 17, 18 & 19."
+    exit 0
 fi
 
 # Add MariaDB repo from MariaDB repo configuration tool
@@ -33,12 +39,12 @@ touch /etc/apt/sources.list.d/MariaDB-${DISTRIB_REPO}.list
 cat > /etc/apt/sources.list.d/MariaDB-${DISTRIB_REPO}.list <<EOL
 # MariaDB 10.1 repository list - created 2014-11-30 14:04 UTC
 # http://mariadb.org/mariadb/repositories/
-deb [arch=amd64,i386] http://ftp.osuosl.org/pub/mariadb/repo/10.1/ubuntu ${DISTRIB_REPO} main
+deb [arch=amd64] http://ftp.osuosl.org/pub/mariadb/repo/10.1/ubuntu ${DISTRIB_REPO} main
 deb-src http://ftp.osuosl.org/pub/mariadb/repo/10.1/ubuntu ${DISTRIB_REPO} main
 EOL
 fi
 
-# Add PHP (5.6/7.0/7.1 latest stable) from Ondrej's repo
+# Add PHP (latest stable) from Ondrej's repo
 # Source: https://launchpad.net/~ondrej/+archive/ubuntu/php
 add-apt-repository ppa:ondrej/php -y
 # Fix for NO_PUBKEY key servers error
@@ -50,5 +56,5 @@ echo "Update repository and install pre-requisites..."
 apt-get update -y
 
 # Install pre-requirements
-apt-get install -y software-properties-common python-software-properties build-essential git unzip cron curl rsync openssl snmp spawn-fcgi fcgiwrap geoip-database
+apt-get install -y software-properties-common python-software-properties build-essential git unzip cron curl gnupg2 ca-certificates lsb-release rsync openssl snmp spawn-fcgi fcgiwrap geoip-database
 

@@ -1,7 +1,8 @@
 ## Include this file if you want to use Nginx as transparent proxy cache
 # Designed to be included in /etc/nginx/nginx.conf http{} block
 
-proxy_cache_path	/var/cache/nginx/proxy_temp levels=1:2 keys_zone=WORDPRESS:100m max_size=1g inactive=60m use_temp_path=off;
+proxy_cache_path	/var/cache/nginx/proxy_cache levels=1:2 keys_zone=PROXYCACHE:100m max_size=1g inactive=60m use_temp_path=off;
+
 # use stale cache on backend fault
 proxy_cache_use_stale	error timeout invalid_header updating http_500 http_502 http_503 http_504;
 

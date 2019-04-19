@@ -13,21 +13,42 @@ if [ ! -f "/etc/lsb-release" ]; then
 	exit 1
 fi
 
-apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 58712A2291FA4AD5
-sh -c "echo 'deb [ arch=amd64,arm64 ] http://repo.mongodb.org/apt/ubuntu xenial/mongodb-org/3.5 multiverse' > /etc/apt/sources.list.d/mongodb-org-3.5.list"
-apt-get update
-apt-get install -y mongodb-org
+echo -n "Do you want to install MongoDB? [Y/n]: "
+read MongodbInstall
 
-#mongo
-#use admin
-#db.createUser({user: "admin", pwd: "admin1234", roles:[{role: "root", db: "admin"}]})
-#quit()
+if [[ "$MongodbInstall" == "Y" || "$MongodbInstall" == "y" || "$MongodbInstall" == "yes" ]]; then
+    echo "Installing MongoDB server and MongoDB PHP module..."
 
-#mongo -u admin -p --authenticationDatabase user-data
-#use exampledb
-#db.createCollection("exampleCollection", {capped: false})
-#var a = { name : "John Doe",  attributes: { age : 30, address : "123 Main St", phone : 8675309 }}
-#db.exampleCollection.insert(a)
-#WriteResult({ "nInserted" : 1 })
-#db.exampleCollection.find()
-#db.exampleCollection.find({"name" : "John Doe"})
+    apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
+    sh -c "echo 'deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.0 multiverse' > /etc/apt/sources.list.d/mongodb-org-4.0.list"
+    apt-get update
+    apt-get -y install mongodb-org mongodb-org-server
+
+    echo -n "Do you want to add MongoDB to systemctl? [Y/n]: "
+    read MongodbAutostart
+
+    if [[ "$MongodbAutostart" == "Y" || "$MongodbAutostart" == "y" || "$MongodbAutostart" == "yes" ]]; then
+        systemctl restart mongod
+        systemctl enable mongodb
+
+        systemctl status mongod
+    fi
+fi
+
+echo "Installation completed. Please create an administrative user. Example command lines below:";
+cat <<- _EOF_
+mongo
+> use admin
+> db.createUser({user: "admin", pwd: "<Enter a secure password>", roles:[{role: "root", db: "admin"}]})
+> quit()
+
+mongo -u admin -p --authenticationDatabase user-data
+> use exampledb
+> db.createCollection("exampleCollection", {capped: false})
+> var a = { name : "John Doe",  attributes: { age : 30, address : "123 Main St", phone : 8675309 }}
+> db.exampleCollection.insert(a)
+> WriteResult({ "nInserted" : 1 })
+> db.exampleCollection.find()
+> db.exampleCollection.find({"name" : "John Doe"})
+_EOF_
+
