@@ -79,4 +79,4 @@ Do not use this script if you're looking for feature rich and advanced tool like
 **[Buy Me a Bottle of Milk](https://paypal.me/masedi)**
 
 ## Copyright
-(c) 2015-2017
+(c) 2014-2019
