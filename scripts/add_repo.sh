@@ -10,37 +10,47 @@ if [[ "$DISTRIB_RELEASE" == "14.04" || "$MAJOR_RELEASE_NUMBER" == "17" ]]; then
     # https://rtcamp.com/wordpress-nginx/tutorials/single-site/fastcgi-cache-with-purging/
     add-apt-repository ppa:rtcamp/nginx
 
-    # Add MariaDB key servers
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0xcbcb082a1bb943db
+    # MariaDB 10.2 repo
+    MARIADB_VER="10.2"
+    apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xcbcb082a1bb943db
+    #add-apt-repository 'deb http://ftp.osuosl.org/pub/mariadb/repo/10.2/ubuntu trusty main'
 elif [[ "$DISTRIB_RELEASE" == "16.04" || "$MAJOR_RELEASE_NUMBER" == "18" ]]; then
     # Ubuntu release 16.04, LinuxMint 18
     DISTRIB_REPO="xenial"
 
-    # Nginx custom with ngx cache purge
+    # Nginx custom repo with ngx cache purge
     apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3050AC3CD2AE6F03
     sh -c "echo 'deb http://download.opensuse.org/repositories/home:/rtCamp:/EasyEngine/xUbuntu_16.04/ /' >> /etc/apt/sources.list.d/nginx-xenial.list"
 
-    # Add MariaDB key servers
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 0xF1656F24C74CD1D8
+    # MariaDB 10.3 repo
+    MARIADB_VER="10.3"
+    apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
+    #add-apt-repository 'deb [arch=amd64,i386,ppc64el] http://ftp.osuosl.org/pub/mariadb/repo/10.3/ubuntu xenial main'
 elif [[ "$DISTRIB_RELEASE" == "18.04" || "$MAJOR_RELEASE_NUMBER" == "19" ]]; then
     # Ubuntu release 18.04, LinuxMint 19
     DISTRIB_REPO="bionic"
 
+    # Nginx repo
     apt-key fingerprint ABF5BD827BD9BF62
     add-apt-repository ppa:nginx/stable
+
+    # MariaDB 10.3 repo
+    MARIADB_VER="10.3"
+    apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
+    #add-apt-repository 'deb [arch=amd64,arm64,ppc64el] http://ftp.osuosl.org/pub/mariadb/repo/10.3/ubuntu bionic main'
 else
     echo "Sorry, this installation script only work for Ubuntu 14.04, 16.04 & 18.04 and Linux Mint 17, 18 & 19."
     exit 0
 fi
 
-# Add MariaDB repo from MariaDB repo configuration tool
+# Add MariaDB source list from MariaDB repo configuration tool
 if [ ! -f "/etc/apt/sources.list.d/MariaDB-${DISTRIB_REPO}.list" ]; then
 touch /etc/apt/sources.list.d/MariaDB-${DISTRIB_REPO}.list
 cat > /etc/apt/sources.list.d/MariaDB-${DISTRIB_REPO}.list <<EOL
-# MariaDB 10.1 repository list - created 2014-11-30 14:04 UTC
+# MariaDB ${MARIADB_VER} repository list - created 2019-04-26 08:58 UTC
 # http://mariadb.org/mariadb/repositories/
-deb [arch=amd64] http://ftp.osuosl.org/pub/mariadb/repo/10.1/ubuntu ${DISTRIB_REPO} main
-deb-src http://ftp.osuosl.org/pub/mariadb/repo/10.1/ubuntu ${DISTRIB_REPO} main
+deb [arch=amd64,arm64,ppc64el] http://ftp.osuosl.org/pub/mariadb/repo/${MARIADB_VER}/ubuntu ${DISTRIB_REPO} main
+deb-src http://ftp.osuosl.org/pub/mariadb/repo/${MARIADB_VER}/ubuntu ${DISTRIB_REPO} main
 EOL
 fi
 

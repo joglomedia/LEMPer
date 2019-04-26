@@ -4,7 +4,7 @@ header_msg
 echo "Installing MariaDB server..."
 
 # Install MariaDB
-apt-get install -y mariadb-server-10.1 mariadb-client-10.1 mariadb-server-core-10.1 mariadb-common mariadb-server libmariadbclient18 mariadb-client-core-10.1
+apt-get install -y mariadb-server libmariadbclient18
 
 # Fix MySQL error?
 # Ref: https://serverfault.com/questions/104014/innodb-error-log-file-ib-logfile0-is-of-different-size
