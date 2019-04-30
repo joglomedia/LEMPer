@@ -14,7 +14,7 @@ if [[ "$DISTRIB_RELEASE" == "14.04" || "$MAJOR_RELEASE_NUMBER" == "17" ]]; then
 
     # Nginx custom with ngx cache purge
     # https://rtcamp.com/wordpress-nginx/tutorials/single-site/fastcgi-cache-with-purging/
-    run add-apt-repository ppa:rtcamp/nginx
+    run add-apt-repository -y ppa:rtcamp/nginx
 
     # MariaDB 10.2 repo
     MARIADB_VER="10.2"
@@ -38,7 +38,7 @@ elif [[ "$DISTRIB_RELEASE" == "18.04" || "$MAJOR_RELEASE_NUMBER" == "19" ]]; the
 
     # Nginx repo
     run apt-key fingerprint ABF5BD827BD9BF62
-    run add-apt-repository ppa:nginx/stable
+    run add-apt-repository -y ppa:nginx/stable
 
     # MariaDB 10.3 repo
     MARIADB_VER="10.3"
@@ -62,9 +62,10 @@ fi
 
 # Add PHP (latest stable) from Ondrej's repo
 # Source: https://launchpad.net/~ondrej/+archive/ubuntu/php
-run add-apt-repository ppa:ondrej/php -y
+
 # Fix for NO_PUBKEY key servers error
-run apt-key adv --keyserver khkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
+run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
+run add-apt-repository -y ppa:ondrej/php
 
 echo "Updating repository and install pre-requisites..."
 
