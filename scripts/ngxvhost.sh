@@ -567,7 +567,7 @@ Help: adduser username, try ngxvhost -h for more helps"
 
             # Restart PHP FPM
             status "Restart php${PHP_VERSION}-fpm configuration..."
-            run systemctl restart "php${PHP_VERSION}-fpm.service"
+            run service "php${PHP_VERSION}-fpm" restart
         fi
     else
         fail "Error: There is no PHP${PHP_VERSION} version installed, please install it first! Aborting..."
@@ -693,7 +693,7 @@ Help: adduser username, try ngxvhost -h for more helps"
         # Reload Nginx
         status "Reloading Nginx configuration..."
         #service nginx reload -s
-        run systemctl reload "nginx.service"
+        run service nginx reload
 
         if [ "${FRAMEWORK}" = "wordpress-ms" ]; then
             warning "Note: You're installing Wordpress Multisite."
