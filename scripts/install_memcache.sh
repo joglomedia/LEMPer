@@ -58,10 +58,7 @@ if [[ "$MemcachedInstall" == "Y" || "$MemcachedInstall" == "y" || "$MemcachedIns
         enable_memcache "7.2"
         enable_memcache "7.3"
     fi
-    
-    # Restart Memcached daemon
-    systemctl restart memcached.service
 
-    # Enable Memcached on system boot
-    systemctl enable memcached.service
+    # Restart Memcached daemon
+    service memcached restart
 fi

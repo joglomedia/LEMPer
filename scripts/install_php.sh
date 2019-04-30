@@ -38,7 +38,7 @@ function install_php {
                 apt-get -y install gcc make autoconf libc-dev pkg-config
                 apt-get -y install libmcrypt-dev libreadline-dev
                 pecl install mcrypt-1.0.1
-                
+
                 # enable module
                 echo -e "\nCreating config file with new version"
                 bash -c "echo extension=mcrypt.so > /etc/php/${PHPv}/mods-available/mcrypt.ini"
@@ -329,7 +329,7 @@ function optimize_php {
     if [ ! -d /etc/php/${PHPv}/fpm/pool.d ]; then
         mkdir /etc/php/${PHPv}/fpm/pool.d
     fi
-    
+
     # Copy the optimized-version of php fpm default pool
     if [ -f php/${PHPv}/fpm/pool.d/www.conf ]; then
         mv /etc/php/${PHPv}/fpm/pool.d/www.conf /etc/php/${PHPv}/fpm/pool.d/www.conf~
@@ -482,5 +482,8 @@ function init_php_install() {
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-init_php_install "$@"
-
+if [[ -n $(which php) && -n $(which php7.0) && -n $(which php7.1) && -n $(which php7.2) && -n $(which php7.3) ]]; then
+    warning "PHP already installed. Installation skipped..."
+else
+    init_php_install "$@"
+fi
