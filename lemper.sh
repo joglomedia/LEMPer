@@ -31,23 +31,28 @@
 
 set -e  # Work even if somebody does "sh thisscript.sh".
 
+# Include decorator
+if [ "$(type -t run)" != "function" ]; then
+    . scripts/decorator.sh
+fi
+
 # Make sure only root can run this installer script
 if [ $(id -u) -ne 0 ]; then
-    echo "This script must be run as root..."
-    exit 0
+    error "This script must be run as root..."
+    exit 1
 fi
 
 # Make sure this script only run on Ubuntu install
 if [ ! -f "/etc/lsb-release" ]; then
-    echo "This installer only work on Ubuntu server..."
-    exit 0
+    warning "This installer only work on Ubuntu server..."
+    exit 1
 else
     # Variables
     arch=$(uname -p)
     IPAddr=$(hostname -i)
 
     # export lsb-release vars
-    . /etc/lsb-release 
+    . /etc/lsb-release
 
     MAJOR_RELEASE_NUMBER=$(echo $DISTRIB_RELEASE | awk -F. '{print $1}')
 fi
@@ -60,18 +65,18 @@ cat <<- _EOF_
 #========================================================================#
 #     A small tool to install Nginx + MariaDB (MySQL) + PHP on Linux     #
 #                                                                        #
-#        For more information please visit http://www.ngxtools.cf        #
+#      For more information please visit https://ngxtools.eslabs.id      #
 #========================================================================#
 _EOF_
 sleep 1
 }
 header_msg
 
-echo "Starting LEMP installation, ensure that you're on a fresh box install!"
+echo "Starting LEMP installation... Please ensure that you're on a fresh box install!"
 read -t 10 -p "Press [Enter] to continue..." </dev/tty
 
 ### Clean up ###
-. scripts/remove_apache.sh
+. scripts/clean_server.sh
 
 ### ADD Repos ###
 . scripts/add_repo.sh
@@ -97,7 +102,7 @@ read -t 10 -p "Press [Enter] to continue..." </dev/tty
 
 ### FINAL STEP ###
 # Cleaning up all build dependencies hanging around on production server?
-apt-get autoremove -y
+run apt-get autoremove -y
 
 clear
 echo "#==========================================================================#"
