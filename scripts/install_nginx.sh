@@ -12,7 +12,7 @@ if [[ -n $(which nginx) && -d /etc/nginx/sites-available ]]; then
     warning "Nginx web server already exists. Installation skipped..."
 else
     # Install Nginx custom
-    run apt-get install -y --allow-unauthenticated nginx-stable
+    run apt-get install -y --allow-unauthenticated ${NGX_PACKAGE}
 
     # Copy custom Nginx Config
     run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.old

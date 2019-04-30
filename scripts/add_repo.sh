@@ -16,6 +16,7 @@ if [[ "$DISTRIB_RELEASE" == "14.04" || "$MAJOR_RELEASE_NUMBER" == "17" ]]; then
     # Nginx custom with ngx cache purge
     # https://rtcamp.com/wordpress-nginx/tutorials/single-site/fastcgi-cache-with-purging/
     run add-apt-repository -y ppa:rtcamp/nginx
+    NGX_PACKAGE="nginx-custom"
 
     # MariaDB 10.2 repo
     MARIADB_VER="10.2"
@@ -29,6 +30,7 @@ elif [[ "$DISTRIB_RELEASE" == "16.04" || "$MAJOR_RELEASE_NUMBER" == "18" ]]; the
     # Nginx custom repo with ngx cache purge
     run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3050AC3CD2AE6F03
     run sh -c "echo 'deb http://download.opensuse.org/repositories/home:/rtCamp:/EasyEngine/xUbuntu_16.04/ /' >> /etc/apt/sources.list.d/nginx-xenial.list"
+    NGX_PACKAGE="nginx-custom"
 
     # MariaDB 10.3 repo
     MARIADB_VER="10.3"
@@ -42,6 +44,7 @@ elif [[ "$DISTRIB_RELEASE" == "18.04" || "$MAJOR_RELEASE_NUMBER" == "19" ]]; the
     # Nginx repo
     run apt-key fingerprint ABF5BD827BD9BF62
     run add-apt-repository -y ppa:nginx/stable
+    NGX_PACKAGE="nginx-stable"
 
     # MariaDB 10.3 repo
     MARIADB_VER="10.3"
