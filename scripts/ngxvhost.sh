@@ -21,71 +21,9 @@ VERSION='1.6.0'
 LAST_UPDATE='29/12/2018'
 
 INSTALL_DIR=$(pwd)
+DRYRUN=false
 
-# May need to run this as sudo!
-# I have it in /usr/local/bin and run command 'ngxvhost' from anywhere, using sudo.
-if [ $(id -u) -ne 0 ]; then
-    echo "You must be root: \"sudo ngxvhost\""
-    exit 1  #error
-fi
-
-# Check prerequisite packages
-if [[ ! -f $(which unzip) || ! -f $(which git) || ! -f $(which rsync) ]]; then
-    echo "Ngxvhost requires rsync, unzip and git, please install it first"
-    echo "help: sudo apt-get install rsync unzip git"
-    exit 1
-fi
-
-#
-# Show Usage, Output to STDERR
-#
-function show_usage {
-cat <<- _EOF_
-ngxvhost $VERSION
-Creates Nginx virtual host (vHost) configuration file.
-
-Requirements:
-  * Nginx setup uses /etc/nginx/sites-available and /etc/nginx/sites-enabled
-  * PHP FPM setup uses /etc/php/{version_number}/fpm/
-
-Usage: ngxvhost [options]...
-
-Options:
-  -u, --username <virtual-host username>
-      Use username added from adduser/useradd. Do not use root user.
-
-  -s, --domain-name <server domain name>
-      Any valid domain name and/or sub domain name is allowed.
-      i.e. example.com or sub.example.com
-
-  -d, --docroot <document root>
-      Document root is absolut path to the website root directory.
-      i.e. /home/username/Webs/example.test
-
-  -t, --framework <website framework>
-      Type of web framework and cms, i.e. default.
-      Currently supported framework and cms: default (vanilla php), codeigniter, laravel, phalcon, wordpress, wordpress-ms.
-
-      Another framework and cms will be added soon.
-
-  -c, --clone-skeleton <framework default skeleton>
-      Clone default skeleton for selected framework.
-
-  -h, --help
-      Print this message and exit.
-
-Example:
-ngxvhost -u username -s example.com -t default -d /home/username/Webs/example.dev
-
-Found bugs or suggestions?
-Send your pull request to https://github.com/joglomedia/LEMPer.git.
-
-_EOF_
-}
-
-#
 # Decorator
-#
 RED=31
 GREEN=32
 YELLOW=33
@@ -154,6 +92,67 @@ function run() {
             exit 1
         fi
     fi
+}
+
+# May need to run this as sudo!
+# I have it in /usr/local/bin and run command 'ngxvhost' from anywhere, using sudo.
+if [ $(id -u) -ne 0 ]; then
+    error "You must be root: sudo ngxvhost"
+    exit 1  #error
+fi
+
+# Check prerequisite packages
+if [[ ! -f $(which unzip) || ! -f $(which git) || ! -f $(which rsync) ]]; then
+    warning "Ngxvhost requires rsync, unzip and git, please install it first"
+    echo "help: sudo apt-get install rsync unzip git"
+    exit 0
+fi
+
+#
+# Show Usage, Output to STDERR
+#
+function show_usage {
+cat <<- _EOF_
+ngxvhost $VERSION
+Creates Nginx virtual host (vHost) configuration file.
+
+Requirements:
+  * Nginx setup uses /etc/nginx/sites-available and /etc/nginx/sites-enabled
+  * PHP FPM setup uses /etc/php/{version_number}/fpm/
+
+Usage: ngxvhost [options]...
+
+Options:
+  -u, --username <virtual-host username>
+      Use username added from adduser/useradd. Do not use root user.
+
+  -s, --domain-name <server domain name>
+      Any valid domain name and/or sub domain name is allowed.
+      i.e. example.com or sub.example.com
+
+  -d, --docroot <document root>
+      Document root is absolut path to the website root directory.
+      i.e. /home/username/Webs/example.test
+
+  -t, --framework <website framework>
+      Type of web framework and cms, i.e. default.
+      Currently supported framework and cms: default (vanilla php), codeigniter, laravel, phalcon, wordpress, wordpress-ms.
+
+      Another framework and cms will be added soon.
+
+  -c, --clone-skeleton <framework default skeleton>
+      Clone default skeleton for selected framework.
+
+  -h, --help
+      Print this message and exit.
+
+Example:
+ngxvhost -u username -s example.com -t default -d /home/username/Webs/example.dev
+
+Found bugs or suggestions?
+Send your pull request to https://github.com/joglomedia/LEMPer.git.
+
+_EOF_
 }
 
 #
