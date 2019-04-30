@@ -11,6 +11,7 @@ echo "Adding repositories..."
 if [[ "$DISTRIB_RELEASE" == "14.04" || "$MAJOR_RELEASE_NUMBER" == "17" ]]; then
     # Ubuntu release 14.04, LinuxMint 17
     DISTRIB_REPO="trusty"
+    ARCH_REPO="amd64,i386,ppc64el"
 
     # Nginx custom with ngx cache purge
     # https://rtcamp.com/wordpress-nginx/tutorials/single-site/fastcgi-cache-with-purging/
@@ -23,6 +24,7 @@ if [[ "$DISTRIB_RELEASE" == "14.04" || "$MAJOR_RELEASE_NUMBER" == "17" ]]; then
 elif [[ "$DISTRIB_RELEASE" == "16.04" || "$MAJOR_RELEASE_NUMBER" == "18" ]]; then
     # Ubuntu release 16.04, LinuxMint 18
     DISTRIB_REPO="xenial"
+    ARCH_REPO="amd64,arm64,i386,ppc64el"
 
     # Nginx custom repo with ngx cache purge
     run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3050AC3CD2AE6F03
@@ -35,6 +37,7 @@ elif [[ "$DISTRIB_RELEASE" == "16.04" || "$MAJOR_RELEASE_NUMBER" == "18" ]]; the
 elif [[ "$DISTRIB_RELEASE" == "18.04" || "$MAJOR_RELEASE_NUMBER" == "19" ]]; then
     # Ubuntu release 18.04, LinuxMint 19
     DISTRIB_REPO="bionic"
+    ARCH_REPO="amd64,arm64,ppc64el"
 
     # Nginx repo
     run apt-key fingerprint ABF5BD827BD9BF62
@@ -55,7 +58,7 @@ touch /etc/apt/sources.list.d/MariaDB-${DISTRIB_REPO}.list
 cat > /etc/apt/sources.list.d/MariaDB-${DISTRIB_REPO}.list <<EOL
 # MariaDB ${MARIADB_VER} repository list - created 2019-04-26 08:58 UTC
 # http://mariadb.org/mariadb/repositories/
-deb [arch=amd64,arm64,ppc64el] http://ftp.osuosl.org/pub/mariadb/repo/${MARIADB_VER}/ubuntu ${DISTRIB_REPO} main
+deb [arch=${ARCH_REPO}] http://ftp.osuosl.org/pub/mariadb/repo/${MARIADB_VER}/ubuntu ${DISTRIB_REPO} main
 deb-src http://ftp.osuosl.org/pub/mariadb/repo/${MARIADB_VER}/ubuntu ${DISTRIB_REPO} main
 EOL
 fi
