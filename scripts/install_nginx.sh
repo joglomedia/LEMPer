@@ -95,7 +95,10 @@ function init_nginx_install() {
     nginx_install_menu
 
     # Copy custom Nginx Config
-    run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.old
+    if [ -f /etc/nginx/nginx.conf ]; then
+        run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.old
+    fi
+
     run cp -f nginx/nginx.conf /etc/nginx/
     run cp -f nginx/fastcgi_cache /etc/nginx/
     run cp -f nginx/fastcgi_https_map /etc/nginx/
@@ -107,13 +110,21 @@ function init_nginx_install() {
     run cp -f nginx/upstream.conf /etc/nginx/
     run cp -fr nginx/conf.vhost/ /etc/nginx/
     run cp -fr nginx/ssl/ /etc/nginx/
-    run mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default.old
+
+    if [ -f /etc/nginx/sites-available/default ]; then
+        run mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default.old
+    fi
+
     run cp -f nginx/sites-available/default /etc/nginx/sites-available/
     run cp -f nginx/sites-available/phpmyadmin.conf /etc/nginx/sites-available/
     run cp -f nginx/sites-available/sample-wordpress.dev.conf /etc/nginx/sites-available/
     run cp -f nginx/sites-available/sample-wordpress-ms.dev.conf /etc/nginx/sites-available/
     run cp -f nginx/sites-available/ssl.sample-site.dev.conf /etc/nginx/sites-available/
-    run unlink /etc/nginx/sites-enabled/default
+
+    if [ -f /etc/nginx/sites-enabled/default ]; then
+        run unlink /etc/nginx/sites-enabled/default
+    fi
+    
     run ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/01-default
 
     if [ -d "/usr/share/nginx/html" ]; then
