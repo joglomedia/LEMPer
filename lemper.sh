@@ -57,7 +57,7 @@ else
     MAJOR_RELEASE_NUMBER=$(echo $DISTRIB_RELEASE | awk -F. '{print $1}')
 fi
 
-header_msg()
+header_msg
 
 echo "Starting LEMP installation... Please ensure that you're on a fresh box install!"
 read -t 10 -p "Press [Enter] to continue..." </dev/tty
