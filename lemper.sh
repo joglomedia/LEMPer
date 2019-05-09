@@ -55,6 +55,10 @@ else
     . /etc/lsb-release
 
     MAJOR_RELEASE_NUMBER=$(echo $DISTRIB_RELEASE | awk -F. '{print $1}')
+
+    if [[ "$DISTRIB_ID" == "LinuxMint" ]]; then
+        DISTRIB_RELEASE="LM${MAJOR_RELEASE_NUMBER}"
+    fi
 fi
 
 header_msg
