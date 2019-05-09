@@ -22,7 +22,7 @@ function nginx_install_menu() {
         ;;
         2)
             echo "Installing Nginx from source..."
-            run ${BASEDIR}/install_nginx_from_source.sh -v latest-stable -n latest -t Release \
+            run ${BASEDIR}/install_nginx_from_source.sh -v latest-stable -n latest \
                 --dynamic-module --psol-from-source --extra-modules -y
         ;;
         *)
