@@ -76,7 +76,11 @@ function nginx_install_menu() {
         echo -en "\nEnable Nginx dynamic modules? [Y/n]: "
         read enableDM
         if [[ "$enableDM" == Y* || "$enableDM" == y* ]]; then
-            run ln -s /etc/nginx/modules-available/mod-pagespeed.conf /etc/nginx/modules-enabled/50-mod-pagespeed.conf
+
+            if [ ! -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]; then
+                run ln -s /etc/nginx/modules-available/mod-pagespeed.conf /etc/nginx/modules-enabled/50-mod-pagespeed.conf
+            fi
+
             #run ln -s /etc/nginx/modules-available/mod-http-geoip.conf /etc/nginx/modules-enabled/50-mod-http-geoip.conf
         fi
 
@@ -124,7 +128,7 @@ function init_nginx_install() {
     if [ -f /etc/nginx/sites-enabled/default ]; then
         run unlink /etc/nginx/sites-enabled/default
     fi
-    
+
     run ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/01-default
 
     if [ -d "/usr/share/nginx/html" ]; then
