@@ -6,7 +6,7 @@ if [ "$(type -t run)" != "function" ]; then
     . ${BASEDIR}/decorator.sh
 fi
 
-echo "Installing MariaDB SQL database server..."
+echo -e "\nInstalling MariaDB SQL database server..."
 
 # Install MariaDB
 run apt-get install -y mariadb-server libmariadbclient18
