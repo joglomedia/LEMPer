@@ -79,6 +79,7 @@ echo "Updating repository and install required packages..."
 run apt-get update -y
 
 # Install pre-requirements
-run apt-get install -y software-properties-common python-software-properties build-essential git unzip cron curl gnupg2 ca-certificates lsb-release rsync openssl snmp spawn-fcgi fcgiwrap geoip-database
+#python-software-properties
+run apt-get install -y software-properties-common build-essential git unzip cron curl gnupg2 ca-certificates lsb-release rsync openssl snmp spawn-fcgi fcgiwrap geoip-database
 
 status "Adding repositories completed..."
