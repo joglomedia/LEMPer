@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 
-header_msg
-echo "Installing MariaDB server..."
+# Include decorator
+if [ "$(type -t run)" != "function" ]; then
+    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+    . ${BASEDIR}/decorator.sh
+fi
+
+echo "Installing MariaDB SQL database server..."
 
 # Install MariaDB
-apt-get install -y mariadb-server libmariadbclient18
+run apt-get install -y mariadb-server libmariadbclient18
 
 # Fix MySQL error?
 # Ref: https://serverfault.com/questions/104014/innodb-error-log-file-ib-logfile0-is-of-different-size
@@ -14,9 +19,10 @@ apt-get install -y mariadb-server libmariadbclient18
 #service mysql start
 
 # MySQL Secure Install
-mysql_secure_installation
+run mysql_secure_installation
 
 # Restart MariaDB MySQL server
 if [[ $(ps -ef | grep -v grep | grep mysql | wc -l) > 0 ]]; then
-    service mysql restart
+    run service mysql restart
+    status "MariaDB SQL database server installed successfully."
 fi
