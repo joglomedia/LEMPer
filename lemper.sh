@@ -82,6 +82,9 @@ read -t 10 -p "Press [Enter] to continue..." </dev/tty
 ### MySQL Database Installation ###
 . scripts/install_mariadb.sh
 
+### Redis Database Installation ###
+. scripts/install_redis.sh
+
 ### Mail Server Installation ###
 . scripts/install_postfix.sh
 
