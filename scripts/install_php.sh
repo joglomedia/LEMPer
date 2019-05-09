@@ -27,7 +27,7 @@ function install_php() {
 
     # Checking if php already installed
     if [[ -n $(which php${PHPv}) ]]; then
-        warning "PHP $PHPv package already installed..."
+        warning -e "\nPHP $PHPv package already installed..."
     else
         echo "Installing PHP $PHPv..."
 
@@ -136,7 +136,7 @@ function install_ic() {
 
     # Delete old loaders file
     if [ -d /usr/lib/php/loaders/ioncube ]; then
-        warning "Removing old/existing IonCube PHP loader..."
+        echo "Removing old/existing IonCube PHP loader..."
         run rm -fr /usr/lib/php/loaders/ioncube
     fi
 
@@ -357,9 +357,17 @@ function optimize_php() {
     sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/" /etc/php/${PHPv}/fpm/pool.d/www.conf
 
     # Restart PHP-fpm server
-    if [[ $(ps -ef | grep -v grep | grep php${PHPv}-fpm | wc -l) > 0 ]]; then
+    if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
         run service php${PHPv}-fpm restart
-        status "${PHPv} & PHP${PHPv}-FPM installed successfully."
+        status "${PHPv} & PHP${PHPv}-FPM restarted successfully."
+    elif [[ -n $(which php${PHPv}) ]]; then
+        run service php${PHPv}-fpm start
+
+        if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
+            status "${PHPv} & PHP${PHPv}-FPM started successfully."
+        else
+            warning "Something wrong with PHP installation."
+        fi
     fi
 }
 
@@ -417,7 +425,7 @@ function init_php_install() {
 
     # Install default PHP version used by LEMPer
     if [[ ! -n $(which php7.3) ]]; then
-        warning "LEMPer requires PHP 7.3 as default to run its administration tools."
+        warning -e "\nLEMPer requires PHP 7.3 as default to run its administration tools."
         echo "PHP 7.3 now being installed..."
         install_php "7.3"
     fi
