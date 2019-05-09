@@ -123,17 +123,17 @@ function init_nginx_install() {
     # Nginx cache directory
     if [ ! -d "/var/cache/nginx/" ]; then
         run mkdir /var/cache/nginx
-        run chown -hR www-data: /var/cache/nginx
+        run chown -hR www-data:root /var/cache/nginx
     fi
 
     if [ ! -d "/var/cache/nginx/fastcgi_cache" ]; then
         run mkdir /var/cache/nginx/fastcgi_cache
-        run chown -hR www-data: /var/cache/nginx/fastcgi_cache
+        run chown -hR www-data:root /var/cache/nginx/fastcgi_cache
     fi
 
     if [ ! -d "/var/cache/nginx/proxy_cache" ]; then
         run mkdir /var/cache/nginx/proxy_cache
-        run chown -hR www-data: /var/cache/nginx/proxy_cache
+        run chown -hR www-data:root /var/cache/nginx/proxy_cache
     fi
 
     # Check IP Address
