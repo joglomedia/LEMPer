@@ -420,7 +420,7 @@ function init_php_install() {
         warning "LEMPer requires PHP 7.3 as default to run its administration tools."
         echo "PHP 7.3 now being installed..."
         install_php "7.3"
-    else
+    fi
 
     # Menu Install PHP loader
     #header_msg
