@@ -63,7 +63,7 @@ fi
 
 header_msg
 
-echo "Starting LEMP installation... Please ensure that you're on a fresh box install!"
+echo -e "\nStarting LEMP installation...\nPlease ensure that you're on a fresh box install!\n"
 read -t 10 -p "Press [Enter] to continue..." </dev/tty
 
 ### Clean up ###
