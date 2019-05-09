@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 
+# Include decorator
+if [ "$(type -t run)" != "function" ]; then
+    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+    . ${BASEDIR}/decorator.sh
+fi
+
 # Make sure only root can run this installer script
 if [ $(id -u) -ne 0 ]; then
-    echo "This script must be run as root..."
+    error "This script must be run as root..."
     exit 1
 fi
+
+echo -e "\nWelcome to Redis installation script"
 
 function enable_redis {
 # Custom Redis setting
@@ -15,26 +23,36 @@ maxmemory-policy allkeys-lru
 EOL
 }
 
-header_msg
-echo -n "Do you want to install Redis? [Y/n]: "
+#header_msg
+echo -en "\nDo you want to install Redis? [Y/n]: "
 read RedisInstall
 
-if [[ "$RedisInstall" == "Y" || "$RedisInstall" == "y" || "$RedisInstall" == "yes" ]]; then
-    echo "Installing Redis server and Redis PHP module..."
+if [[ "$RedisInstall" == Y* || "$RedisInstall" == y* ]]; then
+    echo -e "\nInstalling Redis server and Redis PHP module..."
 
     # Add Redis repos
-    add-apt-repository ppa:chris-lea/redis-server -y
-    apt-get update -y
+    run add-apt-repository ppa:chris-lea/redis-server -y
+    run apt-get update -y
 
     # Install Redis
-    apt-get install -y redis-server php-redis
+    run apt-get install -y redis-server php-redis
 
     # Configure Redis
     enable_redis
-    
-    # Restart redis daemon
-    systemctl restart redis-server.service
 
-    # Enable Redis on system boot
-    systemctl enable redis-server.service
+    # Restart redis daemon
+    if [ -f /etc/systemd/system/redis.service ]; then
+        run systemctl restart redis-server.service
+
+        # Enable Redis on system boot
+        run systemctl enable redis-server.service
+    else
+        run service redis-server restart
+    fi
+
+    if [[ $(ps -ef | grep -v grep | grep redis-server | wc -l) > 0 ]]; then
+        status "Redis server started successfully."
+    else
+        warning "Something wrong with Redis installation."
+    fi
 fi
