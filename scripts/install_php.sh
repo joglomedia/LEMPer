@@ -359,12 +359,12 @@ function optimize_php() {
     # Restart PHP-fpm server
     if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
         run service php${PHPv}-fpm restart
-        status "${PHPv} & PHP${PHPv}-FPM restarted successfully."
+        status "PHP${PHPv}-FPM restarted successfully."
     elif [[ -n $(which php${PHPv}) ]]; then
         run service php${PHPv}-fpm start
 
         if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
-            status "${PHPv} & PHP${PHPv}-FPM started successfully."
+            status "PHP${PHPv}-FPM started successfully."
         else
             warning "Something wrong with PHP installation."
         fi
