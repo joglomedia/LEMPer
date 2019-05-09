@@ -1,20 +1,34 @@
 #!/usr/bin/env bash
 
+# Include decorator
+if [ "$(type -t run)" != "function" ]; then
+    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+    . ${BASEDIR}/decorator.sh
+fi
+
+# Make sure only root can run this installer script
+if [ $(id -u) -ne 0 ]; then
+    error "This script must be run as root..."
+    exit 1
+fi
+
+echo -e "\nWelcome to Postfix installation script"
+
 # Install Postfix mail server
 function install_postfix {
-    echo "Installing Postfix Mail Server..."
+    echo -e "\nInstalling Postfix Mail Server..."
 
-    apt-get install -y mailutils postfix
+    run apt-get install -y mailutils postfix
 
     # Update local time
-    apt-get install -y ntpdate
-    ntpdate -d cn.pool.ntp.org
+    run apt-get install -y ntpdate
+    run ntpdate -d cn.pool.ntp.org
 }
 
-header_msg
-echo -n "Do you want to install Postfix Mail Server? [Y/n]: "
+#header_msg
+echo -en "\nDo you want to install Postfix Mail Server? [Y/n]: "
 read pfinstall
 
-if [[ "$pfinstall" == "Y" || "$pfinstall" == "y" || "$pfinstall" == "yes" ]]; then
+if [[ "$pfinstall" == Y* || "$pfinstall" == y* ]]; then
     install_postfix
 fi
