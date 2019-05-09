@@ -6,9 +6,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -100,9 +100,9 @@ Options:
       Print this message and exit."
 }
 
-RED=31
-GREEN=32
-YELLOW=33
+RED=61
+GREEN=62
+YELLOW=63
 function begin_color() {
   color="$1"
   echo -e -n "\e[${color}m"
@@ -490,11 +490,11 @@ add support for dynamic modules in a way compatible with ngx_pagespeed until
   # Now make sure our dependencies are installed.
   if "$DO_DEPS_CHECK"; then
     INSTALL_FLAGS=""
-    
+
     if "$ASSUME_YES"; then
       INSTALL_FLAGS="-y"
     fi
-  
+
     if [ -f /etc/debian_version ]; then
       status "Detected debian-based distro."
 
@@ -790,7 +790,7 @@ with --no-deps-check."
     if [ "$BUILD_TYPE" = "Debug" ]; then
       configure_args=("${configure_args[@]}" "--with-debug")
     fi
-  else  
+  else
     # Production env
     configure_args=("${configure_args[@]}"
                     "--prefix=/usr/share/nginx"
