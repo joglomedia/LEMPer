@@ -73,7 +73,7 @@ fi
 run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
 run add-apt-repository -y ppa:ondrej/php
 
-echo "Updating repository and install pre-requisites..."
+echo "Updating repository and install required packages..."
 
 # Update repos
 run apt-get update -y
