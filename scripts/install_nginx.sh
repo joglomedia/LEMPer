@@ -103,6 +103,8 @@ function nginx_install_menu() {
 }
 
 function init_nginx_install() {
+    echo "\nWelcome to Nginx installation script"
+
     # Install Nginx custom
     nginx_install_menu
 
@@ -167,7 +169,15 @@ function init_nginx_install() {
     # Restart Nginx server
     if [[ $(ps -ef | grep -v grep | grep nginx | wc -l) > 0 ]]; then
         run service nginx restart
-        status "Nginx web server installed successfully."
+        status "Nginx web server restarted successfully."
+    elif [[ -n $(which nginx) ]]; then
+        run service nginx start
+
+        if [[ $(ps -ef | grep -v grep | grep nginx | wc -l) > 0 ]]; then
+            status "Nginx web server started successfully."
+        else
+            warning "Something wrong with Nginx installation."
+        fi
     fi
 }
 
