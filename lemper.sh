@@ -57,26 +57,13 @@ else
     MAJOR_RELEASE_NUMBER=$(echo $DISTRIB_RELEASE | awk -F. '{print $1}')
 fi
 
-function header_msg() {
-clear
-cat <<- _EOF_
-#========================================================================#
-#         LEMPer v1.0.0 for Ubuntu Server, Written by MasEDI.Net         #
-#========================================================================#
-#     A small tool to install Nginx + MariaDB (MySQL) + PHP on Linux     #
-#                                                                        #
-#      For more information please visit https://ngxtools.eslabs.id      #
-#========================================================================#
-_EOF_
-sleep 1
-}
-header_msg
+header_msg()
 
 echo "Starting LEMP installation... Please ensure that you're on a fresh box install!"
 read -t 10 -p "Press [Enter] to continue..." </dev/tty
 
 ### Clean up ###
-. scripts/clean_server.sh
+. scripts/cleanup_server.sh
 
 ### ADD Repos ###
 . scripts/add_repo.sh
@@ -109,7 +96,7 @@ echo "#=========================================================================
 echo "#         Thanks for installing LNMP stack using LEMPer Installer          #"
 echo "#        Found any bugs / errors / suggestions? please let me know         #"
 echo "#    If this script useful, don't forget to buy me a coffee or milk :D     #"
-echo "# My PayPal is always open for donation, send your tips here hi@masedi.net #"
+echo "#   My PayPal is always open for donation, here https://paypal.me/masedi   #"
 echo "#                                                                          #"
-echo "#             (c) 2014-2019 - ESLabs.ID - http://eslabs.id ;)              #"
+echo "#         (c) 2014-2019 - ESLabs.ID - https://ngxtools.eslabs.id ;)        #"
 echo "#==========================================================================#"
