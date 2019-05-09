@@ -98,10 +98,10 @@ apt-get autoremove -y
 
 clear
 echo "#==========================================================================#"
-echo "#           Thanks for trying LNMP stack using LEMPer Installer            #"
+echo "#         Thanks for installing LNMP stack using LEMPer Installer          #"
 echo "#        Found any bugs / errors / suggestions? please let me know         #"
 echo "#    If this script useful, don't forget to buy me a coffee or milk :D     #"
-echo "# My PayPal is always open for donation, send your tips here hi@masedi.net #"
+echo "#   My PayPal is always open for donation, here https://paypal.me/masedi   #"
 echo "#                                                                          #"
-echo "#            (c) 2015-2017 - MasEDI.Net - http://masedi.net ;)             #"
+echo "#         (c) 2014-2019 - ESLabs.ID - https://ngxtools.eslabs.id ;)        #"
 echo "#==========================================================================#"
