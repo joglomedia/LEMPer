@@ -416,7 +416,7 @@ function init_php_install() {
     esac
 
     # Install default PHP version used by LEMPer
-    if [[ -n $(which php7.3) ]]; then
+    if [[ ! -n $(which php7.3) ]]; then
         warning "LEMPer requires PHP 7.3 as default to run its administration tools."
         echo "PHP 7.3 now being installed..."
         install_php "7.3"
