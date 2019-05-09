@@ -33,11 +33,11 @@ function nginx_install_menu() {
     esac
 
     if [ ! -d /etc/nginx/modules-available ]; then
-        run mkdir /usr/share/nginx/modules-available
+        run mkdir /etc/nginx/modules-available
     fi
 
     if [ ! -d /etc/nginx/modules-enabled ]; then
-        run mkdir /usr/share/nginx/modules-enabled
+        run mkdir /etc/nginx/modules-enabled
     fi
 
     # Custom Nginx dynamic modules configuration
