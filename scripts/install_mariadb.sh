@@ -6,6 +6,12 @@ if [ "$(type -t run)" != "function" ]; then
     . ${BASEDIR}/decorator.sh
 fi
 
+# Make sure only root can run this installer script
+if [ $(id -u) -ne 0 ]; then
+    error "This script must be run as root..."
+    exit 1
+fi
+
 echo -e "\nInstalling MariaDB SQL database server..."
 
 # Install MariaDB
