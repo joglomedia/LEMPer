@@ -40,6 +40,14 @@ function nginx_install_menu() {
         run mkdir /etc/nginx/modules-enabled
     fi
 
+    if [ ! -d /etc/nginx/sites-available ]; then
+        run mkdir /etc/nginx/sites-available
+    fi
+
+    if [ ! -d /etc/nginx/sites-enabled ]; then
+        run mkdir /etc/nginx/sites-enabled
+    fi
+
     # Custom Nginx dynamic modules configuration
     if [[ "$NgxInstaller" == "2" ]]; then
 
@@ -131,22 +139,22 @@ function init_nginx_install() {
 
     run ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/01-default
 
-    if [ -d "/usr/share/nginx/html" ]; then
+    if [ -d /usr/share/nginx/html ]; then
         run chown -hR www-data:root /usr/share/nginx/html
     fi
 
     # Nginx cache directory
-    if [ ! -d "/var/cache/nginx/" ]; then
+    if [ ! -d /var/cache/nginx ]; then
         run mkdir /var/cache/nginx
         run chown -hR www-data:root /var/cache/nginx
     fi
 
-    if [ ! -d "/var/cache/nginx/fastcgi_cache" ]; then
+    if [ ! -d /var/cache/nginx/fastcgi_cache ]; then
         run mkdir /var/cache/nginx/fastcgi_cache
         run chown -hR www-data:root /var/cache/nginx/fastcgi_cache
     fi
 
-    if [ ! -d "/var/cache/nginx/proxy_cache" ]; then
+    if [ ! -d /var/cache/nginx/proxy_cache ]; then
         run mkdir /var/cache/nginx/proxy_cache
         run chown -hR www-data:root /var/cache/nginx/proxy_cache
     fi
