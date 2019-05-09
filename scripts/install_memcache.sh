@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
 
+# Include decorator
+if [ "$(type -t run)" != "function" ]; then
+    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+    . ${BASEDIR}/decorator.sh
+fi
+
 # Make sure only root can run this installer script
 if [ $(id -u) -ne 0 ]; then
-    echo "This script must be run as root..."
+    error "This script must be run as root..."
     exit 1
 fi
 
 function enable_memcache {
     if [[ -n $1 ]]; then
-        PHPv=$1
+        PHPv="$1"
     else
-        PHPv="7.0" # default php install 7.0 (latest stable recommendation)
+        PHPv="7.3" # default php install 7.0 (latest stable recommendation)
     fi
 
     # Custom Memcache setting
@@ -33,11 +39,11 @@ session.bak_handler = memcache
 session.bak_path = "tcp://127.0.0.1:11211"
 EOL
 else
-    echo "It seems that PHP ${PHPver} not yet installed. Please install it before!"
+    warning "It seems that PHP ${PHPver} not yet installed. Please install it before!"
 fi
 }
 
-header_msg
+
 echo -n "Do you want to install Memcache? [Y/n]: "
 read MemcachedInstall
 
@@ -45,12 +51,19 @@ if [[ "$MemcachedInstall" == "Y" || "$MemcachedInstall" == "y" || "$MemcachedIns
     echo "Installing Memcache and PHP memcached module..."
 
     # Install memcached
-    apt-get install -y memcached php-memcached php-memcache
+    run apt-get install -y memcached php-memcached php-memcache
 
     # Enable PHP module
-    PHPver="7.0"
+    echo "Enabling PHP memcached module..."
+
+    PHPver="7.3"
     if [ "$PHPver" != "all" ]; then
         enable_memcache ${PHPver}
+
+        # Required for LEMPer default PHP
+        if [ "$PHPver" != "7.3" ]; then
+            enable_memcache "7.3"
+        fi
     else
         enable_memcache "5.6"
         enable_memcache "7.0"
@@ -60,5 +73,8 @@ if [[ "$MemcachedInstall" == "Y" || "$MemcachedInstall" == "y" || "$MemcachedIns
     fi
 
     # Restart Memcached daemon
-    service memcached restart
+    if [[ $(ps -ef | grep -v grep | grep memcached | wc -l) > 0 ]]; then
+        run service memcached restart
+        status "Memcached server installed successfully."
+    fi
 fi
