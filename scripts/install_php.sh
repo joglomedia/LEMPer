@@ -35,7 +35,7 @@ function install_php() {
             php${PHPv}-bcmath php${PHPv}-curl php${PHPv}-gd php${PHPv}-intl php${PHPv}-json php${PHPv}-mbstring \
             php${PHPv}-imap php${PHPv}-pspell php${PHPv}-recode php${PHPv}-snmp php${PHPv}-sqlite3 php${PHPv}-tidy \
             php${PHPv}-readline php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-gmp php${PHPv}-opcache \
-            php${PHPv}-soap php${PHPv}-zip php${PHPv}-dev php-geoip php-pear pkg-php-tools php-phalcon
+            php${PHPv}-soap php${PHPv}-zip php${PHPv}-ldap php${PHPv}-dev php-geoip php-pear pkg-php-tools php-phalcon
 
         # Install php mcrypt?
         echo -en "\nDo you want to install PHP Mcrypt for encryption/decryption? [Y/n]: "
@@ -85,7 +85,7 @@ function remove_php() {
             php${PHPv}-bcmath php${PHPv}-curl php${PHPv}-gd php${PHPv}-intl php${PHPv}-json php${PHPv}-mbstring \
             php${PHPv}-imap php${PHPv}-pspell php${PHPv}-recode php${PHPv}-snmp php${PHPv}-sqlite3 php${PHPv}-tidy \
             php${PHPv}-readline php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-gmp php${PHPv}-opcache \
-            php${PHPv}-soap php${PHPv}-zip php${PHPv}-dev php-geoip php-pear pkg-php-tools php-phalcon
+            php${PHPv}-soap php${PHPv}-zip php${PHPv}-ldap php${PHPv}-dev php-geoip php-pear pkg-php-tools php-phalcon
 
         isMcrypt=$(/usr/bin/php${PHPv} -m | grep mcrypt)
         if [[ "_$isMcrypt" == "_mcrypt" ]]; then
