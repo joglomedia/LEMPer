@@ -73,3 +73,26 @@ function run() {
         fi
     fi
 }
+
+function continue_or_exit() {
+    local prompt="$1"
+    echo_color "$YELLOW" -n "$prompt"
+    read -p " [Y/n] " yn
+    if [[ "$yn" == N* || "$yn" == n* ]]; then
+        echo "Cancelled."
+        exit 0
+    fi
+}
+
+function header_msg() {
+clear
+cat <<- _EOF_
+#========================================================================#
+#         LEMPer v1.0.0 for Ubuntu Server, Written by MasEDI.Net         #
+#========================================================================#
+#     A small tool to install Nginx + MariaDB (MySQL) + PHP on Linux     #
+#                                                                        #
+#      For more information please visit https://ngxtools.eslabs.id      #
+#========================================================================#
+_EOF_
+}
