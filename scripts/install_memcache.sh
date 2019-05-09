@@ -12,6 +12,8 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
+echo -e "\nWelcome to PHP installation script"
+
 function enable_memcache {
     if [[ -n $1 ]]; then
         PHPv="$1"
