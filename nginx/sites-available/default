@@ -26,7 +26,7 @@ server {
 
 	root /usr/share/nginx/html;
 	index index.php index.html index.htm;
-	
+
 	# Log Settings.
 	access_log   /var/log/nginx/localhost.access.log;
 	error_log    /var/log/nginx/localhost.error.log;
@@ -52,40 +52,60 @@ server {
 	#	root /usr/share/nginx/www;
 	#}
 
-	# pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
-	#
+    # Pass the PHP scripts to FastCGI server listening on Unix socket
+    #
 	location ~ \.php$ {
-	#	# NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
-		fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
 
-	#	# With php5-fpm:
-		fastcgi_pass unix:/run/php/php5.6-fpm.sock;
+        # With php5-fpm:
+        fastcgi_pass unix:/run/php/php5.6-fpm.sock;
 		fastcgi_index index.php;
 		include /etc/nginx/fastcgi_params;
 	}
 
-        location ~ \.php70$ {
-        #       # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
-                fastcgi_split_path_info ^(.+\.php70)(/.+)$;
+    location ~ \.php70$ {
+        # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
+        fastcgi_split_path_info ^(.+\.php70)(/.+)$;
 
-        #       # With php7.0-fpm:
-                fastcgi_pass unix:/run/php/php7.0-fpm.sock;
-                fastcgi_index index.php;
-                include /etc/nginx/fastcgi_params;
-        }
+        # With php7.0-fpm:
+        fastcgi_pass unix:/run/php/php7.0-fpm.sock;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+    }
 
-        location ~ \.php71$ {
-        #       # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
-                fastcgi_split_path_info ^(.+\.php71)(/.+)$;
+    location ~ \.php71$ {
+        # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
+        fastcgi_split_path_info ^(.+\.php71)(/.+)$;
 
-        #       # With php7.1-fpm:
-                fastcgi_pass unix:/run/php/php7.1-fpm.sock;
-                fastcgi_index index.php;
-                include /etc/nginx/fastcgi_params;
-        }
+        # With php7.1-fpm:
+        fastcgi_pass unix:/run/php/php7.1-fpm.sock;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+    }
 
-	# deny access to .htaccess files, if Apache's document root
-	# concurs with nginx's one
+    location ~ \.php72$ {
+        # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
+        fastcgi_split_path_info ^(.+\.php72)(/.+)$;
+
+        # With php7.2-fpm:
+        fastcgi_pass unix:/run/php/php7.2-fpm.sock;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+    }
+
+    location ~ \.php73$ {
+        # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
+        fastcgi_split_path_info ^(.+\.php73)(/.+)$;
+
+        # With php7.3-fpm:
+        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+    }
+
+	# Deny access to .htaccess files, if Apache's document root
+	# concurs with Nginx's one
 	#
 	location ~ /\.ht {
 		deny all;
@@ -97,12 +117,12 @@ server {
 	listen   8082; ## listen for ipv4; this line is default and implied
 	#listen   [::]:80 default ipv6only=on; ## listen for ipv6
 
-	# Make site accessible from http://localhost/
+	# Make site accessible from http://localhost.localdomain/
 	server_name localhost.localdomain;
 
-	root /usr/share/nginx/html/tools;
+	root /usr/share/nginx/html/tools/adminer;
 	index index.php index.html index.htm;
-	
+
 	# Log Settings.
 	access_log   /var/log/nginx/localhost.access.log;
 	error_log    /var/log/nginx/localhost.error.log;
@@ -119,60 +139,76 @@ server {
 		autoindex on;
 	}
 
-	# pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
-	#
+	# Pass the PHP scripts to FastCGI server listening on Unix socket
+    #
 	location ~ \.php$ {
-	#	# NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
-		fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
 
-	#	# With php5-fpm:
-		fastcgi_pass unix:/run/php/php5.6-fpm.sock;
+        # With php7.3-fpm:
+        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
 		fastcgi_index index.php;
 		include /etc/nginx/fastcgi_params;
 	}
 
-        location ~ \.php70$ {
-        #       # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
-                fastcgi_split_path_info ^(.+\.php70)(/.+)$;
-
-        #       # With php7.0-fpm:
-                fastcgi_pass unix:/run/php/php7.0-fpm.sock;
-                fastcgi_index index.php;
-                include /etc/nginx/fastcgi_params;
-        }
-
-        location ~ \.php71$ {
-        #       # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
-                fastcgi_split_path_info ^(.+\.php71)(/.+)$;
-
-        #       # With php7.1-fpm:
-                fastcgi_pass unix:/run/php/php7.1-fpm.sock;
-                fastcgi_index index.php;
-                include /etc/nginx/fastcgi_params;
-        }
-
-	# deny access to .htaccess files, if Apache's document root
-	# concurs with nginx's one
+	# Deny access to .htaccess files, if Apache's document root
+	# concurs with Nginx's one
 	#
 	location ~ /\.ht {
 		deny all;
 	}
 }
 
-# another virtual host using mix of IP-, name-, and port-based configuration
-#
-#server {
-#	listen 8000;
-#	listen somename:8080;
-#	server_name somename alias another.alias;
-#	root html;
-#	index index.html index.htm;
-#
-#	location / {
-#		try_files $uri $uri/ /index.html;
-#	}
-#}
+### File Administration
+server {
+	listen   8083; ## listen for ipv4; this line is default and implied
+	#listen   [::]:80 default ipv6only=on; ## listen for ipv6
 
+	# Make site accessible from http://localhost.localdomain/
+	server_name localhost.localdomain;
+
+	root /usr/share/nginx/html/tools/filerun;
+	index index.php index.html index.htm;
+
+	# Log Settings.
+	access_log   /var/log/nginx/localhost.access.log;
+	error_log    /var/log/nginx/localhost.error.log;
+
+	location / {
+		# First attempt to serve request as file, then
+		# as directory, then fall back to index.html
+		try_files $uri $uri/ /index.html;
+
+		# Uncomment to enable naxsi on this location
+		# include /etc/nginx/naxsi.rules
+
+		# Uncomment to enable auto index
+		autoindex on;
+	}
+
+    ## Pass the PHP scripts to php fpm.
+    location ~ \.php$ {
+        try_files $uri =404;
+
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_index index.php;
+
+        include /etc/nginx/fastcgi_params;
+        include /etc/nginx/conf.vhost/fastcgi.conf;
+
+        # Uncomment to Enable PHP FastCGI cache.
+        #include /etc/nginx/conf.vhost/fastcgi_cache.conf;
+
+        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
+    }
+
+	# Deny access to .htaccess files, if Apache's document root
+	# concurs with Nginx's one
+	#
+	location ~ /\.ht {
+		deny all;
+    }
+}
 
 # HTTPS server
 #
