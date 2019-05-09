@@ -20,11 +20,17 @@ fi
 if [[ -n $(which mysql) ]]; then
     warning "It seems Mysql database server installed on this machine. We should remove it!"
     echo "Backup your database before continue!"
-    read -t 10 -p "Press [Enter] to continue..." </dev/tty
-    echo "Uninstall existing MySQL database server..."
-    run service mysqld stop
-    #killall -9 mysql
-    run apt-get --purge remove -y mysql-client mysql-server mysql-common
+
+    echo -n "Surely, remove existing MySQL database server? [Y/n]: "
+    read rmMysql
+
+    if [[ "$rmMysql" == Y* || "$rmMysql" == y* ]]; then
+        echo "Uninstall existing MySQL database server..."
+        run service mysqld stop
+
+        #killall -9 mysql
+        run apt-get --purge remove -y mysql-client mysql-server mysql-common
+    fi
 fi
 
-status "Server cleaned up..."
+status -e "\nServer cleaned up..."
