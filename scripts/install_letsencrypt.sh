@@ -17,7 +17,7 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-clear
+echo ""
 echo "+=========================================================================+"
 echo "+  Certbot Let's Encrypt Installer for Ubuntu VPS,  Written by ESLabs.ID  +"
 echo "+=========================================================================+"
@@ -25,15 +25,21 @@ echo "+     A small tool to install Certbot & Let's Enscrypt SSL certificate    
 echo "+                                                                         +"
 echo "+       For more information please visit https://ngxtools.eslabs.id      +"
 echo "+=========================================================================+"
-sleep 1
 
-run add-apt-repository ppa:certbot/certbot
-run apt-get update
-run apt-get install certbot
+echo -en "\nDo you want to install Certbot Let's Encrypt? [Y/n]: "
+read certbotInstall
 
-# Add this certbot renew command to cron
-#15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/bin/systemctl reload nginx"
+if [[ "$certbotInstall" == Y* || "$certbotInstall" == y* ]]; then
+    echo -e "\nInstalling Certbot Let's Encrypt..."
 
-croncmd='/usr/bin/certbot renew --quiet --renew-hook "/bin/systemctl reload nginx"'
-cronjob="15 3 * * * $croncmd"
-crontab -l | sudo fgrep -v -F "$croncmd" | { sudo cat; sudo echo "$cronjob"; } | sudo crontab -
+    run add-apt-repository ppa:certbot/certbot
+    run apt-get update
+    run apt-get install certbot
+
+    # Add this certbot renew command to cron
+    #15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/bin/systemctl reload nginx"
+
+    croncmd='/usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
+    cronjob="15 3 * * * $croncmd"
+    crontab -l | sudo fgrep -v -F "$croncmd" | { sudo cat; sudo echo "$cronjob"; } | sudo crontab -
+fi
