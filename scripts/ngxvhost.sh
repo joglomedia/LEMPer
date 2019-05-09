@@ -16,17 +16,20 @@
 #  |          Fideloper <https://gist.github.com/fideloper/9063376>         |
 #  +------------------------------------------------------------------------+
 
-# VERSION Control
-VERSION='1.6.0'
-LAST_UPDATE='29/12/2018'
+# Version Control
+APP_NAME=$(basename "$0")
+APP_VERSION="1.6.0"
+LAST_UPDATE="29/12/2018"
 
 INSTALL_DIR=$(pwd)
-DRYRUN=false
+
 
 # Decorator
-RED=31
-GREEN=32
-YELLOW=33
+RED=91
+GREEN=92
+YELLOW=93
+
+DRYRUN=false
 
 function begin_color() {
     color="$1"
@@ -95,9 +98,9 @@ function run() {
 }
 
 # May need to run this as sudo!
-# I have it in /usr/local/bin and run command 'ngxvhost' from anywhere, using sudo.
+# I have it in /usr/local/bin and run command from anywhere, using sudo.
 if [ $(id -u) -ne 0 ]; then
-    error "You must be root: sudo ngxvhost"
+    error "You must be root: sudo ${APP_NAME}"
     exit 1  #error
 fi
 
@@ -113,14 +116,14 @@ fi
 #
 function show_usage {
 cat <<- _EOF_
-ngxvhost $VERSION
+$APP_NAME $APP_VERSION
 Creates Nginx virtual host (vHost) configuration file.
 
 Requirements:
   * Nginx setup uses /etc/nginx/sites-available and /etc/nginx/sites-enabled
   * PHP FPM setup uses /etc/php/{version_number}/fpm/
 
-Usage: ngxvhost [options]...
+Usage: $APP_NAME [options]...
 
 Options:
   -u, --username <virtual-host username>
@@ -147,11 +150,10 @@ Options:
       Print this message and exit.
 
 Example:
-ngxvhost -u username -s example.com -t default -d /home/username/Webs/example.dev
+$APP_NAME -u username -s example.com -t default -d /home/username/Webs/example.dev
 
-Found bugs or suggestions?
-Send your pull request to https://github.com/joglomedia/LEMPer.git.
-
+For more details visit https://ngxtools.eslabs.id !
+Mail bug reports and suggestions to <eslabs.id@gmail.com>
 _EOF_
 }
 
@@ -179,6 +181,9 @@ server {
     set \$root_path '${DOCROOT}';
     root \$root_path;
     index index.php index.html index.htm;
+
+    ## Mod PageSpeed directives configuration.
+    #include /etc/nginx/conf.vhost/pagespeed.conf;
 
     ## Global directives configuration.
     include /etc/nginx/conf.vhost/block.conf;
@@ -240,6 +245,9 @@ server {
     set \$root_path '${DOCROOT}/public';
     root \$root_path;
     index index.php index.html index.htm;
+
+    ## Mod PageSpeed directives configuration.
+    #include /etc/nginx/conf.vhost/pagespeed.conf;
 
     ## Global directives configuration.
     include /etc/nginx/conf.vhost/block.conf;
@@ -304,6 +312,9 @@ server {
     set \$root_path '${DOCROOT}/public';
     root \$root_path;
     index index.php index.html index.htm;
+
+    ## Mod PageSpeed directives configuration.
+    #include /etc/nginx/conf.vhost/pagespeed.conf;
 
     ## Global directives configuration.
     include /etc/nginx/conf.vhost/block.conf;
@@ -377,13 +388,13 @@ cat <<- _EOF_
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="index, follow" />
-    <meta name="description" content="This is a default index page for Nginx server generated with ngxvhost tool from https://eslabs.id" />
+    <meta name="description" content="This is a default index page for Nginx server generated with ${APP_NAME} tool from https://eslabs.id" />
   </head>
   <body>
     <h1>It Works!</h1>
     <div class="content">
         <p>If you are site owner or administrator of this website, please upload your page or update this index page.</p>
-        <p style="font-size:90%;">Generated using <em>ngxvhost</em> tool from <a href="https://ngxtools.eslabs.id/">Nginx vHost Tool</a>, simple <a href="http://nginx.org/" rel="nofollow">Nginx</a> web server management tool.</p>
+        <p style="font-size:90%;">Generated using <em>${APP_NAME}</em> tool from <a href="https://ngxtools.eslabs.id/">Nginx vHost Tool</a>, simple <a href="http://nginx.org/" rel="nofollow">Nginx</a> web server management tool.</p>
     </div>
   </body>
 </html>
@@ -469,10 +480,9 @@ function install_wordpress() {
     fi
 }
 
+# Main App
 #
-# Main
-#
-function ngxvhost() {
+function init_app() {
     getopt --test
     if [ "$?" != 4 ]; then
         # Even Centos 5 and Ubuntu 10 LTS have new-style getopt, so I don't expect
@@ -482,14 +492,14 @@ function ngxvhost() {
     fi
 
     opts=$(getopt -o u:s:d:t:p:fch \
-      --longoptions username:,domain-name:,docroot:,framework:,php-version: \
-      --longoptions enable-fastcgi-cache,clone-skeleton,help \
+      -l username:,domain-name:,docroot:,framework:,php-version: \
+      -l enable-fastcgi-cache,clone-skeleton,help \
       -n "$(basename "$0")" -- "$@")
 
-    # Sanity check
-    if [ $# -lt 8  ]; then
-        show_usage
-        exit 0
+    # Sanity Check - are there an arguments with value?
+    if [ $? != 0 ]; then
+        fail "Terminating..."
+        exit 1
     fi
 
     eval set -- "$opts"
@@ -505,7 +515,7 @@ function ngxvhost() {
 
     # Parse flags
     while true; do
-        case $1 in
+        case "$1" in
             -u | --username) shift
                 USERNAME="$1"
                 shift
@@ -540,170 +550,227 @@ function ngxvhost() {
                 break
             ;;
             *)
-                echo "Invalid argument: $1"
-                show_usage
+                fail "Invalid argument: $1"
                 exit 1
             ;;
         esac
     done
 
-    # Additional Check - are user already exist?
-    if [[ -z $(getent passwd $USERNAME) ]]; then
-        fail "Error: The user ${USERNAME} does not exist, please add new user first! Aborting...
-Help: adduser username, try ngxvhost -h for more helps"
-    fi
-
-    # Check PHP fpm version is exists?
-    if [ -n $(which php-fpm${PHP_VERSION}) ]; then
-        status "Setting up PFP-FPM pool configuration..."
-
-        # Additional check - is FPM user's pool already exist
-        if [ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]; then
-            warning "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."
-            status "Creating new pool [${USERNAME}] configuration..."
-
-            create_fpm_pool_conf > /etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf
-            run touch "/var/log/php${PHP_VERSION}-fpm_slow.${USERNAME}.log"
-
-            # Restart PHP FPM
-            status "Restart php${PHP_VERSION}-fpm configuration..."
-            run service "php${PHP_VERSION}-fpm" restart
-        fi
-    else
-        fail "Error: There is no PHP${PHP_VERSION} version installed, please install it first! Aborting..."
-    fi
-
-    # Additional Check - ensure that Nginx's configuration meets the requirement
-    if [ ! -d "/etc/nginx/sites-available" ]; then
-        fail "It seems that your Nginx installation doesn't meet ngxvhost requirements. Aborting..."
-    fi
-
-    # Vhost file
-    vhost_file="/etc/nginx/sites-available/${SERVERNAME}.conf"
-
-    # Check if vhost not exists.
-    if [ ! -f "${vhost_file}" ]; then
-        status "Adding domain ${SERVERNAME} to virtual host..."
-
-        # Creates document root
-        if [ ! -d $DOCROOT ]; then
-            status "Creating document root, ${DOCROOT}..."
-
-            run mkdir -p "${DOCROOT}"
-            run chown -R $USERNAME:$USERNAME "${DOCROOT}"
-            run chmod 755 "${DOCROOT}"
+    if [ $? -eq 8 ]; then
+        # Additional Check - are user already exist?
+        if [[ -z $(getent passwd $USERNAME) ]]; then
+            fail "Error: The user ${USERNAME} does not exist, please add new user first! Aborting...
+                Help: adduser username, try ${APP_NAME} -h for more helps"
         fi
 
-        echo "Selecting ${FRAMEWORK} framewrok..."
+        # Check PHP fpm version is exists?
+        if [[ -n $(which php-fpm${PHP_VERSION}) && -d /etc/php/${PHP_VERSION}/fpm ]]; then
+            echo "Setting up PHP-FPM pool configuration..."
 
-        # Ugly hacks for custom framework-specific configs + Skeleton auto installer.
-        case $FRAMEWORK in
-            laravel)
-                status "Setting up Laravel framework virtual host..."
+            # Additional check - is FPM user's pool already exist
+            if [ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]; then
+                warning "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."
+                echo "Creating new PHP-FPM pool [${USERNAME}] configuration..."
 
-                # Install Laravel framework skeleton
-                if [ ! -f "${DOCROOT}/server.php" ]; then
-                    #echo -n "Should we install Laravel skeleton into document root? [Y/n]: "
-                    #read INSTALL_LV
+                create_fpm_pool_conf > /etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf
+                run touch "/var/log/php${PHP_VERSION}-fpm_slow.${USERNAME}.log"
 
-                    # Clone new Laravel files
-                    #if [[ "${INSTALL_LV}" == "Y" || "${INSTALL_LV}" == "y" || "${INSTALL_LV}" == "yes" ]]; then
-                    if [ "$CLONE_SKELETON" ]; then
-                        status "Copying Laravel skeleton files..."
-                        run git clone "https://github.com/laravel/laravel.git" \
-                                      "${DOCROOT}"
-                    else
-                        # Create default index file
-                        status "Creating default Laravel index files..."
-                        create_index_file > ${DOCROOT}/index.html
-                        run chown $USERNAME:$USERNAME "${DOCROOT}/index.html"
-                    fi
+                # Restart PHP FPM
+                echo "Restart php${PHP_VERSION}-fpm configuration..."
+                run service "php${PHP_VERSION}-fpm" restart
+
+                status "New PHP-FPM pool [${USERNAME}] has been created."
+            fi
+        else
+            fail "Error: There is no PHP${PHP_VERSION} version installed, please install it first! Aborting..."
+        fi
+
+        # Additional Check - ensure that Nginx's configuration meets the requirement
+        if [ ! -d "/etc/nginx/sites-available" ]; then
+            fail "It seems that your Nginx installation doesn't meet ${APP_NAME} requirements. Aborting..."
+        fi
+
+        # Vhost file
+        vhost_file="/etc/nginx/sites-available/${SERVERNAME}.conf"
+
+        # Check if vhost not exists.
+        if [ ! -f "${vhost_file}" ]; then
+            echo "Adding domain ${SERVERNAME} to virtual host..."
+
+            # Creates document root
+            if [ ! -d $DOCROOT ]; then
+                echo "Creating document root: ${DOCROOT}..."
+
+                run mkdir -p "${DOCROOT}"
+                run chown -R $USERNAME:$USERNAME "${DOCROOT}"
+                run chmod 755 "${DOCROOT}"
+
+                if [ -d $DOCROOT ]; then
+                    status "Document root created."
                 fi
+            fi
 
-                # Create vhost
-                status "Creating virtual host file, ${vhost_file}..."
-                create_vhost_laravel > ${vhost_file}
-            ;;
+            echo "Selecting ${FRAMEWORK^} framewrok..."
 
-            phalcon)
-                status "Setting up Phalcon framework virtual host..."
-                # TODO: Auto install Phalcon PHP framework skeleton
+            # Ugly hacks for custom framework-specific configs + Skeleton auto installer.
+            case $FRAMEWORK in
+                laravel)
+                    echo "Setting up Laravel framework virtual host..."
 
-                # Create vhost
-                status "Creating virtual host file, ${vhost_file}..."
-                create_vhost_phalcon > ${vhost_file}
-            ;;
+                    # Install Laravel framework skeleton
+                    if [ ! -f "${DOCROOT}/server.php" ]; then
+                        #echo -n "Should we install Laravel skeleton into document root? [Y/n]: "
+                        #read INSTALL_LV
 
-            wordpress)
-                status "Setting up WordPress virtual host..."
+                        # Clone new Laravel files
+                        #if [[ "${INSTALL_LV}" == "Y" || "${INSTALL_LV}" == "y" || "${INSTALL_LV}" == "yes" ]]; then
+                        if [ "$CLONE_SKELETON" ]; then
+                            echo "Copying Laravel skeleton files..."
+                            run git clone "https://github.com/laravel/laravel.git" \
+                                          "${DOCROOT}"
+                        else
+                            # Create default index file
+                            echo "Creating default index files..."
+                            create_index_file > ${DOCROOT}/index.html
+                            run chown $USERNAME:$USERNAME "${DOCROOT}/index.html"
+                        fi
+                    else
+                        warning "Laravel skeleton files already exists."
+                    fi
 
-                # Install WordPress
-                install_wordpress
+                    # Create vhost
+                    echo "Creating virtual host file: ${vhost_file}..."
+                    create_vhost_laravel > ${vhost_file}
 
-                # Create vhost
-                status "Creating virtual host file, ${vhost_file}..."
-                create_vhost_default > ${vhost_file}
-            ;;
+                    status "New site ${SERVERNAME} has been added to virtual host."
+                ;;
 
-            wordpress-ms)
-                status "Setting up WordPress Multi-site virtual host..."
+                phalcon)
+                    echo "Setting up Phalcon framework virtual host..."
+                    # TODO: Auto install Phalcon PHP framework skeleton
 
-                # Install WordPress
-                install_wordpress
+                    # Create vhost
+                    echo "Creating virtual host file: ${vhost_file}..."
+                    create_vhost_phalcon > ${vhost_file}
 
-                # Pre-populate blog id mapping, used by Nginx vhost conf
-                run mkdir "${DOCROOT}/wp-content/uploads/"
-                run mkdir "${DOCROOT}/wp-content/uploads/nginx-helper/"
-                run touch "${DOCROOT}/wp-content/uploads/nginx-helper/map.conf"
+                    status "New site ${SERVERNAME} has been added to virtual host."
+                ;;
 
-                status "Creating virtual host file, ${vhost_file}..."
+                wordpress)
+                    echo "Setting up WordPress virtual host..."
 
-                # Prepare vhost specific rule for WordPress Multisite
-                prepare_vhost_wpms > ${vhost_file}
+                    # Install WordPress
+                    install_wordpress
 
-                # Create vhost
-                create_vhost_default >> ${vhost_file}
-            ;;
+                    # Create vhost
+                    echo "Creating virtual host file, ${vhost_file}..."
+                    create_vhost_default > ${vhost_file}
 
-            codeigniter|mautic|*)
-                # Create default index file
-                create_index_file > ${DOCROOT}/index.html
-                run chown $USERNAME:$USERNAME "${DOCROOT}/index.html"
+                    status "New site ${SERVERNAME} has been added to virtual host."
+                ;;
 
-                # Create default vhost
-                status "Creating virtual host file, ${vhost_file}..."
-                create_vhost_default > ${vhost_file}
-            ;;
-        esac
+                wordpress-ms)
+                    echo "Setting up WordPress Multi-site virtual host..."
 
-        # Fix document root ownership
-        run chown -R $USERNAME:$USERNAME "${DOCROOT}"
+                    # Install WordPress
+                    install_wordpress
 
-        # Fix document root permission
-        if [ "$(ls -A ${DOCROOT})" ]; then
-            run find "${DOCROOT}" -type d -print0 | xargs -0 chmod 755
-            run find "${DOCROOT}" -type f -print0 | xargs -0 chmod 644
+                    # Pre-populate blog id mapping, used by Nginx vhost conf
+                    run mkdir "${DOCROOT}/wp-content/uploads/"
+                    run mkdir "${DOCROOT}/wp-content/uploads/nginx-helper/"
+                    run touch "${DOCROOT}/wp-content/uploads/nginx-helper/map.conf"
+
+                    echo "Creating virtual host file, ${vhost_file}..."
+
+                    # Prepare vhost specific rule for WordPress Multisite
+                    prepare_vhost_wpms > ${vhost_file}
+
+                    # Create vhost
+                    create_vhost_default >> ${vhost_file}
+
+                    status "New site ${SERVERNAME} has been added to virtual host."
+                ;;
+
+                filerun)
+                    echo "Setting up FileRun virtual host..."
+
+                    # Install Laravel framework skeleton
+                    if [ ! -f "${DOCROOT}/system/classes/filerun.php" ]; then
+                        # Clone new Filerun files
+                        if [ "$CLONE_SKELETON" ]; then
+                            echo "Copying FileRun skeleton files..."
+                            run wget -O FileRun.zip http://www.filerun.com/download-latest
+                            run unzip FileRun.zip -d "${DOCROOT}"
+                            run rm -f FileRun.zip
+                        else
+                            # Create default index file
+                            echo "Creating default index files..."
+                            create_index_file > ${DOCROOT}/index.html
+                            run chown $USERNAME:$USERNAME "${DOCROOT}/index.html"
+                        fi
+                    else
+                        warning "FileRun skeleton files already exists."
+                    fi
+
+                    # Create default vhost
+                    echo "Creating virtual host file, ${vhost_file}..."
+                    create_vhost_default > ${vhost_file}
+
+                    status "New site ${SERVERNAME} has been added to virtual host."
+                ;;
+
+                codeigniter|mautic|*)
+                    # Create default index file
+                    create_index_file > ${DOCROOT}/index.html
+                    run chown $USERNAME:$USERNAME "${DOCROOT}/index.html"
+
+                    # Create default vhost
+                    echo "Creating virtual host file, ${vhost_file}..."
+                    create_vhost_default > ${vhost_file}
+
+                    status "New site ${SERVERNAME} has been added to virtual host."
+                ;;
+            esac
+
+            # Fix document root ownership
+            run chown -R $USERNAME:$USERNAME "${DOCROOT}"
+
+            # Fix document root permission
+            if [ "$(ls -A ${DOCROOT})" ]; then
+                run find "${DOCROOT}" -type d -print0 | xargs -0 chmod 755
+                run find "${DOCROOT}" -type f -print0 | xargs -0 chmod 644
+            fi
+
+            echo "Enabling ${SERVERNAME} virtual host..."
+
+            # Enable site
+            #cd "/etc/nginx/sites-enabled"
+            run ln -s "/etc/nginx/sites-available/${SERVERNAME}.conf" \
+                        "/etc/nginx/sites-enabled/${SERVERNAME}.conf"
+
+            # Reload Nginx
+            echo "Reloading Nginx configuration..."
+            #service nginx reload -s
+            run service nginx reload -s
+
+            if [[ -f /etc/nginx/sites-enabled/${SERVERNAME}.conf && -e /var/run/nginx.pid ]]; then
+                status "${SERVERNAME} successfully added to Nginx virtual host.";
+            fi
+
+            if [ "${FRAMEWORK}" = "wordpress-ms" ]; then
+                echo >&2
+                warning "Note: You're installing Wordpress Multisite."
+                warning "You should activate Nginx Helper plugin to work properly."
+            fi
+        else
+            fail "vHost config file for ${SERVERNAME} already exists. Aborting..."
         fi
-
-        # Enable site
-        #cd "/etc/nginx/sites-enabled"
-        run ln -s "/etc/nginx/sites-available/${SERVERNAME}.conf" \
-                    "/etc/nginx/sites-enabled/${SERVERNAME}.conf"
-
-        # Reload Nginx
-        status "Reloading Nginx configuration..."
-        #service nginx reload -s
-        run service nginx reload
-
-        if [ "${FRAMEWORK}" = "wordpress-ms" ]; then
-            warning "Note: You're installing Wordpress Multisite."
-            warning "You should activate Nginx Helper plugin to work properly."
-        fi
-    else
-        fail "vHost config file for ${SERVERNAME} already exists. Aborting..."
     fi
+
+    echo "$APP_NAME: missing optstring argument."
+    echo "Try '$APP_NAME --help' for more information."
 }
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-ngxvhost "$@"
+init_app "$@"
