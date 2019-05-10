@@ -129,28 +129,31 @@ Options:
   -u, --username <virtual-host username>
       Use username added from adduser/useradd. Do not use root user.
 
-  -s, --domain-name <server domain name>
+  -d, --domain-name <server domain name>
       Any valid domain name and/or sub domain name is allowed.
       i.e. example.com or sub.example.com
 
-  -d, --docroot <document root>
-      Document root is absolut path to the website root directory.
+  -w, --webroot <web root>
+      Web root is absolute path to the website root directory.
       i.e. /home/username/Webs/example.test
 
-  -t, --framework <website framework>
+  -f, --framework <website framework>
       Type of web framework and cms, i.e. default.
       Currently supported framework and cms: default (vanilla php), codeigniter, laravel, phalcon, wordpress, wordpress-ms.
 
       Another framework and cms will be added soon.
 
-  -c, --clone-skeleton <framework default skeleton>
+  -s, --clone-skeleton
       Clone default skeleton for selected framework.
+
+  -c, --enable-fastcgi-cache
+      Enable PHP FastCGI cache module.
 
   -h, --help
       Print this message and exit.
 
 Example:
-$APP_NAME -u username -s example.com -t default -d /home/username/Webs/example.dev
+$APP_NAME -u username -d example.com -f default -w /home/username/Webs/example.dev
 
 For more details visit https://ngxtools.eslabs.id !
 Mail bug reports and suggestions to <eslabs.id@gmail.com>
@@ -169,7 +172,7 @@ server {
     #listen [::]:80 default_server ipv6only=on;
 
     ## Make site accessible from world web.
-    server_name $SERVERNAME www.${SERVERNAME} *.${SERVERNAME};
+    server_name ${SERVERNAME} www.${SERVERNAME};
 
     ## Log Settings.
     access_log /var/log/nginx/${SERVERNAME}_access.log;
@@ -178,12 +181,12 @@ server {
     #charset utf-8;
 
     ## Virtual host root directory.
-    set \$root_path '${DOCROOT}';
+    set \$root_path '${WEBROOT}';
     root \$root_path;
     index index.php index.html index.htm;
 
     ## Mod PageSpeed directives configuration.
-    #include /etc/nginx/conf.vhost/pagespeed.conf;
+    include /etc/nginx/conf.vhost/pagespeed_disabled;
 
     ## Global directives configuration.
     include /etc/nginx/conf.vhost/block.conf;
@@ -208,7 +211,7 @@ server {
         include /etc/nginx/conf.vhost/fastcgi.conf;
 
         # Uncomment to Enable PHP FastCGI cache.
-        #include /etc/nginx/conf.vhost/fastcgi_cache.conf;
+        include /etc/nginx/conf.vhost/fastcgi_cache_disabled.conf;
 
         # FastCGI socket, change to fits your own socket!
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
@@ -233,7 +236,7 @@ server {
     #listen [::]:80 default_server ipv6only=on;
 
     ## Make site accessible from world web.
-    server_name $SERVERNAME www.${SERVERNAME};
+    server_name ${SERVERNAME} www.${SERVERNAME};
 
     ## Log Settings.
     access_log /var/log/nginx/${SERVERNAME}_access.log;
@@ -242,12 +245,12 @@ server {
     #charset utf-8;
 
     ## Virtual host root directory.
-    set \$root_path '${DOCROOT}/public';
+    set \$root_path '${WEBROOT}/public';
     root \$root_path;
     index index.php index.html index.htm;
 
     ## Mod PageSpeed directives configuration.
-    #include /etc/nginx/conf.vhost/pagespeed.conf;
+    include /etc/nginx/conf.vhost/pagespeed_disabled.conf;
 
     ## Global directives configuration.
     include /etc/nginx/conf.vhost/block.conf;
@@ -275,7 +278,7 @@ server {
         include /etc/nginx/conf.vhost/fastcgi.conf;
 
         # Uncomment to Enable PHP FastCGI cache.
-        #include /etc/nginx/conf.vhost/fastcgi_cache.conf;
+        include /etc/nginx/conf.vhost/fastcgi_cache_disabled.conf;
 
         # FastCGI socket, change to fits your own socket!
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
@@ -300,7 +303,7 @@ server {
     #listen [::]:80 default_server ipv6only=on;
 
     ## Make site accessible from world web.
-    server_name $SERVERNAME www.${SERVERNAME};
+    server_name ${SERVERNAME} www.${SERVERNAME};
 
     ## Log Settings.
     access_log /var/log/nginx/${SERVERNAME}_access.log;
@@ -309,12 +312,12 @@ server {
     #charset utf-8;
 
     ## Virtual host root directory.
-    set \$root_path '${DOCROOT}/public';
+    set \$root_path '${WEBROOT}/public';
     root \$root_path;
     index index.php index.html index.htm;
 
     ## Mod PageSpeed directives configuration.
-    #include /etc/nginx/conf.vhost/pagespeed.conf;
+    include /etc/nginx/conf.vhost/pagespeed_disabled.conf;
 
     ## Global directives configuration.
     include /etc/nginx/conf.vhost/block.conf;
@@ -345,7 +348,7 @@ server {
         include /etc/nginx/conf.vhost/fastcgi.conf;
 
         # Uncomment to Enable PHP FastCGI cache.
-        #include /etc/nginx/conf.vhost/fastcgi_cache.conf;
+        include /etc/nginx/conf.vhost/fastcgi_cache_disabled.conf;
 
         # FastCGI socket, change to fits your own socket!
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
@@ -367,7 +370,7 @@ cat <<- _EOF_
 # Wordpress Multisite Mapping for Nginx (Requires Nginx Helper plugin).
 map \$http_host \$blogid {
     default     0;
-    include     ${DOCROOT}/wp-content/uploads/nginx-helper/map.conf;
+    include     ${WEBROOT}/wp-content/uploads/nginx-helper/map.conf;
 }
 
 _EOF_
@@ -381,22 +384,29 @@ function create_index_file() {
 cat <<- _EOF_
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>It Works!</title>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="robots" content="index, follow" />
-    <meta name="description" content="This is a default index page for Nginx server generated with ${APP_NAME} tool from https://eslabs.id" />
-  </head>
-  <body>
-    <h1>It Works!</h1>
-    <div class="content">
-        <p>If you are site owner or administrator of this website, please upload your page or update this index page.</p>
-        <p style="font-size:90%;">Generated using <em>${APP_NAME}</em> tool from <a href="https://ngxtools.eslabs.id/">Nginx vHost Tool</a>, simple <a href="http://nginx.org/" rel="nofollow">Nginx</a> web server management tool.</p>
-    </div>
-  </body>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed using LEMPer. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+LEMPer and ngxTools support is available at
+<a href="https://github.com/joglomedia/LEMPer/issues">LEMPer git</a>.</p>
+
+<p><em>Thank you for using nginx, ngxTools, and LEMPer.</em></p>
+
+<p style="font-size:90%;">Generated using <em>LEMPer</em> from <a href="https://ngxtools.eslabs.id/">Nginx vHost Tool</a>, a simple nginx web server management tool.</p>
+</body>
 </html>
 _EOF_
 }
@@ -439,44 +449,41 @@ _EOF_
 
 function install_wordpress() {
     # Check WordPress install directory
-    if [ ! -d "${DOCROOT}/wp-admin" ]; then
+    if [ $CLONE_SKELETON == true ]; then
         #echo -n "Should we copy WordPress skeleton into document root? [Y/n]: "
         #read instal
 
         # Clone new WordPress files
-        #if [[ "${instal}" == "Y" || "${instal}" == "y" || "${instal}" == "yes" ]]; then
-        if [ "$CLONE_SKELETON" ]; then
+        if [ ! -d ${WEBROOT}/wp-admin ]; then
             status "Copying WordPress skeleton files..."
 
-            run wget --no-check-certificate "https://wordpress.org/latest.zip"
-            run unzip "latest.zip"
-            run rsync -r "wordpress" \
-                          "${DOCROOT}"
-            run rm -f "latest.zip"
-            run rm -fr "wordpress"
-            #git clone https://github.com/WordPress/WordPress.git $DOCROOT/
+            run wget --no-check-certificate -q https://wordpress.org/latest.zip
+            run unzip -q latest.zip
+            run rsync -r wordpress/ ${WEBROOT}
+            run rm -f latest.zip
+            run rm -fr wordpress
+            #git clone https://github.com/WordPress/WordPress.git $WEBROOT/
         else
-            # create default index file
-            status "Creating default WordPress index file..."
-
-            create_index_file > ${DOCROOT}/index.html
-            run chown $USERNAME:$USERNAME "${DOCROOT}/index.html"
+            warning "It seems that WordPress installation file already exists."
         fi
     else
-        warning "WordPress installation file already exists..."
+        # create default index file
+        status "Creating default WordPress index file..."
+
+        create_index_file > ${WEBROOT}/index.html
+        run chown $USERNAME:$USERNAME ${WEBROOT}/index.html
     fi
 
     # Pre-install nginx helper plugin
-    if [[ -d "${DOCROOT}/wp-content/plugins" && ! -d "${DOCROOT}/wp-content/plugins/nginx-helper" ]]; then
+    if [[ -d ${WEBROOT}/wp-content/plugins && ! -d ${WEBROOT}/wp-content/plugins/nginx-helper ]]; then
         status "Copying Nginx Helper plugin into WordPress install..."
         warning "Please activate the plugin after WordPress installation."
 
-        run wget --no-check-certificate "https://downloads.wordpress.org/plugin/nginx-helper.zip"
-        run unzip "nginx-helper.zip"
-        run mv "nginx-helper" \
-               "${DOCROOT}/wp-content/plugins/"
-        run rm -f "nginx-helper.zip"
-        #git clone https://github.com/rtCamp/nginx-helper.git $DOCROOT/wp-content/plugins/nginx-helper
+        run wget --no-check-certificate -q https://downloads.wordpress.org/plugin/nginx-helper.zip
+        run unzip -q nginx-helper.zip
+        run mv nginx-helper ${WEBROOT}/wp-content/plugins/
+        run rm -f nginx-helper.zip
+        #git clone https://github.com/rtCamp/nginx-helper.git $WEBROOT/wp-content/plugins/nginx-helper
     fi
 }
 
@@ -491,13 +498,13 @@ function init_app() {
         fail "Your version of getopt is too old.  Exiting with no changes made."
     fi
 
-    opts=$(getopt -o u:s:d:t:p:fch \
-      -l username:,domain-name:,docroot:,framework:,php-version: \
-      -l enable-fastcgi-cache,clone-skeleton,help \
-      -n "$(basename "$0")" -- "$@")
+    opts=$(getopt -o u:d:f:w:p:cshv \
+      -l username:,domain-name:,framework:,webroot:,php-version: \
+      -l enable-fastcgi-cache,clone-skeleton,help,version \
+      -n "$APP_NAME" -- "$@")
 
     # Sanity Check - are there an arguments with value?
-    if [ $? != 0 ]; then
+    if [ $? != 0  ]; then
         fail "Terminating..."
         exit 1
     fi
@@ -506,45 +513,55 @@ function init_app() {
 
     # Default value
     FRAMEWORK="default"
-    PHP_VERSION="7.0"
+    PHP_VERSION="7.3"
     #TODO
     ENABLE_FASTCGI_CACHE=false
     #ENABLE_HTTPS=false
     CLONE_SKELETON=false
     DRYRUN=false
 
+    COUNT_ARGS=0
+
     # Parse flags
     while true; do
-        case "$1" in
+        case $1 in
             -u | --username) shift
                 USERNAME="$1"
+                COUNT_ARGS=$(($COUNT_ARGS + 1))
                 shift
             ;;
-            -s | --domain-name) shift
+            -d | --domain-name) shift
                 SERVERNAME="$1"
+                COUNT_ARGS=$(($COUNT_ARGS + 1))
                 shift
             ;;
-            -d | --docroot) shift
-                DOCROOT="${1%%+(/)}"
+            -w | --webroot) shift
+                WEBROOT="${1%%+(/)}"
+                COUNT_ARGS=$(($COUNT_ARGS + 1))
                 shift
             ;;
-            -t | --framework) shift
+            -f | --framework) shift
                 FRAMEWORK="$1"
+                COUNT_ARGS=$(($COUNT_ARGS + 1))
                 shift
             ;;
             -p | --php-version) shift
                 PHP_VERSION="$1"
                 shift
             ;;
-            -f | --enable-fastcgi-cache) shift
+            -c | --enable-fastcgi-cache) shift
                 ENABLE_FASTCGI_CACHE=true
             ;;
-            -c | --clone-skeleton) shift
+            -s | --clone-skeleton) shift
                 CLONE_SKELETON=true
             ;;
             -h | --help) shift
                 show_usage
                 exit 0
+            ;;
+            -v | --version) shift
+                echo "$APP_NAME version $APP_VERSION"
+                exit 1
             ;;
             --) shift
                 break
@@ -556,7 +573,7 @@ function init_app() {
         esac
     done
 
-    if [ $? -eq 8 ]; then
+    if [ $COUNT_ARGS -ge 4 ]; then
         # Additional Check - are user already exist?
         if [[ -z $(getent passwd $USERNAME) ]]; then
             fail "Error: The user ${USERNAME} does not exist, please add new user first! Aborting...
@@ -565,8 +582,6 @@ function init_app() {
 
         # Check PHP fpm version is exists?
         if [[ -n $(which php-fpm${PHP_VERSION}) && -d /etc/php/${PHP_VERSION}/fpm ]]; then
-            echo "Setting up PHP-FPM pool configuration..."
-
             # Additional check - is FPM user's pool already exist
             if [ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]; then
                 warning "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."
@@ -582,11 +597,11 @@ function init_app() {
                 status "New PHP-FPM pool [${USERNAME}] has been created."
             fi
         else
-            fail "Error: There is no PHP${PHP_VERSION} version installed, please install it first! Aborting..."
+            fail "There is no PHP${PHP_VERSION} version installed, please install it first! Aborting..."
         fi
 
         # Additional Check - ensure that Nginx's configuration meets the requirement
-        if [ ! -d "/etc/nginx/sites-available" ]; then
+        if [ ! -d /etc/nginx/sites-available ]; then
             fail "It seems that your Nginx installation doesn't meet ${APP_NAME} requirements. Aborting..."
         fi
 
@@ -598,16 +613,12 @@ function init_app() {
             echo "Adding domain ${SERVERNAME} to virtual host..."
 
             # Creates document root
-            if [ ! -d $DOCROOT ]; then
-                echo "Creating document root: ${DOCROOT}..."
+            if [ ! -d ${WEBROOT} ]; then
+                echo "Creating web root directory: ${WEBROOT}..."
 
-                run mkdir -p "${DOCROOT}"
-                run chown -R $USERNAME:$USERNAME "${DOCROOT}"
-                run chmod 755 "${DOCROOT}"
-
-                if [ -d $DOCROOT ]; then
-                    status "Document root created."
-                fi
+                run mkdir -p ${WEBROOT}
+                run chown -R ${USERNAME}:${USERNAME} ${WEBROOT}
+                run chmod 755 ${WEBROOT}
             fi
 
             echo "Selecting ${FRAMEWORK^} framewrok..."
@@ -618,21 +629,20 @@ function init_app() {
                     echo "Setting up Laravel framework virtual host..."
 
                     # Install Laravel framework skeleton
-                    if [ ! -f "${DOCROOT}/server.php" ]; then
+                    if [ ! -f ${WEBROOT}/server.php ]; then
                         #echo -n "Should we install Laravel skeleton into document root? [Y/n]: "
                         #read INSTALL_LV
 
                         # Clone new Laravel files
-                        #if [[ "${INSTALL_LV}" == "Y" || "${INSTALL_LV}" == "y" || "${INSTALL_LV}" == "yes" ]]; then
-                        if [ "$CLONE_SKELETON" ]; then
+                        if [ $CLONE_SKELETON == true ]; then
                             echo "Copying Laravel skeleton files..."
                             run git clone "https://github.com/laravel/laravel.git" \
-                                          "${DOCROOT}"
+                                          "${WEBROOT}"
                         else
                             # Create default index file
                             echo "Creating default index files..."
-                            create_index_file > ${DOCROOT}/index.html
-                            run chown $USERNAME:$USERNAME "${DOCROOT}/index.html"
+                            create_index_file > ${WEBROOT}/index.html
+                            run chown $USERNAME:$USERNAME ${WEBROOT}/index.html
                         fi
                     else
                         warning "Laravel skeleton files already exists."
@@ -642,7 +652,7 @@ function init_app() {
                     echo "Creating virtual host file: ${vhost_file}..."
                     create_vhost_laravel > ${vhost_file}
 
-                    status "New site ${SERVERNAME} has been added to virtual host."
+                    status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 phalcon)
@@ -653,7 +663,7 @@ function init_app() {
                     echo "Creating virtual host file: ${vhost_file}..."
                     create_vhost_phalcon > ${vhost_file}
 
-                    status "New site ${SERVERNAME} has been added to virtual host."
+                    status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 wordpress)
@@ -663,10 +673,10 @@ function init_app() {
                     install_wordpress
 
                     # Create vhost
-                    echo "Creating virtual host file, ${vhost_file}..."
+                    echo "Creating virtual host file: ${vhost_file}..."
                     create_vhost_default > ${vhost_file}
 
-                    status "New site ${SERVERNAME} has been added to virtual host."
+                    status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 wordpress-ms)
@@ -676,11 +686,11 @@ function init_app() {
                     install_wordpress
 
                     # Pre-populate blog id mapping, used by Nginx vhost conf
-                    run mkdir "${DOCROOT}/wp-content/uploads/"
-                    run mkdir "${DOCROOT}/wp-content/uploads/nginx-helper/"
-                    run touch "${DOCROOT}/wp-content/uploads/nginx-helper/map.conf"
+                    run mkdir ${WEBROOT}/wp-content/uploads
+                    run mkdir ${WEBROOT}/wp-content/uploads/nginx-helper
+                    run touch ${WEBROOT}/wp-content/uploads/nginx-helper/map.conf
 
-                    echo "Creating virtual host file, ${vhost_file}..."
+                    echo "Creating virtual host file: ${vhost_file}..."
 
                     # Prepare vhost specific rule for WordPress Multisite
                     prepare_vhost_wpms > ${vhost_file}
@@ -688,65 +698,85 @@ function init_app() {
                     # Create vhost
                     create_vhost_default >> ${vhost_file}
 
-                    status "New site ${SERVERNAME} has been added to virtual host."
+                    status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 filerun)
                     echo "Setting up FileRun virtual host..."
 
                     # Install Laravel framework skeleton
-                    if [ ! -f "${DOCROOT}/system/classes/filerun.php" ]; then
+                    if [ ! -f ${WEBROOT}/system/classes/filerun.php ]; then
                         # Clone new Filerun files
-                        if [ "$CLONE_SKELETON" ]; then
+                        if [ $CLONE_SKELETON == true ]; then
                             echo "Copying FileRun skeleton files..."
-                            run wget -O FileRun.zip http://www.filerun.com/download-latest
-                            run unzip FileRun.zip -d "${DOCROOT}"
+                            run wget -q -O FileRun.zip http://www.filerun.com/download-latest
+                            run unzip -q FileRun.zip -d ${WEBROOT}
                             run rm -f FileRun.zip
                         else
                             # Create default index file
                             echo "Creating default index files..."
-                            create_index_file > ${DOCROOT}/index.html
-                            run chown $USERNAME:$USERNAME "${DOCROOT}/index.html"
+                            create_index_file > ${WEBROOT}/index.html
+                            run chown $USERNAME:$USERNAME ${WEBROOT}/index.html
                         fi
                     else
                         warning "FileRun skeleton files already exists."
                     fi
 
                     # Create default vhost
-                    echo "Creating virtual host file, ${vhost_file}..."
+                    echo "Creating virtual host file: ${vhost_file}..."
                     create_vhost_default > ${vhost_file}
 
-                    status "New site ${SERVERNAME} has been added to virtual host."
+                    status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
-                codeigniter|mautic|*)
+                codeigniter|mautic|default)
                     # Create default index file
-                    create_index_file > ${DOCROOT}/index.html
-                    run chown $USERNAME:$USERNAME "${DOCROOT}/index.html"
+                    create_index_file > ${WEBROOT}/index.html
+                    run chown $USERNAME:$USERNAME ${WEBROOT}/index.html
 
                     # Create default vhost
-                    echo "Creating virtual host file, ${vhost_file}..."
+                    echo "Creating virtual host file: ${vhost_file}..."
                     create_vhost_default > ${vhost_file}
 
-                    status "New site ${SERVERNAME} has been added to virtual host."
+                    status "New domain ${SERVERNAME} has been added to virtual host."
+                ;;
+
+                *)
+                    # Not supported framework/cms, abort.
+                    fail "Sorry, your framework/cms [${FRAMEWORK^}] is not supported. Aborting..."
+                    exit 1
                 ;;
             esac
 
-            # Fix document root ownership
-            run chown -R $USERNAME:$USERNAME "${DOCROOT}"
+            # Enable FastCGI cache?
+            if [ $ENABLE_FASTCGI_CACHE == true ]; then
+                echo "Enable FastCGI cache for ${SERVERNAME}..."
 
-            # Fix document root permission
-            if [ "$(ls -A ${DOCROOT})" ]; then
-                run find "${DOCROOT}" -type d -print0 | xargs -0 chmod 755
-                run find "${DOCROOT}" -type f -print0 | xargs -0 chmod 644
+                if [ -f /etc/nginx/conf.vhost/site_${FRAMEWORK}_cached.conf ]; then
+                    # enable cached directives
+                    sed -i "s/site_${FRAMEWORK}.conf/site_${FRAMEWORK}_cached.conf/g" ${vhost_file}
+
+                    # enable fastcgi_cache conf
+                    sed -i "s/fastcgi_cache_disabled.conf/fastcgi_cache.conf/g" ${vhost_file}
+                else
+                    warning "FastCGI cache not enabled. There is no cached version of ${FRAMEWORK^} directives."
+                fi
             fi
 
-            echo "Enabling ${SERVERNAME} virtual host..."
+            # Fix document root ownership
+            run chown -R $USERNAME:$USERNAME ${WEBROOT}
+
+            # Fix document root permission
+            if [ "$(ls -A ${WEBROOT})" ]; then
+                run find "${WEBROOT}" -type d -print0 | xargs -0 chmod 755
+                run find "${WEBROOT}" -type f -print0 | xargs -0 chmod 644
+            fi
+
+            echo "Enable ${SERVERNAME} virtual host..."
 
             # Enable site
             #cd "/etc/nginx/sites-enabled"
-            run ln -s "/etc/nginx/sites-available/${SERVERNAME}.conf" \
-                        "/etc/nginx/sites-enabled/${SERVERNAME}.conf"
+            run ln -s /etc/nginx/sites-available/${SERVERNAME}.conf /etc/nginx/sites-enabled/${SERVERNAME}.conf
 
             # Reload Nginx
             echo "Reloading Nginx configuration..."
@@ -754,7 +784,7 @@ function init_app() {
             run service nginx reload -s
 
             if [[ -f /etc/nginx/sites-enabled/${SERVERNAME}.conf && -e /var/run/nginx.pid ]]; then
-                status "${SERVERNAME} successfully added to Nginx virtual host.";
+                status "Your ${SERVERNAME} successfully added to Nginx virtual host.";
             fi
 
             if [ "${FRAMEWORK}" = "wordpress-ms" ]; then
@@ -763,12 +793,12 @@ function init_app() {
                 warning "You should activate Nginx Helper plugin to work properly."
             fi
         else
-            fail "vHost config file for ${SERVERNAME} already exists. Aborting..."
+            error "vHost config file for ${SERVERNAME} already exists. Aborting..."
         fi
+    else
+        echo "$APP_NAME: missing optstring argument."
+        echo "Try '$APP_NAME --help' for more information."
     fi
-
-    echo "$APP_NAME: missing optstring argument."
-    echo "Try '$APP_NAME --help' for more information."
 }
 
 # Start running things from a call at the end so if this script is executed

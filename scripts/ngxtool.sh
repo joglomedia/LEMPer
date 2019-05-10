@@ -123,6 +123,9 @@ Options:
   -r, --remove <vhost domain name>
       Remove virtual host configuration.
 
+  -c, --enable-fastcgi-cache <vhost domain name>
+      Enable PHP FastCGI cache.
+
   -s, --enable-ssl <vhost domain name>
       Enable Let's Encrypt SSL certificate.
 
@@ -143,7 +146,7 @@ _EOF_
 # enable vhost
 function enable_vhost() {
     # Enable Nginx's vhost config.
-    if [[ ! -f "/etc/nginx/sites-enabled/$1.conf" && -f "/etc/nginx/sites-available/$1.conf" ]]; then
+    if [[ ! -f /etc/nginx/sites-enabled/$1.conf && -f /etc/nginx/sites-available/$1.conf ]]; then
         run ln -s /etc/nginx/sites-available/$1.conf /etc/nginx/sites-enabled/$1.conf
 
         # Reload Nginx.
@@ -158,7 +161,7 @@ function enable_vhost() {
 # disable vhost
 function disable_vhost() {
     # Disable Nginx's vhost config.
-    if [ -f "/etc/nginx/sites-enabled/$1.conf" ]; then
+    if [ -f /etc/nginx/sites-enabled/$1.conf ]; then
         run unlink /etc/nginx/sites-enabled/$1.conf
 
         # Reload Nginx.
@@ -172,44 +175,84 @@ function disable_vhost() {
 
 # remove vhost
 function remove_vhost() {
+    echo -e "Removing virtual host is not reversible...\n"
+    read -t 10 -p "Press [Enter] to continue..." </dev/tty
+
     # Remove Nginx's vhost config.
-    if [ -f "/etc/nginx/sites-available/$1.conf" ]; then
-        fail "Sorry, we can't find Nginx config for $1..."
+    if [ ! -f /etc/nginx/sites-available/$1.conf ]; then
+        warning -e "\nSorry, we can't find Nginx virtual host for $1..."
     else
-        run unlink /etc/nginx/sites-enabled/$1.conf
+        if [ -f /etc/nginx/sites-enabled/$1.conf ]; then
+            run unlink /etc/nginx/sites-enabled/$1.conf
+        fi
+
         run rm -f /etc/nginx/sites-available/$1.conf
 
-        # Remove vhost root directory.
-        echo -n "Do you want to delete website root directory? [Y/n]: "; read isdeldir
-        if [[ "${isdeldir}" = "Y" || "${isdeldir}" = "y" || "${isdeldir}" = "yes" ]]; then
-            echo -n "Enter the real path to website root directory: "; read sitedir
-            run rm -fr "${sitedir}"
-        fi
-
-        # Drop MySQL database.
-        echo -n "Do you want to Drop database associated to this website? [Y/n]: "; read isdropdb
-        if [[ "${isdropdb}" = "Y" || "${isdropdb}" = "y" || "${isdropdb}" = "yes" ]]; then
-            echo -n "MySQL username: "; read username
-            echo -n "MySQL password: "; stty -echo; read password; stty echo; echo
-            sleep 1
-            echo "Starting to drop database, please select your database name!"
-            # Show user's databases
-            mysql -u $username -p"$password" -e "SHOW DATABASES"
-
-            echo -n "MySQL database: "; read dbname
-
-            mysql -u $username -p"$password" -e "DROP DATABASE $dbname"
-        fi
-
-        # Reload Nginx.
-        run service nginx reload -s
-        status "Your site $1 has been removed..."
+        status -e "\nVirtual host configuration file removed."
     fi
+
+    # Remove vhost root directory.
+    echo -en "\nDo you want to delete website root directory? [Y/n]: "; read isdeldir
+    if [[ "${isdeldir}" == Y* || "${isdeldir}" == y* ]]; then
+        echo -n "Enter the real path to website root directory: "; read sitedir
+
+        if [ -d ${sitedir} ]; then
+            run rm -fr ${sitedir}
+            status -e "\nWebsite root directory removed."
+        else
+            warning -e "\nSorry, directory couldn't be found. Skipped..."
+        fi
+    fi
+
+    # Drop MySQL database.
+    echo -en "\nDo you want to Drop database associated with this website? [Y/n]: "; read isdropdb
+    if [[ "${isdropdb}" == Y* || "${isdropdb}" == y* ]]; then
+        echo -n "MySQL username: "; read username
+        echo -n "MySQL password: "; stty -echo; read password; stty echo; echo
+        sleep 1
+        echo -e "\nStarting to drop database, please select your database name below!"
+        # Show user's databases
+        mysql -u $username -p"$password" -e "SHOW DATABASES"
+
+        echo -n "MySQL database: "; read dbname
+
+        if [ -d /var/lib/mysql/${dbname} ]; then
+            echo -e "Dropping database..."
+            mysql -u $username -p"$password" -e "DROP DATABASE $dbname"
+            status -e "Database [${dbname}] dropped."
+        else
+            warning -e "\nSorry, no database name: ${dbname}. Skipped..."
+        fi
+    fi
+
+    # Reload Nginx.
+    run service nginx reload -s
+    status -e "\nYour site $1 has been removed."
+
     exit 0  #success
+}
+
+# enable fastcgi cache
+function enable_fastcgi_cache() {
+    echo "TODO: Enable FastCGI cache"
+    exit 0
+}
+
+# disable fastcgi cache
+function disable_fastcgi_cache() {
+    echo "TODO: Disble FastCGI cache"
+    exit 0
 }
 
 # enable ssl
 function enable_ssl() {
+    echo "TODO: Enable SSL"
+    exit 0
+}
+
+# disable ssl
+function disable_ssl() {
+    echo "TODO: Disble SSL"
     exit 0
 }
 
@@ -217,8 +260,8 @@ function enable_ssl() {
 #
 function init_app() {
     #getopt
-    opts=$(getopt -o vhe:d:r:s: \
-      -l version,help,enable:,disable:,remove:,enable-ssl \
+    opts=$(getopt -o vhe:d:r:c:s: \
+      -l version,help,enable:,disable:,remove:,enable-fastcgi-cache:,disable-fastcgi-cache:,enable-ssl:,disable-ssl: \
       -n "$APP_NAME" -- "$@")
 
     # Sanity Check - are there an arguments with value?
@@ -235,7 +278,10 @@ function init_app() {
             -e | --enable) enable_vhost $2; shift 2;;
             -d | --disable) disable_vhost $2; shift 2;;
             -r | --remove) remove_vhost $2; shift 2;;
+            -c | --enable-fastcgi-cache) enable_fastcgi_cache $2; shift 2;;
+            --disable-fastcgi-cache) disable_fastcgi_cache $2; shift 2;;
             -s | --enable-ssl) enable_ssl $2; shift 2;;
+            --disable-ssl) disable_ssl $2; shift 2;;
             -v | --version) echo "$APP_NAME version $APP_VERSION"; exit 1; shift;;
             --) shift; break;;
         esac

@@ -14,6 +14,37 @@ fi
 
 echo "Installing Administration tools..."
 
+function create_index_file() {
+cat <<- _EOF_
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed using LEMPer. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+LEMPer and ngxTools support is available at
+<a href="https://github.com/joglomedia/LEMPer/issues">LEMPer git</a>.</p>
+
+<p><em>Thank you for using nginx, ngxTools, and LEMPer.</em></p>
+
+<p style="font-size:90%;">Generated using <em>LEMPer</em> from <a href="https://ngxtools.eslabs.id/">Nginx vHost Tool</a>, a simple nginx web server management tool.</p>
+</body>
+</html>
+_EOF_
+}
+
 # Install Nginx vHost Creator
 run cp -f scripts/ngxvhost.sh /usr/local/bin/ngxvhost
 run cp -f scripts/ngxtool.sh /usr/local/bin/ngxtool
@@ -22,6 +53,8 @@ run chmod ugo+x /usr/local/bin/ngxtool
 
 # Install Web-viewer Tools
 run mkdir /usr/share/nginx/html/tools/
+
+create_index_file > /usr/share/nginx/html/index.html
 
 # Install PHP Info
 #cat > /usr/share/nginx/html/tools/phpinfo.php <<EOL
@@ -48,7 +81,7 @@ run wget --no-check-certificate https://github.com/vrana/adminer/releases/downlo
 # Install FileRun File Manager
 run mkdir /usr/share/nginx/html/tools/filerun/
 run wget -O FileRun.zip http://www.filerun.com/download-latest
-run unzip FileRun.zip -d /usr/share/nginx/html/tools/filerun/
+run unzip -qq FileRun.zip -d /usr/share/nginx/html/tools/filerun/
 run rm -f FileRun.zip
 
 if [[ -x /usr/local/bin/ngxvhost && -x /usr/local/bin/ngxtool && -d /usr/share/nginx/html/tools ]]; then
