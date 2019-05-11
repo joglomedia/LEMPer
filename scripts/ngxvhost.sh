@@ -743,7 +743,7 @@ function init_app() {
 
                 *)
                     # Not supported framework/cms, abort.
-                    fail "Sorry, your framework/cms [${FRAMEWORK^}] is not supported. Aborting..."
+                    fail "Sorry, your framework/cms [${FRAMEWORK^}] is not supported yet. Aborting..."
                     exit 1
                 ;;
             esac

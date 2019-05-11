@@ -20,9 +20,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer. This is ju
 ### Install Nginx, PHP 5 / 7 &amp; MariaDB
 ```bash
 sudo apt-get install git
-git clone https://github.com/joglomedia/LEMPer.git
-cd LEMPer
-sudo ./lemper.sh
+git clone https://github.com/joglomedia/LEMPer.git; cd LEMPer; sudo ./lemper.sh
 ```
 
 ### Uninstall Nginx, PHP 5 / 7 &amp; MariaDB
@@ -31,42 +29,46 @@ sudo ./uninstall.sh
 ```
 
 ## Nginx vHost Configuration Tool (Ngxvhost)
-This script also include Nginx Virtual Host (vHost) configuration tool to help you add new website (domain) easily. Feel the faster Nginx like a trully shared hosting.
-The Ngxvhost must be run as root (recommended using sudo).
+This script also include Nginx Virtual Host (vHost) configuration tool helps you add new website (domain) easily. Feel the faster Nginx like a trully shared hosting.
+The ngxvhost must be run as root (recommended using sudo).
 
 ### Ngxvhost Usage
 ```bash
-sudo ngxvhost -u username -s example.com -t default -d /home/username/Webs/example.com
+sudo ngxvhost -u username -d example.com -f default -w /home/username/Webs/example.com
 ```
 Ngxvhost Parameters:
 
 * -u your username (DO NOT use root login)
-* -s your website domain name
-* -t website type, available options: default, laravel, phalcon, wordpress, wordpress-ms (multisite)
-* -d absolute path to your site directory containing the index file
+* -d your website domain name
+* -f framework type, available options: default, codeigniter, laravel, phalcon, wordpress, wordpress-ms (multisite)
+* -w absolute web root path to your site directory containing the index file (we recommend you to use user home directory)
 
-for more helps
+for more info
 ```bash
 sudo ngxvhost --help
 ```
 
-Note: Ngxvhost will automagically add new FPM user's pool configuration file if it doesn't exists.
+Note: ngxvhost will automagically add new FPM user's pool configuration file if it doesn't exists.
 
 ## Web-based Administration
 You can access pre-installed web-based administration tools here
 ```bash
 http://YOUR_IP_ADDRESS/tools/
 ```
-or
+Adminer (SQL database management tool)
 ```bash
-http://YOUR_DOMAIN_NAME:8082/tools/
+http://YOUR_DOMAIN_NAME:8082/
+```
+FileRun (File management tool)
+```bash
+http://YOUR_DOMAIN_NAME:8083/
 ```
 
 ## TODO
-* Custom build latest Nginx
+* ~~Custom build latest [Nginx](https://nginx.org/en/) from source~~
 * Add [Let's Encrypt SSL](https://letsencrypt.org/)
 * Add security hardening (iptable rules, firewall, else?)
-* Add server monitoring (nagios, monit, else?)
+* Add server monitoring (Nagios, Monit, else?)
 * Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new)
 
 ## Contribution
