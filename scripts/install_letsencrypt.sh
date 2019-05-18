@@ -17,14 +17,7 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-echo ""
-echo "+=========================================================================+"
-echo "+  Certbot Let's Encrypt Installer for Ubuntu VPS,  Written by ESLabs.ID  +"
-echo "+=========================================================================+"
-echo "+     A small tool to install Certbot & Let's Enscrypt SSL certificate    +"
-echo "+                                                                         +"
-echo "+       For more information please visit https://ngxtools.eslabs.id      +"
-echo "+=========================================================================+"
+
 
 echo -en "\nDo you want to install Certbot Let's Encrypt? [Y/n]: "
 read certbotInstall
@@ -32,9 +25,9 @@ read certbotInstall
 if [[ "$certbotInstall" == Y* || "$certbotInstall" == y* ]]; then
     echo -e "\nInstalling Certbot Let's Encrypt..."
 
-    run add-apt-repository ppa:certbot/certbot
-    run apt-get update
-    run apt-get install certbot
+    run add-apt-repository -y ppa:certbot/certbot
+    run apt-get -y update
+    run apt-get -y install certbot
 
     # Add this certbot renew command to cron
     #15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/bin/systemctl reload nginx"
