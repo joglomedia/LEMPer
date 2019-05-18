@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # +-------------------------------------------------------------------------+
 # | LEMPer.sh is a Simple LNMP Installer for Ubuntu                         |
@@ -98,9 +98,9 @@ read -t 10 -p "Press [Enter] to continue..." </dev/tty
 # Cleaning up all build dependencies hanging around on production server?
 run apt-get autoremove -y
 
-clear
+echo -e "\n"
 echo "#==========================================================================#"
-echo "#         Thanks for installing LNMP stack using LEMPer Installer          #"
+echo "#         Thank's for installing LNMP stack using LEMPer Installer         #"
 echo "#        Found any bugs / errors / suggestions? please let me know         #"
 echo "#    If this script useful, don't forget to buy me a coffee or milk :D     #"
 echo "#   My PayPal is always open for donation, here https://paypal.me/masedi   #"

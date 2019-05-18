@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 # +-------------------------------------------------------------------------+
 # |            LEMPer uninstaller.sh is a Simple LNMP Uninstaller           |
@@ -58,6 +58,8 @@ if [[ -n $(which which php-fpm5.6) || -n $(which which php-fpm7.0) || -n $(which
     service php5.6-fpm stop
     service php7.0-fpm stop
     service php7.1-fpm stop
+    service php7.2-fpm stop
+    service php7.3-fpm stop
 
     # Stop Memcached server
     service memcached stop

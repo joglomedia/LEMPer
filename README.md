@@ -2,18 +2,18 @@
 LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Ubuntu-LEMP stack. LEMPer is _ServerPilot alternative_ and _EasyEngine alternative_ for crazy sysadmin :v:
 
 ## Features
-* Nginx 1.10 custom build from RtCamp repository
+* Nginx custom from RtCamp repository & build from source
 * Nginx with FastCGI cache enable & disable feature
 * Nginx pre-configured optimization for low-end VPS
-* Nginx vhost configuration optimized for WordPress, Laravel, and Phalcon PHP Framework
+* Nginx virtual host (vhost) configuration optimized for WordPress, Laravel, and Phalcon PHP Framework
 * MariaDB 10 (MySQL drop-in replacement)
 * PHP 5.6, 7.0, 7.1, 7.2, 7.3 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php)
-* PHP-FPM sets as user running the PHP script (pool), Feel the faster Nginx like a trully shared hosting
+* PHP-FPM sets as user running the PHP script (pool), Feel the faster Nginx like a truly shared hosting
 * Zend OPcache
 * Memcached 1.4
 * ionCube PHP Loader
 * SourceGuardian PHP Loader
-* Adminer (PhpMyAdmin replacement)
+* [Adminer](https://www.adminer.org/) (PhpMyAdmin replacement)
 
 ## Usage
 
@@ -28,8 +28,8 @@ git clone https://github.com/joglomedia/LEMPer.git; cd LEMPer; sudo ./lemper.sh
 sudo ./uninstall.sh
 ```
 
-## Nginx vHost Configuration Tool (Ngxvhost)
-This script also include Nginx Virtual Host (vHost) configuration tool helps you add new website (domain) easily. Feel the faster Nginx like a trully shared hosting.
+## Nginx vHost Configuration Tool (ngxvhost)
+This script also include Nginx Virtual Host (vHost) configuration tool helps you add new website (domain) easily. Feel the faster Nginx like a truly shared hosting.
 The ngxvhost must be run as root (recommended using sudo).
 
 ### Ngxvhost Usage
