@@ -12,8 +12,6 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-echo -e "\nWelcome to PHP installation script"
-
 function enable_memcache {
     if [[ -n $1 ]]; then
         PHPv="$1"
@@ -77,6 +75,6 @@ if [[ "$MemcachedInstall" == "Y" || "$MemcachedInstall" == "y" || "$MemcachedIns
     # Restart Memcached daemon
     if [[ $(ps -ef | grep -v grep | grep memcached | wc -l) > 0 ]]; then
         run service memcached restart
-        status "Memcached server installed successfully."
+        status -e "\nMemcached server installed successfully."
     fi
 fi
