@@ -164,7 +164,7 @@ function init_nginx_install() {
     # Check IP Address
     IPAddr=$(curl -s http://ipecho.net/plain)
     # Make default server accessible from IP address
-    run sed -i 's@localhost.localdomain@$IPAddr@g' /etc/nginx/sites-available/default
+    run sed -i s@localhost.localdomain@${IPAddr}@g /etc/nginx/sites-available/default
 
     # Restart Nginx server
     if [[ $(ps -ef | grep -v grep | grep nginx | wc -l) > 0 ]]; then
