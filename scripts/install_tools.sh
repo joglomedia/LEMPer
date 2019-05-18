@@ -12,7 +12,7 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-echo "Installing Administration tools..."
+echo -e "\nInstalling web administration tools..."
 
 function create_index_file() {
 cat <<- _EOF_
@@ -67,7 +67,7 @@ run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.ph
 run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.php73'
 
 # Install Zend OpCache Web Viewer
-run wget --no-check-certificate https://raw.github.com/rlerdorf/opcache-status/master/opcache.php -O /usr/share/nginx/html/tools/opcache.php
+run wget -q --no-check-certificate https://raw.github.com/rlerdorf/opcache-status/master/opcache.php -O /usr/share/nginx/html/tools/opcache.php
 
 # Install Memcache Web-based stats
 #http://blog.elijaa.org/index.php?pages/phpMemcachedAdmin-Installation-Guide
@@ -75,15 +75,18 @@ run git clone https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/h
 
 # Install Adminer for Web-based MySQL Administration Tool
 run mkdir /usr/share/nginx/html/tools/adminer/
-run wget --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/adminer-4.7.1.php -O /usr/share/nginx/html/tools/adminer/index.php
-run wget --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/editor-4.7.1.php -O /usr/share/nginx/html/tools/adminer/editor.php
+run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/adminer-4.7.1.php -O /usr/share/nginx/html/tools/adminer/index.php
+run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/editor-4.7.1.php -O /usr/share/nginx/html/tools/adminer/editor.php
 
 # Install FileRun File Manager
 run mkdir /usr/share/nginx/html/tools/filerun/
-run wget -O FileRun.zip http://www.filerun.com/download-latest
+run wget -q http://www.filerun.com/download-latest -O FileRun.zip
 run unzip -qq FileRun.zip -d /usr/share/nginx/html/tools/filerun/
 run rm -f FileRun.zip
 
+# Assign ownership properly
+run chown -hR www-data:root /usr/share/nginx/html/tools/
+
 if [[ -x /usr/local/bin/ngxvhost && -x /usr/local/bin/ngxtool && -d /usr/share/nginx/html/tools ]]; then
-    status "Web administration tools successfully installed."
+    status -e "\nWeb administration tools successfully installed."
 fi
