@@ -13,6 +13,7 @@ if [ $(id -u) -ne 0 ]; then
 fi
 
 echo -e "\nInstalling MariaDB SQL database server..."
+sleep 1
 
 # Install MariaDB
 run apt-get install -y mariadb-server libmariadbclient18
@@ -30,5 +31,5 @@ run mysql_secure_installation
 # Restart MariaDB MySQL server
 if [[ $(ps -ef | grep -v grep | grep mysql | wc -l) > 0 ]]; then
     run service mysql restart
-    status "MariaDB SQL database server installed successfully."
+    status -e "\nMariaDB SQL database server installed successfully."
 fi
