@@ -125,11 +125,11 @@ function install_ic() {
 
     arch=$(uname -p)
     if [[ "$arch" == "x86_64" ]]; then
-        run wget "http://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz"
+        run wget -q "http://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz"
         run tar -xzf ioncube_loaders_lin_x86-64.tar.gz
         run rm -f ioncube_loaders_lin_x86-64.tar.gz
     else
-        run wget "http://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86.tar.gz"
+        run wget -q "http://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86.tar.gz"
         run tar -xzf ioncube_loaders_lin_x86.tar.gz
         run rm -f ioncube_loaders_lin_x86.tar.gz
     fi
@@ -224,11 +224,11 @@ function install_sg() {
 
     arch=$(uname -p)
     if [[ "$arch" == "x86_64" ]]; then
-        run wget "http://www.sourceguardian.com/loaders/download/loaders.linux-x86_64.tar.gz"
+        run wget -q "http://www.sourceguardian.com/loaders/download/loaders.linux-x86_64.tar.gz"
         run tar -xzf loaders.linux-x86_64.tar.gz
         run rm -f loaders.linux-x86_64.tar.gz
     else
-        run wget "http://www.sourceguardian.com/loaders/download/loaders.linux-x86.tar.gz"
+        run wget -q "http://www.sourceguardian.com/loaders/download/loaders.linux-x86.tar.gz"
         run tar -xzf loaders.linux-x86.tar.gz
         run rm -f loaders.linux-x86.tar.gz
     fi
