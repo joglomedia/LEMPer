@@ -14,7 +14,7 @@ fi
 
 echo "Installing ImageMagick from source..."
 
-run wget https://www.imagemagick.org/download/ImageMagick.tar.gz
+run wget -q https://www.imagemagick.org/download/ImageMagick.tar.gz
 run tar xf ImageMagick.tar.gz
 run cd ImageMagick-7*
 ./configure

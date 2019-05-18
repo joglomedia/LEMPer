@@ -32,7 +32,7 @@ make distclean
 # libfdk-aac - AAC audio encoder
 cd ~/ffmpeg_sources
 wget -O fdk-aac.zip https://github.com/mstorsjo/fdk-aac/zipball/master
-unzip fdk-aac.zip
+unzip -qq fdk-aac.zip
 cd mstorsjo-fdk-aac*
 autoreconf -fiv
 ./configure --prefix="$HOME/ffmpeg_build" --disable-shared
@@ -100,4 +100,3 @@ hash -r
 #  libvorbis-dev libvpx-dev libx11-dev libxext-dev libxfixes-dev texi2html zlib1g-dev
 #sed -i '/ffmpeg_build/c\' ~/.manpath
 #hash -r
-
