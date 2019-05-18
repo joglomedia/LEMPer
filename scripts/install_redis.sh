@@ -28,7 +28,7 @@ echo -en "\nDo you want to install Redis? [Y/n]: "
 read RedisInstall
 
 if [[ "$RedisInstall" == Y* || "$RedisInstall" == y* ]]; then
-    echo -e "\nInstalling Redis server and Redis PHP module..."
+    echo -e "\nInstalling Redis server and Redis PHP module...\n"
 
     # Add Redis repos
     run add-apt-repository ppa:chris-lea/redis-server -y
@@ -51,8 +51,8 @@ if [[ "$RedisInstall" == Y* || "$RedisInstall" == y* ]]; then
     fi
 
     if [[ $(ps -ef | grep -v grep | grep redis-server | wc -l) > 0 ]]; then
-        status "Redis server started successfully."
+        status -e "\nRedis server started successfully."
     else
-        warning "Something wrong with Redis installation."
+        warning -e "\nSomething wrong with Redis installation."
     fi
 fi
