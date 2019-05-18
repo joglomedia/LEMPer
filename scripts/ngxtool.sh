@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 #  +------------------------------------------------------------------------+
 #  | NgxVhost - Simple Nginx vHost Configs File Generator                   |
@@ -18,6 +18,7 @@
 # Version Control
 APP_NAME=$(basename "$0")
 APP_VERSION="1.6.0"
+LAST_UPDATE="18/05/2019"
 
 # Decorator
 RED=91
