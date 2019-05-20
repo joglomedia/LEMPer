@@ -1,10 +1,14 @@
 #!/bin/bash
-clear
-echo "#######################################"
-echo "## ##"
-echo "## A D D U S E R ##"
-echo "## ##"
-echo "#######################################"
+function header_msg() {
+    clear
+    echo "#=========================================================================#"
+    echo "#           Add new user for Ubuntu VPS,  Written by ESLabs.ID            #"
+    echo "#=========================================================================#"
+    echo "#             A small tool to add new user into Ubuntu system.            #"
+    echo "#                                                                         #"
+    echo "#       For more information please visit https://ngxtools.eslabs.id      #"
+    echo "#=========================================================================#"
+}
 
 # Check if user is root
 if [ $(id -u) != "0" ]; then
@@ -12,65 +16,68 @@ if [ $(id -u) != "0" ]; then
     exit 1
 fi
 
-echo -n "Add new user? (y/n): "
+header_msg
+
+echo -n "Add new user? [y/n]: "
 read tambah
 
-while [ "${tambah}" != "n" ]
+while [[ "${tambah}" != n* ]]
 do
-echo -n "Username: "
-read namauser
-echo -n "Password: "
-read katasandi
+    echo -en "\nUsername: "
+    read namauser
+    echo -n "Password: "
+    read katasandi
 
-echo -n "Expire date (yyyy-mm-dd): "
-read expired
-if [ "${expired}" != "unlimited" ]; then
-	setexpiredate="-e $expired"
-else
-	setexpiredate=""
-fi
+    echo -n "Expire date? 'unlimited' for unlimited [yyyy-mm-dd]: "
+    read expired
+    if [[ "${expired}" != "unlimited" ]]; then
+    	setexpiredate="-e $expired"
+    else
+    	setexpiredate=""
+    fi
 
-echo -n "Allow shell access? (y/n): "
-read aksessh
-if [ "${aksessh}" = "y" ]; then
-	setusershell="-s /bin/bash"
-else
-	setusershell="-s /bin/false"
-fi
+    echo -n "Allow shell access? [y/n]: "
+    read aksessh
+    if [[ "${aksessh}" == y* ]]; then
+    	setusershell="-s /bin/bash"
+    else
+    	setusershell="-s /bin/false"
+    fi
 
-echo -n "Create home directory? (y/n): "
-read enablehomedir
-if [ "${enablehomedir}" = "y" ]; then
-	sethomedir="-d /home/${namauser} -m"
-else
-	sethomedir="-d /home/${namauser} -M"
-fi
+    echo -n "Create home directory? [y/n]: "
+    read enablehomedir
+    if [[ "${enablehomedir}" == y* ]]; then
+    	sethomedir="-d /home/${namauser} -m"
+    else
+    	sethomedir="-d /home/${namauser} -M"
+    fi
 
-echo -n "Set users group? (y/n): "
-read setug
-if [ "${setug}" = "y" ]; then
-	setgroup="-g users"
-else
-	setgroup=""
-fi
+    echo -n "Set users group? [y/n]: "
+    read setug
+    if [[ "${setug}" == y* ]]; then
+    	setgroup="-g users"
+    else
+    	setgroup=""
+    fi
 
-useradd $sethomedir $setexpiredate $setgroup $setusershell $namauser
-echo "${namauser}:${katasandi}" | chpasswd
+    user_exists=$(grep -c '^${namauser}:' /etc/passwd)
 
-echo -n "Add user ${namauser} to sudoers? (y/n): "
-read setsudoers
-if [ "${setsudoers}" = "y" ]; then
-	usermod -aG sudo $namauser
-fi
+    if [[ $user_exists == 1 ]]; then
+        useradd $sethomedir $setexpiredate $setgroup $setusershell $namauser
+        echo "${namauser}:${katasandi}" | chpasswd
 
-clear
-echo "#######################################"
-echo "## ##"
-echo "## A D D U S E R ##"
-echo "## ##"
-echo "#######################################"
+        echo -n "Add user ${namauser} to sudoers? [y/n]: "
+        read setsudoers
+        if [[ "${setsudoers}" == y* ]]; then
+        	usermod -aG sudo $namauser
+        fi
+    else
+        echo -e "\nUser '${namauser}' already exits."
+        sleep 3
+    fi
 
-echo -n "Add another user? (y/n): "
-read tambah
+    header_msg
+
+    echo -en "\nAdd another user? [y/n]: "
+    read tambah
 done
-
