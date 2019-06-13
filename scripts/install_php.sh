@@ -530,7 +530,7 @@ function init_php_install() {
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(which php) && -n $(which php7.0) && -n $(which php7.1) && -n $(which php7.2) && -n $(which php7.3) ]]; then
-    warning "All available PHP version has already been installed. Installation skipped..."
+    warning -e "\nAll available PHP version has already been installed. Installation skipped..."
 else
     init_php_install "$@"
 fi

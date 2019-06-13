@@ -103,7 +103,7 @@ function nginx_install_menu() {
 }
 
 function init_nginx_install() {
-    echo "\nWelcome to Nginx installation script"
+    echo -e "\nWelcome to Nginx installation script"
 
     # Install Nginx custom
     nginx_install_menu
@@ -169,14 +169,14 @@ function init_nginx_install() {
     # Restart Nginx server
     if [[ $(ps -ef | grep -v grep | grep nginx | wc -l) > 0 ]]; then
         run service nginx restart
-        status "Nginx web server restarted successfully."
+        status -e "\nNginx web server restarted successfully."
     elif [[ -n $(which nginx) ]]; then
         run service nginx start
 
         if [[ $(ps -ef | grep -v grep | grep nginx | wc -l) > 0 ]]; then
-            status "Nginx web server started successfully."
+            status -e "\nNginx web server started successfully."
         else
-            warning "Something wrong with Nginx installation."
+            warning -e "\nSomething wrong with Nginx installation."
         fi
     fi
 }
@@ -184,7 +184,7 @@ function init_nginx_install() {
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(which nginx) && -d /etc/nginx/sites-available ]]; then
-    warning "Nginx web server already exists. Installation skipped..."
+    warning -e "\nNginx web server already exists. Installation skipped..."
 else
     init_nginx_install "$@"
 fi

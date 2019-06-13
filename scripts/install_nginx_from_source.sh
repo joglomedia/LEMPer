@@ -924,9 +924,9 @@ with --no-deps-check."
 
       # Create default ngx_pagespeed cache directory
       if [ ! -d /var/cache/nginx ]; then
-        run mkdir "/var/cache/nginx"
-        run mkdir "/var/cache/nginx/ngx_pagespeed"
-        run chmod -hR www-data: "/var/cache/nginx"
+        run mkdir /var/cache/nginx
+        run mkdir /var/cache/nginx/ngx_pagespeed
+        run chown -hR www-data:root /var/cache/nginx
       fi
 
       if "$DYNAMIC_MODULE"; then
