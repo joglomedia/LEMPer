@@ -576,8 +576,8 @@ function init_app() {
     if [ $COUNT_ARGS -ge 4 ]; then
         # Additional Check - are user already exist?
         if [[ -z $(getent passwd $USERNAME) ]]; then
-            fail "Error: The user ${USERNAME} does not exist, please add new user first! Aborting...
-                Help: adduser username, try ${APP_NAME} -h for more helps"
+            fail -e "\nError: The user ${USERNAME} does not exist, please add new user first! Aborting...
+                Help: useradd username, try ${APP_NAME} -h for more helps"
         fi
 
         # Check PHP fpm version is exists?
