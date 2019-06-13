@@ -87,6 +87,24 @@ run rm -f FileRun.zip
 # Assign ownership properly
 run chown -hR www-data:root /usr/share/nginx/html/tools/
 
+# Create new default username
+echo -e "\nCreating default Linux account..."
+
+if [[ -z $(getent passwd lemper) ]]; then
+    katasandi=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
+    useradd -d /home/webapps -m -s /bin/bash lemper
+    echo "lemper:${katasandi}" | chpasswd
+    usermod -aG sudo lemper
+
+    echo -e "\nHere is your default account information:
+
+Username: lemper
+Password: ${katasandi}
+
+Please keep it private!
+"
+fi
+
 if [[ -x /usr/local/bin/ngxvhost && -x /usr/local/bin/ngxtool && -d /usr/share/nginx/html/tools ]]; then
     status -e "\nWeb administration tools successfully installed."
 fi
