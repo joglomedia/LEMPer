@@ -4,7 +4,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 ## Features
 * Nginx from custom repository & build from source.
 * Nginx with FastCGI cache enable & disable feature.
-* Nginx pre-configured optimization for low-end VPS. Get one [here](https://eslabs.id/digitalocean/) or [here](https://eslabs.id/upcloud/).
+* Nginx pre-configured optimization for low-end VPS/cloud server. Need reliable VPS/cloud server? Get one [here](https://eslabs.id/digitalocean/) or [here](https://eslabs.id/upcloud/).
 * Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework (CodeIgniter, Symfony, Laravel, Phalcon).
 * MariaDB 10 (MySQL drop-in replacement).
 * In-memory database with Redis.
