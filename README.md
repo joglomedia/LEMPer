@@ -1,18 +1,19 @@
 # [L]inux [E]ngine-X [M]ariaDB [P]HP Install[ER]
-LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Ubuntu-LEMP stack. LEMPer is _ServerPilot alternative_ and _EasyEngine alternative_ for crazy sysadmin :v:
+LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Ubuntu-LEMP stack. LEMPer is _ServerPilot alternative_ and _EasyEngine alternative_ for crazy sysadmin :v:
 
 ## Features
-* Nginx custom from RtCamp repository & build from source
-* Nginx with FastCGI cache enable & disable feature
-* Nginx pre-configured optimization for low-end VPS
-* Nginx virtual host (vhost) configuration optimized for WordPress, Laravel, and Phalcon PHP Framework
-* MariaDB 10 (MySQL drop-in replacement)
-* PHP 5.6, 7.0, 7.1, 7.2, 7.3 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php)
-* PHP-FPM sets as user running the PHP script (pool), Feel the faster Nginx like a truly shared hosting
-* Zend OPcache
-* Memcached 1.4
-* ionCube PHP Loader
-* SourceGuardian PHP Loader
+* Nginx custom from repository & build from source.
+* Nginx with FastCGI cache enable & disable feature.
+* Nginx pre-configured optimization for low-end VPS. Get one from [here](https://eslabs.id/digitalocean/) or [here](https://eslabs.id/upcloud/)
+* Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework (CodeIgniter, Symfony, Laravel, Phalcon).
+* MariaDB 10 (MySQL drop-in replacement).
+* In-memory database with Redis.
+* Memory cache with Memcached.
+* PHP 5.6, 7.0, 7.1, 7.2, 7.3 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
+* PHP-FPM sets as user running the PHP script (pool), Feel the faster Nginx like a truly shared hosting.
+* Zend OPcache.
+* ionCube PHP Loader.
+* SourceGuardian PHP Loader.
 * [Adminer](https://www.adminer.org/) (PhpMyAdmin replacement)
 
 ## Usage
@@ -23,13 +24,13 @@ sudo apt-get install git
 git clone https://github.com/joglomedia/LEMPer.git; cd LEMPer; sudo ./lemper.sh
 ```
 
-### Uninstall Nginx, PHP 5 / 7 &amp; MariaDB
+### Uninstall Nginx, PHP &amp; MariaDB
 ```bash
 sudo ./uninstall.sh
 ```
 
 ## Nginx vHost Configuration Tool (ngxvhost)
-This script also include Nginx Virtual Host (vHost) configuration tool helps you add new website (domain) easily. Feel the faster Nginx like a truly shared hosting.
+This script also include Nginx Virtual Host (vHost) configuration tool helping you add new website (domain) easily.
 The ngxvhost must be run as root (recommended using sudo).
 
 ### Ngxvhost Usage
@@ -41,7 +42,7 @@ Ngxvhost Parameters:
 * -u your username (DO NOT use root login)
 * -d your website domain name
 * -f framework type, available options: default, codeigniter, laravel, phalcon, wordpress, wordpress-ms (multisite)
-* -w absolute web root path to your site directory containing the index file (we recommend you to use user home directory)
+* -w web root absolute path to your site directory containing the index file (we recommend you to use user home directory)
 
 for more info
 ```bash
