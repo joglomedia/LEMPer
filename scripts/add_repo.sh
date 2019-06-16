@@ -86,25 +86,27 @@ run apt-get install -y software-properties-common build-essential git unzip cron
 status "Adding repositories completed..."
 
 function create_swap() {
-  echo "Enabling 1GiB swap..."
-  L_SWAP_FILE="/lemper-swapfile"
-  fallocate -l 1G $L_SWAP_FILE && \
-  chmod 600 $L_SWAP_FILE && \
-  chown root:root $L_SWAP_FILE && \
-  mkswap $L_SWAP_FILE && \
-  swapon $L_SWAP_FILE
+    echo "Enabling 1GiB swap..."
+
+    L_SWAP_FILE="/lemper-swapfile"
+    fallocate -l 1G $L_SWAP_FILE && \
+    chmod 600 $L_SWAP_FILE && \
+    chown root:root $L_SWAP_FILE && \
+    mkswap $L_SWAP_FILE && \
+    swapon $L_SWAP_FILE
 }
 
 function check_swap() {
-  echo -e "\nChecking swap..."
-  if free | awk '/^Swap:/ {exit !$2}'; then
-    :
-  else
-    warning "No swap detected"
-    create_swap
-  fi
+    echo -e "\nChecking swap..."
+
+    if free | awk '/^Swap:/ {exit !$2}'; then
+        swapsize=$(free -g | awk '/^Swap:/ { print $2 }')
+        status "Swap size ${swapsize}GiB."
+    else
+        warning "No swap detected"
+        create_swap
+        status "Adding swap completed..."
+    fi
 }
 
 check_swap
-
-status "Adding swap completed..."
