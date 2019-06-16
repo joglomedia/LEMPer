@@ -17,11 +17,11 @@ function nginx_install_menu() {
 
     case $NgxInstaller in
         1)
-            echo "Installing Nginx from package repository..."
+            echo -e "\nInstalling Nginx from package repository..."
             run apt-get install -y --allow-unauthenticated ${NGX_PACKAGE}
         ;;
         2)
-            echo "Installing Nginx from source..."
+            echo -e "\nInstalling Nginx from source..."
             run ${BASEDIR}/install_nginx_from_source.sh -v latest-stable -n latest \
                 --dynamic-module --extra-modules -y
         ;;
@@ -94,8 +94,13 @@ function nginx_install_menu() {
 
         # Nginx init script
         if [ ! -f /etc/init.d/nginx ]; then
-            run cp nginx/init.d/nginx /etc/init.d
+            run cp nginx/init.d/nginx /etc/init.d/
             run chmod ugo+x /etc/init.d/nginx
+        fi
+
+        # Nginx systemd script
+        if [ ! -f /lib/systemd/system/nginx.service ]; then
+            run cp nginx/systemd/nginx.service /lib/systemd/system/
         fi
     fi
 
