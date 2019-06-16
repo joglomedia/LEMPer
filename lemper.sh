@@ -98,6 +98,19 @@ read -t 10 -p "Press [Enter] to continue..." </dev/tty
 # Cleaning up all build dependencies hanging around on production server?
 run apt-get autoremove -y
 
+### Recap ###
+if [[ ! -z "$katasandi" ]]; then
+    status -e "\nHere is your default system account information:
+
+Username: lemper
+Password: ${katasandi}
+
+Please keep it private!
+"
+fi
+
+echo -e "\nNow, you can restart your server for complete installation."
+
 echo -e "\n"
 echo "#==========================================================================#"
 echo "#         Thank's for installing LNMP stack using LEMPer Installer         #"

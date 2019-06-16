@@ -6,7 +6,7 @@ if [ "$(type -t run)" != "function" ]; then
     . ${BASEDIR}/decorator.sh
 fi
 
-echo "Adding repositories..."
+echo -e "\nAdding repositories..."
 
 if [[ "$DISTRIB_RELEASE" == "14.04" || "$DISTRIB_RELEASE" == "LM17" ]]; then
     # Ubuntu release 14.04, LinuxMint 17
@@ -106,3 +106,5 @@ function check_swap() {
 }
 
 check_swap
+
+status "Adding swap completed..."

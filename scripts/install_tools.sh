@@ -96,7 +96,7 @@ if [[ -z $(getent passwd lemper) ]]; then
     echo "lemper:${katasandi}" | chpasswd
     usermod -aG sudo lemper
 
-    echo -e "\nHere is your default account information:
+    echo -e "\nHere is your default system account information:
 
 Username: lemper
 Password: ${katasandi}
