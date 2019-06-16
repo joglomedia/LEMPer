@@ -1,10 +1,10 @@
 # [L]inux [E]ngine-X [M]ariaDB [P]HP Install[ER]
-LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Ubuntu-LEMP stack. LEMPer is _ServerPilot alternative_ and _EasyEngine alternative_ for crazy sysadmin :v:
+LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Ubuntu-LEMP stack. LEMPer is _ServerPilot_, _RunCloud_, and _EasyEngine_ alternative for wide range PHP framework.
 
 ## Features
 * Nginx custom from repository & build from source.
 * Nginx with FastCGI cache enable & disable feature.
-* Nginx pre-configured optimization for low-end VPS. Get one from [here](https://eslabs.id/digitalocean/) or [here](https://eslabs.id/upcloud/)
+* Nginx pre-configured optimization for low-end VPS. Get one [here](https://eslabs.id/digitalocean/) or [here](https://eslabs.id/upcloud/).
 * Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework (CodeIgniter, Symfony, Laravel, Phalcon).
 * MariaDB 10 (MySQL drop-in replacement).
 * In-memory database with Redis.
