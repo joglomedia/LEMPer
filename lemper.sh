@@ -44,7 +44,7 @@ fi
 
 # Make sure this script only run on Ubuntu install
 if [ ! -f "/etc/lsb-release" ]; then
-    warning "This installer only work on Ubuntu server..."
+    warning -e "\nThis installer only work on Ubuntu server..."
     exit 1
 else
     # Variables
