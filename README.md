@@ -18,7 +18,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 
 ## Usage
 
-### Install Nginx, PHP 5 / 7 &amp; MariaDB
+### Install Nginx, PHP &amp; MariaDB
 ```bash
 sudo apt-get install git
 git clone https://github.com/joglomedia/LEMPer.git; cd LEMPer; sudo ./lemper.sh
@@ -66,11 +66,11 @@ http://YOUR_DOMAIN_NAME:8083/
 ```
 
 ## TODO
-* ~~Custom build latest [Nginx](https://nginx.org/en/) from source~~
-* Add [Let's Encrypt SSL](https://letsencrypt.org/)
-* Add security hardening (iptable rules, firewall, else?)
-* Add server monitoring (Nagios, Monit, else?)
-* Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new)
+* ~~Custom build latest [Nginx](https://nginx.org/en/) from source.~~
+* Add [Let's Encrypt SSL](https://letsencrypt.org/).
+* Add security hardening (iptable rules, firewall, else?).
+* Add server monitoring (Nagios, Monit, else?).
+* Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new).
 
 ## Contribution
 Please send your PR on the Github repository to help improve this script.
@@ -79,7 +79,7 @@ Please send your PR on the Github repository to help improve this script.
 Do not use this script if you're looking for feature rich and advanced tool like premium service.
 
 ## DONATION
-**[Buy Me a Bottle of Milk](https://paypal.me/masedi)**
+**[Buy Me a Bottle of Milk](https://paypal.me/masedi) !!**
 
 ## Copyright
 (c) 2014-2019
