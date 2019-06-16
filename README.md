@@ -21,12 +21,12 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 ### Install Nginx, PHP &amp; MariaDB
 ```bash
 sudo apt-get install git
-git clone https://github.com/joglomedia/LEMPer.git; cd LEMPer; sudo ./lemper.sh
+git clone https://github.com/joglomedia/LEMPer.git; cd LEMPer; sudo ./lemper.sh --install
 ```
 
 ### Uninstall Nginx, PHP &amp; MariaDB
 ```bash
-sudo ./uninstall.sh
+sudo ./lemper.sh --uninstall
 ```
 
 ## Nginx vHost Configuration Tool (ngxvhost)
