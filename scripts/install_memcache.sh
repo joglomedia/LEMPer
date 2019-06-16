@@ -44,11 +44,11 @@ fi
 }
 
 
-echo -n "Do you want to install Memcache? [Y/n]: "
+echo -en "\nDo you want to install Memcache? [Y/n]: "
 read MemcachedInstall
 
 if [[ "$MemcachedInstall" == "Y" || "$MemcachedInstall" == "y" || "$MemcachedInstall" == "yes" ]]; then
-    echo "Installing Memcache and PHP memcached module..."
+    echo -e "\nInstalling Memcache and PHP memcached module..."
 
     # Install memcached
     run apt-get install -y memcached php-memcached php-memcache

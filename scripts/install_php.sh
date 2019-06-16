@@ -441,8 +441,9 @@ function init_php_install() {
         2). SourceGuardian (latest stable)
         3). All loaders (IonCube, SourceGuardian)
         ------------------------------------------"
-        echo -en "Select your loader [1-3]: "
+        echo -n "Select your loader [1-3]: "
         read PhpLoaderOpt
+        echo -e "\n"
 
         if [ ! -d /usr/lib/php/loaders ]; then
             run mkdir /usr/lib/php/loaders

@@ -13,14 +13,14 @@
 # |     - MariaDB 10 (MySQL drop-in replacement)                            |
 # |     - Adminer (PhpMyAdmin replacement)                                  |
 # | Min requirement   : GNU/Linux Ubuntu 14.04 or Linux Mint 17             |
-# | Last Update       : 19/04/2019                                          |
+# | Last Update       : 16/06/2019                                          |
 # | Author            : ESLabs.ID (eslabs.id@gmail.com)                     |
 # | Version           : 1.0.0                                               |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2019 NgxTools (https://ngxtools.eslabs.id)           |
+# | Copyright (c) 2014-2019 NgxTools (https://eslabs.id/lemper)             |
 # +-------------------------------------------------------------------------+
-# | This source file is subject to the New BSD License that is bundled      |
-# | with this package in the file docs/LICENSE.txt.                         |
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
 # |                                                                         |
 # | If you did not receive a copy of the license and are unable to          |
 # | obtain it through the world-wide-web, please send an email              |
@@ -88,15 +88,17 @@ read -t 10 -p "Press [Enter] to continue..." </dev/tty
 ### Mail Server Installation ###
 . scripts/install_postfix.sh
 
-### Addon Installation ###
-. scripts/install_tools.sh
-
 ### Install Let's Encrypt SSL ###
 . scripts/install_letsencrypt.sh
+
+### Addon Installation ###
+. scripts/install_tools.sh
 
 ### FINAL STEP ###
 # Cleaning up all build dependencies hanging around on production server?
 run apt-get autoremove -y
+
+status -e "\nLEMPer installation has been completed."
 
 ### Recap ###
 if [[ ! -z "$katasandi" ]]; then
@@ -109,14 +111,13 @@ Please keep it private!
 "
 fi
 
-echo -e "\nNow, you can restart your server for complete installation."
+echo -e "\nNow, you can reboot your server and enjoy it!\n"
 
-echo -e "\n"
 echo "#==========================================================================#"
 echo "#         Thank's for installing LNMP stack using LEMPer Installer         #"
 echo "#        Found any bugs / errors / suggestions? please let me know         #"
 echo "#    If this script useful, don't forget to buy me a coffee or milk :D     #"
 echo "#   My PayPal is always open for donation, here https://paypal.me/masedi   #"
 echo "#                                                                          #"
-echo "#         (c) 2014-2019 - ESLabs.ID - https://ngxtools.eslabs.id ;)        #"
+echo "#         (c) 2014-2019 - ESLabs.ID - https://eslabs.id/lemper ;)          #"
 echo "#==========================================================================#"
