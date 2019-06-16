@@ -84,3 +84,25 @@ run apt-get install -y software-properties-common build-essential git unzip cron
     lsb-release rsync libgd-dev libgeoip-dev libxslt1-dev libssl-dev libxml2-dev openssl snmp spawn-fcgi fcgiwrap geoip-database
 
 status "Adding repositories completed..."
+
+function create_swap() {
+  echo "Enabling 1GiB swap..."
+  L_SWAP_FILE="/lemper-swapfile"
+  fallocate -l 1G $L_SWAP_FILE && \
+  chmod 600 $L_SWAP_FILE && \
+  chown root:root $L_SWAP_FILE && \
+  mkswap $L_SWAP_FILE && \
+  swapon $L_SWAP_FILE
+}
+
+function check_swap() {
+  echo -e "\nChecking swap..."
+  if free | awk '/^Swap:/ {exit !$2}'; then
+    :
+  else
+    warning "No swap detected"
+    create_swap
+  fi
+}
+
+check_swap
