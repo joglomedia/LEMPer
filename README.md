@@ -2,7 +2,7 @@
 LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Ubuntu-LEMP stack. LEMPer is _ServerPilot_, _RunCloud_, and _EasyEngine_ alternative for wide range PHP framework.
 
 ## Features
-* Nginx custom from repository & build from source.
+* Nginx from custom repository & build from source.
 * Nginx with FastCGI cache enable & disable feature.
 * Nginx pre-configured optimization for low-end VPS. Get one [here](https://eslabs.id/digitalocean/) or [here](https://eslabs.id/upcloud/).
 * Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework (CodeIgniter, Symfony, Laravel, Phalcon).
@@ -39,10 +39,10 @@ sudo ngxvhost -u username -d example.com -f default -w /home/username/Webs/examp
 ```
 Ngxvhost Parameters:
 
-* -u your username (DO NOT use root login)
-* -d your website domain name
+* -u username, system user name (DO NOT use root login)
+* -d domain name, your website domain or sub-domain name
 * -f framework type, available options: default, codeigniter, laravel, phalcon, wordpress, wordpress-ms (multisite)
-* -w web root absolute path to your site directory containing the index file (we recommend you to use user home directory)
+* -w web root, absolute path to your website directory containing the index file (we recommend you to use user home directory)
 
 for more info
 ```bash
