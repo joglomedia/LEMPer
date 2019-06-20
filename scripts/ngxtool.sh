@@ -1,19 +1,19 @@
 #!/bin/bash
 
-#  +------------------------------------------------------------------------+
-#  | NgxVhost - Simple Nginx vHost Configs File Generator                   |
-#  +------------------------------------------------------------------------+
-#  | Copyright (c) 2014-2019 NgxTools (https://ngxtools.eslabs.id)          |
-#  +------------------------------------------------------------------------+
-#  | This source file is subject to the New BSD License that is bundled     |
-#  | with this package in the file docs/LICENSE.txt.                        |
-#  |                                                                        |
-#  | If you did not receive a copy of the license and are unable to         |
-#  | obtain it through the world-wide-web, please send an email             |
-#  | to license@eslabs.id so we can send you a copy immediately.            |
-#  +------------------------------------------------------------------------+
-#  | Authors: Edi Septriyanto <eslabs.id@gmail.com>                         |
-#  +------------------------------------------------------------------------+
+# +-------------------------------------------------------------------------+
+# | NgxVhost - Simple Nginx vHost Configs File Generator                    |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2019 NgxTools (https://ngxtools.eslabs.id)           |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@eslabs.id so we can send you a copy immediately.             |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
+# +-------------------------------------------------------------------------+
 
 # Version Control
 APP_NAME=$(basename "$0")

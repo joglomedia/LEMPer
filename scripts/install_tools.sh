@@ -39,7 +39,7 @@ LEMPer and ngxTools support is available at
 
 <p><em>Thank you for using nginx, ngxTools, and LEMPer.</em></p>
 
-<p style="font-size:90%;">Generated using <em>LEMPer</em> from <a href="https://ngxtools.eslabs.id/">Nginx vHost Tool</a>, a simple nginx web server management tool.</p>
+<p style="font-size:90%;">Generated using <em>LEMPer</em> from <a href="https://eslabs.id/lemper">Nginx vHost Tool</a>, a simple nginx web server management tool.</p>
 </body>
 </html>
 _EOF_
@@ -55,6 +55,7 @@ run chmod ugo+x /usr/local/bin/ngxtool
 run mkdir /usr/share/nginx/html/tools/
 
 create_index_file > /usr/share/nginx/html/index.html
+create_index_file > /usr/share/nginx/html/tools/index.html
 
 # Install PHP Info
 #cat > /usr/share/nginx/html/tools/phpinfo.php <<EOL
@@ -83,6 +84,8 @@ run mkdir /usr/share/nginx/html/tools/filerun/
 run wget -q http://www.filerun.com/download-latest -O FileRun.zip
 run unzip -qq FileRun.zip -d /usr/share/nginx/html/tools/filerun/
 run rm -f FileRun.zip
+
+# TODO: try Tinyfilemanager https://github.com/prasathmani/tinyfilemanager
 
 # Assign ownership properly
 run chown -hR www-data:root /usr/share/nginx/html/tools/

@@ -145,11 +145,11 @@ case $1 in
         # Remove PHP
         echo -e "\nUninstalling PHP FPM...\n"
 
-        if [[ -n $(which which php-fpm5.6) \
-            || -n $(which which php-fpm7.0) \
-            || -n $(which which php-fpm7.1) \
-            || -n $(which which php-fpm7.2) \
-            || -n $(which which php-fpm7.3) ]]; then
+        if [[ -n $(which php-fpm5.6) \
+            || -n $(which php-fpm7.0) \
+            || -n $(which php-fpm7.1) \
+            || -n $(which php-fpm7.2) \
+            || -n $(which php-fpm7.3) ]]; then
             # Stop php5-fpm server
             service php5.6-fpm stop
             service php7.0-fpm stop
