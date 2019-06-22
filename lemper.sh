@@ -13,11 +13,11 @@
 # |     - MariaDB 10 (MySQL drop-in replacement)                            |
 # |     - Adminer (PhpMyAdmin replacement)                                  |
 # | Min requirement   : GNU/Linux Ubuntu 14.04 or Linux Mint 17             |
-# | Last Update       : 16/06/2019                                          |
+# | Last Update       : 22/06/2019                                          |
 # | Author            : ESLabs.ID (eslabs.id@gmail.com)                     |
 # | Version           : 1.0.0                                               |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2019 NgxTools (https://eslabs.id/lemper)             |
+# | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/lemper)               |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
