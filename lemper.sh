@@ -166,8 +166,6 @@ case $1 in
                 if [ -d /etc/nginx/modules-enabled ]; then
                     run rm -fr /etc/nginx/modules-enabled
                 fi
-            else
-                echo "Nginx installation not found."
             fi
 
             echo -en "Completely remove Nginx configuration files (This action is not reversible)? [Y/n]: "
@@ -180,6 +178,8 @@ case $1 in
         	    # rm nginx html
         	    run rm -fr /usr/share/nginx
             fi
+        else
+            echo "Nginx installation not found."
         fi
 
         # Remove PHP
