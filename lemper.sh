@@ -129,32 +129,43 @@ case $1 in
             # Stop Nginx web server
             run service nginx stop
 
-            # Remove Nginx - PHP5 - MariaDB - PhpMyAdmin
-            apt-get remove -y nginx-custom nginx-stable
+            # Remove Nginx
+            if [ $(dpkg-query -l | grep nginx-common | awk '/nginx-common/ { print $2 }') ]; then
+            	echo "Nginx-common package found. Removing..."
+                run apt-get remove -y nginx-common
+            elif [ $(dpkg-query -l | grep nginx-custom | awk '/nginx-custom/ { print $2 }') ]; then
+            	echo "Nginx-custom package found. Removing..."
+                run apt-get remove -y nginx-custom
+            elif [ $(dpkg-query -l | grep nginx-stable | awk '/nginx-stable/ { print $2 }') ]; then
+            	echo "Nginx-stable package found. Removing..."
+                run apt-get remove -y nginx-stable
+            else
+            	echo "Nginx package not found. Possibly installed from source."
 
-            # Re-ensure (only if nginx package not installed / nginx installed from source)
-            if [ -f /usr/sbin/nginx ]; then
-                run rm -f /usr/sbin/nginx
-            fi
+                # Only if nginx package not installed / nginx installed from source)
+                if [ -f /usr/sbin/nginx ]; then
+                    run rm -f /usr/sbin/nginx
+                fi
 
-            if [ -f /etc/init.d/nginx ]; then
-                run rm -f /etc/init.d/nginx
-            fi
+                if [ -f /etc/init.d/nginx ]; then
+                    run rm -f /etc/init.d/nginx
+                fi
 
-            if [ -f /lib/systemd/system/nginx.service ]; then
-                run rm -f /lib/systemd/system/nginx.service
-            fi
+                if [ -f /lib/systemd/system/nginx.service ]; then
+                    run rm -f /lib/systemd/system/nginx.service
+                fi
 
-            if [ -d /usr/lib/nginx/ ]; then
-                run rm -fr /usr/lib/nginx/
-            fi
+                if [ -d /usr/lib/nginx/ ]; then
+                    run rm -fr /usr/lib/nginx/
+                fi
 
-            if [ -d /etc/nginx/modules-available ]; then
-                run rm -fr /etc/nginx/modules-available
-            fi
+                if [ -d /etc/nginx/modules-available ]; then
+                    run rm -fr /etc/nginx/modules-available
+                fi
 
-            if [ -d /etc/nginx/modules-enabled ]; then
-                run rm -fr /etc/nginx/modules-enabled
+                if [ -d /etc/nginx/modules-enabled ]; then
+                    run rm -fr /etc/nginx/modules-enabled
+                fi
             fi
 
             echo -en "Completely remove Nginx configuration files (This action is not reversible)? [Y/n]: "
