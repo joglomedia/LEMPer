@@ -135,7 +135,7 @@ function init_nginx_install() {
     fi
 
     run cp -f nginx/sites-available/default /etc/nginx/sites-available/
-    run cp -f nginx/sites-available/phpmyadmin.conf /etc/nginx/sites-available/
+    run cp -f nginx/sites-available/sample-site-phpmyadmin.dev.conf /etc/nginx/sites-available/
     run cp -f nginx/sites-available/sample-wordpress.dev.conf /etc/nginx/sites-available/
     run cp -f nginx/sites-available/sample-wordpress-ms.dev.conf /etc/nginx/sites-available/
     run cp -f nginx/sites-available/ssl.sample-site.dev.conf /etc/nginx/sites-available/
