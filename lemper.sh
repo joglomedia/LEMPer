@@ -179,7 +179,7 @@ case $1 in
         	    run rm -fr /usr/share/nginx
             fi
         else
-            echo "Nginx installation not found."
+            warning "Nginx installation not found."
         fi
 
         # Remove PHP
@@ -214,7 +214,7 @@ case $1 in
                 run rm -fr /usr/lib/php/loaders/
             fi
         else
-            echo "PHP installation not found."
+            warning "PHP installation not found."
         fi
 
         # Remove MySQL
@@ -234,7 +234,7 @@ case $1 in
         	    run rm -fr /var/lib/mysql
             fi
         else
-            echo "MariaDB installation not found."
+            warning "MariaDB installation not found."
         fi
 
         #run apt-get autoremove -y
