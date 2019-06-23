@@ -10,7 +10,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * In-memory database with Redis.
 * Memory cache with Memcached.
 * PHP 5.6, 7.0, 7.1, 7.2, 7.3 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
-* PHP-FPM sets as user running the PHP script (pool), Feel the faster Nginx on multi-user environment like a truly shared hosting.
+* PHP-FPM sets as user running the PHP script (pool), Feel the faster Nginx with multi-user like a top-notch shared hosting.
 * Zend OPcache.
 * ionCube PHP Loader.
 * SourceGuardian PHP Loader.
