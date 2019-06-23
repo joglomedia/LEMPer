@@ -95,9 +95,14 @@ echo -e "\nCreating default Linux account..."
 
 if [[ -z $(getent passwd lemper) ]]; then
     katasandi=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
-    useradd -d /home/webapps -m -s /bin/bash lemper
+    run useradd -d /home/lemper -m -s /bin/bash lemper
     echo "lemper:${katasandi}" | chpasswd
-    usermod -aG sudo lemper
+    run usermod -aG sudo lemper
+
+    if [ -d /home/lemper ]; then
+        run mkdir /home/lemper/webapps
+        run chown -hR lemper:lemper /home/lemper/webapps
+    fi
 fi
 
 if [[ -x /usr/local/bin/ngxvhost && -x /usr/local/bin/ngxtool && -d /usr/share/nginx/html/tools ]]; then
