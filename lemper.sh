@@ -231,7 +231,7 @@ case $1 in
             fi
         fi
 
-        run apt-get autoremove -y
+        #run apt-get autoremove -y
     ;;
     --help)
         echo "Please read the README file for more information!"
