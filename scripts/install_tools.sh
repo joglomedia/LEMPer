@@ -98,16 +98,8 @@ if [[ -z $(getent passwd lemper) ]]; then
     useradd -d /home/webapps -m -s /bin/bash lemper
     echo "lemper:${katasandi}" | chpasswd
     usermod -aG sudo lemper
-
-    echo -e "\nHere is your default system account information:
-
-Username: lemper
-Password: ${katasandi}
-
-Please keep it private!
-"
 fi
 
 if [[ -x /usr/local/bin/ngxvhost && -x /usr/local/bin/ngxtool && -d /usr/share/nginx/html/tools ]]; then
-    status -e "\nWeb administration tools successfully installed."
+    status -e "\nWeb administration tools successfully installed.\n"
 fi
