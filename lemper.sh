@@ -106,8 +106,10 @@ case $1 in
         if [[ ! -z "$katasandi" ]]; then
             status -e "\nHere is your default system account information:
 
-        Username: lemper
-        Password: ${katasandi}
+        Server IP : ${IPAddr}
+        SSH Port  : 22
+        Username  : lemper
+        Password  : ${katasandi}
 
         Please keep it private!
         "
