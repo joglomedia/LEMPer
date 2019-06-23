@@ -13,7 +13,7 @@
 # |     - MariaDB 10 (MySQL drop-in replacement)                            |
 # |     - Adminer (PhpMyAdmin replacement)                                  |
 # | Min requirement   : GNU/Linux Ubuntu 14.04 or Linux Mint 17             |
-# | Last Update       : 22/06/2019                                          |
+# | Last Update       : 24/06/2019                                          |
 # | Author            : ESLabs.ID (eslabs.id@gmail.com)                     |
 # | Version           : 1.0.0                                               |
 # +-------------------------------------------------------------------------+

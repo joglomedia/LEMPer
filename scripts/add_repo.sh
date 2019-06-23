@@ -19,7 +19,7 @@ if [[ "$DISTRIB_RELEASE" == "14.04" || "$DISTRIB_RELEASE" == "LM17" ]]; then
     NGX_PACKAGE="nginx-custom"
 
     # MariaDB 10.2 repo
-    MARIADB_VER="10.2"
+    MARIADB_VER="10.3"
     run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0xcbcb082a1bb943db
     #add-apt-repository 'deb http://ftp.osuosl.org/pub/mariadb/repo/10.2/ubuntu trusty main'
 elif [[ "$DISTRIB_RELEASE" == "16.04" || "$DISTRIB_RELEASE" == "LM18" ]]; then
@@ -33,7 +33,7 @@ elif [[ "$DISTRIB_RELEASE" == "16.04" || "$DISTRIB_RELEASE" == "LM18" ]]; then
     NGX_PACKAGE="nginx-custom"
 
     # MariaDB 10.3 repo
-    MARIADB_VER="10.3"
+    MARIADB_VER="10.4"
     run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0xF1656F24C74CD1D8
     #add-apt-repository 'deb [arch=amd64,i386,ppc64el] http://ftp.osuosl.org/pub/mariadb/repo/10.3/ubuntu xenial main'
 elif [[ "$DISTRIB_RELEASE" == "18.04" || "$DISTRIB_RELEASE" == "LM19" ]]; then
@@ -47,7 +47,7 @@ elif [[ "$DISTRIB_RELEASE" == "18.04" || "$DISTRIB_RELEASE" == "LM19" ]]; then
     NGX_PACKAGE="nginx-stable"
 
     # MariaDB 10.3 repo
-    MARIADB_VER="10.3"
+    MARIADB_VER="10.4"
     run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0xF1656F24C74CD1D8
     #add-apt-repository 'deb [arch=amd64,arm64,ppc64el] http://ftp.osuosl.org/pub/mariadb/repo/10.3/ubuntu bionic main'
 else
