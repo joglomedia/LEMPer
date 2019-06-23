@@ -361,14 +361,14 @@ function optimize_php() {
     # Restart PHP-fpm server
     if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
         run service php${PHPv}-fpm restart
-        status "PHP${PHPv}-FPM restarted successfully."
+        status -e "\nPHP${PHPv}-FPM restarted successfully."
     elif [[ -n $(which php${PHPv}) ]]; then
         run service php${PHPv}-fpm start
 
         if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
-            status "PHP${PHPv}-FPM started successfully."
+            status -e "\nPHP${PHPv}-FPM started successfully."
         else
-            warning "Something wrong with PHP installation."
+            warning -e "\nSomething wrong with PHP installation."
         fi
     fi
 }
@@ -445,7 +445,6 @@ function init_php_install() {
         ------------------------------------------"
         echo -n "Select your loader [1-3]: "
         read PhpLoaderOpt
-        echo -e "\n"
 
         if [ ! -d /usr/lib/php/loaders ]; then
             run mkdir /usr/lib/php/loaders
