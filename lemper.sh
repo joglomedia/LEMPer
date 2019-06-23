@@ -127,20 +127,45 @@ case $1 in
 
         if [[ -n $(which nginx) ]]; then
             # Stop Nginx web server
-            service nginx stop
+            run service nginx stop
 
             # Remove Nginx - PHP5 - MariaDB - PhpMyAdmin
-            apt-get remove -y nginx-custom
+            run apt-get remove -y nginx-custom nginx-stable
+
+            # Re-ensure (only if nginx package not installed / nginx installed from source)
+            if [ -f /usr/sbin/nginx ]; then
+                run rm -f /usr/sbin/nginx
+            fi
+
+            if [ -f /etc/init.d/nginx ]; then
+                run rm -f /etc/init.d/nginx
+            fi
+
+            if [ -f /lib/systemd/system/nginx.service ]; then
+                run rm -f /lib/systemd/system/nginx.service
+            fi
+
+            if [ -d /usr/lib/nginx/ ]; then
+                run rm -fr /usr/lib/nginx/
+            fi
+
+            if [ -d /etc/nginx/modules-available ]; then
+                run rm -fr /etc/nginx/modules-available
+            fi
+
+            if [ -d /etc/nginx/modules-enabled ]; then
+                run rm -fr /etc/nginx/modules-enabled
+            fi
 
             echo -en "Completely remove Nginx configuration files (This action is not reversible)? [Y/n]: "
             read rmngxconf
             if [[ "${rmngxconf}" == Y* || "${rmngxconf}" == y* ]]; then
-        	    echo "All your Nginx configuration files will be deleted..."
-        	    rm -fr /etc/nginx
+        	    echo "All your Nginx configuration files deleted permanently..."
+        	    run rm -fr /etc/nginx
         	    # rm nginx-cache
-        	    rm -fr /var/cache/nginx
+        	    run rm -fr /var/cache/nginx
         	    # rm nginx html
-        	    rm -fr /usr/share/nginx
+        	    run rm -fr /usr/share/nginx
             fi
         fi
 
@@ -160,20 +185,20 @@ case $1 in
             service php7.3-fpm stop
 
             # Stop Memcached server
-            service memcached stop
+            run service memcached stop
 
             # Stop Redis server
-            service redis-server stop
+            run service redis-server stop
 
-            apt-get --purge remove -y php* php*-* pkg-php-tools spawn-fcgi geoip-database snmp memcached
+            run apt-get --purge remove -y php* php*-* pkg-php-tools spawn-fcgi geoip-database snmp memcached redis-server
 
             echo -n "Completely remove PHP-FPM configuration files (This action is not reversible)? [Y/n]: "
             read rmfpmconf
             if [[ "${rmfpmconf}" == Y* || "${rmfpmconf}" == y* ]]; then
         	    echo "All your PHP-FPM configuration files deleted permanently..."
-        	    rm -fr /etc/php/
+        	    run rm -fr /etc/php/
         	    # Remove ioncube
-                rm -fr /usr/lib/php/loaders/
+                run rm -fr /usr/lib/php/loaders/
             fi
         fi
 
@@ -182,20 +207,20 @@ case $1 in
 
         if [[ -n $(which mysql) ]]; then
             # Stop MariaDB mysql server
-            service mysql stop
+            run service mysql stop
 
-            apt-get remove -y mariadb-server-10.1 mariadb-client-10.1 mariadb-server-core-10.1 mariadb-common mariadb-server libmariadbclient18 mariadb-client-core-10.1
+            run apt-get remove -y mariadb-server-10.1 mariadb-client-10.1 mariadb-server-core-10.1 mariadb-common mariadb-server libmariadbclient18 mariadb-client-core-10.1
 
             echo -n "Completely remove MariaDB SQL database and configuration files (This action is not reversible)? [Y/n]: "
             read rmsqlconf
             if [[ "${rmsqlconf}" == Y* || "${rmsqlconf}" == y* ]]; then
-        	    echo "All your SQL database and configuration files will be deleted permanently..."
-        	    rm -fr /etc/mysql
-        	    rm -fr /var/lib/mysql
+        	    echo "All your SQL database and configuration files deleted permanently..."
+        	    run rm -fr /etc/mysql
+        	    run rm -fr /var/lib/mysql
             fi
         fi
 
-        apt-get autoremove -y
+        run apt-get autoremove -y
     ;;
     --help)
         echo "Please read the README file for more information!"
