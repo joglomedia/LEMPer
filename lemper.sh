@@ -166,6 +166,8 @@ case $1 in
                 if [ -d /etc/nginx/modules-enabled ]; then
                     run rm -fr /etc/nginx/modules-enabled
                 fi
+            else
+                echo "Nginx installation not found."
             fi
 
             echo -en "Completely remove Nginx configuration files (This action is not reversible)? [Y/n]: "
@@ -211,10 +213,12 @@ case $1 in
         	    # Remove ioncube
                 run rm -fr /usr/lib/php/loaders/
             fi
+        else
+            echo "PHP installation not found."
         fi
 
         # Remove MySQL
-        echo -e "\nUninstalling MySQL DBMS...\n"
+        echo -e "\nUninstalling MariaDB (SQL DBMS)...\n"
 
         if [[ -n $(which mysql) ]]; then
             # Stop MariaDB mysql server
@@ -229,6 +233,8 @@ case $1 in
         	    run rm -fr /etc/mysql
         	    run rm -fr /var/lib/mysql
             fi
+        else
+            echo "MariaDB installation not found."
         fi
 
         #run apt-get autoremove -y
