@@ -130,7 +130,7 @@ case $1 in
             run service nginx stop
 
             # Remove Nginx - PHP5 - MariaDB - PhpMyAdmin
-            run apt-get remove -y nginx-custom nginx-stable
+            apt-get remove -y nginx-custom nginx-stable
 
             # Re-ensure (only if nginx package not installed / nginx installed from source)
             if [ -f /usr/sbin/nginx ]; then
