@@ -111,6 +111,12 @@ case $1 in
         Username  : lemper
         Password  : ${katasandi}
 
+        Access to your Database administration (Adminer):
+        http://${IPAddr}:8082/
+
+        Access to your File manager (FileRun):
+        http://${IPAddr}:8083/
+
         Please keep it private!
         "
         fi
