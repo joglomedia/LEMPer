@@ -98,7 +98,6 @@ _EOF_
 }
 
 function footer_msg() {
-echo -e "\n"
 cat <<- _EOF_
 #==========================================================================#
 #         Thank's for installing LNMP stack using LEMPer Installer         #
