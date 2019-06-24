@@ -252,12 +252,9 @@ case $1 in
             || -n $(which php-fpm7.1) \
             || -n $(which php-fpm7.2) \
             || -n $(which php-fpm7.3) ]]; then
-            # Stop php5-fpm server
-            service php5.6-fpm stop
-            service php7.0-fpm stop
-            service php7.1-fpm stop
-            service php7.2-fpm stop
-            service php7.3-fpm stop
+
+            # Stop running PHP FPM server
+            #service php5.6-fpm stop
 
             # Stop Memcached server
             run service memcached stop
@@ -267,7 +264,7 @@ case $1 in
 
             run apt-get --purge remove -y php* php*-* pkg-php-tools spawn-fcgi geoip-database snmp memcached redis-server
 
-            echo -n "Completely remove PHP-FPM configuration files (This action is not reversible)? [Y/n]: "
+            echo -n "\nCompletely remove PHP-FPM configuration files (This action is not reversible)? [Y/n]: "
             read rmfpmconf
             if [[ "${rmfpmconf}" == Y* || "${rmfpmconf}" == y* ]]; then
         	    echo "All your PHP-FPM configuration files deleted permanently..."
@@ -288,7 +285,7 @@ case $1 in
 
             run apt-get remove -y mariadb-server-10.1 mariadb-client-10.1 mariadb-server-core-10.1 mariadb-common mariadb-server libmariadbclient18 mariadb-client-core-10.1
 
-            echo -n "Completely remove MariaDB SQL database and configuration files (This action is not reversible)? [Y/n]: "
+            echo -n "\nCompletely remove MariaDB SQL database and configuration files (This action is not reversible)? [Y/n]: "
             read rmsqlconf
             if [[ "${rmsqlconf}" == Y* || "${rmsqlconf}" == y* ]]; then
         	    echo "All your SQL database and configuration files deleted permanently..."
