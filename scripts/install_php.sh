@@ -331,13 +331,27 @@ function optimize_php() {
 
     # Copy custom php.ini
     if [ -f php/${PHPv}/fpm/php.ini ]; then
-        run mv /etc/php/${PHPv}/fpm/php.ini /etc/php/${PHPv}/fpm/php.ini~
+        run mv /etc/php/${PHPv}/fpm/php.ini /etc/php/${PHPv}/fpm/php.ini.old
         run cp php/${PHPv}/fpm/php.ini /etc/php/${PHPv}/fpm/
+    else
+cat >> /etc/php/${PHPv}/fpm/php.ini <<EOL
+
+[opcache]
+opcache.enable=1;
+opcache.enable_cli=0;
+opcache.memory_consumption=128 # MB, adjust to your needs
+opcache.interned_strings_buffer=8 # Adjust to your needs
+opcache.max_accelerated_files=10000 # Adjust to your needs
+opcache.max_wasted_percentage=5 # Adjust to your needs
+opcache.validate_timestamps=1
+opcache.revalidate_freq=1
+opcache.save_comments=1
+EOL
     fi
 
     # Copy the optimized-version of php fpm config file
     if [ -f php/${PHPv}/fpm/php-fpm.conf ]; then
-        run mv /etc/php/${PHPv}/fpm/php-fpm.conf /etc/php/${PHPv}/fpm/php-fpm.conf~
+        run mv /etc/php/${PHPv}/fpm/php-fpm.conf /etc/php/${PHPv}/fpm/php-fpm.conf.old
         run cp php/${PHPv}/fpm/php-fpm.conf /etc/php/${PHPv}/fpm/
     fi
 
@@ -347,8 +361,47 @@ function optimize_php() {
 
     # Copy the optimized-version of php fpm default pool
     if [ -f php/${PHPv}/fpm/pool.d/www.conf ]; then
-        run mv /etc/php/${PHPv}/fpm/pool.d/www.conf /etc/php/${PHPv}/fpm/pool.d/www.conf~
+        run mv /etc/php/${PHPv}/fpm/pool.d/www.conf /etc/php/${PHPv}/fpm/pool.d/www.conf.old
         run cp php/${PHPv}/fpm/pool.d/www.conf /etc/php/${PHPv}/fpm/pool.d/
+    fi
+
+    # Copy the optimized-version of php fpm lemper pool
+    if [ -f php/${PHPv}/fpm/pool.d/lemper.conf ]; then
+        run mv /etc/php/${PHPv}/fpm/pool.d/lemper.conf /etc/php/${PHPv}/fpm/pool.d/lemper.conf.old
+        run cp php/${PHPv}/fpm/pool.d/lemper.conf /etc/php/${PHPv}/fpm/pool.d/
+    else
+cat >> /etc/php/${PHPv}/fpm/pool.d/lemper.conf <<EOL
+[lemper]
+user = lemper
+group = lemper
+
+listen = /run/php/php7.1-fpm.$pool.sock
+listen.owner = lemper
+listen.group = lemper
+listen.mode = 0666
+;listen.allowed_clients = 127.1.0.1
+
+pm = dynamic
+pm.max_children = 5
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+pm.process_idle_timeout = 30s;
+pm.max_requests = 500
+
+request_slowlog_timeout = 6s
+slowlog = /var/log/php7.1-fpm_slow.$pool.log
+
+chdir = /
+
+security.limit_extensions = .php .php3 .php4 .php5
+
+;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com
+php_flag[display_errors] = on
+php_admin_value[error_log] = /var/log/php7.1-fpm.$pool.log
+php_admin_flag[log_errors] = on
+;php_admin_value[memory_limit] = 32M
+EOL
     fi
 
     # Fix cgi.fix_pathinfo
@@ -531,7 +584,7 @@ function init_php_install() {
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(which php) && -n $(which php7.0) && -n $(which php7.1) && -n $(which php7.2) && -n $(which php7.3) ]]; then
+if [[ -n $(which php5.6) && -n $(which php7.0) && -n $(which php7.1) && -n $(which php7.2) && -n $(which php7.3) ]]; then
     warning -e "\nAll available PHP version has already been installed. Installation skipped..."
 else
     init_php_install "$@"
