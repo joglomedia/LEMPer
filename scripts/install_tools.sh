@@ -62,10 +62,10 @@ create_index_file > /usr/share/nginx/html/tools/index.html
 #<?php phpinfo(); ?>
 #EOL
 run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.php'
+run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.php56'
 run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.php70'
 run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.php71'
 run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.php72'
-run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.php73'
 
 # Install Zend OpCache Web Viewer
 run wget -q --no-check-certificate https://raw.github.com/rlerdorf/opcache-status/master/opcache.php -O /usr/share/nginx/html/tools/opcache.php
@@ -89,21 +89,6 @@ run rm -f FileRun.zip
 
 # Assign ownership properly
 run chown -hR www-data:root /usr/share/nginx/html/tools/
-
-# Create new default username
-echo -e "\nCreating default Linux account..."
-
-if [[ -z $(getent passwd lemper) ]]; then
-    katasandi=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
-    run useradd -d /home/lemper -m -s /bin/bash lemper
-    echo "lemper:${katasandi}" | chpasswd
-    run usermod -aG sudo lemper
-
-    if [ -d /home/lemper ]; then
-        run mkdir /home/lemper/webapps
-        run chown -hR lemper:lemper /home/lemper/webapps
-    fi
-fi
 
 if [[ -x /usr/local/bin/ngxvhost && -x /usr/local/bin/ngxtool && -d /usr/share/nginx/html/tools ]]; then
     status -e "\nWeb administration tools successfully installed.\n"
