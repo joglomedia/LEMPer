@@ -58,49 +58,50 @@ server {
         # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
 
-        # With php5-fpm:
-        fastcgi_pass unix:/run/php/php5.6-fpm.sock;
+        # With php7.3-fpm as default:
+        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
 		fastcgi_index index.php;
+
 		include /etc/nginx/fastcgi_params;
 	}
 
+    location ~ \.php56$ {
+        fastcgi_split_path_info ^(.+\.php56)(/.+)$;
+
+        # With php5.6-fpm:
+        fastcgi_pass unix:/run/php/php5.6-fpm.sock;
+        fastcgi_index index.php;
+
+        include /etc/nginx/fastcgi_params;
+    }
+
     location ~ \.php70$ {
-        # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
         fastcgi_split_path_info ^(.+\.php70)(/.+)$;
 
         # With php7.0-fpm:
         fastcgi_pass unix:/run/php/php7.0-fpm.sock;
         fastcgi_index index.php;
+
         include /etc/nginx/fastcgi_params;
     }
 
     location ~ \.php71$ {
-        # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
         fastcgi_split_path_info ^(.+\.php71)(/.+)$;
 
         # With php7.1-fpm:
         fastcgi_pass unix:/run/php/php7.1-fpm.sock;
         fastcgi_index index.php;
+
         include /etc/nginx/fastcgi_params;
     }
 
     location ~ \.php72$ {
-        # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
         fastcgi_split_path_info ^(.+\.php72)(/.+)$;
 
         # With php7.2-fpm:
         fastcgi_pass unix:/run/php/php7.2-fpm.sock;
         fastcgi_index index.php;
-        include /etc/nginx/fastcgi_params;
-    }
 
-    location ~ \.php73$ {
-        # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
-        fastcgi_split_path_info ^(.+\.php73)(/.+)$;
-
-        # With php7.3-fpm:
-        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
-        fastcgi_index index.php;
         include /etc/nginx/fastcgi_params;
     }
 
@@ -136,20 +137,24 @@ server {
 		# include /etc/nginx/naxsi.rules
 
 		# Uncomment to enable auto index
-		autoindex on;
+		autoindex off;
 	}
 
-	# Pass the PHP scripts to FastCGI server listening on Unix socket
-    #
-	location ~ \.php$ {
-        # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
+    ## Pass the PHP scripts to FastCGI server listening on Unix socket.
+    location ~ \.php$ {
+        try_files $uri =404;
+
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_index index.php;
 
-        # With php7.3-fpm:
+        include /etc/nginx/fastcgi_params;
+        include /etc/nginx/conf.vhost/fastcgi.conf;
+
+        # Uncomment to Enable PHP FastCGI cache.
+        #include /etc/nginx/conf.vhost/fastcgi_cache.conf;
+
         fastcgi_pass unix:/run/php/php7.3-fpm.sock;
-		fastcgi_index index.php;
-		include /etc/nginx/fastcgi_params;
-	}
+    }
 
 	# Deny access to .htaccess files, if Apache's document root
 	# concurs with Nginx's one
@@ -183,10 +188,10 @@ server {
 		# include /etc/nginx/naxsi.rules
 
 		# Uncomment to enable auto index
-		autoindex on;
+		autoindex off;
 	}
 
-    ## Pass the PHP scripts to php fpm.
+    ## Pass the PHP scripts to FastCGI server listening on Unix socket.
     location ~ \.php$ {
         try_files $uri =404;
 
