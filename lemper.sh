@@ -61,6 +61,56 @@ else
     fi
 fi
 
+function create_swap() {
+    echo "Enabling 1GiB swap..."
+
+    L_SWAP_FILE="/lemper-swapfile"
+    fallocate -l 1G $L_SWAP_FILE && \
+    chmod 600 $L_SWAP_FILE && \
+    chown root:root $L_SWAP_FILE && \
+    mkswap $L_SWAP_FILE && \
+    swapon $L_SWAP_FILE
+}
+
+function check_swap() {
+    echo -e "\nChecking swap..."
+
+    if free | awk '/^Swap:/ {exit !$2}'; then
+        swapsize=$(free -m | awk '/^Swap:/ { print $2 }')
+        status "Swap size ${swapsize}MiB."
+    else
+        warning "No swap detected"
+        create_swap
+        status "Adding swap completed..."
+    fi
+}
+
+function create_account() {
+    if [[ -n $1 ]]; then
+        username="$1"
+    else
+        username="lemper" # default account
+    fi
+
+    echo -e "\nCreating account..."
+
+    if [[ -z $(getent passwd "${username}") ]]; then
+        katasandi=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
+        run useradd -d /home/${username} -m -s /bin/bash ${username}
+        echo "${username}:${katasandi}" | chpasswd
+        run usermod -aG sudo ${username}
+
+        if [ -d /home/${username} ]; then
+            run mkdir /home/${username}/webapps
+            run chown -hR ${username}:${username} /home/${username}/webapps
+        fi
+
+        status "Username ${username} created."
+    else
+        warning "Username ${username} already exists."
+    fi
+}
+
 ### Main ###
 case $1 in
     --install)
@@ -73,6 +123,12 @@ case $1 in
 
         ### ADD Repos ###
         . scripts/add_repo.sh
+
+        ### Chcek swap ###
+        check_swap
+
+        ### Create default account ###
+        create_account "lemper"
 
         ### Nginx Installation ###
         . scripts/install_nginx.sh
