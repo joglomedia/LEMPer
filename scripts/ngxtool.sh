@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # +-------------------------------------------------------------------------+
-# | NgxVhost - Simple Nginx vHost Configs File Generator                    |
+# | NgxTool - Simple Nginx vHost Manager                                    |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2019 NgxTools (https://ngxtools.eslabs.id)           |
+# | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/ngxtool)              |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -18,7 +18,7 @@
 # Version Control
 APP_NAME=$(basename "$0")
 APP_VERSION="1.6.0"
-LAST_UPDATE="18/05/2019"
+LAST_UPDATE="24/06/2019"
 
 # Decorator
 RED=91
@@ -127,6 +127,9 @@ Options:
   -c, --enable-fastcgi-cache <vhost domain name>
       Enable PHP FastCGI cache.
 
+  -p, --enable-pagespeed <vhost domain name>
+      Enable Mod PageSpeed.
+
   -s, --enable-ssl <vhost domain name>
       Enable Let's Encrypt SSL certificate.
 
@@ -156,6 +159,7 @@ function enable_vhost() {
     else
         fail "Sorry, we can't find $1 virtual host. Probably, it has been enabled or not yet created."
     fi
+
     exit 0
 }
 
@@ -171,6 +175,7 @@ function disable_vhost() {
     else
         fail "Sorry, we can't find $1. Probably, it has been disabled or removed."
     fi
+
     exit 0  #success
 }
 
@@ -245,9 +250,52 @@ function disable_fastcgi_cache() {
     exit 0
 }
 
+# enable Mod PageSpeed
+function enable_mod_pagespeed() {
+    if [[ -z $1 ]]; then
+        error "vHost or domain name is required. Type ${APP_NAME} --help for more info!"
+        exit 1
+    fi
+
+    echo "TODO: Enable Mod PageSpeed"
+    exit 0
+}
+
+# disable Mod PageSpeed
+function disable_mod_pagespeed() {
+    if [[ -z $1 ]]; then
+        error "vHost or domain name is required. Type ${APP_NAME} --help for more info!"
+        exit 1
+    fi
+
+    echo "TODO: Disble Mod PageSpeed"
+    exit 0
+}
+
 # enable ssl
 function enable_ssl() {
-    echo "TODO: Enable SSL"
+    if [ ! -f /etc/nginx/sites-available/$1.conf ]; then
+        error "Virtual host / domain name not found."
+        exit 1
+    fi
+
+    #TODO: Generate Let's Encrypt SSL using Certbot
+    if [[ ! -d /etc/nginx/ssl/$1 ]]; then
+        echo "Certbot: Get Let's Encrypt certificate..."
+
+        #generate certbot
+        cd /etc/nginx/ssl/
+        #mkdir /etc/nginx/ssl/$1
+    fi
+
+    # Generate Diffie-Hellman parameters
+    if [ ! -f /etc/nginx/ssl/dhparam_4096.pem ]; then
+        echo "Generate Diffie-Hellman parameters..."
+
+        cd /etc/nginx/ssl/
+        #openssl dhparam -out dhparam_4096.pem 4096
+    fi
+
     exit 0
 }
 
@@ -261,8 +309,9 @@ function disable_ssl() {
 #
 function init_app() {
     #getopt
-    opts=$(getopt -o vhe:d:r:c:s: \
-      -l version,help,enable:,disable:,remove:,enable-fastcgi-cache:,disable-fastcgi-cache:,enable-ssl:,disable-ssl: \
+    opts=$(getopt -o vhe:d:r:c:p:s: \
+      -l version,help,enable:,disable:,remove:,enable-fastcgi-cache:,disable-fastcgi-cache: \
+      -l enable-pagespeed:,disable-pagespeed:,enable-ssl:,disable-ssl: \
       -n "$APP_NAME" -- "$@")
 
     # Sanity Check - are there an arguments with value?
@@ -281,6 +330,8 @@ function init_app() {
             -r | --remove) remove_vhost $2; shift 2;;
             -c | --enable-fastcgi-cache) enable_fastcgi_cache $2; shift 2;;
             --disable-fastcgi-cache) disable_fastcgi_cache $2; shift 2;;
+            -p | --enable-pagespeed) enable_mod_pagespeed $2; shift 2;;
+            --disable-pagespeed) disable_mod_pagespeed $2; shift 2;;
             -s | --enable-ssl) enable_ssl $2; shift 2;;
             --disable-ssl) disable_ssl $2; shift 2;;
             -v | --version) echo "$APP_NAME version $APP_VERSION"; exit 1; shift;;

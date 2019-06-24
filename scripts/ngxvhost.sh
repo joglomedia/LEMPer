@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | NgxVhost - Simple Nginx vHost Configs File Generator                    |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2019 NgxTools (https://ngxtools.eslabs.id)           |
+# | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/ngxvhost)             |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -13,13 +13,13 @@
 # | to license@eslabs.id so we can send you a copy immediately.             |
 # +-------------------------------------------------------------------------+
 # | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
-# | Forked from Fideloper <https://gist.github.com/fideloper/9063376>       |
+# | Original concept: Fideloper <https://gist.github.com/fideloper/9063376> |
 # +-------------------------------------------------------------------------+
 
 # Version Control
 APP_NAME=$(basename "$0")
 APP_VERSION="1.6.0"
-LAST_UPDATE="18/05/2019"
+LAST_UPDATE="24/06/2019"
 
 INSTALL_DIR=$(pwd)
 
@@ -186,7 +186,7 @@ server {
     index index.php index.html index.htm;
 
     ## Mod PageSpeed directives configuration.
-    include /etc/nginx/conf.vhost/pagespeed_disabled;
+    include /etc/nginx/conf.vhost/pagespeed_disabled.conf;
 
     ## Global directives configuration.
     include /etc/nginx/conf.vhost/block.conf;
@@ -196,12 +196,11 @@ server {
     ## Default vhost directives configuration.
     include /etc/nginx/conf.vhost/site_${FRAMEWORK}.conf;
 
-    ## Pass the PHP scripts to php fpm.
+    ## Pass the PHP scripts to FastCGI server listening on Unix socket.
     location ~ \.php$ {
         try_files \$uri =404;
 
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
-
         fastcgi_index index.php;
 
         # Include FastCGI Params.
@@ -260,11 +259,10 @@ server {
     ## Default vhost directives configuration.
     include /etc/nginx/conf.vhost/site_${FRAMEWORK}.conf;
 
-    ## Pass the PHP scripts to php fpm.
+    ## Pass the PHP scripts to FastCGI server listening on Unix socket.
     location ~ \.php$ {
-        fastcgi_index index.php;
-
         fastcgi_split_path_info    ^(.+\.php)(/.+)$;
+        fastcgi_index index.php;
 
         # Include FastCGI Params.
         include /etc/nginx/fastcgi_params;
@@ -327,11 +325,10 @@ server {
     ## Default vhost directives configuration.
     include /etc/nginx/conf.vhost/site_${FRAMEWORK}.conf;
 
-    ## pass the PHP scripts to php5-fpm
+    ## Pass the PHP scripts to FastCGI server listening on Unix socket.
     location ~ \.php {
-        fastcgi_index index.php;
-
         fastcgi_split_path_info    ^(.+\.php)(/.+)$;
+        fastcgi_index index.php;
 
         # Include FastCGI Params.
         include /etc/nginx/fastcgi_params;
@@ -405,7 +402,7 @@ LEMPer and ngxTools support is available at
 
 <p><em>Thank you for using nginx, ngxTools, and LEMPer.</em></p>
 
-<p style="font-size:90%;">Generated using <em>LEMPer</em> from <a href="https://ngxtools.eslabs.id/">Nginx vHost Tool</a>, a simple nginx web server management tool.</p>
+<p style="font-size:90%;">Generated using <em>LEMPer</em> from <a href="https://eslabs.id/lemper">Nginx vHost Tool</a>, a simple nginx web server management tool.</p>
 </body>
 </html>
 _EOF_
@@ -426,14 +423,14 @@ listen.mode = 0666
 
 pm = dynamic
 pm.max_children = 5
-pm.start_servers = 1
+pm.start_servers = 2
 pm.min_spare_servers = 1
 pm.max_spare_servers = 3
 pm.process_idle_timeout = 30s;
 pm.max_requests = 500
 
+request_slowlog_timeout = 6s
 slowlog = /var/log/php${PHP_VERSION}-fpm_slow.\$pool.log
-request_slowlog_timeout = 1
 
 chdir = /
 
@@ -514,8 +511,8 @@ function init_app() {
     # Default value
     FRAMEWORK="default"
     PHP_VERSION="7.3"
-    #TODO
     ENABLE_FASTCGI_CACHE=false
+    ENABLE_PAGESPEED=false
     #ENABLE_HTTPS=false
     CLONE_SKELETON=false
     DRYRUN=false
@@ -759,7 +756,19 @@ function init_app() {
                     # enable fastcgi_cache conf
                     sed -i "s/fastcgi_cache_disabled.conf/fastcgi_cache.conf/g" ${vhost_file}
                 else
-                    warning "FastCGI cache not enabled. There is no cached version of ${FRAMEWORK^} directives."
+                    warning "FastCGI cache is not enabled. There is no cached version of ${FRAMEWORK^} directives."
+                fi
+            fi
+
+            # Enable PageSpeed?
+            if [ $ENABLE_PAGESPEED == true ]; then
+                echo "Enable Mod PageSpeed for ${SERVERNAME}..."
+
+                if [[ -f /etc/nginx/conf.vhost/pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
+                    # enable mod pagespeed
+                    sed -i "s/pagespeed_disabled.conf/pagespeed.conf/g" ${vhost_file}
+                else
+                    warning "Mod PageSpeed is not enabled."
                 fi
             fi
 
