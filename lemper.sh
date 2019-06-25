@@ -92,7 +92,7 @@ function create_account() {
         username="lemper" # default account
     fi
 
-    echo -e "\nCreating account..."
+    echo -e "\nCreating default LEMPer account..."
 
     if [[ -z $(getent passwd "${username}") ]]; then
         katasandi=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
@@ -188,7 +188,7 @@ case $1 in
         echo -e "\nUninstalling Nginx...\n"
 
         if [[ -n $(which nginx) ]]; then
-            # Stop Nginx web server
+            # Stop Nginx web server process
             run service nginx stop
 
             # Remove Nginx
@@ -235,9 +235,9 @@ case $1 in
             if [[ "${rmngxconf}" == Y* || "${rmngxconf}" == y* ]]; then
         	    echo "All your Nginx configuration files deleted permanently..."
         	    run rm -fr /etc/nginx
-        	    # rm nginx-cache
+        	    # Remove nginx-cache
         	    run rm -fr /var/cache/nginx
-        	    # rm nginx html
+        	    # Remove nginx html
         	    run rm -fr /usr/share/nginx
             fi
         else
@@ -253,13 +253,15 @@ case $1 in
             || -n $(which php-fpm7.2) \
             || -n $(which php-fpm7.3) ]]; then
 
-            # Stop running PHP FPM server
-            #service php5.6-fpm stop
+            # Stop default PHP FPM process
+            if [[ $(ps -ef | grep -v grep | grep php-fpm | grep 7.3 | wc -l) > 0 ]]; then
+                service php7.3-fpm stop
+            fi
 
-            # Stop Memcached server
+            # Stop Memcached server process
             run service memcached stop
 
-            # Stop Redis server
+            # Stop Redis server process
             run service redis-server stop
 
             run apt-get --purge remove -y php* php*-* pkg-php-tools spawn-fcgi geoip-database snmp memcached redis-server
@@ -280,7 +282,7 @@ case $1 in
         echo -e "\nUninstalling MariaDB (SQL DBMS)...\n"
 
         if [[ -n $(which mysql) ]]; then
-            # Stop MariaDB mysql server
+            # Stop MariaDB mysql server process
             run service mysql stop
 
             run apt-get remove -y mariadb-server-10.1 mariadb-client-10.1 mariadb-server-core-10.1 mariadb-common mariadb-server libmariadbclient18 mariadb-client-core-10.1
@@ -288,7 +290,7 @@ case $1 in
             echo -n "\nCompletely remove MariaDB SQL database and configuration files (This action is not reversible)? [Y/n]: "
             read rmsqlconf
             if [[ "${rmsqlconf}" == Y* || "${rmsqlconf}" == y* ]]; then
-        	    echo "All your SQL database and configuration files deleted permanently..."
+        	    echo "All your SQL database and configuration files deleted permanently."
         	    run rm -fr /etc/mysql
         	    run rm -fr /var/lib/mysql
             fi
@@ -296,6 +298,19 @@ case $1 in
             warning "MariaDB installation not found."
         fi
 
+        # Remove default user
+        echo -n "\nRemove default LEMPer account? [Y/n]: "
+        read rmdefaultuser
+        if [[ "${rmdefaultuser}" == Y* || "${rmdefaultuser}" == y* ]]; then
+            if [[ -z $(getent passwd "${username}") ]]; then
+                run userdel -r lemper
+                status "Default LEMPer account deleted."
+            else
+                warning "Default LEMPer account not found."
+            fi
+        fi
+
+        # Remove unnecessary packages
         #run apt-get autoremove -y
     ;;
     --help)
