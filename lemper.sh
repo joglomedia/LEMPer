@@ -123,7 +123,7 @@ case $1 in
             . scripts/cleanup_server.sh
         fi
 
-        ### Chcek swap ###
+        ### Check swap ###
         check_swap
 
         ### Create default account ###
