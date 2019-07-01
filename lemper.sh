@@ -13,7 +13,7 @@
 # |     - MariaDB 10 (MySQL drop-in replacement)                            |
 # |     - Adminer (PhpMyAdmin replacement)                                  |
 # | Min requirement   : GNU/Linux Ubuntu 14.04 or Linux Mint 17             |
-# | Last Update       : 24/06/2019                                          |
+# | Last Update       : 02/07/2019                                          |
 # | Author            : ESLabs.ID (eslabs.id@gmail.com)                     |
 # | Version           : 1.0.0                                               |
 # +-------------------------------------------------------------------------+
@@ -38,7 +38,7 @@ fi
 
 # Make sure only root can run this installer script
 if [ $(id -u) -ne 0 ]; then
-    error "This script must be run as root..."
+    error "You need to be root to run this script"
     exit 1
 fi
 
@@ -174,6 +174,17 @@ case $1 in
             . scripts/install_tools.sh
         fi
 
+        ### Basic server security
+        echo -en "Do you want to enable basic server security? [Y/n]: "
+        read secureServer
+        SSHPort="22"
+        if [[ "${secureServer}" == Y* || "${secureServer}" == y* ]]; then
+            if [ -f scripts/secure_server.sh ]; then
+                SSHPort="2269"
+                . scripts/secure_server.sh
+            fi
+        fi
+
         ### FINAL STEP ###
         # Cleaning up all build dependencies hanging around on production server?
         run apt-get autoremove -y
@@ -185,7 +196,7 @@ case $1 in
             status -e "\nHere is your default system account information:
 
         Server IP : ${IPAddr}
-        SSH Port  : 22
+        SSH Port  : ${SSHPort}
         Username  : lemper
         Password  : ${katasandi}
 
