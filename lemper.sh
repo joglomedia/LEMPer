@@ -373,7 +373,7 @@ case $1 in
         fi
 
         # Remove default user
-        echo -e "\nRemove default LEMPer account? [Y/n]: "
+        echo -e "Remove default LEMPer account? [Y/n]: "
         read rmdefaultuser
         if [[ "${rmdefaultuser}" == Y* || "${rmdefaultuser}" == y* ]]; then
             if [[ -z $(getent passwd "${username}") ]]; then
