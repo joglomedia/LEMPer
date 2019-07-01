@@ -75,7 +75,7 @@ function create_swap() {
 function check_swap() {
     echo -e "\nChecking swap..."
 
-    if [[ free | awk '/^Swap:/ {exit !$2}' ]]; then
+    if [ $(free | awk '/^Swap:/ {exit !$2}') ]; then
         swapsize=$(free -m | awk '/^Swap:/ { print $2 }')
         status "Swap size ${swapsize}MiB."
     else
