@@ -300,42 +300,42 @@ case $1 in
             # Stop default PHP FPM process
             if [[ $(ps -ef | grep -v grep | grep php5.6-fpm | grep "php/5.6" | wc -l) > 0 ]]; then
                 service php5.6-fpm stop
-                DEBPackages=" ${DEBPackages} php5.6-*"
+                DEBPackages+=" php5.6-*"
             fi
 
             if [[ $(ps -ef | grep -v grep | grep php7.0-fpm | grep "php/7.0" | wc -l) > 0 ]]; then
                 service php7.0-fpm stop
-                DEBPackages=" ${DEBPackages} php7.0-*"
+                DEBPackages+=" php7.0-*"
             fi
 
             if [[ $(ps -ef | grep -v grep | grep php7.1-fpm | grep "php/7.1" | wc -l) > 0 ]]; then
                 service php7.1-fpm stop
-                DEBPackages=" ${DEBPackages} php7.1-*"
+                DEBPackages+=" php7.1-*"
             fi
 
             if [[ $(ps -ef | grep -v grep | grep php7.2-fpm | grep "php/7.2" | wc -l) > 0 ]]; then
                 service php7.2-fpm stop
-                DEBPackages=" ${DEBPackages} php7.2-*"
+                DEBPackages+=" php7.2-*"
             fi
 
             if [[ $(ps -ef | grep -v grep | grep php7.3-fpm | grep "php/7.3" | wc -l) > 0 ]]; then
                 service php7.3-fpm stop
-                DEBPackages=" ${DEBPackages} php7.3-*"
+                DEBPackages+=" php7.3-*"
             fi
 
             # Stop Memcached server process
             if [[ $(ps -ef | grep -v grep | grep memcached | wc -l) > 0 ]]; then
                 run service memcached stop
-                DEBPackages=" ${DEBPackages} memcached"
+                DEBPackages+=" memcached"
             fi
 
             # Stop Redis server process
             if [[ $(ps -ef | grep -v grep | grep redis-server | wc -l) > 0 ]]; then
                 run service redis-server stop
-                DEBPackages=" ${DEBPackages} redis-server"
+                DEBPackages=+" redis-server"
             fi
 
-            run apt-get --purge remove -y ${DEBPackages}
+            run apt-get remove -y ${DEBPackages}
 
             echo -n "\nCompletely remove PHP-FPM configuration files (This action is not reversible)? [Y/n]: "
             read rmfpmconf
@@ -356,10 +356,10 @@ case $1 in
             # Stop MariaDB mysql server process
             run service mysql stop
 
-            run apt-get --purge remove -y mariadb-server libmariadbclient18
+            run apt-get remove -y mariadb-server libmariadbclient18
 
             # Remove repo
-            run rm /etc/apt/sources.list.d/MariaDB-*.list
+            rm /etc/apt/sources.list.d/MariaDB-*.list
 
             echo -n "\nCompletely remove MariaDB SQL database and configuration files (This action is not reversible)? [Y/n]: "
             read rmsqlconf
