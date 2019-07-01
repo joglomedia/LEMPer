@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+# LEMPer administration installer
+# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Last Build        : 01/07/2019
+# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Since Version     : 1.0.0
+
 # Include decorator
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
@@ -8,7 +14,7 @@ fi
 
 # Make sure only root can run this installer script
 if [ $(id -u) -ne 0 ]; then
-    error "This script must be run as root..."
+    error "You need to be root to run this script"
     exit 1
 fi
 

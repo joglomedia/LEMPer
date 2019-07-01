@@ -23,7 +23,6 @@ LAST_UPDATE="24/06/2019"
 
 INSTALL_DIR=$(pwd)
 
-
 # Decorator
 RED=91
 GREEN=92
@@ -100,7 +99,7 @@ function run() {
 # May need to run this as sudo!
 # I have it in /usr/local/bin and run command from anywhere, using sudo.
 if [ $(id -u) -ne 0 ]; then
-    error "You must be root: sudo ${APP_NAME}"
+    error "You need to be root to run this script"
     exit 1  #error
 fi
 

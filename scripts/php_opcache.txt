@@ -1,6 +1,0 @@
-opcache.enable=1;
-opcache.enable_cli=0;
-opcache.memory_consumption=128 # MB, adjust to your needs
-opcache.max_accelerated_files=10000 # Adjust to your needs
-opcache.max_wasted_percentage=10 # Adjust to your needs
-opcache.validate_timestamps=1

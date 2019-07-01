@@ -3,7 +3,7 @@
 
 # Make sure only root can run this installer script
 if [ "$(id -u)" != "0" ]; then
-	echo "This script must be run as root..." 1>&2
+	echo "You need to be root to run this script" 1>&2
 	exit 1
 fi
 

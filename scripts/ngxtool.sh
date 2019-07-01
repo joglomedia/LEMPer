@@ -96,7 +96,7 @@ function run() {
 # May need to run this as sudo!
 # I have it in /usr/local/bin and run command 'ngxvhost' from anywhere, using sudo.
 if [ $(id -u) -ne 0 ]; then
-    error "You must be root: sudo ${APP_NAME}"
+    error "You need to be root to run this script"
     exit 1  #error
 fi
 
@@ -275,7 +275,7 @@ function disable_mod_pagespeed() {
 # enable ssl
 function enable_ssl() {
     if [ ! -f /etc/nginx/sites-available/$1.conf ]; then
-        error "Virtual host / domain name not found."
+        error "Virtual host or domain name not found."
         exit 1
     fi
 
@@ -284,16 +284,18 @@ function enable_ssl() {
         echo "Certbot: Get Let's Encrypt certificate..."
 
         #generate certbot
-        cd /etc/nginx/ssl/
-        #mkdir /etc/nginx/ssl/$1
+        if [ ! -d /etc/nginx/ssl ]; then
+            cd /etc/nginx/ssl/
+            #mkdir /etc/nginx/ssl/$1
+        fi
     fi
 
     # Generate Diffie-Hellman parameters
-    if [ ! -f /etc/nginx/ssl/dhparam_4096.pem ]; then
-        echo "Generate Diffie-Hellman parameters..."
+    if [ ! -f /etc/letsencrypt/ssl-dhparams-4096.pem ]; then
+        echo "Generating Diffie-Hellman parameters for enhanced security..."
 
-        cd /etc/nginx/ssl/
-        #openssl dhparam -out dhparam_4096.pem 4096
+        #openssl dhparam -out /etc/letsencrypt/ssl-dhparams-2048.pem 2048
+        #openssl dhparam -out /etc/letsencrypt/ssl-dhparams-4096.pem 4096
     fi
 
     exit 0

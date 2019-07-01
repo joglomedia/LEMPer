@@ -81,6 +81,6 @@ run apt-get update -y
 # Install pre-requirements
 #python-software-properties
 run apt-get install -y software-properties-common build-essential git unzip cron curl gnupg2 ca-certificates \
-    lsb-release rsync libgd-dev libgeoip-dev libxslt1-dev libssl-dev libxml2-dev openssl
+    lsb-release rsync libgd-dev libgeoip-dev libxslt1-dev libssl-dev libxml2-dev openssl openssh-server
 
 status "Adding repositories completed..."
