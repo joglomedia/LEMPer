@@ -298,27 +298,27 @@ case $1 in
             DEBPackages="php-common pkg-php-tools spawn-fcgi geoip-database snmp"
 
             # Stop default PHP FPM process
-            if [[ $(ps -ef | grep -v grep | grep php5.6-fpm | grep 5.6 | wc -l) > 0 ]]; then
-                service php7.0-fpm stop
+            if [[ $(ps -ef | grep -v grep | grep php5.6-fpm | grep "php/5.6" | wc -l) > 0 ]]; then
+                service php5.6-fpm stop
                 DEBPackages=" ${DEBPackages} php5.6-*"
             fi
 
-            if [[ $(ps -ef | grep -v grep | grep php7.0-fpm | grep 7.0 | wc -l) > 0 ]]; then
+            if [[ $(ps -ef | grep -v grep | grep php7.0-fpm | grep "php/7.0" | wc -l) > 0 ]]; then
                 service php7.0-fpm stop
                 DEBPackages=" ${DEBPackages} php7.0-*"
             fi
 
-            if [[ $(ps -ef | grep -v grep | grep php7.1-fpm | grep 7.1 | wc -l) > 0 ]]; then
+            if [[ $(ps -ef | grep -v grep | grep php7.1-fpm | grep "php/7.1" | wc -l) > 0 ]]; then
                 service php7.1-fpm stop
                 DEBPackages=" ${DEBPackages} php7.1-*"
             fi
 
-            if [[ $(ps -ef | grep -v grep | grep php-fpm | grep 7.2 | wc -l) > 0 ]]; then
+            if [[ $(ps -ef | grep -v grep | grep php7.2-fpm | grep "php/7.2" | wc -l) > 0 ]]; then
                 service php7.2-fpm stop
                 DEBPackages=" ${DEBPackages} php7.2-*"
             fi
 
-            if [[ $(ps -ef | grep -v grep | grep php-fpm | grep 7.3 | wc -l) > 0 ]]; then
+            if [[ $(ps -ef | grep -v grep | grep php7.3-fpm | grep "php/7.3" | wc -l) > 0 ]]; then
                 service php7.3-fpm stop
                 DEBPackages=" ${DEBPackages} php7.3-*"
             fi
