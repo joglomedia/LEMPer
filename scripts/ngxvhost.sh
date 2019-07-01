@@ -125,16 +125,12 @@ Requirements:
 Usage: $APP_NAME [options]...
 
 Options:
-  -u, --username <virtual-host username>
-      Use username added from adduser/useradd. Do not use root user.
+  -c, --enable-fastcgi-cache
+      Enable PHP FastCGI cache module.
 
   -d, --domain-name <server domain name>
       Any valid domain name and/or sub domain name is allowed.
       i.e. example.com or sub.example.com
-
-  -w, --webroot <web root>
-      Web root is absolute path to the website root directory.
-      i.e. /home/username/Webs/example.test
 
   -f, --framework <website framework>
       Type of web framework and cms, i.e. default.
@@ -142,14 +138,21 @@ Options:
 
       Another framework and cms will be added soon.
 
+  -h, --help
+      Print this message and exit.
+
+  -p, --php-version
+      PHP version for selected framework.
+
   -s, --clone-skeleton
       Clone default skeleton for selected framework.
 
-  -c, --enable-fastcgi-cache
-      Enable PHP FastCGI cache module.
+  -u, --username <virtual-host username>
+      Use username added from adduser/useradd. Do not use root user.
 
-  -h, --help
-      Print this message and exit.
+  -w, --webroot <web root>
+      Web root is absolute path to the website root directory.
+      i.e. /home/username/Webs/example.test
 
 Example:
 $APP_NAME -u username -d example.com -f default -w /home/username/Webs/example.dev

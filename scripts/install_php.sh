@@ -375,7 +375,7 @@ cat >> /etc/php/${PHPv}/fpm/pool.d/lemper.conf <<EOL
 user = lemper
 group = lemper
 
-listen = /run/php/php7.1-fpm.$pool.sock
+listen = /run/php/php7.3-fpm.$pool.sock
 listen.owner = lemper
 listen.group = lemper
 listen.mode = 0666
@@ -390,15 +390,15 @@ pm.process_idle_timeout = 30s;
 pm.max_requests = 500
 
 request_slowlog_timeout = 6s
-slowlog = /var/log/php7.1-fpm_slow.$pool.log
+slowlog = /var/log/php7.3-fpm_slow.$pool.log
 
 chdir = /
 
-security.limit_extensions = .php .php3 .php4 .php5
+security.limit_extensions = .php .php3 .php4 .php5 .php73
 
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com
 php_flag[display_errors] = on
-php_admin_value[error_log] = /var/log/php7.1-fpm.$pool.log
+php_admin_value[error_log] = /var/log/php7.3-fpm.$pool.log
 php_admin_flag[log_errors] = on
 ;php_admin_value[memory_limit] = 32M
 EOL
