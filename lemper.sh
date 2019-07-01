@@ -369,7 +369,7 @@ case $1 in
         	    run rm -fr /var/lib/mysql
             fi
         else
-            warning "MariaDB installation not found."
+            warning -e "MariaDB installation not found.\n"
         fi
 
         # Remove default user
