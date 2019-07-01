@@ -75,7 +75,7 @@ function create_swap() {
 function check_swap() {
     echo -e "\nChecking swap..."
 
-    if free | awk '/^Swap:/ {exit !$2}'; then
+    if [[ free | awk '/^Swap:/ {exit !$2}' ]]; then
         swapsize=$(free -m | awk '/^Swap:/ { print $2 }')
         status "Swap size ${swapsize}MiB."
     else
@@ -118,11 +118,10 @@ case $1 in
         echo -e "\nStarting LEMP stack installation...\nPlease ensure that you're on a fresh box install!\n"
         read -t 10 -p "Press [Enter] to continue..." </dev/tty
 
-        ### Clean up ###
-        . scripts/cleanup_server.sh
-
-        ### ADD Repos ###
-        . scripts/add_repo.sh
+        ### Clean-up server ###
+        if [ -f scripts/cleanup_server.sh ]; then
+            . scripts/cleanup_server.sh
+        fi
 
         ### Chcek swap ###
         check_swap
@@ -130,27 +129,50 @@ case $1 in
         ### Create default account ###
         create_account "lemper"
 
-        ### Nginx Installation ###
-        . scripts/install_nginx.sh
+        ### ADD repositories ###
+        if [ -f scripts/add_repo.sh ]; then
+            . scripts/add_repo.sh
+        fi
 
-        ### PHP Installation ###
-        . scripts/install_php.sh
-        . scripts/install_memcache.sh
+        ### Nginx installation ###
+        if [ -f scripts/install_nginx.sh ]; then
+            . scripts/install_nginx.sh
+        fi
 
-        ### MySQL Database Installation ###
-        . scripts/install_mariadb.sh
+        ### PHP installation ###
+        if [ -f scripts/install_php.sh ]; then
+            . scripts/install_php.sh
+        fi
 
-        ### Redis Database Installation ###
-        . scripts/install_redis.sh
+        ### Memcached installation ###
+        if [ -f scripts/install_memcache.sh ]; then
+            . scripts/install_memcache.sh
+        fi
 
-        ### Mail Server Installation ###
-        . scripts/install_postfix.sh
+        ### MySQL database installation ###
+        if [ -f scripts/install_mariadb.sh ]; then
+            . scripts/install_mariadb.sh
+        fi
 
-        ### Install Let's Encrypt SSL ###
-        . scripts/install_letsencrypt.sh
+        ### Redis database installation ###
+        if [ -f scripts/install_redis.sh ]; then
+            . scripts/install_redis.sh
+        fi
 
-        ### Addon Installation ###
-        . scripts/install_tools.sh
+        ### Mail server installation ###
+        if [ -f scripts/install_postfix.sh ]; then
+            . scripts/install_postfix.sh
+        fi
+
+        ### Certbot Let's Encrypt SSL installation ###
+        if [ -f scripts/install_letsencrypt.sh ]; then
+            . scripts/install_letsencrypt.sh
+        fi
+
+        ### Addon-tools installation ###
+        if [ -f scripts/install_tools.sh ]; then
+            . scripts/install_tools.sh
+        fi
 
         ### FINAL STEP ###
         # Cleaning up all build dependencies hanging around on production server?
@@ -173,7 +195,7 @@ case $1 in
         Access to your File manager (FileRun):
         http://${IPAddr}:8083/
 
-        Please keep it private!
+        Please Save & Keep It Private!
         "
         fi
 
@@ -198,13 +220,16 @@ case $1 in
             elif [ $(dpkg-query -l | grep nginx-custom | awk '/nginx-custom/ { print $2 }') ]; then
             	echo "Nginx-custom package found. Removing..."
                 run apt-get remove -y nginx-custom
+            elif [ $(dpkg-query -l | grep nginx-full | awk '/nginx-full/ { print $2 }') ]; then
+            	echo "Nginx-full package found. Removing..."
+                run apt-get remove -y nginx-full
             elif [ $(dpkg-query -l | grep nginx-stable | awk '/nginx-stable/ { print $2 }') ]; then
             	echo "Nginx-stable package found. Removing..."
                 run apt-get remove -y nginx-stable
             else
             	echo "Nginx package not found. Possibly installed from source."
 
-                # Only if nginx package not installed / nginx installed from source)
+                # Only if nginx package not installed / nginx installed from source
                 if [ -f /usr/sbin/nginx ]; then
                     run rm -f /usr/sbin/nginx
                 fi
@@ -230,7 +255,7 @@ case $1 in
                 fi
             fi
 
-            echo -en "Completely remove Nginx configuration files (This action is not reversible)? [Y/n]: "
+            echo -en "Completely remove Nginx configuration files (this action is not reversible)? [Y/n]: "
             read rmngxconf
             if [[ "${rmngxconf}" == Y* || "${rmngxconf}" == y* ]]; then
         	    echo "All your Nginx configuration files deleted permanently..."
@@ -253,18 +278,48 @@ case $1 in
             || -n $(which php-fpm7.2) \
             || -n $(which php-fpm7.3) ]]; then
 
+            # Related PHP packages to be removed
+            DEBPackages="php-common pkg-php-tools spawn-fcgi geoip-database snmp"
+
             # Stop default PHP FPM process
+            if [[ $(ps -ef | grep -v grep | grep php5.6-fpm | grep 5.6 | wc -l) > 0 ]]; then
+                service php7.0-fpm stop
+                DEBPackages=" ${DEBPackages} php5.6-*"
+            fi
+
+            if [[ $(ps -ef | grep -v grep | grep php7.0-fpm | grep 7.0 | wc -l) > 0 ]]; then
+                service php7.0-fpm stop
+                DEBPackages=" ${DEBPackages} php7.0-*"
+            fi
+
+            if [[ $(ps -ef | grep -v grep | grep php7.1-fpm | grep 7.1 | wc -l) > 0 ]]; then
+                service php7.1-fpm stop
+                DEBPackages=" ${DEBPackages} php7.1-*"
+            fi
+
+            if [[ $(ps -ef | grep -v grep | grep php-fpm | grep 7.2 | wc -l) > 0 ]]; then
+                service php7.2-fpm stop
+                DEBPackages=" ${DEBPackages} php7.2-*"
+            fi
+
             if [[ $(ps -ef | grep -v grep | grep php-fpm | grep 7.3 | wc -l) > 0 ]]; then
                 service php7.3-fpm stop
+                DEBPackages=" ${DEBPackages} php7.3-*"
             fi
 
             # Stop Memcached server process
-            run service memcached stop
+            if [[ $(ps -ef | grep -v grep | grep memcached | wc -l) > 0 ]]; then
+                run service memcached stop
+                DEBPackages=" ${DEBPackages} memcached"
+            fi
 
             # Stop Redis server process
-            run service redis-server stop
+            if [[ $(ps -ef | grep -v grep | grep redis-server | wc -l) > 0 ]]; then
+                run service redis-server stop
+                DEBPackages=" ${DEBPackages} redis-server"
+            fi
 
-            run apt-get --purge remove -y php* php*-* pkg-php-tools spawn-fcgi geoip-database snmp memcached redis-server
+            run apt-get --purge remove -y ${DEBPackages}
 
             echo -n "\nCompletely remove PHP-FPM configuration files (This action is not reversible)? [Y/n]: "
             read rmfpmconf
