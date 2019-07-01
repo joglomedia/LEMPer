@@ -227,16 +227,21 @@ case $1 in
             # Remove Nginx
             if [ $(dpkg-query -l | grep nginx-common | awk '/nginx-common/ { print $2 }') ]; then
             	echo "Nginx-common package found. Removing..."
-                run apt-get remove -y nginx-common
+                run apt-get --purge remove -y nginx-common
+                run add-apt-repository --remove ppa:nginx/stable
             elif [ $(dpkg-query -l | grep nginx-custom | awk '/nginx-custom/ { print $2 }') ]; then
             	echo "Nginx-custom package found. Removing..."
-                run apt-get remove -y nginx-custom
+                run apt-get --purge remove -y nginx-custom
+                run add-apt-repository --remove ppa:rtcamp/nginx
+                rm -f /etc/apt/sources.list.d/nginx-*.list
             elif [ $(dpkg-query -l | grep nginx-full | awk '/nginx-full/ { print $2 }') ]; then
             	echo "Nginx-full package found. Removing..."
-                run apt-get remove -y nginx-full
+                run apt-get --purge remove -y nginx-full
+                run add-apt-repository --remove ppa:nginx/stable
             elif [ $(dpkg-query -l | grep nginx-stable | awk '/nginx-stable/ { print $2 }') ]; then
             	echo "Nginx-stable package found. Removing..."
-                run apt-get remove -y nginx-stable
+                run apt-get --purge remove -y nginx-stable
+                run add-apt-repository --remove ppa:nginx/stable
             else
             	echo "Nginx package not found. Possibly installed from source."
 
@@ -351,7 +356,10 @@ case $1 in
             # Stop MariaDB mysql server process
             run service mysql stop
 
-            run apt-get remove -y mariadb-server libmariadbclient18
+            run apt-get --purge remove -y mariadb-server libmariadbclient18
+
+            # Remove repo
+            run rm /etc/apt/sources.list.d/MariaDB-*.list
 
             echo -n "\nCompletely remove MariaDB SQL database and configuration files (This action is not reversible)? [Y/n]: "
             read rmsqlconf
@@ -377,7 +385,7 @@ case $1 in
         fi
 
         # Remove unnecessary packages
-        #run apt-get autoremove -y
+        run apt-get autoremove -y
     ;;
     --help)
         echo "Please read the README file for more information!"
