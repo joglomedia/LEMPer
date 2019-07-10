@@ -3,7 +3,7 @@
 # Include decorator
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    . ${BASEDIR}/decorator.sh
+    . ${BASEDIR}/helper.sh
 fi
 
 # Make sure only root can run this installer script

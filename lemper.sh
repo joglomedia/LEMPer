@@ -33,7 +33,7 @@ set -e  # Work even if somebody does "sh thisscript.sh".
 
 # Include decorator
 if [ "$(type -t run)" != "function" ]; then
-    . scripts/decorator.sh
+    . scripts/helper.sh
 fi
 
 # Make sure only root can run this installer script
@@ -87,27 +87,27 @@ function check_swap() {
 
 function create_account() {
     if [[ -n $1 ]]; then
-        username="$1"
+        USERNAME="$1"
     else
-        username="lemper" # default account
+        USERNAME="lemper" # default account
     fi
 
     echo -e "\nCreating default LEMPer account..."
 
-    if [[ -z $(getent passwd "${username}") ]]; then
-        katasandi=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
-        run useradd -d /home/${username} -m -s /bin/bash ${username}
-        echo "${username}:${katasandi}" | chpasswd
-        run usermod -aG sudo ${username}
+    if [[ -z $(getent passwd "${USERNAME}") ]]; then
+        PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
+        run useradd -d /home/${USERNAME} -m -s /bin/bash ${USERNAME}
+        echo "${USERNAME}:${PASSWORD}" | chpasswd
+        run usermod -aG sudo ${USERNAME}
 
-        if [ -d /home/${username} ]; then
-            run mkdir /home/${username}/webapps
-            run chown -hR ${username}:${username} /home/${username}/webapps
+        if [ -d /home/${USERNAME} ]; then
+            run mkdir /home/${USERNAME}/webapps
+            run chown -hR ${USERNAME}:${USERNAME} /home/${USERNAME}/webapps
         fi
 
-        status "Username ${username} created."
+        status "Username ${USERNAME} created."
     else
-        warning "Username ${username} already exists."
+        warning "Username ${USERNAME} already exists."
     fi
 }
 
@@ -160,8 +160,8 @@ case $1 in
         fi
 
         ### Mail server installation ###
-        if [ -f scripts/install_postfix.sh ]; then
-            . scripts/install_postfix.sh
+        if [ -f scripts/install_mailer.sh ]; then
+            . scripts/install_mailer.sh
         fi
 
         ### Certbot Let's Encrypt SSL installation ###
@@ -177,10 +177,8 @@ case $1 in
         ### Basic server security
         echo -en "Do you want to enable basic server security? [Y/n]: "
         read secureServer
-        SSHPort="22"
         if [[ "${secureServer}" == Y* || "${secureServer}" == y* ]]; then
             if [ -f scripts/secure_server.sh ]; then
-                SSHPort="2269"
                 . scripts/secure_server.sh
             fi
         fi
@@ -192,13 +190,13 @@ case $1 in
         status -e "\nLEMPer installation has been completed."
 
         ### Recap ###
-        if [[ ! -z "$katasandi" ]]; then
+        if [[ ! -z "$PASSWORD" ]]; then
             status -e "\nHere is your default system account information:
 
         Server IP : ${IPAddr}
         SSH Port  : ${SSHPort}
-        Username  : lemper
-        Password  : ${katasandi}
+        Username  : ${USERNAME}
+        Password  : ${PASSWORD}
 
         Access to your Database administration (Adminer):
         http://${IPAddr}:8082/
@@ -376,7 +374,7 @@ case $1 in
         echo -en "Remove default LEMPer account? [Y/n]: "
         read rmdefaultuser
         if [[ "${rmdefaultuser}" == Y* || "${rmdefaultuser}" == y* ]]; then
-            if [[ -z $(getent passwd "${username}") ]]; then
+            if [[ -z $(getent passwd "${USERNAME}") ]]; then
                 run userdel -r lemper
                 status "Default LEMPer account deleted."
             else

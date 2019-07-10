@@ -84,6 +84,13 @@ function continue_or_exit() {
     fi
 }
 
+# Make sure only root can run this installer script
+function is_root() {
+    if [ $(id -u) -ne 0 ]; then
+        return 1
+    fi
+}
+
 function header_msg() {
 clear
 cat <<- _EOF_

@@ -17,8 +17,8 @@
 
 # Version Control
 APP_NAME=$(basename "$0")
-APP_VERSION="1.6.0"
-LAST_UPDATE="24/06/2019"
+APP_VERSION="1.6.1"
+LAST_UPDATE="10/07/2019"
 
 # Decorator
 RED=91
@@ -103,99 +103,101 @@ fi
 # Help
 function show_usage() {
 cat <<- _EOF_
-$APP_NAME $APP_VERSION
-Simple Nginx virtual host (vHost) manager,
-enable/disable/remove Nginx vHost config file in Ubuntu Server.
+${APP_NAME^} ${APP_VERSION}
+Simple Nginx virtual host (vHost) manager
+enable/disable/remove Nginx vHost config file on Debian/Ubuntu Server.
 
 Requirements:
-  * Nginx setup uses /etc/nginx/sites-available and /etc/nginx/sites-enabled
-  * PHP FPM setup uses /etc/php/{version_number}/fpm/
+  * LEMP stack setup uses [LEMPer](https://github.com/joglomedia/LEMPer)
 
 Usage:
-  $APP_NAME [OPTION]...
+  ${APP_NAME} [OPTION]...
 
 Options:
-  -e, --enable <vhost domain name>
-      Enable virtual host.
-
-  -d, --disable <vhost domain name>
-      Disable virtual host..
-
-  -r, --remove <vhost domain name>
-      Remove virtual host configuration.
-
   -c, --enable-fastcgi-cache <vhost domain name>
       Enable PHP FastCGI cache.
-
+  -d, --disable <vhost domain name>
+      Disable virtual host.
+  -e, --enable <vhost domain name>
+      Enable virtual host.
   -p, --enable-pagespeed <vhost domain name>
       Enable Mod PageSpeed.
-
+  -r, --remove <vhost domain name>
+      Remove virtual host configuration.
   -s, --enable-ssl <vhost domain name>
       Enable Let's Encrypt SSL certificate.
 
   -h, --help
       Print this message and exit.
-
   -v, --version
       Output version information and exit.
 
 Example:
- $APP_NAME --remove example.com
+ ${APP_NAME} --remove example.com
 
-For more details visit https://ngxtools.eslabs.id !
+For more details visit https://ngxtools.eslabs.id
 Mail bug reports and suggestions to <eslabs.id@gmail.com>
 _EOF_
 }
 
-# enable vhost
+# Enable vhost
 function enable_vhost() {
+    # Verify user input hostname (domain name)
+    verify_host $1
+
+    echo "Enabling virtual host: $1..."
+
     # Enable Nginx's vhost config.
     if [[ ! -f /etc/nginx/sites-enabled/$1.conf && -f /etc/nginx/sites-available/$1.conf ]]; then
         run ln -s /etc/nginx/sites-available/$1.conf /etc/nginx/sites-enabled/$1.conf
 
-        # Reload Nginx.
-        run service nginx reload -s
-        status "Your site $1 has been enabled..."
-    else
-        fail "Sorry, we can't find $1 virtual host. Probably, it has been enabled or not yet created."
-    fi
+        reload_nginx
 
-    exit 0
+        status "Your virtual host $1 has been enabled..."
+        exit 0 #success
+    else
+        fail "Sorry, we can't find virtual host: $1. Probably, it has been enabled or not created yet."
+        exit 1
+    fi
 }
 
-# disable vhost
+# Disable vhost
 function disable_vhost() {
+    # Verify user input hostname (domain name)
+    verify_host $1
+
+    echo "Disabling virtual host: $1..."
+
     # Disable Nginx's vhost config.
     if [ -f /etc/nginx/sites-enabled/$1.conf ]; then
         run unlink /etc/nginx/sites-enabled/$1.conf
 
-        # Reload Nginx.
-        run service nginx reload -s
-        status "Your site $1 has been disabled..."
+        reload_nginx
+
+        status "Your virtual host $1 has been disabled..."
+        exit 0
     else
         fail "Sorry, we can't find $1. Probably, it has been disabled or removed."
+        exit 1
     fi
-
-    exit 0  #success
 }
 
-# remove vhost
+# Remove vhost
 function remove_vhost() {
-    echo -e "Removing virtual host is not reversible...\n"
+    # Verify user input hostname (domain name)
+    verify_host $1
+
+    echo -e "Removing virtual host is not reversible."
     read -t 10 -p "Press [Enter] to continue..." </dev/tty
 
     # Remove Nginx's vhost config.
-    if [ ! -f /etc/nginx/sites-available/$1.conf ]; then
-        warning -e "\nSorry, we can't find Nginx virtual host for $1..."
-    else
-        if [ -f /etc/nginx/sites-enabled/$1.conf ]; then
-            run unlink /etc/nginx/sites-enabled/$1.conf
-        fi
-
-        run rm -f /etc/nginx/sites-available/$1.conf
-
-        status -e "\nVirtual host configuration file removed."
+    if [ -f /etc/nginx/sites-enabled/$1.conf ]; then
+        run unlink /etc/nginx/sites-enabled/$1.conf
     fi
+
+    run rm -f /etc/nginx/sites-available/$1.conf
+
+    status -e "\nVirtual host configuration file removed."
 
     # Remove vhost root directory.
     echo -en "\nDo you want to delete website root directory? [Y/n]: "; read isdeldir
@@ -204,80 +206,136 @@ function remove_vhost() {
 
         if [ -d ${sitedir} ]; then
             run rm -fr ${sitedir}
-            status -e "\nWebsite root directory removed."
+            status -e "\nVirtual host root directory removed."
         else
             warning -e "\nSorry, directory couldn't be found. Skipped..."
         fi
     fi
 
     # Drop MySQL database.
-    echo -en "\nDo you want to Drop database associated with this website? [Y/n]: "; read isdropdb
+    echo -en "\nDo you want to Drop database associated with this vhost? [Y/n]: "; read isdropdb
     if [[ "${isdropdb}" == Y* || "${isdropdb}" == y* ]]; then
-        echo -n "MySQL username: "; read username
-        echo -n "MySQL password: "; stty -echo; read password; stty echo; echo
-        sleep 1
-        echo -e "\nStarting to drop database, please select your database name below!"
+        until [[ "$MYSQLUSER" != "" ]]; do
+			read -rp "MySQL Username: " -e MYSQLUSER
+		done
+
+        until [[ "$MYSQLPSWD" != "" ]]; do
+			echo -n "MySQL Password: "; stty -echo; read MYSQLPSWD; stty echo; echo
+		done
+
+        echo -e "\nStarting to drop database...\nPlease select your database name below!"
+        echo "==============="
+
         # Show user's databases
-        mysql -u $username -p"$password" -e "SHOW DATABASES"
+        mysql -u $MYSQLUSER -p"$MYSQLPSWD" -e "SHOW DATABASES" | grep -E -v "Database|mysql|*_schema"
 
-        echo -n "MySQL database: "; read dbname
+        echo "==============="
 
-        if [ -d /var/lib/mysql/${dbname} ]; then
+        until [[ "$DBNAME" != "" ]]; do
+            read -rp "MySQL Database: " -e DBNAME
+		done
+
+        if [ -d /var/lib/mysql/${DBNAME} ]; then
             echo -e "Dropping database..."
-            mysql -u $username -p"$password" -e "DROP DATABASE $dbname"
-            status -e "Database [${dbname}] dropped."
+            mysql -u $MYSQLUSER -p"$MYSQLPSWD" -e "DROP DATABASE $DBNAME"
+            status -e "Database [${DBNAME}] dropped."
         else
-            warning -e "\nSorry, no database name: ${dbname}. Skipped..."
+            warning -e "\nSorry, database ${DBNAME} not found. Skipped..."
         fi
     fi
 
+    status -e "\nYour virtual host $1 has been removed."
+
     # Reload Nginx.
-    run service nginx reload -s
-    status -e "\nYour site $1 has been removed."
-
-    exit 0  #success
+    reload_nginx
 }
 
-# enable fastcgi cache
+# Enable fastcgi cache
 function enable_fastcgi_cache() {
-    echo "TODO: Enable FastCGI cache"
-    exit 0
+    # Verify user input hostname (domain name)
+    verify_host $1
+
+    echo "Enabling FastCGI cache for $1..."
+
+    if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]; then
+        # enable cached directives
+        run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" /etc/nginx/sites-available/$1.conf
+
+        # enable fastcgi_cache conf
+        run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
+            /etc/nginx/sites-available/$1.conf
+
+        reload_nginx
+    else
+        warning "FastCGI cache is not enabled. There is no cached configuration."
+        exit 1
+    fi
 }
 
-# disable fastcgi cache
+# Disable fastcgi cache
 function disable_fastcgi_cache() {
-    echo "TODO: Disble FastCGI cache"
-    exit 0
+    # Verify user input hostname (domain name)
+    verify_host $1
+
+    echo "Disabling FastCGI cache for $1..."
+
+    if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]; then
+        # enable cached directives
+        run sed -i "s|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" /etc/nginx/sites-available/$1.conf
+
+        # enable fastcgi_cache conf
+        run sed -i "s|include\ /etc/nginx/includes/fastcgi_cache.conf|#include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
+            /etc/nginx/sites-available/$1.conf
+
+        reload_nginx
+    else
+        warning "FastCGI cache is not enabled. There is no cached configuration."
+        exit 1
+    fi
 }
 
-# enable Mod PageSpeed
+# Enable Mod PageSpeed
 function enable_mod_pagespeed() {
-    if [[ -z $1 ]]; then
-        error "vHost or domain name is required. Type ${APP_NAME} --help for more info!"
+    # Verify user input hostname (domain name)
+    verify_host $1
+
+    echo "Enabling Mod PageSpeed for $1..."
+
+    if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
+        # enable mod pagespeed
+        run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
+            /etc/nginx/sites-available/$1.conf
+
+        reload_nginx
+    else
+        warning "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module."
         exit 1
     fi
-
-    echo "TODO: Enable Mod PageSpeed"
-    exit 0
 }
 
-# disable Mod PageSpeed
+# Disable Mod PageSpeed
 function disable_mod_pagespeed() {
-    if [[ -z $1 ]]; then
-        error "vHost or domain name is required. Type ${APP_NAME} --help for more info!"
+    # Verify user input hostname (domain name)
+    verify_host $1
+
+    echo "Disabling Mod PageSpeed for $1..."
+
+    if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
+        # Enable mod pagespeed
+        run sed -i "s|include\ /etc/nginx/includes/mod_pagespeed.conf|#include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
+            /etc/nginx/sites-available/$1.conf
+
+        reload_nginx
+    else
+        warning "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module."
         exit 1
     fi
-
-    echo "TODO: Disble Mod PageSpeed"
-    exit 0
 }
 
-# enable ssl
+# Enable ssl
 function enable_ssl() {
-    if [ ! -f /etc/nginx/sites-available/$1.conf ]; then
-        error "Virtual host or domain name not found."
-        exit 1
-    fi
+    # Verify user input hostname (domain name)
+    verify_host $1
 
     #TODO: Generate Let's Encrypt SSL using Certbot
     if [[ ! -d /etc/nginx/ssl/$1 ]]; then
@@ -301,10 +359,51 @@ function enable_ssl() {
     exit 0
 }
 
-# disable ssl
+# Disable ssl
 function disable_ssl() {
+    # Verify user input hostname (domain name)
+    verify_host $1
+
     echo "TODO: Disble SSL"
     exit 0
+}
+
+function verify_host() {
+    if [[ -z $1 ]]; then
+        error "Virtual host (vhost) or domain name is required. Type ${APP_NAME} --help for more info!"
+        exit 1
+    fi
+
+    if [ ! -f /etc/nginx/sites-available/$1.conf ]; then
+        error -e "Sorry, we can't find Nginx virtual host: $1..."
+        exit 1
+    fi
+}
+
+# Nginx reload
+function reload_nginx() {
+    # Reload Nginx
+    echo "Reloading Nginx configuration..."
+
+    if [[ -e /var/run/nginx.pid ]]; then
+        service nginx reload -s > /dev/null 2>&1
+    else
+        # Nginx service dead? Try to start it
+        if [[ -n $(which nginx) ]]; then
+            service nginx restart > /dev/null 2>&1
+        else
+            warning "Something went wrong with your Nginx installation."
+            exit 1
+        fi
+    fi
+
+    if [[ $(ps -ef | grep -v grep | grep nginx | wc -l) > 0 ]]; then
+        status "Your change has been successfully applied to Nginx."
+        exit 0
+    else
+        fail "An error occurred when updating Nginx configuration.";
+        exit 1
+    fi
 }
 
 # Main App

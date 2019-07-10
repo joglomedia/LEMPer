@@ -8,7 +8,7 @@
 
 # Include decorator
 if [ "$(type -t run)" != "function" ]; then
-    . scripts/decorator.sh
+    . scripts/helper.sh
 fi
 
 # Make sure only root can run this installer script
@@ -17,7 +17,7 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-echo -e "\nWelcome to LEMPer Basic Security Hardening"
+echo -e "\nWelcome to LEMPer Basic Sercer Security Hardening"
 
 echo "Before starting, let's create a pair of keys that some hosts ask for during installation of the server.
 
@@ -27,7 +27,9 @@ use the following command:
 ssh-keygen -t rsa -b 4096
 
 After this step, you will have the following files: id_rsa and id_rsa.pub (private and public keys).
-Never share your private key."
+Never share your private key.
+
+"
 
 read -t 15 -p "Press [Enter] to continue..." </dev/tty
 
@@ -36,7 +38,7 @@ read RSAPublicKey
 
 # Give default account access
 if [[ ! -z "$RSAPublicKey" ]]; then
-    echo "\nSecuring your SSH server..."
+    echo -e "\nSecuring your SSH server..."
 
     run mkdir /home/lemper/.ssh
 
@@ -52,11 +54,17 @@ EOL
     chmod 600 /home/lemper/.ssh/authorized_keys
 
     # Securing the SSH server
-    sed -i "/^#Port 22/a Port\ 2269" /etc/ssh/sshd_config
-    sed -i "/^#PermitRootLogin prohibit-password/a PermitRootLogin\ no" /etc/ssh/sshd_config
-    sed -i "/^#PasswordAuthentication yes/a PasswordAuthentication\ no" /etc/ssh/sshd_config
-    sed -i "/^#ClientAliveInterval 0/a ClientAliveInterval\ 600" /etc/ssh/sshd_config
-    sed -i "/^#ClientAliveCountMax/a ClientAliveCountMax\ 3" /etc/ssh/sshd_config
+    SSHPort=${SSHPort:-n}
+	if [[ $SSHPort =~ n ]]; then
+        echo -e "\nEnter your custom SSH Port (LEMPer default SSH port sets to 2269)!"
+		read -rp "SSH Port: " -e -i "2269" SSHPort
+	fi
+
+    sed -i "|^#Port 22|a Port\ $SSHPort" /etc/ssh/sshd_config
+    sed -i "|^#PermitRootLogin|a PermitRootLogin\ no" /etc/ssh/sshd_config
+    sed -i "|^#PasswordAuthentication yes|a PasswordAuthentication\ no" /etc/ssh/sshd_config
+    sed -i "|^#ClientAliveInterval 0|a ClientAliveInterval\ 600" /etc/ssh/sshd_config
+    sed -i "|^#ClientAliveCountMax|a ClientAliveCountMax\ 3" /etc/ssh/sshd_config
 
     run service sshd restart
 fi

@@ -22,13 +22,12 @@ APP_VERSION="1.6.0"
 LAST_UPDATE="24/06/2019"
 
 INSTALL_DIR=$(pwd)
+DRYRUN=false
 
 # Decorator
 RED=91
 GREEN=92
 YELLOW=93
-
-DRYRUN=false
 
 function begin_color() {
     color="$1"
@@ -110,60 +109,48 @@ if [[ ! -f $(which unzip) || ! -f $(which git) || ! -f $(which rsync) ]]; then
     exit 0
 fi
 
-#
-# Show Usage, Output to STDERR
+## Show usage
+# Output to STDERR
 #
 function show_usage {
 cat <<- _EOF_
-$APP_NAME $APP_VERSION
+${APP_NAME^} ${APP_VERSION}
 Creates Nginx virtual host (vHost) configuration file.
 
 Requirements:
-  * Nginx setup uses /etc/nginx/sites-available and /etc/nginx/sites-enabled
-  * PHP FPM setup uses /etc/php/{version_number}/fpm/
+  * LEMP stack setup uses [LEMPer](https://github.com/joglomedia/LEMPer)
 
-Usage: $APP_NAME [options]...
+Usage: ${APP_NAME} [options]...
 
 Options:
   -c, --enable-fastcgi-cache
       Enable PHP FastCGI cache module.
-
   -d, --domain-name <server domain name>
-      Any valid domain name and/or sub domain name is allowed.
-      i.e. example.com or sub.example.com
-
+      Any valid domain name and/or sub domain name is allowed, i.e. example.com or sub.example.com.
   -f, --framework <website framework>
       Type of web framework and cms, i.e. default.
-      Currently supported framework and cms: default (vanilla php), codeigniter, laravel, phalcon, wordpress, wordpress-ms.
-
+      Currently supported framework and cms: default (vanilla PHP), codeigniter, laravel, phalcon, wordpress, wordpress-ms.
       Another framework and cms will be added soon.
-
   -h, --help
       Print this message and exit.
-
   -p, --php-version
       PHP version for selected framework.
-
   -s, --clone-skeleton
       Clone default skeleton for selected framework.
-
   -u, --username <virtual-host username>
       Use username added from adduser/useradd. Do not use root user.
-
   -w, --webroot <web root>
-      Web root is absolute path to the website root directory.
-      i.e. /home/username/Webs/example.test
+      Web root is an absolute path to the website root directory, i.e. /home/username/Webs/example.test.
 
 Example:
-$APP_NAME -u username -d example.com -f default -w /home/username/Webs/example.dev
+${APP_NAME} -u username -d example.com -f default -w /home/username/Webs/example.dev
 
-For more details visit https://ngxtools.eslabs.id !
+For more details visit https://ngxtools.eslabs.id!
 Mail bug reports and suggestions to <eslabs.id@gmail.com>
 _EOF_
 }
 
-#
-# Output Default virtual host (vHost) skeleton, fill with user input
+## Output Default virtual host directive, fill with user input
 # To be outputted into new file
 # Work for default and WordPress site
 #
@@ -174,11 +161,17 @@ server {
     #listen [::]:80 default_server ipv6only=on;
 
     ## Make site accessible from world web.
-    server_name ${SERVERNAME} www.${SERVERNAME};
+    server_name ${SERVERNAME};
+
+    ## SSL configuration.
+    #include /etc/nginx/includes/ssl.conf;
+    #ssl_certificate /etc/nginx/ssl/${SERVERNAME}/default_ssl.crt;
+    #ssl_certificate_key /etc/nginx/ssl/${SERVERNAME}/default_ssl.key;
+    #ssl_dhparam /etc/nginx/ssl/dhparam-4096.pem;
 
     ## Log Settings.
     access_log /var/log/nginx/${SERVERNAME}_access.log;
-    error_log  /var/log/nginx/${SERVERNAME}_error.log error;
+    error_log /var/log/nginx/${SERVERNAME}_error.log error;
 
     #charset utf-8;
 
@@ -187,16 +180,17 @@ server {
     root \$root_path;
     index index.php index.html index.htm;
 
-    ## Mod PageSpeed directives configuration.
-    include /etc/nginx/conf.vhost/pagespeed_disabled.conf;
+    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
+    #include /etc/nginx/includes/mod_pagespeed.conf;
 
     ## Global directives configuration.
-    include /etc/nginx/conf.vhost/block.conf;
-    include /etc/nginx/conf.vhost/staticfiles.conf;
-    include /etc/nginx/conf.vhost/restrictions.conf;
+    include /etc/nginx/includes/rules_security.conf;
+    include /etc/nginx/includes/rules_staticfiles.conf;
+    include /etc/nginx/includes/rules_restriction.conf;
 
     ## Default vhost directives configuration.
-    include /etc/nginx/conf.vhost/site_${FRAMEWORK}.conf;
+    #include /etc/nginx/includes/rules_fastcgi_cache.conf;
+    include /etc/nginx/vhost/site_${FRAMEWORK}.conf;
 
     ## Pass the PHP scripts to FastCGI server listening on Unix socket.
     location ~ \.php$ {
@@ -209,25 +203,98 @@ server {
         include /etc/nginx/fastcgi_params;
 
         # Include FastCGI Configs.
-        include /etc/nginx/conf.vhost/fastcgi.conf;
+        include /etc/nginx/includes/fastcgi.conf;
 
         # Uncomment to Enable PHP FastCGI cache.
-        include /etc/nginx/conf.vhost/fastcgi_cache_disabled.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
 
         # FastCGI socket, change to fits your own socket!
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
     }
 
     ## Uncomment to enable error page directives configuration.
-    #include /etc/nginx/conf.vhost/errorpage.conf;
+    #include /etc/nginx/includes/error_pages.conf;
 
     ## Add your custom site directives here.
 }
 _EOF_
 }
 
+## Output Drupal virtual host directive, fill with user input
+# To be outputted into new file
 #
-# Output Laravel virtual host skeleton, fill with user input
+function create_vhost_drupal() {
+cat <<- _EOF_
+server {
+    listen 80;
+    #listen [::]:80 default_server ipv6only=on;
+
+    ## Make site accessible from world web.
+    server_name ${SERVERNAME};
+
+    ## SSL configuration.
+    #include /etc/nginx/includes/ssl.conf;
+    #ssl_certificate /etc/nginx/ssl/${SERVERNAME}/default_ssl.crt;
+    #ssl_certificate_key /etc/nginx/ssl/${SERVERNAME}/default_ssl.key;
+    #ssl_dhparam /etc/nginx/ssl/dhparam-4096.pem;
+
+    ## Log Settings.
+    access_log /var/log/nginx/${SERVERNAME}_access.log;
+    error_log /var/log/nginx/${SERVERNAME}_error.log error;
+
+    #charset utf-8;
+
+    ## Virtual host root directory.
+    set \$root_path '${WEBROOT}';
+    root \$root_path;
+    index index.php index.html index.htm;
+
+    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
+    #include /etc/nginx/includes/mod_pagespeed.conf;
+
+    ## Global directives configuration.
+    include /etc/nginx/includes/rules_security.conf;
+    include /etc/nginx/includes/rules_staticfiles.conf;
+    include /etc/nginx/includes/rules_restriction.conf;
+
+    ## Default vhost directives configuration.
+    #include /etc/nginx/includes/rules_fastcgi_cache.conf;
+    include /etc/nginx/vhost/site_${FRAMEWORK}.conf;
+
+    ## Pass the PHP scripts to FastCGI server listening on Unix socket.
+    location ~ '\.php$|^/update.php' {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_index index.php;
+
+        # Include FastCGI Params.
+        include /etc/nginx/fastcgi_params;
+
+        # Overwrite FastCGI Params here.
+        # Block httpoxy attacks. See https://httpoxy.org/.
+        fastcgi_param HTTP_PROXY "";
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_param PATH_INFO \$fastcgi_path_info;
+        fastcgi_param QUERY_STRING \$query_string;
+
+        # Include FastCGI Configs.
+        include /etc/nginx/includes/fastcgi.conf;
+
+        # Uncomment to Enable PHP FastCGI cache.
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+
+        # FastCGI socket, change to fits your own socket!
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
+    }
+
+    ## Uncomment to enable error page directives configuration.
+    #include /etc/nginx/includes/error_pages.conf;
+
+    ## Add your custom site directives here.
+}
+_EOF_
+}
+
+## Output Laravel virtual host skeleton, fill with user input
 # To be outputted into new file
 #
 function create_vhost_laravel() {
@@ -237,11 +304,17 @@ server {
     #listen [::]:80 default_server ipv6only=on;
 
     ## Make site accessible from world web.
-    server_name ${SERVERNAME} www.${SERVERNAME};
+    server_name ${SERVERNAME};
+
+    ## SSL configuration.
+    #include /etc/nginx/includes/ssl.conf;
+    #ssl_certificate /etc/nginx/ssl/${SERVERNAME}/default_ssl.crt;
+    #ssl_certificate_key /etc/nginx/ssl/${SERVERNAME}/default_ssl.key;
+    #ssl_dhparam /etc/nginx/ssl/dhparam-4096.pem;
 
     ## Log Settings.
     access_log /var/log/nginx/${SERVERNAME}_access.log;
-    error_log  /var/log/nginx/${SERVERNAME}_error.log error;
+    error_log /var/log/nginx/${SERVERNAME}_error.log error;
 
     #charset utf-8;
 
@@ -250,50 +323,48 @@ server {
     root \$root_path;
     index index.php index.html index.htm;
 
-    ## Mod PageSpeed directives configuration.
-    include /etc/nginx/conf.vhost/pagespeed_disabled.conf;
+    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
+    #include /etc/nginx/includes/mod_pagespeed.conf;
 
     ## Global directives configuration.
-    include /etc/nginx/conf.vhost/block.conf;
-    include /etc/nginx/conf.vhost/staticfiles.conf;
-    include /etc/nginx/conf.vhost/restrictions.conf;
+    include /etc/nginx/includes/rules_security.conf;
+    include /etc/nginx/includes/rules_staticfiles.conf;
+    include /etc/nginx/includes/rules_restriction.conf;
 
     ## Default vhost directives configuration.
-    include /etc/nginx/conf.vhost/site_${FRAMEWORK}.conf;
+    #include /etc/nginx/includes/rules_fastcgi_cache.conf;
+    include /etc/nginx/vhost/site_${FRAMEWORK}.conf;
 
     ## Pass the PHP scripts to FastCGI server listening on Unix socket.
     location ~ \.php$ {
-        fastcgi_split_path_info    ^(.+\.php)(/.+)$;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_index index.php;
 
         # Include FastCGI Params.
         include /etc/nginx/fastcgi_params;
 
         # Overwrite FastCGI Params here.
-        #fastcgi_param PATH_INFO        \$fastcgi_path_info;
-        fastcgi_param SCRIPT_FILENAME    \$document_root\$fastcgi_script_name;
-        #fastcgi_param SCRIPT_NAME        \$fastcgi_script_name;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
 
         # Include FastCGI Configs.
-        include /etc/nginx/conf.vhost/fastcgi.conf;
+        include /etc/nginx/includes/fastcgi.conf;
 
         # Uncomment to Enable PHP FastCGI cache.
-        include /etc/nginx/conf.vhost/fastcgi_cache_disabled.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
 
         # FastCGI socket, change to fits your own socket!
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
     }
 
     ## Uncomment to enable error page directives configuration.
-    #include /etc/nginx/conf.vhost/errorpage.conf;
+    #include /etc/nginx/includes/error_pages.conf;
 
     ## Add your custom site directives here.
 }
 _EOF_
 }
 
-#
-# Output Phalcon virtual host skeleton, fill with user input
+## Output Phalcon virtual host skeleton, fill with user input
 # To be outputted into new file
 #
 function create_vhost_phalcon() {
@@ -303,11 +374,17 @@ server {
     #listen [::]:80 default_server ipv6only=on;
 
     ## Make site accessible from world web.
-    server_name ${SERVERNAME} www.${SERVERNAME};
+    server_name ${SERVERNAME};
+
+    ## SSL configuration.
+    #include /etc/nginx/includes/ssl.conf;
+    #ssl_certificate /etc/nginx/ssl/${SERVERNAME}/default_ssl.crt;
+    #ssl_certificate_key /etc/nginx/ssl/${SERVERNAME}/default_ssl.key;
+    #ssl_dhparam /etc/nginx/ssl/dhparam-4096.pem;
 
     ## Log Settings.
     access_log /var/log/nginx/${SERVERNAME}_access.log;
-    error_log  /var/log/nginx/${SERVERNAME}_error.log error;
+    error_log /var/log/nginx/${SERVERNAME}_error.log error;
 
     #charset utf-8;
 
@@ -316,67 +393,66 @@ server {
     root \$root_path;
     index index.php index.html index.htm;
 
-    ## Mod PageSpeed directives configuration.
-    include /etc/nginx/conf.vhost/pagespeed_disabled.conf;
+    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
+    #include /etc/nginx/includes/mod_pagespeed.conf;
 
     ## Global directives configuration.
-    include /etc/nginx/conf.vhost/block.conf;
-    include /etc/nginx/conf.vhost/staticfiles.conf;
-    include /etc/nginx/conf.vhost/restrictions.conf;
+    include /etc/nginx/includes/rules_security.conf;
+    include /etc/nginx/includes/rules_staticfiles.conf;
+    include /etc/nginx/includes/rules_restriction.conf;
 
     ## Default vhost directives configuration.
-    include /etc/nginx/conf.vhost/site_${FRAMEWORK}.conf;
+    #include /etc/nginx/includes/rules_fastcgi_cache.conf;
+    include /etc/nginx/vhost/site_${FRAMEWORK}.conf;
 
     ## Pass the PHP scripts to FastCGI server listening on Unix socket.
     location ~ \.php {
-        fastcgi_split_path_info    ^(.+\.php)(/.+)$;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_index index.php;
 
         # Include FastCGI Params.
         include /etc/nginx/fastcgi_params;
 
         # Overwrite FastCGI Params here.
-        fastcgi_param PATH_INFO            \$fastcgi_path_info;
-        fastcgi_param SCRIPT_FILENAME    \$document_root\$fastcgi_script_name;
-        fastcgi_param SCRIPT_NAME        \$fastcgi_script_name;
+        fastcgi_param PATH_INFO \$fastcgi_path_info;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_param SCRIPT_NAME \$fastcgi_script_name;
 
         # Phalcon PHP custom params.
-        fastcgi_param APPLICATION_ENV    development;
+        fastcgi_param APPLICATION_ENV production; # development | production
 
         # Include FastCGI Configs.
-        include /etc/nginx/conf.vhost/fastcgi.conf;
+        include /etc/nginx/includes/fastcgi.conf;
 
         # Uncomment to Enable PHP FastCGI cache.
-        include /etc/nginx/conf.vhost/fastcgi_cache_disabled.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
 
         # FastCGI socket, change to fits your own socket!
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
     }
 
     ## Uncomment to enable error page directives configuration.
-    #include /etc/nginx/conf.vhost/errorpage.conf;
+    #include /etc/nginx/includes/error_pages.conf;
 
     ## Add your custom site directives here.
 }
 _EOF_
 }
 
-#
-# Output Wordpress Multisite vHost header
+## Output Wordpress Multisite vHost header
 #
 function prepare_vhost_wpms() {
 cat <<- _EOF_
 # Wordpress Multisite Mapping for Nginx (Requires Nginx Helper plugin).
 map \$http_host \$blogid {
-    default     0;
-    include     ${WEBROOT}/wp-content/uploads/nginx-helper/map.conf;
+    default 0;
+    include ${WEBROOT}/wp-content/uploads/nginx-helper/map.conf;
 }
 
 _EOF_
 }
 
-#
-# Output index.html skeleton for default index page
+## Output index.html skeleton for default index page
 # To be outputted into new index.html file in document root
 #
 function create_index_file() {
@@ -400,7 +476,7 @@ cat <<- _EOF_
 <p>For online documentation and support please refer to
 <a href="http://nginx.org/">nginx.org</a>.<br/>
 LEMPer and ngxTools support is available at
-<a href="https://github.com/joglomedia/LEMPer/issues">LEMPer git</a>.</p>
+<a href="https://github.com/joglomedia/LEMPer/issues">LEMPer Github</a>.</p>
 
 <p><em>Thank you for using nginx, ngxTools, and LEMPer.</em></p>
 
@@ -410,16 +486,18 @@ LEMPer and ngxTools support is available at
 _EOF_
 }
 
+## Output PHP-FPM pool configuration
+# To be outputted into new pool file in fpm/pool.d
+#
 function create_fpm_pool_conf() {
-
 cat <<- _EOF_
-[$USERNAME]
-user = $USERNAME
-group = $USERNAME
+[${USERNAME}]
+user = ${USERNAME}
+group = ${USERNAME}
 
 listen = /run/php/php${PHP_VERSION}-fpm.\$pool.sock
-listen.owner = $USERNAME
-listen.group = $USERNAME
+listen.owner = ${USERNAME}
+listen.group = ${USERNAME}
 listen.mode = 0666
 ;listen.allowed_clients = 127.0.0.1
 
@@ -446,13 +524,13 @@ php_admin_flag[log_errors] = on
 _EOF_
 }
 
+## Install WordPress
+# Installing WordPress skeleton
+#
 function install_wordpress() {
-    # Check WordPress install directory
+    # Clone new WordPress skeleton files
     if [ $CLONE_SKELETON == true ]; then
-        #echo -n "Should we copy WordPress skeleton into document root? [Y/n]: "
-        #read instal
-
-        # Clone new WordPress files
+        # Check WordPress install directory
         if [ ! -d ${WEBROOT}/wp-admin ]; then
             status "Copying WordPress skeleton files..."
 
@@ -461,32 +539,30 @@ function install_wordpress() {
             run rsync -r wordpress/ ${WEBROOT}
             run rm -f latest.zip
             run rm -fr wordpress
-            #git clone https://github.com/WordPress/WordPress.git $WEBROOT/
         else
-            warning "It seems that WordPress installation file already exists."
+            warning "It seems that WordPress files already exists."
         fi
     else
-        # create default index file
+        # Create default index file
         status "Creating default WordPress index file..."
 
         create_index_file > ${WEBROOT}/index.html
-        run chown $USERNAME:$USERNAME ${WEBROOT}/index.html
+        run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
     fi
 
     # Pre-install nginx helper plugin
     if [[ -d ${WEBROOT}/wp-content/plugins && ! -d ${WEBROOT}/wp-content/plugins/nginx-helper ]]; then
         status "Copying Nginx Helper plugin into WordPress install..."
-        warning "Please activate the plugin after WordPress installation."
+        warning "Please activate the plugin after WordPress installation!"
 
         run wget --no-check-certificate -q https://downloads.wordpress.org/plugin/nginx-helper.zip
         run unzip -q nginx-helper.zip
         run mv nginx-helper ${WEBROOT}/wp-content/plugins/
         run rm -f nginx-helper.zip
-        #git clone https://github.com/rtCamp/nginx-helper.git $WEBROOT/wp-content/plugins/nginx-helper
     fi
 }
 
-# Main App
+## Main App
 #
 function init_app() {
     getopt --test
@@ -515,7 +591,7 @@ function init_app() {
     PHP_VERSION="7.3"
     ENABLE_FASTCGI_CACHE=false
     ENABLE_PAGESPEED=false
-    #ENABLE_HTTPS=false
+    ENABLE_HTTPS=false
     CLONE_SKELETON=false
     DRYRUN=false
 
@@ -624,27 +700,59 @@ function init_app() {
 
             # Ugly hacks for custom framework-specific configs + Skeleton auto installer.
             case $FRAMEWORK in
+                drupal)
+                    echo "Setting up Drupal virtual host..."
+
+                    # Clone new Drupal skeleton files
+                    if [ $CLONE_SKELETON == true ]; then
+                        # Check Drupal install directory
+                        if [ ! -d ${WEBROOT}/core/lib/Drupal ]; then
+                            status "Copying Drupal latest skeleton files..."
+
+                            run wget --no-check-certificate -O drupal.zip -q \
+                                    https://www.drupal.org/download-latest/zip
+                            run unzip -q drupal.zip
+                            run rsync -r drupal-*/ ${WEBROOT}
+                            run rm -f drupal.zip
+                            run rm -fr drupal-*/
+                        else
+                            warning "It seems that Drupal files already exists."
+                        fi
+                    else
+                        # Create default index file
+                        status "Creating default index file..."
+
+                        create_index_file > ${WEBROOT}/index.html
+                        run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
+                    fi
+
+                    # Create vhost
+                    echo "Creating virtual host file: ${vhost_file}..."
+                    create_vhost_drupal > ${vhost_file}
+
+                    status "New domain ${SERVERNAME} has been added to virtual host."
+                ;;
+
                 laravel)
                     echo "Setting up Laravel framework virtual host..."
 
                     # Install Laravel framework skeleton
-                    if [ ! -f ${WEBROOT}/server.php ]; then
-                        #echo -n "Should we install Laravel skeleton into document root? [Y/n]: "
-                        #read INSTALL_LV
+                    # Clone new Laravel files
+                    if [ $CLONE_SKELETON == true ]; then
+                        # Check Laravel install
+                        if [ ! -f ${WEBROOT}/server.php ]; then
+                            status "Copying Laravel skeleton files..."
 
-                        # Clone new Laravel files
-                        if [ $CLONE_SKELETON == true ]; then
-                            echo "Copying Laravel skeleton files..."
-                            run git clone "https://github.com/laravel/laravel.git" \
-                                          "${WEBROOT}"
+                            run git clone https://github.com/laravel/laravel.git ${WEBROOT}
                         else
-                            # Create default index file
-                            echo "Creating default index files..."
-                            create_index_file > ${WEBROOT}/index.html
-                            run chown $USERNAME:$USERNAME ${WEBROOT}/index.html
+                            warning "It seems that Laravel skeleton files already exists."
                         fi
                     else
-                        warning "Laravel skeleton files already exists."
+                        # Create default index file
+                        status "Creating default index file..."
+
+                        create_index_file > ${WEBROOT}/index.html
+                        run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
                     fi
 
                     # Create vhost
@@ -656,11 +764,24 @@ function init_app() {
 
                 phalcon)
                     echo "Setting up Phalcon framework virtual host..."
+
                     # TODO: Auto install Phalcon PHP framework skeleton
 
                     # Create vhost
                     echo "Creating virtual host file: ${vhost_file}..."
                     create_vhost_phalcon > ${vhost_file}
+
+                    status "New domain ${SERVERNAME} has been added to virtual host."
+                ;;
+
+                symfony)
+                    echo "Setting up Symfony framework virtual host..."
+
+                    # TODO: Auto install Symfony PHP framework skeleton
+
+                    # Create vhost
+                    echo "Creating virtual host file: ${vhost_file}..."
+                    create_vhost_default > ${vhost_file}
 
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
@@ -685,8 +806,14 @@ function init_app() {
                     install_wordpress
 
                     # Pre-populate blog id mapping, used by Nginx vhost conf
-                    run mkdir ${WEBROOT}/wp-content/uploads
-                    run mkdir ${WEBROOT}/wp-content/uploads/nginx-helper
+                    if [ ! -d ${WEBROOT}/wp-content/uploads ]; then
+                        run mkdir ${WEBROOT}/wp-content/uploads
+                    fi
+
+                    if [ ! -d run mkdir ${WEBROOT}/wp-content/uploads/nginx-helper ]; then
+                        run mkdir ${WEBROOT}/wp-content/uploads/nginx-helper
+                    fi
+
                     run touch ${WEBROOT}/wp-content/uploads/nginx-helper/map.conf
 
                     echo "Creating virtual host file: ${vhost_file}..."
@@ -703,7 +830,7 @@ function init_app() {
                 filerun)
                     echo "Setting up FileRun virtual host..."
 
-                    # Install Laravel framework skeleton
+                    # Install FileRun skeleton
                     if [ ! -f ${WEBROOT}/system/classes/filerun.php ]; then
                         # Clone new Filerun files
                         if [ $CLONE_SKELETON == true ]; then
@@ -715,7 +842,7 @@ function init_app() {
                             # Create default index file
                             echo "Creating default index files..."
                             create_index_file > ${WEBROOT}/index.html
-                            run chown $USERNAME:$USERNAME ${WEBROOT}/index.html
+                            run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
                         fi
                     else
                         warning "FileRun skeleton files already exists."
@@ -731,7 +858,7 @@ function init_app() {
                 codeigniter|mautic|default)
                     # Create default index file
                     create_index_file > ${WEBROOT}/index.html
-                    run chown $USERNAME:$USERNAME ${WEBROOT}/index.html
+                    run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
 
                     # Create default vhost
                     echo "Creating virtual host file: ${vhost_file}..."
@@ -751,12 +878,12 @@ function init_app() {
             if [ $ENABLE_FASTCGI_CACHE == true ]; then
                 echo "Enable FastCGI cache for ${SERVERNAME}..."
 
-                if [ -f /etc/nginx/conf.vhost/site_${FRAMEWORK}_cached.conf ]; then
+                if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf; ]; then
                     # enable cached directives
-                    sed -i "s/site_${FRAMEWORK}.conf/site_${FRAMEWORK}_cached.conf/g" ${vhost_file}
+                    run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" ${vhost_file}
 
                     # enable fastcgi_cache conf
-                    sed -i "s/fastcgi_cache_disabled.conf/fastcgi_cache.conf/g" ${vhost_file}
+                    run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" ${vhost_file}
                 else
                     warning "FastCGI cache is not enabled. There is no cached version of ${FRAMEWORK^} directives."
                 fi
@@ -766,16 +893,16 @@ function init_app() {
             if [ $ENABLE_PAGESPEED == true ]; then
                 echo "Enable Mod PageSpeed for ${SERVERNAME}..."
 
-                if [[ -f /etc/nginx/conf.vhost/pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
+                if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
                     # enable mod pagespeed
-                    sed -i "s/pagespeed_disabled.conf/pagespeed.conf/g" ${vhost_file}
+                    run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" ${vhost_file}
                 else
-                    warning "Mod PageSpeed is not enabled."
+                    warning "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module enabled."
                 fi
             fi
 
             # Fix document root ownership
-            run chown -R $USERNAME:$USERNAME ${WEBROOT}
+            run chown -R ${USERNAME}:${USERNAME} ${WEBROOT}
 
             # Fix document root permission
             if [ "$(ls -A ${WEBROOT})" ]; then
@@ -791,11 +918,14 @@ function init_app() {
 
             # Reload Nginx
             echo "Reloading Nginx configuration..."
+
             #service nginx reload -s
             run service nginx reload -s
 
             if [[ -f /etc/nginx/sites-enabled/${SERVERNAME}.conf && -e /var/run/nginx.pid ]]; then
                 status "Your ${SERVERNAME} successfully added to Nginx virtual host.";
+            else
+                fail "An error occurred when adding ${SERVERNAME} to Nginx virtual host.";
             fi
 
             if [ "${FRAMEWORK}" = "wordpress-ms" ]; then
@@ -804,7 +934,7 @@ function init_app() {
                 warning "You should activate Nginx Helper plugin to work properly."
             fi
         else
-            error "vHost config file for ${SERVERNAME} already exists. Aborting..."
+            error "Virtual host config file for ${SERVERNAME} is already exists. Aborting..."
         fi
     else
         echo "$APP_NAME: missing optstring argument."

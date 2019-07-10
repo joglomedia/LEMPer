@@ -8,7 +8,7 @@
 # Include decorator
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    . ${BASEDIR}/decorator.sh
+    . ${BASEDIR}/helper.sh
 fi
 
 # Make sure only root can run this installer script
@@ -404,8 +404,8 @@ php_admin_flag[log_errors] = on
 EOL
     fi
 
-    # Fix cgi.fix_pathinfo
-    sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
+    # Fix cgi.fix_pathinfo (for PHP older than 5.3)
+    #sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
 
     # Add custom php extension (ex .php70, .php71)
     PHPExt=".php${PHPv//.}"

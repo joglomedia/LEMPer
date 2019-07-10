@@ -9,7 +9,7 @@
 # Include decorator
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    . ${BASEDIR}/decorator.sh
+    . ${BASEDIR}/helper.sh
 fi
 
 # Make sure only root can run this installer script
@@ -18,7 +18,7 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-echo -en "\nDo you want to install Certbot Let's Encrypt? [Y/n]: "
+echo -en "\nDo you want to install Certbot Let's Encrypt SSL? [Y/n]: "
 read certbotInstall
 
 if [[ "${certbotInstall}" == Y* || "${certbotInstall}" == y* ]]; then
@@ -32,18 +32,20 @@ if [[ "${certbotInstall}" == Y* || "${certbotInstall}" == y* ]]; then
         # Add this certbot renew command to cron
         #15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/bin/systemctl reload nginx"
 
-        croncmd='/usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
-        cronjob="15 3 * * * $croncmd"
-        crontab -l | sudo fgrep -v -F "$croncmd" | { sudo cat; sudo echo "$cronjob"; } | sudo crontab -
+        croncmd='15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
+        crontab -l > mycronjob
+        echo "$croncmd" >> mycronjob
+        crontab mycronjob
+        rm -f mycronjob
     else
         echo -e "Certbot Let's Encrypt already installed"
     fi
 
-    # Generate Diffie-Hellman parameters
-    if [ ! -f /etc/letsencrypt/ssl-dhparams-4096.pem ]; then
-        echo "Generating Diffie-Hellman parameters for enhanced security..."
+    # Generate Diffie-Hellman parameter
+    if [ ! -f /etc/letsencrypt/ssl-dhparam-4096.pem ]; then
+        echo "Generating Diffie-Hellman parameter for enhanced security..."
 
-        #openssl dhparam -out /etc/letsencrypt/ssl-dhparams-2048.pem 2048
-        #openssl dhparam -out /etc/letsencrypt/ssl-dhparams-4096.pem 4096
+        #openssl dhparam -out /etc/letsencrypt/ssl-dhparam-2048.pem 2048
+        openssl dhparam -out /etc/letsencrypt/ssl-dhparam-4096.pem 4096
     fi
 fi

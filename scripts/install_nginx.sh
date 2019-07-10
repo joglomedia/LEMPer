@@ -10,7 +10,13 @@
 BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
 
 if [ "$(type -t run)" != "function" ]; then
-    . ${BASEDIR}/decorator.sh
+    . ${BASEDIR}/helper.sh
+fi
+
+# Make sure only root can run this installer script
+if [ $(id -u) -ne 0 ]; then
+    error "You need to be root to run this script"
+    exit 1
 fi
 
 function nginx_install_menu() {
@@ -60,6 +66,14 @@ function nginx_install_menu() {
         if [[ -f /usr/lib/nginx/modules/ngx_pagespeed.so && ! -f /etc/nginx/modules-available/mod-pagespeed.conf ]]; then
             run bash -c 'echo "load_module \"/usr/lib/nginx/modules/ngx_pagespeed.so\";" > \
                 /etc/nginx/modules-available/mod-pagespeed.conf'
+
+            # Secure PageSpeed ​​Admin
+            PASSHASH=""
+            if [[ -n $(which php) ]]; then
+                PHPCMD="echo crypt(\"${PASSWORD}\", base64_encode(\"${PASSWORD}\"));"
+                PASSHASH=$(php -r "${PHPCMD}")
+            fi
+            echo "${USERNAME}:${PASSHASH}" >> /srv/.htpasswd
         fi
 
         if [[ -f /usr/lib/nginx/modules/ngx_http_geoip_module.so && ! -f /etc/nginx/modules-available/mod-http-geoip.conf ]]; then
@@ -133,7 +147,8 @@ function init_nginx_install() {
     run cp -f nginx/proxy_cache /etc/nginx/
     run cp -f nginx/proxy_params /etc/nginx/
     run cp -f nginx/upstream.conf /etc/nginx/
-    run cp -fr nginx/conf.vhost/ /etc/nginx/
+    run cp -fr nginx/includes/ /etc/nginx/
+    run cp -fr nginx/vhost/ /etc/nginx/
     run cp -fr nginx/ssl/ /etc/nginx/
 
     if [ -f /etc/nginx/sites-available/default ]; then
@@ -173,9 +188,11 @@ function init_nginx_install() {
     fi
 
     # Check IP Address
-    IPAddr=$(curl -s http://ipecho.net/plain)
+    #IPAddr=$(curl -s http://ipecho.net/plain)
+    IPAddr=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
+
     # Make default server accessible from IP address
-    run sed -i s@localhost.localdomain@${IPAddr}@g /etc/nginx/sites-available/default
+    run sed -i s|localhost.localdomain|${IPAddr}|g /etc/nginx/sites-available/default
 
     # Restart Nginx server
     if [[ $(ps -ef | grep -v grep | grep nginx | wc -l) > 0 ]]; then
@@ -187,7 +204,7 @@ function init_nginx_install() {
         if [[ $(ps -ef | grep -v grep | grep nginx | wc -l) > 0 ]]; then
             status -e "\nNginx web server started successfully."
         else
-            warning -e "\nSomething wrong with Nginx installation."
+            warning -e "\nSomething went wrong with Nginx installation."
         fi
     fi
 }
