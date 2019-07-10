@@ -148,10 +148,10 @@ server {
         fastcgi_index index.php;
 
         include /etc/nginx/fastcgi_params;
-        include /etc/nginx/conf.vhost/fastcgi.conf;
+        include /etc/nginx/includes/fastcgi.conf;
 
         # Uncomment to Enable PHP FastCGI cache.
-        #include /etc/nginx/conf.vhost/fastcgi_cache.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
 
         fastcgi_pass unix:/run/php/php7.3-fpm.sock;
     }
@@ -199,10 +199,10 @@ server {
         fastcgi_index index.php;
 
         include /etc/nginx/fastcgi_params;
-        include /etc/nginx/conf.vhost/fastcgi.conf;
+        include /etc/nginx/includes/fastcgi.conf;
 
         # Uncomment to Enable PHP FastCGI cache.
-        #include /etc/nginx/conf.vhost/fastcgi_cache.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
 
         fastcgi_pass unix:/run/php/php7.3-fpm.sock;
     }
