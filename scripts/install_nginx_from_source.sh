@@ -724,7 +724,7 @@ with --no-deps-check."
         run cd $extra_module_dir
 
         status "Adding extra modules..."
-        add_extra_modules=""
+        add_extra_modules=()
 
         # Brotli compression
 		if "$BROTLI"; then
@@ -736,9 +736,9 @@ with --no-deps-check."
 			#run git submodule update --init
 
             if "$DYNAMIC_MODULE"; then
-                add_extra_modules=("$add_extra_modules --add-dynamic-module=$extra_module_dir/ngx_brotli")
+                add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_brotli" "${add_extra_modules[@]}")
             else
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/ngx_brotli")
+                add_extra_modules=("--add-module=$extra_module_dir/ngx_brotli" "${add_extra_modules[@]}")
             fi
 		fi
 
@@ -750,9 +750,9 @@ with --no-deps-check."
             #run git clone https://github.com/joglomedia/ngx_cache_purge.git
 
             if "$DYNAMIC_MODULE"; then
-                add_extra_modules=("$add_extra_modules --add-dynamic-module=$extra_module_dir/ngx_cache_purge")
+                add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_cache_purge" "${add_extra_modules[@]}")
             else
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/ngx_cache_purge")
+                add_extra_modules=("--add-module=$extra_module_dir/ngx_cache_purge" "${add_extra_modules[@]}")
             fi
         fi
 
@@ -762,9 +762,9 @@ with --no-deps-check."
             run git clone https://github.com/openresty/headers-more-nginx-module.git
 
             if "$DYNAMIC_MODULE"; then
-                add_extra_modules=("$add_extra_modules --add-dynamic-module=$extra_module_dir/headers-more-nginx-module")
+                add_extra_modules=("--add-dynamic-module=$extra_module_dir/headers-more-nginx-module" "${add_extra_modules[@]}")
             else
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/headers-more-nginx-moduleu")
+                add_extra_modules=("--add-module=$extra_module_dir/headers-more-nginx-moduleu" "${add_extra_modules[@]}")
             fi
         fi
 
@@ -797,9 +797,9 @@ with --no-deps-check."
             run git clone https://github.com/leev/ngx_http_geoip2_module.git
 
             if "$DYNAMIC_MODULE"; then
-                add_extra_modules=("$add_extra_modules --add-dynamic-module=$extra_module_dir/ngx_http_geoip2_module")
+                add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_http_geoip2_module" "${add_extra_modules[@]}")
             else
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/ngx_http_geoip2_module")
+                add_extra_modules=("--add-module=$extra_module_dir/ngx_http_geoip2_module" "${add_extra_modules[@]}")
             fi
         fi
 
@@ -809,9 +809,9 @@ with --no-deps-check."
             run git clone https://github.com/openresty/echo-nginx-module.git
 
             if "$DYNAMIC_MODULE"; then
-                add_extra_modules=("$add_extra_modules --add-dynamic-module=$extra_module_dir/echo-nginx-module")
+                add_extra_modules=("--add-dynamic-module=$extra_module_dir/echo-nginx-module" "${add_extra_modules[@]}")
             else
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/echo-nginx-module")
+                add_extra_modules=("--add-module=$extra_module_dir/echo-nginx-module" "${add_extra_modules[@]}")
             fi
         fi
 
@@ -821,9 +821,9 @@ with --no-deps-check."
             run git clone https://github.com/sto/ngx_http_auth_pam_module.git
 
             if "$DYNAMIC_MODULE"; then
-                add_extra_modules=("$add_extra_modules --add-dynamic-module=$extra_module_dir/ngx_http_auth_pam_module")
+                add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_http_auth_pam_module" "${add_extra_modules[@]}")
             else
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/ngx_http_auth_pam_module")
+                add_extra_modules=("--add-module=$extra_module_dir/ngx_http_auth_pam_module" "${add_extra_modules[@]}")
             fi
         fi
 
@@ -834,9 +834,13 @@ with --no-deps-check."
 
             if "$DYNAMIC_MODULE"; then
                 #Dynamic module not supported yet
-                add_extra_modules=("$add_extra_modules --with-http_dav_module --add-module=$extra_module_dir/nginx-dav-ext-module")
+                add_extra_modules=("--with-http_dav_module"
+                                    "--add-module=$extra_module_dir/nginx-dav-ext-module"
+                                     "${add_extra_modules[@]}")
             else
-                add_extra_modules=("$add_extra_modules --with-http_dav_module --add-module=$extra_module_dir/nginx-dav-ext-module")
+                add_extra_modules=("--with-http_dav_module"
+                                    "--add-module=$extra_module_dir/nginx-dav-ext-module"
+                                     "${add_extra_modules[@]}")
             fi
         fi
 
@@ -855,9 +859,9 @@ with --no-deps-check."
 
             if "$DYNAMIC_MODULE"; then
                 #Dynamic module not supported yet
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/nginx-upstream-fair")
+                add_extra_modules=("--add-module=$extra_module_dir/nginx-upstream-fair" "${add_extra_modules[@]}")
             else
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/nginx-upstream-fair")
+                add_extra_modules=("--add-module=$extra_module_dir/nginx-upstream-fair" "${add_extra_modules[@]}")
             fi
         fi
 
@@ -868,9 +872,11 @@ with --no-deps-check."
 
             if "$DYNAMIC_MODULE"; then
                 #Dynamic module not supported yet
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/ngx_http_substitutions_filter_module")
+                add_extra_modules=("--add-module=$extra_module_dir/ngx_http_substitutions_filter_module"
+                                    "${add_extra_modules[@]}")
             else
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/ngx_http_substitutions_filter_module")
+                add_extra_modules=("--add-module=$extra_module_dir/ngx_http_substitutions_filter_module"
+                                     "${add_extra_modules[@]}")
             fi
         fi
 
@@ -880,9 +886,9 @@ with --no-deps-check."
             run git clone https://github.com/slact/nchan.git
 
             if "$DYNAMIC_MODULE"; then
-                add_extra_modules=("$add_extra_modules --add-dynamic-module=$extra_module_dir/nchan")
+                add_extra_modules=("--add-dynamic-module=$extra_module_dir/nchan" "${add_extra_modules[@]}")
             else
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/nchan")
+                add_extra_modules=("--add-module=$extra_module_dir/nchan" "${add_extra_modules[@]}")
             fi
         fi
 
@@ -892,9 +898,9 @@ with --no-deps-check."
             run git clone https://github.com/nbs-system/naxsi.git
 
             if "$DYNAMIC_MODULE"; then
-                add_extra_modules=("$add_extra_modules --add-dynamic-module=$extra_module_dir/naxsi/naxsi_src")
+                add_extra_modules=("--add-dynamic-module=$extra_module_dir/naxsi/naxsi_src" "${add_extra_modules[@]}")
             else
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/naxsi/naxsi_src")
+                add_extra_modules=("--add-module=$extra_module_dir/naxsi/naxsi_src" "${add_extra_modules[@]}")
             fi
         fi
 
@@ -904,9 +910,9 @@ with --no-deps-check."
             run git clone https://github.com/aperezdc/ngx-fancyindex.git
 
             if "$DYNAMIC_MODULE"; then
-                add_extra_modules=("$add_extra_modules --add-dynamic-module=$extra_module_dir/ngx-fancyindex")
+                add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx-fancyindex" "${add_extra_modules[@]}")
             else
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/ngx-fancyindex")
+                add_extra_modules=("--add-module=$extra_module_dir/ngx-fancyindex" "${add_extra_modules[@]}")
             fi
         fi
 
@@ -916,13 +922,14 @@ with --no-deps-check."
             run git clone https://github.com/vozlt/nginx-module-vts.git
 
             if "$DYNAMIC_MODULE"; then
-                add_extra_modules=("$add_extra_modules --add-dynamic-module=$extra_module_dir/nginx-module-vts")
+                add_extra_modules=("--add-dynamic-module=$extra_module_dir/nginx-module-vts" "${add_extra_modules[@]}")
             else
-                add_extra_modules=("$add_extra_modules --add-module=$extra_module_dir/nginx-module-vts")
+                add_extra_modules=("--add-module=$extra_module_dir/nginx-module-vts" "${add_extra_modules[@]}")
             fi
         fi
 
-        configure_args=("$add_extra_modules" "${configure_args[@]}")
+        configure_args=("${add_extra_modules[@]}"
+                        "${configure_args[@]}")
     fi
 
     if "$DEVEL"; then
