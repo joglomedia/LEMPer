@@ -280,8 +280,8 @@ case $1 in
                 DEBPackages=("php7.3*" "${DEBPackages[@]}")
             fi
 
-            run apt-get remove -y ${DEBPackages} >> lemper.log 2>&1
-            run apt-get purge -y ${DEBPackages} >> lemper.log 2>&1
+            run apt-get --purge remove -y ${DEBPackages} >> lemper.log 2>&1
+            #run apt-get purge -y ${DEBPackages} >> lemper.log 2>&1
             run add-apt-repository -y --remove ppa:ondrej/php >> lemper.log 2>&1
 
             echo -n "Completely remove PHP-FPM configuration files (This action is not reversible)? [y/n]: "
@@ -307,10 +307,10 @@ case $1 in
                 run service memcached stop
             fi
 
-            run apt-get remove -y libmemcached11 memcached php-igbinary \
+            run apt-get --purge remove -y libmemcached11 memcached php-igbinary \
                 php-memcache php-memcached php-msgpack >> lemper.log 2>&1
-            run apt-get purge -y libmemcached11 memcached php-igbinary \
-                php-memcache php-memcached php-msgpack >> lemper.log 2>&1
+            #run apt-get purge -y libmemcached11 memcached php-igbinary \
+            #    php-memcache php-memcached php-msgpack >> lemper.log 2>&1
             #run rm -f /etc/memcached.conf
 
             if [[ -z $(which memcached) ]]; then
@@ -327,8 +327,8 @@ case $1 in
                 run service redis-server stop
             fi
 
-            run apt-get remove -y redis-server >> lemper.log 2>&1
-            run apt-get purge -y redis-server >> lemper.log 2>&1
+            run apt-get --purge remove -y redis-server >> lemper.log 2>&1
+            #run apt-get purge -y redis-server >> lemper.log 2>&1
             run add-apt-repository -y --remove ppa:chris-lea/redis-server >> lemper.log 2>&1
             #run rm -f /etc/redis/redis.conf
 
@@ -344,8 +344,8 @@ case $1 in
             # Stop MariaDB mysql server process
             run service mysql stop
 
-            run apt-get remove -y mariadb* mysql* libmariadbclient18 >> lemper.log 2>&1
-            run apt-get purge -y mariadb* mysql* >> lemper.log 2>&1
+            run apt-get --purge remove -y mariadb* mysql* libmariadbclient18 >> lemper.log 2>&1
+            #run apt-get purge -y mariadb* mysql* >> lemper.log 2>&1
 
             # Remove repo
             run rm -f /etc/apt/sources.list.d/MariaDB-*.list
