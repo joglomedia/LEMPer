@@ -731,9 +731,9 @@ with --no-deps-check."
             status "Downloading ngx_brotli..."
             run git clone https://github.com/eustas/ngx_brotli.git
 
-			#cd ngx_brotli || exit 1
-			#run git checkout v0.1.3rc
-			#run git submodule update --init
+			cd ngx_brotli || exit 1
+			run git checkout v0.1.3rc
+			run git submodule update --init
 
             if "$DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_brotli" "${add_extra_modules[@]}")
