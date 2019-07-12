@@ -2,7 +2,7 @@
 
 # Nginx installer
 # Min. Requirement  : GNU/Linux Ubuntu 14.04
-# Last Build        : 01/07/2019
+# Last Build        : 12/07/2019
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
@@ -145,15 +145,18 @@ function init_nginx_install() {
         run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.old
     fi
 
-    run cp -f nginx/nginx.conf /etc/nginx/
+    run cp -f nginx/charset /etc/nginx/
+    run cp -f nginx/comp_brotli /etc/nginx/
+    run cp -f nginx/comp_gzip /etc/nginx/
     run cp -f nginx/fastcgi_cache /etc/nginx/
     run cp -f nginx/fastcgi_https_map /etc/nginx/
     run cp -f nginx/fastcgi_params /etc/nginx/
     run cp -f nginx/http_cloudflare_ips /etc/nginx/
     run cp -f nginx/http_proxy_ips /etc/nginx/
+    run cp -f nginx/nginx.conf /etc/nginx/
     run cp -f nginx/proxy_cache /etc/nginx/
     run cp -f nginx/proxy_params /etc/nginx/
-    run cp -f nginx/upstream.conf /etc/nginx/
+    run cp -f nginx/upstream /etc/nginx/
     run cp -fr nginx/includes/ /etc/nginx/
     run cp -fr nginx/vhost/ /etc/nginx/
     run cp -fr nginx/ssl/ /etc/nginx/
@@ -163,10 +166,6 @@ function init_nginx_install() {
     fi
 
     run cp -f nginx/sites-available/default /etc/nginx/sites-available/
-    run cp -f nginx/sites-available/sample-site-phpmyadmin.dev.conf /etc/nginx/sites-available/
-    run cp -f nginx/sites-available/sample-wordpress.dev.conf /etc/nginx/sites-available/
-    run cp -f nginx/sites-available/sample-wordpress-ms.dev.conf /etc/nginx/sites-available/
-    run cp -f nginx/sites-available/ssl.sample-site.dev.conf /etc/nginx/sites-available/
 
     if [ -f /etc/nginx/sites-enabled/default ]; then
         run unlink /etc/nginx/sites-enabled/default

@@ -338,7 +338,7 @@ function build_ngx_pagespeed() {
     EXTRA_MODULES=false
 
     # Extra Modules
-    BROTLI=false
+    BROTLI=true
     CACHEPURGE=true
     HEADERSMORE=true
     GEOIP=false
