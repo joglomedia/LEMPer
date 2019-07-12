@@ -301,7 +301,7 @@ case $1 in
             || -n $(which php-fpm7.3) ]]; then
 
             # Related PHP packages to be removed
-            DEBPackages="php-common pkg-php-tools spawn-fcgi geoip-database snmp"
+            DEBPackages="fcgiwrap php-* pkg-php-tools spawn-fcgi geoip-database snmp"
 
             # Stop default PHP FPM process
             if [[ $(ps -ef | grep -v grep | grep php5.6-fpm | grep "php/5.6" | wc -l) > 0 ]]; then
