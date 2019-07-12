@@ -352,7 +352,7 @@ case $1 in
         fi
 
         # Remove MySQL
-        echo -e "\nUninstalling MariaDB (SQL DBMS)..."
+        echo -e "\nUninstalling MariaDB (MySQL)..."
 
         if [[ -n $(which mysql) ]]; then
             # Stop MariaDB mysql server process
