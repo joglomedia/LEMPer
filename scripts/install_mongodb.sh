@@ -23,8 +23,8 @@ function init_mongodb_install() {
 
         apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
         sh -c "echo 'deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.0 multiverse' > /etc/apt/sources.list.d/mongodb-org-4.0.list"
-        apt-get update
-        apt-get -y install mongodb-org mongodb-org-server
+        apt-get update >> lemper.log 2>&1
+        apt-get -y install mongodb-org mongodb-org-server >> lemper.log 2>&1
 
         while [[ $AUTOSTART_MONGODB != "y" && $AUTOSTART_MONGODB != "n" ]]; do
             read -p "Do you want to add MongoDB to systemctl? [y/n]: " -e AUTOSTART_MONGODB

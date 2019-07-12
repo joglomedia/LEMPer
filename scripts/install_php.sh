@@ -37,7 +37,7 @@ function install_php() {
             php${PHPv}-mbstring php${PHPv}-opcache php${PHPv}-pspell php${PHPv}-readline \
             php${PHPv}-recode php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
             php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
-            php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database
+            php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database >> lemper.log 2>&1
 
         # Install php mcrypt?
         echo ""
@@ -49,9 +49,9 @@ function install_php() {
             if [ "${PHPv//.}" -lt "72" ]; then
                 run apt-get install -y php${PHPv}-mcrypt
             elif [ "$PHPv" == "7.2" ]; then
-                run apt-get -y install gcc make autoconf libc-dev pkg-config
-                run apt-get -y install libmcrypt-dev libreadline-dev
-                run pecl install mcrypt-1.0.1
+                run apt-get -y install gcc make autoconf libc-dev pkg-config >> lemper.log 2>&1
+                run apt-get -y install libmcrypt-dev libreadline-dev >> lemper.log 2>&1
+                run pecl install mcrypt-1.0.1 >> lemper.log 2>&1
 
                 # enable module
                 echo -e "\nUpdate PHP ini file with mcrypt module..."
@@ -65,7 +65,7 @@ function install_php() {
                     run ln -s /etc/php/${PHPv}/mods-available/mcrypt.ini /etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini
                 fi
             else
-                run apt-get install -y dh-php
+                run apt-get install -y dh-php >> lemper.log 2>&1
 
                 # use libsodium instead
                 warning -e "\nPHP Mcrypt is deprecated for PHP version $PHPv or greater, you should using Libsodium or OpenSSL."
@@ -91,15 +91,15 @@ function remove_php() {
             php${PHPv}-mbstring php${PHPv}-opcache php${PHPv}-pspell php${PHPv}-readline \
             php${PHPv}-recode php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
             php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
-            php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database
+            php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database >> lemper.log 2>&1
 
         isMcrypt=$(/usr/bin/php${PHPv} -m | grep mcrypt)
         if [[ "_$isMcrypt" == "_mcrypt" ]]; then
             if [ "${PHPv//.}" -lt "72" ]; then
-                run apt-get remove -y php${PHPv}-mcrypt
+                run apt-get --purge remove -y php${PHPv}-mcrypt >> lemper.log 2>&1
             elif [ "$PHPv" == "7.2" ]; then
                 # uninstall
-                run pecl uninstall mcrypt-1.0.1
+                run pecl uninstall mcrypt-1.0.1 >> lemper.log 2>&1
 
                 # remove module
                 run rm /etc/php/${PHPv}/mods-available/mcrypt.ini
@@ -112,7 +112,7 @@ function remove_php() {
                     run rm /etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini
                 fi
             else
-                run apt-get remove -y dh-php
+                run apt-get --purge remove -y dh-php >> lemper.log 2>&1
 
                 # use libsodium instead
                 warning -e "If you're installing Libsodium extension, then remove it separately."
