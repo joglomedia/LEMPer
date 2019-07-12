@@ -33,8 +33,7 @@ if [[ -n $(which mysql) ]]; then
         run service mysqld stop
 
         #killall -9 mysql
-        run apt-get --purge remove -y mysql-client mysql-server \
-            mysql-common mysql* >> lemper.log 2>&1
+        run apt-get --purge remove -y mysql-client mysql-server mysql-common >> lemper.log 2>&1
     fi
 fi
 
