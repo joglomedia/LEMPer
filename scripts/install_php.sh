@@ -37,7 +37,7 @@ function install_php() {
             php${PHPv}-mbstring php${PHPv}-opcache php${PHPv}-pspell php${PHPv}-readline \
             php${PHPv}-recode php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
             php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
-            php-geoip php-pear php-phalcon pkg-php-tools spawn-fcgi fcgiwrap geoip-database
+            php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database
 
         # Install php mcrypt?
         echo ""
@@ -91,7 +91,7 @@ function remove_php() {
             php${PHPv}-mbstring php${PHPv}-opcache php${PHPv}-pspell php${PHPv}-readline \
             php${PHPv}-recode php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
             php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
-            php-geoip php-pear php-phalcon pkg-php-tools spawn-fcgi fcgiwrap geoip-database
+            php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database
 
         isMcrypt=$(/usr/bin/php${PHPv} -m | grep mcrypt)
         if [[ "_$isMcrypt" == "_mcrypt" ]]; then

@@ -320,7 +320,7 @@ case $1 in
 
             if [[ -n ${DEBPackages} ]]; then
                 run apt-get --purge remove -y ${DEBPackages} \
-                    fcgiwrap php-geoip php-pear php-phalcon pkg-php-tools spawn-fcgi geoip-database >> lemper.log 2>&1
+                    fcgiwrap php-geoip php-pear pkg-php-tools spawn-fcgi geoip-database >> lemper.log 2>&1
                 #run apt-get purge -y ${DEBPackages} >> lemper.log 2>&1
                 run add-apt-repository -y --remove ppa:ondrej/php >> lemper.log 2>&1
             fi
