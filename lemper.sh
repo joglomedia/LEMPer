@@ -115,7 +115,7 @@ function create_account() {
 case $1 in
     --install)
         header_msg
-        echo -e "\nStarting LEMP stack installation...\nPlease ensure that you're on a fresh box install!\n"
+        echo -e "\nStarting LEMP stack installation...\nPlease ensure that you're on a fresh machine install!"
         read -t 10 -p "Press [Enter] to continue..." </dev/tty
 
         ### Clean-up server ###
@@ -212,7 +212,7 @@ case $1 in
     ;;
     --uninstall)
         header_msg
-        echo -e "\nAre you sure to remove LEMP stack installation?\n"
+        echo -e "\nAre you sure to remove LEMP stack installation?"
         read -t 10 -p "Press [Enter] to continue..." </dev/tty
 
         # Remove nginx
