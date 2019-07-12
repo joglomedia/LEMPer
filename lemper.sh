@@ -283,6 +283,10 @@ case $1 in
         	    # Remove nginx html
         	    run rm -fr /usr/share/nginx
             fi
+
+            if [[ -z $(which nginx) ]]; then
+                status "Nginx web server removed."
+            fi
         else
             warning "Nginx installation not found."
         fi
@@ -336,6 +340,8 @@ case $1 in
         	    # Remove ioncube
                 run rm -fr /usr/lib/php/loaders/
             fi
+
+            status "PHP & FPM removed."
         else
             warning "PHP installation not found."
         fi
@@ -393,6 +399,10 @@ case $1 in
         	    echo "All your SQL database and configuration files deleted permanently."
         	    run rm -fr /etc/mysql
         	    run rm -fr /var/lib/mysql
+            fi
+
+            if [[ -z $(which memcached) ]]; then
+                status "MariaDB (MySQL) server removed."
             fi
         else
             warning -e "MariaDB installation not found."
