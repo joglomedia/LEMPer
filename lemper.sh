@@ -380,7 +380,7 @@ case $1 in
         if [[ "${rmdefaultuser}" == Y* || "${rmdefaultuser}" == y* ]]; then
             USERNAME="lemper" # default system account for LEMPer
             if [[ ! -z $(getent passwd "${USERNAME}") ]]; then
-                run userdel -r lemper >> lemper.log 2>&1
+                run userdel -r ${USERNAME} >> lemper.log 2>&1
                 status "Default LEMPer account deleted."
             else
                 warning "Default LEMPer account not found."
