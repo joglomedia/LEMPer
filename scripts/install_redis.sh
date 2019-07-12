@@ -35,7 +35,7 @@ if [[ "$INSTALL_REDIS" == Y* || "$INSTALL_REDIS" == y* ]]; then
     run apt-get update -y >> lemper.log 2>&1
 
     # Install Redis
-    run apt-get install -y redis-server php-redis
+    run apt-get install -y redis-server php-redis >> lemper.log 2>&1
 
     # Configure Redis
     enable_redis
