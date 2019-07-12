@@ -452,6 +452,8 @@ function init_php_install() {
         read -p "Select an option [1-6]: " SELECTED_PHP
     done
 
+    echo ""
+    
     case $SELECTED_PHP in
         1)
             PHP_VER="5.6"
