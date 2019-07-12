@@ -197,6 +197,7 @@ function delete_account() {
         USERNAME="lemper" # default system account for LEMPer
     fi
 
+    echo ""
     while [[ $REMOVE_ACCOUNT != "y" && $REMOVE_ACCOUNT != "n" ]]; do
         read -p "Remove default LEMPer account? [y/n]: " -e REMOVE_ACCOUNT
     done
