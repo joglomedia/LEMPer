@@ -31,7 +31,7 @@ if [[ "$INSTALL_REDIS" == Y* || "$INSTALL_REDIS" == y* ]]; then
     echo -e "\nInstalling Redis server and Redis PHP module...\n"
 
     # Add Redis repos
-    run add-apt-repository -y ppa:chris-lea/redis-server
+    run add-apt-repository -y ppa:chris-lea/redis-server >> lemper.log 2>&1
     run apt-get update -y >> lemper.log 2>&1
 
     # Install Redis
