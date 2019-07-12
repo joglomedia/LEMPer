@@ -211,7 +211,8 @@ case $1 in
         "
         fi
 
-        echo -e "\nNow, you can reboot your server and enjoy it!\n"
+        echo -e "\nSee the log file (lemper.log) for more information.
+        \nNow, you can reboot your server and enjoy it!\n"
     ;;
     --uninstall)
         header_msg

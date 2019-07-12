@@ -6,7 +6,7 @@ if [ "$(type -t run)" != "function" ]; then
     . ${BASEDIR}/helper.sh
 fi
 
-echo -e "\n Clean up machine..."
+echo -e "\nCleaning up machine..."
 
 # Remove Apache2 service if exist
 if [[ -n $(which apache2) ]]; then
@@ -15,7 +15,9 @@ if [[ -n $(which apache2) ]]; then
     echo "Uninstall existing Apache web server..."
     run service apache2 stop
     #killall -9 apache2
-    run apt-get --purge remove -y apache2 apache2-doc apache2-utils apache2.2-common apache2.2-bin apache2-mpm-prefork apache2-doc apache2-mpm-worker
+    run apt-get --purge remove -y apache2 apache2-doc apache2-utils \
+        apache2.2-common apache2.2-bin apache2-mpm-prefork \
+        apache2-doc apache2-mpm-worker >> lemper.log 2>&1
 fi
 
 # Remove Mysql service if exist
@@ -31,7 +33,7 @@ if [[ -n $(which mysql) ]]; then
         run service mysqld stop
 
         #killall -9 mysql
-        run apt-get --purge remove -y mysql-client mysql-server mysql-common
+        run apt-get --purge remove -y mysql-client mysql-server mysql-common >> lemper.log 2>&1
     fi
 fi
 
