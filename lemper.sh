@@ -171,7 +171,7 @@ case $1 in
         read -t 10 -p "Press [Enter] to continue..." </dev/tty
 
         # Fix broken install, first?
-        run apt --fix-broken install >> lemper.log 2>&1
+        run apt-get --fix-broken install >> lemper.log 2>&1
 
         # Remove nginx
         echo -e "\nUninstalling Nginx..."
@@ -422,7 +422,7 @@ case $1 in
 
         # Remove unnecessary packages
         echo -e "\nCleaning up unnecessary packages..."
-        run apt autoremove -y >> lemper.log 2>&1
+        run apt-get autoremove -y >> lemper.log 2>&1
 
         status -e "LEMP stack has been removed completely.\n"
     ;;
