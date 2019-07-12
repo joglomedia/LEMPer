@@ -523,6 +523,8 @@ function init_php_install() {
             read -p "Select an option [1-3]: " SELECTED_PHPLOADER
         done
 
+        echo ""
+        
         # Create loaders directory
         if [ ! -d /usr/lib/php/loaders ]; then
             run mkdir /usr/lib/php/loaders
