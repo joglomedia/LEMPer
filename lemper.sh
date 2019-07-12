@@ -366,12 +366,15 @@ case $1 in
             fi
         fi
 
+
         # Remove MySQL
         echo -e "\nUninstalling MariaDB (MySQL)..."
 
         if [[ -n $(which mysql) ]]; then
             # Stop MariaDB mysql server process
-            run service mysql stop
+            if [[ $(ps -ef | grep -v grep | grep mysqld | wc -l) > 0 ]]; then
+                run service mysql stop
+            fi
 
             run apt-get --purge remove -y mariadb-server libmariadbclient18 >> lemper.log 2>&1
             #run apt-get purge -y mariadb-server libmariadbclient18 >> lemper.log 2>&1
