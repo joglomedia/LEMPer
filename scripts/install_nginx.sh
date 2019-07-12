@@ -192,7 +192,7 @@ function init_nginx_install() {
     IPAddr=$(ip addr | grep 'inet' | grep -v inet6 | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
 
     # Make default server accessible from IP address
-    run sed -i s|localhost.localdomain|${IPAddr}|g /etc/nginx/sites-available/default
+    run sed -i "s|localhost.localdomain|${IPAddr}|g" /etc/nginx/sites-available/default
 
     # Restart Nginx server
     if [[ $(ps -ef | grep -v grep | grep nginx | wc -l) > 0 ]]; then

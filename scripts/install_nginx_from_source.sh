@@ -553,7 +553,7 @@ $(cat /etc/redhat-release) Expected 5 or 6."
                     slc_key="https://linux.web.cern.ch/linux/scientific6/docs/repository/"
                     slc_key+="cern/slc6X/i386/RPM-GPG-KEY-cern"
                     slc_key_out="$TEMPDIR/RPM-GPG-KEY-cern"
-                    run sudo wget "$slc_key" -O "$slc_key_out"
+                    run sudo wget -q "$slc_key" -O "$slc_key_out"
                     run sudo rpm --import "$slc_key_out"
 
                     repo_fname="/etc/yum.repos.d/slc${slc_version}-devtoolset.repo"
@@ -564,7 +564,7 @@ $(cat /etc/redhat-release) Expected 5 or 6."
                     repo_url="https://linux.web.cern.ch/linux/scientific${slc_version}/"
                     repo_url+="/docs/repository/cern/devtoolset/"
                     repo_url+="slc${slc_version}-devtoolset.repo"
-                    run sudo wget -O "$repo_fname" "$repo_url"
+                    run sudo wget -q -O "$repo_fname" "$repo_url"
                     run sudo yum install ${INSTALL_FLAGS} devtoolset-2-gcc-c++ devtoolset-2-binutils
                 fi
                 extra_flags=("--with-cc=/opt/rh/devtoolset-2/root/usr/bin/gcc")
@@ -631,7 +631,7 @@ with --no-deps-check."
                 status "Switching submodules over to git protocol."
                 # This lets us push to github by public key.
                 for config in $(find .git/ -name config) ; do
-                    run sed -i s|https://github.com/|git@github.com:| $config ;
+                    run sed -i "s|https://github.com/|git@github.com:|" $config ;
                 done
             fi
         fi
@@ -639,7 +639,7 @@ with --no-deps-check."
         nps_baseurl="https://github.com/apache/incubator-pagespeed-ngx/archive"
         nps_downloaded="$TEMPDIR/$nps_downloaded_fname.zip"
         status "Downloading ngx_pagespeed..."
-        run wget "$nps_baseurl/$tag_name.zip" -O "$nps_downloaded"
+        run wget -q "$nps_baseurl/$tag_name.zip" -O "$nps_downloaded"
         # Read the directory name from the zip, the first line is expected to have it.
         nps_module_dir=$(unzip -qql "$nps_downloaded" | head -n1 | tr -s ' ' | cut -d' ' -f5-)
         nps_module_dir="$BUILDDIR/${nps_module_dir::-1}"
@@ -698,7 +698,7 @@ with --no-deps-check."
         fi
 
         status "Downloading PSOL binary..."
-        run wget "$psol_url"
+        run wget -q "$psol_url"
 
         status "Extracting PSOL..."
         run tar -xzf $(basename "$psol_url") # extracts to psol/
@@ -782,8 +782,8 @@ with --no-deps-check."
 
         	mkdir geoip-db
         	cd geoip-db || exit 1
-        	wget https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.tar.gz
-        	wget https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz
+        	wget -q https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.tar.gz
+        	wget -q https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz
         	tar -xf GeoLite2-City.tar.gz
         	tar -xf GeoLite2-Country.tar.gz
         	mkdir /opt/geoip
@@ -1028,7 +1028,7 @@ with --no-deps-check."
             nginx_leaf="nginx-${NGINX_VERSION}.tar.gz"
             nginx_fname="$TEMPDIR/$nginx_leaf"
             status "Downloading nginx..."
-            run wget "http://nginx.org/download/$nginx_leaf" -O "$nginx_fname"
+            run wget -q "http://nginx.org/download/$nginx_leaf" -O "$nginx_fname"
             nginx_dir="$BUILDDIR/nginx-${NGINX_VERSION}/"
             delete_if_already_exists "$nginx_dir"
             status "Extracting nginx..."
