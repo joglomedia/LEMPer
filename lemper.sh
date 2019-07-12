@@ -230,20 +230,20 @@ case $1 in
             if [ $(dpkg-query -l | grep nginx-common | awk '/nginx-common/ { print $2 }') ]; then
             	echo "Nginx-common package found. Removing..."
                 run apt-get --purge remove -y nginx-common >> lemper.log 2>&1
-                run add-apt-repository --remove ppa:nginx/stable >> lemper.log 2>&1
+                run add-apt-repository -y --remove ppa:nginx/stable >> lemper.log 2>&1
             elif [ $(dpkg-query -l | grep nginx-custom | awk '/nginx-custom/ { print $2 }') ]; then
             	echo "Nginx-custom package found. Removing..."
                 run apt-get --purge remove -y nginx-custom >> lemper.log 2>&1
-                run add-apt-repository --remove ppa:rtcamp/nginx >> lemper.log 2>&1
-                rm -f /etc/apt/sources.list.d/nginx-*.list
+                run add-apt-repository -y --remove ppa:rtcamp/nginx >> lemper.log 2>&1
+                run rm -f /etc/apt/sources.list.d/nginx-*.list
             elif [ $(dpkg-query -l | grep nginx-full | awk '/nginx-full/ { print $2 }') ]; then
             	echo "Nginx-full package found. Removing..."
                 run apt-get --purge remove -y nginx-full >> lemper.log 2>&1
-                run add-apt-repository --remove ppa:nginx/stable >> lemper.log 2>&1
+                run add-apt-repository -y --remove ppa:nginx/stable >> lemper.log 2>&1
             elif [ $(dpkg-query -l | grep nginx-stable | awk '/nginx-stable/ { print $2 }') ]; then
             	echo "Nginx-stable package found. Removing..."
                 run apt-get --purge remove -y nginx-stable >> lemper.log 2>&1
-                run add-apt-repository --remove ppa:nginx/stable >> lemper.log 2>&1
+                run add-apt-repository -y --remove ppa:nginx/stable >> lemper.log 2>&1
             else
             	echo "Nginx package not found. Possibly installed from source."
 
@@ -301,43 +301,32 @@ case $1 in
 
             # Stop default PHP FPM process
             if [[ $(ps -ef | grep -v grep | grep php5.6-fpm | grep "php/5.6" | wc -l) > 0 ]]; then
-                service php5.6-fpm stop
+                run service php5.6-fpm stop
                 DEBPackages+=" php5.6-*"
             fi
 
             if [[ $(ps -ef | grep -v grep | grep php7.0-fpm | grep "php/7.0" | wc -l) > 0 ]]; then
-                service php7.0-fpm stop
+                run service php7.0-fpm stop
                 DEBPackages+=" php7.0-*"
             fi
 
             if [[ $(ps -ef | grep -v grep | grep php7.1-fpm | grep "php/7.1" | wc -l) > 0 ]]; then
-                service php7.1-fpm stop
+                run service php7.1-fpm stop
                 DEBPackages+=" php7.1-*"
             fi
 
             if [[ $(ps -ef | grep -v grep | grep php7.2-fpm | grep "php/7.2" | wc -l) > 0 ]]; then
-                service php7.2-fpm stop
+                run service php7.2-fpm stop
                 DEBPackages+=" php7.2-*"
             fi
 
             if [[ $(ps -ef | grep -v grep | grep php7.3-fpm | grep "php/7.3" | wc -l) > 0 ]]; then
-                service php7.3-fpm stop
+                run service php7.3-fpm stop
                 DEBPackages+=" php7.3-*"
             fi
 
-            # Stop Memcached server process
-            if [[ $(ps -ef | grep -v grep | grep memcached | wc -l) > 0 ]]; then
-                run service memcached stop
-                DEBPackages+=" memcached"
-            fi
-
-            # Stop Redis server process
-            if [[ $(ps -ef | grep -v grep | grep redis-server | wc -l) > 0 ]]; then
-                run service redis-server stop
-                DEBPackages=+" redis-server"
-            fi
-
             run apt-get remove -y ${DEBPackages} >> lemper.log 2>&1
+            run add-apt-repository -y --remove ppa:ondrej/php >> lemper.log 2>&1
 
             echo -n "Completely remove PHP-FPM configuration files (This action is not reversible)? [Y/n]: "
             read rmfpmconf
@@ -351,6 +340,41 @@ case $1 in
             warning "PHP installation not found."
         fi
 
+        # Remove Memcached if exists
+        if [[ -n $(which memcached) ]]; then
+            echo -e "\nUninstalling Memcached..."
+
+            # Stop Memcached server process
+            if [[ $(ps -ef | grep -v grep | grep memcached | wc -l) > 0 ]]; then
+                run service memcached stop
+            fi
+
+            run apt-get remove -y memcached php-memcached php-memcache >> lemper.log 2>&1
+            run rm -f /etc/memcached.conf
+
+            if [[ -z $(which memcached) ]]; then
+                status "Memcached server removed."
+            fi
+        fi
+
+        # Remove Redis if exists
+        if [[ -n $(which redis-server) ]]; then
+            echo -e "\nUninstalling Redis..."
+
+            # Stop Redis server process
+            if [[ $(ps -ef | grep -v grep | grep redis-server | wc -l) > 0 ]]; then
+                run service redis-server stop
+            fi
+
+            run apt-get remove -y redis-server >> lemper.log 2>&1
+            run add-apt-repository -y --remove ppa:chris-lea/redis-server >> lemper.log 2>&1
+            run rm -f /etc/redis/redis.conf
+
+            if [[ -z $(which redis-server) ]]; then
+                status "Redis server removed."
+            fi
+        fi
+
         # Remove MySQL
         echo -e "\nUninstalling MariaDB (MySQL)..."
 
@@ -361,7 +385,7 @@ case $1 in
             run apt-get remove -y mariadb-server libmariadbclient18 >> lemper.log 2>&1
 
             # Remove repo
-            rm /etc/apt/sources.list.d/MariaDB-*.list
+            run rm -f /etc/apt/sources.list.d/MariaDB-*.list
 
             echo -n "Completely remove MariaDB SQL database and configuration files (This action is not reversible)? [Y/n]: "
             read rmsqlconf
