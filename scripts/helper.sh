@@ -91,6 +91,98 @@ function is_root() {
     fi
 }
 
+# Create custom Swap
+function create_swap() {
+    echo "Enabling 1GiB swap..."
+
+    L_SWAP_FILE="/lemper-swapfile"
+
+    RAM_SIZE=$(get_ram_size)
+    if [[ $RAM_SIZE -lt 8192 ]]; then
+        # If machine RAM less than 8GiB, set swap to half of it.
+        SWAP_SIZE=$(($RAM_SIZE / 2))
+    else
+        # Otherwise, set swap to max of 4GiB
+        SWAP_SIZE=4096
+    fi
+
+    fallocate -l ${SWAP_SIZE}M $L_SWAP_FILE && \
+    chmod 600 $L_SWAP_FILE && \
+    chown root:root $L_SWAP_FILE && \
+    mkswap $L_SWAP_FILE && \
+    swapon $L_SWAP_FILE
+
+    # Make the change permanent
+    echo "$L_SWAP_FILE swap swap defaults 0 0" >> /etc/fstab
+
+    # Adjust swappiness, default Ubuntu set to 60
+    # meaning that the swap file will be used fairly often if the memory usage is
+    # around half RAM, for production servers you may need to set a lower value.
+    if [[ $(cat /proc/sys/vm/swappiness) -gt 15 ]]; then
+        sysctl vm.swappiness=15
+        echo "vm.swappiness=15" >> /etc/sysctl.conf
+    fi
+}
+
+# Remove created Swap
+function remove_swap() {
+    echo -e "\nDisabling swap..."
+
+    L_SWAP_FILE="/lemper-swapfile"
+
+    swapoff -v $L_SWAP_FILE
+    sed -i "s|$L_SWAP_FILE|#\ $L_SWAP_FILE|g" /etc/fstab
+    rm -f $L_SWAP_FILE
+}
+
+# Get physical RAM size
+function get_ram_size() {
+    # RAM size in MB
+    local RAM=$(dmidecode -t 17 | awk '( /Size/ && $2 ~ /^[0-9]+$/ ) { x+=$2 } END{ print x}')
+    echo $RAM
+}
+
+# Check available Swap size
+function check_swap() {
+    echo -e "\nChecking swap..."
+
+    if free | awk '/^Swap:/ {exit !$2}'; then
+        swapsize=$(free -m | awk '/^Swap:/ { print $2 }')
+        status "Swap size ${swapsize}MiB."
+    else
+        warning "No swap detected"
+        create_swap
+        status "Adding swap completed..."
+    fi
+}
+
+# Create system account
+function create_account() {
+    if [[ -n $1 ]]; then
+        USERNAME="$1"
+    else
+        USERNAME="lemper" # default account
+    fi
+
+    echo -e "\nCreating default LEMPer account..."
+
+    if [[ -z $(getent passwd "${USERNAME}") ]]; then
+        PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
+        run useradd -d /home/${USERNAME} -m -s /bin/bash ${USERNAME}
+        echo "${USERNAME}:${PASSWORD}" | chpasswd
+        run usermod -aG sudo ${USERNAME}
+
+        if [ -d /home/${USERNAME} ]; then
+            run mkdir /home/${USERNAME}/webapps
+            run chown -hR ${USERNAME}:${USERNAME} /home/${USERNAME}/webapps
+        fi
+
+        status "Username ${USERNAME} created."
+    else
+        warning "Username ${USERNAME} already exists."
+    fi
+}
+
 function header_msg() {
 clear
 cat <<- _EOF_
