@@ -7,35 +7,37 @@ if [ "$(id -u)" != "0" ]; then
 	exit 1
 fi
 
-# Make sure this script only run on Ubuntu install
+# Make sure this script only run on Ubuntu
 if [ ! -f "/etc/lsb-release" ]; then
 	echo "This installer only work on Ubuntu server..." 1>&2
 	exit 1
 fi
 
-echo -n "Do you want to install MongoDB? [Y/n]: "
-read MongodbInstall
+function init_mongodb_install() {
+    while [[ $INSTALL_MONGODB != "y" && $INSTALL_MONGODB != "n" ]]; do
+        read -p "Do you want to Install MongoDB? [y/n]: " -e INSTALL_MONGODB
+    done
 
-if [[ "$MongodbInstall" == "Y" || "$MongodbInstall" == "y" || "$MongodbInstall" == "yes" ]]; then
-    echo "Installing MongoDB server and MongoDB PHP module..."
+    if [[ "$INSTALL_MONGODB" == Y* || "$INSTALL_MONGODB" == y* ]]; then
+        echo "Installing MongoDB server and MongoDB PHP module..."
 
-    apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
-    sh -c "echo 'deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.0 multiverse' > /etc/apt/sources.list.d/mongodb-org-4.0.list"
-    apt-get update
-    apt-get -y install mongodb-org mongodb-org-server
+        apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
+        sh -c "echo 'deb [ arch=amd64 ] https://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.0 multiverse' > /etc/apt/sources.list.d/mongodb-org-4.0.list"
+        apt-get update
+        apt-get -y install mongodb-org mongodb-org-server
 
-    echo -n "Do you want to add MongoDB to systemctl? [Y/n]: "
-    read MongodbAutostart
+        while [[ $AUTOSTART_MONGODB != "y" && $AUTOSTART_MONGODB != "n" ]]; do
+            read -p "Do you want to add MongoDB to systemctl? [y/n]: " -e AUTOSTART_MONGODB
+        done
 
-    if [[ "$MongodbAutostart" == "Y" || "$MongodbAutostart" == "y" || "$MongodbAutostart" == "yes" ]]; then
-        systemctl restart mongod
-        systemctl enable mongodb
+        if [[ "$AUTOSTART_MONGODB" == Y* || "$AUTOSTART_MONGODB" == y* ]]; then
+            systemctl restart mongod
+            systemctl enable mongodb
+            systemctl status mongod
+        fi
 
-        systemctl status mongod
-    fi
-fi
-
-echo "Installation completed. Please create an administrative user. Example command lines below:";
+        echo "Installation completed."
+        echo "Please create an administrative user. Example command lines below:";
 cat <<- _EOF_
 mongo
 > use admin
@@ -51,4 +53,13 @@ mongo -u admin -p --authenticationDatabase user-data
 > db.exampleCollection.find()
 > db.exampleCollection.find({"name" : "John Doe"})
 _EOF_
+    fi
+}
 
+# Start running things from a call at the end so if this script is executed
+# after a partial download it doesn't do anything.
+if [[ -n $(which mongod) ]]; then
+    warning -e "\nMongoDB server already exists. Installation skipped..."
+else
+    init_mongodb_install "$@"
+fi

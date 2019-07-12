@@ -200,7 +200,7 @@ function remove_vhost() {
     status -e "\nVirtual host configuration file removed."
 
     # Remove vhost root directory.
-    echo -en "\nDo you want to delete website root directory? [Y/n]: "; read isdeldir
+    echo -en "\nDo you want to delete website root directory? [y/n]: "; read isdeldir
     if [[ "${isdeldir}" == Y* || "${isdeldir}" == y* ]]; then
         echo -n "Enter the real path to website root directory: "; read sitedir
 
@@ -213,7 +213,7 @@ function remove_vhost() {
     fi
 
     # Drop MySQL database.
-    echo -en "\nDo you want to Drop database associated with this vhost? [Y/n]: "; read isdropdb
+    echo -en "\nDo you want to Drop database associated with this vhost? [y/n]: "; read isdropdb
     if [[ "${isdropdb}" == Y* || "${isdropdb}" == y* ]]; then
         until [[ "$MYSQLUSER" != "" ]]; do
 			read -rp "MySQL Username: " -e MYSQLUSER

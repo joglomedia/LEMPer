@@ -23,16 +23,16 @@ maxmemory-policy allkeys-lru
 EOL
 }
 
-#header_msg
-echo -en "\nDo you want to install Redis? [Y/n]: "
-read RedisInstall
+while [[ $INSTALL_REDIS != "y" && $INSTALL_REDIS != "n" ]]; do
+    read -p "Do you want to install Redis server? [y/n]: " -e INSTALL_REDIS
+done
 
-if [[ "$RedisInstall" == Y* || "$RedisInstall" == y* ]]; then
+if [[ "$INSTALL_REDIS" == Y* || "$INSTALL_REDIS" == y* ]]; then
     echo -e "\nInstalling Redis server and Redis PHP module...\n"
 
     # Add Redis repos
-    run add-apt-repository ppa:chris-lea/redis-server -y
-    run apt-get update -y
+    run add-apt-repository -y ppa:chris-lea/redis-server
+    run apt-get update -y >> lemper.log 2>&1
 
     # Install Redis
     run apt-get install -y redis-server php-redis

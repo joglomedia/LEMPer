@@ -11,23 +11,25 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-clear
-echo "+=========================================================================+"
-echo "+ PhalconPHP Installer v 1.0.0-beta for Ubuntu VPS, Written by MasEDI.Net +"
-echo "+=========================================================================+"
-echo "+ A small tool to install Phalcon PHP Framework & Zephir Lang Interpreter +"
-echo "+                                                                         +"
-echo "+        For more information please visit http://masedi.net/tools/       +"
-echo "+=========================================================================+"
-sleep 1
+cat <<- _EOF_
+#========================================================================#
+#      PhalconPHP Installer for Ubuntu Server, Written by ESLabs.ID      #
+#========================================================================#
+#   A small tool to install PhalconPHP Framework & Zephir Interpreter    #
+#                                                                        #
+#       For more information please visit https://eslabs.id/lemper       #
+#========================================================================#
+_EOF_
 
 # Prerequisite packages
 apt-get install re2c libpcre3-dev gcc make
 
 # Install Zephir
-echo -n "Should we install Zephir Interpreter? [Y/n]: "
-read instalzephir
-if [[ "${instalzephir}" = "Y" || "${instalzephir}" = "y" || "${instalzephir}" = "yes" ]]; then
+while [[ $INSTALL_ZEPHIR != "y" && $INSTALL_ZEPHIR != "n" ]]; do
+    read -p "Install Zephir Interpreter? [y/n]: " -e INSTALL_ZEPHIR
+done
+
+if [[ "$INSTALL_ZEPHIR" == Y* || "$INSTALL_ZEPHIR" == y* ]]; then
     # clon Zephir repo
     git clone https://github.com/phalcon/zephir.git
     cd zephir

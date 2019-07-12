@@ -39,10 +39,11 @@ function install_php() {
             snmp spawn-fcgi fcgiwrap geoip-database
 
         # Install php mcrypt?
-        echo -en "\nDo you want to install PHP Mcrypt for encryption/decryption? [Y/n]: "
-        read PhpMcryptInstall
+        while [[ $INSTALL_PHPMCRYPT != "y" && $INSTALL_PHPMCRYPT != "n" ]]; do
+            read -p "Do you want to install PHP Mcrypt for encryption/decryption? [y/n]: " -e INSTALL_PHPMCRYPT
+        done
 
-        if [[ "$PhpMcryptInstall" == "Y" || "$PhpMcryptInstall" == "y" || "$PhpMcryptInstall" == "yes" ]]; then
+        if [[ "$INSTALL_PHPMCRYPT" == Y* || "$INSTALL_PHPMCRYPT" == y* ]]; then
             if [ "${PHPv//.}" -lt "72" ]; then
                 run apt-get install -y php${PHPv}-mcrypt
             elif [ "$PHPv" == "7.2" ]; then
@@ -51,7 +52,7 @@ function install_php() {
                 run pecl install mcrypt-1.0.1
 
                 # enable module
-                echo -e "\nCreating config file with new version"
+                echo -e "\nUpdate PHP ini file with mcrypt module..."
                 bash -c "echo extension=mcrypt.so > /etc/php/${PHPv}/mods-available/mcrypt.ini"
 
                 if [ ! -f /etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini ]; then
@@ -111,11 +112,11 @@ function remove_php() {
                 run apt-get remove -y dh-php
 
                 # use libsodium instead
-                warning -e "\nIf you're installing Libsodium extension, then remove it separately."
+                warning -e "If you're installing Libsodium extension, then remove it separately."
             fi
         fi
 
-        status -e "\nPHP $PHPv installation has been removed."
+        status -e "PHP $PHPv installation has been removed."
     else
         warning "PHP $PHPv installation couldn't be found."
     fi
@@ -243,7 +244,7 @@ function install_sg() {
         run rm -fr /usr/lib/php/loaders/sourceguardian
     fi
 
-    echo "Installing latest loaders..."
+    echo "Installing latest SourceGuardian PHP loaders..."
     run mv -f sourceguardian /usr/lib/php/loaders/
 }
 
@@ -267,7 +268,7 @@ EOL
         run ln -s /etc/php/${PHPv}/mods-available/sourceguardian.ini /etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini
     fi
 
-    if [ ! -f /etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini]; then
+    if [ ! -f /etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini ]; then
         run ln -s /etc/php/${PHPv}/mods-available/sourceguardian.ini /etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini
     fi
 else
@@ -432,44 +433,48 @@ EOL
 #
 function init_php_install() {
     # Menu Install PHP, fpm, and modules
-    #header_msg
-    echo -e "\nWelcome to PHP installation script"
+    echo ""
+    echo "Welcome to PHP installation script"
+    echo ""
+    echo "Which version of PHP to install?"
+    echo "Supported PHP version:"
+    echo "  1). PHP 5.6 (old stable)"
+    echo "  2). PHP 7.0 (stable)"
+    echo "  3). PHP 7.1 (stable)"
+    echo "  4). PHP 7.2 (stable)"
+    echo "  5). PHP 7.3 (latest stable)"
+    echo "  6). All available versions"
+    echo "---------------------------------"
 
-    echo -e "\nWhich version of PHP you want to install? (default is all)
-    Supported PHP version:
-    1). PHP 5.6 (old stable)
-    2). PHP 7.0 (stable)
-    3). PHP 7.1 (stable)
-    4). PHP 7.2 (stable)
-    5). PHP 7.3 (latest stable)
-    6). All versions (PHP 5.6, 7.0, 7.1, 7.2, 7.3)
-    -------------------------------------"
-    echo -n "Select your option [1-6]: "
-    read PhpVersionInstall
+    while [[ $SELECTED_PHP != "1" && $SELECTED_PHP != "2" \
+            && $SELECTED_PHP != "3" && $SELECTED_PHP != "4" \
+            && $SELECTED_PHP != "5" && $SELECTED_PHP != "6" ]]; do
+        read -p "Select an option [1-6]: " SELECTED_PHP
+    done
 
-    case $PhpVersionInstall in
+    case $SELECTED_PHP in
         1)
-            PHPver="5.6"
-            install_php $PHPver
+            PHP_VER="5.6"
+            install_php $PHP_VER
         ;;
         2)
-            PHPver="7.0"
-            install_php $PHPver
+            PHP_VER="7.0"
+            install_php $PHP_VER
         ;;
         3)
-            PHPver="7.1"
-            install_php $PHPver
+            PHP_VER="7.1"
+            install_php $PHP_VER
         ;;
         4)
-            PHPver="7.2"
-            install_php $PHPver
+            PHP_VER="7.2"
+            install_php $PHP_VER
         ;;
         5)
-            PHPver="7.3"
-            install_php $PHPver
+            PHP_VER="7.3"
+            install_php $PHP_VER
         ;;
         *)
-            PHPver="all"
+            PHP_VER="all"
             install_php "5.6"
             install_php "7.0"
             install_php "7.1"
@@ -486,32 +491,37 @@ function init_php_install() {
     fi
 
     # Menu Install PHP loader
-    #header_msg
-    echo -en "\nDo you want to install PHP loader? [Y/n]: "
-    read PhpLoaderInstall
+    while [[ $INSTALL_PHPLOADER != "y" && $INSTALL_PHPLOADER != "n" ]]; do
+        read -p "Install PHP Loaders? [y/n]: " -e INSTALL_PHPLOADER
+    done
 
-    if [[ "$PhpLoaderInstall" == "Y" || "$PhpLoaderInstall" == "y" || "$PhpLoaderInstall" == "yes" ]]; then
-        echo -e "\nAvailable PHP loaders:
-        1). IonCube Loader (latest stable)
-        2). SourceGuardian (latest stable)
-        3). All loaders (IonCube, SourceGuardian)
-        ------------------------------------------"
-        echo -n "Select your loader [1-3]: "
-        read PhpLoaderOpt
+    if [[ "$INSTALL_PHPLOADER" == Y* || "$INSTALL_PHPLOADER" == y* ]]; then
+        echo ""
+        echo "Available PHP Loaders:"
+        echo "  1). IonCube Loader (latest stable)"
+        echo "  2). SourceGuardian (latest stable)"
+        echo "  3). All loaders (IonCube, SourceGuardian)"
+        echo "--------------------------------------------"
 
+        while [[ $SELECTED_PHPLOADER != "1" && $SELECTED_PHPLOADER != "2" \
+                && $SELECTED_PHPLOADER != "3" ]]; do
+            read -p "Select an option [1-3]: " SELECTED_PHPLOADER
+        done
+
+        # Create loaders directory
         if [ ! -d /usr/lib/php/loaders ]; then
             run mkdir /usr/lib/php/loaders
         fi
 
-        case $PhpLoaderOpt in
+        case $SELECTED_PHPLOADER in
             1)
                 install_ic
 
-                if [ "$PHPver" != "all" ]; then
-                    enable_ic $PHPver
+                if [ "$PHP_VER" != "all" ]; then
+                    enable_ic $PHP_VER
 
                     # Required for LEMPer default PHP
-                    if [ "$PHPver" != "7.3" ]; then
+                    if [ "$PHP_VER" != "7.3" ]; then
                         enable_ic "7.3"
                     fi
                 else
@@ -525,8 +535,8 @@ function init_php_install() {
             2)
                 install_sg
 
-                if [ "$PHPver" != "all" ]; then
-                    enable_sg $PHPver
+                if [ "$PHP_VER" != "all" ]; then
+                    enable_sg $PHP_VER
                 else
                     enable_sg "5.6"
                     enable_sg "7.0"
@@ -539,15 +549,15 @@ function init_php_install() {
                 install_ic
                 install_sg
 
-                if [ "$PHPver" != "all" ]; then
-                    enable_ic $PHPver
+                if [ "$PHP_VER" != "all" ]; then
+                    enable_ic $PHP_VER
 
                     # Required for LEMPer default PHP
-                    if [ "$PHPver" != "7.3" ]; then
+                    if [ "$PHP_VER" != "7.3" ]; then
                         enable_ic "7.3"
                     fi
 
-                    enable_sg $PHPver
+                    enable_sg $PHP_VER
                 else
                     enable_ic "5.6"
                     enable_ic "7.0"
@@ -566,11 +576,11 @@ function init_php_install() {
     fi
 
     # Menu Optimizing PHP
-    if [ "$PHPver" != "all" ]; then
-        optimize_php $PHPver
+    if [ "$PHP_VER" != "all" ]; then
+        optimize_php $PHP_VER
 
         # Required for LEMPer default PHP
-        if [ "$PHPver" != "7.3" ]; then
+        if [ "$PHP_VER" != "7.3" ]; then
             optimize_php "7.3"
         fi
     else

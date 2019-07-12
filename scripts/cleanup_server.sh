@@ -25,7 +25,7 @@ if [[ -n $(which mysql) ]]; then
     warning "It seems Mysql database server installed on this machine. We should remove it!"
     echo "Backup your database before continue!"
 
-    echo -n "Surely, remove existing MySQL database server? [Y/n]: "
+    echo -n "Surely, remove existing MySQL database server? [y/n]: "
     read rmMysql
 
     if [[ "$rmMysql" == Y* || "$rmMysql" == y* ]]; then

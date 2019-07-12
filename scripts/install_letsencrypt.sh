@@ -2,7 +2,7 @@
 
 # Certbot Let's Encrypt installer
 # Min. Requirement  : GNU/Linux Ubuntu 14.04
-# Last Build        : 01/07/2019
+# Last Build        : 12/07/2019
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
@@ -18,16 +18,18 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-echo -en "\nDo you want to install Certbot Let's Encrypt SSL? [Y/n]: "
-read certbotInstall
+echo ""
+while [[ $INSTALL_CERTBOT != "y" && $INSTALL_CERTBOT != "n" ]]; do
+    read -p "Do you want to install Certbot Let's Encrypt SSL? [y/n]: " -e INSTALL_CERTBOT
+done
 
-if [[ "${certbotInstall}" == Y* || "${certbotInstall}" == y* ]]; then
-    echo -e "\nInstalling Certbot Let's Encrypt..."
+if [[ "${INSTALL_CERTBOT}" == Y* || "${INSTALL_CERTBOT}" == y* ]]; then
+    echo -e "\nInstalling Certbot Let's Encrypt SSL..."
 
     if [[ ! -n $(which certbot) ]]; then
-        run add-apt-repository -y ppa:certbot/certbot
-        run apt-get -y update
-        run apt-get -y install certbot
+        run add-apt-repository -y ppa:certbot/certbot >> lemper.log 2>&1
+        run apt-get -y update >> lemper.log 2>&1
+        run apt-get -y install certbot >> lemper.log 2>&1
 
         # Add this certbot renew command to cron
         #15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/bin/systemctl reload nginx"

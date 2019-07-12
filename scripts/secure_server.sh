@@ -70,7 +70,7 @@ EOL
 fi
 
 ### Install & Configure the Uncomplicated Firewall (UFW)
-echo -en "Do you want to enable Iptables-based Firewall? [Y/n]: "
+echo -en "Do you want to enable Iptables-based Firewall? [y/n]: "
 read enableUFW
 if [[ "${enableUFW}" == Y* || "${enableUFW}" == y* ]]; then
 

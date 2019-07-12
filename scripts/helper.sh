@@ -77,7 +77,7 @@ function run() {
 function continue_or_exit() {
     local prompt="$1"
     echo_color "$YELLOW" -n "$prompt"
-    read -p " [Y/n] " yn
+    read -p " [y/n] " yn
     if [[ "$yn" == N* || "$yn" == n* ]]; then
         echo "Cancelled."
         exit 0

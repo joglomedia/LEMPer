@@ -12,23 +12,32 @@ if [ $(id -u) -ne 0 ]; then
     exit 1
 fi
 
-echo -e "\nWelcome to Postfix installation script"
+echo ""
+echo "Welcome to Mailer installation script"
+echo ""
 
 # Install Postfix mail server
-function install_postfix {
-    echo -e "\nInstalling Postfix Mail Server..."
+function install_postfix() {
+    echo -e "Installing Postfix Mail Transfer Agent..."
 
-    run apt-get install -y mailutils postfix
+    run apt-get install -y mailutils postfix >> lemper.log 2>&1
 
     # Update local time
-    run apt-get install -y ntpdate
-    run ntpdate -d cn.pool.ntp.org
+    run apt-get install -y ntpdate >> lemper.log 2>&1
+    run ntpdate -d cn.pool.ntp.org >> lemper.log 2>&1
 }
 
-#header_msg
-echo -en "\nDo you want to install Postfix Mail Server? [Y/n]: "
-read pfinstall
+## TODO: Add Dovecot
+# https://www.linode.com/docs/email/postfix/email-with-postfix-dovecot-and-mysql/
 
-if [[ "$pfinstall" == Y* || "$pfinstall" == y* ]]; then
-    install_postfix
+## Main
+while [[ $INSTALL_POSTFIX != "y" && $INSTALL_POSTFIX != "n" ]]; do
+    read -p "Do you want to install Postfix Mail Transfer Agent? [y/n]: " -e INSTALL_POSTFIX
+done
+if [[ "$INSTALL_POSTFIX" == Y* || "$INSTALL_POSTFIX" == y* ]]; then
+    if [[ -n $(which postfix) ]]; then
+        warning -e "\nPostfix already exists. Installation skipped..."
+    else
+        install_postfix "$@"
+    fi
 fi

@@ -162,14 +162,14 @@ case $1 in
             . scripts/install_redis.sh
         fi
 
-        ### Mail server installation ###
-        if [ -f scripts/install_mailer.sh ]; then
-            . scripts/install_mailer.sh
-        fi
-
         ### Certbot Let's Encrypt SSL installation ###
         if [ -f scripts/install_letsencrypt.sh ]; then
             . scripts/install_letsencrypt.sh
+        fi
+
+        ### Mail server installation ###
+        if [ -f scripts/install_mailer.sh ]; then
+            . scripts/install_mailer.sh
         fi
 
         ### Addon-tools installation ###
@@ -178,7 +178,7 @@ case $1 in
         fi
 
         ### Basic server security
-        echo -en "Do you want to enable basic server security? [Y/n]: "
+        echo -en "Do you want to enable basic server security? [y/n]: "
         read secureServer
         if [[ "${secureServer}" == Y* || "${secureServer}" == y* ]]; then
             if [ -f scripts/secure_server.sh ]; then
@@ -273,7 +273,7 @@ case $1 in
                 fi
             fi
 
-            echo -n "Completely remove Nginx configuration files (this action is not reversible)? [Y/n]: "
+            echo -n "Completely remove Nginx configuration files (this action is not reversible)? [y/n]: "
             read rmngxconf
             if [[ "${rmngxconf}" == Y* || "${rmngxconf}" == y* ]]; then
         	    echo "All your Nginx configuration files deleted permanently..."
@@ -328,7 +328,7 @@ case $1 in
             run apt-get remove -y ${DEBPackages} >> lemper.log 2>&1
             run add-apt-repository -y --remove ppa:ondrej/php >> lemper.log 2>&1
 
-            echo -n "Completely remove PHP-FPM configuration files (This action is not reversible)? [Y/n]: "
+            echo -n "Completely remove PHP-FPM configuration files (This action is not reversible)? [y/n]: "
             read rmfpmconf
             if [[ "${rmfpmconf}" == Y* || "${rmfpmconf}" == y* ]]; then
         	    echo "All your PHP-FPM configuration files deleted permanently..."
@@ -387,7 +387,7 @@ case $1 in
             # Remove repo
             run rm -f /etc/apt/sources.list.d/MariaDB-*.list
 
-            echo -n "Completely remove MariaDB SQL database and configuration files (This action is not reversible)? [Y/n]: "
+            echo -n "Completely remove MariaDB SQL database and configuration files (This action is not reversible)? [y/n]: "
             read rmsqlconf
             if [[ "${rmsqlconf}" == Y* || "${rmsqlconf}" == y* ]]; then
         	    echo "All your SQL database and configuration files deleted permanently."
@@ -399,12 +399,12 @@ case $1 in
         fi
 
         # Remove default user
-        echo -en "\nRemove default LEMPer account? [Y/n]: "
+        echo -en "\nRemove default LEMPer account? [y/n]: "
         read rmdefaultuser
         if [[ "${rmdefaultuser}" == Y* || "${rmdefaultuser}" == y* ]]; then
             USERNAME="lemper" # default system account for LEMPer
             if [[ ! -z $(getent passwd "${USERNAME}") ]]; then
-                run userdel -r ${USERNAME} >> lemper.log 2>&1
+                run userdel -r ${USERNAME}
                 status "Default LEMPer account deleted."
             else
                 warning "Default LEMPer account not found."

@@ -20,14 +20,16 @@ if [ $(id -u) -ne 0 ]; then
 fi
 
 function nginx_install_menu() {
-    echo -e "\nAvailable Nginx installer to use:
-    1). Repository
-    2). Source
-    -------------------"
-    echo -n "Select your Nginx installer [1-2]: "
-    read NgxInstaller
+    echo ""
+    echo "Available Nginx installer to use:"
+    echo "  1). Install from Repository"
+    echo "  2). Compile from Source"
+    echo "----------------------------------"
+    while [[ $NGINX_INSTALLER != "1" && $NGINX_INSTALLER != "2" ]]; do
+        read -p "Select an option [1-2]: " NGINX_INSTALLER
+	done
 
-    case $NgxInstaller in
+    case $NGINX_INSTALLER in
         1)
             echo -e "\nInstalling Nginx from package repository..."
             run apt-get install -y --allow-unauthenticated ${NGX_PACKAGE}
@@ -61,7 +63,7 @@ function nginx_install_menu() {
     fi
 
     # Custom Nginx dynamic modules configuration
-    if [[ "$NgxInstaller" == "2" ]]; then
+    if [[ "$NGINX_INSTALLER" == "2" ]]; then
 
         if [[ -f /usr/lib/nginx/modules/ngx_pagespeed.so && ! -f /etc/nginx/modules-available/mod-pagespeed.conf ]]; then
             run bash -c 'echo "load_module \"/usr/lib/nginx/modules/ngx_pagespeed.so\";" > \
@@ -101,11 +103,14 @@ function nginx_install_menu() {
                 /etc/nginx/modules-available/mod-stream.conf'
         fi
 
-        echo -en "\nEnable Nginx dynamic modules? [Y/n]: "
-        read enableDM
-        if [[ "$enableDM" == Y* || "$enableDM" == y* ]]; then
+        # Enable Nginx Dynamic Module
+        while [[ $ENABLE_NGXDM != "y" && $ENABLE_NGXDM != "n" ]]; do
+            read -p "Enable Nginx dynamic modules? [y/n]: " -e ENABLE_NGXDM
+		done
+        if [[ "$ENABLE_NGXDM" == Y* || "$ENABLE_NGXDM" == y* ]]; then
 
-            if [ ! -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]; then
+            if [[ -f /etc/nginx/modules-available/mod-pagespeed.conf && \
+                ! -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
                 run ln -s /etc/nginx/modules-available/mod-pagespeed.conf /etc/nginx/modules-enabled/50-mod-pagespeed.conf
             fi
 
@@ -128,7 +133,8 @@ function nginx_install_menu() {
 }
 
 function init_nginx_install() {
-    echo -e "\nWelcome to Nginx installation script"
+    echo ""
+    echo "Welcome to Nginx installation script"
 
     # Install Nginx custom
     nginx_install_menu
