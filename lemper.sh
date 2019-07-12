@@ -311,18 +311,21 @@ case $1 in
             if [[ -n ${DEBPackages} ]]; then
                 run apt-get --purge remove -y ${DEBPackages} \
                     fcgiwrap php-geoip php-pear php-phalcon pkg-php-tools spawn-fcgi geoip-database >> lemper.log 2>&1
+                #run apt-get purge -y ${DEBPackages} >> lemper.log 2>&1
+                run add-apt-repository -y --remove ppa:ondrej/php >> lemper.log 2>&1
             fi
-
-            #run apt-get purge -y ${DEBPackages} >> lemper.log 2>&1
-            run add-apt-repository -y --remove ppa:ondrej/php >> lemper.log 2>&1
 
             echo -n "Completely remove PHP-FPM configuration files (This action is not reversible)? [y/n]: "
             read rmfpmconf
             if [[ "${rmfpmconf}" == Y* || "${rmfpmconf}" == y* ]]; then
         	    echo "All your PHP-FPM configuration files deleted permanently..."
-        	    run rm -fr /etc/php/
+                if [[ -d /etc/php ]]; then
+                    run rm -fr /etc/php
+                fi
         	    # Remove ioncube
-                run rm -fr /usr/lib/php/loaders/
+                if [[ -d /usr/lib/php/loaders ]]; then
+                    run rm -fr /usr/lib/php/loaders
+                fi
             fi
 
             status "PHP & FPM removed."
@@ -389,8 +392,12 @@ case $1 in
             read rmsqlconf
             if [[ "${rmsqlconf}" == Y* || "${rmsqlconf}" == y* ]]; then
         	    echo "All your SQL database and configuration files deleted permanently."
-        	    run rm -fr /etc/mysql
-        	    run rm -fr /var/lib/mysql
+                if [[ -d /etc/mysql ]]; then
+            	    run rm -fr /etc/mysql
+                fi
+                if [[ -d /var/lib/mysql ]]; then
+                    run rm -fr /var/lib/mysql
+                fi
             fi
 
             if [[ -z $(which mysql) ]]; then
