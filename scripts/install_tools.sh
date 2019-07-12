@@ -36,7 +36,8 @@ cat <<- _EOF_
 </head>
 <body>
 <h1>Welcome to nginx!</h1>
-<p>If you see this page, the nginx web server is successfully installed using LEMPer. Further configuration is required.</p>
+<p>If you see this page, the nginx web server is successfully installed using
+LEMPer. Further configuration is required.</p>
 
 <p>For online documentation and support please refer to
 <a href="http://nginx.org/">nginx.org</a>.<br/>
@@ -45,7 +46,9 @@ LEMPer and ngxTools support is available at
 
 <p><em>Thank you for using nginx, ngxTools, and LEMPer.</em></p>
 
-<p style="font-size:90%;">Generated using <em>LEMPer</em> from <a href="https://eslabs.id/lemper">Nginx vHost Tool</a>, a simple nginx web server management tool.</p>
+<p style="font-size:90%;">Generated using <em>LEMPer</em> from
+<a href="https://eslabs.id/lemper">Nginx vHost Tool</a>, a simple nginx web
+server management tool.</p>
 </body>
 </html>
 _EOF_
@@ -74,7 +77,8 @@ run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.ph
 run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.php72'
 
 # Install Zend OpCache Web Viewer
-run wget -q --no-check-certificate https://raw.github.com/rlerdorf/opcache-status/master/opcache.php -O /usr/share/nginx/html/tools/opcache.php
+run wget -q --no-check-certificate https://raw.github.com/rlerdorf/opcache-status/master/opcache.php \
+    -O /usr/share/nginx/html/tools/opcache.php
 
 # Install Memcache Web-based stats
 #http://blog.elijaa.org/index.php?pages/phpMemcachedAdmin-Installation-Guide
@@ -82,8 +86,10 @@ run git clone -q https://github.com/elijaa/phpmemcachedadmin.git /usr/share/ngin
 
 # Install Adminer for Web-based MySQL Administration Tool
 run mkdir /usr/share/nginx/html/tools/adminer/
-run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/adminer-4.7.1.php -O /usr/share/nginx/html/tools/adminer/index.php
-run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/editor-4.7.1.php -O /usr/share/nginx/html/tools/adminer/editor.php
+run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/adminer-4.7.1.php \
+    -O /usr/share/nginx/html/tools/adminer/index.php
+run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/editor-4.7.1.php \
+    -O /usr/share/nginx/html/tools/adminer/editor.php
 
 # Install FileRun File Manager
 run mkdir /usr/share/nginx/html/tools/filerun/
@@ -92,6 +98,14 @@ run unzip -qq FileRun.zip -d /usr/share/nginx/html/tools/filerun/
 run rm -f FileRun.zip
 
 # TODO: try Tinyfilemanager https://github.com/prasathmani/tinyfilemanager
+
+# Secure Nginx Mod PageSpeed ​​Admin
+PASSHASH=""
+if [[ -n $(which php) ]]; then
+    PHPCMD="echo crypt(\"${PASSWORD}\", base64_encode(\"${PASSWORD}\"));"
+    PASSHASH=$(php -r "${PHPCMD}")
+fi
+echo "${USERNAME}:${PASSHASH}" >> /srv/.htpasswd
 
 # Assign ownership properly
 run chown -hR www-data:root /usr/share/nginx/html/tools/

@@ -32,7 +32,7 @@ function nginx_install_menu() {
     case $NGINX_INSTALLER in
         1)
             echo -e "\nInstalling Nginx from package repository..."
-            run apt-get install -y --allow-unauthenticated ${NGX_PACKAGE}
+            run apt-get install -y --allow-unauthenticated ${NGX_PACKAGE} >> lemper.log 2>&1
         ;;
         2)
             echo -e "\nInstalling Nginx from source..."
@@ -68,14 +68,6 @@ function nginx_install_menu() {
         if [[ -f /usr/lib/nginx/modules/ngx_pagespeed.so && ! -f /etc/nginx/modules-available/mod-pagespeed.conf ]]; then
             run bash -c 'echo "load_module \"/usr/lib/nginx/modules/ngx_pagespeed.so\";" > \
                 /etc/nginx/modules-available/mod-pagespeed.conf'
-
-            # Secure PageSpeed ​​Admin
-            PASSHASH=""
-            if [[ -n $(which php) ]]; then
-                PHPCMD="echo crypt(\"${PASSWORD}\", base64_encode(\"${PASSWORD}\"));"
-                PASSHASH=$(php -r "${PHPCMD}")
-            fi
-            echo "${USERNAME}:${PASSHASH}" >> /srv/.htpasswd
         fi
 
         if [[ -f /usr/lib/nginx/modules/ngx_http_geoip_module.so && ! -f /etc/nginx/modules-available/mod-http-geoip.conf ]]; then

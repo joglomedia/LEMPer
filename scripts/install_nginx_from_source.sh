@@ -948,7 +948,7 @@ with --no-deps-check."
         fi
         configure_args=("${configure_args[@]}"
                         "--prefix=$install_dir/nginx"
-                        "--with-ipv6"
+                        "--with-ipv6" #deprecated in version 1.15
                         "--with-http_v2_module"
                         "${add_modules[@]}")
         if [ "$BUILD_TYPE" = "Debug" ]; then
