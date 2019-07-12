@@ -433,8 +433,9 @@ case $1 in
         fi
 
         # Remove default user account
+        echo ""
         while [[ $REMOVE_ACCOUNT != "y" && $REMOVE_ACCOUNT != "n" ]]; do
-            read -p "Remove default LEMPer account? [y/n]: " -e REMOVE_ACCOUNTG
+            read -p "Remove default LEMPer account? [y/n]: " -e REMOVE_ACCOUNT
         done
         if [[ "$REMOVE_ACCOUNT" == Y* || "$REMOVE_ACCOUNT" == y* ]]; then
             USERNAME="lemper" # default system account for LEMPer
