@@ -225,6 +225,12 @@ case $1 in
                 if [ -d /etc/nginx/modules-enabled ]; then
                     run rm -fr /etc/nginx/modules-enabled
                 fi
+
+                # Delete lemper account from PageSpeed admin
+                if [ -f /srv/.htpasswd ]; then
+                    #run rm -f /srv/.htpasswd'
+                    sed -i "/^lemper:/d" /srv/.htpasswd
+                fi
             fi
 
             echo -n "Completely remove Nginx configuration files (this action is not reversible)? [y/n]: "

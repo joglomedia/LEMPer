@@ -16,30 +16,56 @@ function init_mariadb_install() {
     echo ""
     echo "Installing MariaDB (MySQL) database server..."
 
-    # Install MariaDB
-    run apt-get install -y mariadb-server libmariadbclient18
+    echo ""
+    while [[ $INSTALL_MYSQL != "y" && $INSTALL_MYSQL != "n" ]]; do
+        read -p "Do you want to install MariaDB (MySQL) server? [y/n]: " -e INSTALL_MYSQL
+    done
 
-    # Fix MySQL error?
-    # Ref: https://serverfault.com/questions/104014/innodb-error-log-file-ib-logfile0-is-of-different-size
-    #service mysql stop
-    #mv /var/lib/mysql/ib_logfile0 /var/lib/mysql/ib_logfile0.bak
-    #mv /var/lib/mysql/ib_logfile1 /var/lib/mysql/ib_logfile1.bak
-    #service mysql start
+    if [[ "$INSTALL_MYSQL" == Y* || "$INSTALL_MYSQL" == y* ]]; then
+        # Install MariaDB
+        run apt-get install -y mariadb-server libmariadbclient18 >> lemper.log 2>&1
 
-    # MySQL Secure Install
-    run mysql_secure_installation
+        # Fix MySQL error?
+        # Ref: https://serverfault.com/questions/104014/innodb-error-log-file-ib-logfile0-is-of-different-size
+        #service mysql stop
+        #mv /var/lib/mysql/ib_logfile0 /var/lib/mysql/ib_logfile0.bak
+        #mv /var/lib/mysql/ib_logfile1 /var/lib/mysql/ib_logfile1.bak
+        #service mysql start
+        if [[ -n $(which mysql) ]]; then
+            if [ ! -f /etc/mysql/my.cnf ]; then
+                run cp -f mysql/my.cnf /etc/mysql/
+            fi
+            if [ ! -f /etc/mysql/mariadb.cnf ]; then
+                run cp -f mysql/mariadb.cnf /etc/mysql/
+            fi
+            if [ ! -f /etc/mysql/debian.cnf ]; then
+                run cp -f mysql/debian.cnf /etc/mysql/
+            fi
+            if [ ! -f /etc/mysql/debian-start ]; then
+                run cp -f mysql/debian-start /etc/mysql/
+                run chmod +x /etc/mysql/debian-start
+            fi
 
-    # Restart MariaDB MySQL server
-    if [[ $(ps -ef | grep -v grep | grep mysql | wc -l) > 0 ]]; then
-        run service mysql restart
-        status -e "\nMariaDB (MySQL) database server installed successfully."
+            # Restart MariaDB
+            run systemctl restart mariadb.service
+
+            # MySQL Secure Install
+            run mysql_secure_installation
+        fi
+
+        # Restart MariaDB MySQL server
+        if [[ $(ps -ef | grep -v grep | grep mysql | wc -l) > 0 ]]; then
+            status -e "\nMariaDB (MySQL) database server installed successfully."
+        else
+            warning -e "\nSomething went wrong with MariaDB (MySQL) installation."
+        fi
     fi
 }
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(which mysql) ]]; then
-    warning -e "\nMariaDB/MySQL web server already exists. Installation skipped..."
+    warning -e "\nMariaDB (MySQL) web server already exists. Installation skipped..."
 else
     init_mariadb_install "$@"
 fi
