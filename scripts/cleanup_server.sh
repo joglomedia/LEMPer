@@ -6,6 +6,8 @@ if [ "$(type -t run)" != "function" ]; then
     . ${BASEDIR}/helper.sh
 fi
 
+echo -e "\n Clean up machine..."
+
 # Remove Apache2 service if exist
 if [[ -n $(which apache2) ]]; then
     warning "It seems Apache web server installed on this machine. We should remove it!"
@@ -33,4 +35,4 @@ if [[ -n $(which mysql) ]]; then
     fi
 fi
 
-status -e "\nServer cleaned up..."
+status "Machine cleaned up..."
