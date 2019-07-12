@@ -104,6 +104,7 @@ function nginx_install_menu() {
         fi
 
         # Enable Nginx Dynamic Module
+        echo ""
         while [[ $ENABLE_NGXDM != "y" && $ENABLE_NGXDM != "n" ]]; do
             read -p "Enable Nginx dynamic modules? [y/n]: " -e ENABLE_NGXDM
 		done
