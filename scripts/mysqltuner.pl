@@ -3525,7 +3525,7 @@ Maintained by Major Hayden (major\@mhtx.net) - Licensed under GPL
 
 L<https://github.com/major/MySQLTuner-perl>
 
- git clone https://github.com/major/MySQLTuner-perl.git
+ git -q clone https://github.com/major/MySQLTuner-perl.git
 
 =head1 COPYRIGHT AND LICENSE
 

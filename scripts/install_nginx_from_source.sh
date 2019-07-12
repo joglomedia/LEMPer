@@ -27,7 +27,7 @@ Usage: build_ngx_pagespeed.sh [options]
 
     Or:
 
-    git clone git@github.com:pagespeed/ngx_pagespeed.git
+    git -q clone git@github.com:pagespeed/ngx_pagespeed.git
     cd ngx_pagespeed/
     git checkout <branch>
     scripts/build_ngx_pagespeed.sh [options]
@@ -617,7 +617,7 @@ with --no-deps-check."
             run cd "$nps_module_dir"
         else
             status "Downloading ngx_pagespeed..."
-            run git clone "git@github.com:pagespeed/ngx_pagespeed.git" \
+            run git -q clone "git@github.com:pagespeed/ngx_pagespeed.git" \
                 "$nps_module_dir"
             run cd "$nps_module_dir"
             run git checkout "$tag_name"
@@ -729,11 +729,11 @@ with --no-deps-check."
         # Brotli compression
 		if "$BROTLI"; then
             status "Downloading ngx_brotli..."
-            run git clone https://github.com/eustas/ngx_brotli.git
+            run git -q clone https://github.com/eustas/ngx_brotli.git
 
 			cd ngx_brotli || exit 1
-			run git checkout v0.1.3rc
-			run git submodule update --init
+			run git -q checkout v0.1.3rc
+			run git -q submodule update --init
             cd ../
 
             if "$DYNAMIC_MODULE"; then
@@ -746,9 +746,9 @@ with --no-deps-check."
         # Cache Purge
         if "$CACHEPURGE"; then
             status "Downloading ngx_cache_purge module..."
-            #run git clone https://github.com/FRiCKLE/ngx_cache_purge.git
-            run git clone https://github.com/nginx-modules/ngx_cache_purge.git
-            #run git clone https://github.com/joglomedia/ngx_cache_purge.git
+            #run git -q clone https://github.com/FRiCKLE/ngx_cache_purge.git
+            run git -q clone https://github.com/nginx-modules/ngx_cache_purge.git
+            #run git -q clone https://github.com/joglomedia/ngx_cache_purge.git
 
             if "$DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_cache_purge" "${add_extra_modules[@]}")
@@ -760,7 +760,7 @@ with --no-deps-check."
         # More Headers
         if "$HEADERSMORE"; then
             status "Downloading headers-more-nginx-module..."
-            run git clone https://github.com/openresty/headers-more-nginx-module.git
+            run git -q clone https://github.com/openresty/headers-more-nginx-module.git
 
             if "$DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/headers-more-nginx-module" "${add_extra_modules[@]}")
@@ -774,7 +774,7 @@ with --no-deps-check."
             # install libmaxminddb
             status "Installing Maxmind GeoIP library..."
 
-        	run git clone https://github.com/maxmind/libmaxminddb.git
+        	run git -q clone https://github.com/maxmind/libmaxminddb.git
         	cd libmaxminddb
         	./configure
         	make
@@ -795,7 +795,7 @@ with --no-deps-check."
         	mv GeoLite2-Country.mmdb /opt/geoip/
 
             status "Downloading ngx_http_geoip2_module..."
-            run git clone https://github.com/leev/ngx_http_geoip2_module.git
+            run git -q clone https://github.com/leev/ngx_http_geoip2_module.git
 
             if "$DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_http_geoip2_module" "${add_extra_modules[@]}")
@@ -807,7 +807,7 @@ with --no-deps-check."
         # Echo Nginx
         if "$NGINXECHO"; then
             status "Downloading echo-nginx-module..."
-            run git clone https://github.com/openresty/echo-nginx-module.git
+            run git -q clone https://github.com/openresty/echo-nginx-module.git
 
             if "$DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/echo-nginx-module" "${add_extra_modules[@]}")
@@ -819,7 +819,7 @@ with --no-deps-check."
         # Auth PAM
         if "$AUTHPAM"; then
             status "Downloading ngx_http_auth_pam_module..."
-            run git clone https://github.com/sto/ngx_http_auth_pam_module.git
+            run git -q clone https://github.com/sto/ngx_http_auth_pam_module.git
 
             if "$DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_http_auth_pam_module" "${add_extra_modules[@]}")
@@ -831,7 +831,7 @@ with --no-deps-check."
         # WebDAV
         if "$WEBDAV"; then
             status "Downloading nginx-dav-ext-module..."
-            run git clone https://github.com/arut/nginx-dav-ext-module.git
+            run git -q clone https://github.com/arut/nginx-dav-ext-module.git
 
             if "$DYNAMIC_MODULE"; then
                 #Dynamic module not supported yet
@@ -848,10 +848,10 @@ with --no-deps-check."
         # Upstream Fair
         if "$UPSTREAMFAIR"; then
             status "Downloading nginx-upstream-fair module..."
-            run git clone https://github.com/gnosek/nginx-upstream-fair.git
+            run git -q clone https://github.com/gnosek/nginx-upstream-fair.git
 
             status "Downloading tengine-patches patch for nginx-upstream-fair module..."
-            run git clone https://github.com/alibaba/tengine-patches.git
+            run git -q clone https://github.com/alibaba/tengine-patches.git
 
             status "Patching nginx-upstream-fair module..."
             run cd nginx-upstream-fair
@@ -869,7 +869,7 @@ with --no-deps-check."
         # A filter module which can do both regular expression and fixed string substitutions for nginx
         if "$SUBSFILTER"; then
             status "Downloading ngx_http_substitutions_filter_module..."
-            run git clone https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git
+            run git -q clone https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git
 
             if "$DYNAMIC_MODULE"; then
                 #Dynamic module not supported yet
@@ -884,7 +884,7 @@ with --no-deps-check."
         # Nchan, pub/sub queuing server
         if "$NCHAN"; then
             status "Downloading pub/sub nchan module..."
-            run git clone https://github.com/slact/nchan.git
+            run git -q clone https://github.com/slact/nchan.git
 
             if "$DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/nchan" "${add_extra_modules[@]}")
@@ -896,7 +896,7 @@ with --no-deps-check."
         # NAXSI is an open-source, high performance, low rules maintenance WAF for NGINX
         if "$NAXSI"; then
             status "Downloading Naxsi Web Application Firewall module..."
-            run git clone https://github.com/nbs-system/naxsi.git
+            run git -q clone https://github.com/nbs-system/naxsi.git
 
             if "$DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/naxsi/naxsi_src" "${add_extra_modules[@]}")
@@ -908,7 +908,7 @@ with --no-deps-check."
         # Fancy indexes module for the Nginx web server
         if "$FANCYINDEX"; then
             status "Downloading ngx-fancyindex module..."
-            run git clone https://github.com/aperezdc/ngx-fancyindex.git
+            run git -q clone https://github.com/aperezdc/ngx-fancyindex.git
 
             if "$DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx-fancyindex" "${add_extra_modules[@]}")
@@ -920,7 +920,7 @@ with --no-deps-check."
         # Nginx virtual host traffic status module
         if "$NGINXVTS"; then
             status "Downloading nginx-module-vts VHost traffic status module..."
-            run git clone https://github.com/vozlt/nginx-module-vts.git
+            run git -q clone https://github.com/vozlt/nginx-module-vts.git
 
             if "$DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/nginx-module-vts" "${add_extra_modules[@]}")

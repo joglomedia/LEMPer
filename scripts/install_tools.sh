@@ -78,7 +78,7 @@ run wget -q --no-check-certificate https://raw.github.com/rlerdorf/opcache-statu
 
 # Install Memcache Web-based stats
 #http://blog.elijaa.org/index.php?pages/phpMemcachedAdmin-Installation-Guide
-run git clone https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/tools/phpMemcachedAdmin/
+run git -q clone https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/tools/phpMemcachedAdmin/
 
 # Install Adminer for Web-based MySQL Administration Tool
 run mkdir /usr/share/nginx/html/tools/adminer/

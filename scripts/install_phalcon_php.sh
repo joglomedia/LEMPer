@@ -31,7 +31,7 @@ done
 
 if [[ "$INSTALL_ZEPHIR" == Y* || "$INSTALL_ZEPHIR" == y* ]]; then
     # clon Zephir repo
-    git clone https://github.com/phalcon/zephir.git
+    git -q clone https://github.com/phalcon/zephir.git
     cd zephir
 
     # install json-c
@@ -42,7 +42,7 @@ if [[ "$INSTALL_ZEPHIR" == Y* || "$INSTALL_ZEPHIR" == y* ]]; then
     ./install
 fi
 
-git clone http://github.com/phalcon/cphalcon.git
+git -q clone http://github.com/phalcon/cphalcon.git
 git checkout master
 cd cphalcon/build
 ./install
