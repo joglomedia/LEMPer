@@ -728,7 +728,7 @@ with --no-deps-check."
 
         # Brotli compression
 		if "$BROTLI"; then
-            status "Downloading ngx_brotli..."
+            status "Downloading ngx_brotli module..."
             run git clone -q https://github.com/eustas/ngx_brotli.git
 
 			cd ngx_brotli || exit 1

@@ -81,6 +81,6 @@ run apt-get update -y >> lemper.log 2>&1
 # Install pre-requirements
 run apt-get install -y software-properties-common build-essential git unzip \
     cron curl gnupg2 ca-certificates lsb-release rsync libgd-dev libgeoip-dev \
-    libxslt1-dev libssl-dev libxml2-dev openssl openssh-server >> lemper.log 2>&1
+    libxslt1-dev libssl-dev libxml2-dev openssl openssh-server snmp >> lemper.log 2>&1
 
 status "Adding repositories completed..."

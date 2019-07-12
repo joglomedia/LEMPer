@@ -280,6 +280,7 @@ case $1 in
             fi
 
             run apt-get remove -y ${DEBPackages} >> lemper.log 2>&1
+            run apt-get purge -y ${DEBPackages} >> lemper.log 2>&1
             run add-apt-repository -y --remove ppa:ondrej/php >> lemper.log 2>&1
 
             echo -n "Completely remove PHP-FPM configuration files (This action is not reversible)? [y/n]: "

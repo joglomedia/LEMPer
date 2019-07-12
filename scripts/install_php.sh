@@ -22,7 +22,7 @@ function install_php() {
     if [[ -n $1 ]]; then
         PHPv="$1"
     else
-        PHPv="7.0" # default php install 7.0 (latest stable recommendation)
+        PHPv="7.3" # default php install 7.0 (latest stable recommendation)
     fi
 
     # Checking if php already installed
@@ -37,7 +37,7 @@ function install_php() {
             php${PHPv}-mbstring php${PHPv}-opcache php${PHPv}-pspell php${PHPv}-readline \
             php${PHPv}-recode php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
             php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
-            php-geoip php-pear php-phalcon pkg-php-tools snmp spawn-fcgi fcgiwrap geoip-database
+            php-geoip php-pear php-phalcon pkg-php-tools spawn-fcgi fcgiwrap geoip-database
 
         # Install php mcrypt?
         while [[ $INSTALL_PHPMCRYPT != "y" && $INSTALL_PHPMCRYPT != "n" ]]; do
@@ -84,12 +84,13 @@ function remove_php() {
     echo "Uninstalling PHP $PHPv..."
 
     if [[ -n $(which php-fpm${PHPv}) ]]; then
-        run apt-get remove -y php${PHPv} php${PHPv}-common php${PHPv}-fpm php${PHPv}-cli php${PHPv}-mysql \
-            php${PHPv}-bcmath php${PHPv}-curl php${PHPv}-gd php${PHPv}-intl php${PHPv}-json php${PHPv}-mbstring \
-            php${PHPv}-imap php${PHPv}-pspell php${PHPv}-recode php${PHPv}-snmp php${PHPv}-sqlite3 php${PHPv}-tidy \
-            php${PHPv}-readline php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-gmp php${PHPv}-opcache \
-            php${PHPv}-soap php${PHPv}-zip php${PHPv}-ldap php${PHPv}-dev php-geoip php-pear pkg-php-tools php-phalcon \
-            snmp spawn-fcgi fcgiwrap geoip-database
+        run apt-get remove -y php${PHPv} php${PHPv}-bcmath php${PHPv}-cli php${PHPv}-common \
+            php${PHPv}-curl php${PHPv}-dev php${PHPv}-fpm php${PHPv}-mysql php${PHPv}-gd \
+            php${PHPv}-gmp php${PHPv}-imap php${PHPv}-intl php${PHPv}-json php${PHPv}-ldap \
+            php${PHPv}-mbstring php${PHPv}-opcache php${PHPv}-pspell php${PHPv}-readline \
+            php${PHPv}-recode php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
+            php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
+            php-geoip php-pear php-phalcon pkg-php-tools spawn-fcgi fcgiwrap geoip-database
 
         isMcrypt=$(/usr/bin/php${PHPv} -m | grep mcrypt)
         if [[ "_$isMcrypt" == "_mcrypt" ]]; then
