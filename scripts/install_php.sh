@@ -40,6 +40,7 @@ function install_php() {
             php-geoip php-pear php-phalcon pkg-php-tools spawn-fcgi fcgiwrap geoip-database
 
         # Install php mcrypt?
+        echo ""
         while [[ $INSTALL_PHPMCRYPT != "y" && $INSTALL_PHPMCRYPT != "n" ]]; do
             read -p "Do you want to install PHP Mcrypt for encryption/decryption? [y/n]: " -e INSTALL_PHPMCRYPT
         done
@@ -504,8 +505,9 @@ function init_php_install() {
     fi
 
     # Menu Install PHP loader
+    echo ""
     while [[ $INSTALL_PHPLOADER != "y" && $INSTALL_PHPLOADER != "n" ]]; do
-        read -p "Install PHP Loaders? [y/n]: " -e INSTALL_PHPLOADER
+        read -p "Do you want to install PHP Loaders? [y/n]: " -e INSTALL_PHPLOADER
     done
 
     if [[ "$INSTALL_PHPLOADER" == Y* || "$INSTALL_PHPLOADER" == y* ]]; then
