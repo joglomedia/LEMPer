@@ -385,6 +385,8 @@ case $1 in
         # Remove unnecessary packages
         echo -e "\nClean-up unnecessary packages..."
         run apt-get autoremove -y
+
+        echo -e "\nLEMP stack has been removed completely.\n"
     ;;
     --help)
         echo "Please read the README file for more information!"
