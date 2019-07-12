@@ -340,8 +340,8 @@ case $1 in
             # Stop MariaDB mysql server process
             run service mysql stop
 
-            run apt-get remove -y mariadb-server libmariadbclient18 >> lemper.log 2>&1
-            run apt-get purge -y mariadb* >> lemper.log 2>&1
+            run apt-get remove -y mariadb* mysql* libmariadbclient18 >> lemper.log 2>&1
+            run apt-get purge -y mariadb* mysql* >> lemper.log 2>&1
 
             # Remove repo
             run rm -f /etc/apt/sources.list.d/MariaDB-*.list
@@ -376,7 +376,7 @@ case $1 in
 
         # Remove unnecessary packages
         echo -e "\nCleaning up unnecessary packages..."
-        run apt-get autoremove -y >> lemper.log 2>&1
+        run apt autoremove -y >> lemper.log 2>&1
 
         status -e "LEMP stack has been removed completely.\n"
     ;;
