@@ -53,7 +53,8 @@ function init_memcache_install() {
         echo -e "\nInstalling Memcache and PHP memcached module..."
 
         # Install memcached
-        run apt-get install -y memcached php-memcached php-memcache
+        run apt-get install -y libmemcached11 memcached php-igbinary \
+            php-memcache php-memcached php-msgpack >> lemper.log 2>&1
 
         # Enable PHP module
         echo "Enabling PHP memcached module..."

@@ -63,6 +63,7 @@ fi
 
 # init log
 run touch lemper.log
+echo "" > lemper.log
 
 ### Main ###
 case $1 in
@@ -251,7 +252,7 @@ case $1 in
             || -n $(which php-fpm7.3) ]]; then
 
             # Related PHP packages to be removed
-            DEBPackages=("fcgiwrap php* pkg-php-tools spawn-fcgi geoip-database snmp")
+            DEBPackages=("fcgiwrap php-geoip php-pear php-phalcon pkg-php-tools spawn-fcgi geoip-database")
 
             # Stop default PHP FPM process
             if [[ $(ps -ef | grep -v grep | grep php-fpm | grep "php/5.6" | wc -l) > 0 ]]; then
@@ -306,8 +307,11 @@ case $1 in
                 run service memcached stop
             fi
 
-            run apt-get remove -y memcached php-memcached php-memcache >> lemper.log 2>&1
-            run rm -f /etc/memcached.conf
+            run apt-get remove -y libmemcached11 memcached php-igbinary \
+                php-memcache php-memcached php-msgpack >> lemper.log 2>&1
+            run apt-get purge -y libmemcached11 memcached php-igbinary \
+                php-memcache php-memcached php-msgpack >> lemper.log 2>&1
+            #run rm -f /etc/memcached.conf
 
             if [[ -z $(which memcached) ]]; then
                 status "Memcached server removed."
@@ -324,9 +328,9 @@ case $1 in
             fi
 
             run apt-get remove -y redis-server >> lemper.log 2>&1
-            run apt-get purge -y redis* >> lemper.log 2>&1
+            run apt-get purge -y redis-server >> lemper.log 2>&1
             run add-apt-repository -y --remove ppa:chris-lea/redis-server >> lemper.log 2>&1
-            run rm -f /etc/redis/redis.conf
+            #run rm -f /etc/redis/redis.conf
 
             if [[ -z $(which redis-server) ]]; then
                 status "Redis server removed."
@@ -354,7 +358,7 @@ case $1 in
         	    run rm -fr /var/lib/mysql
             fi
 
-            if [[ -z $(which memcached) ]]; then
+            if [[ -z $(which mysql) ]]; then
                 status "MariaDB (MySQL) server removed."
             fi
         else

@@ -524,7 +524,7 @@ function init_php_install() {
         done
 
         echo ""
-        
+
         # Create loaders directory
         if [ ! -d /usr/lib/php/loaders ]; then
             run mkdir /usr/lib/php/loaders
