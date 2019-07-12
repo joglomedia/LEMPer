@@ -292,7 +292,7 @@ case $1 in
         fi
 
         # Remove PHP
-        echo -e "\nUninstalling PHP FPM..."
+        echo -e "\nUninstalling PHP & FPM..."
 
         if [[ -n $(which php-fpm5.6) \
             || -n $(which php-fpm7.0) \
