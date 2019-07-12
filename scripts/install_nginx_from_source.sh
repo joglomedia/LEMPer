@@ -732,7 +732,7 @@ with --no-deps-check."
             run git clone -q https://github.com/eustas/ngx_brotli.git
 
 			cd ngx_brotli || exit 1
-			run git checkout v0.1.2 -q
+			run git checkout master -q #v0.1.2 | v0.1.3rc
 			run git submodule update --init -q
             cd ../
 

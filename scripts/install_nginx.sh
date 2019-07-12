@@ -171,6 +171,10 @@ function init_nginx_install() {
         run unlink /etc/nginx/sites-enabled/default
     fi
 
+    if [ -f /etc/nginx/sites-enabled/01-default ]; then
+        run unlink /etc/nginx/sites-enabled/01-default
+    fi
+
     run ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/01-default
 
     if [ -d /usr/share/nginx/html ]; then
