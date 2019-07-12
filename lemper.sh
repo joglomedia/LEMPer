@@ -65,11 +65,33 @@ function create_swap() {
     echo "Enabling 1GiB swap..."
 
     L_SWAP_FILE="/lemper-swapfile"
-    fallocate -l 1G $L_SWAP_FILE && \
+
+    fallocate -l 1024M $L_SWAP_FILE && \
     chmod 600 $L_SWAP_FILE && \
     chown root:root $L_SWAP_FILE && \
     mkswap $L_SWAP_FILE && \
     swapon $L_SWAP_FILE
+
+    # Make the change permanent
+    echo "$L_SWAP_FILE swap swap defaults 0 0" >> /etc/fstab
+
+    # Adjust swappiness, default Ubuntu set to 60
+    # meaning that the swap file will be used fairly often if the memory usage is
+    # around half RAM, for production servers you may need to set a lower value.
+    if [[ $(cat /proc/sys/vm/swappiness) -gt 15 ]]; then
+        sysctl vm.swappiness=15
+        echo "vm.swappiness=15" >> /etc/sysctl.conf
+    fi
+}
+
+function remove_swap() {
+    echo "Disabling swap..."
+
+    L_SWAP_FILE="/lemper-swapfile"
+
+    swapoff -v $L_SWAP_FILE
+    sed -i "s|$L_SWAP_FILE|#\ $L_SWAP_FILE|g" /etc/fstab
+    rm -f $L_SWAP_FILE
 }
 
 function check_swap() {
