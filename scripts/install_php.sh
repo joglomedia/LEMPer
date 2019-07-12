@@ -31,12 +31,13 @@ function install_php() {
     else
         echo "Installing PHP $PHPv..."
 
-        run apt-get install -y php${PHPv} php${PHPv}-common php${PHPv}-fpm php${PHPv}-cli php${PHPv}-mysql \
-            php${PHPv}-bcmath php${PHPv}-curl php${PHPv}-gd php${PHPv}-intl php${PHPv}-json php${PHPv}-mbstring \
-            php${PHPv}-imap php${PHPv}-pspell php${PHPv}-recode php${PHPv}-snmp php${PHPv}-sqlite3 php${PHPv}-tidy \
-            php${PHPv}-readline php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-gmp php${PHPv}-opcache \
-            php${PHPv}-soap php${PHPv}-zip php${PHPv}-ldap php${PHPv}-dev php-geoip php-pear pkg-php-tools php-phalcon \
-            snmp spawn-fcgi fcgiwrap geoip-database
+        run apt-get install -y php${PHPv} php${PHPv}-bcmath php${PHPv}-cli php${PHPv}-common \
+            php${PHPv}-curl php${PHPv}-dev php${PHPv}-fpm php${PHPv}-mysql php${PHPv}-gd \
+            php${PHPv}-gmp php${PHPv}-imap php${PHPv}-intl php${PHPv}-json php${PHPv}-ldap \
+            php${PHPv}-mbstring php${PHPv}-opcache php${PHPv}-pspell php${PHPv}-readline \
+            php${PHPv}-recode php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
+            php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
+            php-geoip php-pear php-phalcon pkg-php-tools snmp spawn-fcgi fcgiwrap geoip-database
 
         # Install php mcrypt?
         while [[ $INSTALL_PHPMCRYPT != "y" && $INSTALL_PHPMCRYPT != "n" ]]; do
@@ -387,8 +388,11 @@ pm.max_children = 5
 pm.start_servers = 2
 pm.min_spare_servers = 1
 pm.max_spare_servers = 3
-pm.process_idle_timeout = 30s;
+pm.process_idle_timeout = 30s
 pm.max_requests = 500
+pm.status_path = /status
+
+ping.path = /ping
 
 request_slowlog_timeout = 6s
 slowlog = /var/log/php7.3-fpm_slow.$pool.log
@@ -411,6 +415,12 @@ EOL
     # Add custom php extension (ex .php70, .php71)
     PHPExt=".php${PHPv//.}"
     sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/" /etc/php/${PHPv}/fpm/pool.d/www.conf
+
+    # Enable FPM ping service
+    sed -i "/^;ping.path\ =.*/a ping.path\ =\ \/ping" /etc/php/${PHPv}/fpm/pool.d/www.conf
+
+    # Enable FPM status
+    sed -i "/^;pm.status_path\ =.*/a pm.status_path\ =\ \/status" /etc/php/${PHPv}/fpm/pool.d/www.conf
 
     # Restart PHP-fpm server
     if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
@@ -453,7 +463,7 @@ function init_php_install() {
     done
 
     echo ""
-    
+
     case $SELECTED_PHP in
         1)
             PHP_VER="5.6"
