@@ -1,0 +1,68 @@
+# Enable gzip compression
+gzip on;
+
+# Most people include something like this. don't.
+# Check your default nginx.conf, it's already covered in a much better way.
+#gzip_disable "MSIE [1-6]\.(?!.*SV1)";
+
+# Compress proxied requests too.
+# It doesn't actually matter if the request is proxied, we still want it compressed.
+gzip_proxied any;
+
+# A pretty comprehensive list of content mime types that we want to compress
+# there's a lot of repetition here because different applications might use different
+# (and possibly non-standard) types. we don't really care, we still want them included.
+# You can remove image/png image/x-icon image/gif image/jpeg if you have slow CPU.
+# text/html is always compressed by HttpGzipModule.
+gzip_types
+    application/atom+xml
+    application/javascript
+    application/json
+    application/ld+json
+    application/manifest+json
+    application/rdf+xml
+    application/x-javascript
+    application/xml
+    application/xml+rss
+    font/eot
+    font/opentype
+    image/bmp
+    image/gif
+    image/jpeg
+    image/png
+    image/svg+xml
+    image/vnd.microsoft.icon
+    image/x-icon
+    text/cache-manifest
+    text/css
+    text/javascript
+    text/plain
+    text/vcard
+    text/vnd.rim.location.xloc
+    text/vtt
+    text/x-component
+    text/x-cross-domain-policy
+    text/xml;
+
+# Increase the compression level, at the expense of additional CPU.
+# CPU cycles are cheap virtually everywhere now, bandwidth not nearly as much.
+gzip_comp_level 6;
+
+# The default is to gzip only HTTP 1.1 requests
+# we want to gzip http 1.0 requests, too, so lower the level required.
+gzip_http_version 1.0;
+
+# Set the Vary: Accept-Encoding header to force proxies to store compressed and uncompressed versions
+# per the nginx docs, a bug in IE 4 - 6 will cause them to not cache anything with this on
+# most people aren't going to care about ie 6 anymore, but keep that in mind.
+gzip_vary on;
+
+# Increase the size of the buffers which hold responses to make sure larger content can be compressed too
+# this means there are 16 buffers and they can each hold 8k
+# if you serve a lot of ridiculously large text (like combined CSS) you might consider upping this slightly.
+gzip_buffers 16 8k;
+
+# Up the minimum length a little to account for gzip overhead
+# this means anything smaller than 50 bytes won't be compressed.
+# The default is 20 bytes, which is sooo tiny it's a waste to compress.
+gzip_min_length 64;

@@ -1,0 +1,14 @@
+# By default, Nginx does not alter the character encoding of anything it serves
+# everything we possibly can as UTF-8 these days and files tend to come from
+# lots of different places, the first thing we want to do is make sure any other
+# screwy character sets are converted.
+#charset utf-8;
+
+# Update charset_types due to updated mime.types
+charset_types application/javascript
+              application/json
+              application/rss+xml
+              application/xml
+              text/css
+              text/plain
+              text/vnd.wap.wml;
