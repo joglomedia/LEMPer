@@ -219,7 +219,7 @@ case $1 in
         read -t 10 -p "Press [Enter] to continue..." </dev/tty
 
         # Remove nginx
-        echo -e "\nUninstalling Nginx...\n"
+        echo -e "\nUninstalling Nginx..."
 
         if [[ -n $(which nginx) ]]; then
             # Stop Nginx web server process
@@ -272,7 +272,7 @@ case $1 in
                 fi
             fi
 
-            echo -en "Completely remove Nginx configuration files (this action is not reversible)? [Y/n]: "
+            echo -n "Completely remove Nginx configuration files (this action is not reversible)? [Y/n]: "
             read rmngxconf
             if [[ "${rmngxconf}" == Y* || "${rmngxconf}" == y* ]]; then
         	    echo "All your Nginx configuration files deleted permanently..."
@@ -287,7 +287,7 @@ case $1 in
         fi
 
         # Remove PHP
-        echo -e "\nUninstalling PHP FPM...\n"
+        echo -e "\nUninstalling PHP FPM..."
 
         if [[ -n $(which php-fpm5.6) \
             || -n $(which php-fpm7.0) \
@@ -338,7 +338,7 @@ case $1 in
 
             run apt-get remove -y ${DEBPackages} > lemper.log 2>&1
 
-            echo -n "\nCompletely remove PHP-FPM configuration files (This action is not reversible)? [Y/n]: "
+            echo -n "Completely remove PHP-FPM configuration files (This action is not reversible)? [Y/n]: "
             read rmfpmconf
             if [[ "${rmfpmconf}" == Y* || "${rmfpmconf}" == y* ]]; then
         	    echo "All your PHP-FPM configuration files deleted permanently..."
@@ -351,7 +351,7 @@ case $1 in
         fi
 
         # Remove MySQL
-        echo -e "\nUninstalling MariaDB (SQL DBMS)...\n"
+        echo -e "\nUninstalling MariaDB (SQL DBMS)..."
 
         if [[ -n $(which mysql) ]]; then
             # Stop MariaDB mysql server process
@@ -362,7 +362,7 @@ case $1 in
             # Remove repo
             rm /etc/apt/sources.list.d/MariaDB-*.list
 
-            echo -n "\nCompletely remove MariaDB SQL database and configuration files (This action is not reversible)? [Y/n]: "
+            echo -n "Completely remove MariaDB SQL database and configuration files (This action is not reversible)? [Y/n]: "
             read rmsqlconf
             if [[ "${rmsqlconf}" == Y* || "${rmsqlconf}" == y* ]]; then
         	    echo "All your SQL database and configuration files deleted permanently."
@@ -370,11 +370,11 @@ case $1 in
         	    run rm -fr /var/lib/mysql
             fi
         else
-            warning -e "MariaDB installation not found.\n"
+            warning -e "MariaDB installation not found."
         fi
 
         # Remove default user
-        echo -en "Remove default LEMPer account? [Y/n]: "
+        echo -en "\nRemove default LEMPer account? [Y/n]: "
         read rmdefaultuser
         if [[ "${rmdefaultuser}" == Y* || "${rmdefaultuser}" == y* ]]; then
             if [[ ! -z $(getent passwd "${USERNAME}") ]]; then
