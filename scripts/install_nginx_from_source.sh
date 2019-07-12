@@ -734,6 +734,7 @@ with --no-deps-check."
 			cd ngx_brotli || exit 1
 			run git checkout v0.1.3rc
 			run git submodule update --init
+            cd ../
 
             if "$DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_brotli" "${add_extra_modules[@]}")

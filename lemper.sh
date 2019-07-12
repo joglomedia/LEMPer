@@ -85,7 +85,7 @@ function create_swap() {
 }
 
 function remove_swap() {
-    echo "Disabling swap..."
+    echo -e "\nDisabling swap..."
 
     L_SWAP_FILE="/lemper-swapfile"
 
