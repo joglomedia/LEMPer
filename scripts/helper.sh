@@ -161,7 +161,7 @@ function create_account() {
     if [[ -n $1 ]]; then
         USERNAME="$1"
     else
-        USERNAME="lemper" # default account
+        USERNAME="lemper" # default system account for LEMPer
     fi
 
     echo -e "\nCreating default LEMPer account..."
@@ -186,6 +186,27 @@ function create_account() {
         status "Username ${USERNAME} created."
     else
         warning "Username ${USERNAME} already exists."
+    fi
+}
+
+# Delete system account
+function delete_account() {
+    if [[ -n $1 ]]; then
+        USERNAME="$1"
+    else
+        USERNAME="lemper" # default system account for LEMPer
+    fi
+
+    while [[ $REMOVE_ACCOUNT != "y" && $REMOVE_ACCOUNT != "n" ]]; do
+        read -p "Remove default LEMPer account? [y/n]: " -e REMOVE_ACCOUNT
+    done
+    if [[ "$REMOVE_ACCOUNT" == Y* || "$REMOVE_ACCOUNT" == y* ]]; then
+        if [[ ! -z $(getent passwd "${USERNAME}") ]]; then
+            run userdel -r ${USERNAME} >> lemper.log 2>&1
+            status "Default LEMPer account deleted."
+        else
+            warning "Default LEMPer account not found."
+        fi
     fi
 }
 
