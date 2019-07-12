@@ -378,6 +378,7 @@ case $1 in
         echo -en "\nRemove default LEMPer account? [Y/n]: "
         read rmdefaultuser
         if [[ "${rmdefaultuser}" == Y* || "${rmdefaultuser}" == y* ]]; then
+            USERNAME="lemper" # default system account for LEMPer
             if [[ ! -z $(getent passwd "${USERNAME}") ]]; then
                 run userdel -r lemper >> lemper.log 2>&1
                 status "Default LEMPer account deleted."
