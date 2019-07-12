@@ -188,7 +188,7 @@ case $1 in
 
         ### FINAL STEP ###
         # Cleaning up all build dependencies hanging around on production server?
-        run apt-get autoremove -y > lemper.log 2>&1
+        run apt-get autoremove -y >> lemper.log 2>&1
 
         status -e "\nLEMPer installation has been completed."
 
@@ -228,21 +228,21 @@ case $1 in
             # Remove Nginx
             if [ $(dpkg-query -l | grep nginx-common | awk '/nginx-common/ { print $2 }') ]; then
             	echo "Nginx-common package found. Removing..."
-                run apt-get --purge remove -y nginx-common > lemper.log 2>&1
-                run add-apt-repository --remove ppa:nginx/stable > lemper.log 2>&1
+                run apt-get --purge remove -y nginx-common >> lemper.log 2>&1
+                run add-apt-repository --remove ppa:nginx/stable >> lemper.log 2>&1
             elif [ $(dpkg-query -l | grep nginx-custom | awk '/nginx-custom/ { print $2 }') ]; then
             	echo "Nginx-custom package found. Removing..."
-                run apt-get --purge remove -y nginx-custom > lemper.log 2>&1
-                run add-apt-repository --remove ppa:rtcamp/nginx > lemper.log 2>&1
+                run apt-get --purge remove -y nginx-custom >> lemper.log 2>&1
+                run add-apt-repository --remove ppa:rtcamp/nginx >> lemper.log 2>&1
                 rm -f /etc/apt/sources.list.d/nginx-*.list
             elif [ $(dpkg-query -l | grep nginx-full | awk '/nginx-full/ { print $2 }') ]; then
             	echo "Nginx-full package found. Removing..."
-                run apt-get --purge remove -y nginx-full > lemper.log 2>&1
-                run add-apt-repository --remove ppa:nginx/stable > lemper.log 2>&1
+                run apt-get --purge remove -y nginx-full >> lemper.log 2>&1
+                run add-apt-repository --remove ppa:nginx/stable >> lemper.log 2>&1
             elif [ $(dpkg-query -l | grep nginx-stable | awk '/nginx-stable/ { print $2 }') ]; then
             	echo "Nginx-stable package found. Removing..."
-                run apt-get --purge remove -y nginx-stable > lemper.log 2>&1
-                run add-apt-repository --remove ppa:nginx/stable > lemper.log 2>&1
+                run apt-get --purge remove -y nginx-stable >> lemper.log 2>&1
+                run add-apt-repository --remove ppa:nginx/stable >> lemper.log 2>&1
             else
             	echo "Nginx package not found. Possibly installed from source."
 
@@ -336,7 +336,7 @@ case $1 in
                 DEBPackages=+" redis-server"
             fi
 
-            run apt-get remove -y ${DEBPackages} > lemper.log 2>&1
+            run apt-get remove -y ${DEBPackages} >> lemper.log 2>&1
 
             echo -n "Completely remove PHP-FPM configuration files (This action is not reversible)? [Y/n]: "
             read rmfpmconf
@@ -357,7 +357,7 @@ case $1 in
             # Stop MariaDB mysql server process
             run service mysql stop
 
-            run apt-get remove -y mariadb-server libmariadbclient18 > lemper.log 2>&1
+            run apt-get remove -y mariadb-server libmariadbclient18 >> lemper.log 2>&1
 
             # Remove repo
             rm /etc/apt/sources.list.d/MariaDB-*.list
@@ -378,7 +378,7 @@ case $1 in
         read rmdefaultuser
         if [[ "${rmdefaultuser}" == Y* || "${rmdefaultuser}" == y* ]]; then
             if [[ ! -z $(getent passwd "${USERNAME}") ]]; then
-                run userdel -r lemper > lemper.log 2>&1
+                run userdel -r lemper >> lemper.log 2>&1
                 status "Default LEMPer account deleted."
             else
                 warning "Default LEMPer account not found."
@@ -387,7 +387,7 @@ case $1 in
 
         # Remove unnecessary packages
         echo -e "\nCleaning up unnecessary packages..."
-        run apt-get autoremove -y > lemper.log 2>&1
+        run apt-get autoremove -y >> lemper.log 2>&1
 
         status -e "LEMP stack has been removed completely.\n"
     ;;
