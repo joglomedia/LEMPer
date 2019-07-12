@@ -77,7 +77,7 @@ make clean
 cd ~/ffmpeg_sources
 #wget http://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2
 #tar xjvf ffmpeg-snapshot.tar.bz2
-git -q clone git://source.ffmpeg.org/ffmpeg.git ffmpeg
+git clone -q git://source.ffmpeg.org/ffmpeg.git ffmpeg
 cd ffmpeg
 PKG_CONFIG_PATH="$HOME/ffmpeg_build/lib/pkgconfig"
 export PKG_CONFIG_PATH

@@ -15,7 +15,7 @@ fi
 apt-get install re2c libpcre3-dev git
 
 # clon Zephir repo
-git -q clone https://github.com/phalcon/zephir.git
+git clone -q https://github.com/phalcon/zephir.git
 
 # Install zephir
 cd zephir

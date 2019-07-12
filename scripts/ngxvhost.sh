@@ -746,7 +746,7 @@ function init_app() {
                         if [ ! -f ${WEBROOT}/server.php ]; then
                             status "Copying Laravel skeleton files..."
 
-                            run git -q clone https://github.com/laravel/laravel.git ${WEBROOT}
+                            run git clone -q https://github.com/laravel/laravel.git ${WEBROOT}
                         else
                             warning "It seems that Laravel skeleton files already exists."
                         fi
