@@ -129,9 +129,11 @@ case $1 in
         fi
 
         ### Basic server security
-        echo -en "Do you want to enable basic server security? [y/n]: "
-        read secureServer
-        if [[ "${secureServer}" == Y* || "${secureServer}" == y* ]]; then
+        echo ""
+        while [[ $SECURED_SERVER != "y" && $SECURED_SERVER != "n" ]]; do
+            read -p "Do you want to enable basic server security? [y/n]: " -e SECURED_SERVER
+		done
+        if [[ "$SECURED_SERVER" == Y* || "$SECURED_SERVER" == y* ]]; then
             if [ -f scripts/secure_server.sh ]; then
                 . scripts/secure_server.sh
             fi
@@ -233,9 +235,11 @@ case $1 in
                 fi
             fi
 
-            echo -n "Completely remove Nginx configuration files (this action is not reversible)? [y/n]: "
-            read rmngxconf
-            if [[ "${rmngxconf}" == Y* || "${rmngxconf}" == y* ]]; then
+            # Remove config files
+            while [[ $REMOVE_NGXCONFIG != "y" && $REMOVE_NGXCONFIG != "n" ]]; do
+                read -p "Remove Nginx configuration files (this action is not reversible)? [y/n]: " -e REMOVE_NGXCONFIG
+    		done
+            if [[ "$REMOVE_NGXCONFIG" == Y* || "$REMOVE_NGXCONFIG" == y* ]]; then
         	    echo "All your Nginx configuration files deleted permanently..."
         	    run rm -fr /etc/nginx
         	    # Remove nginx-cache
@@ -331,9 +335,11 @@ case $1 in
                 run add-apt-repository -y --remove ppa:ondrej/php >> lemper.log 2>&1
             fi
 
-            echo -n "Completely remove PHP-FPM configuration files (This action is not reversible)? [y/n]: "
-            read rmfpmconf
-            if [[ "${rmfpmconf}" == Y* || "${rmfpmconf}" == y* ]]; then
+            # Remoce PHP & FPM config files
+            while [[ $REMOVE_PHPCONFIG != "y" && $REMOVE_PHPCONFIG != "n" ]]; do
+                read -p "Remove PHP-FPM configuration files (This action is not reversible)? [y/n]: " -e REMOVE_PHPCONFIG
+    		done
+            if [[ "$REMOVE_PHPCONFIG" == Y* || "$REMOVE_PHPCONFIG" == y* ]]; then
         	    echo "All your PHP-FPM configuration files deleted permanently..."
                 if [[ -d /etc/php ]]; then
                     run rm -fr /etc/php
@@ -344,7 +350,7 @@ case $1 in
                 fi
             fi
 
-            status "PHP & FPM removed."
+            status "PHP & FPM installation removed."
         else
             warning "PHP installation not found."
         fi
@@ -404,9 +410,12 @@ case $1 in
             # Remove repo
             run rm -f /etc/apt/sources.list.d/MariaDB-*.list
 
-            echo -n "Completely remove MariaDB SQL database and configuration files (This action is not reversible)? [y/n]: "
-            read rmsqlconf
-            if [[ "${rmsqlconf}" == Y* || "${rmsqlconf}" == y* ]]; then
+            # Remove MariaDB (MySQL) config files
+            while [[ $REMOVE_MYSQLCONFIG != "y" && $REMOVE_MYSQLCONFIG != "n" ]]; do
+                read -p "Remove MariaDB (MySQL) database and configuration files \
+                (This action is not reversible)? [y/n]: " -e REMOVE_MYSQLCONFIG
+    		done
+            if [[ "$REMOVE_MYSQLCONFIG" == Y* || "$REMOVE_MYSQLCONFIG" == y* ]]; then
         	    echo "All your SQL database and configuration files deleted permanently."
                 if [[ -d /etc/mysql ]]; then
             	    run rm -fr /etc/mysql
@@ -423,10 +432,11 @@ case $1 in
             warning -e "MariaDB installation not found."
         fi
 
-        # Remove default user
-        echo -en "\nRemove default LEMPer account? [y/n]: "
-        read rmdefaultuser
-        if [[ "${rmdefaultuser}" == Y* || "${rmdefaultuser}" == y* ]]; then
+        # Remove default user account
+        while [[ $REMOVE_ACCOUNT != "y" && $REMOVE_ACCOUNT != "n" ]]; do
+            read -p "Remove default LEMPer account? [y/n]: " -e REMOVE_ACCOUNTG
+        done
+        if [[ "$REMOVE_ACCOUNT" == Y* || "$REMOVE_ACCOUNT" == y* ]]; then
             USERNAME="lemper" # default system account for LEMPer
             if [[ ! -z $(getent passwd "${USERNAME}") ]]; then
                 run userdel -r ${USERNAME} >> lemper.log 2>&1
