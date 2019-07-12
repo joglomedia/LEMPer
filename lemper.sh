@@ -255,7 +255,7 @@ case $1 in
             || -n $(which php-fpm7.3) ]]; then
 
             # Related PHP packages to be removed
-            DEBPackages=("fcgiwrap php-geoip php-pear php-phalcon pkg-php-tools spawn-fcgi geoip-database")
+            DEBPackages=()
 
             # Stop default PHP FPM process
             if [[ $(ps -ef | grep -v grep | grep php-fpm | grep "php/5.6" | wc -l) > 0 ]]; then
@@ -308,7 +308,10 @@ case $1 in
                     php7.3-tidy php7.3-xml php7.3-xmlrpc php7.3-xsl php7.3-zip" "${DEBPackages[@]}")
             fi
 
-            run apt-get --purge remove -y ${DEBPackages} >> lemper.log 2>&1
+            if [[ -n ${DEBPackages} ]]; then
+                run apt-get --purge remove -y ${DEBPackages} \
+                    fcgiwrap php-geoip php-pear php-phalcon pkg-php-tools spawn-fcgi geoip-database >> lemper.log 2>&1
+            fi
 
             #run apt-get purge -y ${DEBPackages} >> lemper.log 2>&1
             run add-apt-repository -y --remove ppa:ondrej/php >> lemper.log 2>&1
