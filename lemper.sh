@@ -383,6 +383,7 @@ case $1 in
         fi
 
         # Remove unnecessary packages
+        echo -e "\nClean-up unnecessary packages..."
         run apt-get autoremove -y
     ;;
     --help)
