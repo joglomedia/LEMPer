@@ -490,7 +490,7 @@ _EOF_
 # To be outputted into new pool file in fpm/pool.d
 #
 function create_fpm_pool_conf() {
-cat <<- _EOF_
+    cat <<- _EOF_
 [${USERNAME}]
 user = ${USERNAME}
 group = ${USERNAME}
@@ -506,8 +506,11 @@ pm.max_children = 5
 pm.start_servers = 2
 pm.min_spare_servers = 1
 pm.max_spare_servers = 3
-pm.process_idle_timeout = 30s;
+pm.process_idle_timeout = 30s
 pm.max_requests = 500
+pm.status_path = /status
+
+ping.path = /ping
 
 request_slowlog_timeout = 6s
 slowlog = /var/log/php${PHP_VERSION}-fpm_slow.\$pool.log
