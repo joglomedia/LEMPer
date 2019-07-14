@@ -51,9 +51,14 @@ function init_mariadb_removal() {
     fi
 }
 
-echo -e "\nUninstalling MariaDB (MySQL)..."
+echo -e "\nUninstalling MariaDB (MySQL) server..."
 if [[ -n $(which mysql) ]]; then
-    init_mariadb_removal "$@"
+    while [[ $REMOVE_MARIADB != "y" && $REMOVE_MARIADB != "n" ]]; do
+        read -p "Are you sure to to remove MariaDB? [y/n]: " -e REMOVE_MARIADB
+    done
+    if [[ "$REMOVE_MARIADB" == Y* || "$REMOVE_MARIADB" == y* ]]; then
+        init_mariadb_removal "$@"
+    fi
 else
-    warning -e "MariaDB installation not found."
+    warning "MariaDB installation not found."
 fi

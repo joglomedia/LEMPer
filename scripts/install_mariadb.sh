@@ -22,7 +22,7 @@ function init_mariadb_install() {
     done
 
     if [[ "$INSTALL_MYSQL" == Y* || "$INSTALL_MYSQL" == y* ]]; then
-        echo "Installing MariaDB (MySQL) server...\n"
+        echo "Installing MariaDB (MySQL) server..."
 
         # Install MariaDB
         run apt-get install -y mariadb-server libmariadbclient18 >> lemper.log 2>&1
@@ -57,9 +57,9 @@ function init_mariadb_install() {
 
         # Restart MariaDB MySQL server
         if [[ $(ps -ef | grep -v grep | grep mysql | wc -l) > 0 ]]; then
-            status -"MariaDB (MySQL) database server installed successfully."
+            status -e "\nMariaDB (MySQL) database server installed successfully."
         else
-            warning "Something wrong with MariaDB (MySQL) installation."
+            warning -e "\nSomething wrong with MariaDB (MySQL) installation."
         fi
     fi
 }

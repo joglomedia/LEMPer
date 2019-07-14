@@ -99,8 +99,8 @@ case $1 in
         fi
 
         ### Memcached installation ###
-        if [ -f scripts/install_memcache.sh ]; then
-            . scripts/install_memcache.sh
+        if [ -f scripts/install_memcached.sh ]; then
+            . scripts/install_memcached.sh
         fi
 
         ### MySQL database installation ###
@@ -187,44 +187,57 @@ case $1 in
         fi
 
         # Remove Memcached if exists
-        if [[ -n $(which memcached) ]]; then
-            echo -e "\nUninstalling Memcached..."
+        while [[ $REMOVE_MEMCACHED != "y" && $REMOVE_MEMCACHED != "n" ]]; do
+            read -p "Do you want to remove Memcached? [y/n]: " -e REMOVE_MEMCACHED
+        done
+        if [[ "$REMOVE_MEMCACHED" == Y* || "$REMOVE_MEMCACHED" == y* ]]; then
+            if [[ -n $(which memcached) ]]; then
+                echo -e "\nUninstalling Memcached..."
 
-            # Stop Memcached server process
-            if [[ $(ps -ef | grep -v grep | grep memcached | wc -l) > 0 ]]; then
-                run service memcached stop
-            fi
+                # Stop Memcached server process
+                if [[ $(ps -ef | grep -v grep | grep memcached | wc -l) > 0 ]]; then
+                    run service memcached stop
+                fi
 
-            run apt-get --purge remove -y libmemcached11 memcached php-igbinary \
-                php-memcache php-memcached php-msgpack >> lemper.log 2>&1
-            #run apt-get purge -y libmemcached11 memcached php-igbinary \
-            #    php-memcache php-memcached php-msgpack >> lemper.log 2>&1
-            #run rm -f /etc/memcached.conf
+                run apt-get --purge remove -y libmemcached11 memcached php-igbinary \
+                    php-memcache php-memcached php-msgpack >> lemper.log 2>&1
+                #run apt-get purge -y libmemcached11 memcached php-igbinary \
+                #    php-memcache php-memcached php-msgpack >> lemper.log 2>&1
+                #run rm -f /etc/memcached.conf
 
-            if [[ -z $(which memcached) ]]; then
-                status "Memcached server removed."
+                if [[ -z $(which memcached) ]]; then
+                    status "Memcached server removed."
+                fi
+            else
+                warning "Memcached installation not found."
             fi
         fi
 
         # Remove Redis if exists
-        if [[ -n $(which redis-server) ]]; then
-            echo -e "\nUninstalling Redis..."
+        while [[ $REMOVE_MEMCACHED != "y" && $REMOVE_MEMCACHED != "n" ]]; do
+            read -p "Do you want to remove Memcached? [y/n]: " -e REMOVE_MEMCACHED
+        done
+        if [[ "$REMOVE_MEMCACHED" == Y* || "$REMOVE_MEMCACHED" == y* ]]; then
+            if [[ -n $(which redis-server) ]]; then
+                echo -e "\nUninstalling Redis..."
 
-            # Stop Redis server process
-            if [[ $(ps -ef | grep -v grep | grep redis-server | wc -l) > 0 ]]; then
-                run service redis-server stop
-            fi
+                # Stop Redis server process
+                if [[ $(ps -ef | grep -v grep | grep redis-server | wc -l) > 0 ]]; then
+                    run service redis-server stop
+                fi
 
-            run apt-get --purge remove -y redis-server php-redis >> lemper.log 2>&1
-            #run apt-get purge -y redis-server >> lemper.log 2>&1
-            run add-apt-repository -y --remove ppa:chris-lea/redis-server >> lemper.log 2>&1
-            #run rm -f /etc/redis/redis.conf
+                run apt-get --purge remove -y redis-server php-redis >> lemper.log 2>&1
+                #run apt-get purge -y redis-server >> lemper.log 2>&1
+                run add-apt-repository -y --remove ppa:chris-lea/redis-server >> lemper.log 2>&1
+                #run rm -f /etc/redis/redis.conf
 
-            if [[ -z $(which redis-server) ]]; then
-                status "Redis server removed."
+                if [[ -z $(which redis-server) ]]; then
+                    status "Redis server removed."
+                fi
+            else
+                warning "Redis server installation not found."
             fi
         fi
-
 
         ### Remove MySQL ###
         if [ -f scripts/remove_mariadb.sh ]; then

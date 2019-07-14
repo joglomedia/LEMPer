@@ -27,9 +27,9 @@ function install_php() {
 
     # Checking if php already installed
     if [[ -n $(which php${PHPv}) ]]; then
-        warning "PHP $PHPv package already installed..."
+        warning "PHP${PHPv} & FPM package already installed..."
     else
-        echo "Installing PHP $PHPv..."
+        echo "Installing PHP${PHPv} & FPM..."
 
         run apt-get install -y php${PHPv} php${PHPv}-bcmath php${PHPv}-cli php${PHPv}-common \
             php${PHPv}-curl php${PHPv}-dev php${PHPv}-fpm php${PHPv}-mysql php${PHPv}-gd \
@@ -38,6 +38,10 @@ function install_php() {
             php${PHPv}-recode php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
             php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
             php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database >> lemper.log 2>&1
+
+        if [[ -n $(which php${PHPv}) ]]; then
+            status "PHP${PHPv} & FPM package installed."
+        fi
 
         # Install php mcrypt?
         echo ""

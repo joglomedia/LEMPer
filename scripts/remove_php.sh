@@ -117,7 +117,15 @@ if [[ -n $(which php-fpm5.6) \
     || -n $(which php-fpm7.2) \
     || -n $(which php-fpm7.3) ]]; then
 
-    init_phpfpm_removal "$@"
+
+    while [[ $REMOVE_PHP != "y" && $REMOVE_PHP != "n" ]]; do
+        read -p "Are you sure to remove PHP & FPM? [y/n]: " -e REMOVE_NGINX
+    done
+    if [[ "$REMOVE_PHP" == Y* || "$REMOVE_PHP" == y* ]]; then
+        init_phpfpm_removal "$@"
+    else
+        echo "PHP & FPM uninstall skipped."
+    fi
 else
     warning "PHP installation not found."
 fi

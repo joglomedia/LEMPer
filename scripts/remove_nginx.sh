@@ -99,7 +99,14 @@ function init_nginx_removal() {
 
 echo -e "\nUninstalling Nginx web server..."
 if [[ -n $(which nginx) ]]; then
-    init_nginx_removal "$@"
+    while [[ $REMOVE_NGINX != "y" && $REMOVE_NGINX != "n" ]]; do
+        read -p "Are you sure to remove Nginx web server? [y/n]: " -e REMOVE_NGINX
+    done
+    if [[ "$REMOVE_NGINX" == Y* || "$REMOVE_NGINX" == y* ]]; then
+        init_nginx_removal "$@"
+    else
+        echo "Nginx uninstall skipped."
+    fi
 else
     warning "Nginx installation not found."
 fi
