@@ -452,6 +452,27 @@ map \$http_host \$blogid {
 _EOF_
 }
 
+## Output server block for HTTP to HTTPS redirection
+#
+function http_to_https() {
+cat <<- _EOF_
+
+# HTTP to HTTPS redirection
+server {
+    listen 80;
+    #listen [::]:80 default_server ipv6only=on;
+
+    ## Make site accessible from world web.
+    server_name ${SERVERNAME};
+
+    ## Automatically redirect site to HTTPS protocol.
+    location / {
+        return 301 https://$server_name$request_uri;
+    }
+}
+_EOF_
+}
+
 ## Output index.html skeleton for default index page
 # To be outputted into new index.html file in document root
 #
