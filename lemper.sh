@@ -210,6 +210,8 @@ case $1 in
             else
                 warning "Memcached installation not found."
             fi
+        else
+            echo "Memcache uninstall skipped."
         fi
 
         # Remove Redis if exists
@@ -235,6 +237,8 @@ case $1 in
             else
                 warning "Redis server installation not found."
             fi
+        else
+            echo "Redis server uninstall skipped."
         fi
 
         ### Remove MySQL ###
