@@ -119,7 +119,7 @@ if [[ -n $(which php-fpm5.6) \
 
 
     while [[ $REMOVE_PHP != "y" && $REMOVE_PHP != "n" ]]; do
-        read -p "Are you sure to remove PHP & FPM? [y/n]: " -e REMOVE_NGINX
+        read -p "Are you sure to remove PHP & FPM? [y/n]: " -e REMOVE_PHP
     done
     if [[ "$REMOVE_PHP" == Y* || "$REMOVE_PHP" == y* ]]; then
         init_phpfpm_removal "$@"
