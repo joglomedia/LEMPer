@@ -27,7 +27,7 @@ function install_php() {
 
     # Checking if php already installed
     if [[ -n $(which php${PHPv}) ]]; then
-        warning -e "\nPHP $PHPv package already installed..."
+        warning "PHP $PHPv package already installed..."
     else
         echo "Installing PHP $PHPv..."
 
@@ -44,6 +44,7 @@ function install_php() {
         while [[ $INSTALL_PHPMCRYPT != "y" && $INSTALL_PHPMCRYPT != "n" ]]; do
             read -p "Do you want to install PHP Mcrypt for encryption/decryption? [y/n]: " -e INSTALL_PHPMCRYPT
         done
+        echo ""
 
         if [[ "$INSTALL_PHPMCRYPT" == Y* || "$INSTALL_PHPMCRYPT" == y* ]]; then
             if [ "${PHPv//.}" -lt "72" ]; then
@@ -54,7 +55,7 @@ function install_php() {
                 run pecl install mcrypt-1.0.1 >> lemper.log 2>&1
 
                 # enable module
-                echo -e "\nUpdate PHP ini file with mcrypt module..."
+                echo "Update PHP ini file with Mcrypt module..."
                 bash -c "echo extension=mcrypt.so > /etc/php/${PHPv}/mods-available/mcrypt.ini"
 
                 if [ ! -f /etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini ]; then
@@ -68,7 +69,7 @@ function install_php() {
                 run apt-get install -y dh-php >> lemper.log 2>&1
 
                 # use libsodium instead
-                warning -e "\nPHP Mcrypt is deprecated for PHP version $PHPv or greater, you should using Libsodium or OpenSSL."
+                warning "Mcrypt is deprecated for PHP version $PHPv or greater, you should using Libsodium or OpenSSL."
             fi
         fi
     fi
@@ -115,7 +116,7 @@ function remove_php() {
                 run apt-get --purge remove -y dh-php >> lemper.log 2>&1
 
                 # use libsodium instead
-                warning -e "If you're installing Libsodium extension, then remove it separately."
+                warning "If you're installing Libsodium extension, then remove it separately."
             fi
         fi
 
@@ -327,18 +328,18 @@ function optimize_php() {
         PHPv="7.3" # default php install 7.3 (latest stable recommendation)
     fi
 
-    echo "Optimizing PHP ${PHPv} configuration..."
+    echo "Optimizing PHP${PHPv} & FPM configuration..."
 
     if [ ! -d /etc/php/${PHPv}/fpm ]; then
         run mkdir /etc/php/${PHPv}/fpm
     fi
 
-    # Copy custom php.ini
-    if [ -f php/${PHPv}/fpm/php.ini ]; then
+    # Copy the optimized-version of php.ini
+    if [ -f config/php/${PHPv}/fpm/php.ini ]; then
         run mv /etc/php/${PHPv}/fpm/php.ini /etc/php/${PHPv}/fpm/php.ini.old
-        run cp php/${PHPv}/fpm/php.ini /etc/php/${PHPv}/fpm/
+        run cp -f config/php/${PHPv}/fpm/php.ini /etc/php/${PHPv}/fpm/
     else
-cat >> /etc/php/${PHPv}/fpm/php.ini <<EOL
+        cat >> /etc/php/${PHPv}/fpm/php.ini <<EOL
 
 [opcache]
 opcache.enable=1;
@@ -353,10 +354,22 @@ opcache.save_comments=1
 EOL
     fi
 
-    # Copy the optimized-version of php fpm config file
-    if [ -f php/${PHPv}/fpm/php-fpm.conf ]; then
+    # Copy the optimized-version of php-fpm config file
+    if [ -f config/php/${PHPv}/fpm/php-fpm.conf ]; then
         run mv /etc/php/${PHPv}/fpm/php-fpm.conf /etc/php/${PHPv}/fpm/php-fpm.conf.old
-        run cp php/${PHPv}/fpm/php-fpm.conf /etc/php/${PHPv}/fpm/
+        run cp -f config/php/${PHPv}/fpm/php-fpm.conf /etc/php/${PHPv}/fpm/
+    else
+        cat >> /etc/php/${PHPv}/fpm/php.ini <<EOL
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Custom Optimization by LEMPer ;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Adjust to meet your needs.
+emergency_restart_threshold 10
+emergency_restart_interval 1m
+process_control_timeout 10s
+EOL
     fi
 
     if [ ! -d /etc/php/${PHPv}/fpm/pool.d ]; then
@@ -364,15 +377,15 @@ EOL
     fi
 
     # Copy the optimized-version of php fpm default pool
-    if [ -f php/${PHPv}/fpm/pool.d/www.conf ]; then
+    if [ -f config/php/${PHPv}/fpm/pool.d/www.conf ]; then
         run mv /etc/php/${PHPv}/fpm/pool.d/www.conf /etc/php/${PHPv}/fpm/pool.d/www.conf.old
-        run cp php/${PHPv}/fpm/pool.d/www.conf /etc/php/${PHPv}/fpm/pool.d/
+        run cp -f config/php/${PHPv}/fpm/pool.d/www.conf /etc/php/${PHPv}/fpm/pool.d/
     fi
 
     # Copy the optimized-version of php fpm lemper pool
-    if [ -f php/${PHPv}/fpm/pool.d/lemper.conf ]; then
+    if [ -f config/php/${PHPv}/fpm/pool.d/lemper.conf ]; then
         run mv /etc/php/${PHPv}/fpm/pool.d/lemper.conf /etc/php/${PHPv}/fpm/pool.d/lemper.conf.old
-        run cp php/${PHPv}/fpm/pool.d/lemper.conf /etc/php/${PHPv}/fpm/pool.d/
+        run cp -f config/php/${PHPv}/fpm/pool.d/lemper.conf /etc/php/${PHPv}/fpm/pool.d/
     else
 cat >> /etc/php/${PHPv}/fpm/pool.d/lemper.conf <<EOL
 [lemper]
@@ -385,6 +398,8 @@ listen.group = lemper
 listen.mode = 0666
 ;listen.allowed_clients = 127.1.0.1
 
+; Custom PHP-FPM optimization here
+; adjust to meet your needs.
 pm = dynamic
 pm.max_children = 5
 pm.start_servers = 2
@@ -392,8 +407,8 @@ pm.min_spare_servers = 1
 pm.max_spare_servers = 3
 pm.process_idle_timeout = 30s
 pm.max_requests = 500
-pm.status_path = /status
 
+pm.status_path = /status
 ping.path = /ping
 
 request_slowlog_timeout = 6s
@@ -401,7 +416,7 @@ slowlog = /var/log/php7.3-fpm_slow.$pool.log
 
 chdir = /
 
-security.limit_extensions = .php .php3 .php4 .php5 .php73
+security.limit_extensions = .php .php3 .php4 .php5 .php${PHPv//./}
 
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com
 php_flag[display_errors] = on
@@ -427,14 +442,14 @@ EOL
     # Restart PHP-fpm server
     if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
         run service php${PHPv}-fpm restart
-        status -e "\nPHP${PHPv}-FPM restarted successfully."
+        status "PHP${PHPv}-FPM restarted successfully."
     elif [[ -n $(which php${PHPv}) ]]; then
         run service php${PHPv}-fpm start
 
         if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
-            status -e "\nPHP${PHPv}-FPM started successfully."
+            status "PHP${PHPv}-FPM started successfully."
         else
-            warning -e "\nSomething wrong with PHP installation."
+            warning "Something wrong with PHP installation."
         fi
     fi
 }
@@ -612,7 +627,7 @@ function init_php_install() {
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(which php5.6) && -n $(which php7.0) && -n $(which php7.1) && -n $(which php7.2) && -n $(which php7.3) ]]; then
-    warning -e "\nAll available PHP version has already been installed. Installation skipped..."
+    warning -e "\nAll available PHP version already exists. Installation skipped..."
 else
     init_php_install "$@"
 fi

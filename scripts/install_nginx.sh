@@ -20,7 +20,6 @@ if [ $(id -u) -ne 0 ]; then
 fi
 
 function nginx_install_menu() {
-    echo ""
     echo "Available Nginx installer to use:"
     echo "  1). Install from Repository"
     echo "  2). Compile from Source"
@@ -101,7 +100,6 @@ function nginx_install_menu() {
             read -p "Enable Nginx dynamic modules? [y/n]: " -e ENABLE_NGXDM
 		done
         if [[ "$ENABLE_NGXDM" == Y* || "$ENABLE_NGXDM" == y* ]]; then
-
             if [[ -f /etc/nginx/modules-available/mod-pagespeed.conf && \
                 ! -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
                 run ln -s /etc/nginx/modules-available/mod-pagespeed.conf /etc/nginx/modules-enabled/50-mod-pagespeed.conf
@@ -112,13 +110,13 @@ function nginx_install_menu() {
 
         # Nginx init script
         if [ ! -f /etc/init.d/nginx ]; then
-            run cp nginx/init.d/nginx /etc/init.d/
+            run cp config/nginx/init.d/nginx /etc/init.d/
             run chmod ugo+x /etc/init.d/nginx
         fi
 
         # Nginx systemd script
         if [ ! -f /lib/systemd/system/nginx.service ]; then
-            run cp nginx/systemd/nginx.service /lib/systemd/system/
+            run cp config/nginx/systemd/nginx.service /lib/systemd/system/
         fi
     fi
 
@@ -127,7 +125,8 @@ function nginx_install_menu() {
 
 function init_nginx_install() {
     echo ""
-    echo "Welcome to Nginx installation script"
+    echo "Welcome to Nginx Installation..."
+    echo ""
 
     # Install Nginx custom
     nginx_install_menu
@@ -137,27 +136,27 @@ function init_nginx_install() {
         run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.old
     fi
 
-    run cp -f nginx/charset /etc/nginx/
-    run cp -f nginx/comp_brotli /etc/nginx/
-    run cp -f nginx/comp_gzip /etc/nginx/
-    run cp -f nginx/fastcgi_cache /etc/nginx/
-    run cp -f nginx/fastcgi_https_map /etc/nginx/
-    run cp -f nginx/fastcgi_params /etc/nginx/
-    run cp -f nginx/http_cloudflare_ips /etc/nginx/
-    run cp -f nginx/http_proxy_ips /etc/nginx/
-    run cp -f nginx/nginx.conf /etc/nginx/
-    run cp -f nginx/proxy_cache /etc/nginx/
-    run cp -f nginx/proxy_params /etc/nginx/
-    run cp -f nginx/upstream /etc/nginx/
-    run cp -fr nginx/includes/ /etc/nginx/
-    run cp -fr nginx/vhost/ /etc/nginx/
-    run cp -fr nginx/ssl/ /etc/nginx/
+    run cp -f config/nginx/charset /etc/nginx/
+    run cp -f config/nginx/comp_brotli /etc/nginx/
+    run cp -f config/nginx/comp_gzip /etc/nginx/
+    run cp -f config/nginx/fastcgi_cache /etc/nginx/
+    run cp -f config/nginx/fastcgi_https_map /etc/nginx/
+    run cp -f config/nginx/fastcgi_params /etc/nginx/
+    run cp -f config/nginx/http_cloudflare_ips /etc/nginx/
+    run cp -f config/nginx/http_proxy_ips /etc/nginx/
+    run cp -f config/nginx/nginx.conf /etc/nginx/
+    run cp -f config/nginx/proxy_cache /etc/nginx/
+    run cp -f config/nginx/proxy_params /etc/nginx/
+    run cp -f config/nginx/upstream /etc/nginx/
+    run cp -fr config/nginx/includes/ /etc/nginx/
+    run cp -fr config/nginx/vhost/ /etc/nginx/
+    run cp -fr config/nginx/ssl/ /etc/nginx/
 
     if [ -f /etc/nginx/sites-available/default ]; then
         run mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default.old
     fi
 
-    run cp -f nginx/sites-available/default /etc/nginx/sites-available/
+    run cp -f config/nginx/sites-available/default /etc/nginx/sites-available/
 
     if [ -f /etc/nginx/sites-enabled/default ]; then
         run unlink /etc/nginx/sites-enabled/default
@@ -197,16 +196,17 @@ function init_nginx_install() {
     run sed -i "s|localhost.localdomain|${IPAddr}|g" /etc/nginx/sites-available/default
 
     # Restart Nginx server
+    echo "Starting Nginx web server..."
     if [[ $(ps -ef | grep -v grep | grep nginx | wc -l) > 0 ]]; then
-        run service nginx restart
-        status -e "\nNginx web server restarted successfully."
+        run service nginx reload -s
+        status "Nginx web server restarted successfully."
     elif [[ -n $(which nginx) ]]; then
         run service nginx start
 
         if [[ $(ps -ef | grep -v grep | grep nginx | wc -l) > 0 ]]; then
-            status -e "\nNginx web server started successfully."
+            status "Nginx web server started successfully."
         else
-            warning -e "\nSomething went wrong with Nginx installation."
+            warning "Something wrong with Nginx installation."
         fi
     fi
 }

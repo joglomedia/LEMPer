@@ -215,7 +215,7 @@ case $1 in
                 run service redis-server stop
             fi
 
-            run apt-get --purge remove -y redis-server >> lemper.log 2>&1
+            run apt-get --purge remove -y redis-server php-redis >> lemper.log 2>&1
             #run apt-get purge -y redis-server >> lemper.log 2>&1
             run add-apt-repository -y --remove ppa:chris-lea/redis-server >> lemper.log 2>&1
             #run rm -f /etc/redis/redis.conf
@@ -230,7 +230,7 @@ case $1 in
         if [ -f scripts/remove_mariadb.sh ]; then
             . scripts/remove_mariadb.sh
         fi
-        
+
         # Remove default user account
         if [ "$(type -t delete_account)" == "function" ]; then
             delete_account "lemper"

@@ -501,6 +501,8 @@ listen.group = ${USERNAME}
 listen.mode = 0666
 ;listen.allowed_clients = 127.0.0.1
 
+; Custom PHP-FPM optimization here
+; adjust to meet your needs.
 pm = dynamic
 pm.max_children = 5
 pm.start_servers = 2
@@ -508,8 +510,8 @@ pm.min_spare_servers = 1
 pm.max_spare_servers = 3
 pm.process_idle_timeout = 30s
 pm.max_requests = 500
-pm.status_path = /status
 
+pm.status_path = /status
 ping.path = /ping
 
 request_slowlog_timeout = 6s
@@ -517,7 +519,7 @@ slowlog = /var/log/php${PHP_VERSION}-fpm_slow.\$pool.log
 
 chdir = /
 
-security.limit_extensions = .php .php3 .php4 .php5 .php7 .php${PHP_VERSION//./}
+security.limit_extensions = .php .php3 .php4 .php5 .php${PHP_VERSION//./}
 
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com
 php_flag[display_errors] = on

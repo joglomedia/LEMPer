@@ -14,14 +14,16 @@ fi
 
 function init_mariadb_install() {
     echo ""
-    echo "Installing MariaDB (MySQL) database server..."
-
+    echo "Welcome to MariaDB (MySQL) Installation..."
     echo ""
+
     while [[ $INSTALL_MYSQL != "y" && $INSTALL_MYSQL != "n" ]]; do
         read -p "Do you want to install MariaDB (MySQL) server? [y/n]: " -e INSTALL_MYSQL
     done
 
     if [[ "$INSTALL_MYSQL" == Y* || "$INSTALL_MYSQL" == y* ]]; then
+        echo "Installing MariaDB (MySQL) server...\n"
+
         # Install MariaDB
         run apt-get install -y mariadb-server libmariadbclient18 >> lemper.log 2>&1
 
@@ -33,16 +35,16 @@ function init_mariadb_install() {
         #service mysql start
         if [[ -n $(which mysql) ]]; then
             if [ ! -f /etc/mysql/my.cnf ]; then
-                run cp -f mysql/my.cnf /etc/mysql/
+                run cp -f config/mysql/my.cnf /etc/mysql/
             fi
             if [ ! -f /etc/mysql/mariadb.cnf ]; then
-                run cp -f mysql/mariadb.cnf /etc/mysql/
+                run cp -f config/mysql/mariadb.cnf /etc/mysql/
             fi
             if [ ! -f /etc/mysql/debian.cnf ]; then
-                run cp -f mysql/debian.cnf /etc/mysql/
+                run cp -f config/mysql/debian.cnf /etc/mysql/
             fi
             if [ ! -f /etc/mysql/debian-start ]; then
-                run cp -f mysql/debian-start /etc/mysql/
+                run cp -f config/mysql/debian-start /etc/mysql/
                 run chmod +x /etc/mysql/debian-start
             fi
 
@@ -55,9 +57,9 @@ function init_mariadb_install() {
 
         # Restart MariaDB MySQL server
         if [[ $(ps -ef | grep -v grep | grep mysql | wc -l) > 0 ]]; then
-            status -e "\nMariaDB (MySQL) database server installed successfully."
+            status -"MariaDB (MySQL) database server installed successfully."
         else
-            warning -e "\nSomething went wrong with MariaDB (MySQL) installation."
+            warning "Something wrong with MariaDB (MySQL) installation."
         fi
     fi
 }
