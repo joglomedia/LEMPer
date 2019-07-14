@@ -58,6 +58,8 @@ if [[ -n $(which mysql) ]]; then
     done
     if [[ "$REMOVE_MARIADB" == Y* || "$REMOVE_MARIADB" == y* ]]; then
         init_mariadb_removal "$@"
+    else
+        echo "MariaDB (MySQL) uninstall skipped."
     fi
 else
     warning "MariaDB installation not found."
