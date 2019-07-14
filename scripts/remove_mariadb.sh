@@ -33,8 +33,8 @@ function init_mariadb_removal() {
 
     # Remove MariaDB (MySQL) config files
     while [[ $REMOVE_MYSQLCONFIG != "y" && $REMOVE_MYSQLCONFIG != "n" ]]; do
-        read -p "Remove MariaDB (MySQL) database and configuration files \
-        (This action is not reversible)? [y/n]: " -e REMOVE_MYSQLCONFIG
+        read -ep "Remove MariaDB (MySQL) database and configuration files \
+        \n(This action is not reversible)? [y/n]: " -e REMOVE_MYSQLCONFIG
     done
     if [[ "$REMOVE_MYSQLCONFIG" == Y* || "$REMOVE_MYSQLCONFIG" == y* ]]; then
         echo "All your SQL database and configuration files deleted permanently."
@@ -46,7 +46,7 @@ function init_mariadb_removal() {
         fi
     fi
 
-    if [[ -z $(which mysql) ]]; then
+    if [[ -z $(which mysqld) ]]; then
         status "MariaDB (MySQL) server removed."
     fi
 }
