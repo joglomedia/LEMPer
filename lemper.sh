@@ -187,14 +187,12 @@ case $1 in
         fi
 
         # Remove Memcached if exists
-        echo ""
+        echo -e "\nUninstalling Memcached..."
         while [[ $REMOVE_MEMCACHED != "y" && $REMOVE_MEMCACHED != "n" ]]; do
             read -p "Do you want to remove Memcached? [y/n]: " -e REMOVE_MEMCACHED
         done
         if [[ "$REMOVE_MEMCACHED" == Y* || "$REMOVE_MEMCACHED" == y* ]]; then
             if [[ -n $(which memcached) ]]; then
-                echo -e "\nUninstalling Memcached..."
-
                 # Stop Memcached server process
                 if [[ $(ps -ef | grep -v grep | grep memcached | wc -l) > 0 ]]; then
                     run service memcached stop
@@ -215,13 +213,12 @@ case $1 in
         fi
 
         # Remove Redis if exists
+        echo -e "\nUninstalling Redis..."
         while [[ $REMOVE_REDIS != "y" && $REMOVE_REDIS != "n" ]]; do
             read -p "Do you want to remove Redis server? [y/n]: " -e REMOVE_REDIS
         done
         if [[ "$REMOVE_REDIS" == Y* || "$REMOVE_REDIS" == y* ]]; then
             if [[ -n $(which redis-server) ]]; then
-                echo -e "\nUninstalling Redis..."
-
                 # Stop Redis server process
                 if [[ $(ps -ef | grep -v grep | grep redis-server | wc -l) > 0 ]]; then
                     run service redis-server stop
