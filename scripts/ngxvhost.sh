@@ -19,7 +19,7 @@
 # Version Control
 APP_NAME=$(basename "$0")
 APP_VERSION="1.6.0"
-LAST_UPDATE="24/06/2019"
+LAST_UPDATE="16/07/2019"
 
 INSTALL_DIR=$(pwd)
 DRYRUN=false
