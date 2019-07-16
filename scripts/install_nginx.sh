@@ -35,7 +35,7 @@ function nginx_install_menu() {
         ;;
         2)
             echo -e "\nInstalling Nginx from source..."
-            run ${BASEDIR}/install_nginx_from_source.sh -v latest-stable -n latest \
+            run ${BASEDIR}/install_nginx_from_source.sh -v latest-stable -n stable \
                 --dynamic-module --extra-modules -y
         ;;
         *)

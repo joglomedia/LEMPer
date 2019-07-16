@@ -48,13 +48,16 @@ Options:
     -n, --nginx-version <nginx version>
         What version of nginx to build. If not set, this script only prepares the
         ngx_pagespeed module, and expects you to handle including it when you
-        build nginx.
+        build nginx. Valid options include:
+        * latest | mainline
+        * stable | lts
+        * a version number, such as 1.16.0
 
-        If you pass in 'latest' then this script scrapes the nginx download page
-        and attempts to determine the latest version automatically.
+        If you pass in 'latest' or 'stable' then this script scrapes the nginx download page
+        and attempts to determine the latest or stable version automatically.
 
     -m, --dynamic-module
-        Build ngx_pagespeed as a dynamic module.
+        Build ngx_pagespeed and Nginx extra modules as a dynamic module.
 
     -b, --builddir <directory>
         Where to build. Defaults to \$HOME.
@@ -66,7 +69,7 @@ Options:
         dependencies yourself and pass --no-deps-check.
 
     -s, --psol-from-source
-            Build PSOL from source instead of downloading a pre-built binary module.
+        Build PSOL from source instead of downloading a pre-built binary module.
 
     -l, --devel
         Sets up a development environment in ngx_pagespeed/nginx, building with
@@ -195,34 +198,58 @@ function version_older_than() {
     test "$older_version" != "$compare_to"
 }
 
-function determine_latest_nginx_version() {
-    # Scrape nginx's download page to try to find the most recent nginx version.
+function nginx_download_report_error() {
+    fail "Couldn't automatically determine the latest nginx version: failed to $@ Nginx's download page"
+}
 
+function get_nginx_versions_available() {
+    # Scrape nginx's download page to try to find the all available nginx versions.
     nginx_download_url="https://nginx.org/en/download.html"
-    function report_error() {
-        fail "Couldn't automatically determine the latest nginx version: failed to $@$nginx_download_url"
-    }
 
     nginx_download_page=$(curl -sS --fail "$nginx_download_url") || \
-        report_error "download"
+        nginx_download_report_error "download"
 
     download_refs=$(echo "$nginx_download_page" | \
-        grep -o '/download/nginx-[0-9.]*[.]tar[.]gz') || \
-        report_error "parse"
+        grep -owE '"/download/nginx-[0-9.]*\.tar\.gz"') || \
+        nginx_download_report_error "parse"
 
     versions_available=$(echo "$download_refs" | \
-        sed -e 's~^/download/nginx-~~' -e 's~\.tar\.gz$~~') || \
-        report_error "extract versions from"
+        sed -e 's~^"/download/nginx-~~' -e 's~\.tar\.gz"$~~') || \
+        nginx_download_report_error "extract versions from"
+
+    echo "$versions_available"
+}
+
+function determine_latest_nginx_version() {
+    # Try to find the most recent nginx version (mainline).
+
+    versions_available=$(get_nginx_versions_available)
 
     latest_version=$(echo "$versions_available" | version_sort | tail -n 1) || \
-        report_error "determine latest version from"
+        report_error "determine latest (mainline) version from"
 
-    if version_older_than "$latest_version" "1.11.4"; then
-        fail "Expected the latest version of nginx to be at least 1.11.4 but found
+    if version_older_than "$latest_version" "1.14.2"; then
+        fail "Expected the latest version of nginx to be at least 1.14.2 but found
 $latest_version on $nginx_download_url"
     fi
 
     echo "$latest_version"
+}
+
+function determine_stable_nginx_version() {
+    # Try to find the stable nginx version (mainline).
+
+    versions_available=$(get_nginx_versions_available)
+
+    stable_version=$(echo "$versions_available" | version_sort | tail -n 2 | sort -r | tail -n 1) || \
+        report_error "determine stable (LTS) version from"
+
+    if version_older_than "$latest_version" "1.14.2"; then
+        fail "Expected the latest version of nginx to be at least 1.14.2 but found
+$latest_version on $nginx_download_url"
+    fi
+
+    echo "$stable_version"
 }
 
 # Usage:
@@ -462,10 +489,12 @@ function build_ngx_pagespeed() {
         fail "Setting --build-type requires --psol-from-source or --devel."
     fi
 
-    if [ "$NGINX_VERSION" = "latest" ]; then
+    if [[ "$NGINX_VERSION" = "latest" || "$NGINX_VERSION" = "mainline" ]]; then
         # When this function fails it prints the debugging information needed first
         # to stderr.
         NGINX_VERSION=$(determine_latest_nginx_version) || exit 1
+    elif [[ "$NGINX_VERSION" = "stable" || "$NGINX_VERSION" = "lts" ]]; then
+        NGINX_VERSION=$(determine_stable_nginx_version) || exit 1
     fi
 
     if "$DYNAMIC_MODULE"; then
@@ -486,8 +515,7 @@ ngx_pagespeed didn't add support for dynamic modules until 1.10.33.5."
         if [ ! -z "NGINX_VERSION" ]; then
             if version_older_than "$NGINX_VERSION" "1.9.13"; then
                 fail "You're trying to build nginx $NGINX_VERSION as a dynamic module but nginx didn't
-add support for dynamic modules in a way compatible with ngx_pagespeed until
-1.9.13."
+add support for dynamic modules in a way compatible with ngx_pagespeed until 1.9.13."
             fi
         fi
     fi
