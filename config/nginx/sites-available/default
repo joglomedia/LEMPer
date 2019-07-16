@@ -13,7 +13,7 @@
 
 server {
 	listen 80;
-	#listen [::]:80 default ipv6only=on;
+	listen [::]:80;
 
 	# Make site accessible from http://localhost/
 	server_name localhost.localdomain;
@@ -37,12 +37,16 @@ server {
 		autoindex on;
 	}
 
-    location /status {
-        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
-    }
+    # PHP-FPM status monitoring
+    location ~ ^/(status|ping)$ {
+        include /etc/nginx/fastcgi_params;
 
-    location /ping {
         fastcgi_pass unix:/run/php/php7.3-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $fastcgi_script_name;
+
+        allow all;
+        auth_basic "Denied";
+        auth_basic_user_file /srv/.htpasswd;
     }
 
     # Default PHP set to 7.3
@@ -97,7 +101,7 @@ server {
 ## Database Administration
 server {
 	listen 8082;
-	#listen [::]:80 default ipv6only=on;
+	listen [::]:8082;
 
 	# Make site accessible from http://localhost.localdomain/
 	server_name localhost.localdomain;
@@ -148,8 +152,8 @@ server {
 
 ## File Administration
 server {
-	listen 8083; ## listen for ipv4;
-	#listen [::]:80 default ipv6only=on;
+	listen 8083;
+	listen [::]:8083;
 
 	# Make site accessible from http://localhost.localdomain/
 	server_name localhost.localdomain;
@@ -201,7 +205,7 @@ server {
 # HTTPS server
 #
 #server {
-#	listen 443;
+#	listen 443 ssl http2;
 #	server_name localhost;
 #
 #	root html;

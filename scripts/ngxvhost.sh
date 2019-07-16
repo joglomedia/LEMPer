@@ -140,10 +140,10 @@ Options:
   -u, --username <virtual-host username>
       Use username added from adduser/useradd. Do not use root user.
   -w, --webroot <web root>
-      Web root is an absolute path to the website root directory, i.e. /home/username/Webs/example.test.
+      Web root is an absolute path to the website root directory, i.e. /home/lemper/webapps/example.test.
 
 Example:
-${APP_NAME} -u username -d example.com -f default -w /home/username/Webs/example.dev
+${APP_NAME} -u lemper -d example.com -f default -w /home/lemper/webapps/example.test
 
 For more details visit https://ngxtools.eslabs.id!
 Mail bug reports and suggestions to <eslabs.id@gmail.com>
@@ -158,7 +158,7 @@ function create_vhost_default() {
 cat <<- _EOF_
 server {
     listen 80;
-    #listen [::]:80 default_server ipv6only=on;
+    listen [::]:80;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
@@ -215,6 +215,17 @@ server {
     ## Uncomment to enable error page directives configuration.
     #include /etc/nginx/includes/error_pages.conf;
 
+    ## PHP-FPM status monitoring
+    location ~ ^/(status|ping)$ {
+        include /etc/nginx/fastcgi_params;
+
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
+
+        allow all;
+        auth_basic "Denied";
+        auth_basic_user_file /srv/.htpasswd;
+    }
+
     ## Add your custom site directives here.
 }
 _EOF_
@@ -227,7 +238,7 @@ function create_vhost_drupal() {
 cat <<- _EOF_
 server {
     listen 80;
-    #listen [::]:80 default_server ipv6only=on;
+    listen [::]:80;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
@@ -289,6 +300,17 @@ server {
     ## Uncomment to enable error page directives configuration.
     #include /etc/nginx/includes/error_pages.conf;
 
+    ## PHP-FPM status monitoring
+    location ~ ^/(status|ping)$ {
+        include /etc/nginx/fastcgi_params;
+
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
+
+        allow all;
+        auth_basic "Denied";
+        auth_basic_user_file /srv/.htpasswd;
+    }
+
     ## Add your custom site directives here.
 }
 _EOF_
@@ -301,7 +323,7 @@ function create_vhost_laravel() {
 cat <<- _EOF_
 server {
     listen 80;
-    #listen [::]:80 default_server ipv6only=on;
+    listen [::]:80;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
@@ -359,6 +381,17 @@ server {
     ## Uncomment to enable error page directives configuration.
     #include /etc/nginx/includes/error_pages.conf;
 
+    ## PHP-FPM status monitoring
+    location ~ ^/(status|ping)$ {
+        include /etc/nginx/fastcgi_params;
+
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
+
+        allow all;
+        auth_basic "Denied";
+        auth_basic_user_file /srv/.htpasswd;
+    }
+
     ## Add your custom site directives here.
 }
 _EOF_
@@ -371,7 +404,7 @@ function create_vhost_phalcon() {
 cat <<- _EOF_
 server {
     listen 80;
-    #listen [::]:80 default_server ipv6only=on;
+    listen [::]:80;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
@@ -434,6 +467,17 @@ server {
     ## Uncomment to enable error page directives configuration.
     #include /etc/nginx/includes/error_pages.conf;
 
+    ## PHP-FPM status monitoring
+    location ~ ^/(status|ping)$ {
+        include /etc/nginx/fastcgi_params;
+
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
+
+        allow all;
+        auth_basic "Denied";
+        auth_basic_user_file /srv/.htpasswd;
+    }
+
     ## Add your custom site directives here.
 }
 _EOF_
@@ -460,7 +504,7 @@ cat <<- _EOF_
 # HTTP to HTTPS redirection
 server {
     listen 80;
-    #listen [::]:80 default_server ipv6only=on;
+    listen [::]:80;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
@@ -470,6 +514,7 @@ server {
         return 301 https://$server_name$request_uri;
     }
 }
+
 _EOF_
 }
 
@@ -532,6 +577,8 @@ pm.max_spare_servers = 3
 pm.process_idle_timeout = 30s
 pm.max_requests = 500
 
+; PHP-FPM monitoring
+; Do Not change this two lines
 pm.status_path = /status
 ping.path = /ping
 
@@ -555,7 +602,7 @@ _EOF_
 #
 function install_wordpress() {
     # Clone new WordPress skeleton files
-    if [ $CLONE_SKELETON == true ]; then
+    if [ ${CLONE_SKELETON} == true ]; then
         # Check WordPress install directory
         if [ ! -d ${WEBROOT}/wp-admin ]; then
             status "Copying WordPress skeleton files..."
@@ -621,29 +668,29 @@ function init_app() {
     CLONE_SKELETON=false
     DRYRUN=false
 
-    COUNT_ARGS=0
+    MAIN_ARGS=0
 
     # Parse flags
     while true; do
         case $1 in
             -u | --username) shift
                 USERNAME="$1"
-                COUNT_ARGS=$(($COUNT_ARGS + 1))
+                MAIN_ARGS=$(($MAIN_ARGS + 1))
                 shift
             ;;
             -d | --domain-name) shift
                 SERVERNAME="$1"
-                COUNT_ARGS=$(($COUNT_ARGS + 1))
+                MAIN_ARGS=$(($MAIN_ARGS + 1))
                 shift
             ;;
             -w | --webroot) shift
                 WEBROOT="${1%%+(/)}"
-                COUNT_ARGS=$(($COUNT_ARGS + 1))
+                MAIN_ARGS=$(($MAIN_ARGS + 1))
                 shift
             ;;
             -f | --framework) shift
                 FRAMEWORK="$1"
-                COUNT_ARGS=$(($COUNT_ARGS + 1))
+                MAIN_ARGS=$(($MAIN_ARGS + 1))
                 shift
             ;;
             -p | --php-version) shift
@@ -661,7 +708,7 @@ function init_app() {
                 exit 0
             ;;
             -v | --version) shift
-                echo "$APP_NAME version $APP_VERSION"
+                echo "${APP_NAME} version ${APP_VERSION}"
                 exit 1
             ;;
             --) shift
@@ -674,14 +721,14 @@ function init_app() {
         esac
     done
 
-    if [ $COUNT_ARGS -ge 4 ]; then
+    if [ ${MAIN_ARGS} -ge 4 ]; then
         # Additional Check - are user already exist?
-        if [[ -z $(getent passwd $USERNAME) ]]; then
+        if [[ -z $(getent passwd ${USERNAME}) ]]; then
             fail -e "\nError: The user ${USERNAME} does not exist, please add new user first! Aborting...
                 Help: useradd username, try ${APP_NAME} -h for more helps"
         fi
 
-        # Check PHP fpm version is exists?
+        # Check PHP fpm version is exists.
         if [[ -n $(which php-fpm${PHP_VERSION}) && -d /etc/php/${PHP_VERSION}/fpm ]]; then
             # Additional check - is FPM user's pool already exist
             if [ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]; then
@@ -693,27 +740,28 @@ function init_app() {
 
                 # Restart PHP FPM
                 echo "Restart php${PHP_VERSION}-fpm configuration..."
+
                 run service "php${PHP_VERSION}-fpm" restart
 
                 status "New PHP-FPM pool [${USERNAME}] has been created."
             fi
         else
-            fail "There is no PHP${PHP_VERSION} version installed, please install it first! Aborting..."
+            fail "There is no PHP & FPM version ${PHP_VERSION} installed, please install it first! Aborting..."
         fi
 
-        # Additional Check - ensure that Nginx's configuration meets the requirement
+        # Additional Check - ensure that Nginx's configuration meets the requirements.
         if [ ! -d /etc/nginx/sites-available ]; then
             fail "It seems that your Nginx installation doesn't meet ${APP_NAME} requirements. Aborting..."
         fi
 
-        # Vhost file
-        vhost_file="/etc/nginx/sites-available/${SERVERNAME}.conf"
+        # Define vhost file.
+        VHOST_FILE="/etc/nginx/sites-available/${SERVERNAME}.conf"
 
         # Check if vhost not exists.
-        if [ ! -f "${vhost_file}" ]; then
+        if [ ! -f ${VHOST_FILE} ]; then
             echo "Adding domain ${SERVERNAME} to virtual host..."
 
-            # Creates document root
+            # Creates document root.
             if [ ! -d ${WEBROOT} ]; then
                 echo "Creating web root directory: ${WEBROOT}..."
 
@@ -725,37 +773,36 @@ function init_app() {
             echo "Selecting ${FRAMEWORK^} framewrok..."
 
             # Ugly hacks for custom framework-specific configs + Skeleton auto installer.
-            case $FRAMEWORK in
+            case ${FRAMEWORK} in
                 drupal)
                     echo "Setting up Drupal virtual host..."
 
-                    # Clone new Drupal skeleton files
-                    if [ $CLONE_SKELETON == true ]; then
-                        # Check Drupal install directory
+                    # Clone new Drupal skeleton files.
+                    if [ ${CLONE_SKELETON} == true ]; then
+                        # Check Drupal install directory.
                         if [ ! -d ${WEBROOT}/core/lib/Drupal ]; then
                             status "Copying Drupal latest skeleton files..."
 
                             run wget --no-check-certificate -O drupal.zip -q \
                                     https://www.drupal.org/download-latest/zip
                             run unzip -q drupal.zip
-                            run rsync -r drupal-*/ ${WEBROOT}
+                            run rsync -rq drupal-*/ ${WEBROOT}
                             run rm -f drupal.zip
                             run rm -fr drupal-*/
                         else
                             warning "It seems that Drupal files already exists."
                         fi
                     else
-                        # Create default index file
+                        # Create default index file.
                         status "Creating default index file..."
-
                         create_index_file > ${WEBROOT}/index.html
+
                         run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
                     fi
 
-                    # Create vhost
-                    echo "Creating virtual host file: ${vhost_file}..."
-                    create_vhost_drupal > ${vhost_file}
-
+                    # Create vhost.
+                    echo "Creating virtual host file: ${VHOST_FILE}..."
+                    create_vhost_drupal > ${VHOST_FILE}
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
@@ -763,9 +810,9 @@ function init_app() {
                     echo "Setting up Laravel framework virtual host..."
 
                     # Install Laravel framework skeleton
-                    # Clone new Laravel files
-                    if [ $CLONE_SKELETON == true ]; then
-                        # Check Laravel install
+                    # clone new Laravel files.
+                    if [ ${CLONE_SKELETON} == true ]; then
+                        # Check Laravel install.
                         if [ ! -f ${WEBROOT}/server.php ]; then
                             status "Copying Laravel skeleton files..."
 
@@ -774,17 +821,16 @@ function init_app() {
                             warning "It seems that Laravel skeleton files already exists."
                         fi
                     else
-                        # Create default index file
+                        # Create default index file.
                         status "Creating default index file..."
-
                         create_index_file > ${WEBROOT}/index.html
+
                         run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
                     fi
 
-                    # Create vhost
-                    echo "Creating virtual host file: ${vhost_file}..."
-                    create_vhost_laravel > ${vhost_file}
-
+                    # Create vhost.
+                    echo "Creating virtual host file: ${VHOST_FILE}..."
+                    create_vhost_laravel > ${VHOST_FILE}
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
@@ -793,10 +839,9 @@ function init_app() {
 
                     # TODO: Auto install Phalcon PHP framework skeleton
 
-                    # Create vhost
-                    echo "Creating virtual host file: ${vhost_file}..."
-                    create_vhost_phalcon > ${vhost_file}
-
+                    # Create vhost.
+                    echo "Creating virtual host file: ${VHOST_FILE}..."
+                    create_vhost_phalcon > ${VHOST_FILE}
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
@@ -805,33 +850,31 @@ function init_app() {
 
                     # TODO: Auto install Symfony PHP framework skeleton
 
-                    # Create vhost
-                    echo "Creating virtual host file: ${vhost_file}..."
-                    create_vhost_default > ${vhost_file}
-
+                    # Create vhost.
+                    echo "Creating virtual host file: ${VHOST_FILE}..."
+                    create_vhost_default > ${VHOST_FILE}
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 wordpress)
                     echo "Setting up WordPress virtual host..."
 
-                    # Install WordPress
+                    # Install WordPress skeleton.
                     install_wordpress
 
-                    # Create vhost
-                    echo "Creating virtual host file: ${vhost_file}..."
-                    create_vhost_default > ${vhost_file}
-
+                    # Create vhost.
+                    echo "Creating virtual host file: ${VHOST_FILE}..."
+                    create_vhost_default > ${VHOST_FILE}
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 wordpress-ms)
                     echo "Setting up WordPress Multi-site virtual host..."
 
-                    # Install WordPress
+                    # Install WordPress.
                     install_wordpress
 
-                    # Pre-populate blog id mapping, used by Nginx vhost conf
+                    # Pre-populate blog id mapping, used by Nginx vhost conf.
                     if [ ! -d ${WEBROOT}/wp-content/uploads ]; then
                         run mkdir ${WEBROOT}/wp-content/uploads
                     fi
@@ -840,15 +883,17 @@ function init_app() {
                         run mkdir ${WEBROOT}/wp-content/uploads/nginx-helper
                     fi
 
-                    run touch ${WEBROOT}/wp-content/uploads/nginx-helper/map.conf
+                    if [ ! -f ${WEBROOT}/wp-content/uploads/nginx-helper/map.conf ]; then
+                        run touch ${WEBROOT}/wp-content/uploads/nginx-helper/map.conf
+                    fi
 
-                    echo "Creating virtual host file: ${vhost_file}..."
+                    echo "Creating virtual host file: ${VHOST_FILE}..."
 
-                    # Prepare vhost specific rule for WordPress Multisite
-                    prepare_vhost_wpms > ${vhost_file}
+                    # Prepare vhost specific rule for WordPress Multisite.
+                    prepare_vhost_wpms > ${VHOST_FILE}
 
-                    # Create vhost
-                    create_vhost_default >> ${vhost_file}
+                    # Create vhost.
+                    create_vhost_default >> ${VHOST_FILE}
 
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
@@ -856,16 +901,16 @@ function init_app() {
                 filerun)
                     echo "Setting up FileRun virtual host..."
 
-                    # Install FileRun skeleton
+                    # Install FileRun skeleton.
                     if [ ! -f ${WEBROOT}/system/classes/filerun.php ]; then
-                        # Clone new Filerun files
-                        if [ $CLONE_SKELETON == true ]; then
+                        # Clone new Filerun files.
+                        if [ ${CLONE_SKELETON} == true ]; then
                             echo "Copying FileRun skeleton files..."
                             run wget -q -O FileRun.zip http://www.filerun.com/download-latest
                             run unzip -q FileRun.zip -d ${WEBROOT}
                             run rm -f FileRun.zip
                         else
-                            # Create default index file
+                            # Create default index file.
                             echo "Creating default index files..."
                             create_index_file > ${WEBROOT}/index.html
                             run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
@@ -874,22 +919,20 @@ function init_app() {
                         warning "FileRun skeleton files already exists."
                     fi
 
-                    # Create default vhost
-                    echo "Creating virtual host file: ${vhost_file}..."
-                    create_vhost_default > ${vhost_file}
-
+                    # Create vhost.
+                    echo "Creating virtual host file: ${VHOST_FILE}..."
+                    create_vhost_default > ${VHOST_FILE}
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 codeigniter|mautic|default)
-                    # Create default index file
+                    # Create default index file.
                     create_index_file > ${WEBROOT}/index.html
                     run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
 
-                    # Create default vhost
-                    echo "Creating virtual host file: ${vhost_file}..."
-                    create_vhost_default > ${vhost_file}
-
+                    # Create default vhost.
+                    echo "Creating virtual host file: ${VHOST_FILE}..."
+                    create_vhost_default > ${VHOST_FILE}
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
@@ -901,29 +944,29 @@ function init_app() {
             esac
 
             # Enable FastCGI cache?
-            if [ $ENABLE_FASTCGI_CACHE == true ]; then
+            if [ ${ENABLE_FASTCGI_CACHE} == true ]; then
                 echo "Enable FastCGI cache for ${SERVERNAME}..."
 
                 if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf; ]; then
                     # enable cached directives
-                    run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" ${vhost_file}
+                    run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" ${VHOST_FILE}
 
                     # enable fastcgi_cache conf
-                    run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" ${vhost_file}
+                    run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" ${VHOST_FILE}
                 else
-                    warning "FastCGI cache is not enabled. There is no cached version of ${FRAMEWORK^} directives."
+                    warning "FastCGI cache is not enabled. There is no cached version of ${FRAMEWORK^} directive."
                 fi
             fi
 
             # Enable PageSpeed?
-            if [ $ENABLE_PAGESPEED == true ]; then
+            if [ ${ENABLE_PAGESPEED} == true ]; then
                 echo "Enable Mod PageSpeed for ${SERVERNAME}..."
 
                 if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
                     # enable mod pagespeed
-                    run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" ${vhost_file}
+                    run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" ${VHOST_FILE}
                 else
-                    warning "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module enabled."
+                    warning "PageSpeed is not enabled. Nginx must be installed with Mod_PageSpeed module enabled."
                 fi
             fi
 
@@ -963,8 +1006,8 @@ function init_app() {
             error "Virtual host config file for ${SERVERNAME} is already exists. Aborting..."
         fi
     else
-        echo "$APP_NAME: missing optstring argument."
-        echo "Try '$APP_NAME --help' for more information."
+        echo "${APP_NAME}: missing optstring argument."
+        echo "Try '${APP_NAME} --help' for more information."
     fi
 }
 
