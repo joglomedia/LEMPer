@@ -20,7 +20,7 @@ function enable_memcache {
     fi
 
     # Custom Memcache setting
-    sed -i 's/-m 64/-m 128/g' /etc/memcached.conf
+    #sed -i 's/-m 64/-m 128/g' /etc/memcached.conf
 
     if [ -d  /etc/php/${PHPv}/mods-available/ ]; then
         cat > /etc/php/${PHPv}/mods-available/memcache.ini <<EOL

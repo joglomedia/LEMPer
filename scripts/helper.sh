@@ -166,7 +166,7 @@ function create_account() {
 
     echo -e "\nCreating default LEMPer account..."
 
-    if [[ -z $(getent passwd "${USERNAME}") ]]; then
+    if [[ -z $(getent passwd ${USERNAME}) ]]; then
         PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
         run useradd -d /home/${USERNAME} -m -s /bin/bash ${USERNAME}
         echo "${USERNAME}:${PASSWORD}" | chpasswd
