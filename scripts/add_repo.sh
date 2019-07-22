@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Include decorator
+# Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     . ${BASEDIR}/helper.sh

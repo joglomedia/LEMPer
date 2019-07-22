@@ -365,19 +365,19 @@ function build_ngx_pagespeed() {
     EXTRA_MODULES=false
 
     # Extra Modules
-    BROTLI=true
-    CACHEPURGE=true
-    HEADERSMORE=true
-    GEOIP=false
-    NGINXECHO=false
-    AUTHPAM=false
-    WEBDAV=false
-    UPSTREAMFAIR=false
-    SUBSFILTER=false
-    NCHAN=false
-    NAXSI=true
-    FANCYINDEX=true
-    NGINXVTS=true
+    NGX_BROTLI=true
+    NGX_CACHE_PURGE=true
+    NGX_HEADERS_MORE=true
+    NGX_HTTP_GEOIP2=false
+    NGX_ECHO=false
+    NGX_HTTP_AUTH_PAM=false
+    NGX_WEB_DAV_EXT=false
+    NGX_UPSTREAM_FAIR=false
+    NGX_HTTP_SUBS_FILTER=false
+    NGX_NCHAN=false
+    NGX_NAXSI=true
+    NGX_FANCYINDEX=true
+    NGX_VTS=true
 
     while true; do
         case "$1" in
@@ -644,7 +644,7 @@ with --no-deps-check."
         if "$ALREADY_CHECKED_OUT"; then
             run cd "$nps_module_dir"
         else
-            status "Downloading ngx_pagespeed..."
+            echo "Downloading ngx_pagespeed..."
             run git clone -q "git@github.com:pagespeed/ngx_pagespeed.git" \
                 "$nps_module_dir"
             run cd "$nps_module_dir"
@@ -653,7 +653,7 @@ with --no-deps-check."
 
         submodules_dir="$nps_module_dir/testing-dependencies"
         if "$DEVEL"; then
-            status "Downloading dependencies..."
+            echo "Downloading dependencies..."
             run git submodule update --init --recursive
             if [[ "$CONTINUOUS_INTEGRATION" != true ]]; then
                 status "Switching submodules over to git protocol."
@@ -666,7 +666,7 @@ with --no-deps-check."
     else
         nps_baseurl="https://github.com/apache/incubator-pagespeed-ngx/archive"
         nps_downloaded="$TEMPDIR/$nps_downloaded_fname.zip"
-        status "Downloading ngx_pagespeed..."
+        echo "Downloading ngx_pagespeed..."
         run wget -q "$nps_baseurl/$tag_name.zip" -O "$nps_downloaded"
         # Read the directory name from the zip, the first line is expected to have it.
         nps_module_dir=$(unzip -qql "$nps_downloaded" | head -n1 | tr -s ' ' | cut -d' ' -f5-)
@@ -725,7 +725,7 @@ with --no-deps-check."
             fi
         fi
 
-        status "Downloading PSOL binary..."
+        echo "Downloading PSOL binary..."
         run wget -q "$psol_url"
 
         status "Extracting PSOL..."
@@ -740,7 +740,7 @@ with --no-deps-check."
     configure_args=("$add_nps_module" "${extra_flags[@]}")
 
     if "$EXTRA_MODULES"; then
-        status "Build Nginx with extra modules..."
+        echo "Build Nginx with extra modules..."
 
         extra_module_dir="$BUILDDIR/modules"
         if [ ! -d ${extra_module_dir} ]; then
@@ -751,18 +751,18 @@ with --no-deps-check."
         fi
         run cd $extra_module_dir
 
-        status "Adding extra modules..."
+        echo "Adding extra modules..."
         add_extra_modules=()
 
         # Brotli compression
-		if "$BROTLI"; then
-            status "Downloading ngx_brotli module..."
+		if "$NGX_BROTLI"; then
+            echo "Downloading ngx_brotli module..."
             run git clone -q https://github.com/eustas/ngx_brotli.git
 
-			cd ngx_brotli || exit 1
-			run git checkout master -q #v0.1.2 | v0.1.3rc
-			run git submodule update --init -q
-            cd ../
+			run cd ngx_brotli || exit 1 && \
+                git checkout master -q && \
+                git submodule update --init -q && \
+                cd ../
 
             if "$DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_brotli" "${add_extra_modules[@]}")
@@ -772,8 +772,8 @@ with --no-deps-check."
 		fi
 
         # Cache Purge
-        if "$CACHEPURGE"; then
-            status "Downloading ngx_cache_purge module..."
+        if "$NGX_CACHE_PURGE"; then
+            echo "Downloading ngx_cache_purge module..."
             #run git clone -q https://github.com/FRiCKLE/ngx_cache_purge.git
             run git clone -q https://github.com/nginx-modules/ngx_cache_purge.git
             #run git clone -q https://github.com/joglomedia/ngx_cache_purge.git
@@ -786,43 +786,49 @@ with --no-deps-check."
         fi
 
         # More Headers
-        if "$HEADERSMORE"; then
-            status "Downloading headers-more-nginx-module..."
+        if "$NGX_HEADERS_MORE"; then
+            echo "Downloading headers-more-nginx-module..."
             run git clone -q https://github.com/openresty/headers-more-nginx-module.git
 
             if "$DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/headers-more-nginx-module" "${add_extra_modules[@]}")
             else
-                add_extra_modules=("--add-module=$extra_module_dir/headers-more-nginx-moduleu" "${add_extra_modules[@]}")
+                add_extra_modules=("--add-module=$extra_module_dir/headers-more-nginx-module" "${add_extra_modules[@]}")
             fi
         fi
 
         # GeoIP
-        if "$GEOIP"; then
+        if "$NGX_HTTP_GEOIP2"; then
             # install libmaxminddb
-            status "Installing Maxmind GeoIP library..."
+            status "Installing MaxMind GeoIP library..."
 
         	run git clone -q https://github.com/maxmind/libmaxminddb.git
-        	cd libmaxminddb
-        	./configure
-        	make
-        	make install
-        	ldconfig
+        	run cd libmaxminddb
+        	run ./configure && \
+        	make && \
+        	make install && \
+        	ldconfig && \
 
-        	mkdir geoip-db
-        	cd geoip-db || exit 1
-        	wget -q https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.tar.gz
-        	wget -q https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz
-        	tar -xf GeoLite2-City.tar.gz
-        	tar -xf GeoLite2-Country.tar.gz
-        	mkdir /opt/geoip
-        	cd GeoLite2-City_*/
-        	mv GeoLite2-City.mmdb /opt/geoip/
-        	cd ../
-        	cd GeoLite2-Country_*/
-        	mv GeoLite2-Country.mmdb /opt/geoip/
+            echo "Downloading MaxMind GeoIP database..."
 
-            status "Downloading ngx_http_geoip2_module..."
+        	run mkdir geoip-db && \
+                cd geoip-db || exit 1
+            run wget -q https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.tar.gz && \
+                tar -xf GeoLite2-Country.tar.gz
+            run wget -q https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz && \
+                tar -xf GeoLite2-City.tar.gz
+            run mkdir /opt/geoip
+        	run cd GeoLite2-City_*/ && \
+                mv GeoLite2-City.mmdb /opt/geoip/
+        	run cd ../
+        	run cd GeoLite2-Country_*/ && \
+                mv GeoLite2-Country.mmdb /opt/geoip/
+
+            if [[ -f /opt/geoip/GeoLite2-City.mmdb && /opt/geoip/GeoLite2-Country.mmdb ]]; then
+                status "MaxMind GeoIP database successfully downloaded."
+            fi
+
+            echo "Downloading ngx_http_geoip2_module..."
             run git clone -q https://github.com/leev/ngx_http_geoip2_module.git
 
             if "$DYNAMIC_MODULE"; then
@@ -833,8 +839,8 @@ with --no-deps-check."
         fi
 
         # Echo Nginx
-        if "$NGINXECHO"; then
-            status "Downloading echo-nginx-module..."
+        if "$NGX_ECHO"; then
+            echo "Downloading echo-nginx-module..."
             run git clone -q https://github.com/openresty/echo-nginx-module.git
 
             if "$DYNAMIC_MODULE"; then
@@ -845,8 +851,8 @@ with --no-deps-check."
         fi
 
         # Auth PAM
-        if "$AUTHPAM"; then
-            status "Downloading ngx_http_auth_pam_module..."
+        if "$NGX_HTTP_AUTH_PAM"; then
+            echo "Downloading ngx_http_auth_pam_module..."
             run git clone -q https://github.com/sto/ngx_http_auth_pam_module.git
 
             if "$DYNAMIC_MODULE"; then
@@ -857,8 +863,8 @@ with --no-deps-check."
         fi
 
         # WebDAV
-        if "$WEBDAV"; then
-            status "Downloading nginx-dav-ext-module..."
+        if "$NGX_WEB_DAV_EXT"; then
+            echo "Downloading nginx-dav-ext-module..."
             run git clone -q https://github.com/arut/nginx-dav-ext-module.git
 
             if "$DYNAMIC_MODULE"; then
@@ -874,16 +880,16 @@ with --no-deps-check."
         fi
 
         # Upstream Fair
-        if "$UPSTREAMFAIR"; then
-            status "Downloading nginx-upstream-fair module..."
+        if "$NGX_UPSTREAM_FAIR"; then
+            echo "Downloading nginx-upstream-fair module..."
             run git clone -q https://github.com/gnosek/nginx-upstream-fair.git
 
-            status "Downloading tengine-patches patch for nginx-upstream-fair module..."
+            echo "Downloading tengine-patches patch for nginx-upstream-fair module..."
             run git clone -q https://github.com/alibaba/tengine-patches.git
 
             status "Patching nginx-upstream-fair module..."
             run cd nginx-upstream-fair
-            patch -p1 < ${extra_module_dir}/tengine-patches/nginx-upstream-fair/upstream-fair-upstream-check.patch
+            run patch -p1 < ${extra_module_dir}/tengine-patches/nginx-upstream-fair/upstream-fair-upstream-check.patch
             run cd $extra_module_dir
 
             if "$DYNAMIC_MODULE"; then
@@ -895,8 +901,8 @@ with --no-deps-check."
         fi
 
         # A filter module which can do both regular expression and fixed string substitutions for nginx
-        if "$SUBSFILTER"; then
-            status "Downloading ngx_http_substitutions_filter_module..."
+        if "$NGX_HTTP_SUBS_FILTER"; then
+            echo "Downloading ngx_http_substitutions_filter_module..."
             run git clone -q https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git
 
             if "$DYNAMIC_MODULE"; then
@@ -910,8 +916,8 @@ with --no-deps-check."
         fi
 
         # Nchan, pub/sub queuing server
-        if "$NCHAN"; then
-            status "Downloading pub/sub nchan module..."
+        if "$NGX_NCHAN"; then
+            echo "Downloading pub/sub nchan module..."
             run git clone -q https://github.com/slact/nchan.git
 
             if "$DYNAMIC_MODULE"; then
@@ -921,9 +927,9 @@ with --no-deps-check."
             fi
         fi
 
-        # NAXSI is an open-source, high performance, low rules maintenance WAF for NGINX
-        if "$NAXSI"; then
-            status "Downloading Naxsi Web Application Firewall module..."
+        # NGX_NAXSI is an open-source, high performance, low rules maintenance WAF for NGINX
+        if "$NGX_NAXSI"; then
+            echo "Downloading Naxsi Web Application Firewall module..."
             run git clone -q https://github.com/nbs-system/naxsi.git
 
             if "$DYNAMIC_MODULE"; then
@@ -934,8 +940,8 @@ with --no-deps-check."
         fi
 
         # Fancy indexes module for the Nginx web server
-        if "$FANCYINDEX"; then
-            status "Downloading ngx-fancyindex module..."
+        if "$NGX_FANCYINDEX"; then
+            echo "Downloading ngx-fancyindex module..."
             run git clone -q https://github.com/aperezdc/ngx-fancyindex.git
 
             if "$DYNAMIC_MODULE"; then
@@ -946,8 +952,8 @@ with --no-deps-check."
         fi
 
         # Nginx virtual host traffic status module
-        if "$NGINXVTS"; then
-            status "Downloading nginx-module-vts VHost traffic status module..."
+        if "$NGX_VTS"; then
+            echo "Downloading nginx-module-vts VHost traffic status module..."
             run git clone -q https://github.com/vozlt/nginx-module-vts.git
 
             if "$DYNAMIC_MODULE"; then
@@ -1024,7 +1030,6 @@ with --no-deps-check."
                         "--with-threads")
     fi
 
-    echo
     if ! "$BUILD_NGINX"; then
         # Just prepare the module for them to install.
         status "ngx_pagespeed is ready to be built against nginx."
@@ -1056,7 +1061,7 @@ with --no-deps-check."
             # Download and build the specified nginx version.
             nginx_leaf="nginx-${NGINX_VERSION}.tar.gz"
             nginx_fname="$TEMPDIR/$nginx_leaf"
-            status "Downloading nginx..."
+            echo "Downloading nginx..."
             run wget -q "http://nginx.org/download/$nginx_leaf" -O "$nginx_fname"
             nginx_dir="$BUILDDIR/nginx-${NGINX_VERSION}/"
             delete_if_already_exists "$nginx_dir"
@@ -1070,8 +1075,8 @@ with --no-deps-check."
         additional_configure_args=""
         if [ -z "${ADDITIONAL_NGINX_CONFIGURE_ARGUMENTS+x}" ]; then
             if ! "$ASSUME_YES"; then
-                echo "About to build nginx.    Do you have any additional ./configure"
-                echo "arguments you would like to set?    For example, if you would like"
+                echo "About to build nginx. Do you have any additional ./configure"
+                echo "arguments you would like to set? For example, if you would like"
                 echo "to build nginx with https support give --with-http_ssl_module"
                 echo "If you don't have any, just press enter."
                 read -p "> " additional_configure_args

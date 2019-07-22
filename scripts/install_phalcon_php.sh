@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Phalcon PHP extension installer
-# Min requirement   : GNU/Linux Ubuntu 14.04
+# Min. Requirement  : GNU/Linux Ubuntu 14.04
 # Last Build        : 13/11/2015
 # Author            : MasEDI.Net (hi@masedi.net)
 

@@ -6,7 +6,7 @@
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
-# Include decorator
+# Include helper functions.
 BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
 
 if [ "$(type -t run)" != "function" ]; then

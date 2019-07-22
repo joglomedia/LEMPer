@@ -635,6 +635,35 @@ function install_wordpress() {
     fi
 }
 
+# Validate Nginx configuration.
+function validate_nginx_config() {
+    NGX_BIN=$(which nginx)
+
+    ${NGX_BIN} -t 2>/dev/null > /dev/null
+
+    if [[ $? == 0 ]]; then
+        echo "ok"
+        # do things on success
+    else
+        echo "fail"
+        # do whatever on fail
+    fi
+}
+
+# Get server IP Address
+function get_ip_addr() {
+    IP_INTERNAL=$(ip addr | grep 'inet' | grep -v inet6 | \
+        grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | \
+        grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
+    IP_EXTERNAL=$(curl -s http://ipecho.net/plain)
+
+    if [[ "${IP_INTERNAL}" == "${IP_EXTERNAL}" ]]; then
+        echo "${IP_EXTERNAL}"
+    else
+        echo "${IP_INTERNAL}"
+    fi
+}
+
 ## Main App
 #
 function init_app() {
@@ -989,7 +1018,12 @@ function init_app() {
             echo "Reloading Nginx configuration..."
 
             #service nginx reload -s
-            run service nginx reload -s
+            if [[ $(validate_nginx_config) == "ok" ]]; then
+                run service nginx reload -s
+                echo "Nginx reloaded with new configuration."
+            else
+                echo "Something went wrong with Nginx configuration."
+            fi
 
             if [[ -f /etc/nginx/sites-enabled/${SERVERNAME}.conf && -e /var/run/nginx.pid ]]; then
                 status "Your ${SERVERNAME} successfully added to Nginx virtual host.";

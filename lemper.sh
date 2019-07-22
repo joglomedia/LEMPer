@@ -29,41 +29,48 @@
 # | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
 # +-------------------------------------------------------------------------+
 
-set -e  # Work even if somebody does "sh thisscript.sh".
+set -e  # Work even if somebody does "sh lemper.sh".
+set -u
+${DEBIAN_SCRIPT_DEBUG:+ set -v -x}
 
-# Include decorator
+# Export environment variables.
+export $(grep -v '^#' .env | grep -v '^\[' | xargs)
+
+# Get base directory.
+BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+
+# Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     . scripts/helper.sh
 fi
 
-# Make sure only root can run this installer script
+# Make sure only root can run this installer script.
 if [ $(id -u) -ne 0 ]; then
     error "You need to be root to run this script"
     exit 1
 fi
 
-# Make sure this script only run on Ubuntu install
+# Make sure this script only run on Ubuntu install.
 if [ ! -f "/etc/lsb-release" ]; then
     warning -e "\nThis installer only work on Ubuntu server..."
     exit 1
 else
     # Variables
-    arch=$(uname -p)
-    IPAddr=$(hostname -i)
+    ARCH=$(uname -p)
+    IP_INTERNAL=$(hostname -i)
 
-    # export lsb-release vars
+    # Export lsb-release vars.
     . /etc/lsb-release
 
+    # Hack for Linux Mint release number.
     MAJOR_RELEASE_NUMBER=$(echo $DISTRIB_RELEASE | awk -F. '{print $1}')
-
     if [[ "$DISTRIB_ID" == "LinuxMint" ]]; then
         DISTRIB_RELEASE="LM${MAJOR_RELEASE_NUMBER}"
     fi
 fi
 
-# init log
-run touch lemper.log
-echo "" > lemper.log
+# Init log.
+run init_log
 
 ### Main ###
 case $1 in
@@ -149,19 +156,24 @@ case $1 in
         if [[ ! -z "$PASSWORD" ]]; then
             status -e "\nHere is your default system account information:
 
-        Server IP : ${IPAddr}
-        SSH Port  : ${SSHPort}
-        Username  : ${USERNAME}
-        Password  : ${PASSWORD}
+    Server IP : ${IP_SERVER}
+    SSH Port  : ${SSH_PORT}
+    Username  : ${USERNAME}
+    Password  : ${PASSWORD}
 
-        Access to your Database administration (Adminer):
-        http://${IPAddr}:8082/
+    Access to your Database administration (Adminer):
+    http://${IP_SERVER}:8082/
 
-        Access to your File manager (FileRun):
-        http://${IPAddr}:8083/
+    Access to your File manager (FileRun):
+    http://${IP_SERVER}:8083/
 
-        Please Save & Keep It Private!
-        "
+Please Save & Keep It Private!
+"
+
+            if [[ ${SSH_PORT} -ne 22 ]]; then
+                echo "You're running SSH server with modified config, restart to apply your changes."
+                echo "  command:  service ssh restart"
+            fi
         fi
 
         echo -e "\nSee the log file (lemper.log) for more information.

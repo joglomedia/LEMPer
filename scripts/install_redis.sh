@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Include decorator
+# Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     . ${BASEDIR}/helper.sh
@@ -33,7 +33,7 @@ function init_redis_install {
 
         # Configure Redis
         if [ ! /etc/redis/redis.conf ]; then
-            cp -f config/redis/redis.conf /etc/redis/
+            run cp -f etc/redis/redis.conf /etc/redis/
         fi
 
         # Custom Redis configuration
@@ -57,7 +57,7 @@ vm.overcommit_memory=1
 EOL
 
         if [ ! -f /etc/rc.local ]; then
-            touch /etc/rc.local
+            run touch /etc/rc.local
         fi
 
         cat >> /etc/rc.local <<EOL
@@ -69,30 +69,31 @@ sysctl -w net.core.somaxconn=65535
 echo never > /sys/kernel/mm/transparent_hugepage/enabled
 EOL
 
+        if [ ! -f /etc/init.d/redis-server ]; then
+            run cp -f etc/init.d/redis-server /etc/init.d/
+            run chmod ugo+x /etc/init.d/redis-server
+        fi
+
         if [ ! -f /lib/systemd/system/redis-server.service ]; then
-            cp -f config/redis/systemd/redis-server.service /lib/systemd/system/
+            run cp -f etc/systemd/redis-server.service /lib/systemd/system/
 
             if [ ! -f /etc/systemd/system/redis.service ]; then
-                link -s /lib/systemd/system/redis-server.service /etc/systemd/system/redis.service
+                run link -s /lib/systemd/system/redis-server.service /etc/systemd/system/redis.service
             fi
 
             # Reloading daemon
-            systemctl daemon-reload
-        fi
-
-        if [ ! -f /etc/init.d/redis-server ]; then
-            cp -f config/redis/init.d/redis-servr /etc/init.d/
+            run systemctl daemon-reload
         fi
 
         # Restart redis daemon
         echo "Starting Redis server..."
         if [ -f /etc/systemd/system/redis.service ]; then
-            systemctl restart redis-server.service
+            run systemctl restart redis-server.service
 
             # Enable Redis on system boot
-            systemctl enable redis-server.service
+            run systemctl enable redis-server.service
         else
-            service redis-server restart
+            run service redis-server restart
         fi
 
         if [[ $(ps -ef | grep -v grep | grep redis-server | wc -l) > 0 ]]; then

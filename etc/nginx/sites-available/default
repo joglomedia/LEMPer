@@ -12,8 +12,8 @@
 ##
 
 server {
-	listen 80;
-	listen [::]:80;
+	listen 80 default_server;
+	listen [::]:80 default_server;
 
 	# Make site accessible from http://localhost/
 	server_name localhost.localdomain;
