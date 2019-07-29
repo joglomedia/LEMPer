@@ -39,7 +39,7 @@ function init_mariadb_install() {
         #mv /var/lib/mysql/ib_logfile0 /var/lib/mysql/ib_logfile0.bak
         #mv /var/lib/mysql/ib_logfile1 /var/lib/mysql/ib_logfile1.bak
         #service mysql start
-        if [[ -n $(which mysql) ]]; then
+        if [[ -n $(command -v mysql) ]]; then
             if [ ! -f /etc/mysql/my.cnf ]; then
                 run cp -f etc/mysql/my.cnf /etc/mysql/
             fi
@@ -76,7 +76,7 @@ function init_mariadb_install() {
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(which mysql) ]]; then
+if [[ -n $(command -v mysql) ]]; then
     warning -e "\nMariaDB (MySQL) web server already exists. Installation skipped..."
 else
     init_mariadb_install "$@"

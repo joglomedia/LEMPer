@@ -136,12 +136,12 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
 
     sleep 1
 
-    if [[ -n $(which apf) ]]; then
+    if [[ -n $(command -v apf) ]]; then
         # Remove APF+BFD if exists.
         remove_ufw
     fi
 
-    if [[ -n $(which csf) ]]; then
+    if [[ -n $(command -v csf) ]]; then
         # Remove CSF+LFD if exists.
         remove_csf
     fi
@@ -149,7 +149,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
     # Install UFW
     run apt-get install -y ufw
 
-    if [[ -n $(which ufw) ]]; then
+    if [[ -n $(command -v ufw) ]]; then
         echo "Configuring UFW firewall rules..."
 
         # Close all incoming ports.
@@ -217,12 +217,12 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
 
     sleep 1
 
-    if [[ -n $(which ufw) ]]; then
+    if [[ -n $(command -v ufw) ]]; then
         # Remove default Ubuntu firewall (UFW) if exists.
         remove_ufw
     fi
 
-    if [[ -n $(which apf) ]]; then
+    if [[ -n $(command -v apf) ]]; then
         # Remove APF+BFD if exists.
         remove_apf
     fi
@@ -230,7 +230,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
     # Install requirements.
     echo "Installing requirement packages..."
 
-    if [[ -n $(which cpan) ]]; then
+    if [[ -n $(command -v cpan) ]]; then
         run cpan -i "LWP LWP::Protocol::https GD::Graph IO::Socket::INET6"
     else
         run apt-get -y install libwww-perl liblwp-protocol-https-perl \
@@ -259,7 +259,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
         run sed -i "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT}\"/g" /etc/csf/csf.conf
 
         # IPv6 support (requires ip6tables).
-        if [[ -n $(which ip6tables) ]]; then
+        if [[ -n $(command -v ip6tables) ]]; then
             ip6tables_version=$(ip6tables --version | grep 'v' | cut -d'v' -f2)
             if ! version_older_than "${ip6tables_version}" "1.4.3"; then
                 echo "Configuring CSF+LFD for IPv6..."
@@ -284,7 +284,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
     if "${DRYRUN}"; then
         echo "CSF+LFD firewall installed in dryrun mode."
     else
-        if [[ -n $(which csf) && -n $(which lfd) ]]; then
+        if [[ -n $(command -v csf) && -n $(command -v lfd) ]]; then
             if service csf restart; then
                 status "CSF firewall installed successfully. Starting now..."
             else
@@ -314,12 +314,12 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
 
     sleep 1
 
-    if [[ -n $(which ufw) ]]; then
+    if [[ -n $(command -v ufw) ]]; then
         # Remove default Ubuntu firewall (UFW) if exists.
         remove_ufw
     fi
 
-    if [[ -n $(which csf) ]]; then
+    if [[ -n $(command -v csf) ]]; then
         # Remove CSF+LFD if exists.
         remove_csf
     fi
@@ -354,7 +354,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
     if "${DRYRUN}"; then
         echo "APF+BFD firewall installed in dryrun mode."
     else
-        if [[ -n $(which apf) ]]; then
+        if [[ -n $(command -v apf) ]]; then
             if service apf restart; then
                 status "APF firewall installed successfully. Starting now..."
             else
@@ -367,7 +367,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
 }
 
 function remove_ufw() {
-    if [[ -n $(which ufw) ]]; then
+    if [[ -n $(command -v ufw) ]]; then
         echo "Found UFW iptables firewall, trying to remove it..."
 
         run service ufw stop
@@ -380,7 +380,7 @@ function remove_ufw() {
 }
 
 function remove_csf() {
-    if [[ -n $(which csf) || -f /usr/lib/systemd/system/csf.service ]]; then
+    if [[ -n $(command -v csf) || -f /usr/lib/systemd/system/csf.service ]]; then
         echo "Found CSF+LFD iptables firewall, trying to remove it..."
 
         if [[ -f /etc/csf/uninstall.sh ]]; then
@@ -390,7 +390,7 @@ function remove_csf() {
 }
 
 function remove_apf() {
-    if [[ -n $(which apf) && -f /etc/apf/conf.apf ]]; then
+    if [[ -n $(command -v apf) && -f /etc/apf/conf.apf ]]; then
         echo "Found APF+BFD iptables firewall, trying to remove it..."
 
         run service apf stop
@@ -438,7 +438,7 @@ function install_firewall() {
         fi
 
         # Ensure that iptables installed.
-        if [[ -z $(which iptables) ]]; then
+        if [[ -z $(command -v iptables) ]]; then
             echo "Iptables is required, trying to install it first..."
             run apt-get install -y iptables bash sh
         fi

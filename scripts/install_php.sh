@@ -28,7 +28,7 @@ function install_php() {
     fi
 
     # Checking if php already installed.
-    if [[ -n $(which php${PHPv}) ]]; then
+    if [[ -n $(command -v php${PHPv}) ]]; then
         warning "PHP${PHPv} & FPM package already installed..."
     else
         echo "Installing PHP${PHPv} & FPM..."
@@ -41,7 +41,7 @@ function install_php() {
             php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
             php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database >> lemper.log 2>&1
 
-        if [[ -n $(which php${PHPv}) ]]; then
+        if [[ -n $(command -v php${PHPv}) ]]; then
             status "PHP${PHPv} & FPM package installed."
         fi
 
@@ -92,7 +92,7 @@ function remove_php() {
 
     echo "Uninstalling PHP ${PHPv}..."
 
-    if [[ -n $(which php-fpm${PHPv}) ]]; then
+    if [[ -n $(command -v php-fpm${PHPv}) ]]; then
         run apt-get --purge remove -y php${PHPv} php${PHPv}-bcmath php${PHPv}-cli php${PHPv}-common \
             php${PHPv}-curl php${PHPv}-dev php${PHPv}-fpm php${PHPv}-mysql php${PHPv}-gd \
             php${PHPv}-gmp php${PHPv}-imap php${PHPv}-intl php${PHPv}-json php${PHPv}-ldap \
@@ -450,7 +450,7 @@ EOL
     if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
         run service php${PHPv}-fpm reload
         status "PHP${PHPv}-FPM restarted successfully."
-    elif [[ -n $(which php${PHPv}) ]]; then
+    elif [[ -n $(command -v php${PHPv}) ]]; then
         run service php${PHPv}-fpm start
 
         if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
@@ -520,7 +520,7 @@ function init_php_install() {
     esac
 
     # Install default PHP version used by LEMPer
-    if [[ ! -n $(which php7.3) ]]; then
+    if [[ ! -n $(command -v php7.3) ]]; then
         warning -e "\nLEMPer requires PHP 7.3 as default to run its administration tools."
         echo "PHP 7.3 now being installed..."
         install_php "7.3"
@@ -633,7 +633,7 @@ function init_php_install() {
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(which php5.6) && -n $(which php7.0) && -n $(which php7.1) && -n $(which php7.2) && -n $(which php7.3) ]]; then
+if [[ -n $(command -v php5.6) && -n $(command -v php7.0) && -n $(command -v php7.1) && -n $(command -v php7.2) && -n $(command -v php7.3) ]]; then
     warning -e "\nAll available PHP version already exists. Installation skipped..."
 else
     init_php_install "$@"

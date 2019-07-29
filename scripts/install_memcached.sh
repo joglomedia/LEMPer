@@ -111,7 +111,7 @@ echo ""
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(which memcached) ]]; then
+if [[ -n $(command -v memcached) ]]; then
     warning "Memcache server already exists. Installation skipped..."
 else
     init_memcache_install "$@"

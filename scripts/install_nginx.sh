@@ -350,7 +350,7 @@ function init_nginx_install() {
         if [[ $(pgrep -c nginx) -gt 0 ]]; then
             run service nginx reload -s
             status "Nginx web server restarted successfully."
-        elif [[ -n $(which nginx) ]]; then
+        elif [[ -n $(command -v nginx) ]]; then
             run service nginx start
 
             if [[ $(pgrep -c nginx) -gt 0 ]]; then
@@ -364,7 +364,7 @@ function init_nginx_install() {
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(which nginxx) && -d /etc/nginx/sites-available ]]; then
+if [[ -n $(command -v nginxx) && -d /etc/nginx/sites-available ]]; then
     warning -e "\nNginx web server already exists. Installation skipped..."
 else
     init_nginx_install "$@"

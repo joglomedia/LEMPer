@@ -46,13 +46,13 @@ function init_mariadb_removal() {
         fi
     fi
 
-    if [[ -z $(which mysqld) ]]; then
+    if [[ -z $(command -v mysqld) ]]; then
         status "MariaDB (MySQL) server removed."
     fi
 }
 
 echo -e "\nUninstalling MariaDB (MySQL) server..."
-if [[ -n $(which mysql) ]]; then
+if [[ -n $(command -v mysql) ]]; then
     while [[ $REMOVE_MARIADB != "y" && $REMOVE_MARIADB != "n" ]]; do
         read -p "Are you sure to to remove MariaDB? [y/n]: " -e REMOVE_MARIADB
     done

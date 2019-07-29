@@ -54,7 +54,7 @@ function install_postfix() {
 # https://www.linode.com/docs/email/postfix/email-with-postfix-dovecot-and-mysql/
 
 ## Main
-if [[ -n $(which postfix) ]]; then
+if [[ -n $(command -v postfix) ]]; then
     warning "Postfix already exists. Installation skipped..."
 else
     install_postfix "$@"

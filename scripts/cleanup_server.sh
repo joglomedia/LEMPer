@@ -9,7 +9,7 @@ fi
 echo -e "\nCleaning up machine..."
 
 # Remove Apache2 service if exist
-if [[ -n $(which apache2) ]]; then
+if [[ -n $(command -v apache2) ]]; then
     warning -e "\nIt seems Apache web server installed on this machine."
     echo "Any other HTTP web server will be removed, otherwise they will conflict."
     read -t 15 -rp "Press [Enter] to continue..." </dev/tty
@@ -26,7 +26,7 @@ if [[ -n $(which apache2) ]]; then
 fi
 
 # Remove Mysql service if exist
-if [[ -n $(which mysql) ]]; then
+if [[ -n $(command -v mysql) ]]; then
     warning -e "\nMySQL database server already installed on this machine. Should we remove it?"
     echo -e "Backup your database before continue!\n"
 
@@ -49,7 +49,7 @@ if [[ -n $(which mysql) ]]; then
     fi
 fi
 
-if [[ -z $(which apache2) && -z $(which mysql) ]]; then
+if [[ -z $(command -v apache2) && -z $(command -v mysql) ]]; then
     status -e "\nMachine cleaned up."
 else
     warning -e "\nMachine cleaned up, but some installation not removed."

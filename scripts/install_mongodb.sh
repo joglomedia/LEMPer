@@ -58,7 +58,7 @@ _EOF_
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(which mongod) ]]; then
+if [[ -n $(command -v mongod) ]]; then
     warning -e "\nMongoDB server already exists. Installation skipped..."
 else
     init_mongodb_install "$@"

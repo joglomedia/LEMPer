@@ -27,7 +27,7 @@ function init_phpfpm_removal() {
     if [[ $(ps -ef | grep -v grep | grep php-fpm | grep "php/5.6" | wc -l) > 0 ]]; then
         run service php5.6-fpm stop
     fi
-    if [[ -n $(which php-fpm5.6) ]]; then
+    if [[ -n $(command -v php-fpm5.6) ]]; then
         DEBPackages=("php5.6 php5.6-bcmath php5.6-cli php5.6-common \
             php5.6-curl php5.6-dev php5.6-fpm php5.6-mysql php5.6-gd \
             php5.6-gmp php5.6-imap php5.6-intl php5.6-json php5.6-ldap \
@@ -39,7 +39,7 @@ function init_phpfpm_removal() {
     if [[ $(ps -ef | grep -v grep | grep php-fpm | grep "php/7.0" | wc -l) > 0 ]]; then
         run service php7.0-fpm stop
     fi
-    if [[ -n $(which php-fpm7.0) ]]; then
+    if [[ -n $(command -v php-fpm7.0) ]]; then
         DEBPackages=("php7.0 php7.0-bcmath php7.0-cli php7.0-common \
             php7.0-curl php7.0-dev php7.0-fpm php7.0-mysql php7.0-gd \
             php7.0-gmp php7.0-imap php7.0-intl php7.0-json php7.0-ldap \
@@ -51,7 +51,7 @@ function init_phpfpm_removal() {
     if [[ $(ps -ef | grep -v grep | grep php-fpm | grep "php/7.1" | wc -l) > 0 ]]; then
         run service php7.1-fpm stop
     fi
-    if [[ -n $(which php-fpm7.1) ]]; then
+    if [[ -n $(command -v php-fpm7.1) ]]; then
         DEBPackages=("php7.1 php7.1-bcmath php7.1-cli php7.1-common \
             php7.1-curl php7.1-dev php7.1-fpm php7.1-mysql php7.1-gd \
             php7.1-gmp php7.1-imap php7.1-intl php7.1-json php7.1-ldap \
@@ -63,7 +63,7 @@ function init_phpfpm_removal() {
     if [[ $(ps -ef | grep -v grep | grep php-fpm | grep "php/7.2" | wc -l) > 0 ]]; then
         run service php7.2-fpm stop
     fi
-    if [[ -n $(which php-fpm7.2) ]]; then
+    if [[ -n $(command -v php-fpm7.2) ]]; then
         DEBPackages=("php7.2 php7.2-bcmath php7.2-cli php7.2-common \
             php7.2-curl php7.2-dev php7.2-fpm php7.2-mysql php7.2-gd \
             php7.2-gmp php7.2-imap php7.2-intl php7.2-json php7.2-ldap \
@@ -75,7 +75,7 @@ function init_phpfpm_removal() {
     if [[ $(ps -ef | grep -v grep | grep php-fpm | grep "php/7.3" | wc -l) > 0 ]]; then
         run service php7.3-fpm stop
     fi
-    if [[ -n $(which php-fpm7.3) ]]; then
+    if [[ -n $(command -v php-fpm7.3) ]]; then
         DEBPackages=("php7.3 php7.3-bcmath php7.3-cli php7.3-common \
             php7.3-curl php7.3-dev php7.3-fpm php7.3-mysql php7.3-gd \
             php7.3-gmp php7.3-imap php7.3-intl php7.3-json php7.3-ldap \
@@ -109,11 +109,11 @@ function init_phpfpm_removal() {
 }
 
 echo -e "\nUninstalling PHP & FPM..."
-if [[ -n $(which php-fpm5.6) \
-    || -n $(which php-fpm7.0) \
-    || -n $(which php-fpm7.1) \
-    || -n $(which php-fpm7.2) \
-    || -n $(which php-fpm7.3) ]]; then
+if [[ -n $(command -v php-fpm5.6) \
+    || -n $(command -v php-fpm7.0) \
+    || -n $(command -v php-fpm7.1) \
+    || -n $(command -v php-fpm7.2) \
+    || -n $(command -v php-fpm7.3) ]]; then
 
     while [[ ${REMOVE_PHP} != "y" && ${REMOVE_PHP} != "n" ]]; do
         read -p "Are you sure to remove PHP & FPM? [y/n]: " -e REMOVE_PHP

@@ -83,7 +83,7 @@ EOL
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(which certbot) ]]; then
+if [[ -n $(command -v certbot) ]]; then
     warning "Certbot Let's Encrypt already exists. Installation skipped..."
 else
     init_certbotle_install "$@"

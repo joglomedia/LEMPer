@@ -91,13 +91,13 @@ function init_nginx_removal() {
         run rm -fr /usr/share/nginx
     fi
 
-    if [[ -z $(which nginx) ]]; then
+    if [[ -z $(command -v nginx) ]]; then
         status "Nginx web server removed."
     fi
 }
 
 echo -e "\nUninstalling Nginx web server..."
-if [[ -n $(which nginx) ]]; then
+if [[ -n $(command -v nginx) ]]; then
     while [[ $REMOVE_NGINX != "y" && $REMOVE_NGINX != "n" ]]; do
         read -p "Are you sure to remove Nginx web server? [y/n]: " -e REMOVE_NGINX
     done

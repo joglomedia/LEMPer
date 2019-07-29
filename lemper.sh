@@ -90,8 +90,8 @@ case ${1} in
         fi
 
         ### Install pre-requisites packages ###
-        if [ -f scripts/install_prerequisites ]; then
-            . scripts/install_prerequisites
+        if [ -f scripts/install_prerequisites.sh ]; then
+            . scripts/install_prerequisites.sh
         fi
 
         ### Check and enable swap ###
@@ -211,7 +211,7 @@ Now, you can reboot your server and enjoy it!
             read -pr "Are you sure to remove Memcached? [y/n]: " -e REMOVE_MEMCACHED
         done
         if [[ "$REMOVE_MEMCACHED" == Y* || "$REMOVE_MEMCACHED" == y* ]]; then
-            if [[ -n $(which memcached) ]]; then
+            if [[ -n $(command -v memcached) ]]; then
                 # Stop Memcached server process
                 if [[ $(pgrep -c memcached) -gt 0 ]]; then
                     run service memcached stop
@@ -223,7 +223,7 @@ Now, you can reboot your server and enjoy it!
                 #    php-memcache php-memcached php-msgpack >> lemper.log 2>&1
                 #run rm -f /etc/memcached.conf
 
-                if [[ -z $(which memcached) ]]; then
+                if [[ -z $(command -v memcached) ]]; then
                     status "Memcached server removed."
                 fi
             else
@@ -239,7 +239,7 @@ Now, you can reboot your server and enjoy it!
             read -pr "Are you sure to remove Redis server? [y/n]: " -e REMOVE_REDIS
         done
         if [[ "$REMOVE_REDIS" == Y* || "$REMOVE_REDIS" == y* ]]; then
-            if [[ -n $(which redis-server) ]]; then
+            if [[ -n $(command -v redis-server) ]]; then
                 # Stop Redis server process
                 if [[ $(pgrep -c redis-server) -gt 0 ]]; then
                     run service redis-server stop
@@ -250,7 +250,7 @@ Now, you can reboot your server and enjoy it!
                 run add-apt-repository -y --remove ppa:chris-lea/redis-server >> lemper.log 2>&1
                 #run rm -f /etc/redis/redis.conf
 
-                if [[ -z $(which redis-server) ]]; then
+                if [[ -z $(command -v redis-server) ]]; then
                     status "Redis server removed."
                 fi
             else

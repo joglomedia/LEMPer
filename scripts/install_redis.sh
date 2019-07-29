@@ -107,7 +107,7 @@ EOL
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(which redis-server) ]]; then
+if [[ -n $(command -v redis-server) ]]; then
     warning -e "\nRedis key-value store server already exists. Installation skipped..."
 else
     init_redis_install "$@"
