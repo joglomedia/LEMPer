@@ -6,7 +6,7 @@
 # Author            : MasEDI.Net (hi@masedi.net)
 
 # Make sure only root can run this installer script
-if [ $(id -u) -ne 0 ]; then
+if [ "$(id -u)" -ne 0 ]; then
     echo "You need to be root to run this script"
     exit 1
 fi

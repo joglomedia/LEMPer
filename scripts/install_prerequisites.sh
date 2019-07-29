@@ -3,7 +3,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    . ${BASEDIR}/helper.sh
+    . "${BASEDIR}/helper.sh"
 fi
 
 echo -e "\nAdding repositories..."
@@ -73,14 +73,32 @@ fi
 run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C >> lemper.log 2>&1
 run add-apt-repository -y ppa:ondrej/php
 
-echo -e "\nUpdating repository and install required packages..."
+echo -e "\nUpdating repository and installing required packages..."
 
-# Update repos
-run apt-get update -y >> lemper.log 2>&1
+if hash dpkg 2>/dev/null; then
+    # Update repos
+    run apt-get update -y >> lemper.log 2>&1
 
-# Install pre-requirements
-run apt-get install -y software-properties-common build-essential git unzip \
-    cron curl gnupg2 ca-certificates lsb-release rsync libgd-dev libgeoip-dev \
-    libxslt1-dev libssl-dev libxml2-dev openssl openssh-server snmp >> lemper.log 2>&1
+    # Install pre-requisites
+    run apt-get install -y apache2-utils build-essential ca-certificates cron curl git gnupg2 libgd-dev \
+        libgeoip-dev lsb-release libssl-dev libxml2-dev libxslt1-dev openssh-server \
+        openssl rsync software-properties-common snmp sysstat unzip >> lemper.log 2>&1
 
-status "Adding repositories completed..."
+    #dpkg -i $pkg
+elif hash yum 2>/dev/null; then
+    if [ "${VERSION_ID}" == "5" ]; then
+        yum -y update
+        #yum -y localinstall $pkg --nogpgcheck
+    else
+        yum -y update
+	    #yum -y localinstall $pkg
+    fi
+else
+    fail "Unable to install lemper: this linux distribution is not dpkg/yum enabled."
+fi
+
+status "Installing required packages completed..."
+
+# Configure server clock.
+echo -e "\nReconfigure server clock..."
+run dpkg-reconfigure tzdata

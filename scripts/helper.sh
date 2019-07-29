@@ -6,8 +6,43 @@
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
-export $(grep -v '^#' .env | grep -v '^\[' | xargs)
-#unset $(grep -v '^#' ../.env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+set -e
+unset GREP_OPTIONS LEMPHOMEDIR CURRENTTRAP
+
+# Export environment variables.
+if [ -f .env ]; then
+    export $(grep -v '^#' .env | grep -v '^\[' | xargs)
+    #unset $(grep -v '^#' ../.env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+else
+    echo "Environment variables required, but not found."
+    exit 0
+fi
+
+export IFS="$(printf "\n\b")"
+
+# Make sure only root can run this installer script.
+function requires_root() {
+    if [ "$(/usr/bin/id -u)" -ne 0 ]; then
+        error "This command can only be used by root."
+        exit 1
+    fi
+}
+
+function command_available() {
+    if [ -x "$1" ]; then return 0; fi
+    # command -v "$1" >/dev/null 2>&1 # not required by policy, see #747320
+    # which "$1" >/dev/null 2>&1 # is in debianutils (essential) but not on non-debian systems
+    local OLDIFS="$IFS"
+    IFS=:
+    for p in $PATH; do
+    	if [ -x "${p}/${1}" ]; then
+            IFS="$OLDIFS"
+            return 0
+    	fi
+    done
+    IFS="$OLDIFS"
+    return 1
+}
 
 function begin_color() {
     color="$1"
@@ -27,7 +62,6 @@ function echo_color() {
 }
 
 function error() {
-    local error_message="$@"
     echo_color "$RED" -n "Error: " >&2
     echo "$@" >&2
 }
@@ -56,20 +90,14 @@ function warning() {
 # The run function handles exit-status checking for system-changing commands.
 # Additionally, this allows us to easily have a dryrun mode where we don't
 # actually make any changes.
-INITIAL_ENV=$(printenv | sort)
 function run() {
     if "$DRYRUN"; then
-        echo_color "$YELLOW" -n "would run"
-        echo " $@"
-        env_differences=$(comm -13 <(echo "$INITIAL_ENV") <(printenv | sort))
-
-        #if [ -n "$env_differences" ]; then
-            #echo "  with the following additional environment variables:"
-            #echo "$env_differences" | sed 's/^/    /'
-        #fi
+        echo_color "$YELLOW" -n "would run "
+        echo "$@"
     else
         if ! "$@"; then
-            error "Failure running '$@', exiting."
+            local CMDSTR="$*"
+            error "Failure running '${CMDSTR}', exiting."
             exit 1
         fi
     fi
@@ -78,137 +106,212 @@ function run() {
 function continue_or_exit() {
     local prompt="$1"
     echo_color "$YELLOW" -n "$prompt"
-    read -p " [y/n] " yn
+    read -rp " [y/n] " yn
     if [[ "$yn" == N* || "$yn" == n* ]]; then
         echo "Cancelled."
         exit 0
     fi
 }
 
-# Make sure only root can run this installer script.
-function is_root() {
-    if [ $(id -u) -ne 0 ]; then
-        return 1
+# Get general distribution release name.
+function get_release_name() {
+    if [ -f "/etc/os-release" ]; then
+        # Export os-release vars.
+        . /etc/os-release
+
+        # Export lsb-release vars.
+        if [ -f /etc/lsb-release ]; then
+            . /etc/lsb-release
+        fi
+
+        if [[ "${ID_LIKE}" == "ubuntu" ]]; then
+            DISTRO="ubuntu"
+        else
+            DISTRO=${ID:-}
+        fi
+
+        case $DISTRO in
+            debian)
+                #RELEASE_NAME=${VERSION_CODENAME:-}
+                RELEASE_NAME="unsupported"
+
+                # TODO for Debian install
+            ;;
+
+            ubuntu)
+                # Hack for Linux Mint release number.
+                DISTRO_VERSION=${VERSION_ID:-$DISTRIB_RELEASE}
+                MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print $1}')
+                if [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]]; then
+                    DISTRIB_RELEASE="LM${MAJOR_RELEASE_NUMBER}"
+                fi
+
+                if [[ "${DISTRIB_RELEASE}" == "14.04" || "${DISTRIB_RELEASE}" == "LM17" ]]; then
+                    # Ubuntu release 14.04, LinuxMint 17
+                    RELEASE_NAME=${UBUNTU_CODENAME:-"trusty"}
+                elif [[ "${DISTRIB_RELEASE}" == "16.04" || "${DISTRIB_RELEASE}" == "LM18" ]]; then
+                    # Ubuntu release 16.04, LinuxMint 18
+                    RELEASE_NAME=${UBUNTU_CODENAME:-"xenial"}
+                elif [[ "${DISTRIB_RELEASE}" == "18.04" || "${DISTRIB_RELEASE}" == "LM19" ]]; then
+                    # Ubuntu release 18.04, LinuxMint 19
+                    RELEASE_NAME=${UBUNTU_CODENAME:-"bionic"}
+                else
+                    RELEASE_NAME="unsupported"
+                fi
+            ;;
+
+            amzn)
+                # Amazon based on RHEL/CentOS
+                RELEASE_NAME="unsupported"
+
+                # TODO for Amzn install
+            ;;
+
+            centos)
+                # CentOS
+                RELEASE_NAME="unsupported"
+
+                # TODO for Amzn install
+            ;;
+
+            *)
+                RELEASE_NAME="unsupported"
+                warning "Sorry, this distro isn't supported yet. If you'd like it to be, let us know at eslabs.id@gmail.com."
+            ;;
+        esac
+    elif [ -e /etc/system-release ]; then
+    	RELEASE_NAME="unsupported"
+    else
+        # Red Hat /etc/redhat-release
+    	RELEASE_NAME="unsupported"
     fi
+
+    echo "${RELEASE_NAME}"
+}
+
+# Get physical RAM size.
+function get_ram_size() {
+    local RAM_SIZE
+
+    # RAM size in MB
+    RAM_SIZE=$(dmidecode -t 17 | awk '( /Size/ && $2 ~ /^[0-9]+$/ ) { x+=$2 } END{ print x}')
+
+    echo "${RAM_SIZE}"
 }
 
 # Create custom Swap.
 function create_swap() {
-    echo "Enabling 1GiB swap..."
-
-    L_SWAP_FILE="/lemper-swapfile"
-
+    local SWAP_FILE="/proc/lemper-swapfile"
+    local RAM_SIZE && \
     RAM_SIZE=$(get_ram_size)
+
     if [[ ${RAM_SIZE} -lt 8192 ]]; then
         # If machine RAM less than 8GiB, set swap to half of it.
-        SWAP_SIZE=$(expr ${RAM_SIZE} / 2)
+        local SWAP_SIZE=$((RAM_SIZE / 2))
     else
         # Otherwise, set swap to max of 4GiB.
-        SWAP_SIZE=4096
+        local SWAP_SIZE=4096
     fi
 
-    run fallocate -l ${SWAP_SIZE}M ${L_SWAP_FILE} && \
-        chmod 600 ${L_SWAP_FILE} && \
-        chown root:root ${L_SWAP_FILE} && \
-        mkswap ${L_SWAP_FILE} && \
-        swapon ${L_SWAP_FILE}
+    echo "Create ${SWAP_SIZE}MiB swap..."
+
+    # Create swap.
+    run fallocate -l ${SWAP_SIZE}M ${SWAP_FILE} && \
+    run chmod 600 ${SWAP_FILE} && \
+    run chown root:root ${SWAP_FILE} && \
+    run mkswap ${SWAP_FILE} && \
+    run swapon ${SWAP_FILE}
 
     # Make the change permanent.
-    echo "${L_SWAP_FILE} swap swap defaults 0 0" >> /etc/fstab
+    if "${DRYRUN}"; then
+        echo "Add persistent swap to fstab in dryrun mode."
+    else
+        run echo "${SWAP_FILE} swap swap defaults 0 0" >> /etc/fstab
+    fi
 
     # Adjust swappiness, default Ubuntu set to 60
     # meaning that the swap file will be used fairly often if the memory usage is
     # around half RAM, for production servers you may need to set a lower value.
     if [[ $(cat /proc/sys/vm/swappiness) -gt 15 ]]; then
         run sysctl vm.swappiness=15
-        run echo "vm.swappiness=15" >> /etc/sysctl.conf
+
+        if "${DRYRUN}"; then
+            echo "Update swappiness value in dryrun mode."
+        else
+            run echo "vm.swappiness=15" >> /etc/sysctl.conf
+        fi
     fi
 }
 
 # Remove created Swap.
 function remove_swap() {
-    echo -e "\nDisabling swap..."
+    echo "Disabling swap..."
 
-    L_SWAP_FILE="/lemper-swapfile"
+    local SWAP_FILE="/proc/lemper-swapfile"
 
-    run swapoff -v ${L_SWAP_FILE} && \
-        sed -i "s|${L_SWAP_FILE}|#\ ${L_SWAP_FILE}|g" /etc/fstab && \
-        rm -f ${L_SWAP_FILE}
+    run swapoff -v ${SWAP_FILE} && \
+    run sed -i "s/${SWAP_FILE}/#\ ${SWAP_FILE}/g" /etc/fstab && \
+    run rm -f ${SWAP_FILE}
 }
 
-# Get physical RAM size.
-function get_ram_size() {
-    # RAM size in MB
-    local RAM=$(dmidecode -t 17 | awk '( /Size/ && $2 ~ /^[0-9]+$/ ) { x+=$2 } END{ print x}')
-    echo $RAM
-}
-
-# Check available Swap size.
-function check_swap() {
-    echo -e "\nChecking swap..."
+# Enable swap.
+function enable_swap() {
+    echo "Checking swap..."
 
     if free | awk '/^Swap:/ {exit !$2}'; then
-        swapsize=$(free -m | awk '/^Swap:/ { print $2 }')
-        status "Swap size ${swapsize}MiB."
+        local SWAP_SIZE && \
+        SWAP_SIZE=$(free -m | awk '/^Swap:/ { print $2 }')
+        status "Swap size ${SWAP_SIZE}MiB."
     else
-        warning "No swap detected"
+        warning "No swap detected."
         create_swap
-        status "Adding swap completed..."
+        status "Swap created and enabled."
     fi
 }
 
-# Create system account
+# Create system account.
 function create_account() {
-    if [[ -n $1 ]]; then
-        USERNAME="$1"
-    else
-        USERNAME="lemper" # default system account for LEMPer
-    fi
+    export USERNAME=${1:-"lemper"}
+    export PASSWORD && \
+    PASSWORD=$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
 
-    echo -e "\nCreating default LEMPer account..."
+    echo "Creating default LEMPer account..."
 
-    if [[ -z $(getent passwd ${USERNAME}) ]]; then
-        PASSWORD=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
-        run useradd -d /home/${USERNAME} -m -s /bin/bash ${USERNAME}
-        run echo "${USERNAME}:${PASSWORD}" | chpasswd
-        run usermod -aG sudo ${USERNAME}
+    if [[ -z $(getent passwd "${USERNAME}") ]]; then
+        if "${DRYRUN}"; then
+            echo "Username ${USERNAME} created in dryrun mode."
+        else
+            run useradd -d "/home/${USERNAME}" -m -s /bin/bash "${USERNAME}"
+            run echo "${USERNAME}:${PASSWORD}" | chpasswd
+            run usermod -aG sudo "${USERNAME}"
 
-        if [ -d /home/${USERNAME} ]; then
-            run mkdir /home/${USERNAME}/webapps
-            run chown -hR ${USERNAME}:${USERNAME} /home/${USERNAME}/webapps
+            if [ -d "/home/${USERNAME}" ]; then
+                run mkdir "/home/${USERNAME}/webapps"
+                run chown -hR "${USERNAME}" "/home/${USERNAME}/webapps"
+            fi
+
+            # Save data to log file.
+            echo "
+Your default system account information:
+Username: ${USERNAME} | Password: ${PASSWORD}
+" >> lemper.log 2>&1
+
+            status "Username ${USERNAME} created."
         fi
-
-        # Save data to log
-        echo "
-        Your default system account information:
-        Username: ${USERNAME} | Password: ${PASSWORD}
-        " >> lemper.log 2>&1
-
-        status "Username ${USERNAME} created."
     else
-        warning "Username ${USERNAME} already exists."
+        warning "Unable to create account, username \"${USERNAME}\" already exists."
     fi
 }
 
-# Delete system account
+# Delete system account.
 function delete_account() {
-    if [[ -n $1 ]]; then
-        USERNAME="$1"
-    else
-        USERNAME="lemper" # default system account for LEMPer
-    fi
+    local USERNAME=${1:-"lemper"}
 
-    echo ""
-    while [[ $REMOVE_ACCOUNT != "y" && $REMOVE_ACCOUNT != "n" ]]; do
-        read -p "Remove default LEMPer account? [y/n]: " -e REMOVE_ACCOUNT
-    done
-    if [[ "$REMOVE_ACCOUNT" == Y* || "$REMOVE_ACCOUNT" == y* ]]; then
-        if [[ ! -z $(getent passwd "${USERNAME}") ]]; then
-            run userdel -r ${USERNAME} >> lemper.log 2>&1
-            status "Default LEMPer account deleted."
-        else
-            warning "Default LEMPer account not found."
-        fi
+    if [[ ! -z $(getent passwd "${USERNAME}") ]]; then
+        run userdel -r "${USERNAME}"
+        status "Default LEMPer account deleted."
+    else
+        warning "Default LEMPer account not found."
     fi
 }
 
@@ -226,28 +329,30 @@ function get_ip_addr() {
     fi
 }
 
+function version_sort() {
+    # We'd rather use sort -V, but that's not available on Centos 5.    This works
+    # for versions in the form A.B.C.D or shorter, which is enough for our use.
+    sort -t '.' -k 1,1 -k 2,2 -k 3,3 -k 4,4 -g
+}
+
 # Compare two numeric versions in the form "A.B.C".    Works with version numbers
 # having up to four components, since that's enough to handle both nginx (3) and
 # ngx_pagespeed (4).
 function version_older_than() {
-    local test_version="$1"
+    local test_version && \
+    test_version=$(echo "$@" | tr ' ' '\n' | version_sort | head -n 1)
     local compare_to="$2"
+    local older_version="${test_version}"
 
-    local older_version=$(echo $@ | tr ' ' '\n' | version_sort | head -n 1)
     test "$older_version" != "$compare_to"
 }
 
 # Validate Nginx configuration.
 function validate_nginx_config() {
-    NGX_BIN=$(which nginx)
-    ${NGX_BIN} -t 2>/dev/null > /dev/null
-
-    if [[ $? == 0 ]]; then
-        echo "success"
-        # do things on success
+    if nginx -t 2>/dev/null > /dev/null; then
+        return 1
     else
-        echo "fail"
-        # do whatever on fail
+        return 0
     fi
 }
 
@@ -259,8 +364,8 @@ function init_log() {
 
 # Header message.
 function header_msg() {
-clear
-cat <<- _EOF_
+    clear
+    cat <<- _EOF_
 #==========================================================================#
 #        LEMPer v1.0.0 for Ubuntu-based server, Written by ESLabs.ID       #
 #==========================================================================#
@@ -273,7 +378,7 @@ _EOF_
 
 # Footer credit message.
 function footer_msg() {
-cat <<- _EOF_
+    cat <<- _EOF_
 #==========================================================================#
 #         Thank's for installing LNMP stack using LEMPer Installer         #
 #        Found any bugs / errors / suggestions? please let me know         #
