@@ -1,31 +1,33 @@
 #!/usr/bin/env bash
 
-# PHP installer
-# Min requirement   : GNU/Linux Ubuntu 14.04 & 16.04
-# Last Build        : 17/09/2018
-# Author            : ESLabs.id (eslabs.id@gmail.com)
+# PHP Installer
+# Min. Requirement  : GNU/Linux Ubuntu 14.04 & 16.04
+# Last Build        : 17/07/2019
+# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Since Version     : 1.0.0
 
-# Include decorator
+# Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     . ${BASEDIR}/helper.sh
 fi
 
-# Make sure only root can run this installer script
-if [ $(id -u) -ne 0 ]; then
+# Make sure only root can run this installer script.
+if [ "$(id -u)" -ne 0 ]; then
     error "You need to be root to run this script"
     exit 1
 fi
 
-# Install PHP
+# Install PHP.
 function install_php() {
     if [[ -n $1 ]]; then
         PHPv="$1"
     else
-        PHPv="7.3" # default php install 7.0 (latest stable recommendation)
+        # Default PHP is 7.3 (latest stable recommendation).
+        PHPv="7.3"
     fi
 
-    # Checking if php already installed
+    # Checking if php already installed.
     if [[ -n $(which php${PHPv}) ]]; then
         warning "PHP${PHPv} & FPM package already installed..."
     else
@@ -53,14 +55,14 @@ function install_php() {
         if [[ "$INSTALL_PHPMCRYPT" == Y* || "$INSTALL_PHPMCRYPT" == y* ]]; then
             if [ "${PHPv//.}" -lt "72" ]; then
                 run apt-get install -y php${PHPv}-mcrypt
-            elif [ "$PHPv" == "7.2" ]; then
-                run apt-get -y install gcc make autoconf libc-dev pkg-config >> lemper.log 2>&1
-                run apt-get -y install libmcrypt-dev libreadline-dev >> lemper.log 2>&1
-                run pecl install mcrypt-1.0.1 >> lemper.log 2>&1
+            elif [ "${PHPv}" == "7.2" ]; then
+                run apt-get -y install gcc make autoconf libc-dev pkg-config \
+                    libmcrypt-dev libreadline-dev && \
+                    pecl install mcrypt-1.0.1 >> lemper.log 2>&1
 
-                # enable module
+                # Enable Mcrypt module.
                 echo "Update PHP ini file with Mcrypt module..."
-                bash -c "echo extension=mcrypt.so > /etc/php/${PHPv}/mods-available/mcrypt.ini"
+                run bash -c "echo extension=mcrypt.so > /etc/php/${PHPv}/mods-available/mcrypt.ini"
 
                 if [ ! -f /etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini ]; then
                     run ln -s /etc/php/${PHPv}/mods-available/mcrypt.ini /etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini
@@ -73,7 +75,7 @@ function install_php() {
                 run apt-get install -y dh-php >> lemper.log 2>&1
 
                 # use libsodium instead
-                warning "Mcrypt is deprecated for PHP version $PHPv or greater, you should using Libsodium or OpenSSL."
+                warning "Mcrypt is deprecated for PHP version ${PHPv} or greater, you should using Libsodium or OpenSSL."
             fi
         fi
     fi
@@ -84,13 +86,14 @@ function remove_php() {
     if [[ -n $1 ]]; then
         PHPv="$1"
     else
-        PHPv="7.3" # default php install 7.3 (latest stable recommendation)
+        # Default PHP is 7.3 (latest stable recommendation).
+        PHPv="7.3"
     fi
 
-    echo "Uninstalling PHP $PHPv..."
+    echo "Uninstalling PHP ${PHPv}..."
 
     if [[ -n $(which php-fpm${PHPv}) ]]; then
-        run apt-get remove -y php${PHPv} php${PHPv}-bcmath php${PHPv}-cli php${PHPv}-common \
+        run apt-get --purge remove -y php${PHPv} php${PHPv}-bcmath php${PHPv}-cli php${PHPv}-common \
             php${PHPv}-curl php${PHPv}-dev php${PHPv}-fpm php${PHPv}-mysql php${PHPv}-gd \
             php${PHPv}-gmp php${PHPv}-imap php${PHPv}-intl php${PHPv}-json php${PHPv}-ldap \
             php${PHPv}-mbstring php${PHPv}-opcache php${PHPv}-pspell php${PHPv}-readline \
@@ -102,7 +105,7 @@ function remove_php() {
         if [[ "_$isMcrypt" == "_mcrypt" ]]; then
             if [ "${PHPv//.}" -lt "72" ]; then
                 run apt-get --purge remove -y php${PHPv}-mcrypt >> lemper.log 2>&1
-            elif [ "$PHPv" == "7.2" ]; then
+            elif [ "${PHPv}" == "7.2" ]; then
                 # uninstall
                 run pecl uninstall mcrypt-1.0.1 >> lemper.log 2>&1
 
@@ -124,9 +127,9 @@ function remove_php() {
             fi
         fi
 
-        status -e "PHP $PHPv installation has been removed."
+        status -e "PHP ${PHPv} installation has been removed."
     else
-        warning "PHP $PHPv installation couldn't be found."
+        warning "PHP ${PHPv} installation couldn't be found."
     fi
 }
 
@@ -134,8 +137,8 @@ function remove_php() {
 function install_ic() {
     echo "Installing IonCube PHP loader..."
 
-    arch=$(uname -p)
-    if [[ "$arch" == "x86_64" ]]; then
+    ARCH=$(uname -p)
+    if [[ "${ARCH}" == "x86_64" ]]; then
         run wget -q "http://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz"
         run tar -xzf ioncube_loaders_lin_x86-64.tar.gz
         run rm -f ioncube_loaders_lin_x86-64.tar.gz
@@ -166,7 +169,7 @@ function enable_ic() {
     echo "Enabling IonCube PHP ${PHPv} loader"
 
 if [ -f /usr/lib/php/loaders/ioncube/ioncube_loader_lin_${PHPv}.so ]; then
-cat > /etc/php/${PHPv}/mods-available/ioncube.ini <<EOL
+    cat > /etc/php/${PHPv}/mods-available/ioncube.ini <<EOL
 [ioncube]
 zend_extension=/usr/lib/php/loaders/ioncube/ioncube_loader_lin_${PHPv}.so
 EOL
@@ -208,7 +211,7 @@ function remove_ic() {
     echo "Uninstalling IonCube PHP ${PHPv} loader..."
 
     if [[ -f /etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini || -f /etc/php/${PHPv}/cli/conf.d/05-ioncube.ini ]]; then
-        disable_ic $PHPv
+        disable_ic ${PHPv}
     fi
 
     if [ -d /usr/lib/php/loaders/ioncube ]; then
@@ -233,8 +236,8 @@ function install_sg() {
 
     run cd sourceguardian
 
-    arch=$(uname -p)
-    if [[ "$arch" == "x86_64" ]]; then
+    ARCH=$(uname -p)
+    if [[ "${ARCH}" == "x86_64" ]]; then
         run wget -q "http://www.sourceguardian.com/loaders/download/loaders.linux-x86_64.tar.gz"
         run tar -xzf loaders.linux-x86_64.tar.gz
         run rm -f loaders.linux-x86_64.tar.gz
@@ -267,7 +270,7 @@ function enable_sg() {
     echo "Enabling SourceGuardian PHP ${PHPv} loader..."
 
 if [ -f /usr/lib/php/loaders/sourceguardian/ixed.${PHPv}.lin ]; then
-cat > /etc/php/${PHPv}/mods-available/sourceguardian.ini <<EOL
+    cat > /etc/php/${PHPv}/mods-available/sourceguardian.ini <<EOL
 [sourceguardian]
 zend_extension=/usr/lib/php/loaders/sourceguardian/ixed.${PHPv}.lin
 EOL
@@ -309,7 +312,7 @@ function remove_sg() {
     echo "Uninstalling SourceGuardian PHP ${PHPv} loader..."
 
     if [[ -f /etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini || -f /etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini ]]; then
-        disable_sg $PHPv
+        disable_sg ${PHPv}
     fi
 
     if [ -d /usr/lib/php/loaders/sourceguardian ]; then
@@ -339,9 +342,9 @@ function optimize_php() {
     fi
 
     # Copy the optimized-version of php.ini
-    if [ -f config/php/${PHPv}/fpm/php.ini ]; then
+    if [ -f etc/php/${PHPv}/fpm/php.ini ]; then
         run mv /etc/php/${PHPv}/fpm/php.ini /etc/php/${PHPv}/fpm/php.ini.old
-        run cp -f config/php/${PHPv}/fpm/php.ini /etc/php/${PHPv}/fpm/
+        run cp -f etc/php/${PHPv}/fpm/php.ini /etc/php/${PHPv}/fpm/
     else
         cat >> /etc/php/${PHPv}/fpm/php.ini <<EOL
 
@@ -359,9 +362,9 @@ EOL
     fi
 
     # Copy the optimized-version of php-fpm config file
-    if [ -f config/php/${PHPv}/fpm/php-fpm.conf ]; then
+    if [ -f etc/php/${PHPv}/fpm/php-fpm.conf ]; then
         run mv /etc/php/${PHPv}/fpm/php-fpm.conf /etc/php/${PHPv}/fpm/php-fpm.conf.old
-        run cp -f config/php/${PHPv}/fpm/php-fpm.conf /etc/php/${PHPv}/fpm/
+        run cp -f etc/php/${PHPv}/fpm/php-fpm.conf /etc/php/${PHPv}/fpm/
     else
         cat >> /etc/php/${PHPv}/fpm/php.ini <<EOL
 
@@ -381,17 +384,17 @@ EOL
     fi
 
     # Copy the optimized-version of php fpm default pool
-    if [ -f config/php/${PHPv}/fpm/pool.d/www.conf ]; then
+    if [ -f etc/php/${PHPv}/fpm/pool.d/www.conf ]; then
         run mv /etc/php/${PHPv}/fpm/pool.d/www.conf /etc/php/${PHPv}/fpm/pool.d/www.conf.old
-        run cp -f config/php/${PHPv}/fpm/pool.d/www.conf /etc/php/${PHPv}/fpm/pool.d/
+        run cp -f etc/php/${PHPv}/fpm/pool.d/www.conf /etc/php/${PHPv}/fpm/pool.d/
     fi
 
     # Copy the optimized-version of php fpm lemper pool
-    if [ -f config/php/${PHPv}/fpm/pool.d/lemper.conf ]; then
+    if [ -f etc/php/${PHPv}/fpm/pool.d/lemper.conf ]; then
         run mv /etc/php/${PHPv}/fpm/pool.d/lemper.conf /etc/php/${PHPv}/fpm/pool.d/lemper.conf.old
-        run cp -f config/php/${PHPv}/fpm/pool.d/lemper.conf /etc/php/${PHPv}/fpm/pool.d/
+        run cp -f etc/php/${PHPv}/fpm/pool.d/lemper.conf /etc/php/${PHPv}/fpm/pool.d/
     else
-cat >> /etc/php/${PHPv}/fpm/pool.d/lemper.conf <<EOL
+        cat >> /etc/php/${PHPv}/fpm/pool.d/lemper.conf <<EOL
 [lemper]
 user = lemper
 group = lemper
@@ -435,17 +438,17 @@ EOL
 
     # Add custom php extension (ex .php70, .php71)
     PHPExt=".php${PHPv//.}"
-    sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/" /etc/php/${PHPv}/fpm/pool.d/www.conf
+    run sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/" /etc/php/${PHPv}/fpm/pool.d/www.conf
 
     # Enable FPM ping service
-    sed -i "/^;ping.path\ =.*/a ping.path\ =\ \/ping" /etc/php/${PHPv}/fpm/pool.d/www.conf
+    run sed -i "/^;ping.path\ =.*/a ping.path\ =\ \/ping" /etc/php/${PHPv}/fpm/pool.d/www.conf
 
     # Enable FPM status
-    sed -i "/^;pm.status_path\ =.*/a pm.status_path\ =\ \/status" /etc/php/${PHPv}/fpm/pool.d/www.conf
+    run sed -i "/^;pm.status_path\ =.*/a pm.status_path\ =\ \/status" /etc/php/${PHPv}/fpm/pool.d/www.conf
 
     # Restart PHP-fpm server
     if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
-        run service php${PHPv}-fpm restart
+        run service php${PHPv}-fpm reload
         status "PHP${PHPv}-FPM restarted successfully."
     elif [[ -n $(which php${PHPv}) ]]; then
         run service php${PHPv}-fpm start
@@ -488,23 +491,23 @@ function init_php_install() {
     case $SELECTED_PHP in
         1)
             PHP_VER="5.6"
-            install_php $PHP_VER
+            install_php ${PHP_VER}
         ;;
         2)
             PHP_VER="7.0"
-            install_php $PHP_VER
+            install_php ${PHP_VER}
         ;;
         3)
             PHP_VER="7.1"
-            install_php $PHP_VER
+            install_php ${PHP_VER}
         ;;
         4)
             PHP_VER="7.2"
-            install_php $PHP_VER
+            install_php ${PHP_VER}
         ;;
         5)
             PHP_VER="7.3"
-            install_php $PHP_VER
+            install_php ${PHP_VER}
         ;;
         *)
             PHP_VER="all"
@@ -525,11 +528,11 @@ function init_php_install() {
 
     # Menu Install PHP loader
     echo ""
-    while [[ $INSTALL_PHPLOADER != "y" && $INSTALL_PHPLOADER != "n" ]]; do
+    while [[ ${INSTALL_PHPLOADER} != "y" && ${INSTALL_PHPLOADER} != "n" ]]; do
         read -p "Do you want to install PHP Loaders? [y/n]: " -e INSTALL_PHPLOADER
     done
 
-    if [[ "$INSTALL_PHPLOADER" == Y* || "$INSTALL_PHPLOADER" == y* ]]; then
+    if [[ "${INSTALL_PHPLOADER}" == Y* || "${INSTALL_PHPLOADER}" == y* ]]; then
         echo ""
         echo "Available PHP Loaders:"
         echo "  1). IonCube Loader (latest stable)"
@@ -537,8 +540,8 @@ function init_php_install() {
         echo "  3). All loaders (IonCube, SourceGuardian)"
         echo "--------------------------------------------"
 
-        while [[ $SELECTED_PHPLOADER != "1" && $SELECTED_PHPLOADER != "2" \
-                && $SELECTED_PHPLOADER != "3" ]]; do
+        while [[ ${SELECTED_PHPLOADER} != "1" && ${SELECTED_PHPLOADER} != "2" \
+                && ${SELECTED_PHPLOADER} != "3" ]]; do
             read -p "Select an option [1-3]: " SELECTED_PHPLOADER
         done
 
@@ -549,15 +552,15 @@ function init_php_install() {
             run mkdir /usr/lib/php/loaders
         fi
 
-        case $SELECTED_PHPLOADER in
+        case ${SELECTED_PHPLOADER} in
             1)
                 install_ic
 
-                if [ "$PHP_VER" != "all" ]; then
-                    enable_ic $PHP_VER
+                if [ "${PHP_VER}" != "all" ]; then
+                    enable_ic ${PHP_VER}
 
                     # Required for LEMPer default PHP
-                    if [ "$PHP_VER" != "7.3" ]; then
+                    if [ "${PHP_VER}" != "7.3" ]; then
                         enable_ic "7.3"
                     fi
                 else
@@ -571,8 +574,8 @@ function init_php_install() {
             2)
                 install_sg
 
-                if [ "$PHP_VER" != "all" ]; then
-                    enable_sg $PHP_VER
+                if [ "${PHP_VER}" != "all" ]; then
+                    enable_sg ${PHP_VER}
                 else
                     enable_sg "5.6"
                     enable_sg "7.0"
@@ -585,15 +588,15 @@ function init_php_install() {
                 install_ic
                 install_sg
 
-                if [ "$PHP_VER" != "all" ]; then
-                    enable_ic $PHP_VER
+                if [ "${PHP_VER}" != "all" ]; then
+                    enable_ic ${PHP_VER}
 
                     # Required for LEMPer default PHP
-                    if [ "$PHP_VER" != "7.3" ]; then
+                    if [ "${PHP_VER}" != "7.3" ]; then
                         enable_ic "7.3"
                     fi
 
-                    enable_sg $PHP_VER
+                    enable_sg ${PHP_VER}
                 else
                     enable_ic "5.6"
                     enable_ic "7.0"
@@ -612,11 +615,11 @@ function init_php_install() {
     fi
 
     # Menu Optimizing PHP
-    if [ "$PHP_VER" != "all" ]; then
-        optimize_php $PHP_VER
+    if [ "${PHP_VER}" != "all" ]; then
+        optimize_php ${PHP_VER}
 
         # Required for LEMPer default PHP
-        if [ "$PHP_VER" != "7.3" ]; then
+        if [ "${PHP_VER}" != "7.3" ]; then
             optimize_php "7.3"
         fi
     else

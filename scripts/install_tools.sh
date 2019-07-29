@@ -6,22 +6,24 @@
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
-# Include decorator
+# Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     . ${BASEDIR}/helper.sh
 fi
 
 # Make sure only root can run this installer script
-if [ $(id -u) -ne 0 ]; then
+if [ "$(id -u)" -ne 0 ]; then
     error "You need to be root to run this script"
     exit 1
 fi
 
-echo -e "\nInstalling web administration tools...\n"
+echo ""
+echo "Installing Web Administration Tools"
+echo ""
 
 function create_index_file() {
-cat <<- _EOF_
+    cat <<- _EOF_
 <!DOCTYPE html>
 <html>
 <head>
@@ -54,17 +56,18 @@ server management tool.</p>
 _EOF_
 }
 
-# Install Nginx vHost Creator
+# Install Nginx Virtual Host Creator
 run cp -f scripts/ngxvhost.sh /usr/local/bin/ngxvhost
-run cp -f scripts/ngxtool.sh /usr/local/bin/ngxtool
 run chmod ugo+x /usr/local/bin/ngxvhost
+
+run cp -f scripts/ngxtool.sh /usr/local/bin/ngxtool
 run chmod ugo+x /usr/local/bin/ngxtool
 
-# Install Web-viewer Tools
+# Install Web Admin
 run mkdir /usr/share/nginx/html/tools/
 
-create_index_file > /usr/share/nginx/html/index.html
-create_index_file > /usr/share/nginx/html/tools/index.html
+run create_index_file > /usr/share/nginx/html/index.html
+run create_index_file > /usr/share/nginx/html/tools/index.html
 
 # Install PHP Info
 #cat > /usr/share/nginx/html/tools/phpinfo.php <<EOL
@@ -76,11 +79,11 @@ run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.ph
 run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.php71'
 run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/tools/phpinfo.php72'
 
-# Install Zend OpCache Web Viewer
+# Install Zend OpCache Web Admin
 run wget -q --no-check-certificate https://raw.github.com/rlerdorf/opcache-status/master/opcache.php \
     -O /usr/share/nginx/html/tools/opcache.php
 
-# Install Memcache Web-based stats
+# Install Memcached Web Admin
 #http://blog.elijaa.org/index.php?pages/phpMemcachedAdmin-Installation-Guide
 run git clone -q https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/tools/phpMemcachedAdmin/
 
@@ -97,15 +100,7 @@ run wget -q http://www.filerun.com/download-latest -O FileRun.zip
 run unzip -qq FileRun.zip -d /usr/share/nginx/html/tools/filerun/
 run rm -f FileRun.zip
 
-# TODO: try Tinyfilemanager https://github.com/prasathmani/tinyfilemanager
-
-# Secure Nginx Mod PageSpeed ​​Admin
-PASSHASH=""
-if [[ -n $(which php) ]]; then
-    PHPCMD="echo crypt(\"${PASSWORD}\", base64_encode(\"${PASSWORD}\"));"
-    PASSHASH=$(php -r "${PHPCMD}")
-fi
-echo "${USERNAME}:${PASSHASH}" >> /srv/.htpasswd
+# TODO: Replace FileRun with Tinyfilemanager https://github.com/prasathmani/tinyfilemanager
 
 # Assign ownership properly
 run chown -hR www-data:root /usr/share/nginx/html/tools/

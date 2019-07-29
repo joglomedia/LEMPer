@@ -60,9 +60,9 @@ do
     	setgroup=""
     fi
 
-    user_exists=$(grep -c '^${namauser}:' /etc/passwd)
+    #user_exists=$(grep -c '^${namauser}:' /etc/passwd)
 
-    if [[ $user_exists == 1 ]]; then
+    if [[ -z $(getent passwd "${namauser}") ]]; then
         useradd $sethomedir $setexpiredate $setgroup $setusershell $namauser
         echo "${namauser}:${katasandi}" | chpasswd
 

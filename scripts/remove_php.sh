@@ -6,15 +6,14 @@
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
-# Include decorator
-BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-
+# Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
+    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     . ${BASEDIR}/helper.sh
 fi
 
 # Make sure only root can run this installer script
-if [ $(id -u) -ne 0 ]; then
+if [ "$(id -u)" -ne 0 ]; then
     error "You need to be root to run this script"
     exit 1
 fi
@@ -87,16 +86,15 @@ function init_phpfpm_removal() {
 
     if [[ -n ${DEBPackages} ]]; then
         run apt-get --purge remove -y ${DEBPackages} \
-            fcgiwrap php-geoip php-pear pkg-php-tools spawn-fcgi geoip-database >> lemper.log 2>&1
-        #run apt-get purge -y ${DEBPackages} >> lemper.log 2>&1
-        run add-apt-repository -y --remove ppa:ondrej/php >> lemper.log 2>&1
+            fcgiwrap php-geoip php-pear pkg-php-tools spawn-fcgi geoip-database && \
+            add-apt-repository -y --remove ppa:ondrej/php >> lemper.log 2>&1
     fi
 
     # Remoce PHP & FPM config files
-    while [[ $REMOVE_PHPCONFIG != "y" && $REMOVE_PHPCONFIG != "n" ]]; do
+    while [[ ${REMOVE_PHPCONFIG} != "y" && ${REMOVE_PHPCONFIG} != "n" ]]; do
         read -p "Remove PHP-FPM configuration files (This action is not reversible)? [y/n]: " -e REMOVE_PHPCONFIG
     done
-    if [[ "$REMOVE_PHPCONFIG" == Y* || "$REMOVE_PHPCONFIG" == y* ]]; then
+    if [[ "${REMOVE_PHPCONFIG}" == Y* || "${REMOVE_PHPCONFIG}" == y* ]]; then
         echo "All your PHP-FPM configuration files deleted permanently..."
         if [[ -d /etc/php ]]; then
             run rm -fr /etc/php
@@ -117,11 +115,10 @@ if [[ -n $(which php-fpm5.6) \
     || -n $(which php-fpm7.2) \
     || -n $(which php-fpm7.3) ]]; then
 
-
-    while [[ $REMOVE_PHP != "y" && $REMOVE_PHP != "n" ]]; do
+    while [[ ${REMOVE_PHP} != "y" && ${REMOVE_PHP} != "n" ]]; do
         read -p "Are you sure to remove PHP & FPM? [y/n]: " -e REMOVE_PHP
     done
-    if [[ "$REMOVE_PHP" == Y* || "$REMOVE_PHP" == y* ]]; then
+    if [[ "${REMOVE_PHP}" == Y* || "${REMOVE_PHP}" == y* ]]; then
         init_phpfpm_removal "$@"
     else
         echo "PHP & FPM uninstall skipped."

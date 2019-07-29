@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 
-# Include decorator
+# MariaDB (MySQL) Installer
+# Min. Requirement  : GNU/Linux Ubuntu 14.04 & 16.04
+# Last Build        : 17/07/2019
+# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Since Version     : 1.0.0
+
+# Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     . ${BASEDIR}/helper.sh
 fi
 
 # Make sure only root can run this installer script
-if [ $(id -u) -ne 0 ]; then
+if [ "$(id -u)" -ne 0 ]; then
     error "You need to be root to run this script"
     exit 1
 fi
@@ -18,14 +24,14 @@ function init_mariadb_install() {
     echo ""
 
     while [[ $INSTALL_MYSQL != "y" && $INSTALL_MYSQL != "n" ]]; do
-        read -p "Do you want to install MariaDB (MySQL) server? [y/n]: " -e INSTALL_MYSQL
+        read -p "Do you want to install MariaDB (MySQL) database server? [y/n]: " -e INSTALL_MYSQL
     done
 
     if [[ "$INSTALL_MYSQL" == Y* || "$INSTALL_MYSQL" == y* ]]; then
-        echo "Installing MariaDB (MySQL) server..."
+        echo -e "\nInstalling MariaDB (MySQL) server..."
 
         # Install MariaDB
-        run apt-get install -y mariadb-server libmariadbclient18 >> lemper.log 2>&1
+        run apt-get install -y mariadb-server libmariadbclient18
 
         # Fix MySQL error?
         # Ref: https://serverfault.com/questions/104014/innodb-error-log-file-ib-logfile0-is-of-different-size
@@ -35,16 +41,16 @@ function init_mariadb_install() {
         #service mysql start
         if [[ -n $(which mysql) ]]; then
             if [ ! -f /etc/mysql/my.cnf ]; then
-                run cp -f config/mysql/my.cnf /etc/mysql/
+                run cp -f etc/mysql/my.cnf /etc/mysql/
             fi
             if [ ! -f /etc/mysql/mariadb.cnf ]; then
-                run cp -f config/mysql/mariadb.cnf /etc/mysql/
+                run cp -f etc/mysql/mariadb.cnf /etc/mysql/
             fi
             if [ ! -f /etc/mysql/debian.cnf ]; then
-                run cp -f config/mysql/debian.cnf /etc/mysql/
+                run cp -f etc/mysql/debian.cnf /etc/mysql/
             fi
             if [ ! -f /etc/mysql/debian-start ]; then
-                run cp -f config/mysql/debian-start /etc/mysql/
+                run cp -f etc/mysql/debian-start /etc/mysql/
                 run chmod +x /etc/mysql/debian-start
             fi
 
@@ -55,11 +61,15 @@ function init_mariadb_install() {
             run mysql_secure_installation
         fi
 
-        # Restart MariaDB MySQL server
-        if [[ $(ps -ef | grep -v grep | grep mysql | wc -l) > 0 ]]; then
-            status -e "\nMariaDB (MySQL) database server installed successfully."
+        # Installation status.
+        if "${DRYRUN}"; then
+            status "MariaDB (MySQL) installed in dryrun mode."
         else
-            warning -e "\nSomething wrong with MariaDB (MySQL) installation."
+            if [[ $(ps -ef | grep -v grep | grep mysql | wc -l) > 0 ]]; then
+                status -e "\nMariaDB (MySQL) installed successfully."
+            else
+                warning -e "\nSomething wrong with MariaDB (MySQL) installation."
+            fi
         fi
     fi
 }

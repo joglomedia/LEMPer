@@ -1,0 +1,18 @@
+language: bash
+
+before_script:
+    - curl -L "https://github.com/kward/shunit2/archive/v2.1.7.tar.gz" | tar zx
+
+script:
+    - ./test_runner
+
+matrix:
+    include:
+        - os: linux
+            script:
+                # Run the source through ShellCheck (http://www.shellcheck.net).
+                - shellcheck -s bash -x scripts/helper.sh
+                - shellcheck -s bash -x lemper.sh
+                - shellcheck -s bash -x bin/lemper-cli.sh
+        - os: linux
+            dist: xenial
