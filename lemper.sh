@@ -37,8 +37,8 @@ fi
 
 # Export environment variables.
 if [ -f .env ]; then
-    export $(grep -v '^#' .env | grep -v '^\[' | xargs)
-    #unset $(grep -v '^#' ../.env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+    source <(grep -v '^#' .env | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+    #unset $(grep -v '^#' .env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
 else
     echo "Environment variables required, but not found."
     exit 1
@@ -62,7 +62,8 @@ fi
 run init_log
 
 # Make sure this script only run on supported distribution.
-export DISTRIB_REPO=$(get_release_name)
+export DISTRIB_REPO \
+DISTRIB_REPO=$(get_release_name)
 if [[ "${DISTRIB_REPO}" == "unsupported" ]]; then
     warning "This installer only work on Ubuntu 16.04 & 18.04 and LinuxMint 18 & 19..."
     exit 1
@@ -154,7 +155,7 @@ case ${1} in
         status -e "\nLEMPer installation has been completed."
 
         ### Recap ###
-        if [[ ! -z "${PASSWORD}" ]]; then
+        if [[ -n "${PASSWORD}" ]]; then
             status "
 Here is your default system account information:
 

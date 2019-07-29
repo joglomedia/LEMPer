@@ -31,5 +31,7 @@ matrix:
         - shellcheck -s bash -x scripts/helper.sh
         - shellcheck -s bash -x lemper.sh
         - shellcheck -s bash -x bin/lemper-cli.sh
+        - shellcheck -s bash lib/lemper-create.sh
+        - shellcheck -s bash lib/lemper-manage.sh
         # Run the source through ShUnit2
         - bash shunit2/run_test.sh

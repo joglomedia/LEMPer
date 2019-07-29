@@ -96,7 +96,7 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Check prerequisite packages
-if [[ ! -f $(which unzip) || ! -f $(which git) || ! -f $(which rsync) ]]; then
+if [[ ! -f $(command -v unzip) || ! -f $(command -v git) || ! -f $(command -v rsync) ]]; then
     warning "${APP_NAME^} requires rsync, unzip and git, please install it first!"
     echo "help: sudo apt-get install rsync unzip git"
     exit 0
@@ -740,7 +740,7 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
         fi
 
         # Check PHP fpm version is exists.
-        if [[ -n $(which php-fpm${PHP_VERSION}) && -d /etc/php/${PHP_VERSION}/fpm ]]; then
+        if [[ -n $(command -v php-fpm${PHP_VERSION}) && -d /etc/php/${PHP_VERSION}/fpm ]]; then
             # Additional check - if FPM user's pool already exist
             if [ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]; then
                 warning "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."

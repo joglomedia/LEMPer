@@ -18,7 +18,7 @@
 set -e
 
 # Version control
-ProgName=$(basename $0)
+ProgName=$(basename "$0")
 ProgVersion="1.2.0-dev"
 LibDir="/usr/lib/lemper"
 
@@ -39,11 +39,11 @@ function cmd_version() {
 }
 
 function cmd_create() {
-    "$LibDir"/lemper-create $@
+    "$LibDir"/lemper-create "$@"
 }
 
 function cmd_manage() {
-    "$LibDir"/lemper-manage $@
+    "$LibDir"/lemper-manage "$@"
 }
 
 SubCommand=$1
@@ -59,7 +59,7 @@ case $SubCommand in
     *)
         shift
         if declare -F "cmd_${SubCommand}" &>/dev/null; then
-            cmd_${SubCommand} $@
+            "cmd_${SubCommand}" "$@"
         else
             echo "Error: '${SubCommand}' is not a known command." >&2
             echo "      Run '${ProgName} --help' for a list of known commands." >&2

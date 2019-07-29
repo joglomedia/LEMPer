@@ -387,7 +387,7 @@ function reload_nginx() {
         fi
     else
         # Nginx service dead? Try to start it
-        if [[ -n $(which nginx) ]]; then
+        if [[ -n $(command -v nginx) ]]; then
             service nginx restart > /dev/null 2>&1
         else
             warning "Something went wrong with your LEMP stack installation."

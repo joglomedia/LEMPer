@@ -11,15 +11,12 @@ unset GREP_OPTIONS LEMPHOMEDIR CURRENTTRAP
 
 # Export environment variables.
 if [ -f .env ]; then
-    export $(grep -v '^#' .env | grep -v '^\[' | xargs)
-    #unset $(grep -v '^#' ../.env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+    source <(grep -v '^#' .env | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+    #unset $(grep -v '^#' .env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
 else
     echo "Environment variables required, but not found."
     exit 0
 fi
-
-export IFS \
-IFS="$(printf "\n\b")"
 
 # Make sure only root can run this installer script.
 function requires_root() {
@@ -27,22 +24,6 @@ function requires_root() {
         error "This command can only be used by root."
         exit 1
     fi
-}
-
-function command_available() {
-    if [ -x "$1" ]; then return 0; fi
-    # command -v "$1" >/dev/null 2>&1 # not required by policy, see #747320
-    # which "$1" >/dev/null 2>&1 # is in debianutils (essential) but not on non-debian systems
-    local OLDIFS="$IFS"
-    IFS=:
-    for p in $PATH; do
-    	if [ -x "${p}/${1}" ]; then
-            IFS="$OLDIFS"
-            return 0
-    	fi
-    done
-    IFS="$OLDIFS"
-    return 1
 }
 
 function begin_color() {
