@@ -1,4 +1,6 @@
 language: bash
+os: linux
+dist: bionic
 sudo: required
 
 before_install:
@@ -22,7 +24,8 @@ env:
 
 matrix:
   include:
-    - os: "linux"
+    - os: linux
+      dist: bionic
       script:
         # Run the source through ShellCheck (http://www.shellcheck.net).
         - shellcheck -s bash -x scripts/helper.sh
@@ -30,5 +33,3 @@ matrix:
         - shellcheck -s bash -x bin/lemper-cli.sh
         # Run the source through ShUnit2
         - bash shunit2/run_test.sh
-    - os: "linux"
-      dist: "bionic"
