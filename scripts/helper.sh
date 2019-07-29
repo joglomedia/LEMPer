@@ -18,7 +18,8 @@ else
     exit 0
 fi
 
-export IFS="$(printf "\n\b")"
+export IFS \
+IFS="$(printf "\n\b")"
 
 # Make sure only root can run this installer script.
 function requires_root() {
@@ -143,7 +144,7 @@ function get_release_name() {
                 DISTRO_VERSION=${VERSION_ID:-$DISTRIB_RELEASE}
                 MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print $1}')
                 if [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]]; then
-                    DISTRIB_RELEASE="LM${MAJOR_RELEASE_NUMBER}"
+                    DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
                 fi
 
                 if [[ "${DISTRIB_RELEASE}" == "14.04" || "${DISTRIB_RELEASE}" == "LM17" ]]; then
@@ -307,7 +308,7 @@ Username: ${USERNAME} | Password: ${PASSWORD}
 function delete_account() {
     local USERNAME=${1:-"lemper"}
 
-    if [[ ! -z $(getent passwd "${USERNAME}") ]]; then
+    if [[ -n $(getent passwd "${USERNAME}") ]]; then
         run userdel -r "${USERNAME}"
         status "Default LEMPer account deleted."
     else

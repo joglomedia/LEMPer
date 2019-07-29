@@ -5,13 +5,19 @@ before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y -qq shellcheck
 
-#before_script:
-#  - "sudo curl -o /usr/local/bin/shunit2 https://raw.githubusercontent.com/kward/shunit2/master/shunit2"
+before_script:
+  - "sudo curl -s -o /usr/local/bin/shunit2 https://raw.githubusercontent.com/kward/shunit2/master/shunit2"
+  - "sudo chmod a+x /usr/local/bin/shunit2"
 
-#env:
-#  - SHUNIT_COLOR='always'
+env:
+  - SHUNIT_COLOR='always'
 
 #script:
+  # Run the source through ShellCheck (http://www.shellcheck.net).
+#  - shellcheck -s bash -x scripts/helper.sh
+#  - shellcheck -s bash -x lemper.sh
+#  - shellcheck -s bash -x bin/lemper-cli.sh
+  # Run the source through ShUnit2
 #  - bash shunit2/run_test.sh
 
 matrix:
@@ -22,5 +28,7 @@ matrix:
         - shellcheck -s bash -x scripts/helper.sh
         - shellcheck -s bash -x lemper.sh
         - shellcheck -s bash -x bin/lemper-cli.sh
+        # Run the source through ShUnit2
+        - bash shunit2/run_test.sh
     - os: "linux"
       dist: "bionic"
