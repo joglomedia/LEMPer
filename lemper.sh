@@ -35,10 +35,16 @@ if [ -z "${PATH}" ] ; then
     PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 fi
 
+# Unset existing variables.
+# shellcheck source=.env
+# shellcheck disable=SC2046
+unset $(grep -v '^#' .env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+
 # Export environment variables.
 if [ -f .env ]; then
+    # shellcheck source=.env
+    # shellcheck disable=SC1094
     source <(grep -v '^#' .env | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
-    #unset $(grep -v '^#' .env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
 else
     echo "Environment variables required, but not found."
     exit 1
@@ -58,11 +64,8 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
-# Init log.
-run init_log
-
 # Make sure this script only run on supported distribution.
-export DISTRIB_REPO \
+export DISTRIB_REPO && \
 DISTRIB_REPO=$(get_release_name)
 if [[ "${DISTRIB_REPO}" == "unsupported" ]]; then
     warning "This installer only work on Ubuntu 16.04 & 18.04 and LinuxMint 18 & 19..."
@@ -76,7 +79,7 @@ else
 fi
 
 ### Main ###
-case ${1} in
+case "${1}" in
     --install)
         header_msg
         echo ""
@@ -84,6 +87,9 @@ case ${1} in
         echo "Please ensure that you're on a fresh machine install!"
         echo ""
         read -t 10 -rp "Press [Enter] to continue..." </dev/tty
+
+        # Init log.
+        run init_log
 
         ### Clean-up server ###
         if [ -f scripts/cleanup_server.sh ]; then
@@ -192,6 +198,9 @@ Now, you can reboot your server and enjoy it!
         echo "Please ensure that you've back up your data!"
         echo ""
         read -rt 10 -p "Press [Enter] to continue..." </dev/tty
+
+        # Init log.
+        run init_log
 
         # Fix broken install, first?
         run apt-get --fix-broken install >> lemper.log 2>&1

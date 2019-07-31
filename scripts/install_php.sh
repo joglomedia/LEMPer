@@ -9,7 +9,8 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    . ${BASEDIR}/helper.sh
+    # shellchechk source=scripts/helper.sh
+    . "${BASEDIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -28,7 +29,7 @@ function install_php() {
     fi
 
     # Checking if php already installed.
-    if [[ -n $(command -v php${PHPv}) ]]; then
+    if [[ -n $(command -v "php${PHPv}") ]]; then
         warning "PHP${PHPv} & FPM package already installed..."
     else
         echo "Installing PHP${PHPv} & FPM..."
@@ -438,22 +439,24 @@ EOL
 
     # Add custom php extension (ex .php70, .php71)
     PHPExt=".php${PHPv//.}"
-    run sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/" /etc/php/${PHPv}/fpm/pool.d/www.conf
+    run sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/" \
+        "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
     # Enable FPM ping service
-    run sed -i "/^;ping.path\ =.*/a ping.path\ =\ \/ping" /etc/php/${PHPv}/fpm/pool.d/www.conf
+    run sed -i "/^;ping.path\ =.*/a ping.path\ =\ \/ping" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
     # Enable FPM status
-    run sed -i "/^;pm.status_path\ =.*/a pm.status_path\ =\ \/status" /etc/php/${PHPv}/fpm/pool.d/www.conf
+    run sed -i "/^;pm.status_path\ =.*/a pm.status_path\ =\ \/status" \
+        "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
     # Restart PHP-fpm server
-    if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
-        run service php${PHPv}-fpm reload
+    if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
+        run service "php${PHPv}-fpm" reload
         status "PHP${PHPv}-FPM restarted successfully."
-    elif [[ -n $(command -v php${PHPv}) ]]; then
-        run service php${PHPv}-fpm start
+    elif [[ -n $(command -v "php${PHPv}") ]]; then
+        run service "php${PHPv}-fpm" start
 
-        if [[ $(ps -ef | grep -v grep | grep php-fpm | wc -l) > 0 ]]; then
+        if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
             status "PHP${PHPv}-FPM started successfully."
         else
             warning "Something wrong with PHP installation."
@@ -480,15 +483,15 @@ function init_php_install() {
     echo "  6). All available versions"
     echo "---------------------------------"
 
-    while [[ $SELECTED_PHP != "1" && $SELECTED_PHP != "2" \
-            && $SELECTED_PHP != "3" && $SELECTED_PHP != "4" \
-            && $SELECTED_PHP != "5" && $SELECTED_PHP != "6" ]]; do
-        read -p "Select an option [1-6]: " SELECTED_PHP
+    while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" \
+            && ${SELECTED_PHP} != "3" && ${SELECTED_PHP} != "4" \
+            && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" ]]; do
+        read -rp "Select an option [1-6]: " -i 5 -e SELECTED_PHP
     done
 
     echo ""
 
-    case $SELECTED_PHP in
+    case ${SELECTED_PHP} in
         1)
             PHP_VER="5.6"
             install_php ${PHP_VER}
@@ -529,7 +532,7 @@ function init_php_install() {
     # Menu Install PHP loader
     echo ""
     while [[ ${INSTALL_PHPLOADER} != "y" && ${INSTALL_PHPLOADER} != "n" ]]; do
-        read -p "Do you want to install PHP Loaders? [y/n]: " -e INSTALL_PHPLOADER
+        read -rp "Do you want to install PHP Loaders? [y/n]: " -e INSTALL_PHPLOADER
     done
 
     if [[ "${INSTALL_PHPLOADER}" == Y* || "${INSTALL_PHPLOADER}" == y* ]]; then
@@ -542,7 +545,7 @@ function init_php_install() {
 
         while [[ ${SELECTED_PHPLOADER} != "1" && ${SELECTED_PHPLOADER} != "2" \
                 && ${SELECTED_PHPLOADER} != "3" ]]; do
-            read -p "Select an option [1-3]: " SELECTED_PHPLOADER
+            read -rp "Select an option [1-3]: " SELECTED_PHPLOADER
         done
 
         echo ""

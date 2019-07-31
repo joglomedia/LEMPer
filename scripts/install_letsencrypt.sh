@@ -9,7 +9,8 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    . ${BASEDIR}/helper.sh
+    # shellchechk source=scripts/helper.sh
+    . "${BASEDIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script
@@ -23,8 +24,8 @@ echo "Welcome to Certbot Let's Encrypt Installation..."
 echo ""
 
 function init_certbotle_install() {
-    while [[ $INSTALL_CERTBOT != "y" && $INSTALL_CERTBOT != "n" ]]; do
-        read -p "Do you want to install Certbot Let's Encrypt? [y/n]: " -e INSTALL_CERTBOT
+    while [[ ${INSTALL_CERTBOT} != "y" && ${INSTALL_CERTBOT} != "n" ]]; do
+        read -rp "Do you want to install Certbot Let's Encrypt? [y/n]: " -e INSTALL_CERTBOT
     done
     if [[ "${INSTALL_CERTBOT}" == Y* || "${INSTALL_CERTBOT}" == y* ]]; then
         echo -e "\nInstalling Certbot Let's Encrypt client..."

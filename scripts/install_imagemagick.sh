@@ -9,7 +9,9 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    . ${BASEDIR}/helper.sh
+    # shellchechk source=scripts/helper.sh
+    # shellcheck disable=SC1090
+    . "${BASEDIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script
@@ -32,9 +34,9 @@ run rm -fr ImageMagick-7*
 if "${DRYRUN}"; then
     status "ImageMagic installed in dryrun mode."
 else
-    if [ -n "$(magick -version |grep -o 'Version: ImageMagic *')" ]; then
+    if magick -version |grep -qo 'Version: ImageMagic *'; then
         status "ImageMagic version $(magick -version |grep ^Version | cut -d' ' -f3) has been installed."
-    elif [ -n "$(identify -version |grep -o 'Version: ImageMagic *')" ]; then
+    elif identify -version |grep -qo 'Version: ImageMagic *'; then
         status "ImageMagic version $(identify -version |grep ^Version | cut -d' ' -f3) has been installed."
     fi
 fi

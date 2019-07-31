@@ -6,18 +6,6 @@
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
-set -e
-unset GREP_OPTIONS LEMPHOMEDIR CURRENTTRAP
-
-# Export environment variables.
-if [ -f .env ]; then
-    source <(grep -v '^#' .env | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
-    #unset $(grep -v '^#' .env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
-else
-    echo "Environment variables required, but not found."
-    exit 0
-fi
-
 # Make sure only root can run this installer script.
 function requires_root() {
     if [ "$(/usr/bin/id -u)" -ne 0 ]; then
