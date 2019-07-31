@@ -16,15 +16,14 @@
 # | Original concept: Fideloper <https://gist.github.com/fideloper/9063376> |
 # +-------------------------------------------------------------------------+
 
-# Version Control
+# Version Control.
 APP_NAME=$(basename "$0")
 APP_VERSION="1.6.0"
-LAST_UPDATE="16/07/2019"
 
-INSTALL_DIR=$(pwd)
+# Test mode.
 DRYRUN=false
 
-# Decorator
+# Decorator.
 RED=91
 GREEN=92
 YELLOW=93
@@ -47,7 +46,7 @@ function echo_color() {
 }
 
 function error() {
-    local error_message="$@"
+    #local error_message="$@"
     echo_color "$RED" -n "Error: " >&2
     echo "$@" >&2
 }
@@ -78,11 +77,12 @@ function warning() {
 # actually make any changes.
 function run() {
     if "$DRYRUN"; then
-        echo_color "$YELLOW" -n "would run"
-        echo " $@"
+        echo_color "$YELLOW" -n "would run "
+        echo "$@"
     else
         if ! "$@"; then
-            error "Failure running '$@', exiting."
+            local CMDSTR="$*"
+            error "Failure running '${CMDSTR}', exiting."
             exit 1
         fi
     fi
@@ -95,7 +95,7 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1  #error
 fi
 
-# Check prerequisite packages
+# Check prerequisite packages.
 if [[ ! -f $(command -v unzip) || ! -f $(command -v git) || ! -f $(command -v rsync) ]]; then
     warning "${APP_NAME^} requires rsync, unzip and git, please install it first!"
     echo "help: sudo apt-get install rsync unzip git"
@@ -103,7 +103,7 @@ if [[ ! -f $(command -v unzip) || ! -f $(command -v git) || ! -f $(command -v rs
 fi
 
 ## Show usage
-# Output to STDERR
+# output to STDERR.
 #
 function show_usage {
 cat <<- _EOF_
@@ -148,7 +148,7 @@ _EOF_
 
 ## Output Default virtual host directive, fill with user input
 # To be outputted into new file
-# Work for default and WordPress site
+# Work for default and WordPress site.
 #
 function create_vhost_default() {
 cat <<- _EOF_
@@ -228,7 +228,7 @@ _EOF_
 }
 
 ## Output Drupal virtual host directive, fill with user input
-# To be outputted into new file
+# To be outputted into new file.
 #
 function create_vhost_drupal() {
 cat <<- _EOF_
@@ -313,7 +313,7 @@ _EOF_
 }
 
 ## Output Laravel virtual host skeleton, fill with user input
-# To be outputted into new file
+# To be outputted into new file.
 #
 function create_vhost_laravel() {
 cat <<- _EOF_
@@ -394,7 +394,7 @@ _EOF_
 }
 
 ## Output Phalcon virtual host skeleton, fill with user input
-# To be outputted into new file
+# To be outputted into new file.
 #
 function create_vhost_phalcon() {
 cat <<- _EOF_
@@ -479,7 +479,7 @@ server {
 _EOF_
 }
 
-## Output Wordpress Multisite vHost header
+## Output Wordpress Multisite vHost header.
 #
 function prepare_vhost_wpms() {
 cat <<- _EOF_
@@ -492,7 +492,7 @@ map \$http_host \$blogid {
 _EOF_
 }
 
-## Output server block for HTTP to HTTPS redirection
+## Output server block for HTTP to HTTPS redirection.
 #
 function http_to_https() {
 cat <<- _EOF_
@@ -507,7 +507,7 @@ server {
 
     ## Automatically redirect site to HTTPS protocol.
     location / {
-        return 301 https://$server_name$request_uri;
+        return 301 https://\$server_name\$request_uri;
     }
 }
 
@@ -515,7 +515,7 @@ _EOF_
 }
 
 ## Output index.html skeleton for default index page
-# To be outputted into new index.html file in document root
+# To be outputted into new index.html file in document root.
 #
 function create_index_file() {
 cat <<- _EOF_
@@ -549,7 +549,7 @@ _EOF_
 }
 
 ## Output PHP-FPM pool configuration
-# To be outputted into new pool file in fpm/pool.d
+# To be outputted into new pool file in fpm/pool.d.
 #
 function create_fpm_pool_conf() {
     cat <<- _EOF_
@@ -594,44 +594,45 @@ _EOF_
 }
 
 ## Install WordPress
-# Installing WordPress skeleton
+# Installing WordPress skeleton.
 #
 function install_wordpress() {
+    CLONE_SKELETON=${1:-false}
     # Clone new WordPress skeleton files
-    if [ ${CLONE_SKELETON} == true ]; then
-        # Check WordPress install directory
-        if [ ! -d ${WEBROOT}/wp-admin ]; then
+    if [ "${CLONE_SKELETON}" == true ]; then
+        # Check WordPress install directory.
+        if [ ! -d "${WEBROOT}/wp-admin" ]; then
             status "Copying WordPress skeleton files..."
 
             run wget --no-check-certificate -q https://wordpress.org/latest.zip
             run unzip -q latest.zip
-            run rsync -r wordpress/ ${WEBROOT}
+            run rsync -r wordpress/ "${WEBROOT}"
             run rm -f latest.zip
             run rm -fr wordpress
         else
             warning "It seems that WordPress files already exists."
         fi
     else
-        # Create default index file
+        # Create default index file.
         status "Creating default WordPress index file..."
 
-        create_index_file > ${WEBROOT}/index.html
-        run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
+        create_index_file > "${WEBROOT}/index.html"
+        run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
     fi
 
-    # Pre-install nginx helper plugin
-    if [[ -d ${WEBROOT}/wp-content/plugins && ! -d ${WEBROOT}/wp-content/plugins/nginx-helper ]]; then
+    # Pre-install nginx helper plugin.
+    if [[ -d "${WEBROOT}/wp-content/plugins" && ! -d "${WEBROOT}/wp-content/plugins/nginx-helper" ]]; then
         status "Copying Nginx Helper plugin into WordPress install..."
         warning "Please activate the plugin after WordPress installation!"
 
         run wget --no-check-certificate -q https://downloads.wordpress.org/plugin/nginx-helper.zip
         run unzip -q nginx-helper.zip
-        run mv nginx-helper ${WEBROOT}/wp-content/plugins/
+        run mv nginx-helper "${WEBROOT}/wp-content/plugins/"
         run rm -f nginx-helper.zip
     fi
 }
 
-# Get server IP Address
+# Get server IP Address.
 function get_ip_addr() {
     IP_INTERNAL=$(ip addr | grep 'inet' | grep -v inet6 | \
         grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | \
@@ -648,33 +649,19 @@ function get_ip_addr() {
 ## Main App
 #
 function init_app() {
-    getopt --test
-    if [ "$?" != 4 ]; then
-        # Even Centos 5 and Ubuntu 10 LTS have new-style getopt, so I don't expect
-        # this to be hit in practice on systems that are actually able to run
-        # Nginx web server.
-        fail "Your version of getopt is too old.  Exiting with no changes made."
-    fi
-
-    opts=$(getopt -o u:d:f:w:p:cshv \
+    OPTS=$(getopt -o u:d:f:w:p:cshv \
       -l username:,domain-name:,framework:,webroot:,php-version: \
       -l enable-fastcgi-cache,clone-skeleton,help,version \
       -n "$APP_NAME" -- "$@")
 
-    # Sanity Check - are there an arguments with value?
-    if [ $? != 0  ]; then
-        fail "Terminating..."
-        exit 1
-    fi
-
-    eval set -- "$opts"
+    eval set -- "${OPTS}"
 
     # Default value
     FRAMEWORK="default"
     PHP_VERSION="7.3"
     ENABLE_FASTCGI_CACHE=false
     ENABLE_PAGESPEED=false
-    ENABLE_HTTPS=false
+    #ENABLE_HTTPS=false
     CLONE_SKELETON=false
     DRYRUN=false
 
@@ -682,26 +669,27 @@ function init_app() {
     MAIN_ARGS=0
 
     # Parse flags
-    while true; do
+    while true
+    do
         case "${1}" in
             -u | --username) shift
                 USERNAME="${1}"
-                MAIN_ARGS=$(($MAIN_ARGS + 1))
+                MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
             -d | --domain-name) shift
                 SERVERNAME="${1}"
-                MAIN_ARGS=$(($MAIN_ARGS + 1))
+                MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
             -w | --webroot) shift
                 WEBROOT="${1%%+(/)}"
-                MAIN_ARGS=$(($MAIN_ARGS + 1))
+                MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
             -f | --framework) shift
                 FRAMEWORK="${1}"
-                MAIN_ARGS=$(($MAIN_ARGS + 1))
+                MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
             -p | --php-version) shift
@@ -734,19 +722,19 @@ function init_app() {
 
     if [ ${MAIN_ARGS} -ge 4 ]; then
         # Additional Check - are user already exist?
-        if [[ -z $(getent passwd ${USERNAME}) ]]; then
+        if [[ -z $(getent passwd "${USERNAME}") ]]; then
             fail -e "\nError: The user ${USERNAME} does not exist, please add new user first! Aborting...
 Help: useradd username, try ${APP_NAME} -h for more helps."
         fi
 
         # Check PHP fpm version is exists.
-        if [[ -n $(command -v php-fpm${PHP_VERSION}) && -d /etc/php/${PHP_VERSION}/fpm ]]; then
+        if [[ -n $(command -v "php-fpm${PHP_VERSION}") && -d "/etc/php/${PHP_VERSION}/fpm" ]]; then
             # Additional check - if FPM user's pool already exist
             if [ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]; then
                 warning "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."
                 echo "Creating new PHP-FPM pool [${USERNAME}] configuration..."
 
-                create_fpm_pool_conf > /etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf
+                create_fpm_pool_conf > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
                 run touch "/var/log/php${PHP_VERSION}-fpm_slow.${USERNAME}.log"
 
                 # Restart PHP FPM
@@ -769,35 +757,35 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
         VHOST_FILE="/etc/nginx/sites-available/${SERVERNAME}.conf"
 
         # Check if vhost not exists.
-        if [ ! -f ${VHOST_FILE} ]; then
+        if [ ! -f "${VHOST_FILE}" ]; then
             echo "Adding domain ${SERVERNAME} to virtual host..."
 
             # Creates document root.
-            if [ ! -d ${WEBROOT} ]; then
+            if [ ! -d "${WEBROOT}" ]; then
                 echo "Creating web root directory: ${WEBROOT}..."
 
-                run mkdir -p ${WEBROOT}
-                run chown -R ${USERNAME}:${USERNAME} ${WEBROOT}
-                run chmod 755 ${WEBROOT}
+                run mkdir -p "${WEBROOT}"
+                run chown -R "${USERNAME}:${USERNAME}" "${WEBROOT}"
+                run chmod 755 "${WEBROOT}"
             fi
 
             echo "Selecting ${FRAMEWORK^} framewrok..."
 
             # Ugly hacks for custom framework-specific configs + Skeleton auto installer.
-            case ${FRAMEWORK} in
+            case "${FRAMEWORK}" in
                 drupal)
                     echo "Setting up Drupal virtual host..."
 
                     # Clone new Drupal skeleton files.
                     if [ ${CLONE_SKELETON} == true ]; then
                         # Check Drupal install directory.
-                        if [ ! -d ${WEBROOT}/core/lib/Drupal ]; then
+                        if [ ! -d "${WEBROOT}/core/lib/Drupal" ]; then
                             status "Copying Drupal latest skeleton files..."
 
                             run wget --no-check-certificate -O drupal.zip -q \
                                     https://www.drupal.org/download-latest/zip
                             run unzip -q drupal.zip
-                            run rsync -rq drupal-*/ ${WEBROOT}
+                            run rsync -rq drupal-*/ "${WEBROOT}"
                             run rm -f drupal.zip
                             run rm -fr drupal-*/
                         else
@@ -806,14 +794,14 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
                     else
                         # Create default index file.
                         status "Creating default index file..."
-                        create_index_file > ${WEBROOT}/index.html
+                        create_index_file > "${WEBROOT}/index.html"
 
-                        run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
+                        run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
                     fi
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
-                    create_vhost_drupal > ${VHOST_FILE}
+                    create_vhost_drupal > "${VHOST_FILE}"
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
@@ -824,22 +812,22 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
                     # clone new Laravel files.
                     if [ ${CLONE_SKELETON} == true ]; then
                         # Check Laravel install.
-                        if [ ! -f ${WEBROOT}/server.php ]; then
+                        if [ ! -f "${WEBROOT}/server.php" ]; then
                             status "Copying Laravel skeleton files..."
-                            run git clone -q https://github.com/laravel/laravel.git ${WEBROOT}
+                            run git clone -q https://github.com/laravel/laravel.git "${WEBROOT}"
                         else
                             warning "It seems that Laravel skeleton files already exists."
                         fi
                     else
                         # Create default index file.
                         status "Creating default index file..."
-                        create_index_file > ${WEBROOT}/index.html
-                        run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
+                        create_index_file > "${WEBROOT}/index.html"
+                        run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
                     fi
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
-                    create_vhost_laravel > ${VHOST_FILE}
+                    create_vhost_laravel > "${VHOST_FILE}"
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
@@ -850,7 +838,7 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
-                    create_vhost_phalcon > ${VHOST_FILE}
+                    create_vhost_phalcon > "${VHOST_FILE}"
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
@@ -861,7 +849,7 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
-                    create_vhost_default > ${VHOST_FILE}
+                    create_vhost_default > "${VHOST_FILE}"
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
@@ -869,11 +857,11 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
                     echo "Setting up WordPress virtual host..."
 
                     # Install WordPress skeleton.
-                    install_wordpress
+                    install_wordpress ${CLONE_SKELETON}
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
-                    create_vhost_default > ${VHOST_FILE}
+                    create_vhost_default > "${VHOST_FILE}"
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
@@ -881,28 +869,28 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
                     echo "Setting up WordPress Multi-site virtual host..."
 
                     # Install WordPress.
-                    install_wordpress
+                    install_wordpress ${CLONE_SKELETON}
 
                     # Pre-populate blog id mapping, used by Nginx vhost conf.
-                    if [ ! -d ${WEBROOT}/wp-content/uploads ]; then
-                        run mkdir ${WEBROOT}/wp-content/uploads
+                    if [ ! -d "${WEBROOT}/wp-content/uploads" ]; then
+                        run mkdir "${WEBROOT}/wp-content/uploads"
                     fi
 
-                    if [ ! -d run mkdir ${WEBROOT}/wp-content/uploads/nginx-helper ]; then
-                        run mkdir ${WEBROOT}/wp-content/uploads/nginx-helper
+                    if [ ! -d "${WEBROOT}/wp-content/uploads/nginx-helper" ]; then
+                        run mkdir "${WEBROOT}/wp-content/uploads/nginx-helper"
                     fi
 
-                    if [ ! -f ${WEBROOT}/wp-content/uploads/nginx-helper/map.conf ]; then
-                        run touch ${WEBROOT}/wp-content/uploads/nginx-helper/map.conf
+                    if [ ! -f "${WEBROOT}/wp-content/uploads/nginx-helper/map.conf" ]; then
+                        run touch "${WEBROOT}/wp-content/uploads/nginx-helper/map.conf"
                     fi
 
                     echo "Creating virtual host file: ${VHOST_FILE}..."
 
                     # Prepare vhost specific rule for WordPress Multisite.
-                    prepare_vhost_wpms > ${VHOST_FILE}
+                    prepare_vhost_wpms > "${VHOST_FILE}"
 
                     # Create vhost.
-                    create_vhost_default >> ${VHOST_FILE}
+                    create_vhost_default >> "${VHOST_FILE}"
 
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
@@ -911,18 +899,18 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
                     echo "Setting up FileRun virtual host..."
 
                     # Install FileRun skeleton.
-                    if [ ! -f ${WEBROOT}/system/classes/filerun.php ]; then
+                    if [ ! -f "${WEBROOT}/system/classes/filerun.php" ]; then
                         # Clone new Filerun files.
                         if [ ${CLONE_SKELETON} == true ]; then
                             echo "Copying FileRun skeleton files..."
                             run wget -q -O FileRun.zip http://www.filerun.com/download-latest
-                            run unzip -q FileRun.zip -d ${WEBROOT}
+                            run unzip -q FileRun.zip -d "${WEBROOT}"
                             run rm -f FileRun.zip
                         else
                             # Create default index file.
                             echo "Creating default index files..."
-                            create_index_file > ${WEBROOT}/index.html
-                            run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
+                            create_index_file > "${WEBROOT}/index.html"
+                            run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
                         fi
                     else
                         warning "FileRun skeleton files already exists."
@@ -930,18 +918,18 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
-                    create_vhost_default > ${VHOST_FILE}
+                    create_vhost_default > "${VHOST_FILE}"
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 codeigniter|mautic|default)
                     # Create default index file.
-                    create_index_file > ${WEBROOT}/index.html
-                    run chown ${USERNAME}:${USERNAME} ${WEBROOT}/index.html
+                    create_index_file > "${WEBROOT}/index.html"
+                    run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
 
                     # Create default vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
-                    create_vhost_default > ${VHOST_FILE}
+                    create_vhost_default > "${VHOST_FILE}"
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
@@ -956,11 +944,11 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
             if [ ${ENABLE_FASTCGI_CACHE} == true ]; then
                 echo "Enable FastCGI cache for ${SERVERNAME}..."
 
-                if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf; ]; then
+                if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]; then
                     # enable cached directives
-                    run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" ${VHOST_FILE}
+                    run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" "${VHOST_FILE}"
                     # enable fastcgi_cache conf
-                    run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" ${VHOST_FILE}
+                    run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" "${VHOST_FILE}"
                 else
                     warning "FastCGI cache is not enabled. There is no cached version of ${FRAMEWORK^} directive."
                 fi
@@ -972,17 +960,17 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
 
                 if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
                     # enable mod pagespeed
-                    run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" ${VHOST_FILE}
+                    run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" "${VHOST_FILE}"
                 else
                     warning "PageSpeed is not enabled. Nginx must be installed with Mod_PageSpeed module enabled."
                 fi
             fi
 
             # Fix document root ownership
-            run chown -R ${USERNAME}:${USERNAME} ${WEBROOT}
+            run chown -R "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
             # Fix document root permission
-            if [ "$(ls -A ${WEBROOT})" ]; then
+            if [ "$(ls -A "${WEBROOT}")" ]; then
                 run find "${WEBROOT}" -type d -print0 | xargs -0 chmod 755
                 run find "${WEBROOT}" -type f -print0 | xargs -0 chmod 644
             fi
@@ -991,7 +979,7 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
 
             # Enable site
             #cd "/etc/nginx/sites-enabled"
-            run ln -s /etc/nginx/sites-available/${SERVERNAME}.conf /etc/nginx/sites-enabled/${SERVERNAME}.conf
+            run ln -s "/etc/nginx/sites-available/${SERVERNAME}.conf" "/etc/nginx/sites-enabled/${SERVERNAME}.conf"
 
             # Reload Nginx
             echo "Reloading Nginx configuration..."
@@ -1004,7 +992,7 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
                 echo "Something went wrong with Nginx configuration."
             fi
 
-            if [[ -f /etc/nginx/sites-enabled/${SERVERNAME}.conf && -e /var/run/nginx.pid ]]; then
+            if [[ -f "/etc/nginx/sites-enabled/${SERVERNAME}.conf" && -e /var/run/nginx.pid ]]; then
                 status "Your ${SERVERNAME} successfully added to Nginx virtual host.";
             else
                 fail "An error occurred when adding ${SERVERNAME} to Nginx virtual host.";

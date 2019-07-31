@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # +-------------------------------------------------------------------------+
-# | NgxTool - Simple Nginx vHost Manager                                    |
+# | Lemper manage - Simple Nginx Virtual Host Manager                       |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/ngxtool)              |
+# | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/lemper)               |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -15,10 +15,11 @@
 # | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
 # +-------------------------------------------------------------------------+
 
+set -e
+
 # Version control
 APP_NAME=$(basename "$0")
 APP_VERSION="1.6.1"
-LAST_UPDATE="10/07/2019"
 
 # Decorator
 RED=91
@@ -45,7 +46,7 @@ function echo_color() {
 }
 
 function error() {
-    local error_message="$@"
+    #local error_message="$@"
     echo_color "$RED" -n "Error: " >&2
     echo "$@" >&2
 }
@@ -75,12 +76,13 @@ function warning() {
 # Additionally, this allows us to easily have a dryrun mode where we don't
 # actually make any changes.
 function run() {
-    if "$DRYRUN"; then
-        echo_color "$YELLOW" -n "would run"
-        echo " $@"
+    if "${DRYRUN}"; then
+        echo_color "$YELLOW" -n "would run "
+        echo "$@"
     else
         if ! "$@"; then
-            error "Failure running '$@', exiting."
+            local CMDSTR="$*"
+            error "Failure running '${CMDSTR}', exiting."
             exit 1
         fi
     fi
@@ -136,13 +138,13 @@ _EOF_
 # Enable vhost
 function enable_vhost() {
     # Verify user input hostname (domain name)
-    verify_host ${1}
+    verify_host "${1}"
 
     echo "Enabling virtual host: ${1}..."
 
     # Enable Nginx's vhost config.
-    if [[ ! -f /etc/nginx/sites-enabled/${1}.conf && -f /etc/nginx/sites-available/${1}.conf ]]; then
-        run ln -s /etc/nginx/sites-available/${1}.conf /etc/nginx/sites-enabled/${1}.conf
+    if [[ ! -f "/etc/nginx/sites-enabled/${1}.conf" && -f "/etc/nginx/sites-available/${1}.conf" ]]; then
+        run ln -s "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-enabled/${1}.conf"
 
         reload_nginx
 
@@ -157,13 +159,13 @@ function enable_vhost() {
 # Disable vhost
 function disable_vhost() {
     # Verify user input hostname (domain name)
-    verify_host ${1}
+    verify_host "${1}"
 
     echo "Disabling virtual host: ${1}..."
 
     # Disable Nginx's vhost config.
-    if [ -f /etc/nginx/sites-enabled/${1}.conf ]; then
-        run unlink /etc/nginx/sites-enabled/${1}.conf
+    if [ -f "/etc/nginx/sites-enabled/${1}.conf" ]; then
+        run unlink "/etc/nginx/sites-enabled/${1}.conf"
 
         reload_nginx
 
@@ -178,27 +180,27 @@ function disable_vhost() {
 # Remove vhost
 function remove_vhost() {
     # Verify user input hostname (domain name)
-    verify_host ${1}
+    verify_host "${1}"
 
     echo -e "Removing virtual host is not reversible."
     read -t 30 -rp "Press [Enter] to continue..." </dev/tty
 
     # Remove Nginx's vhost config.
-    if [ -f /etc/nginx/sites-enabled/${1}.conf ]; then
-        run unlink /etc/nginx/sites-enabled/${1}.conf
+    if [ -f "/etc/nginx/sites-enabled/${1}.conf" ]; then
+        run unlink "/etc/nginx/sites-enabled/${1}.conf"
     fi
 
-    run rm -f /etc/nginx/sites-available/${1}.conf
+    run rm -f "/etc/nginx/sites-available/${1}.conf"
 
     status -e "\nVirtual host configuration file removed."
 
     # Remove vhost root directory.
-    echo -en "\nDo you want to delete website root directory? [y/n]: "; read isdeldir
-    if [[ "${isdeldir}" == Y* || "${isdeldir}" == y* ]]; then
-        echo -n "Enter the real path to website root directory: "; read sitedir
+    echo -en "\nDo you want to delete website root directory? [y/n]: "; read -rp DELETE_DIR
+    if [[ "${DELETE_DIR}" == Y* || "${DELETE_DIR}" == y* ]]; then
+        read -rp "Enter the real path to website root directory: " -e WEBROOT
 
-        if [ -d ${sitedir} ]; then
-            run rm -fr ${sitedir}
+        if [ -d "${WEBROOT}" ]; then
+            run rm -fr "${WEBROOT}"
             status -e "\nVirtual host root directory removed."
         else
             warning -e "\nSorry, directory couldn't be found. Skipped..."
@@ -206,21 +208,21 @@ function remove_vhost() {
     fi
 
     # Drop MySQL database.
-    echo -en "\nDo you want to Drop database associated with this vhost? [y/n]: "; read isdropdb
-    if [[ "${isdropdb}" == Y* || "${isdropdb}" == y* ]]; then
+    echo -en "\nDo you want to Drop database associated with this vhost? [y/n]: "; read -rp DROP_DB
+    if [[ "${DROP_DB}" == Y* || "${DROP_DB}" == y* ]]; then
         until [[ "$MYSQLUSER" != "" ]]; do
 			read -rp "MySQL Username: " -e MYSQLUSER
 		done
 
         until [[ "$MYSQLPSWD" != "" ]]; do
-			echo -n "MySQL Password: "; stty -echo; read MYSQLPSWD; stty echo; echo
+			echo -n "MySQL Password: "; stty -echo; read -r MYSQLPSWD; stty echo; echo
 		done
 
         echo -e "\nStarting to drop database...\nPlease select your database name below!"
         echo "==============="
 
         # Show user's databases
-        mysql -u $MYSQLUSER -p"$MYSQLPSWD" -e "SHOW DATABASES" | grep -E -v "Database|mysql|*_schema"
+        mysql -u "$MYSQLUSER" -p"$MYSQLPSWD" -e "SHOW DATABASES" | grep -E -v "Database|mysql|*_schema"
 
         echo "+----------------------+"
 
@@ -228,9 +230,9 @@ function remove_vhost() {
             read -rp "MySQL Database: " -e DBNAME
 		done
 
-        if [ -d /var/lib/mysql/${DBNAME} ]; then
+        if [ -d "/var/lib/mysql/${DBNAME}" ]; then
             echo -e "Dropping database..."
-            mysql -u $MYSQLUSER -p"$MYSQLPSWD" -e "DROP DATABASE $DBNAME"
+            mysql -u "$MYSQLUSER" -p"$MYSQLPSWD" -e "DROP DATABASE $DBNAME"
             status -e "Database [${DBNAME}] dropped."
         else
             warning -e "\nSorry, database ${DBNAME} not found. Skipped..."
@@ -246,17 +248,18 @@ function remove_vhost() {
 # Enable fastcgi cache
 function enable_fastcgi_cache() {
     # Verify user input hostname (domain name)
-    verify_host ${1}
+    verify_host "${1}"
 
     echo "Enabling FastCGI cache for ${1}..."
 
     if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]; then
         # enable cached directives
-        run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" /etc/nginx/sites-available/${1}.conf
+        run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" \
+            "/etc/nginx/sites-available/${1}.conf"
 
         # enable fastcgi_cache conf
         run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
-            /etc/nginx/sites-available/${1}.conf
+            "/etc/nginx/sites-available/${1}.conf"
 
         reload_nginx
     else
@@ -268,17 +271,18 @@ function enable_fastcgi_cache() {
 # Disable fastcgi cache
 function disable_fastcgi_cache() {
     # Verify user input hostname (domain name)
-    verify_host ${1}
+    verify_host "${1}"
 
     echo "Disabling FastCGI cache for ${1}..."
 
     if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]; then
         # enable cached directives
-        run sed -i "s|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" /etc/nginx/sites-available/${1}.conf
+        run sed -i "s|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" \
+            "/etc/nginx/sites-available/${1}.conf"
 
         # enable fastcgi_cache conf
         run sed -i "s|include\ /etc/nginx/includes/fastcgi_cache.conf|#include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
-            /etc/nginx/sites-available/${1}.conf
+            "/etc/nginx/sites-available/${1}.conf"
 
         reload_nginx
     else
@@ -290,14 +294,14 @@ function disable_fastcgi_cache() {
 # Enable Mod PageSpeed
 function enable_mod_pagespeed() {
     # Verify user input hostname (domain name)
-    verify_host ${1}
+    verify_host "${1}"
 
     echo "Enabling Mod PageSpeed for ${1}..."
 
     if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
         # enable mod pagespeed
         run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
-            /etc/nginx/sites-available/${1}.conf
+            "/etc/nginx/sites-available/${1}.conf"
 
         reload_nginx
     else
@@ -309,14 +313,14 @@ function enable_mod_pagespeed() {
 # Disable Mod PageSpeed
 function disable_mod_pagespeed() {
     # Verify user input hostname (domain name)
-    verify_host ${1}
+    verify_host "${1}"
 
     echo "Disabling Mod PageSpeed for ${1}..."
 
     if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
         # Enable mod pagespeed
         run sed -i "s|include\ /etc/nginx/includes/mod_pagespeed.conf|#include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
-            /etc/nginx/sites-available/${1}.conf
+            "/etc/nginx/sites-available/${1}.conf"
 
         reload_nginx
     else
@@ -328,16 +332,15 @@ function disable_mod_pagespeed() {
 # Enable ssl
 function enable_ssl() {
     # Verify user input hostname (domain name)
-    verify_host ${1}
+    verify_host "${1}"
 
     #TODO: Generate Let's Encrypt SSL using Certbot
-    if [[ ! -d /etc/nginx/ssl/${1} ]]; then
+    if [[ ! -d "/etc/nginx/ssl/${1}" ]]; then
         echo "Certbot: Get Let's Encrypt certificate..."
 
         #generate certbot
         if [ ! -d /etc/nginx/ssl ]; then
-            cd /etc/nginx/ssl/
-            #mkdir /etc/nginx/ssl/${1}
+            run mkdir "/etc/nginx/ssl/${1}"
         fi
     fi
 
@@ -345,8 +348,8 @@ function enable_ssl() {
     if [ ! -f /etc/letsencrypt/ssl-dhparams-4096.pem ]; then
         echo "Generating Diffie-Hellman parameters for enhanced security..."
 
-        #openssl dhparam -out /etc/letsencrypt/ssl-dhparams-2048.pem 2048
-        #openssl dhparam -out /etc/letsencrypt/ssl-dhparams-4096.pem 4096
+        #run openssl dhparam -out /etc/letsencrypt/ssl-dhparams-2048.pem 2048
+        #run openssl dhparam -out /etc/letsencrypt/ssl-dhparams-4096.pem 4096
     fi
 
     exit 0
@@ -355,19 +358,19 @@ function enable_ssl() {
 # Disable ssl
 function disable_ssl() {
     # Verify user input hostname (domain name)
-    verify_host ${1}
+    verify_host "${1}"
 
     echo "TODO: Disble SSL"
     exit 0
 }
 
 function verify_host() {
-    if [[ -z ${1} ]]; then
+    if [[ -z "${1}" ]]; then
         error "Virtual host (vhost) or domain name is required. Type ${APP_NAME} --help for more info!"
         exit 1
     fi
 
-    if [ ! -f /etc/nginx/sites-available/${1}.conf ]; then
+    if [ ! -f "/etc/nginx/sites-available/${1}.conf" ]; then
         error -e "Sorry, we can't find Nginx virtual host: ${1}..."
         exit 1
     fi
@@ -407,39 +410,74 @@ function reload_nginx() {
 # Main App
 #
 function init_app() {
-    #getopt
-    opts=$(getopt -o vhe:d:r:c:p:s: \
+    OPTS=$(getopt -o vhe:d:r:c:p:s: \
       -l version,help,enable:,disable:,remove:,enable-fastcgi-cache:,disable-fastcgi-cache: \
       -l enable-pagespeed:,disable-pagespeed:,enable-ssl:,disable-ssl: \
-      -n "$APP_NAME" -- "$@")
+      -n "${APP_NAME}" -- "$@")
 
-    # Sanity Check - are there an arguments with value?
-    if [ $? != 0 ]; then
-        fail "Terminating..."
-        exit 1
-    fi
+    eval set -- "${OPTS}"
 
-    eval set -- "$opts"
-
-    while true; do
+    while true
+    do
         case "${1}" in
-            -h | --help) show_usage; exit 0; shift;;
-            -e | --enable) enable_vhost $2; shift 2;;
-            -d | --disable) disable_vhost $2; shift 2;;
-            -r | --remove) remove_vhost $2; shift 2;;
-            -c | --enable-fastcgi-cache) enable_fastcgi_cache $2; shift 2;;
-            --disable-fastcgi-cache) disable_fastcgi_cache $2; shift 2;;
-            -p | --enable-pagespeed) enable_mod_pagespeed $2; shift 2;;
-            --disable-pagespeed) disable_mod_pagespeed $2; shift 2;;
-            -s | --enable-ssl) enable_ssl $2; shift 2;;
-            --disable-ssl) disable_ssl $2; shift 2;;
-            -v | --version) echo "$APP_NAME version $APP_VERSION"; exit 1; shift;;
-            --) shift; break;;
+            -e | --enable)
+                enable_vhost "${2}"
+                shift 2
+            ;;
+            -d | --disable)
+                disable_vhost "${2}"
+                shift 2
+            ;;
+            -r | --remove)
+                remove_vhost "${2}"
+                shift 2
+            ;;
+            -c | --enable-fastcgi-cache)
+                enable_fastcgi_cache "${2}"
+                shift 2
+            ;;
+            --disable-fastcgi-cache)
+                disable_fastcgi_cache "${2}"
+                shift 2
+            ;;
+            -p | --enable-pagespeed)
+                enable_mod_pagespeed "${2}"
+                shift 2
+            ;;
+            --disable-pagespeed)
+                disable_mod_pagespeed "${2}"
+                shift 2
+            ;;
+            -s | --enable-ssl)
+                enable_ssl "${2}"
+                shift 2
+            ;;
+            --disable-ssl)
+                disable_ssl "${2}"
+                shift 2
+            ;;
+            -h | --help)
+                show_usage
+                exit 0
+                shift 2
+            ;;
+            -v | --version)
+                echo "${APP_NAME} version ${APP_VERSION}"
+                exit 0
+                shift 2
+            ;;
+            --) shift
+                break
+            ;;
+            *)
+                fail "Invalid argument: ${1}"
+                exit 1
+            ;;
         esac
     done
 
-    echo "$APP_NAME: missing required argument"
-    echo "Try '$APP_NAME --help' for more information."
+    echo "${APP_NAME}: missing required argument"
+    echo "Try '${APP_NAME} --help' for more information."
 }
 
 # Start running things from a call at the end so if this script is executed
