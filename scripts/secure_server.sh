@@ -9,27 +9,25 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+    # shellchechk source=scripts/helper.sh
+    # shellcheck disable=SC1090
     . "${BASEDIR}/helper.sh"
 fi
 
-# Make sure only root can run this installer script
-if [ "$(id -u)" -ne 0 ]; then
-    error "You need to be root to run this script"
-    exit 1
-fi
+# Make sure only root can run this installer script.
+requires_root
 
 # Securing SSH server.
 function securing_ssh() {
-    PASSWORDLESS=${PASSWORDLESS:-true}
-
-    if "${PASSWORDLESS}"; then
+    #SSH_PASSWORDLESS=${SSH_PASSWORDLESS:-true}
+    if "${SSH_PASSWORDLESS}"; then
         echo "
 Before starting, let's create a pair of keys that some hosts ask for during installation of the server.
 
 On your local machine, open new terminal and create an SSH key pair using the ssh-keygen tool,
 use the following command:
 
-ssh-keygen -t rsa -b 4096
+ssh-keygen -t rsa -b ${HASH_LENGTH}
 
 After this step, you will have the following files: id_rsa and id_rsa.pub (private and public keys).
 Never share your private key.
@@ -40,13 +38,11 @@ Never share your private key.
 
         RSA_PUB_KEY=${RSA_PUB_KEY:-n}
         while ! [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; do
-            #echo -n "Open your public key (id_rsa.pub) file, copy paste the key here: "
-            #read RSA_PUB_KEY
             echo "Open your public key (id_rsa.pub) file,"
             read -rp "copy paste the key here: " -e RSA_PUB_KEY
         done
 
-        # Grand default account access to SSH with key.
+        # Grand access to SSH with key.
         if [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; then
             echo -e "\nSecuring your SSH server with public key..."
 
@@ -73,7 +69,7 @@ EOL
             run chmod 700 /home/lemper/.ssh
             run chmod 600 /home/lemper/.ssh/authorized_keys
 
-            echo "Enable passwordless login."
+            echo "Enable SSH_PASSWORDLESS login..."
             # Restrict root login directly, use sudo user instead.
             if grep -qwE "^PermitRootLogin\ [a-z]*" /etc/ssh/sshd_config; then
                 run sed -i "s/^PermitRootLogin\ [a-z]*/PermitRootLogin\ no/g" /etc/ssh/sshd_config
@@ -103,7 +99,7 @@ EOL
     fi
 
     # Securing the SSH server.
-    echo -e "\nSecuring your SSH server with custom port..."
+    echo "Securing your SSH server with custom port..."
     SSH_PORT=${SSH_PORT:-n}
     while ! [[ ${SSH_PORT} =~ ^[0-9]+$ ]]; do
         read -rp "SSH Port (LEMPer default SSH port sets to 2269): " -i 2269 -e SSH_PORT
@@ -339,7 +335,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
         run sed -i "s/^DEVEL_MODE=\"1\"/DEVEL_MODE=\"0\"/g" /etc/apf/conf.apf
 
         # Get ethernet interface.
-        IFACE=${IFACE:-$(find /sys/class/net -type l | grep enp | cut -d'/' -f5)}
+        IFACE=${IFACE:-$(find /sys/class/net -type l | grep -e "enp\|eth" | cut -d'/' -f5)}
 
         # Set ethernet interface to monitor.
         run sed -i "s/^IFACE_UNTRUSTED=\"[0-9a-zA-Z]*\"/IFACE_UNTRUSTED=\"${IFACE}\"/g" /etc/apf/conf.apf
@@ -409,20 +405,23 @@ function remove_apf() {
 # Install Firewall.
 function install_firewall() {
     echo ""
-    INSTALL_FW=${INSTALL_FW:-n}
-    while [[ ${INSTALL_FW} != "y" && ${INSTALL_FW} != "n" && ${INSTALL_FW} != true ]]; do
-        read -rp "Do you want to install Firewall? [y/n]: " -i y -e INSTALL_FW
+    echo "[Welcome to iptables-based Firewall installer]"
+    echo ""
+    
+    if "${AUTO_INSTALL}"; then
+        DO_INSTALL_FW="y"
+    fi
+    while [[ ${DO_INSTALL_FW} != "y" && ${DO_INSTALL_FW} != "n" && "${AUTO_INSTALL}" != true ]]; do
+        read -rp "Do you want to install Firewall configurator? [y/n]: " -i y -e DO_INSTALL_FW
     done
 
-    if [[ "${INSTALL_FW}" == true || "${INSTALL_FW}" == Y* || "${INSTALL_FW}" == y* ]]; then
+    if [[ "${DO_INSTALL_FW}" == y* && "${INSTALL_FW}" == true ]]; then
 
         if "${AUTO_INSTALL}"; then
             # Set default Iptables-based firewall configutor engine.
             SELECTED_FW=${FW_ENGINE:-"ufw"}
         else
             # Menu Install FW
-            echo "[Iptables Firewall Configurator Installer]"
-            echo ""
             echo "Which Firewall configurator engine to install?"
             echo "Available configurator engine:"
             echo "  1). Uncomplicated Firewall (ufw)"
@@ -456,18 +455,26 @@ function install_firewall() {
                 install_ufw "${SSH_PORT}"
             ;;
         esac
+    else
+        warning "Firewall installation skipped..."
     fi
 }
 
-### Main
-echo ""
-echo "[Welcome to LEMPer Basic Server Security Settings]"
-echo ""
+function init_secure_server() {
+    echo ""
+    echo "[Welcome to LEMPer Basic Server Security]"
+    echo ""
 
-while [[ ${SECURED_SERVER} != "y" && ${SECURED_SERVER} != "n" ]]; do
-    read -rp "Do you want to enable basic server security? [y/n]: " -e SECURED_SERVER
-done
-if [[ "${SECURED_SERVER}" == Y* || "${SECURED_SERVER}" == y* ]]; then
-    securing_ssh
-    install_firewall
-fi
+    while [[ "${SECURED_SERVER}" != "y" && "${SECURED_SERVER}" != "n" && "${AUTO_INSTALL}" != true ]]; do
+        read -rp "Do you want to enable basic server security? [y/n]: " -i y -e SECURED_SERVER
+    done
+    if [[ "${SECURED_SERVER}" == Y* || "${SECURED_SERVER}" == y* || "${AUTO_INSTALL}" == true ]]; then
+        securing_ssh "$@"
+    fi
+
+    install_firewall "$@"
+}
+
+# Start running things from a call at the end so if this script is executed
+# after a partial download it doesn't do anything.
+init_secure_server "$@"

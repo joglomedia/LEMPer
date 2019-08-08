@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # +-------------------------------------------------------------------------+
-# | Lemper manage - Simple Nginx Virtual Host Manager                       |
+# | Lemper manage - Simple LEMP Virtual Host Manager                        |
 # +-------------------------------------------------------------------------+
 # | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/lemper)               |
 # +-------------------------------------------------------------------------+
@@ -19,7 +19,7 @@ set -e
 
 # Version control
 APP_NAME=$(basename "$0")
-APP_VERSION="1.6.1"
+APP_VERSION="1.2.0-dev"
 
 # Decorator
 RED=91
@@ -91,7 +91,7 @@ function run() {
 # May need to run this as sudo!
 # I have it in /usr/local/bin and run command 'ngxvhost' from anywhere, using sudo.
 if [ "$(id -u)" -ne 0 ]; then
-    error "You need to be root to run this script"
+    error "This command can only be used by root."
     exit 1  #error
 fi
 
@@ -109,18 +109,28 @@ Usage:
   ${APP_NAME} [OPTION]...
 
 Options:
+  -b, --enable-brotli
+      Enable Brotli compression.
   -c, --enable-fastcgi-cache <vhost domain name>
-      Enable PHP FastCGI cache.
+      Enable FastCGI cache.
+  --disable-fastcgi-cache <vhost domain name>
+      Disable FastCHI cache.
   -d, --disable <vhost domain name>
       Disable virtual host.
   -e, --enable <vhost domain name>
       Enable virtual host.
+  -g, --enable-gzip
+      Enable Gzip compression.
   -p, --enable-pagespeed <vhost domain name>
       Enable Mod PageSpeed.
+  --disable-pagespeed <vhost domain name>
+      Disable Mod PageSpeed.
   -r, --remove <vhost domain name>
       Remove virtual host configuration.
-  -s, --enable-ssl <vhost domain name>
-      Enable Let's Encrypt SSL certificate.
+  -s, --enable-https <vhost domain name>
+      Enable HTTPS with Let's Encrypt SSL certificate.
+  --disable-https <vhost domain name>
+      Disable HTTPS.
 
   -h, --help
       Print this message and exit.
@@ -146,10 +156,9 @@ function enable_vhost() {
     if [[ ! -f "/etc/nginx/sites-enabled/${1}.conf" && -f "/etc/nginx/sites-available/${1}.conf" ]]; then
         run ln -s "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-enabled/${1}.conf"
 
-        reload_nginx
-
         status "Your virtual host ${1} has been enabled..."
-        exit 0 #success
+
+        reload_nginx
     else
         fail -e "${1} couldn't be enabled. Probably, it has been enabled or not created yet."
         exit 1
@@ -167,10 +176,9 @@ function disable_vhost() {
     if [ -f "/etc/nginx/sites-enabled/${1}.conf" ]; then
         run unlink "/etc/nginx/sites-enabled/${1}.conf"
 
-        reload_nginx
-
         status "Your virtual host ${1} has been disabled..."
-        exit 0
+        
+        reload_nginx
     else
         fail -e "${1} couldn't be disabled. Probably, it has been disabled or removed."
         exit 1
@@ -218,11 +226,12 @@ function remove_vhost() {
 			echo -n "MySQL Password: "; stty -echo; read -r MYSQLPSWD; stty echo; echo
 		done
 
-        echo -e "\nStarting to drop database...\nPlease select your database name below!"
-        echo "==============="
+        echo "Starting to drop database..."
+        echo "Please select your database name below!"
+        echo "+----------------------+"
 
         # Show user's databases
-        mysql -u "$MYSQLUSER" -p"$MYSQLPSWD" -e "SHOW DATABASES" | grep -E -v "Database|mysql|*_schema"
+        run mysql -u "$MYSQLUSER" -p"$MYSQLPSWD" -e "SHOW DATABASES" | grep -E -v "Database|mysql|*_schema"
 
         echo "+----------------------+"
 
@@ -232,7 +241,7 @@ function remove_vhost() {
 
         if [ -d "/var/lib/mysql/${DBNAME}" ]; then
             echo -e "Dropping database..."
-            mysql -u "$MYSQLUSER" -p"$MYSQLPSWD" -e "DROP DATABASE $DBNAME"
+            run mysql -u "$MYSQLUSER" -p"$MYSQLPSWD" -e "DROP DATABASE $DBNAME"
             status -e "Database [${DBNAME}] dropped."
         else
             warning -e "\nSorry, database ${DBNAME} not found. Skipped..."
@@ -260,12 +269,13 @@ function enable_fastcgi_cache() {
         # enable fastcgi_cache conf
         run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
-
-        reload_nginx
     else
         warning "FastCGI cache is not enabled. There is no cached configuration."
         exit 1
     fi
+
+    # Reload Nginx.
+    reload_nginx
 }
 
 # Disable fastcgi cache
@@ -283,12 +293,13 @@ function disable_fastcgi_cache() {
         # enable fastcgi_cache conf
         run sed -i "s|include\ /etc/nginx/includes/fastcgi_cache.conf|#include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
-
-        reload_nginx
     else
         warning "FastCGI cache is not enabled. There is no cached configuration."
         exit 1
     fi
+
+    # Reload Nginx.
+    reload_nginx
 }
 
 # Enable Mod PageSpeed
@@ -302,12 +313,13 @@ function enable_mod_pagespeed() {
         # enable mod pagespeed
         run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
-
-        reload_nginx
     else
         warning "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module."
         exit 1
     fi
+
+    # Reload Nginx.
+    reload_nginx
 }
 
 # Disable Mod PageSpeed
@@ -321,30 +333,31 @@ function disable_mod_pagespeed() {
         # Enable mod pagespeed
         run sed -i "s|include\ /etc/nginx/includes/mod_pagespeed.conf|#include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
-
-        reload_nginx
     else
         warning "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module."
         exit 1
     fi
+
+    # Reload Nginx.
+    reload_nginx
 }
 
-# Enable ssl
-function enable_ssl() {
-    # Verify user input hostname (domain name)
+# Enable HTTPS.
+function enable_https() {
+    # Verify user input hostname (domain name).
     verify_host "${1}"
 
-    #TODO: Generate Let's Encrypt SSL using Certbot
+    #TODO: Generate Let's Encrypt SSL using Certbot.
     if [[ ! -d "/etc/nginx/ssl/${1}" ]]; then
         echo "Certbot: Get Let's Encrypt certificate..."
 
-        #generate certbot
+        # Certbot get Let's Encrypt SSL.
         if [ ! -d /etc/nginx/ssl ]; then
             run mkdir "/etc/nginx/ssl/${1}"
         fi
     fi
 
-    # Generate Diffie-Hellman parameters
+    # Generate Diffie-Hellman parameters.
     if [ ! -f /etc/letsencrypt/ssl-dhparams-4096.pem ]; then
         echo "Generating Diffie-Hellman parameters for enhanced security..."
 
@@ -352,18 +365,136 @@ function enable_ssl() {
         #run openssl dhparam -out /etc/letsencrypt/ssl-dhparams-4096.pem 4096
     fi
 
+    # Update vhost config.
+    if "${DRYRUN}"; then
+        warning "Updating HTTPS config in dryrun mode."
+    else
+        # Make backup first.
+        run cp -f "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-available/${1}.nonssl-conf"
+        
+        # Change listening port to 443.
+        run sed -i "s/listen\ 80/listen\ 443 ssl http2/g" "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443 ssl http2/g" "/etc/nginx/sites-available/${1}.conf"
+        
+        # Enable SSL configs.
+        run sed -i "s|#include\ /etc/nginx/includes/ssl.conf;|include\ /etc/nginx/includes/ssl.conf|g" "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s/#ssl_certificate_key/ssl_certificate_key/g" "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s/#ssl_dhparam/ssl_dhparam/g" "/etc/nginx/sites-available/${1}.conf"
+
+        # Append redirection block.
+        cat >> "/etc/nginx/sites-available/${1}.conf" <<EOL
+
+# HTTP to HTTPS redirection
+server {
+    listen 80;
+    listen [::]:80;
+
+    ## Make site accessible from world web.
+    server_name ${1};
+
+    ## Automatically redirect site to HTTPS protocol.
+    location / {
+        return 301 https://\$server_name\$request_uri;
+    }
+}
+
+EOL
+
+        reload_nginx
+    fi
+
     exit 0
 }
 
-# Disable ssl
-function disable_ssl() {
+# Disable HTTPS.
+function disable_https() {
     # Verify user input hostname (domain name)
     verify_host "${1}"
 
-    echo "TODO: Disble SSL"
+    # Update vhost config.
+    if "${DRYRUN}"; then
+        warning "Disabling HTTPS config in dryrun mode."
+    else
+        if [ -f "/etc/nginx/sites-available/${1}.nonssl-conf" ]; then
+            # Disable first.
+            run unlink "/etc/nginx/sites-enabled/${1}.conf"
+            run mv "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-available/${1}.ssl-conf"
+            
+            # Restore non ssl.
+            run cp -f "/etc/nginx/sites-available/${1}.nonssl-conf" "/etc/nginx/sites-available/${1}.conf"
+            run ln -s "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-enabled/${1}.conf"
+
+            reload_nginx
+        else
+            fail "Something went wrong. You still could disable HTTPS manually."
+            exit 1
+        fi
+    fi
+
     exit 0
 }
 
+# Enable Brotli compression module.
+function enable_brotli() {
+    echo "Enable NGiNX Brotli compression..."
+
+    if [[ -f /etc/nginx/nginx.conf && -f /etc/nginx/modules-enabled/50-mod-http-brotli-static.conf ]]; then
+        if grep -qwE "^\    include\ /etc/nginx/comp_gzip" /etc/nginx/nginx.conf; then
+            echo "Found Gzip compression enabled, update to Brotli."
+
+            run sed -i "s|include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_brotli;|g" \
+                /etc/nginx/nginx.conf
+        elif grep -qwE "^\    #include\ /etc/nginx/comp_gzip" /etc/nginx/nginx.conf; then
+            echo "No compression module previously, enable Brotli."
+
+            run sed -i "s|#include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_brotli;|g" \
+                /etc/nginx/nginx.conf
+        else
+            warning "Sorry, we couldn't find any compression module section."
+            echo "We recommend you to enable Brotli module manually."
+            exit 1
+        fi
+
+        reload_nginx
+    else
+        error "Sorry, we can't find NGiNX and Brotli module config file"
+        echo "it should be located under /etc/nginx/ directory."
+        exit 1
+    fi
+}
+
+# Enable Gzip compression module,
+# enabled by default.
+function enable_gzip() {
+    echo "Enable NGiNX Gzip compression..."
+
+    if [[ -f /etc/nginx/nginx.conf ]]; then
+        if grep -qwE "^\    include\ /etc/nginx/comp_brotli" /etc/nginx/nginx.conf; then
+            echo "Found Brotli compression enabled, update to Gzip."
+
+            run sed -i "s|include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_gzip;|g" \
+                /etc/nginx/nginx.conf
+        elif grep -qwE "^\    #include\ /etc/nginx/comp_gzip" /etc/nginx/nginx.conf; then
+            echo "No compression module previously, enable Gzip."
+
+            run sed -i "s|#include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_gzip;|g" \
+                /etc/nginx/nginx.conf
+        else
+            warning "Sorry, we couldn't find any compression module section."
+            echo "We recommend you to enable Gzip module manually."
+            exit 1
+        fi
+
+        reload_nginx
+    else
+        error "Sorry, we can't find NGiNX config file"
+        echo "it should be located under /etc/nginx/ directory."
+        exit 1
+    fi
+}
+
+# Verify if virtual host exists.
 function verify_host() {
     if [[ -z "${1}" ]]; then
         error "Virtual host (vhost) or domain name is required. Type ${APP_NAME} --help for more info!"
@@ -371,21 +502,23 @@ function verify_host() {
     fi
 
     if [ ! -f "/etc/nginx/sites-available/${1}.conf" ]; then
-        error -e "Sorry, we can't find Nginx virtual host: ${1}..."
+        error "Sorry, we couldn't find Nginx virtual host: ${1}..."
         exit 1
     fi
 }
 
-# Nginx reload
+# Reload NGiNX safely.
 function reload_nginx() {
     # Reload Nginx
-    echo "Reloading Nginx configuration..."
+    echo "Reloading NGiNX configuration..."
 
     if [[ -e /var/run/nginx.pid ]]; then
         if nginx -t 2>/dev/null > /dev/null; then
             service nginx reload -s > /dev/null 2>&1
         else
-            fail "Configuration not validated.";
+            fail "Configuration couldn't be validated. Please correct the error below:";
+            echo ""
+            nginx -t
             exit 1
         fi
     else
@@ -410,9 +543,9 @@ function reload_nginx() {
 # Main App
 #
 function init_app() {
-    OPTS=$(getopt -o vhe:d:r:c:p:s: \
-      -l version,help,enable:,disable:,remove:,enable-fastcgi-cache:,disable-fastcgi-cache: \
-      -l enable-pagespeed:,disable-pagespeed:,enable-ssl:,disable-ssl: \
+    OPTS=$(getopt -o e:d:r:c:p:s:bghv \
+      -l enable:,disable:,remove:,enable-fastcgi-cache:,disable-fastcgi-cache:,enable-pagespeed: \
+      -l disable-pagespeed:,enable-https:,disable-https:,enable-brotli,enable-gzip,help,version \
       -n "${APP_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
@@ -448,12 +581,20 @@ function init_app() {
                 disable_mod_pagespeed "${2}"
                 shift 2
             ;;
-            -s | --enable-ssl)
-                enable_ssl "${2}"
+            -s | --enable-https)
+                enable_https "${2}"
                 shift 2
             ;;
-            --disable-ssl)
-                disable_ssl "${2}"
+            --disable-https)
+                disable_https "${2}"
+                shift 2
+            ;;
+            -b | --enable-brotli)
+                enable_brotli
+                shift 2
+            ;;
+            -g | --enable-gzip)
+                enable_gzip
                 shift 2
             ;;
             -h | --help)

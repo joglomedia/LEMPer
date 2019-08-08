@@ -6,13 +6,23 @@
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
-# Make sure only root can run this installer script.
-function requires_root() {
-    if [ "$(/usr/bin/id -u)" -ne 0 ]; then
-        error "This command can only be used by root."
-        exit 1
-    fi
-}
+# Export environment variables.
+if [ -f ".env" ]; then
+    # shellcheck source=.env
+    # shellcheck disable=SC1094
+    source <(grep -v '^#' .env | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+else
+    echo "Environment variables required, but not found."
+    exit 1
+fi
+
+# Direct access? make as dryrun mode.
+DRYRUN=${DRYRUN:-true}
+
+# Set default color decorator.
+RED=${RED:-31}
+GREEN=${GREEN:-32}
+YELLOW=${YELLOW:-33}
 
 function begin_color() {
     color="$1"
@@ -83,6 +93,39 @@ function continue_or_exit() {
     fi
 }
 
+# Make sure only root can run LEMPer script.
+function requires_root() {
+    if [ "$(id -u)" -ne 0 ]; then
+        error "This command can only be used by root."
+        exit 1
+    fi
+}
+
+function get_distrib_name() {
+    if [ -f "/etc/os-release" ]; then
+        # Export os-release vars.
+        . /etc/os-release
+
+        # Export lsb-release vars.
+        if [ -f /etc/lsb-release ]; then
+            . /etc/lsb-release
+        fi
+
+        if [[ "${ID_LIKE}" == "ubuntu" ]]; then
+            DISTRIB_NAME="ubuntu"
+        else
+            DISTRIB_NAME=${ID:-}
+        fi
+    elif [ -e /etc/system-release ]; then
+    	DISTRIB_NAME="unsupported"
+    else
+        # Red Hat /etc/redhat-release
+    	DISTRIB_NAME="unsupported"
+    fi
+
+    echo "${DISTRIB_NAME}"
+}
+
 # Get general distribution release name.
 function get_release_name() {
     if [ -f "/etc/os-release" ]; then
@@ -95,12 +138,12 @@ function get_release_name() {
         fi
 
         if [[ "${ID_LIKE}" == "ubuntu" ]]; then
-            DISTRO="ubuntu"
+            DISTRIB_NAME="ubuntu"
         else
-            DISTRO=${ID:-}
+            DISTRIB_NAME=${ID:-}
         fi
 
-        case $DISTRO in
+        case ${DISTRIB_NAME} in
             debian)
                 #RELEASE_NAME=${VERSION_CODENAME:-}
                 RELEASE_NAME="unsupported"
@@ -317,6 +360,64 @@ function version_older_than() {
     test "$older_version" != "$compare_to"
 }
 
+function nginx_download_report_error() {
+    fail "Couldn't automatically determine the latest nginx version: failed to $* Nginx's download page"
+}
+
+function get_nginx_versions_available() {
+    # Scrape nginx's download page to try to find the all available nginx versions.
+    nginx_download_url="https://nginx.org/en/download.html"
+
+    local nginx_download_page
+    nginx_download_page=$(curl -sS --fail "$nginx_download_url") || \
+        nginx_download_report_error "download"
+
+    local download_refs
+    download_refs=$(echo "$nginx_download_page" | \
+        grep -owE '"/download/nginx-[0-9.]*\.tar\.gz"') || \
+        nginx_download_report_error "parse"
+
+    versions_available=$(echo "$download_refs" | \
+        sed -e 's~^"/download/nginx-~~' -e 's~\.tar\.gz"$~~') || \
+        nginx_download_report_error "extract versions from"
+
+    echo "$versions_available"
+}
+
+# Try to find the most recent nginx version (mainline).
+function determine_latest_nginx_version() {
+    local versions_available
+    local latest_version
+
+    versions_available=$(get_nginx_versions_available)
+    latest_version=$(echo "$versions_available" | version_sort | tail -n 1) || \
+        report_error "determine latest (mainline) version from"
+
+    if version_older_than "$latest_version" "1.14.2"; then
+        fail "Expected the latest version of nginx to be at least 1.14.2 but found
+$latest_version on $nginx_download_url"
+    fi
+
+    echo "$latest_version"
+}
+
+# Try to find the stable nginx version (mainline).
+function determine_stable_nginx_version() {
+    local versions_available
+    local stable_version
+
+    versions_available=$(get_nginx_versions_available)
+    stable_version=$(echo "$versions_available" | version_sort | tail -n 2 | sort -r | tail -n 1) || \
+        report_error "determine stable (LTS) version from"
+
+    if version_older_than "1.14.2" "$latest_version"; then
+        fail "Expected the latest version of nginx to be at least 1.14.2 but found
+$latest_version on $nginx_download_url"
+    fi
+
+    echo "$stable_version"
+}
+
 # Validate Nginx configuration.
 function validate_nginx_config() {
     if nginx -t 2>/dev/null > /dev/null; then
@@ -349,8 +450,9 @@ _EOF_
 # Footer credit message.
 function footer_msg() {
     cat <<- _EOF_
+
 #==========================================================================#
-#         Thank's for installing LNMP stack using LEMPer Installer         #
+#         Thank's for installing LEMP stack using LEMPer Installer         #
 #        Found any bugs / errors / suggestions? please let me know         #
 #    If this script useful, don't forget to buy me a coffee or milk :D     #
 #   My PayPal is always open for donation, here https://paypal.me/masedi   #

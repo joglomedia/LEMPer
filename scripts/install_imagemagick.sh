@@ -14,29 +14,51 @@ if [ "$(type -t run)" != "function" ]; then
     . "${BASEDIR}/helper.sh"
 fi
 
-# Make sure only root can run this installer script
-if [ "$(id -u)" -ne 0 ]; then
-    error "You need to be root to run this script"
-    exit 1
-fi
+# Make sure only root can run this installer script.
+requires_root
 
-echo "Installing ImageMagick from source..."
+function init_imagick_install {
+    echo ""
+    echo "[Welcome to ImageMagick Installer]"
+    echo ""
 
-run wget -q https://www.imagemagick.org/download/ImageMagick.tar.gz
-run tar xf ImageMagick.tar.gz
-run cd ImageMagick-7*
-run ./configure
-run make
-run make install
-run ldconfig /usr/local/lib
-run rm -fr ImageMagick-7*
-
-if "${DRYRUN}"; then
-    status "ImageMagic installed in dryrun mode."
-else
-    if magick -version |grep -qo 'Version: ImageMagic *'; then
-        status "ImageMagic version $(magick -version |grep ^Version | cut -d' ' -f3) has been installed."
-    elif identify -version |grep -qo 'Version: ImageMagic *'; then
-        status "ImageMagic version $(identify -version |grep ^Version | cut -d' ' -f3) has been installed."
+    if "${AUTO_INSTALL}"; then
+        INSTALL_IMAGEMAGICK="y"
     fi
+    while [[ "${INSTALL_IMAGEMAGICK}" != "y" && "${INSTALL_IMAGEMAGICK}" != "n" ]]; do
+        read -rp "Do you want to install Redis server? [y/n]: " -i y -e INSTALL_IMAGEMAGICK
+    done
+    if [[ "${INSTALL_IMAGEMAGICK}" == y* && "${PHP_IMAGEMAGICK}" == true ]]; then
+        echo "Installing ImageMagick library from source..."
+
+        run wget -q https://www.imagemagick.org/download/ImageMagick.tar.gz
+        run tar xf ImageMagick.tar.gz
+        run cd ImageMagick-*
+        run ./configure
+        run make
+        run make install
+        run ldconfig /usr/local/lib
+        run cd ../
+        run rm -fr ImageMagick-*
+
+        if "${DRYRUN}"; then
+            warning "ImageMagic installed in dryrun mode."
+        else
+            if magick -version |grep -qo 'Version: ImageMagic *'; then
+                status "ImageMagic version $(magick -version |grep ^Version | cut -d' ' -f3) has been installed."
+            elif identify -version |grep -qo 'Version: ImageMagic *'; then
+                status "ImageMagic version $(identify -version |grep ^Version | cut -d' ' -f3) has been installed."
+            fi
+        fi
+    else
+        warning "ImageMagick installation skipped..."
+    fi
+}
+
+# Start running things from a call at the end so if this script is executed
+# after a partial download it doesn't do anything.
+if [[ -n $(command -v imagick) || -n $(command -v identifyx) ]]; then
+    warning "ImageMagick already exists. Installation skipped..."
+else
+    init_imagick_install "$@"
 fi

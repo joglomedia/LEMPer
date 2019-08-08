@@ -10,29 +10,28 @@
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellchechk source=scripts/helper.sh
+    # shellcheck disable=SC1090
     . "${BASEDIR}/helper.sh"
 fi
 
-# Make sure only root can run this installer script
-if [ "$(id -u)" -ne 0 ]; then
-    error "You need to be root to run this script"
-    exit 1
-fi
+# Make sure only root can run this installer script.
+requires_root
 
-echo ""
-echo "Welcome to Certbot Let's Encrypt Installation..."
-echo ""
-
+# Install Certbot Let's Encrypt.
 function init_certbotle_install() {
-    while [[ ${INSTALL_CERTBOT} != "y" && ${INSTALL_CERTBOT} != "n" ]]; do
+    echo ""
+    echo "Welcome to Certbot Let's Encrypt Installation..."
+    echo ""
+
+    while [[ "${INSTALL_CERTBOT}" != "y" && "${INSTALL_CERTBOT}" != "n" ]]; do
         read -rp "Do you want to install Certbot Let's Encrypt? [y/n]: " -e INSTALL_CERTBOT
     done
     if [[ "${INSTALL_CERTBOT}" == Y* || "${INSTALL_CERTBOT}" == y* ]]; then
         echo -e "\nInstalling Certbot Let's Encrypt client..."
 
         run add-apt-repository -y ppa:certbot/certbot
-        run apt-get -y update
-        run apt-get -y install certbot
+        run apt-get -y update >> lemper.log 2>&1
+        run apt-get -y install certbot >> lemper.log 2>&1
 
         # Add Certbot auto renew command to cron
         #15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/bin/systemctl reload nginx"
@@ -66,8 +65,8 @@ EOL
             echo "Generating Diffie-Hellman parameters for enhanced security,"
             echo "This is going to take a long time"
 
-            run openssl dhparam -out /etc/letsencrypt/ssl-dhparam-2048.pem 2048
-            run openssl dhparam -out /etc/letsencrypt/ssl-dhparam-4096.pem 4096
+            DH_NUMBITS=${DH_NUMBITS:-4096}
+            run openssl dhparam -out "/etc/letsencrypt/ssl-dhparam-${DH_NUMBITS}.pem" "${DH_NUMBITS}"
         fi
 
         if "${DRYRUN}"; then

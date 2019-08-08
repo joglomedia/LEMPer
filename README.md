@@ -18,7 +18,6 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * Zend OPcache.
 * ionCube PHP Loader.
 * SourceGuardian PHP Loader.
-* ZendGuard PHP Loader.
 * [Adminer](https://www.adminer.org/) for MySQL database administration (PhpMyAdmin replacement).
 
 ## Usage

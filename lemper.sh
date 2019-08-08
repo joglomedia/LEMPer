@@ -29,10 +29,10 @@
 # | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
 # +-------------------------------------------------------------------------+
 
-set -e -o pipefail # Work even if somebody does "sh lemper.sh".
+set -e # Work even if somebody does "sh lemper.sh".
 
 if [ -z "${PATH}" ] ; then
-    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 fi
 
 # Unset existing variables.
@@ -40,17 +40,8 @@ fi
 # shellcheck disable=SC2046
 unset $(grep -v '^#' .env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
 
-# Export environment variables.
-if [ -f .env ]; then
-    # shellcheck source=.env
-    # shellcheck disable=SC1094
-    source <(grep -v '^#' .env | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
-else
-    echo "Environment variables required, but not found."
-    exit 1
-fi
-
 # Get base directory.
+export BASEDIR && \
 BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
 
 # Include helper functions.
@@ -59,37 +50,35 @@ if [ "$(type -t run)" != "function" ]; then
 fi
 
 # Make sure only root can run this installer script.
-if [ "$(id -u)" -ne 0 ]; then
-    error "You need to be root to run this script"
-    exit 1
-fi
+requires_root
 
 # Make sure this script only run on supported distribution.
+export DISTRIB_NAME && \
+DISTRIB_NAME=$(get_distrib_name)
 export DISTRIB_REPO && \
 DISTRIB_REPO=$(get_release_name)
 if [[ "${DISTRIB_REPO}" == "unsupported" ]]; then
-    warning "This installer only work on Ubuntu 16.04 & 18.04 and LinuxMint 18 & 19..."
+    warning "This installer only work on Ubuntu 16.04 & 18.04 and LinuxMint 18 & 19."
     exit 1
 else
     # Set global variables.
     ARCH=$(uname -p)
     IP_SERVER=$(hostname -i)
     # Get ethernet interface.
-    IFACE=$(find /sys/class/net -type l | grep enp | cut -d'/' -f5)
+    IFACE=$(find /sys/class/net -type l | grep -e "enp\|eth" | cut -d'/' -f5)
 fi
+
+# Init log.
+run init_log
 
 ### Main ###
 case "${1}" in
-    --install)
+    "--install")
         header_msg
-        echo ""
         echo "Starting LEMP stack installation..."
-        echo "Please ensure that you're on a fresh machine install!"
+        echo "Please ensure that you're on a fresh install!"
         echo ""
         read -t 10 -rp "Press [Enter] to continue..." </dev/tty
-
-        # Init log.
-        run init_log
 
         ### Clean-up server ###
         if [ -f scripts/cleanup_server.sh ]; then
@@ -119,6 +108,11 @@ case "${1}" in
             . scripts/install_php.sh
         fi
 
+        ### Imagick installation ###
+        if [ -f scripts/install_imagemagick.sh ]; then
+            . scripts/install_imagemagick.sh
+        fi
+
         ### Memcached installation ###
         if [ -f scripts/install_memcached.sh ]; then
             . scripts/install_memcached.sh
@@ -132,6 +126,11 @@ case "${1}" in
         ### Redis database installation ###
         if [ -f scripts/install_redis.sh ]; then
             . scripts/install_redis.sh
+        fi
+
+        ### MongoDB database installation ###
+        if [ -f scripts/install_mongodb.sh ]; then
+            . scripts/install_mongodb.sh
         fi
 
         ### Certbot Let's Encrypt SSL installation ###
@@ -162,25 +161,35 @@ case "${1}" in
 
         ### Recap ###
         if [[ -n "${PASSWORD}" ]]; then
-            status "
+            CREDENTIALS="
 Here is your default system account information:
-
     Server IP: ${IP_SERVER}
     SSH Port : ${SSH_PORT}
     Username : ${USERNAME}
     Password : ${PASSWORD}
 
-    Access to your Database administration (Adminer):
+Access to your Database administration (Adminer):
     http://${IP_SERVER}:8082/
 
-    Access to your File manager (FileRun):
+    Database root password: ${MYSQL_ROOT_PASS}
+
+    Mariabackup user information:
+    DB Username: ${MARIABACKUP_USER}
+    DB Password: ${MARIABACKUP_PASS}
+
+Access to your File manager (FileRun):
     http://${IP_SERVER}:8083/
 
 Please Save & Keep It Private!
 "
 
+            status "${CREDENTIALS}"
+
+            # Save it to log file
+            echo "${CREDENTIALS}" >> lemper.log
+
             if [[ ${SSH_PORT} -ne 22 ]]; then
-                echo "You're running SSH server with modified config, restart to apply your changes."
+                warning "You're running SSH server with modified config, restart to apply your changes."
                 echo "  use this command:  service ssh restart"
             fi
         fi
@@ -191,16 +200,13 @@ Now, you can reboot your server and enjoy it!
 "
     ;;
 
-    --uninstall)
+    "--remove"|"--uninstall")
         header_msg
         echo ""
         echo "Are you sure to remove LEMP stack installation?"
         echo "Please ensure that you've back up your data!"
         echo ""
         read -rt 10 -p "Press [Enter] to continue..." </dev/tty
-
-        # Init log.
-        run init_log
 
         # Fix broken install, first?
         run apt-get --fix-broken install >> lemper.log 2>&1
@@ -217,10 +223,10 @@ Now, you can reboot your server and enjoy it!
 
         # Remove Memcached if exists
         echo -e "\nUninstalling Memcached..."
-        while [[ $REMOVE_MEMCACHED != "y" && $REMOVE_MEMCACHED != "n" ]]; do
-            read -pr "Are you sure to remove Memcached? [y/n]: " -e REMOVE_MEMCACHED
+        while [[ "${REMOVE_MEMCACHED}" != "y" && "${REMOVE_MEMCACHED}" != "n" ]]; do
+            read -rp "Are you sure to remove Memcached? [y/n]: " -i y -e REMOVE_MEMCACHED
         done
-        if [[ "$REMOVE_MEMCACHED" == Y* || "$REMOVE_MEMCACHED" == y* ]]; then
+        if [[ "${REMOVE_MEMCACHED}" == Y* || "${REMOVE_MEMCACHED}" == y* ]]; then
             if [[ -n $(command -v memcached) ]]; then
                 # Stop Memcached server process
                 if [[ $(pgrep -c memcached) -gt 0 ]]; then
@@ -229,9 +235,7 @@ Now, you can reboot your server and enjoy it!
 
                 run apt-get --purge remove -y libmemcached11 memcached php-igbinary \
                     php-memcache php-memcached php-msgpack >> lemper.log 2>&1
-                #run apt-get purge -y libmemcached11 memcached php-igbinary \
-                #    php-memcache php-memcached php-msgpack >> lemper.log 2>&1
-                #run rm -f /etc/memcached.conf
+                run rm -f /etc/memcached.conf
 
                 if [[ -z $(command -v memcached) ]]; then
                     status "Memcached server removed."
@@ -245,10 +249,10 @@ Now, you can reboot your server and enjoy it!
 
         # Remove Redis if exists
         echo -e "\nUninstalling Redis..."
-        while [[ $REMOVE_REDIS != "y" && $REMOVE_REDIS != "n" ]]; do
-            read -pr "Are you sure to remove Redis server? [y/n]: " -e REMOVE_REDIS
+        while [[ "${REMOVE_REDIS}" != "y" && "${REMOVE_REDIS}" != "n" ]]; do
+            read -rp "Are you sure to remove Redis server? [y/n]: " -i y -e REMOVE_REDIS
         done
-        if [[ "$REMOVE_REDIS" == Y* || "$REMOVE_REDIS" == y* ]]; then
+        if [[ "${REMOVE_REDIS}" == Y* || "${REMOVE_REDIS}" == y* ]]; then
             if [[ -n $(command -v redis-server) ]]; then
                 # Stop Redis server process
                 if [[ $(pgrep -c redis-server) -gt 0 ]]; then
@@ -256,9 +260,8 @@ Now, you can reboot your server and enjoy it!
                 fi
 
                 run apt-get --purge remove -y redis-server php-redis >> lemper.log 2>&1
-                #run apt-get purge -y redis-server >> lemper.log 2>&1
                 run add-apt-repository -y --remove ppa:chris-lea/redis-server >> lemper.log 2>&1
-                #run rm -f /etc/redis/redis.conf
+                run rm -f /etc/redis/redis.conf
 
                 if [[ -z $(command -v redis-server) ]]; then
                     status "Redis server removed."
@@ -277,17 +280,17 @@ Now, you can reboot your server and enjoy it!
 
         # Remove default user account.
         echo ""
-        while [[ $REMOVE_ACCOUNT != "y" && $REMOVE_ACCOUNT != "n" ]]; do
+        while [[ "${REMOVE_ACCOUNT}" != "y" && "${REMOVE_ACCOUNT}" != "n" ]]; do
             read -rp "Remove default LEMPer account? [y/n]: " -i y -e REMOVE_ACCOUNT
         done
-        if [[ "$REMOVE_ACCOUNT" == Y* || "$REMOVE_ACCOUNT" == y* ]]; then
+        if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* ]]; then
             if [ "$(type -t delete_account)" == "function" ]; then
                 delete_account "lemper"
             fi
         fi
 
         # Remove unnecessary packages.
-        echo -e "\nCleaning up unnecessary packages..."
+        echo -e "\nCleaning up unnecessary packages...\n"
         run apt-get autoremove -y >> lemper.log 2>&1
 
         status "LEMP stack has been removed completely."

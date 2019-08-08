@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # +-------------------------------------------------------------------------+
-# | NgxVhost - Simple Nginx vHost Configs File Generator                    |
+# | Lemper Create - Simple LEMP Virtual Host Generator                      |
 # +-------------------------------------------------------------------------+
 # | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/ngxvhost)             |
 # +-------------------------------------------------------------------------+
@@ -16,9 +16,11 @@
 # | Original concept: Fideloper <https://gist.github.com/fideloper/9063376> |
 # +-------------------------------------------------------------------------+
 
+set -e
+
 # Version Control.
 APP_NAME=$(basename "$0")
-APP_VERSION="1.6.0"
+APP_VERSION="1.2.0-dev"
 
 # Test mode.
 DRYRUN=false
@@ -108,7 +110,7 @@ fi
 function show_usage {
 cat <<- _EOF_
 ${APP_NAME^} ${APP_VERSION}
-Creates Nginx virtual host (vHost) configuration file.
+Creates NGiNX virtual host (vHost) configuration file.
 
 Requirements:
   * LEMP stack setup uses [LEMPer](https://github.com/joglomedia/LEMPer)
@@ -116,22 +118,29 @@ Requirements:
 Usage: ${APP_NAME} [options]...
 
 Options:
-  -c, --enable-fastcgi-cache
-      Enable PHP FastCGI cache module.
   -d, --domain-name <server domain name>
       Any valid domain name and/or sub domain name is allowed, i.e. example.com or sub.example.com.
   -f, --framework <website framework>
-      Type of web framework and cms, i.e. default.
-      Currently supported framework and cms: default (vanilla PHP), codeigniter, laravel, phalcon, wordpress, wordpress-ms.
+      Type of PHP web framework and cms, i.e. default.
+      Currently supported framework and cms: default (vanilla PHP), codeigniter, drupal, laravel, phalcon, wordpress, wordpress-ms.
       Another framework and cms will be added soon.
   -p, --php-version
       PHP version for selected framework.
-  -s, --clone-skeleton
-      Clone default skeleton for selected framework.
   -u, --username <virtual-host username>
-      Use username added from adduser/useradd. Do not use root user.
+      Use username added from adduser/useradd. Do not use root user!!
   -w, --webroot <web root>
       Web root is an absolute path to the website root directory, i.e. /home/lemper/webapps/example.test.
+
+  --clone-skeleton
+      Clone default skeleton for selected framework.
+  --enable-fastcgi-cache
+      Enable FastCGI cache module.
+  --enable-https
+      Enable HTTPS with Let's Encrypt free SSL certificate.
+  --enable-pagespeed
+      Enable Nginx mod_pagespeed.
+  --wildcard-domain
+      Enable wildcard (*) domain.
 
   -h, --help
       Print this message and exit.
@@ -154,7 +163,7 @@ function create_vhost_default() {
 cat <<- _EOF_
 server {
     listen 80;
-    listen [::]:80;
+    listen [::]:80 ipv6only=on;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
@@ -234,7 +243,7 @@ function create_vhost_drupal() {
 cat <<- _EOF_
 server {
     listen 80;
-    listen [::]:80;
+    listen [::]:80 ipv6only=on;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
@@ -319,7 +328,7 @@ function create_vhost_laravel() {
 cat <<- _EOF_
 server {
     listen 80;
-    listen [::]:80;
+    listen [::]:80 ipv6only=on;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
@@ -400,7 +409,7 @@ function create_vhost_phalcon() {
 cat <<- _EOF_
 server {
     listen 80;
-    listen [::]:80;
+    listen [::]:80 ipv6only=on;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
@@ -483,7 +492,7 @@ _EOF_
 #
 function prepare_vhost_wpms() {
 cat <<- _EOF_
-# Wordpress Multisite Mapping for Nginx (Requires Nginx Helper plugin).
+# Wordpress Multisite Mapping for NGiNX (Requires NGiNX Helper plugin).
 map \$http_host \$blogid {
     default 0;
     include ${WEBROOT}/wp-content/uploads/nginx-helper/map.conf;
@@ -494,13 +503,13 @@ _EOF_
 
 ## Output server block for HTTP to HTTPS redirection.
 #
-function http_to_https() {
+function redirect_http_to_https() {
 cat <<- _EOF_
 
 # HTTP to HTTPS redirection
 server {
     listen 80;
-    listen [::]:80;
+    listen [::]:80 ipv6only=on;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
@@ -579,17 +588,19 @@ pm.status_path = /status
 ping.path = /ping
 
 request_slowlog_timeout = 6s
-slowlog = /var/log/php${PHP_VERSION}-fpm_slow.\$pool.log
+slowlog = /var/log/php/php${PHP_VERSION}-fpm_slow.\$pool.log
 
-chdir = /
+chdir = /home/${USERNAME}
 
 security.limit_extensions = .php .php3 .php4 .php5 .php${PHP_VERSION//./}
 
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com
 php_flag[display_errors] = on
-php_admin_value[error_log] = /var/log/php${PHP_VERSION}-fpm.\$pool.log
+php_admin_value[error_log] = /var/log/php/php${PHP_VERSION}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
-;php_admin_value[memory_limit] = 32M
+php_admin_value[memory_limit] = 128M
+php_admin_value[open_basedir] = /home/${USERNAME}
+
 _EOF_
 }
 
@@ -622,7 +633,7 @@ function install_wordpress() {
 
     # Pre-install nginx helper plugin.
     if [[ -d "${WEBROOT}/wp-content/plugins" && ! -d "${WEBROOT}/wp-content/plugins/nginx-helper" ]]; then
-        status "Copying Nginx Helper plugin into WordPress install..."
+        status "Copying NGiNX Helper plugin into WordPress install..."
         warning "Please activate the plugin after WordPress installation!"
 
         run wget --no-check-certificate -q https://downloads.wordpress.org/plugin/nginx-helper.zip
@@ -649,10 +660,10 @@ function get_ip_addr() {
 ## Main App
 #
 function init_app() {
-    OPTS=$(getopt -o u:d:f:w:p:cshv \
-      -l username:,domain-name:,framework:,webroot:,php-version: \
-      -l enable-fastcgi-cache,clone-skeleton,help,version \
-      -n "$APP_NAME" -- "$@")
+    OPTS=$(getopt -o u:d:f:w:p:schv \
+      -l username:,domain-name:,framework:,webroot:,php-version:,clone-skeleton \
+      -l enable-fastcgi-cache,enable-pagespeed,enable-https,wildcard-domain,help,version \
+      -n "${APP_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
 
@@ -661,7 +672,8 @@ function init_app() {
     PHP_VERSION="7.3"
     ENABLE_FASTCGI_CACHE=false
     ENABLE_PAGESPEED=false
-    #ENABLE_HTTPS=false
+    ENABLE_HTTPS=false
+    ENABLE_WILDCARD_DOMAIN=false
     CLONE_SKELETON=false
     DRYRUN=false
 
@@ -682,13 +694,13 @@ function init_app() {
                 MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
-            -w | --webroot) shift
-                WEBROOT="${1%%+(/)}"
+            -f | --framework) shift
+                FRAMEWORK="${1}"
                 MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
-            -f | --framework) shift
-                FRAMEWORK="${1}"
+            -w | --webroot) shift
+                WEBROOT="${1%%+(/)}"
                 MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
@@ -696,11 +708,20 @@ function init_app() {
                 PHP_VERSION="${1}"
                 shift
             ;;
+            -s | --clone-skeleton) shift
+                CLONE_SKELETON=true
+            ;;
             -c | --enable-fastcgi-cache) shift
                 ENABLE_FASTCGI_CACHE=true
             ;;
-            -s | --clone-skeleton) shift
-                CLONE_SKELETON=true
+            --enable-pagespeed) shift
+                ENABLE_PAGESPEED=true
+            ;;
+            --enable-https) shift
+                ENABLE_HTTPS=true
+            ;;
+            --wildcard-domain) shift
+                ENABLE_WILDCARD_DOMAIN=true
             ;;
             -h | --help) shift
                 show_usage
@@ -750,7 +771,7 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
 
         # Additional Check - ensure that Nginx's configuration meets the requirements.
         if [ ! -d /etc/nginx/sites-available ]; then
-            fail "It seems that your Nginx installation doesn't meet ${APP_NAME} requirements. Aborting..."
+            fail "It seems that your NGiNX installation doesn't meet ${APP_NAME} requirements. Aborting..."
         fi
 
         # Define vhost file.
@@ -871,7 +892,7 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
                     # Install WordPress.
                     install_wordpress ${CLONE_SKELETON}
 
-                    # Pre-populate blog id mapping, used by Nginx vhost conf.
+                    # Pre-populate blog id mapping, used by NGiNX vhost conf.
                     if [ ! -d "${WEBROOT}/wp-content/uploads" ]; then
                         run mkdir "${WEBROOT}/wp-content/uploads"
                     fi
@@ -940,7 +961,7 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
                 ;;
             esac
 
-            # Enable FastCGI cache?
+            # Enable FastCGI cache.
             if [ ${ENABLE_FASTCGI_CACHE} == true ]; then
                 echo "Enable FastCGI cache for ${SERVERNAME}..."
 
@@ -950,11 +971,11 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
                     # enable fastcgi_cache conf
                     run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" "${VHOST_FILE}"
                 else
-                    warning "FastCGI cache is not enabled. There is no cached version of ${FRAMEWORK^} directive."
+                    warning "FastCGI cache is not enabled due to no cached version of ${FRAMEWORK^} directive."
                 fi
             fi
 
-            # Enable PageSpeed?
+            # Enable PageSpeed.
             if [ ${ENABLE_PAGESPEED} == true ]; then
                 echo "Enable Mod PageSpeed for ${SERVERNAME}..."
 
@@ -962,14 +983,23 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
                     # enable mod pagespeed
                     run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" "${VHOST_FILE}"
                 else
-                    warning "PageSpeed is not enabled. Nginx must be installed with Mod_PageSpeed module enabled."
+                    warning "PageSpeed is not enabled. NGiNX must be installed with Mod_PageSpeed module enabled."
                 fi
             fi
 
-            # Fix document root ownership
+            # Enable Wildcard domain.
+            if [ ${ENABLE_WILDCARD_DOMAIN} == true ]; then
+                echo "Enable wildcard domain for ${SERVERNAME}..."
+
+                if grep -qwE "server_name\ ${SERVERNAME};$" "${VHOST_FILE}"; then
+                    run sed -i "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" "${VHOST_FILE}"
+                fi
+            fi
+
+            # Fix document root ownership.
             run chown -R "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
-            # Fix document root permission
+            # Fix document root permission.
             if [ "$(ls -A "${WEBROOT}")" ]; then
                 run find "${WEBROOT}" -type d -print0 | xargs -0 chmod 755
                 run find "${WEBROOT}" -type f -print0 | xargs -0 chmod 644
@@ -977,31 +1007,39 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
 
             echo "Enable ${SERVERNAME} virtual host..."
 
-            # Enable site
-            #cd "/etc/nginx/sites-enabled"
+            # Enable site.
             run ln -s "/etc/nginx/sites-available/${SERVERNAME}.conf" "/etc/nginx/sites-enabled/${SERVERNAME}.conf"
 
             # Reload Nginx
-            echo "Reloading Nginx configuration..."
+            echo "Reloading NGiNX HTTP server configuration..."
 
-            # Validate config, reload when validated
+            # Validate config, reload when validated.
             if nginx -t 2>/dev/null > /dev/null; then
                 run service nginx reload -s
-                echo "Nginx reloaded with new configuration."
+                echo "NGiNX HTTP server reloaded with new configuration."
             else
-                echo "Something went wrong with Nginx configuration."
+                echo "Something went wrong with NGiNX configuration."
             fi
 
             if [[ -f "/etc/nginx/sites-enabled/${SERVERNAME}.conf" && -e /var/run/nginx.pid ]]; then
-                status "Your ${SERVERNAME} successfully added to Nginx virtual host.";
-            else
-                fail "An error occurred when adding ${SERVERNAME} to Nginx virtual host.";
-            fi
+                status "Your ${SERVERNAME} successfully added to NGiNX virtual host."
 
-            if [ "${FRAMEWORK}" = "wordpress-ms" ]; then
-                echo >&2
-                warning "Note: You're installing Wordpress Multisite."
-                warning "You should activate Nginx Helper plugin to work properly."
+                # Enable HTTPS.
+                if [ ${ENABLE_HTTPS} == true ]; then
+                    echo ""
+                    echo "You can enable HTTPS from lemper-cli after this setup!"
+                    echo "command: lemper-cli manage --enable-https ${SERVERNAME}"
+                    echo ""
+                fi
+
+                # WordPress MS notice.
+                if [ "${FRAMEWORK}" = "wordpress-ms" ]; then
+                    echo >&2
+                    warning "Note: You're installing Wordpress Multisite."
+                    warning "You should activate NGiNX Helper plugin to work properly."
+                fi
+            else
+                fail "An error occurred when adding ${SERVERNAME} to NGiNX virtual host."
             fi
         else
             error "Virtual host config file for ${SERVERNAME} is already exists. Aborting..."

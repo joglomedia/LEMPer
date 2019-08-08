@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # +-------------------------------------------------------------------------+
-# | NgxTool - Simple Nginx vHost Manager                                    |
+# | Lemper CLI - Simple LEMP Stack Manager                                  |
 # +-------------------------------------------------------------------------+
 # | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/ngxtool)              |
 # +-------------------------------------------------------------------------+
@@ -20,7 +20,8 @@ set -e
 # Version control
 ProgName=$(basename "$0")
 ProgVersion="1.2.0-dev"
-LibDir="/usr/lib/lemper"
+
+LibDir="/usr/local/lib/lemper"
 
 function cmd_help() {
     echo "Usage: $ProgName [--version] [--help]"
@@ -39,15 +40,25 @@ function cmd_version() {
 }
 
 function cmd_create() {
-    "$LibDir"/lemper-create "$@"
+    if [ -x "$LibDir/lemper-create" ]; then
+        "$LibDir/lemper-create" "$@"
+    else
+        echo "Oops, lemper create subcommand module couldn't be loaded."
+        exit 1
+    fi
 }
 
 function cmd_manage() {
-    "$LibDir"/lemper-manage "$@"
+    if [ -x "$LibDir/lemper-manage" ]; then
+        "$LibDir/lemper-manage" "$@"
+    else
+        echo "Oops, lemper manage subcommand module couldn't be loaded."
+        exit 1
+    fi
 }
 
 SubCommand=$1
-case $SubCommand in
+case ${SubCommand} in
     "" | "-h" | "--help")
         cmd_help
     ;;
