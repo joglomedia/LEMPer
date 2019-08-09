@@ -460,11 +460,6 @@ EOL
 # Start PHP & FPM Installation.
 #
 function init_php_fpm_install() {
-    # Menu Install PHP, fpm, and modules.
-    echo ""
-    echo "[Welcome to PHP Installer]"
-    echo ""
-
     if "${AUTO_INSTALL}"; then
         # Set default Iptables-based firewall configutor engine.
         SELECTED_PHP=${PHP_VERSION:-"7.3"}
@@ -658,6 +653,9 @@ function init_php_fpm_install() {
         fi
     fi
 }
+
+echo "[Welcome to PHP Installer]"
+echo ""
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

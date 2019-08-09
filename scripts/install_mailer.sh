@@ -17,10 +17,6 @@ fi
 # Make sure only root can run this installer script.
 requires_root
 
-echo ""
-echo "[Welcome to Mail Installer]"
-echo ""
-
 # Install Postfix mail server
 function install_postfix() {
     while [[ $INSTALL_POSTFIX != "y" && $INSTALL_POSTFIX != "n" ]]; do
@@ -52,7 +48,12 @@ function install_postfix() {
 ## TODO: Add Dovecot
 # https://www.linode.com/docs/email/postfix/email-with-postfix-dovecot-and-mysql/
 
-## Main
+
+echo "[Welcome to Mail Installer]"
+echo ""
+
+# Start running things from a call at the end so if this script is executed
+# after a partial download it doesn't do anything.
 if [[ -n $(command -v postfix) ]]; then
     warning "Postfix already exists. Installation skipped..."
 else

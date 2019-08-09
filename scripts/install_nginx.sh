@@ -60,10 +60,6 @@ function add_nginx_repo() {
 }
 
 function init_nginx_install() {
-    echo ""
-    echo "[Welcome to NGiNX Installer]"
-    echo ""
-
     if "${AUTO_INSTALL}"; then
         # Set default Iptables-based firewall configutor engine.
         SELECTED_NGINX_INSTALLER=${NGINX_INSTALLER:-"source"}
@@ -254,18 +250,18 @@ function init_nginx_install() {
             # NGiNX systemd script.
             if [ ! -f /lib/systemd/system/nginx.service ]; then
                 run cp etc/systemd/nginx.service /lib/systemd/system/
-
-                if [ ! -f /etc/systemd/system/nginx.service ]; then
-                    run ln -s /lib/systemd/system/nginx.service \
-                        /etc/systemd/system/multi-user.target.wants/nginx.service
-                fi
-
-                # Reloading daemon.
-                run systemctl daemon-reload
-
-                # Enable in start up.
-                run systemctl enable nginx.service
             fi
+
+            if [ ! -f /etc/systemd/system/nginx.service ]; then
+                run ln -s /lib/systemd/system/nginx.service \
+                    /etc/systemd/system/multi-user.target.wants/nginx.service
+            fi
+
+            # Try reloading daemon.
+            run systemctl daemon-reload
+
+            # Enable in start up.
+            run systemctl enable nginx.service
         ;;
     esac
 
@@ -338,7 +334,7 @@ function init_nginx_install() {
     fi
 
     # Adjust nginx to meet hardware resources.
-    echo -e "\nAdjusting NGiNX config..."
+    echo -e "\nAdjusting NGiNX configuration..."
     
     local CPU_CORES && \
     CPU_CORES=$(grep -c processor /proc/cpuinfo)
@@ -388,6 +384,9 @@ function init_nginx_install() {
         fi
     fi
 }
+
+echo "[Welcome to NGiNX Installer]"
+echo ""
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

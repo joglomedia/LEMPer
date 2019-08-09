@@ -18,7 +18,7 @@ fi
 requires_root
 
 function init_mariadb_removal() {
-    # Stop MariaDB mysql server process
+    # Stop MariaDB mysql server process.
     if [[ $(pgrep -c mysqld) -gt 0 ]]; then
         run service mysql stop
     fi
@@ -54,10 +54,11 @@ function init_mariadb_removal() {
         -i n -e REMOVE_MYSQLCONFIG
     done
     if [[ "${REMOVE_MYSQLCONFIG}" == Y* || "${REMOVE_MYSQLCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
-        if [[ -d /etc/mysql ]]; then
+        if [ -d /etc/mysql ]; then
             run rm -fr /etc/mysql
         fi
-        if [[ -d /var/lib/mysql ]]; then
+        
+        if [ -d /var/lib/mysql ]; then
             run rm -fr /var/lib/mysql
         fi
         echo "All your SQL database and configuration files deleted permanently."
@@ -78,7 +79,7 @@ function init_mariadb_removal() {
 echo "Uninstalling MariaDB (MySQL) server..."
 if [[ -n $(command -v mysql) || -n $(command -v mysqld) ]]; then
     while [[ "${REMOVE_MARIADB}" != "y" && "${REMOVE_MARIADB}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Are you sure to to remove MariaDB (MySQL)? [y/n]: " -i y -e REMOVE_MARIADB
+        read -rp "Are you sure to to remove MariaDB (MySQL)? [y/n]: " -e REMOVE_MARIADB
     done
     if [[ "${REMOVE_MARIADB}" == Y* || "${REMOVE_MARIADB}" == y* || "${AUTO_REMOVE}" == true ]]; then
         init_mariadb_removal "$@"
@@ -86,5 +87,5 @@ if [[ -n $(command -v mysql) || -n $(command -v mysqld) ]]; then
         echo "Found MariaDB (MySQL), but not removed."
     fi
 else
-    warning "Oops, MariaDB installation not found."
+    warning "Oops, MariaDB (MySQL) installation not found."
 fi

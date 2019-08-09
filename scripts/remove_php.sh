@@ -14,12 +14,15 @@ if [ "$(type -t run)" != "function" ]; then
     . "${BASEDIR}/helper.sh"
 fi
 
-# Make sure only root can run this installer script
+# Make sure only root can run this installer script.
 requires_root
 
 function remove_php_fpm() {
     # PHP version.
-    local PHPv=${1:-"${PHP_VERSION}"}
+    local PHPv="${1}"
+    if [ -z "${PHPv}" ]; then
+        PHPv=${PHP_VERSION:-"7.3"}
+    fi
 
     # Related PHP packages to be removed.
     local PHP_PKGS=()
@@ -38,14 +41,13 @@ function remove_php_fpm() {
             php${PHPv}-recode php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
             php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" "${PHP_PKGS[@]}")
 
-        isMcrypt=$("/usr/bin/php${PHPv}" -m | grep mcrypt)
-        if [ "${PHPv//.}" -lt "72" ]; then
-            if [[ "${isMcrypt}" == "mcrypt" ]]; then
+        if [[ "${PHPv//.}" -lt "72" ]]; then
+            if "php${PHPv}" -m | grep mcrypt; then
                 #run apt-get --purge remove -y php${PHPv}-mcrypt >> lemper.log 2>&1
                 PHP_PKGS=("php${PHPv}-mcrypt" "${PHP_PKGS[@]}")
             fi
-        elif [ "${PHPv}" == "7.2" ]; then
-            if [[ "${isMcrypt}" == "mcrypt" ]]; then
+        elif [[ "${PHPv}" == "7.2" ]]; then
+            if "php${PHPv}" -m | grep mcrypt; then
                 # Uninstall mcrypt pecl.
                 run pecl uninstall mcrypt-1.0.1 >> lemper.log 2>&1
 
@@ -97,7 +99,7 @@ function remove_php_fpm() {
         #fi
     
         if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
-            echo "Removing PHP ${PHPv} packages..."
+            echo "Removing PHP${PHPv} & FPM packages..."
             run apt-get --purge remove -y "${PHP_PKGS[@]}" >> lemper.log 2>&1
         fi
 
@@ -106,18 +108,22 @@ function remove_php_fpm() {
 
         while [[ "${REMOVE_PHPCONFIG}" != "y" && "${REMOVE_PHPCONFIG}" != "n" && "${AUTO_REMOVE}" != true ]]
         do
-            read -rp "Remove PHP & FPM ${PHPv} configuration files? [y/n]: " -e REMOVE_PHPCONFIG
+            read -rp "Remove PHP${PHPv} & FPM configuration files? [y/n]: " -e REMOVE_PHPCONFIG
         done
         if [[ "${REMOVE_PHPCONFIG}" == Y* || "${REMOVE_PHPCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
             echo "All your configuration files deleted permanently..."
-            if [[ -d "/etc/php/${PHPv}" ]]; then
+            if [ -d "/etc/php/${PHPv}" ]; then
                 run rm -fr "/etc/php/${PHPv}"
             fi
         fi
 
-        status "PHP & FPM ${PHPv} installation removed."
+        if [[ -z $(command -v "php${PHPv}") ]]; then
+            status "PHP${PHPv} & FPM installation removed."
+        else
+            warning "Unable to remove PHP${PHPv} & FPM installation."
+        fi
     else
-        warning "PHP & FPM ${PHPv} installation not found."
+        warning "PHP${PHPv} & FPM installation not found."
     fi   
 }
 
@@ -160,7 +166,7 @@ function init_php_fpm_removal() {
 
     # Final clean up.
     if "${DRYRUN}"; then
-        warning "PHP & FPM ${PHPv} removed in dryrun mode."
+        warning "PHP${PHPv} & FPM removed in dryrun mode."
     else
         if [[ -z $(command -v php5.6) && \
             -z $(command -v php7.0) && \
@@ -179,15 +185,15 @@ function init_php_fpm_removal() {
     fi
 }
 
-echo -e "\nUninstalling PHP & FPM..."
+echo "Uninstalling PHP & FPM..."
 if [[ -n $(command -v php5.6) || \
     -n $(command -v php7.0) || \
     -n $(command -v php7.1) || \
     -n $(command -v php7.2) || \
     -n $(command -v php7.3) ]]; then
 
-    while [[ "${REMOVE_PHP}" != "y" && "${REMOVE_PHP}" != "n" && "${AUTO_REMOVE}" == true ]]; do
-        read -rp "Are you sure to remove PHP & FPM? [y/n]: " -i y -e REMOVE_PHP
+    while [[ "${REMOVE_PHP}" != "y" && "${REMOVE_PHP}" != "n" && "${AUTO_REMOVE}" != true ]]; do
+        read -rp "Are you sure to remove PHP & FPM? [y/n]: " -e REMOVE_PHP
     done
     if [[ "${REMOVE_PHP}" == Y* || "${REMOVE_PHP}" == y* || "${AUTO_REMOVE}" == true ]]; then
         init_php_fpm_removal "$@"
@@ -195,5 +201,5 @@ if [[ -n $(command -v php5.6) || \
         echo "Found PHP & FPM, but not removed."
     fi
 else
-    warning "PHP installation not found."
+    warning "PHP & FPM installation not found."
 fi

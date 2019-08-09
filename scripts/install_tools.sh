@@ -52,6 +52,7 @@ _EOF_
 }
 
 function init_webadmin_install() {
+
     # Install Nginx Virtual Host Creator
     run cp -f bin/lemper-cli.sh /usr/local/bin/lemper-cli
     run chmod ugo+x /usr/local/bin/lemper-cli
@@ -129,6 +130,9 @@ function init_webadmin_install() {
         status "Web administration tools successfully installed."
     fi
 }
+
+echo "[Welcome to LEMPer Tools Installer]"
+echo ""
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

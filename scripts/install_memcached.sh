@@ -66,10 +66,6 @@ EOL
 }
 
 function init_memcache_install() {
-    echo ""
-    echo "[Welcome to Memcached Installer]"
-    echo ""
-
     if "${AUTO_INSTALL}"; then
         # Set default Iptables-based firewall configutor engine.
         DO_INSTALL_MEMCACHED="y"
@@ -121,10 +117,13 @@ function init_memcache_install() {
     fi
 }
 
+echo "[Welcome to Memcached Installer]"
+echo ""
+
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v memcached) ]]; then
-    warning "Memcache server already exists. Installation skipped..."
+    warning "Memcached server already exists. Installation skipped..."
 else
     init_memcache_install "$@"
 fi

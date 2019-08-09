@@ -19,9 +19,6 @@ requires_root
 
 # Install Certbot Let's Encrypt.
 function init_certbotle_install() {
-    echo ""
-    echo "Welcome to Certbot Let's Encrypt Installation..."
-    echo ""
 
     while [[ "${INSTALL_CERTBOT}" != "y" && "${INSTALL_CERTBOT}" != "n" ]]; do
         read -rp "Do you want to install Certbot Let's Encrypt? [y/n]: " -e INSTALL_CERTBOT
@@ -80,6 +77,9 @@ EOL
         fi
     fi
 }
+
+echo "[Welcome to Certbot Let's Encrypt Installer]"
+echo ""
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

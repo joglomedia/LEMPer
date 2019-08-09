@@ -107,7 +107,7 @@ function init_nginx_removal() {
 echo "Uninstalling Nginx HTTP server..."
 if [[ -n $(command -v nginx) || -x /usr/sbin/nginx ]]; then
     while [[ "${REMOVE_NGINX}" != "y" && "${REMOVE_NGINX}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Are you sure to remove Nginx HTTP server? [y/n]: " -i y -e REMOVE_NGINX
+        read -rp "Are you sure to remove Nginx HTTP server? [y/n]: " -e REMOVE_NGINX
     done
     if [[ "${REMOVE_NGINX}" == Y* || "${REMOVE_NGINX}" == y* || "${AUTO_REMOVE}" == true ]]; then
         init_nginx_removal "$@"

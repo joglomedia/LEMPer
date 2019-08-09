@@ -19,10 +19,6 @@ requires_root
 
 # Install redis.
 function init_redis_install {
-    echo ""
-    echo "[Welcome to Redis Installer]"
-    echo ""
-
     if "${AUTO_INSTALL}"; then
         DO_INSTALL_REDIS="y"
     else
@@ -122,9 +118,12 @@ EOL
             fi
         fi
     else
-        echo "Skipping Redis installation..."
+        echo "Skipping Redis server installation..."
     fi
 }
+
+echo "[Welcome to Redis server Installer]"
+echo ""
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

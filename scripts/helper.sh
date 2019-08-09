@@ -438,7 +438,7 @@ function header_msg() {
     clear
     cat <<- _EOF_
 #==========================================================================#
-#        LEMPer v1.0.0 for Ubuntu-based server, Written by ESLabs.ID       #
+#        LEMPer v1.2.0 for Ubuntu-based server, Written by ESLabs.ID       #
 #==========================================================================#
 #      A small tool to install Nginx + MariaDB (MySQL) + PHP on Linux      #
 #                                                                          #

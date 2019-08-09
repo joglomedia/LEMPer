@@ -99,56 +99,67 @@ case "${1}" in
         create_account "lemper"
 
         ### Nginx installation ###
+        echo ""
         if [ -f scripts/install_nginx.sh ]; then
             . scripts/install_nginx.sh
         fi
 
         ### PHP installation ###
+        echo ""
         if [ -f scripts/install_php.sh ]; then
             . scripts/install_php.sh
         fi
 
         ### Imagick installation ###
+        echo ""
         if [ -f scripts/install_imagemagick.sh ]; then
             . scripts/install_imagemagick.sh
         fi
 
         ### Memcached installation ###
+        echo ""
         if [ -f scripts/install_memcached.sh ]; then
             . scripts/install_memcached.sh
         fi
 
         ### MySQL database installation ###
+        echo ""
         if [ -f scripts/install_mariadb.sh ]; then
             . scripts/install_mariadb.sh
         fi
 
         ### Redis database installation ###
+        echo ""
         if [ -f scripts/install_redis.sh ]; then
             . scripts/install_redis.sh
         fi
 
         ### MongoDB database installation ###
+        echo ""
         if [ -f scripts/install_mongodb.sh ]; then
             . scripts/install_mongodb.sh
         fi
 
         ### Certbot Let's Encrypt SSL installation ###
+        echo ""
         if [ -f scripts/install_letsencrypt.sh ]; then
             . scripts/install_letsencrypt.sh
         fi
 
         ### Mail server installation ###
+        echo ""
         if [ -f scripts/install_mailer.sh ]; then
             . scripts/install_mailer.sh
         fi
 
         ### Addon-tools installation ###
+        echo ""
         if [ -f scripts/install_tools.sh ]; then
             . scripts/install_tools.sh
         fi
 
-        ### Basic server security
+        ### Basic server security ###
+        echo ""
         if [ -f scripts/secure_server.sh ]; then
             . scripts/secure_server.sh
         fi
@@ -181,30 +192,24 @@ Access to your File manager (FileRun):
     http://${IP_SERVER}:8083/
 
 Please Save & Keep It Private!
-"
+~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~"
 
             status "${CREDENTIALS}"
 
             # Save it to log file
             echo "${CREDENTIALS}" >> lemper.log
-
-            if [[ ${SSH_PORT} -ne 22 ]]; then
-                warning "You're running SSH server with modified config, restart to apply your changes."
-                echo "  use this command:  service ssh restart"
-            fi
         fi
 
         echo "
 See the log file (lemper.log) for more information.
-Now, you can reboot your server and enjoy it!
-"
+Now, you can reboot your server and enjoy it!"
     ;;
 
     "--remove"|"--uninstall")
         header_msg
         echo ""
         echo "Are you sure to remove LEMP stack installation?"
-        echo "Please ensure that you've back up your data!"
+        echo "Please ensure that you've back up your critical data!"
         echo ""
         read -rt 10 -p "Press [Enter] to continue..." </dev/tty
 
@@ -212,78 +217,41 @@ Now, you can reboot your server and enjoy it!
         run apt-get --fix-broken install >> lemper.log 2>&1
 
         ### Remove Nginx ###
+        echo ""
         if [ -f scripts/remove_nginx.sh ]; then
             . scripts/remove_nginx.sh
         fi
 
         ### Remove PHP & FPM ###
+        echo ""
         if [ -f scripts/remove_php.sh ]; then
             . scripts/remove_php.sh
         fi
 
-        # Remove Memcached if exists
-        echo -e "\nUninstalling Memcached..."
-        while [[ "${REMOVE_MEMCACHED}" != "y" && "${REMOVE_MEMCACHED}" != "n" ]]; do
-            read -rp "Are you sure to remove Memcached? [y/n]: " -i y -e REMOVE_MEMCACHED
-        done
-        if [[ "${REMOVE_MEMCACHED}" == Y* || "${REMOVE_MEMCACHED}" == y* ]]; then
-            if [[ -n $(command -v memcached) ]]; then
-                # Stop Memcached server process
-                if [[ $(pgrep -c memcached) -gt 0 ]]; then
-                    run service memcached stop
-                fi
-
-                run apt-get --purge remove -y libmemcached11 memcached php-igbinary \
-                    php-memcache php-memcached php-msgpack >> lemper.log 2>&1
-                run rm -f /etc/memcached.conf
-
-                if [[ -z $(command -v memcached) ]]; then
-                    status "Memcached server removed."
-                fi
-            else
-                warning "Memcached installation not found."
-            fi
-        else
-            echo "Memcache uninstall skipped."
-        fi
-
-        # Remove Redis if exists
-        echo -e "\nUninstalling Redis..."
-        while [[ "${REMOVE_REDIS}" != "y" && "${REMOVE_REDIS}" != "n" ]]; do
-            read -rp "Are you sure to remove Redis server? [y/n]: " -i y -e REMOVE_REDIS
-        done
-        if [[ "${REMOVE_REDIS}" == Y* || "${REMOVE_REDIS}" == y* ]]; then
-            if [[ -n $(command -v redis-server) ]]; then
-                # Stop Redis server process
-                if [[ $(pgrep -c redis-server) -gt 0 ]]; then
-                    run service redis-server stop
-                fi
-
-                run apt-get --purge remove -y redis-server php-redis >> lemper.log 2>&1
-                run add-apt-repository -y --remove ppa:chris-lea/redis-server >> lemper.log 2>&1
-                run rm -f /etc/redis/redis.conf
-
-                if [[ -z $(command -v redis-server) ]]; then
-                    status "Redis server removed."
-                fi
-            else
-                warning "Redis server installation not found."
-            fi
-        else
-            echo "Redis server uninstall skipped."
+        ### Remove PHP & FPM ###
+        echo ""
+        if [ -f scripts/remove_memcached.sh ]; then
+            . scripts/remove_memcached.sh
         fi
 
         ### Remove MySQL ###
+        echo ""
         if [ -f scripts/remove_mariadb.sh ]; then
             . scripts/remove_mariadb.sh
         fi
 
+        ### Remove Redis ###
+        echo ""
+        if [ -f scripts/remove_redis.sh ]; then
+            . scripts/remove_redis.sh
+        fi
+
         # Remove default user account.
         echo ""
-        while [[ "${REMOVE_ACCOUNT}" != "y" && "${REMOVE_ACCOUNT}" != "n" ]]; do
+        while [[ "${REMOVE_ACCOUNT}" != "y" && "${REMOVE_ACCOUNT}" != "n" && "${AUTO_REMOVE}" != true ]]; do
             read -rp "Remove default LEMPer account? [y/n]: " -i y -e REMOVE_ACCOUNT
         done
-        if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* ]]; then
+        if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* || "${FORCE_REMOVE}" == true ]]; then
             if [ "$(type -t delete_account)" == "function" ]; then
                 delete_account "lemper"
             fi

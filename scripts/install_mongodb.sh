@@ -43,10 +43,6 @@ function add_mongodb_repo() {
 }
 
 function init_mongodb_install() {
-    echo ""
-    echo "[Welcome to MongoDB Installer]"
-    echo ""
-
     if "${AUTO_INSTALL}"; then
         DO_INSTALL_MONGODB="y"
     else
@@ -114,6 +110,9 @@ _EOF_
         warning "MongoDB installation skipped..."
     fi
 }
+
+echo "[Welcome to MongoDB Installer]"
+echo ""
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

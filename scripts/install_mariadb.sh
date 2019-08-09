@@ -66,10 +66,6 @@ EOL
 }
 
 function init_mariadb_install() {
-    echo ""
-    echo "[Welcome to MariaDB (MySQL) Installer]"
-    echo ""
-
     add_mariadb_repo
 
     if "${AUTO_INSTALL}"; then
@@ -92,35 +88,62 @@ function init_mariadb_install() {
         #mv /var/lib/mysql/ib_logfile0 /var/lib/mysql/ib_logfile0.bak
         #mv /var/lib/mysql/ib_logfile1 /var/lib/mysql/ib_logfile1.bak
         #service mysql start
-        if [[ -n $(command -v mysql) ]]; then
-            if [ ! -f /etc/mysql/my.cnf ]; then
-                run cp -f etc/mysql/my.cnf /etc/mysql/
-            fi
-            if [ ! -f /etc/mysql/mariadb.cnf ]; then
-                run cp -f etc/mysql/mariadb.cnf /etc/mysql/
-            fi
-            if [ ! -f /etc/mysql/debian.cnf ]; then
-                run cp -f etc/mysql/debian.cnf /etc/mysql/
-            fi
-            if [ ! -f /etc/mysql/debian-start ]; then
-                run cp -f etc/mysql/debian-start /etc/mysql/
-                run chmod +x /etc/mysql/debian-start
-            fi
-
-            # Restart MariaDB
-            run systemctl restart mariadb.service
-
-            # Enable MariaDB on startup.
-            run systemctl enable mariadb.service
-
-            # MySQL Secure Install
-            run mysql_secure_installation
-        fi
-
+        
         # Installation status.
         if "${DRYRUN}"; then
             status "MariaDB (MySQL) installed in dryrun mode."
         else
+            if [[ -n $(command -v mysql) ]]; then
+                if [ ! -f /etc/mysql/my.cnf ]; then
+                    run cp -f etc/mysql/my.cnf /etc/mysql/
+                fi
+                if [ ! -f /etc/mysql/mariadb.cnf ]; then
+                    run cp -f etc/mysql/mariadb.cnf /etc/mysql/
+                fi
+                if [ ! -f /etc/mysql/debian.cnf ]; then
+                    run cp -f etc/mysql/debian.cnf /etc/mysql/
+                fi
+                if [ ! -f /etc/mysql/debian-start ]; then
+                    run cp -f etc/mysql/debian-start /etc/mysql/
+                    run chmod +x /etc/mysql/debian-start
+                fi
+
+                # init script.
+                if [ ! -f /etc/init.d/mysql ]; then
+                    run cp etc/init.d/mysql /etc/init.d/
+                    run chmod ugo+x /etc/init.d/mysql
+                fi
+
+                # systemd script.
+                if [ ! -f /lib/systemd/system/mariadb.service ]; then
+                    run cp etc/systemd/mariadb.service /lib/systemd/system/
+                fi
+                if [ ! -f /etc/systemd/system/multi-user.target.wants/mariadb.service ]; then
+                    run ln -s /lib/systemd/system/mariadb.service \
+                        /etc/systemd/system/multi-user.target.wants/mariadb.service
+                fi
+                if [ ! -f /etc/systemd/system/mysqld.service ]; then
+                    run ln -s /lib/systemd/system/mariadb.service \
+                        /etc/systemd/system/mysqld.service
+                fi
+                if [ ! -f /etc/systemd/system/mysql.service ]; then
+                    run ln -s /lib/systemd/system/mariadb.service \
+                        /etc/systemd/system/mysql.service
+                fi
+
+                # Trying to reload daemon.
+                run systemctl daemon-reload
+                
+                # Restart MariaDB
+                run systemctl restart mariadb.service
+
+                # Enable MariaDB on startup.
+                run systemctl enable mariadb.service
+
+                # MySQL Secure Install
+                run mysql_secure_installation
+            fi
+            
             if [[ $(pgrep -c mysql) -gt 0 ]]; then
                 status -e "\nMariaDB (MySQL) installed successfully."
 
@@ -186,6 +209,9 @@ open_files_limit=65535
         warning "Unable to add mariabackup user. Try to install it manualy!"
     fi
 }
+
+echo "[Welcome to MariaDB (MySQL) Installer]"
+echo ""
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

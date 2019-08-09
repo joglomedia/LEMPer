@@ -71,10 +71,13 @@ EOL
 
             echo "Enable SSH_PASSWORDLESS login..."
             # Restrict root login directly, use sudo user instead.
-            if grep -qwE "^PermitRootLogin\ [a-z]*" /etc/ssh/sshd_config; then
-                run sed -i "s/^PermitRootLogin\ [a-z]*/PermitRootLogin\ no/g" /etc/ssh/sshd_config
-            else
-                run sed -i "/^#PermitRootLogin/a PermitRootLogin\ no" /etc/ssh/sshd_config
+            SSH_ROOT_LOGIN=${SSH_ROOT_LOGIN:-false}
+            if ! ${SSH_ROOT_LOGIN}; then
+                if grep -qwE "^PermitRootLogin\ [a-z]*" /etc/ssh/sshd_config; then
+                    run sed -i "s/^PermitRootLogin\ [a-z]*/PermitRootLogin\ no/g" /etc/ssh/sshd_config
+                else
+                    run sed -i "/^#PermitRootLogin/a PermitRootLogin\ no" /etc/ssh/sshd_config
+                fi
             fi
 
             # Disable password authentication for password-less login using key.
@@ -127,14 +130,9 @@ function install_ufw() {
 
     echo -e "\nInstalling Uncomplicated Firewall (UFW)...\n"
 
-    warning -e "You should not run any other iptables firewall configuration script.
-Any other iptables based firewall will be removed otherwise they will conflict.\n"
-
-    sleep 1
-
     if [[ -n $(command -v apf) ]]; then
         # Remove APF+BFD if exists.
-        remove_ufw
+        remove_apf
     fi
 
     if [[ -n $(command -v csf) ]]; then
@@ -207,11 +205,6 @@ function install_csf() {
     SSH_PORT=${1:-$SSH_PORT}
 
     echo -e "\nInstalling CSF+LFD firewall...\n"
-
-    warning -e "You should not run any other iptables firewall configuration script.
-Any other iptables based firewall will be removed otherwise they will conflict.\n"
-
-    sleep 1
 
     if [[ -n $(command -v ufw) ]]; then
         # Remove default Ubuntu firewall (UFW) if exists.
@@ -304,11 +297,6 @@ function install_apf() {
     APF_VERSION="1.7.6-1"
 
     echo -e "\nInstalling APF+BFD iptables firewall...\n"
-
-    warning -e "You should not run any other iptables firewall configuration script.
-Any other iptables based firewall will be removed otherwise they will conflict.\n"
-
-    sleep 1
 
     if [[ -n $(command -v ufw) ]]; then
         # Remove default Ubuntu firewall (UFW) if exists.
@@ -405,7 +393,10 @@ function remove_apf() {
 # Install Firewall.
 function install_firewall() {
     echo ""
-    echo "[Welcome to iptables-based Firewall installer]"
+    echo "[Welcome to Iptables-based Firewall Installer]"
+    echo ""
+    warning "You should not run any other iptables firewall configuration script.
+Any other iptables based firewall will be removed otherwise they will conflict."
     echo ""
     
     if "${AUTO_INSTALL}"; then
@@ -422,6 +413,7 @@ function install_firewall() {
             SELECTED_FW=${FW_ENGINE:-"ufw"}
         else
             # Menu Install FW
+            echo ""
             echo "Which Firewall configurator engine to install?"
             echo "Available configurator engine:"
             echo "  1). Uncomplicated Firewall (ufw)"
@@ -461,10 +453,6 @@ function install_firewall() {
 }
 
 function init_secure_server() {
-    echo ""
-    echo "[Welcome to LEMPer Basic Server Security]"
-    echo ""
-
     while [[ "${SECURED_SERVER}" != "y" && "${SECURED_SERVER}" != "n" && "${AUTO_INSTALL}" != true ]]; do
         read -rp "Do you want to enable basic server security? [y/n]: " -i y -e SECURED_SERVER
     done
@@ -473,7 +461,15 @@ function init_secure_server() {
     fi
 
     install_firewall "$@"
+
+    if [[ ${SSH_PORT} -ne 22 ]]; then
+        warning -e "\nYou're running SSH server with modified config, restart to apply your changes."
+        echo "  use this command:  service ssh restart"
+    fi
 }
+
+echo "[Welcome to LEMPer Basic Server Security]"
+echo ""
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
