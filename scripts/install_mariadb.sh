@@ -80,7 +80,10 @@ function init_mariadb_install() {
         echo -e "\nInstalling MariaDB (MySQL) server..."
 
         # Install MariaDB
-        run apt-get install -y libmariadbclient18 mariadb-backup mariadb-server >> lemper.log 2>&1
+        {
+            run apt-get update -y
+            run apt-get install -y mariadb-server libmariadbclient18 mariadb-backup
+        } >> lemper.log 2>&1
 
         # Fix MySQL error?
         # Ref: https://serverfault.com/questions/104014/innodb-error-log-file-ib-logfile0-is-of-different-size

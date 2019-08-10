@@ -30,6 +30,7 @@ function add_php_repo() {
             # Fix for NO_PUBKEY key servers error
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
             run add-apt-repository -y ppa:ondrej/php
+            run apt-get update -y
         } >> lemper.log 2>&1
     fi
 }
