@@ -851,7 +851,7 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
                         # Check Laravel install.
                         if [ ! -f "${WEBROOT}/artisan" ]; then
                             status "Copying ${FRAMEWORK^} skeleton files..."
-                            run git clone -q https://github.com/laravel/${FRAMEWORK}.git "${WEBROOT}"
+                            run git clone -q "https://github.com/laravel/${FRAMEWORK}.git" "${WEBROOT}"
                         else
                             warning "It seems that ${FRAMEWORK^} skeleton files already exists."
                         fi

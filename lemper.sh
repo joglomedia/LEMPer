@@ -62,10 +62,13 @@ if [[ "${DISTRIB_REPO}" == "unsupported" ]]; then
     exit 1
 else
     # Set global variables.
+    export ARCH && \
     ARCH=$(uname -p)
+    export IP_SERVER && \
     IP_SERVER=$(hostname -i)
     # Get ethernet interface.
-    IFACE=$(find /sys/class/net -type l | grep -e "enp\|eth" | cut -d'/' -f5)
+    export IFACE && \
+    IFACE=$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)
 fi
 
 # Init log.
