@@ -992,7 +992,7 @@ with --no-deps-check."
         fi
         configure_args=("${configure_args[@]}"
                         "--prefix=$install_dir/nginx"
-                        "--with-ipv6"
+                        #"--with-ipv6"
                         "--with-http_v2_module"
                         "${add_modules[@]}")
         if [ "$BUILD_TYPE" = "Debug" ]; then
@@ -1030,7 +1030,7 @@ with --no-deps-check."
                         "--with-http_sub_module"
                         "--with-http_v2_module"
                         "--with-http_xslt_module=dynamic"
-                        "--with-ipv6"
+                        #"--with-ipv6"
                         "--with-mail=dynamic"
                         "--with-mail_ssl_module"
                         "--with-stream=dynamic"
