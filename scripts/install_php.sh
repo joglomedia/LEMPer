@@ -260,7 +260,7 @@ function enable_sourceguardian() {
 zend_extension=/usr/lib/php/loaders/sourceguardian/ixed.${PHPv}.lin
 EOL
 
-            if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini" ]; then
+            if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini" ]; then
                 run ln -s "/etc/php/${PHPv}/mods-available/sourceguardian.ini" \
                     "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini"
             fi
