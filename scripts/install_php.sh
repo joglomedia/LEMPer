@@ -77,7 +77,8 @@ php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS
         # Install php mcrypt?
         echo ""
         while [[ $INSTALL_PHPMCRYPT != "y" && $INSTALL_PHPMCRYPT != "n" ]]; do
-            read -rp "Do you want to install PHP Mcrypt for encryption/decryption? [y/n]: " -i n -e INSTALL_PHPMCRYPT
+            read -rp "Do you want to install PHP Mcrypt for encryption/decryption? [y/n]: " \
+                -i n -e INSTALL_PHPMCRYPT
         done
         echo ""
 
@@ -94,11 +95,13 @@ php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS
                 run bash -c "echo extension=mcrypt.so > /etc/php/${PHPv}/mods-available/mcrypt.ini"
 
                 if [ ! -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ]; then
-                    run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini"
+                    run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
+                        "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini"
                 fi
 
                 if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini" ]; then
-                    run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
+                    run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
+                        "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
                 fi
             else
                 run apt-get install -y dh-php >> lemper.log 2>&1
@@ -147,10 +150,10 @@ function enable_ioncube() {
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
-    echo "Enabling ionCube PHP ${PHPv} loader"
+    echo "Enabling ionCube PHP${PHPv} loader"
 
     if "${DRYRUN}"; then
-        warning "ionCube PHP ${PHPv} enabled in dryrun mode."
+        warning "ionCube PHP${PHPv} enabled in dryrun mode."
     else
         if [ -f "/usr/lib/php/loaders/ioncube/ioncube_loader_lin_${PHPv}.so" ]; then
             cat > "/etc/php/${PHPv}/mods-available/ioncube.ini" <<EOL
@@ -159,14 +162,16 @@ zend_extension=/usr/lib/php/loaders/ioncube/ioncube_loader_lin_${PHPv}.so
 EOL
 
             if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini" ]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/ioncube.ini /etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini"
+                run ln -s "/etc/php/${PHPv}/mods-available/ioncube.ini" \
+                    "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini"
             fi
 
             if [ ! -f "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini" ]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/ioncube.ini /etc/php/${PHPv}/cli/conf.d/05-ioncube.ini"
+                run ln -s "/etc/php/${PHPv}/mods-available/ioncube.ini" \
+                    "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini"
             fi
         else
-            warning "Sorry, no ionCube loader found for PHP ${PHPv}"
+            warning "Sorry, no ionCube loader found for PHP${PHPv}"
         fi
     fi
 }
@@ -179,7 +184,7 @@ function disable_ioncube() {
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
-    echo "Disabling ionCube PHP ${PHPv} loader"
+    echo "Disabling ionCube PHP${PHPv} loader"
 
     run unlink "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini"
     run unlink "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini"
@@ -193,7 +198,7 @@ function remove_ioncube() {
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
-    echo "Uninstalling ionCube PHP ${PHPv} loader..."
+    echo "Uninstalling ionCube PHP${PHPv} loader..."
 
     if [[ -f "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini" || \
         -f "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini" ]]; then
@@ -202,9 +207,9 @@ function remove_ioncube() {
 
     if [ -d /usr/lib/php/loaders/ioncube ]; then
         run rm -fr /usr/lib/php/loaders/ioncube
-        status "ionCube PHP ${PHPv} loader has been removed."
+        status "ionCube PHP${PHPv} loader has been removed."
     else
-        warning "ionCube PHP ${PHPv} loader couldn't be found."
+        warning "ionCube PHP${PHPv} loader couldn't be found."
     fi
 }
 
@@ -249,10 +254,10 @@ function enable_sourceguardian() {
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
-    echo "Enabling SourceGuardian PHP ${PHPv} loader..."
+    echo "Enabling SourceGuardian PHP${PHPv} loader..."
 
     if "${DRYRUN}"; then
-        warning "SourceGuardian PHP ${PHPv} enabled in dryrun mode."
+        warning "SourceGuardian PHP${PHPv} enabled in dryrun mode."
     else
         if [ -f "/usr/lib/php/loaders/sourceguardian/ixed.${PHPv}.lin" ]; then
             cat > "/etc/php/${PHPv}/mods-available/sourceguardian.ini" <<EOL
@@ -283,7 +288,7 @@ function disable_sourceguardian() {
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
-    echo "Disabling SourceGuardian PHP ${PHPv} loader"
+    echo "Disabling SourceGuardian PHP${PHPv} loader"
 
     run unlink "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini"
     run unlink "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini"
@@ -297,7 +302,7 @@ function remove_sourceguardian() {
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
-    echo "Uninstalling SourceGuardian PHP ${PHPv} loader..."
+    echo "Uninstalling SourceGuardian PHP${PHPv} loader..."
 
     if [[ -f "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini" || \
         -f "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini" ]]; then
@@ -306,9 +311,9 @@ function remove_sourceguardian() {
 
     if [ -d /usr/lib/php/loaders/sourceguardian ]; then
         run rm -fr /usr/lib/php/loaders/sourceguardian
-        status "SourceGuardian PHP ${PHPv} loader has been removed."
+        status "SourceGuardian PHP${PHPv} loader has been removed."
     else
-        warning "SourceGuardian PHP ${PHPv} loader couldn't be found."
+        warning "SourceGuardian PHP${PHPv} loader couldn't be found."
     fi
 }
 
