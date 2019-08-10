@@ -83,6 +83,58 @@ function run() {
     fi
 }
 
+function redhat_is_installed() {
+    local package_name="$1"
+    rpm -qa "$package_name" | grep -q .
+}
+
+function debian_is_installed() {
+    local package_name="$1"
+    dpkg -l "$package_name" | grep ^ii | grep -q .
+}
+
+# Usage:
+# install_dependencies install_pkg_cmd is_pkg_installed_cmd dep1 dep2 ...
+#
+# install_pkg_cmd is a command to install a dependency
+# is_pkg_installed_cmd is a command that returns true if the dependency is
+# already installed
+# each dependency is a package name
+function install_dependencies() {
+    local install_pkg_cmd="$1"
+    local is_pkg_installed_cmd="$2"
+    shift 2
+
+    local missing_dependencies=""
+
+    for package_name in "$@"; do
+        if ! "$is_pkg_installed_cmd" "$package_name"; then
+            missing_dependencies+="$package_name "
+        fi
+    done
+    if [ -n "$missing_dependencies" ]; then
+        status "Detected that we're missing the following depencencies:"
+        echo " $missing_dependencies"
+        status "Installing them:"
+        run sudo "$install_pkg_cmd" "$missing_dependencies"
+    fi
+}
+
+function gcc_too_old() {
+    # We need gcc >= 4.8
+    local gcc_major_version && \
+    gcc_major_version=$(gcc -dumpversion | awk -F. '{print $1}')
+    if [ "$gcc_major_version" -lt 4 ]; then
+        return 0 # too old
+    elif [ "$gcc_major_version" -gt 4 ]; then
+        return 1 # plenty new
+    fi
+    # It's gcc 4.x, check if x >= 8:
+    local gcc_minor_version && \
+    gcc_minor_version=$(gcc -dumpversion | awk -F. '{print $2}')
+    test "$gcc_minor_version" -lt 8
+}
+
 function continue_or_exit() {
     local prompt="$1"
     echo_color "$YELLOW" -n "$prompt"
@@ -90,6 +142,115 @@ function continue_or_exit() {
     if [[ "$yn" == N* || "$yn" == n* ]]; then
         echo "Cancelled."
         exit 0
+    fi
+}
+
+# If a string is very simple we don't need to quote it.    But we should quote
+# everything else to be safe.
+function needs_quoting() {
+    echo "$@" | grep -q '[^a-zA-Z0-9./_=-]'
+}
+
+function escape_for_quotes() {
+    echo "$@" | sed -e 's~\\~\\\\~g' -e "s~'~\\\\'~g"
+}
+
+function quote_arguments() {
+    local argument_str=""
+    for argument in "$@"; do
+        if [ -n "$argument_str" ]; then
+            argument_str+=" "
+        fi
+        if needs_quoting "$argument"; then
+            argument="'$(escape_for_quotes "$argument")'"
+        fi
+        argument_str+="$argument"
+    done
+    echo "$argument_str"
+}
+
+function version_sort() {
+    # We'd rather use sort -V, but that's not available on Centos 5.    This works
+    # for versions in the form A.B.C.D or shorter, which is enough for our use.
+    sort -t '.' -k 1,1 -k 2,2 -k 3,3 -k 4,4 -g
+}
+
+# Compare two numeric versions in the form "A.B.C".    Works with version numbers
+# having up to four components, since that's enough to handle both nginx (3) and
+# ngx_pagespeed (4).
+function version_older_than() {
+    local test_version && \
+    test_version=$(echo "$@" | tr ' ' '\n' | version_sort | head -n 1)
+    local compare_to="$2"
+    local older_version="${test_version}"
+
+    test "$older_version" != "$compare_to"
+}
+
+function nginx_download_report_error() {
+    fail "Couldn't automatically determine the latest nginx version: failed to $* Nginx's download page"
+}
+
+function get_nginx_versions_available() {
+    # Scrape nginx's download page to try to find the all available nginx versions.
+    nginx_download_url="https://nginx.org/en/download.html"
+
+    local nginx_download_page
+    nginx_download_page=$(curl -sS --fail "$nginx_download_url") || \
+        nginx_download_report_error "download"
+
+    local download_refs
+    download_refs=$(echo "$nginx_download_page" | \
+        grep -owE '"/download/nginx-[0-9.]*\.tar\.gz"') || \
+        nginx_download_report_error "parse"
+
+    versions_available=$(echo "$download_refs" | \
+        sed -e 's~^"/download/nginx-~~' -e 's~\.tar\.gz"$~~') || \
+        nginx_download_report_error "extract versions from"
+
+    echo "$versions_available"
+}
+
+# Try to find the most recent nginx version (mainline).
+function determine_latest_nginx_version() {
+    local versions_available
+    local latest_version
+
+    versions_available=$(get_nginx_versions_available)
+    latest_version=$(echo "$versions_available" | version_sort | tail -n 1) || \
+        report_error "determine latest (mainline) version from"
+
+    if version_older_than "$latest_version" "1.14.2"; then
+        fail "Expected the latest version of nginx to be at least 1.14.2 but found
+$latest_version on $nginx_download_url"
+    fi
+
+    echo "$latest_version"
+}
+
+# Try to find the stable nginx version (mainline).
+function determine_stable_nginx_version() {
+    local versions_available
+    local stable_version
+
+    versions_available=$(get_nginx_versions_available)
+    stable_version=$(echo "$versions_available" | version_sort | tail -n 2 | sort -r | tail -n 1) || \
+        report_error "determine stable (LTS) version from"
+
+    if version_older_than "1.14.2" "$latest_version"; then
+        fail "Expected the latest version of nginx to be at least 1.14.2 but found
+$latest_version on $nginx_download_url"
+    fi
+
+    echo "$stable_version"
+}
+
+# Validate Nginx configuration.
+function validate_nginx_config() {
+    if nginx -t 2>/dev/null > /dev/null; then
+        return 1
+    else
+        return 0
     fi
 }
 
@@ -339,91 +500,6 @@ function get_ip_addr() {
         echo "${IP_EXTERNAL}"
     else
         echo "${IP_INTERNAL}"
-    fi
-}
-
-function version_sort() {
-    # We'd rather use sort -V, but that's not available on Centos 5.    This works
-    # for versions in the form A.B.C.D or shorter, which is enough for our use.
-    sort -t '.' -k 1,1 -k 2,2 -k 3,3 -k 4,4 -g
-}
-
-# Compare two numeric versions in the form "A.B.C".    Works with version numbers
-# having up to four components, since that's enough to handle both nginx (3) and
-# ngx_pagespeed (4).
-function version_older_than() {
-    local test_version && \
-    test_version=$(echo "$@" | tr ' ' '\n' | version_sort | head -n 1)
-    local compare_to="$2"
-    local older_version="${test_version}"
-
-    test "$older_version" != "$compare_to"
-}
-
-function nginx_download_report_error() {
-    fail "Couldn't automatically determine the latest nginx version: failed to $* Nginx's download page"
-}
-
-function get_nginx_versions_available() {
-    # Scrape nginx's download page to try to find the all available nginx versions.
-    nginx_download_url="https://nginx.org/en/download.html"
-
-    local nginx_download_page
-    nginx_download_page=$(curl -sS --fail "$nginx_download_url") || \
-        nginx_download_report_error "download"
-
-    local download_refs
-    download_refs=$(echo "$nginx_download_page" | \
-        grep -owE '"/download/nginx-[0-9.]*\.tar\.gz"') || \
-        nginx_download_report_error "parse"
-
-    versions_available=$(echo "$download_refs" | \
-        sed -e 's~^"/download/nginx-~~' -e 's~\.tar\.gz"$~~') || \
-        nginx_download_report_error "extract versions from"
-
-    echo "$versions_available"
-}
-
-# Try to find the most recent nginx version (mainline).
-function determine_latest_nginx_version() {
-    local versions_available
-    local latest_version
-
-    versions_available=$(get_nginx_versions_available)
-    latest_version=$(echo "$versions_available" | version_sort | tail -n 1) || \
-        report_error "determine latest (mainline) version from"
-
-    if version_older_than "$latest_version" "1.14.2"; then
-        fail "Expected the latest version of nginx to be at least 1.14.2 but found
-$latest_version on $nginx_download_url"
-    fi
-
-    echo "$latest_version"
-}
-
-# Try to find the stable nginx version (mainline).
-function determine_stable_nginx_version() {
-    local versions_available
-    local stable_version
-
-    versions_available=$(get_nginx_versions_available)
-    stable_version=$(echo "$versions_available" | version_sort | tail -n 2 | sort -r | tail -n 1) || \
-        report_error "determine stable (LTS) version from"
-
-    if version_older_than "1.14.2" "$latest_version"; then
-        fail "Expected the latest version of nginx to be at least 1.14.2 but found
-$latest_version on $nginx_download_url"
-    fi
-
-    echo "$stable_version"
-}
-
-# Validate Nginx configuration.
-function validate_nginx_config() {
-    if nginx -t 2>/dev/null > /dev/null; then
-        return 1
-    else
-        return 0
     fi
 }
 

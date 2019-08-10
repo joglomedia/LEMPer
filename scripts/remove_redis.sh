@@ -43,7 +43,7 @@ function init_redis_removal() {
     # Remove Redis config files.
     warning "!! This action is not reversible !!"
     while [[ "${REMOVE_REDISCONFIG}" != "y" && "${REMOVE_REDISCONFIG}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Remove Redis database and configuration files? [y/n]: " -i n -e REMOVE_REDISCONFIG
+        read -rp "Remove Redis database and configuration files? [y/n]: " -e REMOVE_REDISCONFIG
     done
     if [[ "${REMOVE_REDISCONFIG}" == Y* || "${REMOVE_REDISCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
         if [ -d /etc/redis ]; then

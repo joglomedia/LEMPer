@@ -14,6 +14,13 @@ if [ "$(type -t run)" != "function" ]; then
     . "${BASEDIR}/helper.sh"
 fi
 
+# Define scripts directory.
+if echo "${BASEDIR}" | grep -qwE "scripts"; then
+    SCRIPTS_DIR="${BASEDIR}"
+else
+    SCRIPTS_DIR="${BASEDIR}/scripts"
+fi
+
 # Make sure only root can run this installer script.
 requires_root
 
@@ -105,9 +112,14 @@ function init_nginx_install() {
 
         2|"source"|*)
             echo "Installing NGiNX from source..."
-
-            run "${BASEDIR}/install_nginx_from_source.sh" -v latest-stable \
-                -n stable --dynamic-module --extra-modules -y
+            
+            if "${DRYRUN}"; then
+                "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable \
+                    -n stable --dynamic-module --extra-modules -y --dryrun
+            else
+                "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable \
+                    -n stable --dynamic-module --extra-modules -y
+            fi
 
             echo ""
             echo "Configuring NGiNX extra modules..."

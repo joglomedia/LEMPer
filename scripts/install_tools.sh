@@ -53,7 +53,7 @@ _EOF_
 
 function init_webadmin_install() {
 
-    # Install Nginx Virtual Host Creator
+    # Install Lemper CLI tool.
     run cp -f bin/lemper-cli.sh /usr/local/bin/lemper-cli
     run chmod ugo+x /usr/local/bin/lemper-cli
 
@@ -66,7 +66,7 @@ function init_webadmin_install() {
     run chmod ugo+x /usr/local/lib/lemper/lemper-create
     run chmod ugo+x /usr/local/lib/lemper/lemper-manage
 
-    # Install Web Admin
+    # Install Web Admin.
     if [ ! -d /usr/share/nginx/html/lcp ]; then
         run mkdir /usr/share/nginx/html/lcp
     fi

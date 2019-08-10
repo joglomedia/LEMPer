@@ -69,7 +69,7 @@ function init_memcached_removal() {
 echo "Uninstalling Memcached server..."
 if [[ -n $(command -v memcached) ]]; then
     while [[ "${REMOVE_MEMCACHED}" != "y" && "${REMOVE_MEMCACHED}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Are you sure to remove Memcached? [y/n]: " -i y -e REMOVE_MEMCACHED
+        read -rp "Are you sure to remove Memcached? [y/n]: " -e REMOVE_MEMCACHED
     done
     if [[ "${REMOVE_MEMCACHED}" == Y* || "${REMOVE_MEMCACHED}" == y* || "${AUTO_REMOVE}" == true ]]; then
         init_memcached_removal "$@"

@@ -42,12 +42,12 @@ function remove_php_fpm() {
             php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" "${PHP_PKGS[@]}")
 
         if [[ "${PHPv//.}" -lt "72" ]]; then
-            if "php${PHPv}" -m | grep mcrypt; then
+            if "php${PHPv}" -m | grep -qw "mcrypt"; then
                 #run apt-get --purge remove -y php${PHPv}-mcrypt >> lemper.log 2>&1
                 PHP_PKGS=("php${PHPv}-mcrypt" "${PHP_PKGS[@]}")
             fi
         elif [[ "${PHPv}" == "7.2" ]]; then
-            if "php${PHPv}" -m | grep mcrypt; then
+            if "php${PHPv}" -m | grep -qw "mcrypt"; then
                 # Uninstall mcrypt pecl.
                 run pecl uninstall mcrypt-1.0.1 >> lemper.log 2>&1
 

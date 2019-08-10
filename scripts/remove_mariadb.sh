@@ -27,7 +27,9 @@ function init_mariadb_removal() {
         echo "Found MariaDB package installation. Removing..."
 
         # Remove MariaDB server.
-        run apt-get --purge remove -y mariadb-server libmariadbclient18
+        {
+            run apt-get --purge remove -y libmariadbclient18 mariadb-backup mariadb-server mysql-common
+        } >> lemper.log 2>&1
 
         # Remove repository.
         run rm -f /etc/apt/sources.list.d/MariaDB-*.list
@@ -35,7 +37,7 @@ function init_mariadb_removal() {
         echo "Found MySQL package installation. Removing..."
 
         # Remove MySQL server.
-        run apt-get --purge remove -y mysql-client mysql-server mysql-common
+        run apt-get --purge remove -y mysql-client mysql-server mysql-common >> lemper.log 2>&1
     else
         echo "Mariadb package not found, possibly installed from source."
         echo "Remove it manually."

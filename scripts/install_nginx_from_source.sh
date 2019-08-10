@@ -456,8 +456,7 @@ function build_ngx_pagespeed() {
 
     if "$ALREADY_CHECKED_OUT"; then
         if [ "$NPS_VERSION" != "DEFAULT" ]; then
-            fail \
-"The --ngx-pagespeed-version argument doesn't make sense when running within an existing checkout."
+            fail "The --ngx-pagespeed-version argument doesn't make sense when running within an existing checkout."
         fi
     elif [ "$NPS_VERSION" = "DEFAULT" ]; then
         if "$DEVEL"; then
@@ -480,8 +479,8 @@ function build_ngx_pagespeed() {
         PSOL_FROM_SOURCE=true
         BUILD_NGINX=true
         if [ -n "$NGINX_VERSION" ]; then
-            fail \
-"The --devel argument conflicts with --nginx. In devel mode we use the version of nginx that's included as a submodule."
+            fail "The --devel argument conflicts with --nginx. 
+In devel mode we use the version of nginx that's included as a submodule."
         fi
         if "$NGINX_DYNAMIC_MODULE"; then
             fail "Can't currently build a dynamic module in --devel mode."
@@ -571,6 +570,7 @@ add support for dynamic modules in a way compatible with ngx_pagespeed until 1.9
 
             install_dependencies "yum install ${INSTALL_FLAGS}" redhat_is_installed \
                 gcc-c++ pcre-devel zlib-devel make unzip wget libuuid-devel
+
             if gcc_too_old; then
                 if [ ! -e /opt/rh/devtoolset-2/root/usr/bin/gcc ]; then
                     redhat_major_version=$(

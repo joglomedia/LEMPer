@@ -27,21 +27,29 @@ function init_nginx_removal() {
     # Remove nginx installation.
     if [[ -n $(dpkg-query -l | grep nginx-common | awk '/nginx-common/ { print $2 }') ]]; then
         echo "Nginx-common package found. Removing..."
-        run apt-get --purge remove -y nginx-common >> lemper.log 2>&1
-        run add-apt-repository -y --remove ppa:nginx/stable >> lemper.log 2>&1
+        {
+            run apt-get --purge remove -y nginx-common
+            run add-apt-repository -y --remove ppa:nginx/stable
+        } >> lemper.log 2>&1
     elif [[ -n $(dpkg-query -l | grep nginx-custom | awk '/nginx-custom/ { print $2 }') ]]; then
         echo "Nginx-custom package found. Removing..."
-        run apt-get --purge remove -y nginx-custom >> lemper.log 2>&1
-        run add-apt-repository -y --remove ppa:rtcamp/nginx >> lemper.log 2>&1
-        run rm -f /etc/apt/sources.list.d/nginx-*.list
+        {
+            run apt-get --purge remove -y nginx-custom
+            run add-apt-repository -y --remove ppa:rtcamp/nginx
+            run rm -f /etc/apt/sources.list.d/nginx-*.list
+        } >> lemper.log 2>&1
     elif [[ -n $(dpkg-query -l | grep nginx-full | awk '/nginx-full/ { print $2 }') ]]; then
         echo "Nginx-full package found. Removing..."
-        run apt-get --purge remove -y nginx-full >> lemper.log 2>&1
-        run add-apt-repository -y --remove ppa:nginx/stable >> lemper.log 2>&1
+        {
+            run apt-get --purge remove -y nginx-full
+            run add-apt-repository -y --remove ppa:nginx/stable
+        } >> lemper.log 2>&1
     elif [[ -n $(dpkg-query -l | grep nginx-stable | awk '/nginx-stable/ { print $2 }') ]]; then
         echo "Nginx-stable package found. Removing..."
-        run apt-get --purge remove -y nginx-stable >> lemper.log 2>&1
-        run add-apt-repository -y --remove ppa:nginx/stable >> lemper.log 2>&1
+        {
+            run apt-get --purge remove -y nginx-stable
+            run add-apt-repository -y --remove ppa:nginx/stable
+        } >> lemper.log 2>&1
     else
         echo "Nginx package not found. Possibly installed from source."
 

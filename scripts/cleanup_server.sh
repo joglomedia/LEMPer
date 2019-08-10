@@ -14,10 +14,16 @@ if [ "$(type -t run)" != "function" ]; then
     . "${BASEDIR}/helper.sh"
 fi
 
+# Define scripts directory.
+if echo "${BASEDIR}" | grep -qwE "scripts"; then
+    SCRIPTS_DIR="${BASEDIR}"
+else
+    SCRIPTS_DIR="${BASEDIR}/scripts"
+fi
+
 # Make sure only root can run this installer script.
 requires_root
 
-echo ""
 echo "Cleaning up server..."
 echo ""
 
@@ -45,7 +51,7 @@ if [[ -n $(command -v nginx) ]]; then
 
     # shellchechk source=scripts/remove_nginx.sh
     # shellcheck disable=SC1090
-    . "${BASEDIR}/scripts/remove_nginx.sh"
+    "${SCRIPTS_DIR}/remove_nginx.sh"
 fi
 
 # Remove Mysql service if exists.
@@ -55,8 +61,11 @@ if [[ -n $(command -v mysql) ]]; then
 
     # shellchechk source=scripts/remove_mariadb.sh
     # shellcheck disable=SC1090
-    . "${BASEDIR}/scripts/remove_mariadb.sh"
+    "${SCRIPTS_DIR}/remove_mariadb.sh"
 fi
+
+# Autoremove packages.
+run apt autoremove -y >> lemper.log 2>&1
 
 if [[ -z $(command -v apache2) && -z $(command -v nginx) && -z $(command -v mysql) ]]; then
     status -e "\nYour server cleaned up."
