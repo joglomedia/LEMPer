@@ -47,7 +47,7 @@ function install_php_fpm() {
     # Checking if php already installed.
     if [[ -n $(command -v "php${PHPv}") ]]; then
         PHP_IS_INSTALLED="yes"
-        warning "PHP & FPM ${PHPv} package already installed..."
+        warning "PHP${PHPv} & FPM package already installed..."
     else
         echo "Installing PHP${PHPv} & FPM..."
 
@@ -66,12 +66,12 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
 php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS[@]}")
 
         if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
-            echo "Removing PHP ${PHPv} packages..."
-            run apt-get install -y "${PHP_PKGS[@]}" >> lemper.log 2>&1
+            echo "Installing PHP${PHPv} & FPM packages..."
+            run apt-get install -y ${PHP_PKGS[@]} >> lemper.log 2>&1
         fi
 
         if [[ -n $(command -v "php${PHPv}") ]]; then
-            status "PHP & FPM ${PHPv} packages installed."
+            status "PHP${PHPv} & FPM packages installed."
         fi
 
         # Install php mcrypt?
@@ -320,7 +320,7 @@ function optimize_php_fpm() {
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
-    echo "Optimizing PHP & FPM ${PHPv} configuration..."
+    echo "Optimizing PHP${PHPv} & FPM configuration..."
 
     if [ ! -d "/etc/php/${PHPv}/fpm" ]; then
         run mkdir "/etc/php/${PHPv}/fpm"
@@ -453,7 +453,7 @@ EOL
         if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
             status "PHP${PHPv}-FPM started successfully."
         else
-            warning "Something wrong with PHP & FPM ${PHPv} installation."
+            warning "Something wrong with PHP${PHPv} & FPM installation."
         fi
     fi
 }
@@ -635,7 +635,7 @@ function init_php_fpm_install() {
 
         # Final optimization.
         if "${DRYRUN}"; then
-            warning "PHP & FPM ${PHPv} installed and optimized in dryrun mode."
+            warning "PHP${PHPv} & FPM installed and optimized in dryrun mode."
         else
             if [ "${PHPv}" != "all" ]; then
                 optimize_php_fpm "${PHPv}"

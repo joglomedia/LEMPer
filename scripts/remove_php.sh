@@ -100,7 +100,7 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" 
     
         if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
             echo "Removing PHP${PHPv} & FPM packages..."
-            run apt-get --purge remove -y "${PHP_PKGS[@]}" >> lemper.log 2>&1
+            run apt-get --purge remove -y ${PHP_PKGS[@]} >> lemper.log 2>&1
         fi
 
         # Remove PHP & FPM config files.
