@@ -34,7 +34,11 @@ server {
 		#include /etc/nginx/naxsi.rules
 
 		# Uncomment to enable auto index
-		autoindex on;
+		autoindex off;
+	}
+
+	location ~ ^/lcp {
+		deny all;
 	}
 
     # PHP-FPM status monitoring
@@ -98,7 +102,7 @@ server {
 	}
 }
 
-## Database Administration
+## LEMPer Web-based Administration
 server {
 	listen 8082;
 	listen [::]:8082;
@@ -106,7 +110,7 @@ server {
 	# Make site accessible from http://localhost.localdomain/
 	server_name localhost.localdomain;
 
-	root /usr/share/nginx/html/lcp/adminer;
+	root /usr/share/nginx/html/lcp;
 	index index.php index.html index.htm;
 
 	# Log Settings.
@@ -148,58 +152,6 @@ server {
 	location ~ /\.ht {
 		deny all;
 	}
-}
-
-## File Administration
-server {
-	listen 8083;
-	listen [::]:8083;
-
-	# Make site accessible from http://localhost.localdomain/
-	server_name localhost.localdomain;
-
-	root /usr/share/nginx/html/lcp/filerun;
-	index index.php index.html index.htm;
-
-	# Log Settings.
-	access_log /var/log/nginx/localhost.access.log;
-	error_log /var/log/nginx/localhost.error.log;
-
-	location / {
-		# First attempt to serve request as file, then
-		# as directory, then fall back to index.html
-		try_files $uri $uri/ /index.html;
-
-		# Uncomment to enable naxsi on this location
-		#include /etc/nginx/naxsi.rules
-
-		# Uncomment to enable auto index
-		autoindex off;
-	}
-
-    # Pass the PHP scripts to FastCGI server listening on Unix socket.
-    #
-    location ~ \.php$ {
-        try_files $uri =404;
-
-        fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_index index.php;
-
-        include /etc/nginx/fastcgi_params;
-        include /etc/nginx/includes/fastcgi.conf;
-
-        # Uncomment to Enable PHP FastCGI cache.
-        #include /etc/nginx/includes/fastcgi_cache.conf;
-
-        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
-    }
-
-	# Deny access to .htaccess files, if Apache's document root
-	# concurs with Nginx's one
-	#
-	location ~ /\.ht {
-		deny all;
-    }
 }
 
 # HTTPS server

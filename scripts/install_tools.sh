@@ -103,22 +103,22 @@ function init_webadmin_install() {
     run git clone -q https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/lcp/phpMemcachedAdmin/
 
     # Install Adminer for Web-based MySQL Administration Tool
-    if [ ! -d /usr/share/nginx/html/lcp/adminer ]; then
-        run mkdir /usr/share/nginx/html/lcp/adminer
+    if [ ! -d /usr/share/nginx/html/lcp/dbadminer ]; then
+        run mkdir /usr/share/nginx/html/lcp/dbadminer
     fi
 
     run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/adminer-4.7.1.php \
-        -O /usr/share/nginx/html/lcp/adminer/index.php
+        -O /usr/share/nginx/html/lcp/dbadminer/index.php
     run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/editor-4.7.1.php \
-        -O /usr/share/nginx/html/lcp/adminer/editor.php
+        -O /usr/share/nginx/html/lcp/dbadminer/editor.php
 
     # Install FileRun File Manager
     if [ ! -d /usr/share/nginx/html/lcp/filerun ]; then
-        run mkdir /usr/share/nginx/html/lcp/filerun/
+        run mkdir /usr/share/nginx/html/lcp/filemanager/
     fi
 
     run wget -q http://www.filerun.com/download-latest -O FileRun.zip
-    run unzip -qq FileRun.zip -d /usr/share/nginx/html/lcp/filerun/
+    run unzip -qq FileRun.zip -d /usr/share/nginx/html/lcp/filemanager/
     run rm -f FileRun.zip
 
     # TODO: Replace FileRun with Tinyfilemanager https://github.com/prasathmani/tinyfilemanager
