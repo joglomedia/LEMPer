@@ -61,8 +61,8 @@ function init_webadmin_install() {
         run mkdir /usr/local/lib/lemper
     fi
 
-    run cp -f lib/lemper-create /usr/local/lib/lemper/lemper-create
-    run cp -f lib/lemper-manage /usr/local/lib/lemper/lemper-manage
+    run cp -f lib/lemper-create.sh /usr/local/lib/lemper/lemper-create
+    run cp -f lib/lemper-manage.sh /usr/local/lib/lemper/lemper-manage
     run chmod ugo+x /usr/local/lib/lemper/lemper-create
     run chmod ugo+x /usr/local/lib/lemper/lemper-manage
 
@@ -114,11 +114,11 @@ function init_webadmin_install() {
 
     # Install FileRun File Manager
     if [ ! -d /usr/share/nginx/html/lcp/filerun ]; then
-        run mkdir /usr/share/nginx/html/lcp/filemanager/
+        run mkdir /usr/share/nginx/html/lcp/filemanager
     fi
 
     run wget -q http://www.filerun.com/download-latest -O FileRun.zip
-    run unzip -qq FileRun.zip -d /usr/share/nginx/html/lcp/filemanager/
+    run unzip -qq FileRun.zip -d /usr/share/nginx/html/lcp/filemanager
     run rm -f FileRun.zip
 
     # TODO: Replace FileRun with Tinyfilemanager https://github.com/prasathmani/tinyfilemanager
