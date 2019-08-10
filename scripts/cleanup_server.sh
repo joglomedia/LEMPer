@@ -65,6 +65,7 @@ if [[ -n $(command -v mysql) ]]; then
 fi
 
 # Autoremove packages.
+echo -e "\nClean up unused packages."
 run apt autoremove -y >> lemper.log 2>&1
 
 if [[ -z $(command -v apache2) && -z $(command -v nginx) && -z $(command -v mysql) ]]; then

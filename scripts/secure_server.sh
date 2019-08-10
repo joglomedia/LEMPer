@@ -323,7 +323,7 @@ function install_apf() {
         run sed -i "s/^DEVEL_MODE=\"1\"/DEVEL_MODE=\"0\"/g" /etc/apf/conf.apf
 
         # Get ethernet interface.
-        IFACE=${IFACE:-$(find /sys/class/net -type l | grep -e "enp\|eth" | cut -d'/' -f5)}
+        IFACE=${IFACE:-$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)}
 
         # Set ethernet interface to monitor.
         run sed -i "s/^IFACE_UNTRUSTED=\"[0-9a-zA-Z]*\"/IFACE_UNTRUSTED=\"${IFACE}\"/g" /etc/apf/conf.apf
