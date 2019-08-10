@@ -124,6 +124,15 @@ function init_nginx_install() {
             echo ""
             echo "Configuring NGiNX extra modules..."
 
+            # Create NGiNX directories.
+            if [ ! -d /etc/nginx/modules-available ]; then
+                run mkdir /etc/nginx/modules-available
+            fi
+
+            if [ ! -d /etc/nginx/modules-enabled ]; then
+                run mkdir /etc/nginx/modules-enabled
+            fi
+
             # Custom NGiNX dynamic modules configuration.
             if [[ -f /usr/lib/nginx/modules/ngx_http_brotli_filter_module.so && \
                 ! -f /etc/nginx/modules-available/mod-http-brotli-filter.conf ]]; then
@@ -279,15 +288,6 @@ function init_nginx_install() {
 
     echo -e "\nCreating NGiNX configuration..."
 
-    # Create NGiNX directories.
-    if [ ! -d /etc/nginx/modules-available ]; then
-        run mkdir /etc/nginx/modules-available
-    fi
-
-    if [ ! -d /etc/nginx/modules-enabled ]; then
-        run mkdir /etc/nginx/modules-enabled
-    fi
-
     if [ ! -d /etc/nginx/sites-available ]; then
         run mkdir /etc/nginx/sites-available
     fi
@@ -295,7 +295,7 @@ function init_nginx_install() {
     if [ ! -d /etc/nginx/sites-enabled ]; then
         run mkdir /etc/nginx/sites-enabled
     fi
-
+    
     # Copy custom NGiNX Config.
     if [ -f /etc/nginx/nginx.conf ]; then
         run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.old
