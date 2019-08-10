@@ -21,6 +21,8 @@ set -e
 # Version Control.
 APP_NAME=$(basename "$0")
 APP_VERSION="1.2.0-dev"
+CMD_PARENT="lemper-cli"
+CMD_NAME="create"
 
 # Test mode.
 DRYRUN=false
@@ -29,6 +31,8 @@ DRYRUN=false
 RED=91
 GREEN=92
 YELLOW=93
+
+DRYRUN=false
 
 function begin_color() {
     color="${1}"
@@ -78,7 +82,7 @@ function warning() {
 # Additionally, this allows us to easily have a dryrun mode where we don't
 # actually make any changes.
 function run() {
-    if "$DRYRUN"; then
+    if "${DRYRUN}"; then
         echo_color "$YELLOW" -n "would run "
         echo "$@"
     else
@@ -91,9 +95,9 @@ function run() {
 }
 
 # May need to run this as sudo!
-# I have it in /usr/local/bin and run command from anywhere, using sudo.
+# I have it in /usr/local/bin and run command 'ngxvhost' from anywhere, using sudo.
 if [ "$(id -u)" -ne 0 ]; then
-    error "You need to be root to run this script"
+    error "This command can only be used by root."
     exit 1  #error
 fi
 
@@ -115,17 +119,18 @@ Creates NGiNX virtual host (vHost) configuration file.
 Requirements:
   * LEMP stack setup uses [LEMPer](https://github.com/joglomedia/LEMPer)
 
-Usage: ${APP_NAME} [options]...
+Usage: ${CMD_PARENT} ${CMD_NAME} [options]...
 
 Options:
   -d, --domain-name <server domain name>
-      Any valid domain name and/or sub domain name is allowed, i.e. example.com or sub.example.com.
+      Any valid domain name and/or sub domain name is allowed, i.e. example.app or sub.example.app.
   -f, --framework <website framework>
-      Type of PHP web framework and cms, i.e. default.
-      Currently supported framework and cms: default (vanilla PHP), codeigniter, drupal, laravel, phalcon, wordpress, wordpress-ms.
+      Type of PHP web Framework and CMS, i.e. default.
+      Supported Framework and CMS: default (vanilla PHP), codeigniter, drupal, laravel,
+      lumen, phalcon, symfony, wordpress, wordpress-ms.
       Another framework and cms will be added soon.
   -p, --php-version
-      PHP version for selected framework.
+      PHP version for selected framework. Latest recommended PHP version is "7.3".
   -u, --username <virtual-host username>
       Use username added from adduser/useradd. Do not use root user!!
   -w, --webroot <web root>
@@ -148,7 +153,7 @@ Options:
       Show version number and exit.
 
 Example:
-${APP_NAME} -u lemper -d example.com -f default -w /home/lemper/webapps/example.test
+  ${CMD_PARENT} ${CMD_NAME} -u lemper -d example.com -f default -w /home/lemper/webapps/example.test
 
 For more informations visit https://eslabs.id/lemper
 Mail bug reports and suggestions to <eslabs.id@gmail.com>
@@ -187,6 +192,17 @@ server {
 
     ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
+    # Async Google Analytics
+    #pagespeed EnableFilters make_google_analytics_async;
+    # Async Google Adsense
+    #pagespeed EnableFilters make_show_ads_async;
+    # PageSpeed should be disabled on the WP admin  (adjust to suit custom admin URLs)
+    #pagespeed Disallow "*/wp-admin/*";
+    # Enable fetch HTTPS
+    #pagespeed FetchHttps enable;
+    # This setting should be enabled when using HTTPS
+    # Take care when using HTTP > HTTPS redirection to avoid loops
+    #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -770,8 +786,8 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
         fi
 
         # Additional Check - ensure that Nginx's configuration meets the requirements.
-        if [ ! -d /etc/nginx/sites-available ]; then
-            fail "It seems that your NGiNX installation doesn't meet ${APP_NAME} requirements. Aborting..."
+        if [[ ! -d /etc/nginx/sites-available && ! -d /etc/nginx/vhost ]]; then
+            fail "It seems that your NGiNX installation doesn't meet the requirements. Aborting..."
         fi
 
         # Define vhost file.
@@ -826,18 +842,18 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
-                laravel)
+                laravel|lumen)
                     echo "Setting up Laravel framework virtual host..."
 
                     # Install Laravel framework skeleton
                     # clone new Laravel files.
                     if [ ${CLONE_SKELETON} == true ]; then
                         # Check Laravel install.
-                        if [ ! -f "${WEBROOT}/server.php" ]; then
-                            status "Copying Laravel skeleton files..."
-                            run git clone -q https://github.com/laravel/laravel.git "${WEBROOT}"
+                        if [ ! -f "${WEBROOT}/artisan" ]; then
+                            status "Copying ${FRAMEWORK^} skeleton files..."
+                            run git clone -q https://github.com/laravel/${FRAMEWORK}.git "${WEBROOT}"
                         else
-                            warning "It seems that Laravel skeleton files already exists."
+                            warning "It seems that ${FRAMEWORK^} skeleton files already exists."
                         fi
                     else
                         # Create default index file.

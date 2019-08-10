@@ -20,6 +20,11 @@ set -e
 # Version control
 APP_NAME=$(basename "$0")
 APP_VERSION="1.2.0-dev"
+CMD_PARENT="lemper-cli"
+CMD_NAME="manage"
+
+# Test mode.
+DRYRUN=false
 
 # Decorator
 RED=91
@@ -99,14 +104,14 @@ fi
 function show_usage() {
 cat <<- _EOF_
 ${APP_NAME^} ${APP_VERSION}
-Simple Nginx virtual host (vHost) manager
-enable/disable/remove Nginx vHost config file on Debian/Ubuntu Server.
+Simple NGiNX virtual host (vHost) manager
+enable/disable/remove NGiNX vHost config file on Debian/Ubuntu Server.
 
 Requirements:
   * LEMP stack setup uses [LEMPer](https://github.com/joglomedia/LEMPer)
 
 Usage:
-  ${APP_NAME} [OPTION]...
+  ${CMD_PARENT} ${CMD_NAME} [OPTION]...
 
 Options:
   -b, --enable-brotli
@@ -138,7 +143,7 @@ Options:
       Output version information and exit.
 
 Example:
- ${APP_NAME} --remove example.com
+  ${CMD_PARENT} ${CMD_NAME} --remove example.com
 
 For more informations visit https://eslabs.id/lemper
 Mail bug reports and suggestions to <eslabs.id@gmail.com>
@@ -314,7 +319,7 @@ function enable_mod_pagespeed() {
         run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
     else
-        warning "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module."
+        warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
     fi
 
@@ -334,7 +339,7 @@ function disable_mod_pagespeed() {
         run sed -i "s|include\ /etc/nginx/includes/mod_pagespeed.conf|#include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
     else
-        warning "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module."
+        warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
     fi
 
@@ -437,9 +442,9 @@ function disable_https() {
 
 # Enable Brotli compression module.
 function enable_brotli() {
-    echo "Enable NGiNX Brotli compression..."
-
     if [[ -f /etc/nginx/nginx.conf && -f /etc/nginx/modules-enabled/50-mod-http-brotli-static.conf ]]; then
+        echo "Enable NGiNX Brotli compression..."
+        
         if grep -qwE "^\    include\ /etc/nginx/comp_gzip" /etc/nginx/nginx.conf; then
             echo "Found Gzip compression enabled, update to Brotli."
 
@@ -459,7 +464,7 @@ function enable_brotli() {
         reload_nginx
     else
         error "Sorry, we can't find NGiNX and Brotli module config file"
-        echo "it should be located under /etc/nginx/ directory."
+        echo "       it should be located under /etc/nginx/ directory."
         exit 1
     fi
 }
@@ -467,9 +472,9 @@ function enable_brotli() {
 # Enable Gzip compression module,
 # enabled by default.
 function enable_gzip() {
-    echo "Enable NGiNX Gzip compression..."
+    if [[ -f /etc/nginx/nginx.conf && -d /etc/nginx/vhost ]]; then
+        echo "Enable NGiNX Gzip compression..."
 
-    if [[ -f /etc/nginx/nginx.conf ]]; then
         if grep -qwE "^\    include\ /etc/nginx/comp_brotli" /etc/nginx/nginx.conf; then
             echo "Found Brotli compression enabled, update to Gzip."
 
@@ -489,7 +494,7 @@ function enable_gzip() {
         reload_nginx
     else
         error "Sorry, we can't find NGiNX config file"
-        echo "it should be located under /etc/nginx/ directory."
+        echo "       it should be located under /etc/nginx/ directory."
         exit 1
     fi
 }
@@ -502,7 +507,7 @@ function verify_host() {
     fi
 
     if [ ! -f "/etc/nginx/sites-available/${1}.conf" ]; then
-        error "Sorry, we couldn't find Nginx virtual host: ${1}..."
+        error "Sorry, we couldn't find NGiNX virtual host: ${1}..."
         exit 1
     fi
 }
@@ -521,10 +526,17 @@ function reload_nginx() {
             nginx -t
             exit 1
         fi
+    # NGiNX service dead? Try to start it.    
     else
-        # Nginx service dead? Try to start it
         if [[ -n $(command -v nginx) ]]; then
-            service nginx restart > /dev/null 2>&1
+            if nginx -t 2>/dev/null > /dev/null; then
+                service nginx restart > /dev/null 2>&1
+            else
+                fail "Configuration couldn't be validated. Please correct the error below:";
+                echo ""
+                nginx -t
+                exit 1
+            fi
         else
             warning "Something went wrong with your LEMP stack installation."
             exit 1
