@@ -55,7 +55,9 @@ function init_nginx_removal() {
 
         if [[ -n $(command -v nginx) ]]; then
             # Disable systemctl.
-            run systemctl disable nginx.service
+            if [ -f /etc/systemd/system/multi-user.target.wants/nginx.service ]; then
+                run systemctl disable nginx.service
+            fi
 
             # Only if nginx package not installed / nginx installed from source.
             if [ -f /usr/sbin/nginx ]; then
