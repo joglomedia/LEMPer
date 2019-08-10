@@ -362,8 +362,8 @@ function build_ngx_pagespeed() {
     NPS_VERSION="DEFAULT"
     NGINX_VERSION=""
     # Current working directory as default build dir
-    #BUILDDIR="$HOME"
-    BUILDDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+    BUILDDIR="$HOME/lemper_nginx_build"
+    #BUILDDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )/lemper_nginx_build"
     DO_DEPS_CHECK=true
     PSOL_FROM_SOURCE=false
     DEVEL=false
@@ -467,7 +467,8 @@ function build_ngx_pagespeed() {
     fi
 
     if [ ! -d "$BUILDDIR" ]; then
-        fail "Told to build in $BUILDDIR, but that directory doesn't exist."
+        run mkdir "$BUILDDIR"
+        warning "Told to build in $BUILDDIR, but that directory doesn't exist. Try to create it."
     fi
 
     BUILD_NGINX=false
@@ -1133,6 +1134,11 @@ with --no-deps-check."
                 run mkdir /var/cache/nginx
                 run mkdir /var/cache/nginx/ngx_pagespeed_cache
                 run chown -hR www-data:root /var/cache/nginx
+            fi
+
+            # Cleanup build dir
+            if [ -d "$BUILDDIR" ]; then
+                run rm -fr "$BUILDDIR"
             fi
 
             if "$NGINX_DYNAMIC_MODULE"; then
