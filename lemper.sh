@@ -61,14 +61,15 @@ if [[ "${DISTRIB_REPO}" == "unsupported" ]]; then
     warning "This installer only work on Ubuntu 16.04 & 18.04 and LinuxMint 18 & 19."
     exit 1
 else
-    # Set global variables.
+    # Get system architecture.
     export ARCH && \
     ARCH=$(uname -p)
-    export IP_SERVER && \
-    IP_SERVER=$(hostname -i)
     # Get ethernet interface.
     export IFACE && \
     IFACE=$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)
+    # Get ethernet IP.
+    export IP_SERVER && \
+    IP_SERVER=$(ifconfig "${IFACE}" | grep "inet " | cut -d: -f2 | awk '{print $2}')
 fi
 
 # Init log.
@@ -171,7 +172,7 @@ case "${1}" in
 
         ### FINAL STEP ###
         # Cleaning up all build dependencies hanging around on production server?
-        run apt-get autoremove -y >> lemper.log 2>&1
+        run apt-get autoremove -y
 
         status -e "\nLEMPer installation has been completed."
 
@@ -219,7 +220,8 @@ Now, you can reboot your server and enjoy it!"
         read -rt 10 -p "Press [Enter] to continue..." </dev/tty
 
         # Fix broken install, first?
-        run apt-get --fix-broken install >> lemper.log 2>&1
+        run dpkg --configure -a
+        run apt-get --fix-broken install
 
         ### Remove Nginx ###
         echo ""
@@ -264,7 +266,7 @@ Now, you can reboot your server and enjoy it!"
 
         # Remove unnecessary packages.
         echo -e "\nCleaning up unnecessary packages...\n"
-        run apt-get autoremove -y >> lemper.log 2>&1
+        run apt-get autoremove -y
 
         status "LEMP stack has been removed completely."
     ;;
