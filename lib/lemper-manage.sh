@@ -390,7 +390,7 @@ function enable_https() {
         # Append redirection block.
         cat >> "/etc/nginx/sites-available/${1}.conf" <<EOL
 
-# HTTP to HTTPS redirection
+# HTTP to HTTPS redirection.
 server {
     listen 80;
     listen [::]:80;
