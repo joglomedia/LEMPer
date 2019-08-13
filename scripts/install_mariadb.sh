@@ -83,7 +83,7 @@ function init_mariadb_install() {
         {
             run apt-get update -y
             run apt-get install -y mariadb-server libmariadbclient18 mariadb-backup
-        } >> lemper.log 2>&1
+        }
 
         # Fix MySQL error?
         # Ref: https://serverfault.com/questions/104014/innodb-error-log-file-ib-logfile0-is-of-different-size
@@ -187,7 +187,6 @@ GRANT RELOAD, PROCESS, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${MARIABACKUP_
 
         # Update my.cnf
         MARIABACKUP_CNF="
-
 ###################################
 # Custom optimization for LEMPer
 #
@@ -195,7 +194,6 @@ GRANT RELOAD, PROCESS, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${MARIABACKUP_
 user=${MARIABACKUP_USER}
 password=${MARIABACKUP_PASS}
 open_files_limit=65535
-
 "
 
         if [ -d /etc/mysql/mariadb.conf.d ]; then
@@ -209,7 +207,8 @@ open_files_limit=65535
 
         status "Mariaback user '${MARIABACKUP_USER}' added successfully."
     else
-        warning "Unable to add mariabackup user. Try to install it manualy!"
+        warning "It seems that user '${MARIABACKUP_USER}' already exists. \
+Try to add mariabackup user manually! "
     fi
 }
 

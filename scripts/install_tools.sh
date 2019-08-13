@@ -107,9 +107,9 @@ function init_webadmin_install() {
         run mkdir /usr/share/nginx/html/lcp/dbadminer
     fi
 
-    run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/adminer-4.7.1.php \
+    run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.2/adminer-4.7.2.php \
         -O /usr/share/nginx/html/lcp/dbadminer/index.php
-    run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.1/editor-4.7.1.php \
+    run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.2/editor-4.7.2.php \
         -O /usr/share/nginx/html/lcp/dbadminer/editor.php
 
     # Install FileRun File Manager

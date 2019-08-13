@@ -43,13 +43,13 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" 
 
         if [[ "${PHPv//.}" -lt "72" ]]; then
             if "php${PHPv}" -m | grep -qw "mcrypt"; then
-                #run apt-get --purge remove -y php${PHPv}-mcrypt >> lemper.log 2>&1
+                #run apt-get --purge remove -y php${PHPv}-mcrypt
                 PHP_PKGS=("php${PHPv}-mcrypt" "${PHP_PKGS[@]}")
             fi
         elif [[ "${PHPv}" == "7.2" ]]; then
             if "php${PHPv}" -m | grep -qw "mcrypt"; then
                 # Uninstall mcrypt pecl.
-                run pecl uninstall mcrypt-1.0.1 >> lemper.log 2>&1
+                run pecl uninstall mcrypt-1.0.1
 
                 # Unlink eabled module.
                 if [ -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ]; then
@@ -65,7 +65,7 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" 
             fi
         else
             #if [[ -n $(dpkg-query -l | grep dh-php | awk ' { print $2 }') ]]; then
-            #    #run apt-get --purge remove -y dh-php >> lemper.log 2>&1
+            #    #run apt-get --purge remove -y dh-php
             #    PHP_PKGS=("dh-php" "${PHP_PKGS[@]}")
             #fi
 
@@ -100,7 +100,7 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" 
     
         if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
             echo "Removing PHP${PHPv} & FPM packages..."
-            run apt-get --purge remove -y ${PHP_PKGS[@]} >> lemper.log 2>&1
+            run apt-get --purge remove -y ${PHP_PKGS[@]}
         fi
 
         # Remove PHP & FPM config files.
@@ -175,7 +175,7 @@ function init_php_fpm_removal() {
             -z $(command -v php7.3) ]]; then
 
             # Remove PHP repository.
-            run add-apt-repository -y --remove ppa:ondrej/php >> lemper.log 2>&1
+            run add-apt-repository -y --remove ppa:ondrej/php
 
             # Remove PHP loaders.
             if [[ -d /usr/lib/php/loaders ]]; then

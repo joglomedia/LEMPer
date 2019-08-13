@@ -468,7 +468,7 @@ function create_account() {
             echo "
 Your default system account information:
 Username: ${USERNAME} | Password: ${PASSWORD}
-" >> lemper.log 2>&1
+"
 
             status "Username ${USERNAME} created."
         fi

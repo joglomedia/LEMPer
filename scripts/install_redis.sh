@@ -37,7 +37,7 @@ function init_redis_install {
 
             # Install Redis.
             run apt-get install -y redis-server php-redis
-        } >> lemper.log 2>&1
+        }
 
         # Configure Redis.
         if "${DRYRUN}"; then

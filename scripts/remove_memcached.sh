@@ -30,7 +30,7 @@ function init_memcached_removal() {
         {
             run apt-get --purge remove -y libmemcached11 memcached php-igbinary \
                     php-memcache php-memcached php-msgpack
-        } >> lemper.log 2>&1
+        }
     else
         echo "Memcached package not found, possibly installed from source."
         echo "Remove it manually."

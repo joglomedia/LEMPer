@@ -31,7 +31,7 @@ function add_php_repo() {
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
             run add-apt-repository -y ppa:ondrej/php
             run apt-get update -y
-        } >> lemper.log 2>&1
+        }
     fi
 }
 
@@ -67,7 +67,7 @@ php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS
 
         if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
             echo "Installing PHP${PHPv} & FPM packages..."
-            run apt-get install -y ${PHP_PKGS[@]} >> lemper.log 2>&1
+            run apt-get install -y ${PHP_PKGS[@]}
         fi
 
         if [[ -n $(command -v "php${PHPv}") ]]; then
@@ -88,7 +88,7 @@ php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS
             elif [ "${PHPv}" == "7.2" ]; then
                 run apt-get -y install gcc make autoconf libc-dev pkg-config \
                     libmcrypt-dev libreadline-dev && \
-                    pecl install mcrypt-1.0.1 >> lemper.log 2>&1
+                    pecl install mcrypt-1.0.1
 
                 # Enable Mcrypt module.
                 echo "Update PHP ini file with Mcrypt module..."
@@ -104,7 +104,7 @@ php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS
                         "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
                 fi
             else
-                run apt-get install -y dh-php >> lemper.log 2>&1
+                run apt-get install -y dh-php
 
                 # use libsodium instead
                 warning "Mcrypt is deprecated for PHP version ${PHPv} or greater, you should using Libsodium or OpenSSL."
@@ -495,7 +495,7 @@ function init_php_fpm_install() {
             PHPv="5.6"
             install_php_fpm "${PHPv}"
         ;;
-        
+
         2|"7.0")
             PHPv="7.0"
             install_php_fpm "${PHPv}"

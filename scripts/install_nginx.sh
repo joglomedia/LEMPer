@@ -31,7 +31,7 @@ function add_nginx_repo() {
 
     DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
     DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
-    
+
     case "${DISTRIB_REPO}" in
         trusty)
             # NGiNX custom with ngx cache purge from rtCamp.
@@ -76,7 +76,7 @@ function init_nginx_install() {
         echo "  1). Install from Repository (repo)"
         echo "  2). Compile from Source (source)"
         echo "-------------------------------------"
-        
+
         while [[ ${SELECTED_NGINX_INSTALLER} != "1" && ${SELECTED_NGINX_INSTALLER} != "2" \
             && ${SELECTED_NGINX_INSTALLER} != "repo" && ${SELECTED_NGINX_INSTALLER} != "source" ]]; do
             read -rp "Select an option [1-2]: " -i "${NGINX_INSTALLER}" -e SELECTED_NGINX_INSTALLER
@@ -95,7 +95,7 @@ function init_nginx_install() {
                     {
                         run apt-get update
                         run apt-get install -y --allow-unauthenticated "${NGX_PACKAGE}"
-                    } >> lemper.log 2>&1
+                    }
                 fi
             elif hash yum 2>/dev/null; then
                 if [ "${VERSION_ID}" == "5" ]; then
@@ -112,7 +112,7 @@ function init_nginx_install() {
 
         2|"source"|*)
             echo "Installing NGiNX from source..."
-            
+
             if "${DRYRUN}"; then
                 "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable \
                     -n stable --dynamic-module --extra-modules -y --dryrun
@@ -295,7 +295,7 @@ function init_nginx_install() {
     if [ ! -d /etc/nginx/sites-enabled ]; then
         run mkdir /etc/nginx/sites-enabled
     fi
-    
+
     # Copy custom NGiNX Config.
     if [ -f /etc/nginx/nginx.conf ]; then
         run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.old
@@ -347,7 +347,7 @@ function init_nginx_install() {
 
     # Adjust nginx to meet hardware resources.
     echo -e "\nAdjusting NGiNX configuration..."
-    
+
     local CPU_CORES && \
     CPU_CORES=$(grep -c processor /proc/cpuinfo)
 

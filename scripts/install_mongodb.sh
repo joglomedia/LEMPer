@@ -59,7 +59,7 @@ function init_mongodb_install() {
             {
                 run apt-get update
                 run apt-get -y install mongodb-org mongodb-org-server
-            } >> lemper.log 2>&1
+            }
         elif hash yum 2>/dev/null; then
             if [ "${VERSION_ID}" == "5" ]; then
                 yum -y update

@@ -27,6 +27,10 @@ requires_root
 echo "Cleaning up server..."
 echo ""
 
+# Fix broken install, first?
+run dpkg --configure -a
+run apt-get --fix-broken install
+
 # Remove Apache2 service if exists.
 if [[ -n $(command -v apache2) ]]; then
     warning "It seems Apache web server installed on this server."
@@ -40,7 +44,7 @@ if [[ -n $(command -v apache2) ]]; then
         run service apache2 stop
         run apt-get --purge remove -y apache2 apache2-doc apache2-utils \
             apache2.2-common apache2.2-bin apache2-mpm-prefork \
-            apache2-doc apache2-mpm-worker >> lemper.log 2>&1
+            apache2-doc apache2-mpm-worker
     fi
 fi
 
@@ -66,7 +70,7 @@ fi
 
 # Autoremove packages.
 echo -e "\nClean up unused packages."
-run apt autoremove -y >> lemper.log 2>&1
+run apt autoremove -y
 
 if [[ -z $(command -v apache2) && -z $(command -v nginx) && -z $(command -v mysql) ]]; then
     status -e "\nYour server cleaned up."

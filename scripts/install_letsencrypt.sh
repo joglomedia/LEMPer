@@ -27,8 +27,8 @@ function init_certbotle_install() {
         echo -e "\nInstalling Certbot Let's Encrypt client..."
 
         run add-apt-repository -y ppa:certbot/certbot
-        run apt-get -y update >> lemper.log 2>&1
-        run apt-get -y install certbot >> lemper.log 2>&1
+        run apt-get -y update
+        run apt-get -y install certbot
 
         # Add Certbot auto renew command to cron
         #15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/bin/systemctl reload nginx"

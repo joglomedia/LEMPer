@@ -30,7 +30,7 @@ function init_redis_removal() {
         {
             run apt-get --purge remove -y redis-server php-redis
             run add-apt-repository -y --remove ppa:chris-lea/redis-server
-        } >> lemper.log 2>&1
+        }
     else
         echo "Redis package not found, possibly installed from source."
         echo "Remove it manually."
