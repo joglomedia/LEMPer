@@ -111,6 +111,7 @@ function begin_color() {
     color="$1"
     echo -e -n "\e[${color}m"
 }
+
 function end_color() {
     echo -e -n "\e[0m"
 }
@@ -140,9 +141,12 @@ function fail() {
     exit 1
 }
 
-
 function status() {
     echo_color "$GREEN" "$@"
+}
+
+function warning() {
+    echo_color "$YELLOW" "$@"
 }
 
 # Intended to be called as:
@@ -191,24 +195,27 @@ function version_sort() {
 # having up to four components, since that's enough to handle both nginx (3) and
 # ngx_pagespeed (4).
 function version_older_than() {
-    local test_version="$1"
+    local test_version && \
+    test_version=$(echo "$@" | tr ' ' '\n' | version_sort | head -n 1)
     local compare_to="$2"
+    local older_version="${test_version}"
 
-    local older_version=$(echo $@ | tr ' ' '\n' | version_sort | head -n 1)
     test "$older_version" != "$compare_to"
 }
 
 function nginx_download_report_error() {
-    fail "Couldn't automatically determine the latest nginx version: failed to $@ Nginx's download page"
+    fail "Couldn't automatically determine the latest nginx version: failed to $* Nginx's download page"
 }
 
 function get_nginx_versions_available() {
     # Scrape nginx's download page to try to find the all available nginx versions.
     nginx_download_url="https://nginx.org/en/download.html"
 
+    local nginx_download_page
     nginx_download_page=$(curl -sS --fail "$nginx_download_url") || \
         nginx_download_report_error "download"
 
+    local download_refs
     download_refs=$(echo "$nginx_download_page" | \
         grep -owE '"/download/nginx-[0-9.]*\.tar\.gz"') || \
         nginx_download_report_error "parse"
@@ -220,11 +227,12 @@ function get_nginx_versions_available() {
     echo "$versions_available"
 }
 
+# Try to find the most recent nginx version (mainline).
 function determine_latest_nginx_version() {
-    # Try to find the most recent nginx version (mainline).
+    local versions_available
+    local latest_version
 
     versions_available=$(get_nginx_versions_available)
-
     latest_version=$(echo "$versions_available" | version_sort | tail -n 1) || \
         report_error "determine latest (mainline) version from"
 
@@ -236,15 +244,16 @@ $latest_version on $nginx_download_url"
     echo "$latest_version"
 }
 
+# Try to find the stable nginx version (mainline).
 function determine_stable_nginx_version() {
-    # Try to find the stable nginx version (mainline).
+    local versions_available
+    local stable_version
 
     versions_available=$(get_nginx_versions_available)
-
     stable_version=$(echo "$versions_available" | version_sort | tail -n 2 | sort -r | tail -n 1) || \
         report_error "determine stable (LTS) version from"
 
-    if version_older_than "$latest_version" "1.14.2"; then
+    if version_older_than "1.14.2" "$latest_version"; then
         fail "Expected the latest version of nginx to be at least 1.14.2 but found
 $latest_version on $nginx_download_url"
     fi
@@ -353,16 +362,16 @@ function build_ngx_pagespeed() {
     NPS_VERSION="DEFAULT"
     NGINX_VERSION=""
     # Current working directory as default build dir
-    #BUILDDIR="$HOME"
-    BUILDDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
+    BUILDDIR="$HOME/lemper_nginx_build"
+    #BUILDDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )/lemper_nginx_build"
     DO_DEPS_CHECK=true
     PSOL_FROM_SOURCE=false
     DEVEL=false
     BUILD_TYPE=""
     ASSUME_YES=false
     DRYRUN=false
-    DYNAMIC_MODULE=false
-    EXTRA_MODULES=false
+    NGINX_DYNAMIC_MODULE=false
+    NGINX_EXTRA_MODULES=false
 
     # Extra Modules
     NGX_BROTLI=true
@@ -390,7 +399,7 @@ function build_ngx_pagespeed() {
                 shift
                 ;;
             -m | --dynamic-module) shift
-                DYNAMIC_MODULE=true
+                NGINX_DYNAMIC_MODULE=true
                 ;;
             -b | --builddir) shift
                 BUILDDIR="$1"
@@ -413,7 +422,7 @@ function build_ngx_pagespeed() {
                 ASSUME_YES="true"
                 ;;
             -x | --extra-modules) shift
-                EXTRA_MODULES=true
+                NGINX_EXTRA_MODULES=true
                 ;;
             -a | --additional-nginx-configure-arguments) shift
                 ADDITIONAL_NGINX_CONFIGURE_ARGUMENTS="$1"
@@ -447,8 +456,7 @@ function build_ngx_pagespeed() {
 
     if "$ALREADY_CHECKED_OUT"; then
         if [ "$NPS_VERSION" != "DEFAULT" ]; then
-            fail \
-"The --ngx-pagespeed-version argument doesn't make sense when running within an existing checkout."
+            fail "The --ngx-pagespeed-version argument doesn't make sense when running within an existing checkout."
         fi
     elif [ "$NPS_VERSION" = "DEFAULT" ]; then
         if "$DEVEL"; then
@@ -459,7 +467,8 @@ function build_ngx_pagespeed() {
     fi
 
     if [ ! -d "$BUILDDIR" ]; then
-        fail "Told to build in $BUILDDIR, but that directory doesn't exist."
+        run mkdir "$BUILDDIR"
+        warning "Told to build in $BUILDDIR, but that directory doesn't exist. Try to create it."
     fi
 
     BUILD_NGINX=false
@@ -471,10 +480,10 @@ function build_ngx_pagespeed() {
         PSOL_FROM_SOURCE=true
         BUILD_NGINX=true
         if [ -n "$NGINX_VERSION" ]; then
-            fail \
-"The --devel argument conflicts with --nginx. In devel mode we use the version of nginx that's included as a submodule."
+            fail "The --devel argument conflicts with --nginx. 
+In devel mode we use the version of nginx that's included as a submodule."
         fi
-        if "$DYNAMIC_MODULE"; then
+        if "$NGINX_DYNAMIC_MODULE"; then
             fail "Can't currently build a dynamic module in --devel mode."
         fi
     fi
@@ -497,7 +506,7 @@ function build_ngx_pagespeed() {
         NGINX_VERSION=$(determine_stable_nginx_version) || exit 1
     fi
 
-    if "$DYNAMIC_MODULE"; then
+    if "$NGINX_DYNAMIC_MODULE"; then
         # Check that ngx_pagespeed and nginx are recent enough to support dynamic
         # modules. Unfortunately NPS_VERSION might be a tag, in which case we don't
         # know. If it's not a numeric version number, then assume it's recent
@@ -512,7 +521,7 @@ function build_ngx_pagespeed() {
 ngx_pagespeed didn't add support for dynamic modules until 1.10.33.5."
         fi
 
-        if [ ! -z "NGINX_VERSION" ]; then
+        if [ -n "${NGINX_VERSION}" ]; then
             if version_older_than "$NGINX_VERSION" "1.9.13"; then
                 fail "You're trying to build nginx $NGINX_VERSION as a dynamic module but nginx didn't
 add support for dynamic modules in a way compatible with ngx_pagespeed until 1.9.13."
@@ -562,6 +571,7 @@ add support for dynamic modules in a way compatible with ngx_pagespeed until 1.9
 
             install_dependencies "yum install ${INSTALL_FLAGS}" redhat_is_installed \
                 gcc-c++ pcre-devel zlib-devel make unzip wget libuuid-devel
+
             if gcc_too_old; then
                 if [ ! -e /opt/rh/devtoolset-2/root/usr/bin/gcc ]; then
                     redhat_major_version=$(
@@ -732,14 +742,14 @@ with --no-deps-check."
         run tar -xzf $(basename "$psol_url") # extracts to psol/
     fi
 
-    if "$DYNAMIC_MODULE"; then
+    if "$NGINX_DYNAMIC_MODULE"; then
         add_nps_module="--add-dynamic-module=$nps_module_dir"
     else
         add_nps_module="--add-module=$nps_module_dir"
     fi
     configure_args=("$add_nps_module" "${extra_flags[@]}")
 
-    if "$EXTRA_MODULES"; then
+    if "$NGINX_EXTRA_MODULES"; then
         echo "Build Nginx with extra modules..."
 
         extra_module_dir="$BUILDDIR/modules"
@@ -764,7 +774,7 @@ with --no-deps-check."
                 git submodule update --init -q && \
                 cd ../
 
-            if "$DYNAMIC_MODULE"; then
+            if "$NGINX_DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_brotli" "${add_extra_modules[@]}")
             else
                 add_extra_modules=("--add-module=$extra_module_dir/ngx_brotli" "${add_extra_modules[@]}")
@@ -778,7 +788,7 @@ with --no-deps-check."
             run git clone -q https://github.com/nginx-modules/ngx_cache_purge.git
             #run git clone -q https://github.com/joglomedia/ngx_cache_purge.git
 
-            if "$DYNAMIC_MODULE"; then
+            if "$NGINX_DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_cache_purge" "${add_extra_modules[@]}")
             else
                 add_extra_modules=("--add-module=$extra_module_dir/ngx_cache_purge" "${add_extra_modules[@]}")
@@ -790,7 +800,7 @@ with --no-deps-check."
             echo "Downloading headers-more-nginx-module..."
             run git clone -q https://github.com/openresty/headers-more-nginx-module.git
 
-            if "$DYNAMIC_MODULE"; then
+            if "$NGINX_DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/headers-more-nginx-module" "${add_extra_modules[@]}")
             else
                 add_extra_modules=("--add-module=$extra_module_dir/headers-more-nginx-module" "${add_extra_modules[@]}")
@@ -831,7 +841,7 @@ with --no-deps-check."
             echo "Downloading ngx_http_geoip2_module..."
             run git clone -q https://github.com/leev/ngx_http_geoip2_module.git
 
-            if "$DYNAMIC_MODULE"; then
+            if "$NGINX_DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_http_geoip2_module" "${add_extra_modules[@]}")
             else
                 add_extra_modules=("--add-module=$extra_module_dir/ngx_http_geoip2_module" "${add_extra_modules[@]}")
@@ -843,7 +853,7 @@ with --no-deps-check."
             echo "Downloading echo-nginx-module..."
             run git clone -q https://github.com/openresty/echo-nginx-module.git
 
-            if "$DYNAMIC_MODULE"; then
+            if "$NGINX_DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/echo-nginx-module" "${add_extra_modules[@]}")
             else
                 add_extra_modules=("--add-module=$extra_module_dir/echo-nginx-module" "${add_extra_modules[@]}")
@@ -855,7 +865,7 @@ with --no-deps-check."
             echo "Downloading ngx_http_auth_pam_module..."
             run git clone -q https://github.com/sto/ngx_http_auth_pam_module.git
 
-            if "$DYNAMIC_MODULE"; then
+            if "$NGINX_DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_http_auth_pam_module" "${add_extra_modules[@]}")
             else
                 add_extra_modules=("--add-module=$extra_module_dir/ngx_http_auth_pam_module" "${add_extra_modules[@]}")
@@ -867,7 +877,7 @@ with --no-deps-check."
             echo "Downloading nginx-dav-ext-module..."
             run git clone -q https://github.com/arut/nginx-dav-ext-module.git
 
-            if "$DYNAMIC_MODULE"; then
+            if "$NGINX_DYNAMIC_MODULE"; then
                 #Dynamic module not supported yet
                 add_extra_modules=("--with-http_dav_module"
                                     "--add-module=$extra_module_dir/nginx-dav-ext-module"
@@ -892,7 +902,7 @@ with --no-deps-check."
             run patch -p1 < ${extra_module_dir}/tengine-patches/nginx-upstream-fair/upstream-fair-upstream-check.patch
             run cd $extra_module_dir
 
-            if "$DYNAMIC_MODULE"; then
+            if "$NGINX_DYNAMIC_MODULE"; then
                 #Dynamic module not supported yet
                 add_extra_modules=("--add-module=$extra_module_dir/nginx-upstream-fair" "${add_extra_modules[@]}")
             else
@@ -905,7 +915,7 @@ with --no-deps-check."
             echo "Downloading ngx_http_substitutions_filter_module..."
             run git clone -q https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git
 
-            if "$DYNAMIC_MODULE"; then
+            if "$NGINX_DYNAMIC_MODULE"; then
                 #Dynamic module not supported yet
                 add_extra_modules=("--add-module=$extra_module_dir/ngx_http_substitutions_filter_module"
                                     "${add_extra_modules[@]}")
@@ -920,7 +930,7 @@ with --no-deps-check."
             echo "Downloading pub/sub nchan module..."
             run git clone -q https://github.com/slact/nchan.git
 
-            if "$DYNAMIC_MODULE"; then
+            if "$NGINX_DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/nchan" "${add_extra_modules[@]}")
             else
                 add_extra_modules=("--add-module=$extra_module_dir/nchan" "${add_extra_modules[@]}")
@@ -932,7 +942,7 @@ with --no-deps-check."
             echo "Downloading Naxsi Web Application Firewall module..."
             run git clone -q https://github.com/nbs-system/naxsi.git
 
-            if "$DYNAMIC_MODULE"; then
+            if "$NGINX_DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/naxsi/naxsi_src" "${add_extra_modules[@]}")
             else
                 add_extra_modules=("--add-module=$extra_module_dir/naxsi/naxsi_src" "${add_extra_modules[@]}")
@@ -944,7 +954,7 @@ with --no-deps-check."
             echo "Downloading ngx-fancyindex module..."
             run git clone -q https://github.com/aperezdc/ngx-fancyindex.git
 
-            if "$DYNAMIC_MODULE"; then
+            if "$NGINX_DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx-fancyindex" "${add_extra_modules[@]}")
             else
                 add_extra_modules=("--add-module=$extra_module_dir/ngx-fancyindex" "${add_extra_modules[@]}")
@@ -956,7 +966,7 @@ with --no-deps-check."
             echo "Downloading nginx-module-vts VHost traffic status module..."
             run git clone -q https://github.com/vozlt/nginx-module-vts.git
 
-            if "$DYNAMIC_MODULE"; then
+            if "$NGINX_DYNAMIC_MODULE"; then
                 add_extra_modules=("--add-dynamic-module=$extra_module_dir/nginx-module-vts" "${add_extra_modules[@]}")
             else
                 add_extra_modules=("--add-module=$extra_module_dir/nginx-module-vts" "${add_extra_modules[@]}")
@@ -969,7 +979,7 @@ with --no-deps-check."
 
     if "$DEVEL"; then
         # Development env
-        if "$DYNAMIC_MODULE"; then
+        if "$NGINX_DYNAMIC_MODULE"; then
             add_modules=("--add-dynamic-module=$submodules_dir/ngx_cache_purge"
                         "--add-dynamic-module=$submodules_dir/ngx_devel_kit"
                         "--add-dynamic-module=$submodules_dir/set-misc-nginx-module"
@@ -982,7 +992,7 @@ with --no-deps-check."
         fi
         configure_args=("${configure_args[@]}"
                         "--prefix=$install_dir/nginx"
-                        "--with-ipv6" #deprecated in version 1.15
+                        #"--with-ipv6"
                         "--with-http_v2_module"
                         "${add_modules[@]}")
         if [ "$BUILD_TYPE" = "Debug" ]; then
@@ -1020,7 +1030,7 @@ with --no-deps-check."
                         "--with-http_sub_module"
                         "--with-http_v2_module"
                         "--with-http_xslt_module=dynamic"
-                        "--with-ipv6" #deprecated in version 1.15
+                        #"--with-ipv6"
                         "--with-mail=dynamic"
                         "--with-mail_ssl_module"
                         "--with-stream=dynamic"
@@ -1042,7 +1052,7 @@ with --no-deps-check."
         echo "  Give ./configure the following arguments:"
         echo "      $(quote_arguments "${configure_args[@]}")"
         echo
-        if [ ${#extra_flags[@]} -eq 0 ]; then
+        if [[ ${#extra_flags[@]} -eq 0 ]]; then
             echo "If this is for integration with an already-built nginx, make sure"
             echo "to include any other arguments you originally passed to"
             echo "./configure. You can see these with 'nginx -V'."
@@ -1053,6 +1063,7 @@ with --no-deps-check."
             echo "those flags set."
         fi
     else
+        # Development env
         if "$DEVEL"; then
             # Use the nginx we loaded as a submodule
             nginx_dir="$submodules_dir/nginx"
@@ -1125,7 +1136,12 @@ with --no-deps-check."
                 run chown -hR www-data:root /var/cache/nginx
             fi
 
-            if "$DYNAMIC_MODULE"; then
+            # Cleanup build dir
+            if [ -d "$BUILDDIR" ]; then
+                run rm -fr "$BUILDDIR"
+            fi
+
+            if "$NGINX_DYNAMIC_MODULE"; then
                 echo "Nginx installed with ngx_pagespeed support available as a"
                 echo "loadable module."
                 echo

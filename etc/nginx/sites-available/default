@@ -12,30 +12,30 @@
 ##
 
 server {
-	listen 80 default_server;
-	listen [::]:80 default_server;
+    listen 80 default_server;
+    listen [::]:80 default_server;
 
-	# Make site accessible from http://localhost/
-	server_name localhost.localdomain;
+    # Make site accessible from http://localhost.localdomain/
+    server_name localhost.localdomain;
 
-	root /usr/share/nginx/html;
-	index index.php index.html index.htm;
+    root /usr/share/nginx/html;
+    index index.php index.html index.htm;
 
-	# Log Settings.
-	access_log /var/log/nginx/localhost.access.log;
-	error_log /var/log/nginx/localhost.error.log;
+    # Log Settings.
+    access_log /var/log/nginx/localhost.access.log;
+    error_log /var/log/nginx/localhost.error.log;
 
-	location / {
-		# First attempt to serve request as file, then
-		# as directory, then fall back to index.html
-		try_files $uri $uri/ /index.html;
+    location / {
+        # First attempt to serve request as file, then
+        # as directory, then fall back to index.html
+        try_files $uri $uri/ /index.html;
 
-		# Uncomment to enable naxsi on this location
-		#include /etc/nginx/naxsi.rules
+        # Uncomment to enable naxsi on this location
+        #include /etc/nginx/naxsi.rules;
 
-		# Uncomment to enable auto index
-		autoindex on;
-	}
+        # Uncomment to enable auto index
+        autoindex off;
+    }
 
     # PHP-FPM status monitoring
     location ~ ^/(status|ping)$ {
@@ -50,80 +50,101 @@ server {
     }
 
     # Default PHP set to 7.3
-	location ~ \.php$ {
+    location ~ \.php$ {
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_pass unix:/run/php/php7.3-fpm.sock;
-		fastcgi_index index.php;
-
-		include /etc/nginx/fastcgi_params;
-	}
-
-    location ~ \.php56$ {
-        fastcgi_split_path_info ^(.+\.php56)(/.+)$;
-        fastcgi_pass unix:/run/php/php5.6-fpm.sock;
         fastcgi_index index.php;
-
         include /etc/nginx/fastcgi_params;
     }
 
-    location ~ \.php70$ {
-        fastcgi_split_path_info ^(.+\.php70)(/.+)$;
-        fastcgi_pass unix:/run/php/php7.0-fpm.sock;
+    location ~ \.php73$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
         fastcgi_index index.php;
-
-        include /etc/nginx/fastcgi_params;
-    }
-
-    location ~ \.php71$ {
-        fastcgi_split_path_info ^(.+\.php71)(/.+)$;
-        fastcgi_pass unix:/run/php/php7.1-fpm.sock;
-        fastcgi_index index.php;
-
         include /etc/nginx/fastcgi_params;
     }
 
     location ~ \.php72$ {
-        fastcgi_split_path_info ^(.+\.php72)(/.+)$;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_pass unix:/run/php/php7.2-fpm.sock;
         fastcgi_index index.php;
-
         include /etc/nginx/fastcgi_params;
     }
 
-	# Deny access to .htaccess files, if Apache's document root
-	# concurs with Nginx's one
-	#
-	location ~ /\.ht {
-		deny all;
-	}
+    location ~ \.php71$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass unix:/run/php/php7.1-fpm.sock;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+    }
+
+    location ~ \.php70$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass unix:/run/php/php7.0-fpm.sock;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+    }
+
+    location ~ \.php56$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass unix:/run/php/php5.6-fpm.sock;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+    }
+
+    # Deny access to lcp directory.
+    location ~ ^/lcp {
+        deny all;
+    }
+
+    # Deny access to .htaccess files, if Apache's document root
+    # concurs with Nginx's one
+    #
+    location ~ /\.ht {
+        deny all;
+    }
 }
 
-## Database Administration
+## LEMPer Web-based Administration
 server {
-	listen 8082;
-	listen [::]:8082;
+    listen 8082;
+    listen [::]:8082;
 
-	# Make site accessible from http://localhost.localdomain/
-	server_name localhost.localdomain;
+    # Make site accessible from http://localhost.localdomain:8082/
+    server_name localhost.localdomain;
 
-	root /usr/share/nginx/html/tools/adminer;
-	index index.php index.html index.htm;
+    root /usr/share/nginx/html;
+    index index.php index.html index.htm;
 
-	# Log Settings.
-	access_log /var/log/nginx/localhost.access.log;
-	error_log /var/log/nginx/localhost.error.log;
+    # Log Settings.
+    access_log /var/log/nginx/localhost.access.log;
+    error_log /var/log/nginx/localhost.error.log;
 
-	location / {
-		# First attempt to serve request as file, then
-		# as directory, then fall back to index.html
-		try_files $uri $uri/ /index.html;
+    location / {
+        # First attempt to serve request as file, then
+        # as directory, then fall back to index.html
+        try_files $uri $uri/ /index.html;
 
-		# Uncomment to enable naxsi on this location
-		#include /etc/nginx/naxsi.rules
+        # Uncomment to enable naxsi on this location
+        #include /etc/nginx/naxsi.rules;
 
-		# Uncomment to enable auto index
-		autoindex off;
-	}
+        # Uncomment to enable auto index
+        autoindex off;
+    }
+
+    location ~ ^/dbadminer {
+        #root /usr/share/nginx/html/lcp/dbadminer;
+        try_files $uri $uri/ /index.php?$args;
+        #include /etc/nginx/naxsi.rules;
+        autoindex off;
+    }
+
+    location ~ ^/filemanager {
+        #root /usr/share/nginx/html/lcp/filemanager;
+        try_files $uri $uri/ /index.php?$args;
+        #include /etc/nginx/naxsi.rules;
+        autoindex off;
+    }
 
     # Pass the PHP scripts to FastCGI server listening on Unix socket.
     #
@@ -142,86 +163,34 @@ server {
         fastcgi_pass unix:/run/php/php7.3-fpm.sock;
     }
 
-	# Deny access to .htaccess files, if Apache's document root
-	# concurs with Nginx's one
-	#
-	location ~ /\.ht {
-		deny all;
-	}
-}
-
-## File Administration
-server {
-	listen 8083;
-	listen [::]:8083;
-
-	# Make site accessible from http://localhost.localdomain/
-	server_name localhost.localdomain;
-
-	root /usr/share/nginx/html/tools/filerun;
-	index index.php index.html index.htm;
-
-	# Log Settings.
-	access_log /var/log/nginx/localhost.access.log;
-	error_log /var/log/nginx/localhost.error.log;
-
-	location / {
-		# First attempt to serve request as file, then
-		# as directory, then fall back to index.html
-		try_files $uri $uri/ /index.html;
-
-		# Uncomment to enable naxsi on this location
-		#include /etc/nginx/naxsi.rules
-
-		# Uncomment to enable auto index
-		autoindex off;
-	}
-
-    # Pass the PHP scripts to FastCGI server listening on Unix socket.
+    # Deny access to .htaccess files, if Apache's document root
+    # concurs with Nginx's one
     #
-    location ~ \.php$ {
-        try_files $uri =404;
-
-        fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_index index.php;
-
-        include /etc/nginx/fastcgi_params;
-        include /etc/nginx/includes/fastcgi.conf;
-
-        # Uncomment to Enable PHP FastCGI cache.
-        #include /etc/nginx/includes/fastcgi_cache.conf;
-
-        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
-    }
-
-	# Deny access to .htaccess files, if Apache's document root
-	# concurs with Nginx's one
-	#
-	location ~ /\.ht {
-		deny all;
+    location ~ /\.ht {
+        deny all;
     }
 }
 
 # HTTPS server
 #
 #server {
-#	listen 443 ssl http2;
-#	server_name localhost;
+#    listen 443 ssl http2;
+#    server_name localhost;
 #
-#	root html;
-#	index index.html index.htm;
+#    root html;
+#    index index.html index.htm;
 #
-#	ssl on;
-#	ssl_certificate cert.pem;
-#	ssl_certificate_key cert.key;
+#    ssl on;
+#    ssl_certificate cert.pem;
+#    ssl_certificate_key cert.key;
 #
-#	ssl_session_timeout 5m;
+#    ssl_session_timeout 5m;
 #
-#	ssl_protocols SSLv3 TLSv1;
-#	ssl_ciphers ALL:!ADH:!EXPORT56:RC4+RSA:+HIGH:+MEDIUM:+LOW:+SSLv3:+EXP;
-#	ssl_prefer_server_ciphers on;
+#    ssl_protocols SSLv3 TLSv1;
+#    ssl_ciphers ALL:!ADH:!EXPORT56:RC4+RSA:+HIGH:+MEDIUM:+LOW:+SSLv3:+EXP;
+#    ssl_prefer_server_ciphers on;
 #
-#	location / {
-#		try_files $uri $uri/ /index.html;
-#	}
+#    location / {
+#        try_files $uri $uri/ /index.html;
+#    }
 #}

@@ -6,43 +6,23 @@
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
-set -e
-unset GREP_OPTIONS LEMPHOMEDIR CURRENTTRAP
-
 # Export environment variables.
-if [ -f .env ]; then
-    export $(grep -v '^#' .env | grep -v '^\[' | xargs)
-    #unset $(grep -v '^#' ../.env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+if [ -f ".env" ]; then
+    # shellcheck source=.env
+    # shellcheck disable=SC1094
+    source <(grep -v '^#' .env | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
 else
     echo "Environment variables required, but not found."
-    exit 0
+    exit 1
 fi
 
-export IFS="$(printf "\n\b")"
+# Direct access? make as dryrun mode.
+DRYRUN=${DRYRUN:-true}
 
-# Make sure only root can run this installer script.
-function requires_root() {
-    if [ "$(/usr/bin/id -u)" -ne 0 ]; then
-        error "This command can only be used by root."
-        exit 1
-    fi
-}
-
-function command_available() {
-    if [ -x "$1" ]; then return 0; fi
-    # command -v "$1" >/dev/null 2>&1 # not required by policy, see #747320
-    # which "$1" >/dev/null 2>&1 # is in debianutils (essential) but not on non-debian systems
-    local OLDIFS="$IFS"
-    IFS=:
-    for p in $PATH; do
-    	if [ -x "${p}/${1}" ]; then
-            IFS="$OLDIFS"
-            return 0
-    	fi
-    done
-    IFS="$OLDIFS"
-    return 1
-}
+# Set default color decorator.
+RED=${RED:-31}
+GREEN=${GREEN:-32}
+YELLOW=${YELLOW:-33}
 
 function begin_color() {
     color="$1"
@@ -103,6 +83,58 @@ function run() {
     fi
 }
 
+function redhat_is_installed() {
+    local package_name="$1"
+    rpm -qa "$package_name" | grep -q .
+}
+
+function debian_is_installed() {
+    local package_name="$1"
+    dpkg -l "$package_name" | grep ^ii | grep -q .
+}
+
+# Usage:
+# install_dependencies install_pkg_cmd is_pkg_installed_cmd dep1 dep2 ...
+#
+# install_pkg_cmd is a command to install a dependency
+# is_pkg_installed_cmd is a command that returns true if the dependency is
+# already installed
+# each dependency is a package name
+function install_dependencies() {
+    local install_pkg_cmd="$1"
+    local is_pkg_installed_cmd="$2"
+    shift 2
+
+    local missing_dependencies=""
+
+    for package_name in "$@"; do
+        if ! "$is_pkg_installed_cmd" "$package_name"; then
+            missing_dependencies+="$package_name "
+        fi
+    done
+    if [ -n "$missing_dependencies" ]; then
+        status "Detected that we're missing the following depencencies:"
+        echo " $missing_dependencies"
+        status "Installing them:"
+        run sudo "$install_pkg_cmd" "$missing_dependencies"
+    fi
+}
+
+function gcc_too_old() {
+    # We need gcc >= 4.8
+    local gcc_major_version && \
+    gcc_major_version=$(gcc -dumpversion | awk -F. '{print $1}')
+    if [ "$gcc_major_version" -lt 4 ]; then
+        return 0 # too old
+    elif [ "$gcc_major_version" -gt 4 ]; then
+        return 1 # plenty new
+    fi
+    # It's gcc 4.x, check if x >= 8:
+    local gcc_minor_version && \
+    gcc_minor_version=$(gcc -dumpversion | awk -F. '{print $2}')
+    test "$gcc_minor_version" -lt 8
+}
+
 function continue_or_exit() {
     local prompt="$1"
     echo_color "$YELLOW" -n "$prompt"
@@ -111,6 +143,148 @@ function continue_or_exit() {
         echo "Cancelled."
         exit 0
     fi
+}
+
+# If a string is very simple we don't need to quote it.    But we should quote
+# everything else to be safe.
+function needs_quoting() {
+    echo "$@" | grep -q '[^a-zA-Z0-9./_=-]'
+}
+
+function escape_for_quotes() {
+    echo "$@" | sed -e 's~\\~\\\\~g' -e "s~'~\\\\'~g"
+}
+
+function quote_arguments() {
+    local argument_str=""
+    for argument in "$@"; do
+        if [ -n "$argument_str" ]; then
+            argument_str+=" "
+        fi
+        if needs_quoting "$argument"; then
+            argument="'$(escape_for_quotes "$argument")'"
+        fi
+        argument_str+="$argument"
+    done
+    echo "$argument_str"
+}
+
+function version_sort() {
+    # We'd rather use sort -V, but that's not available on Centos 5.    This works
+    # for versions in the form A.B.C.D or shorter, which is enough for our use.
+    sort -t '.' -k 1,1 -k 2,2 -k 3,3 -k 4,4 -g
+}
+
+# Compare two numeric versions in the form "A.B.C".    Works with version numbers
+# having up to four components, since that's enough to handle both nginx (3) and
+# ngx_pagespeed (4).
+function version_older_than() {
+    local test_version && \
+    test_version=$(echo "$@" | tr ' ' '\n' | version_sort | head -n 1)
+    local compare_to="$2"
+    local older_version="${test_version}"
+
+    test "$older_version" != "$compare_to"
+}
+
+function nginx_download_report_error() {
+    fail "Couldn't automatically determine the latest nginx version: failed to $* Nginx's download page"
+}
+
+function get_nginx_versions_available() {
+    # Scrape nginx's download page to try to find the all available nginx versions.
+    nginx_download_url="https://nginx.org/en/download.html"
+
+    local nginx_download_page
+    nginx_download_page=$(curl -sS --fail "$nginx_download_url") || \
+        nginx_download_report_error "download"
+
+    local download_refs
+    download_refs=$(echo "$nginx_download_page" | \
+        grep -owE '"/download/nginx-[0-9.]*\.tar\.gz"') || \
+        nginx_download_report_error "parse"
+
+    versions_available=$(echo "$download_refs" | \
+        sed -e 's~^"/download/nginx-~~' -e 's~\.tar\.gz"$~~') || \
+        nginx_download_report_error "extract versions from"
+
+    echo "$versions_available"
+}
+
+# Try to find the most recent nginx version (mainline).
+function determine_latest_nginx_version() {
+    local versions_available
+    local latest_version
+
+    versions_available=$(get_nginx_versions_available)
+    latest_version=$(echo "$versions_available" | version_sort | tail -n 1) || \
+        report_error "determine latest (mainline) version from"
+
+    if version_older_than "$latest_version" "1.14.2"; then
+        fail "Expected the latest version of nginx to be at least 1.14.2 but found
+$latest_version on $nginx_download_url"
+    fi
+
+    echo "$latest_version"
+}
+
+# Try to find the stable nginx version (mainline).
+function determine_stable_nginx_version() {
+    local versions_available
+    local stable_version
+
+    versions_available=$(get_nginx_versions_available)
+    stable_version=$(echo "$versions_available" | version_sort | tail -n 2 | sort -r | tail -n 1) || \
+        report_error "determine stable (LTS) version from"
+
+    if version_older_than "1.14.2" "$latest_version"; then
+        fail "Expected the latest version of nginx to be at least 1.14.2 but found
+$latest_version on $nginx_download_url"
+    fi
+
+    echo "$stable_version"
+}
+
+# Validate Nginx configuration.
+function validate_nginx_config() {
+    if nginx -t 2>/dev/null > /dev/null; then
+        return 1
+    else
+        return 0
+    fi
+}
+
+# Make sure only root can run LEMPer script.
+function requires_root() {
+    if [ "$(id -u)" -ne 0 ]; then
+        error "This command can only be used by root."
+        exit 1
+    fi
+}
+
+function get_distrib_name() {
+    if [ -f "/etc/os-release" ]; then
+        # Export os-release vars.
+        . /etc/os-release
+
+        # Export lsb-release vars.
+        if [ -f /etc/lsb-release ]; then
+            . /etc/lsb-release
+        fi
+
+        if [[ "${ID_LIKE}" == "ubuntu" ]]; then
+            DISTRIB_NAME="ubuntu"
+        else
+            DISTRIB_NAME=${ID:-}
+        fi
+    elif [ -e /etc/system-release ]; then
+    	DISTRIB_NAME="unsupported"
+    else
+        # Red Hat /etc/redhat-release
+    	DISTRIB_NAME="unsupported"
+    fi
+
+    echo "${DISTRIB_NAME}"
 }
 
 # Get general distribution release name.
@@ -125,12 +299,12 @@ function get_release_name() {
         fi
 
         if [[ "${ID_LIKE}" == "ubuntu" ]]; then
-            DISTRO="ubuntu"
+            DISTRIB_NAME="ubuntu"
         else
-            DISTRO=${ID:-}
+            DISTRIB_NAME=${ID:-}
         fi
 
-        case $DISTRO in
+        case ${DISTRIB_NAME} in
             debian)
                 #RELEASE_NAME=${VERSION_CODENAME:-}
                 RELEASE_NAME="unsupported"
@@ -143,7 +317,7 @@ function get_release_name() {
                 DISTRO_VERSION=${VERSION_ID:-$DISTRIB_RELEASE}
                 MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print $1}')
                 if [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]]; then
-                    DISTRIB_RELEASE="LM${MAJOR_RELEASE_NUMBER}"
+                    DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
                 fi
 
                 if [[ "${DISTRIB_RELEASE}" == "14.04" || "${DISTRIB_RELEASE}" == "LM17" ]]; then
@@ -294,7 +468,7 @@ function create_account() {
             echo "
 Your default system account information:
 Username: ${USERNAME} | Password: ${PASSWORD}
-" >> lemper.log 2>&1
+"
 
             status "Username ${USERNAME} created."
         fi
@@ -307,7 +481,7 @@ Username: ${USERNAME} | Password: ${PASSWORD}
 function delete_account() {
     local USERNAME=${1:-"lemper"}
 
-    if [[ ! -z $(getent passwd "${USERNAME}") ]]; then
+    if [[ -n $(getent passwd "${USERNAME}") ]]; then
         run userdel -r "${USERNAME}"
         status "Default LEMPer account deleted."
     else
@@ -329,33 +503,6 @@ function get_ip_addr() {
     fi
 }
 
-function version_sort() {
-    # We'd rather use sort -V, but that's not available on Centos 5.    This works
-    # for versions in the form A.B.C.D or shorter, which is enough for our use.
-    sort -t '.' -k 1,1 -k 2,2 -k 3,3 -k 4,4 -g
-}
-
-# Compare two numeric versions in the form "A.B.C".    Works with version numbers
-# having up to four components, since that's enough to handle both nginx (3) and
-# ngx_pagespeed (4).
-function version_older_than() {
-    local test_version && \
-    test_version=$(echo "$@" | tr ' ' '\n' | version_sort | head -n 1)
-    local compare_to="$2"
-    local older_version="${test_version}"
-
-    test "$older_version" != "$compare_to"
-}
-
-# Validate Nginx configuration.
-function validate_nginx_config() {
-    if nginx -t 2>/dev/null > /dev/null; then
-        return 1
-    else
-        return 0
-    fi
-}
-
 # Init logging.
 function init_log() {
     touch lemper.log
@@ -367,7 +514,7 @@ function header_msg() {
     clear
     cat <<- _EOF_
 #==========================================================================#
-#        LEMPer v1.0.0 for Ubuntu-based server, Written by ESLabs.ID       #
+#        LEMPer v1.2.0 for Ubuntu-based server, Written by ESLabs.ID       #
 #==========================================================================#
 #      A small tool to install Nginx + MariaDB (MySQL) + PHP on Linux      #
 #                                                                          #
@@ -379,8 +526,9 @@ _EOF_
 # Footer credit message.
 function footer_msg() {
     cat <<- _EOF_
+
 #==========================================================================#
-#         Thank's for installing LNMP stack using LEMPer Installer         #
+#         Thank's for installing LEMP stack using LEMPer Installer         #
 #        Found any bugs / errors / suggestions? please let me know         #
 #    If this script useful, don't forget to buy me a coffee or milk :D     #
 #   My PayPal is always open for donation, here https://paypal.me/masedi   #

@@ -1,18 +1,38 @@
 language: bash
+os: linux
+dist: bionic
+sudo: required
+
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y -qq shellcheck
 
 before_script:
-    - curl -L "https://github.com/kward/shunit2/archive/v2.1.7.tar.gz" | tar zx
+  - "sudo curl -s -o /usr/local/bin/shunit2 https://raw.githubusercontent.com/kward/shunit2/master/shunit2"
+  - "sudo chmod a+x /usr/local/bin/shunit2"
 
-script:
-    - ./test_runner
+env:
+  - SHUNIT_COLOR='always'
+
+#script:
+  # Run the source through ShellCheck (http://www.shellcheck.net).
+#  - shellcheck -s bash -x scripts/helper.sh
+#  - shellcheck -s bash scripts/install_*.sh
+#  - shellcheck -s bash -x lemper.sh
+#  - shellcheck -s bash -x bin/lemper-cli.sh
+  # Run the source through ShUnit2
+#  - bash shunit2/run_test.sh
 
 matrix:
-    include:
-        - os: linux
-            script:
-                # Run the source through ShellCheck (http://www.shellcheck.net).
-                - shellcheck -s bash -x scripts/helper.sh
-                - shellcheck -s bash -x lemper.sh
-                - shellcheck -s bash -x bin/lemper-cli.sh
-        - os: linux
-            dist: xenial
+  include:
+    - os: linux
+      dist: bionic
+      script:
+        # Run the source through ShellCheck (http://www.shellcheck.net).
+        - shellcheck -s bash -x scripts/helper.sh
+        - #shellcheck -s bash scripts/install_*.sh
+        - shellcheck -s bash -x lemper.sh
+        - shellcheck -s bash bin/lemper-cli.sh
+        - shellcheck -s bash lib/lemper-*.sh
+        # Run the source through ShUnit2
+        - bash shunit2/run_test.sh

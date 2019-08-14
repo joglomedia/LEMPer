@@ -2,7 +2,7 @@
 LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Debian-based/Ubuntu LEMP stack. LEMPer is _ServerPilot_, _CloudWays_, _RunCloud_, and _EasyEngine_ alternative for wide range PHP framework.
 
 
-[![Build Status](https://travis-ci.org/joglomedia/LEMPer.svg?branch=master)](https://travis-ci.org/joglomedia/LEMPer)
+[![Build Status](https://travis-ci.org/joglomedia/LEMPer.svg?branch=1.2.0-dev)](https://travis-ci.org/joglomedia/LEMPer)
 
 
 ## Features
@@ -18,7 +18,6 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * Zend OPcache.
 * ionCube PHP Loader.
 * SourceGuardian PHP Loader.
-* ZendGuard PHP Loader.
 * [Adminer](https://www.adminer.org/) for MySQL database administration (PhpMyAdmin replacement).
 
 ## Usage
@@ -31,51 +30,51 @@ git clone -q https://github.com/joglomedia/LEMPer.git; cd LEMPer; sudo ./lemper.
 
 ### Uninstall Nginx, PHP &amp; MariaDB
 ```bash
-sudo ./lemper.sh --uninstall
+sudo ./lemper.sh --remove
 ```
 
 ## LEMPer Command Line Administration Tool
-LEMPer comes with two handy command line tools which will make your LEMP stack administration more easier. These two command line tools are lempervh for adding new virtual host and lempercp for managing existing virtual host.
+LEMPer comes with friendly command line tool which will make your LEMP stack administration much more easier. These command line tool called Lemper CLI (lemper-cli) for creating new virtual host and managing existing LEMP stack.
 
-### lempervh Usage
+### lemper-cli Usage
+Add/create new virtual host
 ```bash
-sudo lempervh -u username -d example.com -f default -w /home/username/Webs/example.com
-```
-Lempervh Parameters:
-
-* -u username, system user name (DO NOT use root login)
-* -d domain name, your website domain or sub-domain name
-* -f framework type, available options: default, codeigniter, laravel, phalcon, wordpress, wordpress-ms (multisite)
-* -w web root, absolute path to your website directory containing the index file (we recommend you to use user home directory)
-
-for more info
-```bash
-sudo lempervh --help
+sudo lemper-cli create -u username -d example.app -f default -w /home/username/Webs/example.app
 ```
 
-Note: Lempervh will automagically add new PHP-FPM user's pool configuration if it doesn't exists.
+Manage/update existing virtual host
+```bash
+sudo lemper-cli manage --enable-fastcgi-cache example.app
+```
+
+for more help
+```bash
+sudo lemper-cli --help
+```
+
+Note: Lemper CLI will automagically add new PHP-FPM user's pool configuration if it doesn't exists.
 
 ## Web-based Administration
 You can access pre-installed web-based administration tools here
 ```bash
-http://YOUR_IP_ADDRESS/tools/
+http://YOUR_IP_ADDRESS:8082/lcp/
 ```
 Adminer (SQL database management tool)
 ```bash
-http://YOUR_DOMAIN_NAME:8082/
+http://YOUR_DOMAIN_NAME:8082/lcp/dbadminer
 ```
 FileRun (File management tool)
 ```bash
-http://YOUR_DOMAIN_NAME:8083/
+http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
 ```
 
 ## TODO
 * ~~Custom build latest [Nginx](https://nginx.org/en/) from source~~
 * Add [Let's Encrypt SSL](https://letsencrypt.org/)
-* Add network security (iptable rules, firewall configurator, else?)
+* ~~Add network security (iptable rules, firewall configurator, else?)~~
 * Add enhanced security (AppArmor, cgroups, jailkit (chrooted/jail users), else?)
 * Add file backup tool (Restic, Borg, Rsnapshot, else?)
-* Add database backup tool (Mariabackup, Percona Xtrabackup, else?)
+* ~~Add database backup tool (Mariabackup, Percona Xtrabackup, else?)~~
 * Add server monitoring (Amplify, Monit, Nagios, else?)
 * Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new).
 

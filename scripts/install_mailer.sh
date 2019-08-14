@@ -9,18 +9,13 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    . ${BASEDIR}/helper.sh
+    # shellchechk source=scripts/helper.sh
+    # shellcheck disable=SC1090
+    . "${BASEDIR}/helper.sh"
 fi
 
-# Make sure only root can run this installer script
-if [ "$(id -u)" -ne 0 ]; then
-    error "You need to be root to run this script"
-    exit 1
-fi
-
-echo ""
-echo "Welcome to Mailer installation script"
-echo ""
+# Make sure only root can run this installer script.
+requires_root
 
 # Install Postfix mail server
 function install_postfix() {
@@ -53,8 +48,13 @@ function install_postfix() {
 ## TODO: Add Dovecot
 # https://www.linode.com/docs/email/postfix/email-with-postfix-dovecot-and-mysql/
 
-## Main
-if [[ -n $(which postfix) ]]; then
+
+echo "[Welcome to Mail Installer]"
+echo ""
+
+# Start running things from a call at the end so if this script is executed
+# after a partial download it doesn't do anything.
+if [[ -n $(command -v postfix) ]]; then
     warning "Postfix already exists. Installation skipped..."
 else
     install_postfix "$@"

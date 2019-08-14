@@ -9,27 +9,25 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+    # shellchechk source=scripts/helper.sh
+    # shellcheck disable=SC1090
     . "${BASEDIR}/helper.sh"
 fi
 
-# Make sure only root can run this installer script
-if [ "$(id -u)" -ne 0 ]; then
-    error "You need to be root to run this script"
-    exit 1
-fi
+# Make sure only root can run this installer script.
+requires_root
 
 # Securing SSH server.
 function securing_ssh() {
-    PASSWORDLESS=${PASSWORDLESS:-true}
-
-    if "${PASSWORDLESS}"; then
+    #SSH_PASSWORDLESS=${SSH_PASSWORDLESS:-true}
+    if "${SSH_PASSWORDLESS}"; then
         echo "
 Before starting, let's create a pair of keys that some hosts ask for during installation of the server.
 
 On your local machine, open new terminal and create an SSH key pair using the ssh-keygen tool,
 use the following command:
 
-ssh-keygen -t rsa -b 4096
+ssh-keygen -t rsa -b ${HASH_LENGTH}
 
 After this step, you will have the following files: id_rsa and id_rsa.pub (private and public keys).
 Never share your private key.
@@ -40,13 +38,11 @@ Never share your private key.
 
         RSA_PUB_KEY=${RSA_PUB_KEY:-n}
         while ! [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; do
-            #echo -n "Open your public key (id_rsa.pub) file, copy paste the key here: "
-            #read RSA_PUB_KEY
             echo "Open your public key (id_rsa.pub) file,"
             read -rp "copy paste the key here: " -e RSA_PUB_KEY
         done
 
-        # Grand default account access to SSH with key.
+        # Grand access to SSH with key.
         if [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; then
             echo -e "\nSecuring your SSH server with public key..."
 
@@ -73,12 +69,15 @@ EOL
             run chmod 700 /home/lemper/.ssh
             run chmod 600 /home/lemper/.ssh/authorized_keys
 
-            echo "Enable passwordless login."
+            echo "Enable SSH_PASSWORDLESS login..."
             # Restrict root login directly, use sudo user instead.
-            if grep -qwE "^PermitRootLogin\ [a-z]*" /etc/ssh/sshd_config; then
-                run sed -i "s/^PermitRootLogin\ [a-z]*/PermitRootLogin\ no/g" /etc/ssh/sshd_config
-            else
-                run sed -i "/^#PermitRootLogin/a PermitRootLogin\ no" /etc/ssh/sshd_config
+            SSH_ROOT_LOGIN=${SSH_ROOT_LOGIN:-false}
+            if ! ${SSH_ROOT_LOGIN}; then
+                if grep -qwE "^PermitRootLogin\ [a-z]*" /etc/ssh/sshd_config; then
+                    run sed -i "s/^PermitRootLogin\ [a-z]*/PermitRootLogin\ no/g" /etc/ssh/sshd_config
+                else
+                    run sed -i "/^#PermitRootLogin/a PermitRootLogin\ no" /etc/ssh/sshd_config
+                fi
             fi
 
             # Disable password authentication for password-less login using key.
@@ -103,7 +102,7 @@ EOL
     fi
 
     # Securing the SSH server.
-    echo -e "\nSecuring your SSH server with custom port..."
+    echo "Securing your SSH server with custom port..."
     SSH_PORT=${SSH_PORT:-n}
     while ! [[ ${SSH_PORT} =~ ^[0-9]+$ ]]; do
         read -rp "SSH Port (LEMPer default SSH port sets to 2269): " -i 2269 -e SSH_PORT
@@ -131,17 +130,12 @@ function install_ufw() {
 
     echo -e "\nInstalling Uncomplicated Firewall (UFW)...\n"
 
-    warning -e "You should not run any other iptables firewall configuration script.
-Any other iptables based firewall will be removed otherwise they will conflict.\n"
-
-    sleep 1
-
-    if [[ -n $(which apf) ]]; then
+    if [[ -n $(command -v apf) ]]; then
         # Remove APF+BFD if exists.
-        remove_ufw
+        remove_apf
     fi
 
-    if [[ -n $(which csf) ]]; then
+    if [[ -n $(command -v csf) ]]; then
         # Remove CSF+LFD if exists.
         remove_csf
     fi
@@ -149,7 +143,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
     # Install UFW
     run apt-get install -y ufw
 
-    if [[ -n $(which ufw) ]]; then
+    if [[ -n $(command -v ufw) ]]; then
         echo "Configuring UFW firewall rules..."
 
         # Close all incoming ports.
@@ -212,17 +206,12 @@ function install_csf() {
 
     echo -e "\nInstalling CSF+LFD firewall...\n"
 
-    warning -e "You should not run any other iptables firewall configuration script.
-Any other iptables based firewall will be removed otherwise they will conflict.\n"
-
-    sleep 1
-
-    if [[ -n $(which ufw) ]]; then
+    if [[ -n $(command -v ufw) ]]; then
         # Remove default Ubuntu firewall (UFW) if exists.
         remove_ufw
     fi
 
-    if [[ -n $(which apf) ]]; then
+    if [[ -n $(command -v apf) ]]; then
         # Remove APF+BFD if exists.
         remove_apf
     fi
@@ -230,7 +219,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
     # Install requirements.
     echo "Installing requirement packages..."
 
-    if [[ -n $(which cpan) ]]; then
+    if [[ -n $(command -v cpan) ]]; then
         run cpan -i "LWP LWP::Protocol::https GD::Graph IO::Socket::INET6"
     else
         run apt-get -y install libwww-perl liblwp-protocol-https-perl \
@@ -259,7 +248,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
         run sed -i "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT}\"/g" /etc/csf/csf.conf
 
         # IPv6 support (requires ip6tables).
-        if [[ -n $(which ip6tables) ]]; then
+        if [[ -n $(command -v ip6tables) ]]; then
             ip6tables_version=$(ip6tables --version | grep 'v' | cut -d'v' -f2)
             if ! version_older_than "${ip6tables_version}" "1.4.3"; then
                 echo "Configuring CSF+LFD for IPv6..."
@@ -284,7 +273,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
     if "${DRYRUN}"; then
         echo "CSF+LFD firewall installed in dryrun mode."
     else
-        if [[ -n $(which csf) && -n $(which lfd) ]]; then
+        if [[ -n $(command -v csf) && -n $(command -v lfd) ]]; then
             if service csf restart; then
                 status "CSF firewall installed successfully. Starting now..."
             else
@@ -309,17 +298,12 @@ function install_apf() {
 
     echo -e "\nInstalling APF+BFD iptables firewall...\n"
 
-    warning -e "You should not run any other iptables firewall configuration script.
-Any other iptables based firewall will be removed otherwise they will conflict.\n"
-
-    sleep 1
-
-    if [[ -n $(which ufw) ]]; then
+    if [[ -n $(command -v ufw) ]]; then
         # Remove default Ubuntu firewall (UFW) if exists.
         remove_ufw
     fi
 
-    if [[ -n $(which csf) ]]; then
+    if [[ -n $(command -v csf) ]]; then
         # Remove CSF+LFD if exists.
         remove_csf
     fi
@@ -339,7 +323,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
         run sed -i "s/^DEVEL_MODE=\"1\"/DEVEL_MODE=\"0\"/g" /etc/apf/conf.apf
 
         # Get ethernet interface.
-        IFACE=${IFACE:-$(find /sys/class/net -type l | grep enp | cut -d'/' -f5)}
+        IFACE=${IFACE:-$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)}
 
         # Set ethernet interface to monitor.
         run sed -i "s/^IFACE_UNTRUSTED=\"[0-9a-zA-Z]*\"/IFACE_UNTRUSTED=\"${IFACE}\"/g" /etc/apf/conf.apf
@@ -354,7 +338,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
     if "${DRYRUN}"; then
         echo "APF+BFD firewall installed in dryrun mode."
     else
-        if [[ -n $(which apf) ]]; then
+        if [[ -n $(command -v apf) ]]; then
             if service apf restart; then
                 status "APF firewall installed successfully. Starting now..."
             else
@@ -367,7 +351,7 @@ Any other iptables based firewall will be removed otherwise they will conflict.\
 }
 
 function remove_ufw() {
-    if [[ -n $(which ufw) ]]; then
+    if [[ -n $(command -v ufw) ]]; then
         echo "Found UFW iptables firewall, trying to remove it..."
 
         run service ufw stop
@@ -380,7 +364,7 @@ function remove_ufw() {
 }
 
 function remove_csf() {
-    if [[ -n $(which csf) || -f /usr/lib/systemd/system/csf.service ]]; then
+    if [[ -n $(command -v csf) || -f /usr/lib/systemd/system/csf.service ]]; then
         echo "Found CSF+LFD iptables firewall, trying to remove it..."
 
         if [[ -f /etc/csf/uninstall.sh ]]; then
@@ -390,7 +374,7 @@ function remove_csf() {
 }
 
 function remove_apf() {
-    if [[ -n $(which apf) && -f /etc/apf/conf.apf ]]; then
+    if [[ -n $(command -v apf) && -f /etc/apf/conf.apf ]]; then
         echo "Found APF+BFD iptables firewall, trying to remove it..."
 
         run service apf stop
@@ -409,19 +393,26 @@ function remove_apf() {
 # Install Firewall.
 function install_firewall() {
     echo ""
-    INSTALL_FW=${INSTALL_FW:-n}
-    while [[ ${INSTALL_FW} != "y" && ${INSTALL_FW} != "n" && ${INSTALL_FW} != true ]]; do
-        read -rp "Do you want to install Firewall? [y/n]: " -i y -e INSTALL_FW
+    echo "[Welcome to Iptables-based Firewall Installer]"
+    echo ""
+    warning "You should not run any other iptables firewall configuration script.
+Any other iptables based firewall will be removed otherwise they will conflict."
+    echo ""
+    
+    if "${AUTO_INSTALL}"; then
+        DO_INSTALL_FW="y"
+    fi
+    while [[ ${DO_INSTALL_FW} != "y" && ${DO_INSTALL_FW} != "n" && "${AUTO_INSTALL}" != true ]]; do
+        read -rp "Do you want to install Firewall configurator? [y/n]: " -i y -e DO_INSTALL_FW
     done
 
-    if [[ "${INSTALL_FW}" == true || "${INSTALL_FW}" == Y* || "${INSTALL_FW}" == y* ]]; then
+    if [[ "${DO_INSTALL_FW}" == y* && "${INSTALL_FW}" == true ]]; then
 
         if "${AUTO_INSTALL}"; then
             # Set default Iptables-based firewall configutor engine.
             SELECTED_FW=${FW_ENGINE:-"ufw"}
         else
             # Menu Install FW
-            echo "[Iptables Firewall Configurator Installer]"
             echo ""
             echo "Which Firewall configurator engine to install?"
             echo "Available configurator engine:"
@@ -438,7 +429,7 @@ function install_firewall() {
         fi
 
         # Ensure that iptables installed.
-        if [[ -z $(which iptables) ]]; then
+        if [[ -z $(command -v iptables) ]]; then
             echo "Iptables is required, trying to install it first..."
             run apt-get install -y iptables bash sh
         fi
@@ -456,18 +447,30 @@ function install_firewall() {
                 install_ufw "${SSH_PORT}"
             ;;
         esac
+    else
+        warning "Firewall installation skipped..."
     fi
 }
 
-### Main
-echo ""
-echo "[Welcome to LEMPer Basic Server Security Settings]"
+function init_secure_server() {
+    while [[ "${SECURED_SERVER}" != "y" && "${SECURED_SERVER}" != "n" && "${AUTO_INSTALL}" != true ]]; do
+        read -rp "Do you want to enable basic server security? [y/n]: " -i y -e SECURED_SERVER
+    done
+    if [[ "${SECURED_SERVER}" == Y* || "${SECURED_SERVER}" == y* || "${AUTO_INSTALL}" == true ]]; then
+        securing_ssh "$@"
+    fi
+
+    install_firewall "$@"
+
+    if [[ ${SSH_PORT} -ne 22 ]]; then
+        warning -e "\nYou're running SSH server with modified config, restart to apply your changes."
+        echo "  use this command:  service ssh restart"
+    fi
+}
+
+echo "[Welcome to LEMPer Basic Server Security]"
 echo ""
 
-while [[ ${SECURED_SERVER} != "y" && ${SECURED_SERVER} != "n" ]]; do
-    read -rp "Do you want to enable basic server security? [y/n]: " -e SECURED_SERVER
-done
-if [[ "${SECURED_SERVER}" == Y* || "${SECURED_SERVER}" == y* ]]; then
-    securing_ssh
-    install_firewall
-fi
+# Start running things from a call at the end so if this script is executed
+# after a partial download it doesn't do anything.
+init_secure_server "$@"

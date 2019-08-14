@@ -9,22 +9,19 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    . ${BASEDIR}/helper.sh
+    # shellchechk source=scripts/helper.sh
+    # shellcheck disable=SC1090
+    . "${BASEDIR}/helper.sh"
 fi
 
-# Make sure only root can run this installer script
-if [ "$(id -u)" -ne 0 ]; then
-    error "You need to be root to run this script"
-    exit 1
-fi
+# Make sure only root can run this installer script.
+requires_root
 
-echo ""
-echo "Welcome to Certbot Let's Encrypt Installation..."
-echo ""
-
+# Install Certbot Let's Encrypt.
 function init_certbotle_install() {
-    while [[ $INSTALL_CERTBOT != "y" && $INSTALL_CERTBOT != "n" ]]; do
-        read -p "Do you want to install Certbot Let's Encrypt? [y/n]: " -e INSTALL_CERTBOT
+
+    while [[ "${INSTALL_CERTBOT}" != "y" && "${INSTALL_CERTBOT}" != "n" ]]; do
+        read -rp "Do you want to install Certbot Let's Encrypt? [y/n]: " -e INSTALL_CERTBOT
     done
     if [[ "${INSTALL_CERTBOT}" == Y* || "${INSTALL_CERTBOT}" == y* ]]; then
         echo -e "\nInstalling Certbot Let's Encrypt client..."
@@ -65,8 +62,8 @@ EOL
             echo "Generating Diffie-Hellman parameters for enhanced security,"
             echo "This is going to take a long time"
 
-            run openssl dhparam -out /etc/letsencrypt/ssl-dhparam-2048.pem 2048
-            run openssl dhparam -out /etc/letsencrypt/ssl-dhparam-4096.pem 4096
+            DH_NUMBITS=${DH_NUMBITS:-4096}
+            run openssl dhparam -out "/etc/letsencrypt/ssl-dhparam-${DH_NUMBITS}.pem" "${DH_NUMBITS}"
         fi
 
         if "${DRYRUN}"; then
@@ -81,9 +78,12 @@ EOL
     fi
 }
 
+echo "[Welcome to Certbot Let's Encrypt Installer]"
+echo ""
+
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(which certbot) ]]; then
+if [[ -n $(command -v certbot) ]]; then
     warning "Certbot Let's Encrypt already exists. Installation skipped..."
 else
     init_certbotle_install "$@"

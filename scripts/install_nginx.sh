@@ -1,39 +1,47 @@
 #!/usr/bin/env bash
 
-# Nginx installer
+# NGiNX Installer
 # Min. Requirement  : GNU/Linux Ubuntu 14.04
-# Last Build        : 12/07/2019
+# Last Build        : 04/08/2019
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+    # shellchechk source=scripts/helper.sh
+    # shellcheck disable=SC1090
     . "${BASEDIR}/helper.sh"
 fi
 
-# Make sure only root can run this installer script
-if [ "$(id -u)" -ne 0 ]; then
-    error "You need to be root to run this script"
-    exit 1
+# Define scripts directory.
+if echo "${BASEDIR}" | grep -qwE "scripts"; then
+    SCRIPTS_DIR="${BASEDIR}"
+else
+    SCRIPTS_DIR="${BASEDIR}/scripts"
 fi
 
+# Make sure only root can run this installer script.
+requires_root
+
 function add_nginx_repo() {
-    echo "Adding Nginx repository..."
+    echo "Adding NGiNX repository..."
 
     export NGX_PACKAGE
 
-    DISTRIB_REPO=$(get_release_name)
+    DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
+    DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
+
     case "${DISTRIB_REPO}" in
         trusty)
-            # Nginx custom with ngx cache purge from rtCamp.
+            # NGiNX custom with ngx cache purge from rtCamp.
             # https://rtcamp.com/wordpress-nginx/tutorials/single-site/fastcgi-cache-with-purging/
             run add-apt-repository -y ppa:rtcamp/nginx
             NGX_PACKAGE="nginx-custom"
         ;;
 
         xenial)
-            # Nginx custom with ngx cache purge from rtCamp.
+            # NGiNX custom with ngx cache purge from rtCamp.
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3050AC3CD2AE6F03
             run bash -c "echo 'deb http://download.opensuse.org/repositories/home:/rtCamp:/EasyEngine/xUbuntu_16.04/ /' \
                 >> /etc/apt/sources.list.d/nginx-xenial.list"
@@ -41,7 +49,7 @@ function add_nginx_repo() {
         ;;
 
         bionic)
-            # Nginx official repo.
+            # NGiNX official repo.
             run apt-key fingerprint ABF5BD827BD9BF62
             run add-apt-repository -y ppa:nginx/stable
             NGX_PACKAGE="nginx-stable"
@@ -52,27 +60,23 @@ function add_nginx_repo() {
 
             echo ""
             error "Unsupported distribution release: ${DISTRIB_REPO}."
-            echo "Sorry your system is not supported yet,
-installing from source may fix the issue."
+            echo "Sorry your system is not supported yet, installing from source may fix the issue."
             exit 1
         ;;
     esac
 }
 
 function init_nginx_install() {
-    echo ""
-    echo "Welcome to Nginx Installation..."
-    echo ""
-
     if "${AUTO_INSTALL}"; then
         # Set default Iptables-based firewall configutor engine.
         SELECTED_NGINX_INSTALLER=${NGINX_INSTALLER:-"source"}
     else
-        # Install Nginx custom
-        echo "Available Nginx installation method:"
+        # Install NGiNX custom.
+        echo "Available NGiNX installation method:"
         echo "  1). Install from Repository (repo)"
         echo "  2). Compile from Source (source)"
         echo "-------------------------------------"
+
         while [[ ${SELECTED_NGINX_INSTALLER} != "1" && ${SELECTED_NGINX_INSTALLER} != "2" \
             && ${SELECTED_NGINX_INSTALLER} != "repo" && ${SELECTED_NGINX_INSTALLER} != "source" ]]; do
             read -rp "Select an option [1-2]: " -i "${NGINX_INSTALLER}" -e SELECTED_NGINX_INSTALLER
@@ -81,36 +85,55 @@ function init_nginx_install() {
         echo ""
     fi
 
-    case ${SELECTED_NGINX_INSTALLER} in
-        1|repo)
+    case "${SELECTED_NGINX_INSTALLER}" in
+        1|"repo")
             add_nginx_repo
 
+            echo "Installing NGiNX from package repository..."
             if hash dpkg 2>/dev/null; then
-                if [[ -n ${NGX_PACKAGE} ]]; then
-                    echo "Installing Nginx from package repository..."
-                    run apt-get install -y --allow-unauthenticated ${NGX_PACKAGE}
+                if [[ -n "${NGX_PACKAGE}" ]]; then
+                    {
+                        run apt-get update
+                        run apt-get install -y --allow-unauthenticated "${NGX_PACKAGE}"
+                    }
                 fi
             elif hash yum 2>/dev/null; then
                 if [ "${VERSION_ID}" == "5" ]; then
                     yum -y update
-                    #yum -y localinstall $pkg --nogpgcheck
+                    #yum -y localinstall "${NGX_PACKAGE}" --nogpgcheck
                 else
                     yum -y update
-            	    #yum -y localinstall $pkg
+            	    #yum -y localinstall "${NGX_PACKAGE}"
                 fi
             else
-                fail "Unable to install lemper: this linux distribution is not dpkg/yum enabled."
+                fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
             fi
         ;;
 
-        2|source|*)
-            echo "Installing Nginx from source..."
-            run "${BASEDIR}/install_nginx_from_source.sh" -v latest-stable \
-                -n stable --dynamic-module --extra-modules -y
+        2|"source"|*)
+            echo "Installing NGiNX from source..."
+
+            if "${DRYRUN}"; then
+                "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable \
+                    -n stable --dynamic-module --extra-modules -y --dryrun
+            else
+                "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable \
+                    -n stable --dynamic-module --extra-modules -y
+            fi
 
             echo ""
-            echo "Configuring Nginx extra modules..."
-            # Custom Nginx dynamic modules configuration
+            echo "Configuring NGiNX extra modules..."
+
+            # Create NGiNX directories.
+            if [ ! -d /etc/nginx/modules-available ]; then
+                run mkdir /etc/nginx/modules-available
+            fi
+
+            if [ ! -d /etc/nginx/modules-enabled ]; then
+                run mkdir /etc/nginx/modules-enabled
+            fi
+
+            # Custom NGiNX dynamic modules configuration.
             if [[ -f /usr/lib/nginx/modules/ngx_http_brotli_filter_module.so && \
                 ! -f /etc/nginx/modules-available/mod-http-brotli-filter.conf ]]; then
                 run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_brotli_filter_module.so\";' \
@@ -189,14 +212,17 @@ function init_nginx_install() {
                     > /etc/nginx/modules-available/mod-stream.conf"
             fi
 
-            # Enable Nginx Dynamic Module
-            echo ""
-            while [[ "${ENABLE_NGXDM}" != "y" && "${ENABLE_NGXDM}" != "n" ]]; do
-                read -rp "Enable Nginx dynamic modules? [y/n]: " -i y -e ENABLE_NGXDM
-            done
+            # Enable NGiNX Dynamic Module.
+            if "${NGINX_DYNAMIC_MODULE}"; then
+                ENABLE_NGXDM=y
+            else
+                echo ""
+                while [[ "${ENABLE_NGXDM}" != "y" && "${ENABLE_NGXDM}" != "n" ]]; do
+                    read -rp "Enable NGiNX dynamic modules? [y/n]: " -i y -e ENABLE_NGXDM
+                done
+            fi
 
             if [[ "${ENABLE_NGXDM}" == Y* || "${ENABLE_NGXDM}" == y* ]]; then
-
 
                 if [[ "${NGX_BROTLI}" && \
                     -f /etc/nginx/modules-available/mod-http-brotli-filter.conf ]]; then
@@ -236,37 +262,31 @@ function init_nginx_install() {
 
             fi
 
-            # Nginx init script
+            # NGiNX init script.
             if [ ! -f /etc/init.d/nginx ]; then
                 run cp etc/init.d/nginx /etc/init.d/
                 run chmod ugo+x /etc/init.d/nginx
             fi
 
-            # Nginx systemd script
+            # NGiNX systemd script.
             if [ ! -f /lib/systemd/system/nginx.service ]; then
                 run cp etc/systemd/nginx.service /lib/systemd/system/
-
-                if [ ! -f /etc/systemd/system/nginx.service ]; then
-                    run ln -s /lib/systemd/system/nginx.service /etc/systemd/system/multi-user.target.wants/nginx.service
-                fi
-
-                # Reloading daemon
-                run systemctl daemon-reload
-
-                # Enable in start up
-                run systemctl enable nginx.service
             fi
+
+            if [ ! -f /etc/systemd/system/nginx.service ]; then
+                run ln -s /lib/systemd/system/nginx.service \
+                    /etc/systemd/system/multi-user.target.wants/nginx.service
+            fi
+
+            # Try reloading daemon.
+            run systemctl daemon-reload
+
+            # Enable in start up.
+            run systemctl enable nginx.service
         ;;
     esac
 
-    # Create Nginx directories.
-    if [ ! -d /etc/nginx/modules-available ]; then
-        run mkdir /etc/nginx/modules-available
-    fi
-
-    if [ ! -d /etc/nginx/modules-enabled ]; then
-        run mkdir /etc/nginx/modules-enabled
-    fi
+    echo -e "\nCreating NGiNX configuration..."
 
     if [ ! -d /etc/nginx/sites-available ]; then
         run mkdir /etc/nginx/sites-available
@@ -276,26 +296,18 @@ function init_nginx_install() {
         run mkdir /etc/nginx/sites-enabled
     fi
 
-    # Copy custom Nginx Config
+    # Copy custom NGiNX Config.
     if [ -f /etc/nginx/nginx.conf ]; then
         run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.old
     fi
 
     run cp -f etc/nginx/charset /etc/nginx/
-    run cp -f etc/nginx/comp_brotli /etc/nginx/
-    run cp -f etc/nginx/comp_gzip /etc/nginx/
-    run cp -f etc/nginx/fastcgi_cache /etc/nginx/
-    run cp -f etc/nginx/fastcgi_https_map /etc/nginx/
-    run cp -f etc/nginx/fastcgi_params /etc/nginx/
-    run cp -f etc/nginx/http_cloudflare_ips /etc/nginx/
-    run cp -f etc/nginx/http_proxy_ips /etc/nginx/
+    run cp -f etc/nginx/{comp_brotli,comp_gzip} /etc/nginx/
+    run cp -f etc/nginx/{fastcgi_cache,fastcgi_https_map,fastcgi_params,proxy_cache,proxy_params} /etc/nginx/
+    run cp -f etc/nginx/{http_cloudflare_ips,http_proxy_ips} /etc/nginx/
     run cp -f etc/nginx/nginx.conf /etc/nginx/
-    run cp -f etc/nginx/proxy_cache /etc/nginx/
-    run cp -f etc/nginx/proxy_params /etc/nginx/
     run cp -f etc/nginx/upstream /etc/nginx/
-    run cp -fr etc/nginx/includes/ /etc/nginx/
-    run cp -fr etc/nginx/vhost/ /etc/nginx/
-    run cp -fr etc/nginx/ssl/ /etc/nginx/
+    run cp -fr etc/nginx/{includes,vhost,ssl} /etc/nginx/
 
     if [ -f /etc/nginx/sites-available/default ]; then
         run mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default.old
@@ -317,7 +329,7 @@ function init_nginx_install() {
         run chown -hR www-data:root /usr/share/nginx/html
     fi
 
-    # Nginx cache directory
+    # NGiNX cache directory.
     if [ ! -d /var/cache/nginx ]; then
         run mkdir /var/cache/nginx
         run chown -hR www-data:root /var/cache/nginx
@@ -333,39 +345,65 @@ function init_nginx_install() {
         run chown -hR www-data:root /var/cache/nginx/proxy_cache
     fi
 
+    # Adjust nginx to meet hardware resources.
+    echo -e "\nAdjusting NGiNX configuration..."
+
+    local CPU_CORES && \
+    CPU_CORES=$(grep -c processor /proc/cpuinfo)
+
+    run sed -i "s/worker_processes\ auto/worker_processes\ ${CPU_CORES}/g" /etc/nginx/nginx.conf
+
+    local NGX_CONNECTIONS
+    case ${CPU_CORES} in
+        1)
+            NGX_CONNECTIONS=4096
+        ;;
+        2|3)
+            NGX_CONNECTIONS=2048
+        ;;
+        *)
+            NGX_CONNECTIONS=1024
+        ;;
+    esac
+
+    run sed -i "s/worker_connections\ 4096/worker_connections\ ${NGX_CONNECTIONS}/g" /etc/nginx/nginx.conf
+
+
     # Final test.
     echo ""
-
     if "${DRYRUN}"; then
         IP_SERVER="127.0.0.1"
-        warning "Nginx web server installed in dryrun mode."
+        warning "NGiNX HTTP server installed in dryrun mode."
     else
         IP_SERVER=${IP_SERVER:-$(get_ip_addr)}
 
         # Make default server accessible from IP address.
         run sed -i "s/localhost.localdomain/${IP_SERVER}/g" /etc/nginx/sites-available/default
 
-        # Restart Nginx server
-        echo "Starting Nginx web server..."
+        # Restart NGiNX server
+        echo "Starting NGiNX HTTP server..."
         if [[ $(pgrep -c nginx) -gt 0 ]]; then
             run service nginx reload -s
-            status "Nginx web server restarted successfully."
-        elif [[ -n $(which nginx) ]]; then
+            status "NGiNX HTTP server restarted successfully."
+        elif [[ -n $(command -v nginx) ]]; then
             run service nginx start
 
             if [[ $(pgrep -c nginx) -gt 0 ]]; then
-                status "Nginx web server started successfully."
+                status "NgiNX HTTP server started successfully."
             else
-                warning "Something wrong with Nginx installation."
+                warning "Something wrong with NGiNX installation."
             fi
         fi
     fi
 }
 
+echo "[Welcome to NGiNX Installer]"
+echo ""
+
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(which nginxx) && -d /etc/nginx/sites-available ]]; then
-    warning -e "\nNginx web server already exists. Installation skipped..."
+if [[ -n $(command -v nginx) && -d /etc/nginx/sites-available ]]; then
+    warning "Nginx web server already exists. Installation skipped..."
 else
     init_nginx_install "$@"
 fi
