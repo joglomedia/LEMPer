@@ -100,7 +100,14 @@ function init_webadmin_install() {
 
     # Install Memcached Web Admin
     #http://blog.elijaa.org/index.php?pages/phpMemcachedAdmin-Installation-Guide
-    run git clone -q https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/lcp/phpMemcachedAdmin/
+    if [ ! -d /usr/share/nginx/html/lcp/phpMemcachedAdmin/ ]; then
+        run git clone -q https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/lcp/phpMemcachedAdmin/
+    else
+        local CUR_DIR=$(pwd)
+        run cd /usr/share/nginx/html/lcp/phpMemcachedAdmin/
+        run git pull
+        cd "${CUR_DIR}"
+    fi
 
     # Install Adminer for Web-based MySQL Administration Tool
     if [ ! -d /usr/share/nginx/html/lcp/dbadminer ]; then
