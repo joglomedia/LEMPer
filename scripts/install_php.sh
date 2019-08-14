@@ -362,18 +362,29 @@ EOL
         run mv "/etc/php/${PHPv}/fpm/php-fpm.conf" "/etc/php/${PHPv}/fpm/php-fpm.conf.old"
         run cp -f "etc/php/${PHPv}/fpm/php-fpm.conf" "/etc/php/${PHPv}/fpm/"
     else
-        cat >> "/etc/php/${PHPv}/fpm/php-fpm.conf" <<EOL
+        if grep -qwE "^emergency_restart_threshold\ =\ [0-9]*" /etc/php/${PHPv}/fpm/php-fpm.conf; then
+            run sed -i "s/^emergency_restart_threshold\ =\ [0-9]*/emergency_restart_threshold\ =\ 10/g" \
+                /etc/php/${PHPv}/fpm/php-fpm.conf
+        else
+            run sed -i "/^;emergency_restart_threshold/a emergency_restart_threshold\ =\ 10" \
+                /etc/php/${PHPv}/fpm/php-fpm.conf
+        fi
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-; Custom Optimization for LEMPer ;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+        if grep -qwE "^emergency_restart_interval\ =\ [0-9]*" /etc/php/${PHPv}/fpm/php-fpm.conf; then
+            run sed -i "s/^emergency_restart_interval\ =\ [0-9]*/emergency_restart_interval\ =\ 60/g" \
+                /etc/php/${PHPv}/fpm/php-fpm.conf
+        else
+            run sed -i "/^;emergency_restart_interval/a emergency_restart_interval\ =\ 60" \
+                /etc/php/${PHPv}/fpm/php-fpm.conf
+        fi
 
-; Adjust here to meet your needs.
-emergency_restart_threshold 10
-emergency_restart_interval 1m
-process_control_timeout 10s
-
-EOL
+        if grep -qwE "^process_control_timeout\ =\ [0-9]*" /etc/php/${PHPv}/fpm/php-fpm.conf; then
+            run sed -i "s/^process_control_timeout\ =\ [0-9]*/process_control_timeout\ =\ 10/g" \
+                /etc/php/${PHPv}/fpm/php-fpm.conf
+        else
+            run sed -i "/^;process_control_timeout/a process_control_timeout\ =\ 10" \
+                /etc/php/${PHPv}/fpm/php-fpm.conf
+        fi
     fi
 
     if [ ! -d "/etc/php/${PHPv}/fpm/pool.d" ]; then
