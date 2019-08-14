@@ -2,7 +2,7 @@
 LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Debian-based/Ubuntu LEMP stack. LEMPer is _ServerPilot_, _CloudWays_, _RunCloud_, and _EasyEngine_ alternative for wide range PHP framework.
 
 
-[![Build Status](https://travis-ci.org/joglomedia/LEMPer.svg?branch=1.2.0-dev)](https://travis-ci.org/joglomedia/LEMPer)
+[![Build Status](https://travis-ci.org/joglomedia/LEMPer.svg?branch=master)](https://travis-ci.org/joglomedia/LEMPer)
 
 
 ## Features
