@@ -125,7 +125,7 @@ function init_webadmin_install() {
     fi
 
     run wget -q http://www.filerun.com/download-latest -O FileRun.zip
-    run unzip -qq FileRun.zip -d /usr/share/nginx/html/lcp/filemanager
+    run unzip -o -qq FileRun.zip -d /usr/share/nginx/html/lcp/filemanager
     run rm -f FileRun.zip
 
     # TODO: Replace FileRun with Tinyfilemanager https://github.com/prasathmani/tinyfilemanager
