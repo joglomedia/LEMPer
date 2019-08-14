@@ -1,43 +1,61 @@
 #!/usr/bin/env bash
 
-# Include decorator
+# Mail Installer
+# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Last Build        : 12/07/2019
+# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Since Version     : 1.0.0
+
+# Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    . ${BASEDIR}/helper.sh
+    # shellchechk source=scripts/helper.sh
+    # shellcheck disable=SC1090
+    . "${BASEDIR}/helper.sh"
 fi
 
-# Make sure only root can run this installer script
-if [ $(id -u) -ne 0 ]; then
-    error "You need to be root to run this script"
-    exit 1
-fi
-
-echo ""
-echo "Welcome to Mailer installation script"
-echo ""
+# Make sure only root can run this installer script.
+requires_root
 
 # Install Postfix mail server
 function install_postfix() {
-    echo -e "Installing Postfix Mail Transfer Agent..."
+    while [[ $INSTALL_POSTFIX != "y" && $INSTALL_POSTFIX != "n" ]]; do
+        read -p "Do you want to install Postfix Mail Transfer Agent? [y/n]: " -e INSTALL_POSTFIX
+    done
+    if [[ "$INSTALL_POSTFIX" == Y* || "$INSTALL_POSTFIX" == y* ]]; then
 
-    run apt-get install -y mailutils postfix >> lemper.log 2>&1
+        echo -e "\nInstalling Postfix Mail Transfer Agent..."
 
-    # Update local time
-    run apt-get install -y ntpdate >> lemper.log 2>&1
-    run ntpdate -d cn.pool.ntp.org >> lemper.log 2>&1
+        run apt-get install -y mailutils postfix
+
+        # Update local time
+        run apt-get install -y ntpdate
+        run ntpdate -d cn.pool.ntp.org
+
+        # Installation status.
+        if "${DRYRUN}"; then
+            status -e "\nPostfix installed in dryrun mode."
+        else
+            if [[ $(ps -ef | grep -v grep | grep postfix | wc -l) > 0 ]]; then
+                status -e "\nPostfix installed successfully."
+            else
+                warning -e "\nSomething wrong with Postfix installation."
+            fi
+        fi
+    fi
 }
 
 ## TODO: Add Dovecot
 # https://www.linode.com/docs/email/postfix/email-with-postfix-dovecot-and-mysql/
 
-## Main
-while [[ $INSTALL_POSTFIX != "y" && $INSTALL_POSTFIX != "n" ]]; do
-    read -p "Do you want to install Postfix Mail Transfer Agent? [y/n]: " -e INSTALL_POSTFIX
-done
-if [[ "$INSTALL_POSTFIX" == Y* || "$INSTALL_POSTFIX" == y* ]]; then
-    if [[ -n $(which postfix) ]]; then
-        warning -e "\nPostfix already exists. Installation skipped..."
-    else
-        install_postfix "$@"
-    fi
+
+echo "[Welcome to Mail Installer]"
+echo ""
+
+# Start running things from a call at the end so if this script is executed
+# after a partial download it doesn't do anything.
+if [[ -n $(command -v postfix) ]]; then
+    warning "Postfix already exists. Installation skipped..."
+else
+    install_postfix "$@"
 fi

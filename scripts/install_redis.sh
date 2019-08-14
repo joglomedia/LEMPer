@@ -1,113 +1,134 @@
 #!/usr/bin/env bash
 
-# Include decorator
+# Redis server installer
+# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Last Build        : 01/08/2019
+# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Since Version     : 1.0.0
+
+# Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    . ${BASEDIR}/helper.sh
+    # shellchechk source=scripts/helper.sh
+    # shellcheck disable=SC1090
+    . "${BASEDIR}/helper.sh"
 fi
 
-# Make sure only root can run this installer script
-if [ $(id -u) -ne 0 ]; then
-    error "You need to be root to run this script"
-    exit 1
-fi
+# Make sure only root can run this installer script.
+requires_root
 
+# Install redis.
 function init_redis_install {
-    echo ""
-    echo "Welcome to Redis Installation..."
-    echo ""
+    if "${AUTO_INSTALL}"; then
+        DO_INSTALL_REDIS="y"
+    else
+        while [[ "${DO_INSTALL_REDIS}" != "y" && "${DO_INSTALL_REDIS}" != "n" ]]; do
+            read -rp "Do you want to install Redis server? [y/n]: " -i y -e DO_INSTALL_REDIS
+        done
+    fi
 
-    while [[ $INSTALL_REDIS != "y" && $INSTALL_REDIS != "n" ]]; do
-        read -p "Do you want to install Redis server? [y/n]: " -e INSTALL_REDIS
-    done
+    if [[ "${DO_INSTALL_REDIS}" == y* && "${INSTALL_REDIS}" == true ]]; then
+        echo "Installing Redis server and Redis PHP module..."
 
-    if [[ "$INSTALL_REDIS" == Y* || "$INSTALL_REDIS" == y* ]]; then
-        echo -e "\nInstalling Redis server and Redis PHP module..."
+        {
+            # Add Redis repos.
+            run add-apt-repository -y ppa:chris-lea/redis-server
+            run apt-get update -y
 
-        # Add Redis repos
-        run add-apt-repository -y ppa:chris-lea/redis-server >> lemper.log 2>&1
-        run apt-get update -y >> lemper.log 2>&1
+            # Install Redis.
+            run apt-get install -y redis-server php-redis
+        }
 
-        # Install Redis
-        run apt-get install -y redis-server php-redis >> lemper.log 2>&1
+        # Configure Redis.
+        if "${DRYRUN}"; then
+            warning "Configuring Redis in dryrun mode."
+        else
+            if [ ! -f /etc/redis/redis.conf ]; then
+                run cp -f etc/redis/redis.conf /etc/redis/
+            fi
 
-        # Configure Redis
-        if [ ! /etc/redis/redis.conf ]; then
-            cp -f config/redis/redis.conf /etc/redis/
-        fi
-
-        # Custom Redis configuration
-        cat >> /etc/redis/redis.conf <<EOL
+            # Custom Redis configuration.
+            cat >> /etc/redis/redis.conf <<EOL
 
 ###################################################################
-# Custom configuration by LEMPer
+# Custom configuration for LEMPer
 #
 maxmemory 128mb
 maxmemory-policy allkeys-lru
 EOL
 
-        # Custom Optimization
-        cat >> /etc/sysctl.conf <<EOL
+            # Custom Optimization.
+            cat >> /etc/sysctl.conf <<EOL
 
 ###################################################################
-# Custom optimization by LEMPer
+# Custom optimization for LEMPer
 #
 net.core.somaxconn=65535
 vm.overcommit_memory=1
 EOL
 
-        if [ ! -f /etc/rc.local ]; then
-            touch /etc/rc.local
-        fi
+            if [ ! -f /etc/rc.local ]; then
+                run touch /etc/rc.local
+            fi
 
-        cat >> /etc/rc.local <<EOL
+            cat >> /etc/rc.local <<EOL
 
 ###################################################################
-# Custom optimization by LEMPer
+# Custom optimization for LEMPer
 #
 sysctl -w net.core.somaxconn=65535
 echo never > /sys/kernel/mm/transparent_hugepage/enabled
 EOL
+        fi
 
+        # Init script.
+        if [ ! -f /etc/init.d/redis-server ]; then
+            run cp -f etc/init.d/redis-server /etc/init.d/
+            run chmod ugo+x /etc/init.d/redis-server
+        fi
         if [ ! -f /lib/systemd/system/redis-server.service ]; then
-            cp -f config/redis/systemd/redis-server.service /lib/systemd/system/
+            run cp -f etc/systemd/redis-server.service /lib/systemd/system/
 
             if [ ! -f /etc/systemd/system/redis.service ]; then
-                link -s /lib/systemd/system/redis-server.service /etc/systemd/system/redis.service
+                run link -s /lib/systemd/system/redis-server.service /etc/systemd/system/redis.service
             fi
 
-            # Reloading daemon
-            systemctl daemon-reload
+            # Reloading daemon.
+            run systemctl daemon-reload
         fi
 
-        if [ ! -f /etc/init.d/redis-server ]; then
-            cp -f config/redis/init.d/redis-servr /etc/init.d/
-        fi
-
-        # Restart redis daemon
+        # Restart redis daemon.
         echo "Starting Redis server..."
         if [ -f /etc/systemd/system/redis.service ]; then
-            systemctl restart redis-server.service
+            run systemctl restart redis-server.service
 
-            # Enable Redis on system boot
-            systemctl enable redis-server.service
+            # Enable Redis on system boot.
+            run systemctl enable redis-server.service
         else
-            service redis-server restart
+            run service redis-server restart
         fi
 
-        if [[ $(ps -ef | grep -v grep | grep redis-server | wc -l) > 0 ]]; then
-            status "Redis server started successfully."
+        if "${DRYRUN}"; then
+            warning "Redis server installed in dryrun mode."
         else
-            warning "Something wrong with Redis installation."
+            if [[ $(pgrep -c redis-server) -gt 0 ]]; then
+                status "Redis server started successfully."
+            else
+                warning "Something wrong with Redis installation."
+            fi
         fi
+    else
+        echo "Skipping Redis server installation..."
     fi
-
 }
+
+echo "[Welcome to Redis server Installer]"
+echo ""
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(which redis-server) ]]; then
-    warning -e "\nRedis key-value store server already exists. Installation skipped..."
+if [[ -n $(command -v redis-server) ]]; then
+    warning "Redis key-value store server already exists. Installation skipped..."
 else
     init_redis_install "$@"
 fi
