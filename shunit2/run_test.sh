@@ -25,13 +25,13 @@ testEqualityGetReleaseName()
 testEqualityGetNginxStableVersion()
 {
     ngx_stable_version=$(determine_stable_nginx_version)
-    assertEquals "1.16.0" "${ngx_stable_version}"
+    assertEquals "1.16.1" "${ngx_stable_version}"
 }
 
 testEqualityGetNginxLatestVersion()
 {
     ngx_latest_version=$(determine_latest_nginx_version)
-    assertEquals "1.17.2" "${ngx_latest_version}"
+    assertEquals "1.17.3" "${ngx_latest_version}"
 }
 
 # load shunit2
