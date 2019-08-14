@@ -120,7 +120,7 @@ function init_webadmin_install() {
         -O /usr/share/nginx/html/lcp/dbadminer/editor.php
 
     # Install FileRun File Manager
-    if [ ! -d /usr/share/nginx/html/lcp/filerun ]; then
+    if [ ! -d /usr/share/nginx/html/lcp/filemanager ]; then
         run mkdir /usr/share/nginx/html/lcp/filemanager
     fi
 
