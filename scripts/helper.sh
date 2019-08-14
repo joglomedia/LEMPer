@@ -461,7 +461,7 @@ function create_account() {
 
             if [ -d "/home/${USERNAME}" ]; then
                 run mkdir "/home/${USERNAME}/webapps"
-                run chown -hR "${USERNAME}" "/home/${USERNAME}/webapps"
+                run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/webapps"
             fi
 
             # Save data to log file.

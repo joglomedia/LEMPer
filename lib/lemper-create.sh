@@ -909,6 +909,10 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
                     install_wordpress ${CLONE_SKELETON}
 
                     # Pre-populate blog id mapping, used by NGiNX vhost conf.
+                    if [ ! -d "${WEBROOT}/wp-content" ]; then
+                        run mkdir "${WEBROOT}/wp-content"
+                    fi
+
                     if [ ! -d "${WEBROOT}/wp-content/uploads" ]; then
                         run mkdir "${WEBROOT}/wp-content/uploads"
                     fi
