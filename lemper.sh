@@ -269,7 +269,10 @@ Now, you can reboot your server and enjoy it!"
         echo -e "\nCleaning up unnecessary packages...\n"
         run apt-get autoremove -y
 
-        status "LEMP stack has been removed completely."
+        status -e "\nLEMP stack has been removed completely."
+        warning -e "\nDid you know? that we're sad to see you leave :'(
+If you are not satisfied with LEMPer stack or 
+have any reasons to uninstall it, please let us know ^^"
     ;;
     --help)
         echo "Please read the README file for more information!"

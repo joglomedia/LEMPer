@@ -125,5 +125,5 @@ if [[ -n $(command -v nginx) || -x /usr/sbin/nginx ]]; then
         echo "Found NGiNX HTTP server, but not removed."
     fi
 else
-    warning "Oops, nginx installation not found."
+    warning "Oops, NGiNX installation not found."
 fi

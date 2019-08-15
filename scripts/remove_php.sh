@@ -201,5 +201,5 @@ if [[ -n $(command -v php5.6) || \
         echo "Found PHP & FPM, but not removed."
     fi
 else
-    warning "PHP & FPM installation not found."
+    warning "Oops, PHP & FPM installation not found."
 fi
