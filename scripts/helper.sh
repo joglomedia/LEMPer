@@ -464,7 +464,12 @@ function create_account() {
                 run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/webapps"
             fi
 
-            # Add account credentials to /srv/.htpasswd
+            # Add account credentials to /srv/.htpasswd.
+            if [[ ! -n "/srv/.htpasswd" ]]; then 
+                run touch /srv/.htpasswd
+            fi
+
+            # Generate passhword hash.
             if [[ -n $(command -v mkpasswd) ]]; then
                 local PASSHASH=$(mkpasswd --method=sha-256 "${PASSWORD}")
                 run bash -c 'echo "${USERNAME}:${PASSHASH}" > /srv/.htpasswd'
