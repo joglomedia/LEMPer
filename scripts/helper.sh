@@ -464,6 +464,17 @@ function create_account() {
                 run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/webapps"
             fi
 
+            # Add account credentials to /srv/.htpasswd
+            if [[ -n $(command -v mkpasswd) ]]; then
+                local PASSHASH=$(mkpasswd --method=sha-256 "${PASSWORD}")
+                run bash -c 'echo "${USERNAME}:${PASSHASH}" > /srv/.htpasswd'
+            elif [[ -n $(command -v htpasswd) ]]; then
+                run htpasswd -b /srv/.htpasswd "${USERNAME}" "${PASSWORD}"
+            else
+                local PASSHASH=$(openssl passwd -1 "${PASSWORD}")
+                run bash -c 'echo "${USERNAME}:${PASSWORD}" > /srv/.htpasswd'
+            fi
+
             # Save data to log file.
             echo "
 Your default system account information:
