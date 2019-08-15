@@ -180,13 +180,14 @@ case "${1}" in
         if [[ -n "${PASSWORD}" ]]; then
             CREDENTIALS="
 Here is your default system account information:
+    Hostname : $(hostname)
     Server IP: ${IP_SERVER}
     SSH Port : ${SSH_PORT}
     Username : ${USERNAME}
     Password : ${PASSWORD}
 
 Access to your Database administration (Adminer):
-    http://${IP_SERVER}:8082/
+    http://${IP_SERVER}:8082/lcp/dbadminer/
 
     Database root password: ${MYSQL_ROOT_PASS}
 
@@ -195,7 +196,7 @@ Access to your Database administration (Adminer):
     DB Password: ${MARIABACKUP_PASS}
 
 Access to your File manager (FileRun):
-    http://${IP_SERVER}:8083/
+    http://${IP_SERVER}:8082/lcp/filemanager/
 
 Please Save & Keep It Private!
 ~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~"
