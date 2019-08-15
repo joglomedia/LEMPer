@@ -20,7 +20,7 @@ set -e
 
 # Version Control.
 APP_NAME=$(basename "$0")
-APP_VERSION="1.2.0-dev"
+APP_VERSION="1.2.0"
 CMD_PARENT="lemper-cli"
 CMD_NAME="create"
 
@@ -716,7 +716,10 @@ function init_app() {
                 shift
             ;;
             -w | --webroot) shift
-                WEBROOT="${1%%+(/)}"
+                # Remove trailing slash.
+                # shellcheck disable=SC2001
+                #WEBROOT="${1%/}"
+                WEBROOT=$(echo "${1}" | sed 's:/*$::')
                 MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
@@ -760,8 +763,27 @@ function init_app() {
     if [ ${MAIN_ARGS} -ge 4 ]; then
         # Additional Check - are user already exist?
         if [[ -z $(getent passwd "${USERNAME}") ]]; then
-            fail -e "\nError: The user ${USERNAME} does not exist, please add new user first! Aborting...
-Help: useradd username, try ${APP_NAME} -h for more helps."
+            fail -e "The user ${USERNAME} does not exist, please add new user first! Aborting..."
+        fi
+
+        # Check domain options is not empty.
+        if [[ -z "${SERVERNAME}" ]]; then
+            fail -e "Domain name option shouldn't be empty.\n       -d or --domain-name option is required!"
+        fi
+
+        # Check framework options is not empty.
+        if [[ -z "${FRAMEWORK}" ]]; then
+            fail -e "Framework option shouldn't be empty.\n       -w or --webroot option is required!"
+        fi
+
+        # Check web root options is not empty.
+        if [[ -z "${WEBROOT}" ]]; then
+            fail -e "Web root option shouldn't be empty.\n       -w or --webroot option is required!"
+        fi
+
+        # Additional Check - ensure that Nginx's configuration meets the requirements.
+        if [[ ! -d /etc/nginx/sites-available && ! -d /etc/nginx/vhost ]]; then
+            fail "It seems that your NGiNX installation doesn't meet the requirements. Aborting..."
         fi
 
         # Check PHP fpm version is exists.
@@ -783,11 +805,6 @@ Help: useradd username, try ${APP_NAME} -h for more helps."
             fi
         else
             fail "No PHP & FPM version ${PHP_VERSION} installed, please install it first! Aborting..."
-        fi
-
-        # Additional Check - ensure that Nginx's configuration meets the requirements.
-        if [[ ! -d /etc/nginx/sites-available && ! -d /etc/nginx/vhost ]]; then
-            fail "It seems that your NGiNX installation doesn't meet the requirements. Aborting..."
         fi
 
         # Define vhost file.
