@@ -19,7 +19,7 @@ set -e
 
 # Version control
 APP_NAME=$(basename "$0")
-APP_VERSION="1.2.0-dev"
+APP_VERSION="1.2.0"
 CMD_PARENT="lemper-cli"
 CMD_NAME="manage"
 
@@ -182,7 +182,7 @@ function disable_vhost() {
         run unlink "/etc/nginx/sites-enabled/${1}.conf"
 
         status "Your virtual host ${1} has been disabled..."
-        
+
         reload_nginx
     else
         fail -e "${1} couldn't be disabled. Probably, it has been disabled or removed."
@@ -208,7 +208,8 @@ function remove_vhost() {
     status -e "\nVirtual host configuration file removed."
 
     # Remove vhost root directory.
-    echo -en "\nDo you want to delete website root directory? [y/n]: "; read -rp DELETE_DIR
+    echo ""
+    read -rp "Do you want to delete website root directory? [y/n]: " -e DELETE_DIR
     if [[ "${DELETE_DIR}" == Y* || "${DELETE_DIR}" == y* ]]; then
         read -rp "Enter the real path to website root directory: " -e WEBROOT
 
@@ -221,7 +222,8 @@ function remove_vhost() {
     fi
 
     # Drop MySQL database.
-    echo -en "\nDo you want to Drop database associated with this vhost? [y/n]: "; read -rp DROP_DB
+    echo ""
+    read -rp "Do you want to Drop database associated with this vhost? [y/n]: " -e DROP_DB
     if [[ "${DROP_DB}" == Y* || "${DROP_DB}" == y* ]]; then
         until [[ "$MYSQLUSER" != "" ]]; do
 			read -rp "MySQL Username: " -e MYSQLUSER
