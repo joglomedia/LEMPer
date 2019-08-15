@@ -52,6 +52,8 @@ function add_mariadb_repo() {
         status "MariaDB (MySQL) repository added in dryrun mode."
     else
         if [ ! -f "/etc/apt/sources.list.d/MariaDB-${DISTRIB_REPO}.list" ]; then
+            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0xF1656F24C74CD1D8
+
             touch "/etc/apt/sources.list.d/MariaDB-${DISTRIB_REPO}.list"
             cat > "/etc/apt/sources.list.d/MariaDB-${DISTRIB_REPO}.list" <<EOL
 # MariaDB ${MARIADB_VERSION} repository list - created 2019-04-26 08:58 UTC
@@ -62,6 +64,8 @@ EOL
         else
             warning "MariaDB (MySQL) repository already exists."
         fi
+
+        run apt-get update -y
     fi
 }
 
@@ -80,10 +84,7 @@ function init_mariadb_install() {
         echo -e "\nInstalling MariaDB (MySQL) server..."
 
         # Install MariaDB
-        {
-            run apt-get update -y
-            run apt-get install -y mariadb-server libmariadbclient18 mariadb-backup
-        }
+        run apt-get install -y mariadb-server libmariadbclient18 mariadb-backup
 
         # Fix MySQL error?
         # Ref: https://serverfault.com/questions/104014/innodb-error-log-file-ib-logfile0-is-of-different-size
@@ -165,7 +166,7 @@ function enable_mariabackup() {
     echo ""
     sleep 1
 
-    export MARIABACKUP_USER="lempersh"
+    export MARIABACKUP_USER=${MARIABACKUP_USER:-"lempersh"}
     export MARIABACKUP_PASS && \
     MARIABACKUP_PASS=$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
 
