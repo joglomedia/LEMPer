@@ -2,7 +2,7 @@
 
 # PHP Installer
 # Min. Requirement  : GNU/Linux Ubuntu 14.04 & 16.04
-# Last Build        : 02/08/2019
+# Last Build        : 15/08/2019
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
