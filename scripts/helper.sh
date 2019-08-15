@@ -375,7 +375,7 @@ function get_ram_size() {
 
 # Create custom Swap.
 function create_swap() {
-    local SWAP_FILE="/proc/lemper-swapfile"
+    local SWAP_FILE="/root/lemper-swapfile"
     local RAM_SIZE && \
     RAM_SIZE=$(get_ram_size)
 
@@ -387,7 +387,7 @@ function create_swap() {
         local SWAP_SIZE=4096
     fi
 
-    echo "Create ${SWAP_SIZE}MiB swap..."
+    echo "Creating ${SWAP_SIZE}MiB swap..."
 
     # Create swap.
     run fallocate -l ${SWAP_SIZE}M ${SWAP_FILE} && \
@@ -421,7 +421,7 @@ function create_swap() {
 function remove_swap() {
     echo "Disabling swap..."
 
-    local SWAP_FILE="/proc/lemper-swapfile"
+    local SWAP_FILE="/root/lemper-swapfile"
 
     run swapoff -v ${SWAP_FILE} && \
     run sed -i "s/${SWAP_FILE}/#\ ${SWAP_FILE}/g" /etc/fstab && \
