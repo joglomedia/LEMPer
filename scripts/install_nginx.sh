@@ -346,7 +346,7 @@ function init_nginx_install() {
     fi
 
     # Adjust nginx to meet hardware resources.
-    echo -e "\nAdjusting NGiNX configuration..."
+    echo "Adjusting NGiNX configuration..."
 
     local CPU_CORES && \
     CPU_CORES=$(grep -c processor /proc/cpuinfo)
@@ -368,6 +368,14 @@ function init_nginx_install() {
 
     run sed -i "s/worker_connections\ 4096/worker_connections\ ${NGX_CONNECTIONS}/g" /etc/nginx/nginx.conf
 
+    # Generate Diffie-Hellman parameters.
+    DH_NUMBITS=${HASH_LENGTH:-2048}
+    if [ ! -f "/etc/nginx/ssl/dhparam-${DH_NUMBITS}.pem" ]; then
+        echo "Generating Diffie-Hellman parameters for enhanced HTTPS/SSL security,"
+        echo "this is going to take a long time..."
+
+        run openssl dhparam -out "/etc/nginx/ssl/dhparam-${DH_NUMBITS}.pem" "${DH_NUMBITS}"
+    fi
 
     # Final test.
     echo ""
