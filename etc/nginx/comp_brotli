@@ -66,3 +66,6 @@ brotli_window 512k;
 # this means anything smaller than 50 bytes won't be compressed.
 # The default is 20 bytes, which is sooo tiny it's a waste to compress.
 brotli_min_length 64;
+
+# Custom header.
+add_header X-Powered-By "LEMPer/Brotli";
