@@ -359,17 +359,24 @@ function enable_https() {
         echo "Certbot: Get Let's Encrypt certificate..."
 
         # Certbot get Let's Encrypt SSL.
-        if [ ! -d /etc/nginx/ssl ]; then
-            run mkdir "/etc/nginx/ssl/${1}"
+        if [[ -n $(command -v certbot) ]]; then
+            if grep -qwE "\*.${1}" "/etc/nginx/sites-available/${1}.conf"; then
+                run certbot certonly --manual --preferred-challenges dns --manual-public-ip-logging-ok \
+                    --webroot-path="/home/lemper/webapps/${1}" -d "${1}" -d "*.${1}"
+            else
+                run certbot certonly --webroot --webroot-path="/home/lemper/webapps/${1}" -d "${1}"
+            fi
+        else
+            fail "Certbot executable binary not found. Install it first!"
         fi
     fi
 
     # Generate Diffie-Hellman parameters.
-    if [ ! -f /etc/letsencrypt/ssl-dhparams-4096.pem ]; then
-        echo "Generating Diffie-Hellman parameters for enhanced security..."
+    if [ ! -f /etc/nginx/ssl/dhparam-2048.pem ]; then
+        echo "Generating Diffie-Hellman parameters for enhanced HTTPS/SSL security,"
+        echo "this is going to take a long time..."
 
-        #run openssl dhparam -out /etc/letsencrypt/ssl-dhparams-2048.pem 2048
-        #run openssl dhparam -out /etc/letsencrypt/ssl-dhparams-4096.pem 4096
+        run openssl dhparam -out /etc/nginx/ssl/dhparam-2048.pem 2048
     fi
 
     # Update vhost config.
@@ -384,10 +391,11 @@ function enable_https() {
         run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443 ssl http2/g" "/etc/nginx/sites-available/${1}.conf"
         
         # Enable SSL configs.
-        run sed -i "s|#include\ /etc/nginx/includes/ssl.conf;|include\ /etc/nginx/includes/ssl.conf|g" "/etc/nginx/sites-available/${1}.conf"
         run sed -i "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${1}.conf"
         run sed -i "s/#ssl_certificate_key/ssl_certificate_key/g" "/etc/nginx/sites-available/${1}.conf"
-        run sed -i "s/#ssl_dhparam/ssl_dhparam/g" "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s/#ssl_trusted_certificate/ssl_trusted_certificate/g" "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s|#include\ /etc/nginx/includes/ssl.conf;|include\ /etc/nginx/includes/ssl.conf|g" \
+            "/etc/nginx/sites-available/${1}.conf"
 
         # Append redirection block.
         cat >> "/etc/nginx/sites-available/${1}.conf" <<EOL

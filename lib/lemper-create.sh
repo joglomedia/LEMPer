@@ -174,10 +174,9 @@ server {
     server_name ${SERVERNAME};
 
     ## SSL configuration.
-    #include /etc/nginx/includes/ssl.conf;
     #ssl_certificate /etc/nginx/ssl/${SERVERNAME}/default_ssl.crt;
     #ssl_certificate_key /etc/nginx/ssl/${SERVERNAME}/default_ssl.key;
-    #ssl_dhparam /etc/nginx/ssl/dhparam-4096.pem;
+    #include /etc/nginx/includes/ssl.conf;
 
     ## Log Settings.
     access_log /var/log/nginx/${SERVERNAME}_access.log;
@@ -261,14 +260,11 @@ server {
     listen 80;
     listen [::]:80 ipv6only=on;
 
-    ## Make site accessible from world web.
-    server_name ${SERVERNAME};
-
     ## SSL configuration.
     #include /etc/nginx/includes/ssl.conf;
-    #ssl_certificate /etc/nginx/ssl/${SERVERNAME}/default_ssl.crt;
-    #ssl_certificate_key /etc/nginx/ssl/${SERVERNAME}/default_ssl.key;
-    #ssl_dhparam /etc/nginx/ssl/dhparam-4096.pem;
+    #ssl_certificate /etc/letsencrypt/live/${SERVERNAME}/fullchain.pem;
+    #ssl_certificate_key /etc/letsencrypt/live/${SERVERNAME}/privkey.pem;
+    #ssl_trusted_certificate /etc/letsencrypt/live/${SERVERNAME}/fullchain.pem;
 
     ## Log Settings.
     access_log /var/log/nginx/${SERVERNAME}_access.log;
@@ -283,6 +279,17 @@ server {
 
     ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
+    # Async Google Analytics
+    #pagespeed EnableFilters make_google_analytics_async;
+    # Async Google Adsense
+    #pagespeed EnableFilters make_show_ads_async;
+    # PageSpeed should be disabled on the WP admin  (adjust to suit custom admin URLs)
+    #pagespeed Disallow "*/wp-admin/*";
+    # Enable fetch HTTPS
+    #pagespeed FetchHttps enable;
+    # This setting should be enabled when using HTTPS
+    # Take care when using HTTP > HTTPS redirection to avoid loops
+    #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -307,6 +314,12 @@ server {
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         fastcgi_param PATH_INFO \$fastcgi_path_info;
         fastcgi_param QUERY_STRING \$query_string;
+
+        # Comment out HTTPS line for PHP behind SSL https.
+        # old pre .03 method
+        #fastcgi_param HTTPS on;
+        # new .04+ map method
+        #fastcgi_param HTTPS \$server_https;
 
         # Include FastCGI Configs.
         include /etc/nginx/includes/fastcgi.conf;
@@ -351,9 +364,9 @@ server {
 
     ## SSL configuration.
     #include /etc/nginx/includes/ssl.conf;
-    #ssl_certificate /etc/nginx/ssl/${SERVERNAME}/default_ssl.crt;
-    #ssl_certificate_key /etc/nginx/ssl/${SERVERNAME}/default_ssl.key;
-    #ssl_dhparam /etc/nginx/ssl/dhparam-4096.pem;
+    #ssl_certificate /etc/letsencrypt/live/${SERVERNAME}/fullchain.pem;
+    #ssl_certificate_key /etc/letsencrypt/live/${SERVERNAME}/privkey.pem;
+    #ssl_trusted_certificate /etc/letsencrypt/live/${SERVERNAME}/fullchain.pem;
 
     ## Log Settings.
     access_log /var/log/nginx/${SERVERNAME}_access.log;
@@ -368,6 +381,17 @@ server {
 
     ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
+    # Async Google Analytics
+    #pagespeed EnableFilters make_google_analytics_async;
+    # Async Google Adsense
+    #pagespeed EnableFilters make_show_ads_async;
+    # PageSpeed should be disabled on the WP admin  (adjust to suit custom admin URLs)
+    #pagespeed Disallow "*/wp-admin/*";
+    # Enable fetch HTTPS
+    #pagespeed FetchHttps enable;
+    # This setting should be enabled when using HTTPS
+    # Take care when using HTTP > HTTPS redirection to avoid loops
+    #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -432,9 +456,9 @@ server {
 
     ## SSL configuration.
     #include /etc/nginx/includes/ssl.conf;
-    #ssl_certificate /etc/nginx/ssl/${SERVERNAME}/default_ssl.crt;
-    #ssl_certificate_key /etc/nginx/ssl/${SERVERNAME}/default_ssl.key;
-    #ssl_dhparam /etc/nginx/ssl/dhparam-4096.pem;
+    #ssl_certificate /etc/letsencrypt/live/${SERVERNAME}/fullchain.pem;
+    #ssl_certificate_key /etc/letsencrypt/live/${SERVERNAME}/privkey.pem;
+    #ssl_trusted_certificate /etc/letsencrypt/live/${SERVERNAME}/fullchain.pem;
 
     ## Log Settings.
     access_log /var/log/nginx/${SERVERNAME}_access.log;
@@ -449,6 +473,17 @@ server {
 
     ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
+    # Async Google Analytics
+    #pagespeed EnableFilters make_google_analytics_async;
+    # Async Google Adsense
+    #pagespeed EnableFilters make_show_ads_async;
+    # PageSpeed should be disabled on the WP admin  (adjust to suit custom admin URLs)
+    #pagespeed Disallow "*/wp-admin/*";
+    # Enable fetch HTTPS
+    #pagespeed FetchHttps enable;
+    # This setting should be enabled when using HTTPS
+    # Take care when using HTTP > HTTPS redirection to avoid loops
+    #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -998,6 +1033,12 @@ function init_app() {
                 ;;
             esac
 
+            # Well-Known URIs: RFC 8615.
+            if [ ! -d "${WEBROOT}/.well-known" ]; then
+                echo "Create well-known directory, RFC 8615..."
+                run mkdir -p "${WEBROOT}/.well-known"
+            fi
+
             # Enable FastCGI cache.
             if [ ${ENABLE_FASTCGI_CACHE} == true ]; then
                 echo "Enable FastCGI cache for ${SERVERNAME}..."
@@ -1033,6 +1074,14 @@ function init_app() {
                 fi
             fi
 
+            echo "Enable ${SERVERNAME} virtual host..."
+
+            # Enable site.
+            if [ ! -f "/etc/nginx/sites-enabled/${SERVERNAME}.conf" ]; then
+                run ln -s "/etc/nginx/sites-available/${SERVERNAME}.conf" \
+                    "/etc/nginx/sites-enabled/${SERVERNAME}.conf"
+            fi
+
             # Fix document root ownership.
             run chown -R "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
@@ -1040,12 +1089,7 @@ function init_app() {
             if [ "$(ls -A "${WEBROOT}")" ]; then
                 run find "${WEBROOT}" -type d -print0 | xargs -0 chmod 755
                 run find "${WEBROOT}" -type f -print0 | xargs -0 chmod 644
-            fi
-
-            echo "Enable ${SERVERNAME} virtual host..."
-
-            # Enable site.
-            run ln -s "/etc/nginx/sites-available/${SERVERNAME}.conf" "/etc/nginx/sites-enabled/${SERVERNAME}.conf"
+            fi    
 
             # Reload Nginx
             echo "Reloading NGiNX HTTP server configuration..."

@@ -55,15 +55,11 @@ EOL
                 crontab lemper.cron
                 rm -f lemper.cron
             fi
-        fi
 
-        # Generate Diffie-Hellman parameters
-        if [ ! -f /etc/letsencrypt/ssl-dhparam-4096.pem ]; then
-            echo "Generating Diffie-Hellman parameters for enhanced security,"
-            echo "This is going to take a long time"
-
-            DH_NUMBITS=${DH_NUMBITS:-4096}
-            run openssl dhparam -out "/etc/letsencrypt/ssl-dhparam-${DH_NUMBITS}.pem" "${DH_NUMBITS}"
+            # Register a new account
+            LE_EMAIL=${ADMIN_EMAIL:-"cert@lemper.sh"}
+            run certbot register --email "${LE_EMAIL}" --no-eff-email
+            #run certbot rupdate_account --email "${LE_EMAIL}" --no-eff-email
         fi
 
         if "${DRYRUN}"; then
