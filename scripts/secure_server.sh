@@ -69,7 +69,7 @@ EOL
             run chmod 700 /home/lemper/.ssh
             run chmod 600 /home/lemper/.ssh/authorized_keys
 
-            echo "Enable SSH_PASSWORDLESS login..."
+            echo -e "\nEnable SSH_PASSWORDLESS login..."
             # Restrict root login directly, use sudo user instead.
             SSH_ROOT_LOGIN=${SSH_ROOT_LOGIN:-false}
             if ! ${SSH_ROOT_LOGIN}; then
