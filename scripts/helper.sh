@@ -446,8 +446,8 @@ function enable_swap() {
 # Create system account.
 function create_account() {
     export USERNAME=${1:-"lemper"}
-    export PASSWORD && \
     PASSWORD=$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
+    export PASSWORD
 
     echo "Creating default LEMPer account..."
 
@@ -465,19 +465,19 @@ function create_account() {
             fi
 
             # Add account credentials to /srv/.htpasswd.
-            if [[ ! -n "/srv/.htpasswd" ]]; then 
+            if [[ ! -f "/srv/.htpasswd" ]]; then 
                 run touch /srv/.htpasswd
             fi
 
             # Generate passhword hash.
             if [[ -n $(command -v mkpasswd) ]]; then
-                local PASSHASH=$(mkpasswd --method=sha-256 "${PASSWORD}")
-                run bash -c 'echo "${USERNAME}:${PASSHASH}" > /srv/.htpasswd'
+                PASSWORD_HASH=$(mkpasswd --method=sha-256 "${PASSWORD}")
+                run bash -c "echo \"${USERNAME}:${PASSWORD_HASH}\" > /srv/.htpasswd"
             elif [[ -n $(command -v htpasswd) ]]; then
                 run htpasswd -b /srv/.htpasswd "${USERNAME}" "${PASSWORD}"
             else
-                local PASSHASH=$(openssl passwd -1 "${PASSWORD}")
-                run bash -c 'echo "${USERNAME}:${PASSWORD}" > /srv/.htpasswd'
+                PASSWORD_HASH=$(openssl passwd -1 "${PASSWORD}")
+                run bash -c "echo \"${USERNAME}:${PASSWORD_HASH}\" > /srv/.htpasswd"
             fi
 
             # Save data to log file.
