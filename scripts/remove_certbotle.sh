@@ -18,7 +18,7 @@ fi
 requires_root
 
 function init_certbotle_removal() {
-    if [[ -n $(dpkg-query -l | grep -eW "certbot" | awk '/certbot/ { print $2 }') ]]; then
+    if [[ -n $(dpkg-query -l | grep certbot | awk '/certbot/ { print $2 }') ]]; then
         echo "Found Certbot package installation. Removing..."
 
         # Remove Certbot.
