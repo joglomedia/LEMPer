@@ -70,7 +70,7 @@ http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
 
 ## TODO
 * ~~Custom build latest [Nginx](https://nginx.org/en/) from source~~
-* Add [Let's Encrypt SSL](https://letsencrypt.org/)
+* ~~Add [Let's Encrypt SSL](https://letsencrypt.org/)~~
 * ~~Add network security (iptable rules, firewall configurator, else?)~~
 * Add enhanced security (AppArmor, cgroups, jailkit (chrooted/jail users), else?)
 * Add file backup tool (Restic, Borg, Rsnapshot, else?)

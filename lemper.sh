@@ -148,8 +148,8 @@ case "${1}" in
 
         ### Certbot Let's Encrypt SSL installation ###
         echo ""
-        if [ -f scripts/install_letsencrypt.sh ]; then
-            ./scripts/install_letsencrypt.sh
+        if [ -f scripts/install_certbotle.sh ]; then
+            ./scripts/install_certbotle.sh
         fi
 
         ### Mail server installation ###
@@ -252,6 +252,12 @@ Now, you can reboot your server and enjoy it!"
         echo ""
         if [ -f scripts/remove_redis.sh ]; then
             ./scripts/remove_redis.sh
+        fi
+
+        ### Remove Certbot LE ###
+        echo ""
+        if [ -f scripts/remove_certbotle.sh ]; then
+            ./scripts/remove_certbotle.sh
         fi
 
         # Remove default user account.
