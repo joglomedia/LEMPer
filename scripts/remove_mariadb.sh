@@ -30,7 +30,9 @@ function init_mariadb_removal() {
         run apt-get --purge remove -y libmariadbclient18 mariadb-backup mariadb-server mysql-common
 
         # Remove repository.
-        run rm -f /etc/apt/sources.list.d/MariaDB-*.list
+        if "${FORCE_REMOVE}"; then
+            run rm -f /etc/apt/sources.list.d/MariaDB-*.list
+        fi
     elif [[ -n $(dpkg-query -l | grep mysql-server | awk '/mysql-server/ { print $2 }') ]]; then
         echo "Found MySQL package installation. Removing..."
 

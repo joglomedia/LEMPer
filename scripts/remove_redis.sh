@@ -27,10 +27,8 @@ function init_redis_removal() {
         echo "Found Redis package installation. Removing..."
 
         # Remove Redis server.
-        {
-            run apt-get --purge remove -y redis-server php-redis
-            run add-apt-repository -y --remove ppa:chris-lea/redis-server
-        }
+        run apt-get --purge remove -y redis-server php-redis
+        run add-apt-repository -y --remove ppa:chris-lea/redis-server
     else
         echo "Redis package not found, possibly installed from source."
         echo "Remove it manually."
