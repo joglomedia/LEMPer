@@ -56,10 +56,8 @@ function init_mongodb_install() {
 
         echo "Installing MongoDB server and MongoDB PHP module..."
         if hash dpkg 2>/dev/null; then
-            {
-                run apt-get update
-                run apt-get -y install mongodb-org mongodb-org-server
-            }
+            run apt-get update
+            run apt-get -y install mongodb-org mongodb-org-server
         elif hash yum 2>/dev/null; then
             if [ "${VERSION_ID}" == "5" ]; then
                 yum -y update
