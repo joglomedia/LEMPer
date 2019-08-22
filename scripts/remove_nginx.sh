@@ -67,6 +67,10 @@ function init_nginx_removal() {
                 run rm -f /etc/init.d/nginx
             fi
 
+            if [ -f /etc/systemd/system/multi-user.target.wants/nginx.service ]; then
+                run unlink /etc/systemd/system/multi-user.target.wants/nginx.service
+            fi
+
             if [ -f /lib/systemd/system/nginx.service ]; then
                 run rm -f /lib/systemd/system/nginx.service
             fi
@@ -94,11 +98,11 @@ function init_nginx_removal() {
     # Remove nginx config files.
     warning "!! This action is not reversible !!"
     while [[ "${REMOVE_NGXCONFIG}" != "y" && "${REMOVE_NGXCONFIG}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Remove Nginx configuration files? [y/n]: " \
+        read -rp "Remove all Nginx configs under /etc/nginx directory? [y/n]: " \
             -i y -e REMOVE_NGXCONFIG
     done
     if [[ "${REMOVE_NGXCONFIG}" == Y* || "${REMOVE_NGXCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
-        echo "All your Nginx configuration files deleted permanently..."
+        echo "All your Nginx configs files deleted permanently..."
         run rm -fr /etc/nginx
         # Remove nginx-cache.
         run rm -fr /var/cache/nginx
