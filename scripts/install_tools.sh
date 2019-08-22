@@ -52,13 +52,13 @@ _EOF_
 }
 
 function init_webadmin_install() {
-
     # Install Lemper CLI tool.
+    echo "Installing Lemper CLI tool..."
     run cp -f bin/lemper-cli.sh /usr/local/bin/lemper-cli
     run chmod ugo+x /usr/local/bin/lemper-cli
 
     if [ ! -d /usr/local/lib/lemper ]; then
-        run mkdir /usr/local/lib/lemper
+        run mkdir -p /usr/local/lib/lemper
     fi
 
     run cp -f lib/lemper-create.sh /usr/local/lib/lemper/lemper-create
@@ -67,8 +67,9 @@ function init_webadmin_install() {
     run chmod ugo+x /usr/local/lib/lemper/lemper-manage
 
     # Install Web Admin.
+    echo "Installing Lemper web panel..."
     if [ ! -d /usr/share/nginx/html/lcp ]; then
-        run mkdir /usr/share/nginx/html/lcp
+        run mkdir -p /usr/share/nginx/html/lcp
     fi
 
     if ! "${DRYRUN}"; then
@@ -84,15 +85,31 @@ function init_webadmin_install() {
     fi
 
     # Install PHP Info
-    #cat > /usr/share/nginx/html/lcp/phpinfo.php <<EOL
-    #<?php phpinfo(); ?>
-    #EOL
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php56'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php70'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php71'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php72'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php73'
+
+    # Install Adminer for Web-based MySQL Administration Tool
+    if [ ! -d /usr/share/nginx/html/lcp/dbadminer ]; then
+        run mkdir /usr/share/nginx/html/lcp/dbadminer
+        run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.2/adminer-4.7.2.php \
+            -O /usr/share/nginx/html/lcp/dbadminer/index.php
+        run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.2/editor-4.7.2.php \
+            -O /usr/share/nginx/html/lcp/dbadminer/editor.php
+    fi
+
+    # Install FileRun File Manager
+    if [ ! -d /usr/share/nginx/html/lcp/filemanager ]; then
+        run mkdir /usr/share/nginx/html/lcp/filemanager
+        run wget -q http://www.filerun.com/download-latest -O /usr/share/nginx/html/lcp/FileRun.zip
+        run unzip -o -qq /usr/share/nginx/html/lcp/FileRun.zip -d /usr/share/nginx/html/lcp/filemanager
+        run rm -f /usr/share/nginx/html/lcp/FileRun.zip
+    fi
+
+    # TODO: Replace FileRun with Tinyfilemanager https://github.com/prasathmani/tinyfilemanager
 
     # Install Zend OpCache Web Admin
     run wget -q --no-check-certificate https://raw.github.com/rlerdorf/opcache-status/master/opcache.php \
@@ -104,35 +121,14 @@ function init_webadmin_install() {
         run git clone -q https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/lcp/phpMemcachedAdmin/
     else
         #local CUR_DIR && \
-        #CUR_DIR=$(pwd)
+        CUR_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/phpMemcachedAdmin/
         run git pull
-        run cd "$(pwd)"
+        run cd "${CUR_DIR}"
     fi
-
-    # Install Adminer for Web-based MySQL Administration Tool
-    if [ ! -d /usr/share/nginx/html/lcp/dbadminer ]; then
-        run mkdir /usr/share/nginx/html/lcp/dbadminer
-    fi
-
-    run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.2/adminer-4.7.2.php \
-        -O /usr/share/nginx/html/lcp/dbadminer/index.php
-    run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.2/editor-4.7.2.php \
-        -O /usr/share/nginx/html/lcp/dbadminer/editor.php
-
-    # Install FileRun File Manager
-    if [ ! -d /usr/share/nginx/html/lcp/filemanager ]; then
-        run mkdir /usr/share/nginx/html/lcp/filemanager
-    fi
-
-    run wget -q http://www.filerun.com/download-latest -O FileRun.zip
-    run unzip -o -qq FileRun.zip -d /usr/share/nginx/html/lcp/filemanager
-    run rm -f FileRun.zip
-
-    # TODO: Replace FileRun with Tinyfilemanager https://github.com/prasathmani/tinyfilemanager
 
     # Assign ownership properly
-    run chown -hR www-data:root /usr/share/nginx/html/lcp/
+    run chown -hR www-data: /usr/share/nginx/html
 
     if [[ -x /usr/local/bin/lemper-cli && -d /usr/share/nginx/html/lcp ]]; then
         status "Web administration tools successfully installed."
