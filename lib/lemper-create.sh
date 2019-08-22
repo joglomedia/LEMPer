@@ -120,6 +120,8 @@ Requirements:
   * LEMP stack setup uses [LEMPer](https://github.com/joglomedia/LEMPer)
 
 Usage: ${CMD_PARENT} ${CMD_NAME} [options]...
+       ${CMD_PARENT} ${CMD_NAME} -d <domain-name> -f <framework>
+       ${CMD_PARENT} ${CMD_NAME} -d <domain-name> -f <framework> -w <webroot-path>
 
 Options:
   -d, --domain-name <server domain name>
@@ -168,15 +170,16 @@ function create_vhost_default() {
 cat <<- _EOF_
 server {
     listen 80;
-    listen [::]:80 ipv6only=on;
+    listen [::]:80;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
 
     ## SSL configuration.
-    #ssl_certificate /etc/nginx/ssl/${SERVERNAME}/default_ssl.crt;
-    #ssl_certificate_key /etc/nginx/ssl/${SERVERNAME}/default_ssl.key;
     #include /etc/nginx/includes/ssl.conf;
+    #ssl_certificate /etc/letsencrypt/live/${SERVERNAME}/fullchain.pem;
+    #ssl_certificate_key /etc/letsencrypt/live/${SERVERNAME}/privkey.pem;
+    #ssl_trusted_certificate /etc/letsencrypt/live/${SERVERNAME}/fullchain.pem;
 
     ## Log Settings.
     access_log /var/log/nginx/${SERVERNAME}_access.log;
@@ -258,7 +261,7 @@ function create_vhost_drupal() {
 cat <<- _EOF_
 server {
     listen 80;
-    listen [::]:80 ipv6only=on;
+    listen [::]:80;
 
     ## SSL configuration.
     #include /etc/nginx/includes/ssl.conf;
@@ -357,7 +360,7 @@ function create_vhost_laravel() {
 cat <<- _EOF_
 server {
     listen 80;
-    listen [::]:80 ipv6only=on;
+    listen [::]:80;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
@@ -449,7 +452,7 @@ function create_vhost_phalcon() {
 cat <<- _EOF_
 server {
     listen 80;
-    listen [::]:80 ipv6only=on;
+    listen [::]:80;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
@@ -560,7 +563,7 @@ cat <<- _EOF_
 # HTTP to HTTPS redirection
 server {
     listen 80;
-    listen [::]:80 ipv6only=on;
+    listen [::]:80;
 
     ## Make site accessible from world web.
     server_name ${SERVERNAME};
@@ -719,14 +722,16 @@ function init_app() {
     eval set -- "${OPTS}"
 
     # Default value
+    USERNAME=""
+    SERVERNAME=""
+    WEBROOT=""
     FRAMEWORK="default"
     PHP_VERSION="7.3"
+    CLONE_SKELETON=false
     ENABLE_FASTCGI_CACHE=false
     ENABLE_PAGESPEED=false
     ENABLE_HTTPS=false
     ENABLE_WILDCARD_DOMAIN=false
-    CLONE_SKELETON=false
-    DRYRUN=false
 
     # Args counter
     MAIN_ARGS=0
@@ -737,7 +742,7 @@ function init_app() {
         case "${1}" in
             -u | --username) shift
                 USERNAME="${1}"
-                MAIN_ARGS=$((MAIN_ARGS + 1))
+                #MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
             -d | --domain-name) shift
@@ -747,15 +752,14 @@ function init_app() {
             ;;
             -f | --framework) shift
                 FRAMEWORK="${1}"
-                MAIN_ARGS=$((MAIN_ARGS + 1))
+                #MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
             -w | --webroot) shift
                 # Remove trailing slash.
                 # shellcheck disable=SC2001
-                #WEBROOT="${1%/}"
                 WEBROOT=$(echo "${1}" | sed 's:/*$::')
-                MAIN_ARGS=$((MAIN_ARGS + 1))
+                #MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
             -p | --php-version) shift
@@ -795,51 +799,15 @@ function init_app() {
         esac
     done
 
-    if [ ${MAIN_ARGS} -ge 4 ]; then
-        # Additional Check - are user already exist?
-        if [[ -z $(getent passwd "${USERNAME}") ]]; then
-            fail -e "The user ${USERNAME} does not exist, please add new user first! Aborting..."
-        fi
-
-        # Check domain options is not empty.
-        if [[ -z "${SERVERNAME}" ]]; then
-            fail -e "Domain name option shouldn't be empty.\n       -d or --domain-name option is required!"
-        fi
-
-        # Check framework options is not empty.
-        if [[ -z "${FRAMEWORK}" ]]; then
-            fail -e "Framework option shouldn't be empty.\n       -w or --webroot option is required!"
-        fi
-
-        # Check web root options is not empty.
-        if [[ -z "${WEBROOT}" ]]; then
-            fail -e "Web root option shouldn't be empty.\n       -w or --webroot option is required!"
-        fi
-
+    if [ ${MAIN_ARGS} -ge 1 ]; then
         # Additional Check - ensure that Nginx's configuration meets the requirements.
         if [[ ! -d /etc/nginx/sites-available && ! -d /etc/nginx/vhost ]]; then
-            fail "It seems that your NGiNX installation doesn't meet the requirements. Aborting..."
+            fail "It seems that your NGiNX installation doesn't meet LEMPer requirements. Aborting..."
         fi
 
-        # Check PHP fpm version is exists.
-        if [[ -n $(command -v "php-fpm${PHP_VERSION}") && -d "/etc/php/${PHP_VERSION}/fpm" ]]; then
-            # Additional check - if FPM user's pool already exist
-            if [ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]; then
-                warning "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."
-                echo "Creating new PHP-FPM pool [${USERNAME}] configuration..."
-
-                create_fpm_pool_conf > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
-                run touch "/var/log/php${PHP_VERSION}-fpm_slow.${USERNAME}.log"
-
-                # Restart PHP FPM
-                echo "Restart php${PHP_VERSION}-fpm configuration..."
-
-                run service "php${PHP_VERSION}-fpm" restart
-
-                status "New PHP-FPM pool [${USERNAME}] has been created."
-            fi
-        else
-            fail "No PHP & FPM version ${PHP_VERSION} installed, please install it first! Aborting..."
+        # Check domain option.
+        if [[ -z "${SERVERNAME}" ]]; then
+            fail -e "Domain name option shouldn't be empty.\n       -d or --domain-name option is required!"
         fi
 
         # Define vhost file.
@@ -849,13 +817,65 @@ function init_app() {
         if [ ! -f "${VHOST_FILE}" ]; then
             echo "Adding domain ${SERVERNAME} to virtual host..."
 
+            # Check for username.
+            if [[ -z "${USERNAME}" ]]; then
+                warning "Username option is empty. Attempt to use default \"lemper\" account."
+                USERNAME="lemper"
+            fi
+
+            # Additional Check - are user account exist?
+            if [[ -z $(getent passwd "${USERNAME}") ]]; then
+                fail "User account \"${USERNAME}\" does not exist. Please add new account first! Aborting..."
+            fi
+
+            # Check PHP fpm version is exists.
+            if [[ -n $(command -v "php-fpm${PHP_VERSION}") && -d "/etc/php/${PHP_VERSION}/fpm" ]]; then
+                # Additional check - if FPM user's pool already exist
+                if [ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]; then
+                    warning "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."
+                    echo "Creating new PHP-FPM pool [${USERNAME}] configuration..."
+
+                    create_fpm_pool_conf > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
+                    run touch "/var/log/php${PHP_VERSION}-fpm_slow.${USERNAME}.log"
+
+                    # Restart PHP FPM
+                    echo "Restart php${PHP_VERSION}-fpm configuration..."
+
+                    run service "php${PHP_VERSION}-fpm" restart
+
+                    status "New PHP-FPM pool [${USERNAME}] has been created."
+                fi
+            else
+                fail "Oops, PHP${PHP_VERSION} & FPM not found. Please install it first! Aborting..."
+            fi
+
+            # Check web root option.
+            if [[ -z "${WEBROOT}" ]]; then
+                #fail -e "Web root option shouldn't be empty.\n       -w or --webroot option is required!"
+                WEBROOT="/home/${USERNAME}/webapps/${SERVERNAME}"
+                warning "Webroot option is empty. Set default web root to: ${WEBROOT}"
+            fi
+
             # Creates document root.
             if [ ! -d "${WEBROOT}" ]; then
                 echo "Creating web root directory: ${WEBROOT}..."
 
                 run mkdir -p "${WEBROOT}"
-                run chown -R "${USERNAME}:${USERNAME}" "${WEBROOT}"
+                run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
                 run chmod 755 "${WEBROOT}"
+            fi
+
+            # Well-Known URIs: RFC 8615.
+            if [ ! -d "${WEBROOT}/.well-known" ]; then
+                echo "Creating well-known directory, RFC 8615..."
+                run mkdir -p "${WEBROOT}/.well-known"
+            fi
+
+            # Check framework option.
+            if [[ -z "${FRAMEWORK}" ]]; then
+                #fail -e "Framework option shouldn't be empty.\n       -f or --framework option is required!"
+                FRAMEWORK="default"
+                warning "Framework option is empty. Set default framework to: ${WEBROOT}"
             fi
 
             echo "Selecting ${FRAMEWORK^} framewrok..."
@@ -891,7 +911,7 @@ function init_app() {
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_drupal > "${VHOST_FILE}"
-                    status "New domain ${SERVERNAME} has been added to virtual host."
+                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 laravel|lumen)
@@ -917,7 +937,7 @@ function init_app() {
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_laravel > "${VHOST_FILE}"
-                    status "New domain ${SERVERNAME} has been added to virtual host."
+                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 phalcon)
@@ -928,7 +948,7 @@ function init_app() {
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_phalcon > "${VHOST_FILE}"
-                    status "New domain ${SERVERNAME} has been added to virtual host."
+                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 symfony)
@@ -939,7 +959,7 @@ function init_app() {
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_default > "${VHOST_FILE}"
-                    status "New domain ${SERVERNAME} has been added to virtual host."
+                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 wordpress)
@@ -951,7 +971,7 @@ function init_app() {
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_default > "${VHOST_FILE}"
-                    status "New domain ${SERVERNAME} has been added to virtual host."
+                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 wordpress-ms)
@@ -985,7 +1005,7 @@ function init_app() {
                     # Create vhost.
                     create_vhost_default >> "${VHOST_FILE}"
 
-                    status "New domain ${SERVERNAME} has been added to virtual host."
+                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 filerun)
@@ -1012,7 +1032,7 @@ function init_app() {
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_default > "${VHOST_FILE}"
-                    status "New domain ${SERVERNAME} has been added to virtual host."
+                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 codeigniter|mautic|default)
@@ -1023,7 +1043,7 @@ function init_app() {
                     # Create default vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_default > "${VHOST_FILE}"
-                    status "New domain ${SERVERNAME} has been added to virtual host."
+                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 *)
@@ -1033,10 +1053,18 @@ function init_app() {
                 ;;
             esac
 
-            # Well-Known URIs: RFC 8615.
-            if [ ! -d "${WEBROOT}/.well-known" ]; then
-                echo "Create well-known directory, RFC 8615..."
-                run mkdir -p "${WEBROOT}/.well-known"
+            # Confirm virtual host.
+            if grep -qwE "server_name ${SERVERNAME}" "${VHOST_FILE}"; then
+                status "New domain ${SERVERNAME} has been added to virtual host."
+            fi
+
+            # Enable Wildcard domain.
+            if [ ${ENABLE_WILDCARD_DOMAIN} == true ]; then
+                echo "Enable wildcard domain for ${SERVERNAME}..."
+
+                if grep -qwE "server_name\ ${SERVERNAME};$" "${VHOST_FILE}"; then
+                    run sed -i "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" "${VHOST_FILE}"
+                fi
             fi
 
             # Enable FastCGI cache.
@@ -1065,15 +1093,6 @@ function init_app() {
                 fi
             fi
 
-            # Enable Wildcard domain.
-            if [ ${ENABLE_WILDCARD_DOMAIN} == true ]; then
-                echo "Enable wildcard domain for ${SERVERNAME}..."
-
-                if grep -qwE "server_name\ ${SERVERNAME};$" "${VHOST_FILE}"; then
-                    run sed -i "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" "${VHOST_FILE}"
-                fi
-            fi
-
             echo "Enable ${SERVERNAME} virtual host..."
 
             # Enable site.
@@ -1083,7 +1102,7 @@ function init_app() {
             fi
 
             # Fix document root ownership.
-            run chown -R "${USERNAME}:${USERNAME}" "${WEBROOT}"
+            run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
             # Fix document root permission.
             if [ "$(ls -A "${WEBROOT}")" ]; then
