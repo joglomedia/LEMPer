@@ -14,6 +14,12 @@ if [ "$(type -t run)" != "function" ]; then
     . "${BASEDIR}/helper.sh"
 fi
 
+# Define build directory.
+BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
+if [ ! -d "${BUILD_DIR}" ]; then
+    run mkdir -p "${BUILD_DIR}"
+fi
+
 # Make sure only root can run this installer script.
 requires_root
 
@@ -67,6 +73,7 @@ php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS
 
         if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
             echo "Installing PHP${PHPv} & FPM packages..."
+            # shellcheck disable=SC2068
             run apt-get install -y ${PHP_PKGS[@]}
         fi
 
@@ -121,6 +128,14 @@ php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS
 function install_ioncube() {
     echo "Installing ionCube PHP loader..."
 
+    # Delete old loaders file.
+    if [ -d /usr/lib/php/loaders/ioncube ]; then
+        echo "Removing old/existing ionCube PHP loader..."
+        run rm -fr /usr/lib/php/loaders/ioncube
+    fi
+
+    run pushd "${BUILD_DIR}"
+
     ARCH=${ARCH:-$(uname -p)}
     if [[ "${ARCH}" == "x86_64" ]]; then
         run wget -q "http://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz"
@@ -132,14 +147,9 @@ function install_ioncube() {
         run rm -f ioncube_loaders_lin_x86.tar.gz
     fi
 
-    # Delete old loaders file
-    if [ -d /usr/lib/php/loaders/ioncube ]; then
-        echo "Removing old/existing ionCube PHP loader..."
-        run rm -fr /usr/lib/php/loaders/ioncube
-    fi
-
     echo "Installing latest ionCube PHP loader..."
     run mv -f ioncube /usr/lib/php/loaders/
+    run popd
 }
 
 # Enable ionCube Loader
@@ -217,11 +227,17 @@ function remove_ioncube() {
 function install_sourceguardian() {
     echo "Installing SourceGuardian PHP loader..."
 
-    if [ ! -d sourceguardian ]; then
-        run mkdir sourceguardian
+    # Delete old loaders file.
+    if [ -d /usr/lib/php/loaders/sourceguardian ]; then
+        echo "Removing old/existing loader..."
+        run rm -fr /usr/lib/php/loaders/sourceguardian
     fi
 
-    run cd sourceguardian
+    if [ ! -d "${BUILD_DIR}/sourceguardian" ]; then
+        run mkdir -p "${BUILD_DIR}/sourceguardian"
+    fi
+
+    run pushd "${BUILD_DIR}/sourceguardian"
 
     ARCH=${ARCH:-$(uname -p)}
     if [[ "${ARCH}" == "x86_64" ]]; then
@@ -234,16 +250,10 @@ function install_sourceguardian() {
         run rm -f loaders.linux-x86.tar.gz
     fi
 
-    run cd ../
-
-    # Delete old loaders file
-    if [ -d /usr/lib/php/loaders/sourceguardian ]; then
-        echo "Removing old/existing loader..."
-        run rm -fr /usr/lib/php/loaders/sourceguardian
-    fi
+    run popd
 
     echo "Installing latest SourceGuardian PHP loader..."
-    run mv -f sourceguardian /usr/lib/php/loaders/
+    run mv -f "${BUILD_DIR}/sourceguardian" /usr/lib/php/loaders/
 }
 
 # Enable SourceGuardian.
@@ -317,6 +327,57 @@ function remove_sourceguardian() {
     fi
 }
 
+# Phalcon Framework.
+function install_phalcon() {
+    local PHPv=${1:-$PHP_VERSION}
+
+    # Install prerequisite packages.
+    run apt-get install -y gcc libpcre3-dev make re2c autoconf automake
+
+    # Install Zephir from source.
+    while [[ $INSTALL_ZEPHIR != "y" && $INSTALL_ZEPHIR != "n" ]]; do
+        read -rp "Install Zephir Interpreter? [y/n]: " -e INSTALL_ZEPHIR
+    done
+
+    if [[ "$INSTALL_ZEPHIR" == Y* || "$INSTALL_ZEPHIR" == y* ]]; then
+        # Install Zephir parser.
+        run git clone -q git://github.com/phalcon/php-zephir-parser.git "${BUILD_DIR}/php-zephir-parser"
+        run pushd "${BUILD_DIR}/php-zephir-parser"
+
+        if [[ -n "${PHPv}" ]]; then
+            run "phpize${PHPv}"
+            run ./configure --with-php-config="/usr/bin/php-config${PHPv}"
+        else
+            run phpize
+            run ./configure
+        fi
+
+        run make
+        run make install
+        run popd
+
+        # Install Zephir.
+        ZEPHIR_BRANCH=$(git ls-remote https://github.com/phalcon/zephir 0.12.* | sort -t/ -k3 -Vr | head -n1 | awk -F/ '{ print $NF }')
+        run git clone --depth 1 --branch "${ZEPHIR_BRANCH}" -q https://github.com/phalcon/zephir.git "${BUILD_DIR}/zephir"
+        run pushd "${BUILD_DIR}/zephir"
+        # install zephir
+        run composer install
+        run popd
+    fi
+
+    # Install cPhalcon from source.
+    run git clone --depth=1 --branch=3.4.x -q https://github.com/phalcon/cphalcon.git "${BUILD_DIR}/cphalcon"
+    run pushd "${BUILD_DIR}/cphalcon/build"
+
+    if [[ -n "${PHPv}" ]]; then
+        run ./install --phpize "/usr/bin/phpize${PHPv}" --php-config "/usr/bin/php-config${PHPv}"
+    else
+        run ./install
+    fi
+
+    run popd
+}
+
 # PHP & FPM Optimization.
 function optimize_php_fpm() {
     # PHP version.
@@ -357,33 +418,33 @@ opcache.error_log="/var/log/php/php${PHPv}-opcache_error.log"
 EOL
     fi
 
-    # Copy the optimized-version of php-fpm config file
+    # Copy the optimized-version of php-fpm config file.
     if [ -f "etc/php/${PHPv}/fpm/php-fpm.conf" ]; then
         run mv "/etc/php/${PHPv}/fpm/php-fpm.conf" "/etc/php/${PHPv}/fpm/php-fpm.conf.old"
         run cp -f "etc/php/${PHPv}/fpm/php-fpm.conf" "/etc/php/${PHPv}/fpm/"
     else
-        if grep -qwE "^emergency_restart_threshold\ =\ [0-9]*" /etc/php/${PHPv}/fpm/php-fpm.conf; then
+        if grep -qwE "^emergency_restart_threshold\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
             run sed -i "s/^emergency_restart_threshold\ =\ [0-9]*/emergency_restart_threshold\ =\ 10/g" \
-                /etc/php/${PHPv}/fpm/php-fpm.conf
+                "/etc/php/${PHPv}/fpm/php-fpm.conf"
         else
             run sed -i "/^;emergency_restart_threshold/a emergency_restart_threshold\ =\ 10" \
-                /etc/php/${PHPv}/fpm/php-fpm.conf
+                "/etc/php/${PHPv}/fpm/php-fpm.conf"
         fi
 
-        if grep -qwE "^emergency_restart_interval\ =\ [0-9]*" /etc/php/${PHPv}/fpm/php-fpm.conf; then
+        if grep -qwE "^emergency_restart_interval\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
             run sed -i "s/^emergency_restart_interval\ =\ [0-9]*/emergency_restart_interval\ =\ 60/g" \
-                /etc/php/${PHPv}/fpm/php-fpm.conf
+                "/etc/php/${PHPv}/fpm/php-fpm.conf"
         else
             run sed -i "/^;emergency_restart_interval/a emergency_restart_interval\ =\ 60" \
-                /etc/php/${PHPv}/fpm/php-fpm.conf
+                "/etc/php/${PHPv}/fpm/php-fpm.conf"
         fi
 
-        if grep -qwE "^process_control_timeout\ =\ [0-9]*" /etc/php/${PHPv}/fpm/php-fpm.conf; then
+        if grep -qwE "^process_control_timeout\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
             run sed -i "s/^process_control_timeout\ =\ [0-9]*/process_control_timeout\ =\ 10/g" \
-                /etc/php/${PHPv}/fpm/php-fpm.conf
+                "/etc/php/${PHPv}/fpm/php-fpm.conf"
         else
             run sed -i "/^;process_control_timeout/a process_control_timeout\ =\ 10" \
-                /etc/php/${PHPv}/fpm/php-fpm.conf
+                "/etc/php/${PHPv}/fpm/php-fpm.conf"
         fi
     fi
 
@@ -478,7 +539,6 @@ EOL
 #
 function init_php_fpm_install() {
     if "${AUTO_INSTALL}"; then
-        # Set default Iptables-based firewall configutor engine.
         SELECTED_PHP=${PHP_VERSION:-"7.3"}
     else
         echo "Which version of PHP to install?"
@@ -551,11 +611,10 @@ function init_php_fpm_install() {
 
     # Install PHP loader.
     if [[ "${PHPv}" != "unsupported" && "${PHP_IS_INSTALLED}" != "yes" ]]; then
-        echo ""
         if "${AUTO_INSTALL}"; then
-            # Set default Iptables-based firewall configutor engine.
             INSTALL_PHPLOADER="y"
         else
+            echo ""
             while [[ ${INSTALL_PHPLOADER} != "y" && ${INSTALL_PHPLOADER} != "n" ]]; do
                 read -rp "Do you want to install PHP Loaders? [y/n]: " -e INSTALL_PHPLOADER
             done
@@ -580,7 +639,7 @@ function init_php_fpm_install() {
 
             # Create loaders directory
             if [ ! -d /usr/lib/php/loaders ]; then
-                run mkdir /usr/lib/php/loaders
+                run mkdir -p /usr/lib/php/loaders
             fi
 
             case ${SELECTED_PHPLOADER} in
@@ -649,6 +708,41 @@ function init_php_fpm_install() {
             esac
         fi
 
+        # Install Phalcon PHP Framework.
+        if "${AUTO_INSTALL}"; then
+            INSTALL_PHALCON="y"
+        else
+            echo ""
+            while [[ ${INSTALL_PHALCON} != "y" && ${INSTALL_PHALCON} != "n" ]]; do
+                read -rp "Do you want to install Phalcon framework? [y/n]: " -e INSTALL_PHALCON
+            done
+        fi
+
+        SELECTED_PHALCON=${PHP_PHALCON_INSTALLER:-"source"}
+        if [[ "${INSTALL_PHALCON}" == Y* || "${INSTALL_PHALCON}" == y* ]]; then
+            echo ""
+            echo "Available Phalcon framework installer:"
+            echo "  1). Repository (repo)"
+            echo "  2). Source (source)"
+            echo "--------------------------------------------"
+
+            while [[ ${SELECTED_PHALCON} != "1" && ${SELECTED_PHALCON} != "2" && \
+                    ${SELECTED_PHALCON} != "repo" && ${SELECTED_PHALCON} != "source" ]]; do
+                read -rp "Select an option [1-2]: " -e SELECTED_PHALCON
+            done
+
+            echo ""
+
+            case ${SELECTED_PHALCON} in
+                1|"source")
+                    run install_phalcon "${PHPv}"
+                ;;
+                2|"repo"|*)
+                    run apt-get install -y php-phalcon
+                ;;
+            esac
+        fi
+
         # Final optimization.
         if "${DRYRUN}"; then
             warning "PHP${PHPv} & FPM installed and optimized in dryrun mode."
@@ -680,7 +774,7 @@ if [[ -n $(command -v php5.6) && \
     -n $(command -v php7.0) && \
     -n $(command -v php7.1) && \
     -n $(command -v php7.2) && \
-    -n $(command -v php7.31) ]]; then
+    -n $(command -v php7.3) ]]; then
     warning "All available PHP version already exists. Installation skipped..."
 else
     init_php_fpm_install "$@"
