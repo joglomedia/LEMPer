@@ -662,18 +662,19 @@ _EOF_
 # Installing WordPress skeleton.
 #
 function install_wordpress() {
-    CLONE_SKELETON=${1:-false}
+    #CLONE_SKELETON=${1:-false}
     # Clone new WordPress skeleton files
     if [ "${CLONE_SKELETON}" == true ]; then
         # Check WordPress install directory.
         if [ ! -d "${WEBROOT}/wp-admin" ]; then
             status "Copying WordPress skeleton files..."
 
-            run wget --no-check-certificate -q https://wordpress.org/latest.zip
-            run unzip -q latest.zip
-            run rsync -r wordpress/ "${WEBROOT}"
-            run rm -f latest.zip
-            run rm -fr wordpress
+            run wget --no-check-certificate -q -O "${TMPDIR}/wordpress.zip" \
+                https://wordpress.org/latest.zip
+            run unzip -q "${TMPDIR}/wordpress.zip" -d "${TMPDIR}"
+            run rsync -r "${TMPDIR}/wordpress/" "${WEBROOT}"
+            run rm -f "${TMPDIR}/wordpress.zip"
+            run rm -fr "${TMPDIR}/wordpress/"
         else
             warning "It seems that WordPress files already exists."
         fi
@@ -687,13 +688,12 @@ function install_wordpress() {
 
     # Pre-install nginx helper plugin.
     if [[ -d "${WEBROOT}/wp-content/plugins" && ! -d "${WEBROOT}/wp-content/plugins/nginx-helper" ]]; then
-        status "Copying NGiNX Helper plugin into WordPress install..."
-        warning "Please activate the plugin after WordPress installation!"
+        status "Add NGiNX Helper plugin into WordPress skeleton..."
 
-        run wget --no-check-certificate -q https://downloads.wordpress.org/plugin/nginx-helper.zip
-        run unzip -q nginx-helper.zip
-        run mv nginx-helper "${WEBROOT}/wp-content/plugins/"
-        run rm -f nginx-helper.zip
+        run wget --no-check-certificate -q -O "${TMPDIR}/nginx-helper.zip" \
+            https://downloads.wordpress.org/plugin/nginx-helper.zip
+        run unzip -q "${TMPDIR}/nginx-helper.zip" -d "${WEBROOT}/wp-content/plugins/"
+        run rm -f "${TMPDIR}/nginx-helper.zip"
     fi
 }
 
@@ -732,6 +732,7 @@ function init_app() {
     ENABLE_PAGESPEED=false
     ENABLE_HTTPS=false
     ENABLE_WILDCARD_DOMAIN=false
+    TMPDIR="/tmp/lemper"
 
     # Args counter
     MAIN_ARGS=0
@@ -808,6 +809,11 @@ function init_app() {
         # Check domain option.
         if [[ -z "${SERVERNAME}" ]]; then
             fail -e "Domain name option shouldn't be empty.\n       -d or --domain-name option is required!"
+        fi
+
+        # Temp dir.
+        if [ ! -d "${TMPDIR}" ]; then
+            run mkdir -p "${TMPDIR}"
         fi
 
         # Define vhost file.
@@ -891,12 +897,12 @@ function init_app() {
                         if [ ! -d "${WEBROOT}/core/lib/Drupal" ]; then
                             status "Copying Drupal latest skeleton files..."
 
-                            run wget --no-check-certificate -O drupal.zip -q \
+                            run wget --no-check-certificate -q -O "${TMPDIR}/drupal.zip" \
                                     https://www.drupal.org/download-latest/zip
-                            run unzip -q drupal.zip
-                            run rsync -rq drupal-*/ "${WEBROOT}"
-                            run rm -f drupal.zip
-                            run rm -fr drupal-*/
+                            run unzip -q "${TMPDIR}/drupal.zip" -d "${TMPDIR}"
+                            run rsync -rq ${TMPDIR}/drupal-*/ "${WEBROOT}"
+                            run rm -f "${TMPDIR}/drupal.zip"
+                            run rm -fr ${TMPDIR}/drupal-*/
                         else
                             warning "It seems that Drupal files already exists."
                         fi
@@ -962,11 +968,27 @@ function init_app() {
                     #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
-                wordpress)
+                wordpress|woocommerce)
                     echo "Setting up WordPress virtual host..."
 
                     # Install WordPress skeleton.
                     install_wordpress ${CLONE_SKELETON}
+
+                    # Install WooCommerce.
+                    if [[ "${FRAMEWORK}" == "woocommerce" ]]; then
+                        if [[ -d "${WEBROOT}/wp-content/plugins" && \
+                            ! -d "${WEBROOT}/wp-content/plugins/woocommerce" ]]; then
+                            status "Add WooCommerce plugin into WordPress skeleton..."
+
+                            run wget --no-check-certificate -q -O "${TMPDIR}/woocommerce.zip" \
+                                https://downloads.wordpress.org/plugin/woocommerce.zip
+                            run unzip -q "${TMPDIR}/woocommerce.zip" -d "${WEBROOT}/wp-content/plugins/"
+                            run rm -f "${TMPDIR}/woocommerce.zip"
+                        fi
+
+                        # Update framework as Wordpress.
+                        FRAMEWORK="wordpress"
+                    fi
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
@@ -980,17 +1002,9 @@ function init_app() {
                     # Install WordPress.
                     install_wordpress ${CLONE_SKELETON}
 
-                    # Pre-populate blog id mapping, used by NGiNX vhost conf.
-                    if [ ! -d "${WEBROOT}/wp-content" ]; then
-                        run mkdir "${WEBROOT}/wp-content"
-                    fi
-
-                    if [ ! -d "${WEBROOT}/wp-content/uploads" ]; then
-                        run mkdir "${WEBROOT}/wp-content/uploads"
-                    fi
-
+                    # Pre-populate blog id mapping, used by NGiNX vhost config.
                     if [ ! -d "${WEBROOT}/wp-content/uploads/nginx-helper" ]; then
-                        run mkdir "${WEBROOT}/wp-content/uploads/nginx-helper"
+                        run mkdir -p "${WEBROOT}/wp-content/uploads/nginx-helper"
                     fi
 
                     if [ ! -f "${WEBROOT}/wp-content/uploads/nginx-helper/map.conf" ]; then
@@ -1016,9 +1030,9 @@ function init_app() {
                         # Clone new Filerun files.
                         if [ ${CLONE_SKELETON} == true ]; then
                             echo "Copying FileRun skeleton files..."
-                            run wget -q -O FileRun.zip http://www.filerun.com/download-latest
-                            run unzip -q FileRun.zip -d "${WEBROOT}"
-                            run rm -f FileRun.zip
+                            run wget -q -O "${TMPDIR}/FileRun.zip" http://www.filerun.com/download-latest
+                            run unzip -q "${TMPDIR}/FileRun.zip" -d "${WEBROOT}"
+                            run rm -f "${TMPDIR}/FileRun.zip"
                         else
                             # Create default index file.
                             echo "Creating default index files..."
@@ -1118,7 +1132,7 @@ function init_app() {
                 run service nginx reload -s
                 echo "NGiNX HTTP server reloaded with new configuration."
             else
-                echo "Something went wrong with NGiNX configuration."
+                warning "Something went wrong with NGiNX configuration."
             fi
 
             if [[ -f "/etc/nginx/sites-enabled/${SERVERNAME}.conf" && -e /var/run/nginx.pid ]]; then
