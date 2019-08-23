@@ -165,7 +165,7 @@ function enable_vhost() {
 
         reload_nginx
     else
-        fail -e "${1} couldn't be enabled. Probably, it has been enabled or not created yet."
+        fail "${1} couldn't be enabled. Probably, it has been enabled or not created yet."
         exit 1
     fi
 }
@@ -185,7 +185,7 @@ function disable_vhost() {
 
         reload_nginx
     else
-        fail -e "${1} couldn't be disabled. Probably, it has been disabled or removed."
+        fail "${1} couldn't be disabled. Probably, it has been disabled or removed."
         exit 1
     fi
 }
@@ -195,8 +195,12 @@ function remove_vhost() {
     # Verify user input hostname (domain name)
     verify_host "${1}"
 
-    echo -e "Removing virtual host is not reversible."
+    echo "Removing virtual host is not reversible."
     read -t 30 -rp "Press [Enter] to continue..." </dev/tty
+
+    # Get web root path from vhost config.
+    # shellcheck disable=SC2154
+    WEBROOT=$(grep -wE "set\ $root_path" "/etc/nginx/sites-available/${1}.conf" | awk '{print $3}' | cut -d"'" -f2)
 
     # Remove Nginx's vhost config.
     if [ -f "/etc/nginx/sites-enabled/${1}.conf" ]; then
@@ -205,24 +209,25 @@ function remove_vhost() {
 
     run rm -f "/etc/nginx/sites-available/${1}.conf"
 
-    status -e "\nVirtual host configuration file removed."
+    status "Virtual host configuration file removed."
 
     # Remove vhost root directory.
-    echo ""
     read -rp "Do you want to delete website root directory? [y/n]: " -e DELETE_DIR
     if [[ "${DELETE_DIR}" == Y* || "${DELETE_DIR}" == y* ]]; then
-        read -rp "Enter the real path to website root directory: " -e WEBROOT
+
+        if [[ ! -d "${WEBROOT}" ]]; then
+            read -rp "Enter real path to website root directory: " -e WEBROOT
+        fi
 
         if [ -d "${WEBROOT}" ]; then
             run rm -fr "${WEBROOT}"
-            status -e "\nVirtual host root directory removed."
+            status "Virtual host root directory removed."
         else
-            warning -e "\nSorry, directory couldn't be found. Skipped..."
+            warning "Sorry, directory couldn't be found. Skipped..."
         fi
     fi
 
     # Drop MySQL database.
-    echo ""
     read -rp "Do you want to Drop database associated with this vhost? [y/n]: " -e DROP_DB
     if [[ "${DROP_DB}" == Y* || "${DROP_DB}" == y* ]]; then
         until [[ "$MYSQLUSER" != "" ]]; do
@@ -247,15 +252,15 @@ function remove_vhost() {
 		done
 
         if [ -d "/var/lib/mysql/${DBNAME}" ]; then
-            echo -e "Dropping database..."
+            echo "Dropping database..."
             run mysql -u "$MYSQLUSER" -p"$MYSQLPSWD" -e "DROP DATABASE $DBNAME"
-            status -e "Database [${DBNAME}] dropped."
+            status "Database [${DBNAME}] dropped."
         else
-            warning -e "\nSorry, database ${DBNAME} not found. Skipped..."
+            warning "Sorry, database ${DBNAME} not found. Skipped..."
         fi
     fi
 
-    status -e "\nYour virtual host ${1} has been removed."
+    echo "Virtual host ${1} has been removed."
 
     # Reload Nginx.
     reload_nginx
@@ -513,6 +518,11 @@ function enable_gzip() {
 function verify_host() {
     if [[ -z "${1}" ]]; then
         error "Virtual host (vhost) or domain name is required. Type ${APP_NAME} --help for more info!"
+        exit 1
+    fi
+
+    if [[ "${1}" == "default" ]]; then
+        error "Modify/delete default virtual host is prohibitted."
         exit 1
     fi
 
