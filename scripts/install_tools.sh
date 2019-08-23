@@ -121,10 +121,11 @@ function init_webadmin_install() {
         run git clone -q https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/lcp/phpMemcachedAdmin/
     else
         #local CUR_DIR && \
-        CUR_DIR=$(pwd)
-        run cd /usr/share/nginx/html/lcp/phpMemcachedAdmin/
+        #CUR_DIR=$(pwd)
+        run pushd /usr/share/nginx/html/lcp/phpMemcachedAdmin/
         run git pull
-        run cd "${CUR_DIR}"
+        run popd
+        #run cd "${CUR_DIR}"
     fi
 
     # Assign ownership properly
