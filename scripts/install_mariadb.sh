@@ -25,17 +25,20 @@ function add_mariadb_repo() {
 
     case "${DISTRIB_REPO}" in
         trusty)
+            # Only support 10.3 and lesser.
             local MARIADB_VERSION="10.3"
             local MARIADB_ARCH="amd64,i386,ppc64el"
         ;;
 
         xenial)
-            local MARIADB_VERSION="10.4"
+            # Support 10.3 & 10.4.
+            local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
             local MARIADB_ARCH="amd64,arm64,i386,ppc64el"
         ;;
 
         bionic)
-            local MARIADB_VERSION="10.4"
+            # Support 10.3 & 10.4.
+            local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
             local MARIADB_ARCH="amd64,arm64,ppc64el"
         ;;
 
