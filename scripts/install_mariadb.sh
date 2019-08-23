@@ -169,15 +169,15 @@ function enable_mariabackup() {
     echo ""
     sleep 1
 
-    export MARIABACKUP_USER=${MARIABACKUP_USER:-"lempersh"}
+    export MARIABACKUP_USER=${MARIABACKUP_USER:-"lemperdb"}
+    export MARIABACKUP_PASS && \
     MARIABACKUP_PASS=$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
-    export MARIABACKUP_PASS
 
     echo "Please enter your current MySQL root password to process!"
+    export MYSQL_ROOT_PASS
     until [[ "${MYSQL_ROOT_PASS}" != "" ]]; do
         echo -n "MySQL root password: "; stty -echo; read -r MYSQL_ROOT_PASS; stty echo; echo
     done
-    export MYSQL_ROOT_PASS
 
     # Check user exists.
     MYSQL_USER=$(mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT User FROM mysql.user" | grep "${MARIABACKUP_USER}")
