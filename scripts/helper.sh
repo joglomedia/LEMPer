@@ -448,7 +448,7 @@ function enable_swap() {
 # Create system account.
 function create_account() {
     export USERNAME=${1:-"lemper"}
-    PASSWORD=$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
+    PASSWORD=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)}
     export PASSWORD
 
     echo "Creating default LEMPer account..."

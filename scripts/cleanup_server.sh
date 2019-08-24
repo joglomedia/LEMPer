@@ -33,7 +33,7 @@ run apt-get --fix-broken install
 
 # Remove Apache2 service if exists.
 if [[ -n $(command -v apache2) ]]; then
-    warning "It seems Apache web server installed on this server."
+    warning -e "\nIt seems Apache web server installed on this server."
     echo "Any other HTTP web server will be removed, otherwise they will conflict."
     read -t 15 -rp "Press [Enter] to continue..." </dev/tty
     echo -e "\nUninstall existing Apache web server..."
@@ -50,25 +50,56 @@ fi
 
 # Remove NGiNX service if exists.
 if [[ -n $(command -v nginx) ]]; then
-    warning "NGiNX HTTP server already installed on this server. Should we remove it?"
-    echo -e "Backup your config and data before continue!\n"
+    warning -e "\nNGiNX HTTP server already installed on this server. Should we remove it?"
+    echo "Backup your config and data before continue!"
 
     # shellchechk source=scripts/remove_nginx.sh
     # shellcheck disable=SC1090
     "${SCRIPTS_DIR}/remove_nginx.sh"
 fi
 
+# Remove PHP & FPM service if exists.
+if [[ -n $(command -v php5.6) || \
+    -n $(command -v php7.0) || \
+    -n $(command -v php7.1) || \
+    -n $(command -v php7.2) || \
+    -n $(command -v php7.3) ]]; then
+
+    warning -e "\nPHP & FPM already installed on this server. Should we remove it?"
+    echo "Backup your config and data before continue!"
+
+    # shellchechk source=scripts/remove_php.sh
+    # shellcheck disable=SC1090
+    "${SCRIPTS_DIR}/remove_php.sh"
+fi
+
 # Remove Mysql service if exists.
 if [[ -n $(command -v mysql) ]]; then
-    warning "MySQL database server already installed on this server. Should we remove it?"
-    echo -e "Backup your database before continue!\n"
+    warning -e "\nMySQL database server already installed on this server. Should we remove it?"
+    echo "Backup your database before continue!"
 
     # shellchechk source=scripts/remove_mariadb.sh
     # shellcheck disable=SC1090
     "${SCRIPTS_DIR}/remove_mariadb.sh"
 fi
 
-# Autoremove packages.
+# Remove default lemper account if exists.
+USERNAME=${LEMPER_USERNAME:-"lemper"}
+if [[ -n $(getent passwd "${USERNAME}") ]]; then
+    warning -e "\nDefault lemper account already exists. Should we remove it?"
+    echo "Backup your data before continue!"
+
+    while [[ "${REMOVE_ACCOUNT}" != "y" && "${REMOVE_ACCOUNT}" != "n" && "${AUTO_REMOVE}" != true ]]; do
+        read -rp "Are you sure to remove PHP & FPM? [y/n]: " -e REMOVE_ACCOUNT
+    done
+    if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* || "${AUTO_REMOVE}" == true ]]; then
+        delete_account "${USERNAME}"
+    else
+        echo "Found default lemper account, but not removed."
+    fi
+fi
+
+# Autoremove unused packages.
 echo -e "\nClean up unused packages."
 run apt autoremove -y
 

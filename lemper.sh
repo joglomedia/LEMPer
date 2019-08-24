@@ -102,7 +102,7 @@ case "${1}" in
 
         ### Create default account ###
         echo ""
-        create_account "lemper"
+        create_account "${LEMPER_USERNAME}"
 
         ### Nginx installation ###
         echo ""
