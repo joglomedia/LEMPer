@@ -2,7 +2,7 @@
 
 # MariaDB (MySQL) Installer
 # Min. Requirement  : GNU/Linux Ubuntu 14.04 & 16.04
-# Last Build        : 17/07/2019
+# Last Build        : 24/08/2019
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
@@ -95,7 +95,7 @@ function init_mariadb_install() {
         #mv /var/lib/mysql/ib_logfile0 /var/lib/mysql/ib_logfile0.bak
         #mv /var/lib/mysql/ib_logfile1 /var/lib/mysql/ib_logfile1.bak
         #service mysql start
-        
+
         # Installation status.
         if "${DRYRUN}"; then
             status "MariaDB (MySQL) installed in dryrun mode."
@@ -140,7 +140,7 @@ function init_mariadb_install() {
 
                 # Trying to reload daemon.
                 run systemctl daemon-reload
-                
+
                 # Restart MariaDB
                 run systemctl restart mariadb.service
 
@@ -150,7 +150,7 @@ function init_mariadb_install() {
                 # MySQL Secure Install
                 run mysql_secure_installation
             fi
-            
+
             if [[ $(pgrep -c mysql) -gt 0 ]]; then
                 status -e "\nMariaDB (MySQL) installed successfully."
 
@@ -176,13 +176,12 @@ function enable_mariabackup() {
     echo "Please enter your current MySQL root password to process!"
     export MYSQL_ROOT_PASS
     until [[ "${MYSQL_ROOT_PASS}" != "" ]]; do
-        echo -n "MySQL root password: "; stty -echo; read -r MYSQL_ROOT_PASS; stty echo; echo
+        #echo -n "MySQL root password: "; stty echo; read -rp MYSQL_ROOT_PASS; stty echo; echo
+        read -s -rp "MySQL root password: " -e MYSQL_ROOT_PASS
     done
 
-    # Check user exists.
-    MYSQL_USER=$(mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT User FROM mysql.user" | grep "${MARIABACKUP_USER}")
-
-    if [[ -z "${MYSQL_USER}" ]]; then
+    # Chreate user if not exists.
+    if [[ -z $(mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT User FROM mysql.user;" | grep "${MARIABACKUP_USER}") ]]; then
         # Create mariabackup user.
         SQL_QUERY="CREATE USER '${MARIABACKUP_USER}'@'localhost' IDENTIFIED BY '${MARIABACKUP_PASS}';
 GRANT RELOAD, PROCESS, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${MARIABACKUP_USER}'@'localhost';"
