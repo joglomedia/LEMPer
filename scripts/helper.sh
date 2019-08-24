@@ -379,12 +379,15 @@ function create_swap() {
     local RAM_SIZE && \
     RAM_SIZE=$(get_ram_size)
 
-    if [[ ${RAM_SIZE} -lt 8192 ]]; then
-        # If machine RAM less than 8GiB, set swap to half of it.
-        local SWAP_SIZE=$((RAM_SIZE / 2))
+    if [[ ${RAM_SIZE} -le 2048 ]]; then
+        # If machine RAM less than / equal 2GiB, set swap to 2x of RAM size.
+        local SWAP_SIZE=$((RAM_SIZE * 2))
+    elif [[ ${RAM_SIZE} -gt 2048 && ${RAM_SIZE} -le 8192 ]]; then
+        # If machine RAM less than / equal 8GiB and greater than 2GiB, set swap equal to RAM size.
+        local SWAP_SIZE="${RAM_SIZE}"
     else
-        # Otherwise, set swap to max of 4GiB.
-        local SWAP_SIZE=4096
+        # Otherwise, set swap to max of 8GiB.
+        local SWAP_SIZE=8192
     fi
 
     echo "Creating ${SWAP_SIZE}MiB swap..."
@@ -407,11 +410,10 @@ function create_swap() {
     # meaning that the swap file will be used fairly often if the memory usage is
     # around half RAM, for production servers you may need to set a lower value.
     if [[ $(cat /proc/sys/vm/swappiness) -gt 15 ]]; then
-        run sysctl vm.swappiness=15
-
         if "${DRYRUN}"; then
             echo "Update swappiness value in dryrun mode."
         else
+            run sysctl vm.swappiness=15
             run echo "vm.swappiness=15" >> /etc/sysctl.conf
         fi
     fi
@@ -419,9 +421,9 @@ function create_swap() {
 
 # Remove created Swap.
 function remove_swap() {
-    echo "Disabling swap..."
-
     local SWAP_FILE="/root/lemper-swapfile"
+
+    echo "Disabling swap..."
 
     run swapoff -v ${SWAP_FILE} && \
     run sed -i "s/${SWAP_FILE}/#\ ${SWAP_FILE}/g" /etc/fstab && \
@@ -446,7 +448,7 @@ function enable_swap() {
 # Create system account.
 function create_account() {
     export USERNAME=${1:-"lemper"}
-    PASSWORD=$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
+    PASSWORD=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)}
     export PASSWORD
 
     echo "Creating default LEMPer account..."

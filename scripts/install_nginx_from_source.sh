@@ -362,8 +362,7 @@ function build_ngx_pagespeed() {
     NPS_VERSION="DEFAULT"
     NGINX_VERSION=""
     # Current working directory as default build dir
-    BUILDDIR="$HOME/lemper_nginx_build"
-    #BUILDDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )/lemper_nginx_build"
+    BUILDDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )/nginx_build"
     DO_DEPS_CHECK=true
     PSOL_FROM_SOURCE=false
     DEVEL=false
@@ -374,19 +373,23 @@ function build_ngx_pagespeed() {
     NGINX_EXTRA_MODULES=false
 
     # Extra Modules
-    NGX_BROTLI=true
-    NGX_CACHE_PURGE=true
-    NGX_HEADERS_MORE=true
-    NGX_HTTP_GEOIP2=false
-    NGX_ECHO=false
-    NGX_HTTP_AUTH_PAM=false
-    NGX_WEB_DAV_EXT=false
-    NGX_UPSTREAM_FAIR=false
-    NGX_HTTP_SUBS_FILTER=false
-    NGX_NCHAN=false
-    NGX_NAXSI=true
-    NGX_FANCYINDEX=true
-    NGX_VTS=true
+    NGX_BROTLI=${NGX_BROTLI:-true}
+    NGX_CACHE_PURGE=${NGX_CACHE_PURGE:-true}
+    NGX_ECHO=${NGX_ECHO:-false}
+    NGX_FANCYINDEX=${NGX_FANCYINDEX:-false}
+    NGX_HEADERS_MORE=${NGX_HEADERS_MORE:-true}
+    NGX_HTTP_AUTH_PAM=${NGX_HTTP_AUTH_PAM:-false}
+    NGX_HTTP_GEOIP2=${NGX_HTTP_GEOIP2:-false}
+    NGX_HTTP_SUBS_FILTER=${NGX_HTTP_SUBS_FILTER:-false}
+    NGX_MEMCACHED=${NGX_MEMCACHED:-false}
+    NGX_NAXSI=${NGX_NAXSI:-true}
+    NGX_NCHAN=${NGX_NCHAN:-false}
+    NGX_PAGESPEED=${NGX_PAGESPEED:-true}
+    NGX_REDIS2=${NGX_REDIS2:-false}
+    NGX_RTMP=${NGX_RTMP:-false}
+    NGX_UPSTREAM_FAIR=${NGX_UPSTREAM_FAIR:-false}
+    NGX_VTS=${NGX_VTS:-true}
+    NGX_WEB_DAV_EXT=${NGX_WEB_DAV_EXT:-false}
 
     while true; do
         case "$1" in
@@ -973,8 +976,43 @@ with --no-deps-check."
             fi
         fi
 
-        configure_args=("${add_extra_modules[@]}"
-                        "${configure_args[@]}")
+        # Nginx Memc - An extended version of the standard memcached module.
+        if "$NGX_MEMCACHED"; then
+            echo "Downloading extended Memcached module..."
+            run git clone -q https://github.com/openresty/memc-nginx-module.git
+
+            if "$NGINX_DYNAMIC_MODULE"; then
+                add_extra_modules=("--add-dynamic-module=$extra_module_dir/memc-nginx-module" "${add_extra_modules[@]}")
+            else
+                add_extra_modules=("--add-module=$extra_module_dir/memc-nginx-module" "${add_extra_modules[@]}")
+            fi
+        fi
+
+        # Nginx upstream module for the Redis 2.0 protocol.
+        if "$NGX_REDIS2"; then
+            echo "Downloading Redis 2.0 protocol module..."
+            run git clone -q https://github.com/openresty/redis2-nginx-module.git
+
+            if "$NGINX_DYNAMIC_MODULE"; then
+                add_extra_modules=("--add-dynamic-module=$extra_module_dir/redis2-nginx-module" "${add_extra_modules[@]}")
+            else
+                add_extra_modules=("--add-module=$extra_module_dir/redis2-nginx-module" "${add_extra_modules[@]}")
+            fi
+        fi
+
+        # NGINX-based Media Streaming Server.
+        if "$NGX_RTMP"; then
+            echo "Downloading RTMP Media Streaming Server module..."
+            run git clone -q https://github.com/sergey-dryabzhinsky/nginx-rtmp-module.git
+
+            if "$NGINX_DYNAMIC_MODULE"; then
+                add_extra_modules=("--add-dynamic-module=$extra_module_dir/nginx-rtmp-module" "${add_extra_modules[@]}")
+            else
+                add_extra_modules=("--add-module=$extra_module_dir/nginx-rtmp-module" "${add_extra_modules[@]}")
+            fi
+        fi
+
+        configure_args=("${add_extra_modules[@]}" "${configure_args[@]}")
     fi
 
     if "$DEVEL"; then
@@ -992,7 +1030,6 @@ with --no-deps-check."
         fi
         configure_args=("${configure_args[@]}"
                         "--prefix=$install_dir/nginx"
-                        #"--with-ipv6"
                         "--with-http_v2_module"
                         "${add_modules[@]}")
         if [ "$BUILD_TYPE" = "Debug" ]; then
@@ -1030,7 +1067,6 @@ with --no-deps-check."
                         "--with-http_sub_module"
                         "--with-http_v2_module"
                         "--with-http_xslt_module=dynamic"
-                        #"--with-ipv6"
                         "--with-mail=dynamic"
                         "--with-mail_ssl_module"
                         "--with-stream=dynamic"

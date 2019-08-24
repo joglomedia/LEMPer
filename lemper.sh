@@ -87,13 +87,13 @@ case "${1}" in
         ### Clean-up server ###
         echo ""
         if [ -f scripts/cleanup_server.sh ]; then
-            ./scripts/cleanup_server.sh
+            . ./scripts/cleanup_server.sh
         fi
 
         ### Install dependencies packages ###
         echo ""
         if [ -f scripts/install_dependencies.sh ]; then
-            ./scripts/install_dependencies.sh
+            . ./scripts/install_dependencies.sh
         fi
 
         ### Check and enable swap ###
@@ -102,72 +102,72 @@ case "${1}" in
 
         ### Create default account ###
         echo ""
-        create_account "lemper"
+        create_account "${LEMPER_USERNAME}"
 
         ### Nginx installation ###
         echo ""
         if [ -f scripts/install_nginx.sh ]; then
-            ./scripts/install_nginx.sh
+            . ./scripts/install_nginx.sh
         fi
 
         ### PHP installation ###
         echo ""
         if [ -f scripts/install_php.sh ]; then
-            ./scripts/install_php.sh
+            . ./scripts/install_php.sh
         fi
 
         ### Imagick installation ###
         echo ""
         if [ -f scripts/install_imagemagick.sh ]; then
-            ./scripts/install_imagemagick.sh
+            . ./scripts/install_imagemagick.sh
         fi
 
         ### Memcached installation ###
         echo ""
         if [ -f scripts/install_memcached.sh ]; then
-            ./scripts/install_memcached.sh
+            . ./scripts/install_memcached.sh
         fi
 
         ### MySQL database installation ###
         echo ""
         if [ -f scripts/install_mariadb.sh ]; then
-            ./scripts/install_mariadb.sh
+            . ./scripts/install_mariadb.sh
         fi
 
         ### Redis database installation ###
         echo ""
         if [ -f scripts/install_redis.sh ]; then
-            ./scripts/install_redis.sh
+            . ./scripts/install_redis.sh
         fi
 
         ### MongoDB database installation ###
         echo ""
         if [ -f scripts/install_mongodb.sh ]; then
-            ./scripts/install_mongodb.sh
+            . ./scripts/install_mongodb.sh
         fi
 
         ### Certbot Let's Encrypt SSL installation ###
         echo ""
         if [ -f scripts/install_certbotle.sh ]; then
-            ./scripts/install_certbotle.sh
+            . ./scripts/install_certbotle.sh
         fi
 
         ### Mail server installation ###
         echo ""
         if [ -f scripts/install_mailer.sh ]; then
-            ./scripts/install_mailer.sh
+            . ./scripts/install_mailer.sh
         fi
 
         ### Addon-tools installation ###
         echo ""
         if [ -f scripts/install_tools.sh ]; then
-            ./scripts/install_tools.sh
+            . ./scripts/install_tools.sh
         fi
 
         ### Basic server security ###
         echo ""
         if [ -f scripts/secure_server.sh ]; then
-            ./scripts/secure_server.sh
+            . ./scripts/secure_server.sh
         fi
 
         ### FINAL STEP ###
@@ -227,37 +227,37 @@ Now, you can reboot your server and enjoy it!"
         ### Remove Nginx ###
         echo ""
         if [ -f scripts/remove_nginx.sh ]; then
-            ./scripts/remove_nginx.sh
+            . ./scripts/remove_nginx.sh
         fi
 
         ### Remove PHP & FPM ###
         echo ""
         if [ -f scripts/remove_php.sh ]; then
-            ./scripts/remove_php.sh
+            . ./scripts/remove_php.sh
         fi
 
         ### Remove PHP & FPM ###
         echo ""
         if [ -f scripts/remove_memcached.sh ]; then
-            ./scripts/remove_memcached.sh
+            . ./scripts/remove_memcached.sh
         fi
 
         ### Remove MySQL ###
         echo ""
         if [ -f scripts/remove_mariadb.sh ]; then
-            ./scripts/remove_mariadb.sh
+            . ./scripts/remove_mariadb.sh
         fi
 
         ### Remove Redis ###
         echo ""
         if [ -f scripts/remove_redis.sh ]; then
-            ./scripts/remove_redis.sh
+            . ./scripts/remove_redis.sh
         fi
 
         ### Remove Certbot LE ###
         echo ""
         if [ -f scripts/remove_certbotle.sh ]; then
-            ./scripts/remove_certbotle.sh
+            . ./scripts/remove_certbotle.sh
         fi
 
         # Remove default user account.

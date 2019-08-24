@@ -117,8 +117,29 @@ function init_nginx_install() {
                 "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable \
                     -n stable --dynamic-module --extra-modules -y --dryrun
             else
-                "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable \
-                    -n stable --dynamic-module --extra-modules -y
+                # Additional configure arguments.
+                NGX_CONFIGURE_ARGS=""
+
+                # Build directory.
+                BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
+                if [ ! -d "${BUILD_DIR}" ]; then
+                    run mkdir -p "${BUILD_DIR}"
+                fi
+
+                # Custom OpenSSL.
+                OPENSSL_VERSION="openssl-1.1.1c"
+                if [[ -n "${OPENSSL_VERSION}" ]]; then
+                    run wget -q -O "${BUILD_DIR}/${OPENSSL_VERSION}.tar.gz" \
+                        "https://www.openssl.org/source/${OPENSSL_VERSION}.tar.gz"
+                    run tar -C "${BUILD_DIR}/" -xf "${BUILD_DIR}/${OPENSSL_VERSION}.tar.gz"
+                    run rm -f "${BUILD_DIR}/${OPENSSL_VERSION}.tar.gz"
+
+                    NGX_CONFIGURE_ARGS="--with-openssl=${BUILD_DIR}/${OPENSSL_VERSION} ${NGX_CONFIGURE_ARGS}"
+                fi
+
+                # Execute nginx from source installer.
+                "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n stable --dynamic-module \
+--extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
             fi
 
             echo ""
@@ -273,7 +294,7 @@ function init_nginx_install() {
                 run cp etc/systemd/nginx.service /lib/systemd/system/
             fi
 
-            if [ ! -f /etc/systemd/system/nginx.service ]; then
+            if [ ! -f /etc/systemd/system/multi-user.target.wants/nginx.service ]; then
                 run ln -s /lib/systemd/system/nginx.service \
                     /etc/systemd/system/multi-user.target.wants/nginx.service
             fi
