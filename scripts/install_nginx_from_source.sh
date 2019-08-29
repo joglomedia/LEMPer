@@ -1166,10 +1166,14 @@ with --no-deps-check."
             run sudo make install
 
             # Create default ngx_pagespeed cache directory
-            if [ ! -d /var/cache/nginx ]; then
-                run mkdir /var/cache/nginx
-                run mkdir /var/cache/nginx/ngx_pagespeed_cache
-                run chown -hR www-data:root /var/cache/nginx
+            if [ ! -d /var/cache/nginx/pagespeed_cache ]; then
+                run mkdir -p /var/cache/nginx/pagespeed_cache
+                run chown -hR root:www-data /var/cache/nginx
+            fi
+
+            # Create log dir.
+            if [ ! -d /var/log/pagespeed ]; then
+                run mkdir -p /var/log/pagespeed
             fi
 
             # Cleanup build dir
@@ -1196,7 +1200,7 @@ with --no-deps-check."
             echo "https://developers.google.com/speed/pagespeed/module/configuration"
             echo
             echo "We have created default ngx_pagespeed File Cache directory located at:"
-            echo "/var/cache/nginx/ngx_pagespeed_cache/"
+            echo "/var/cache/nginx/pagespeed_cache/"
         fi
     fi
     if "$DRYRUN"; then

@@ -279,6 +279,9 @@ function init_nginx_install() {
                     -f /etc/nginx/modules-available/mod-pagespeed.conf ]]; then
                     run ln -fs /etc/nginx/modules-available/mod-pagespeed.conf \
                         /etc/nginx/modules-enabled/50-mod-pagespeed.conf
+                    
+                    run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" \
+                        /etc/nginx/nginx.conf
                 fi
 
             fi
@@ -324,10 +327,10 @@ function init_nginx_install() {
 
     run cp -f etc/nginx/charset /etc/nginx/
     run cp -f etc/nginx/{comp_brotli,comp_gzip} /etc/nginx/
-    run cp -f etc/nginx/{fastcgi_cache,fastcgi_https_map,fastcgi_params,proxy_cache,proxy_params} /etc/nginx/
-    run cp -f etc/nginx/{http_cloudflare_ips,http_proxy_ips} /etc/nginx/
+    run cp -f etc/nginx/{fastcgi_cache,fastcgi_https_map,fastcgi_params,mod_pagespeed,proxy_cache,proxy_params} \
+        /etc/nginx/
+    run cp -f etc/nginx/{http_cloudflare_ips,http_proxy_ips,upstream} /etc/nginx/
     run cp -f etc/nginx/nginx.conf /etc/nginx/
-    run cp -f etc/nginx/upstream /etc/nginx/
     run cp -fr etc/nginx/{includes,vhost,ssl} /etc/nginx/
 
     if [ -f /etc/nginx/sites-available/default ]; then
@@ -351,21 +354,18 @@ function init_nginx_install() {
     fi
 
     # NGiNX cache directory.
-    if [ ! -d /var/cache/nginx ]; then
-        run mkdir /var/cache/nginx
-        run chown -hR www-data:root /var/cache/nginx
-    fi
-
     if [ ! -d /var/cache/nginx/fastcgi_cache ]; then
-        run mkdir /var/cache/nginx/fastcgi_cache
+        run mkdir -p /var/cache/nginx/fastcgi_cache
         run chown -hR www-data:root /var/cache/nginx/fastcgi_cache
     fi
 
     if [ ! -d /var/cache/nginx/proxy_cache ]; then
-        run mkdir /var/cache/nginx/proxy_cache
+        run mkdir -p /var/cache/nginx/proxy_cache
         run chown -hR www-data:root /var/cache/nginx/proxy_cache
     fi
 
+    run chown -hR www-data:root /var/cache/nginx
+    
     # Adjust nginx to meet hardware resources.
     echo "Adjusting NGiNX configuration..."
 
