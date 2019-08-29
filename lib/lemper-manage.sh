@@ -323,8 +323,13 @@ function enable_mod_pagespeed() {
 
     if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
         # enable mod pagespeed
+        run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" /etc/nginx/nginx.conf
         run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s|#pagespeed\ EnableFilters|pagespeed\ EnableFilters|g" \
+            "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s|#pagespeed\ Disallow|pagespeed\ Disallow|g" "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s|#pagespeed\ Domain|pagespeed\ Domain|g" "/etc/nginx/sites-available/${1}.conf"
     else
         warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
@@ -343,8 +348,10 @@ function disable_mod_pagespeed() {
 
     if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
         # Enable mod pagespeed
+        #run sed -i "s|include\ /etc/nginx/mod_pagespeed|#include\ /etc/nginx/mod_pagespeed|g" /etc/nginx/nginx.conf
         run sed -i "s|include\ /etc/nginx/includes/mod_pagespeed.conf|#include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s|pagespeed\ EnableFilters|#pagespeed\ EnableFilters|g" "/etc/nginx/sites-available/${1}.conf"
     else
         warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
@@ -388,22 +395,25 @@ function enable_https() {
     if "${DRYRUN}"; then
         warning "Updating HTTPS config in dryrun mode."
     else
-        # Make backup first.
-        run cp -f "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-available/${1}.nonssl-conf"
-        
-        # Change listening port to 443.
-        run sed -i "s/listen\ 80/listen\ 443 ssl http2/g" "/etc/nginx/sites-available/${1}.conf"
-        run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443 ssl http2/g" "/etc/nginx/sites-available/${1}.conf"
-        
-        # Enable SSL configs.
-        run sed -i "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${1}.conf"
-        run sed -i "s/#ssl_certificate_key/ssl_certificate_key/g" "/etc/nginx/sites-available/${1}.conf"
-        run sed -i "s/#ssl_trusted_certificate/ssl_trusted_certificate/g" "/etc/nginx/sites-available/${1}.conf"
-        run sed -i "s|#include\ /etc/nginx/includes/ssl.conf;|include\ /etc/nginx/includes/ssl.conf|g" \
-            "/etc/nginx/sites-available/${1}.conf"
+        # Ensure there is no HTTPS enabled server block.
+        if ! grep -qwE "listen\ 443 ssl http2" "/etc/nginx/sites-available/${1}.conf"; then
 
-        # Append redirection block.
-        cat >> "/etc/nginx/sites-available/${1}.conf" <<EOL
+            # Make backup first.
+            run cp -f "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-available/${1}.nonssl-conf"
+            
+            # Change listening port to 443.
+            run sed -i "s/listen\ 80/listen\ 443 ssl http2/g" "/etc/nginx/sites-available/${1}.conf"
+            run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443 ssl http2/g" "/etc/nginx/sites-available/${1}.conf"
+            
+            # Enable SSL configs.
+            run sed -i "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${1}.conf"
+            run sed -i "s/#ssl_certificate_key/ssl_certificate_key/g" "/etc/nginx/sites-available/${1}.conf"
+            run sed -i "s/#ssl_trusted_certificate/ssl_trusted_certificate/g" "/etc/nginx/sites-available/${1}.conf"
+            run sed -i "s|#include\ /etc/nginx/includes/ssl.conf|include\ /etc/nginx/includes/ssl.conf|g" \
+                "/etc/nginx/sites-available/${1}.conf"
+
+            # Append redirection block.
+            cat >> "/etc/nginx/sites-available/${1}.conf" <<EOL
 
 # HTTP to HTTPS redirection.
 server {
@@ -418,10 +428,13 @@ server {
         return 301 https://\$server_name\$request_uri;
     }
 }
-
 EOL
 
-        reload_nginx
+            reload_nginx
+        else
+            warning -e "\nOops, Nginx HTTPS server block already exists. Please inspect manually for further action!"
+            exit 1
+        fi
     fi
 
     exit 0

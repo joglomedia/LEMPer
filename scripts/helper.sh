@@ -474,12 +474,14 @@ function create_account() {
             # Generate passhword hash.
             if [[ -n $(command -v mkpasswd) ]]; then
                 PASSWORD_HASH=$(mkpasswd --method=sha-256 "${PASSWORD}")
-                run bash -c "echo \"${USERNAME}:${PASSWORD_HASH}\" > /srv/.htpasswd"
+                run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
+                run echo "${USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             elif [[ -n $(command -v htpasswd) ]]; then
                 run htpasswd -b /srv/.htpasswd "${USERNAME}" "${PASSWORD}"
             else
                 PASSWORD_HASH=$(openssl passwd -1 "${PASSWORD}")
-                run bash -c "echo \"${USERNAME}:${PASSWORD_HASH}\" > /srv/.htpasswd"
+                run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
+                run echo "${USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             fi
 
             # Save data to log file.
