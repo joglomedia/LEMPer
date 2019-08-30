@@ -79,7 +79,6 @@ EOL
 
 function init_memcache_install() {
     if "${AUTO_INSTALL}"; then
-        # Set default Iptables-based firewall configutor engine.
         DO_INSTALL_MEMCACHED="y"
     else
         while [[ "${DO_INSTALL_MEMCACHED}" != "y" && "${DO_INSTALL_MEMCACHED}" != "n" ]]; do

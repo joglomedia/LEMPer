@@ -262,6 +262,20 @@ function requires_root() {
     fi
 }
 
+function delete_if_already_exists() {
+     if "$DRYRUN"; then return; fi
+
+    local directory="$1"
+    if [ -d "$directory" ]; then
+        if [ ${#directory} -lt 8 ]; then
+            fail "Not deleting $directory; name is suspiciously short. Something is wrong."
+        fi
+
+        continue_or_exit "OK to delete $directory?"
+        run rm -rf "$directory"
+    fi
+}
+
 function get_distrib_name() {
     if [ -f "/etc/os-release" ]; then
         # Export os-release vars.

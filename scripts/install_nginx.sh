@@ -68,7 +68,6 @@ function add_nginx_repo() {
 
 function init_nginx_install() {
     if "${AUTO_INSTALL}"; then
-        # Set default Iptables-based firewall configutor engine.
         SELECTED_NGINX_INSTALLER=${NGINX_INSTALLER:-"source"}
     else
         # Install NGiNX custom.
@@ -127,14 +126,311 @@ function init_nginx_install() {
                 fi
 
                 # Custom OpenSSL.
-                OPENSSL_VERSION="openssl-1.1.1c"
                 if [[ -n "${OPENSSL_VERSION}" ]]; then
+                    echo "Build NGiNX with custom OpenSSL version..."
+
                     run wget -q -O "${BUILD_DIR}/${OPENSSL_VERSION}.tar.gz" \
                         "https://www.openssl.org/source/${OPENSSL_VERSION}.tar.gz"
                     run tar -C "${BUILD_DIR}/" -xf "${BUILD_DIR}/${OPENSSL_VERSION}.tar.gz"
                     run rm -f "${BUILD_DIR}/${OPENSSL_VERSION}.tar.gz"
 
                     NGX_CONFIGURE_ARGS="--with-openssl=${BUILD_DIR}/${OPENSSL_VERSION} ${NGX_CONFIGURE_ARGS}"
+                fi
+
+                if "${NGINX_EXTRA_MODULES}"; then
+                    echo "Build Nginx with extra modules..."
+
+                    local extra_module_dir="${BUILD_DIR}/modules"
+
+                    if [ ! -d "$extra_module_dir" ]; then
+                        run mkdir -p "$extra_module_dir"
+                    else
+                        delete_if_already_exists "$extra_module_dir"
+                        run mkdir -p "$extra_module_dir"
+                    fi
+
+                    run cd "$extra_module_dir"
+
+                    # Brotli compression
+                    if "$NGX_BROTLI"; then
+                        echo "Downloading ngx_brotli module..."
+
+                        run git clone -q https://github.com/eustas/ngx_brotli.git
+                        run cd ngx_brotli || exit 1
+                        run git checkout master -q
+                        run git submodule update --init -q
+                        run cd ../
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_brotli" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-dynamic-module=$extra_module_dir/ngx_brotli ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/ngx_brotli" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/ngx_brotli ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # Cache Purge
+                    if "$NGX_CACHE_PURGE"; then
+                        echo "Downloading ngx_cache_purge module..."
+                        run git clone -q https://github.com/nginx-modules/ngx_cache_purge.git
+                        #run git clone -q https://github.com/joglomedia/ngx_cache_purge.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_cache_purge" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-dynamic-module=$extra_module_dir/ngx_cache_purge ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/ngx_cache_purge" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/ngx_cache_purge ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # More Headers
+                    if "$NGX_HEADERS_MORE"; then
+                        echo "Downloading headers-more-nginx-module..."
+                        run git clone -q https://github.com/openresty/headers-more-nginx-module.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #add_extra_modules=("--add-dynamic-module=$extra_module_dir/headers-more-nginx-module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-dynamic-module=$extra_module_dir/headers-more-nginx-module ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/headers-more-nginx-module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/headers-more-nginx-module ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # GeoIP
+                    if "$NGX_HTTP_GEOIP2"; then
+                        # install libmaxminddb
+                        status "Installing MaxMind GeoIP library..."
+
+                        run git clone -q https://github.com/maxmind/libmaxminddb.git
+                        run cd libmaxminddb
+                        run ./configure && \
+                        make && \
+                        make install && \
+                        ldconfig && \
+
+                        echo "Downloading MaxMind GeoIP database..."
+
+                        run mkdir geoip-db && \
+                        run cd geoip-db || exit 1
+                        run wget -q https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.tar.gz && \
+                            tar -xf GeoLite2-Country.tar.gz
+                        run wget -q https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz && \
+                            tar -xf GeoLite2-City.tar.gz
+                        run mkdir /opt/geoip
+                        run cd GeoLite2-City_*/ && \
+                        run mv GeoLite2-City.mmdb /opt/geoip/
+                        run cd ../
+                        run cd GeoLite2-Country_*/ && \
+                        run mv GeoLite2-Country.mmdb /opt/geoip/
+                        run cd "${BUILD_DIR}"
+
+                        if [[ -f /opt/geoip/GeoLite2-City.mmdb && -f /opt/geoip/GeoLite2-Country.mmdb ]]; then
+                            status "MaxMind GeoIP database successfully downloaded."
+                        fi
+
+                        echo "Downloading ngx_http_geoip2_module..."
+                        run git clone -q https://github.com/leev/ngx_http_geoip2_module.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_http_geoip2_module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-dynamic-module=$extra_module_dir/ngx_http_geoip2_module ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/ngx_http_geoip2_module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/ngx_http_geoip2_module ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # Echo Nginx
+                    if "$NGX_ECHO"; then
+                        echo "Downloading echo-nginx-module..."
+                        run git clone -q https://github.com/openresty/echo-nginx-module.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #add_extra_modules=("--add-dynamic-module=$extra_module_dir/echo-nginx-module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-dynamic-module=$extra_module_dir/echo-nginx-module ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/echo-nginx-module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/echo-nginx-module ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # Auth PAM
+                    if "$NGX_HTTP_AUTH_PAM"; then
+                        echo "Downloading ngx_http_auth_pam_module..."
+                        run git clone -q https://github.com/sto/ngx_http_auth_pam_module.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx_http_auth_pam_module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-dynamic-module=$extra_module_dir/ngx_http_auth_pam_module ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/ngx_http_auth_pam_module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/ngx_http_auth_pam_module ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # WebDAV
+                    if "$NGX_WEB_DAV_EXT"; then
+                        echo "Downloading nginx-dav-ext-module..."
+                        run git clone -q https://github.com/arut/nginx-dav-ext-module.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #Dynamic module not supported yet
+                            #add_extra_modules=("--with-http_dav_module"
+                            #                    "--add-module=${extra_module_dir}/nginx-dav-ext-module"
+                            #                    "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--with-http_dav_module --add-module=${extra_module_dir}/nginx-dav-ext-module ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--with-http_dav_module"
+                            #                    "--add-module=${extra_module_dir}/nginx-dav-ext-module"
+                            #                    "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--with-http_dav_module --add-module=${extra_module_dir}/nginx-dav-ext-module ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # Upstream Fair
+                    if "$NGX_UPSTREAM_FAIR"; then
+                        echo "Downloading nginx-upstream-fair module..."
+                        run git clone -q https://github.com/gnosek/nginx-upstream-fair.git
+
+                        echo "Downloading tengine-patches patch for nginx-upstream-fair module..."
+                        run git clone -q https://github.com/alibaba/tengine-patches.git
+
+                        status "Patching nginx-upstream-fair module..."
+                        run cd nginx-upstream-fair
+                        run patch -p1 < "${extra_module_dir}/tengine-patches/nginx-upstream-fair/upstream-fair-upstream-check.patch"
+                        run cd "$extra_module_dir"
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #Dynamic module not supported yet
+                            #add_extra_modules=("--add-module=${extra_module_dir}/nginx-upstream-fair" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/nginx-upstream-fair ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/nginx-upstream-fair" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/nginx-upstream-fair ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # A filter module which can do both regular expression and fixed string substitutions for nginx
+                    if "$NGX_HTTP_SUBS_FILTER"; then
+                        echo "Downloading ngx_http_substitutions_filter_module..."
+                        run git clone -q https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #Dynamic module not supported yet
+                            #add_extra_modules=("--add-module=${extra_module_dir}/ngx_http_substitutions_filter_module"
+                            #                    "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/ngx_http_substitutions_filter_module ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/ngx_http_substitutions_filter_module"
+                            #                    "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/ngx_http_substitutions_filter_module ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # Nchan, pub/sub queuing server
+                    if "$NGX_NCHAN"; then
+                        echo "Downloading pub/sub nchan module..."
+                        run git clone -q https://github.com/slact/nchan.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #add_extra_modules=("--add-dynamic-module=$extra_module_dir/nchan" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-dynamic-module=$extra_module_dir/nchan ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/nchan" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=$extra_module_dir/nchan ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # NGX_NAXSI is an open-source, high performance, low rules maintenance WAF for NGINX
+                    if "$NGX_NAXSI"; then
+                        echo "Downloading Naxsi Web Application Firewall module..."
+                        run git clone -q https://github.com/nbs-system/naxsi.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #add_extra_modules=("--add-dynamic-module=$extra_module_dir/naxsi/naxsi_src" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-dynamic-module=$extra_module_dir/naxsi/naxsi_src ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/naxsi/naxsi_src" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/naxsi/naxsi_src ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # Fancy indexes module for the Nginx web server
+                    if "$NGX_FANCYINDEX"; then
+                        echo "Downloading ngx-fancyindex module..."
+                        run git clone -q https://github.com/aperezdc/ngx-fancyindex.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #add_extra_modules=("--add-dynamic-module=$extra_module_dir/ngx-fancyindex" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-dynamic-module=$extra_module_dir/ngx-fancyindex ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/ngx-fancyindex" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/ngx-fancyindex ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # Nginx virtual host traffic status module
+                    if "$NGX_VTS"; then
+                        echo "Downloading nginx-module-vts VHost traffic status module..."
+                        run git clone -q https://github.com/vozlt/nginx-module-vts.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #add_extra_modules=("--add-dynamic-module=$extra_module_dir/nginx-module-vts" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-dynamic-module=$extra_module_dir/nginx-module-vts ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/nginx-module-vts" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/nginx-module-vts ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # Nginx Memc - An extended version of the standard memcached module.
+                    if "$NGX_MEMCACHED"; then
+                        echo "Downloading extended Memcached module..."
+                        run git clone -q https://github.com/openresty/memc-nginx-module.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #add_extra_modules=("--add-dynamic-module=$extra_module_dir/memc-nginx-module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-dynamic-module=$extra_module_dir/memc-nginx-module ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/memc-nginx-module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/memc-nginx-module ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # Nginx upstream module for the Redis 2.0 protocol.
+                    if "$NGX_REDIS2"; then
+                        echo "Downloading Redis 2.0 protocol module..."
+                        run git clone -q https://github.com/openresty/redis2-nginx-module.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #add_extra_modules=("--add-dynamic-module=$extra_module_dir/redis2-nginx-module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-dynamic-module=$extra_module_dir/redis2-nginx-module ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/redis2-nginx-module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/redis2-nginx-module ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    # NGINX-based Media Streaming Server.
+                    if "$NGX_RTMP"; then
+                        echo "Downloading RTMP Media Streaming Server module..."
+                        run git clone -q https://github.com/sergey-dryabzhinsky/nginx-rtmp-module.git
+
+                        if "$NGINX_DYNAMIC_MODULE"; then
+                            #add_extra_modules=("--add-dynamic-module=$extra_module_dir/nginx-rtmp-module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-dynamic-module=$extra_module_dir/nginx-rtmp-module ${NGX_CONFIGURE_ARGS}"
+                        else
+                            #add_extra_modules=("--add-module=${extra_module_dir}/nginx-rtmp-module" "${add_extra_modules[@]}")
+                            NGX_CONFIGURE_ARGS="--add-module=${extra_module_dir}/nginx-rtmp-module ${NGX_CONFIGURE_ARGS}"
+                        fi
+                    fi
+
+                    #configure_args=("${add_extra_modules[@]}" "${configure_args[@]}")
+
+                    run cd "${BASEDIR}"
                 fi
 
                 # Execute nginx from source installer.
