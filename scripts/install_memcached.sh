@@ -28,7 +28,19 @@ function enable_memcache {
         echo "Optimizing PHP Memcache module in dryrun mode."
     else
         # Custom Memcache setting.
-        #sed -i 's/-m 64/-m 128/g' /etc/memcached.conf
+        local RAM_SIZE && \
+        RAM_SIZE=$(get_ram_size)
+        if [[ ${RAM_SIZE} -le 1024 ]]; then
+            # If machine RAM less than / equal 1GiB, set Memcached to 1/8 of RAM size.
+            local MEMCACHED_SIZE=$((RAM_SIZE / 8))
+        elif [[ ${RAM_SIZE} -gt 2048 && ${RAM_SIZE} -le 8192 ]]; then
+            # If machine RAM less than / equal 8GiB and greater than 2GiB, set Memcached to 1/4 of RAM size.
+            local MEMCACHED_SIZE=$((RAM_SIZE / 4))
+        else
+            # Otherwise, set Memcached to max of 2048GiB.
+            local MEMCACHED_SIZE=2048
+        fi
+        sed -i "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached.conf
 
         if [ -d "/etc/php/${PHPv}/mods-available/" ]; then
             cat >> "/etc/php/${PHPv}/mods-available/memcache.ini" <<EOL
@@ -67,7 +79,6 @@ EOL
 
 function init_memcache_install() {
     if "${AUTO_INSTALL}"; then
-        # Set default Iptables-based firewall configutor engine.
         DO_INSTALL_MEMCACHED="y"
     else
         while [[ "${DO_INSTALL_MEMCACHED}" != "y" && "${DO_INSTALL_MEMCACHED}" != "n" ]]; do

@@ -37,6 +37,9 @@ function init_imagemagick_install {
         run cd ../
         run rm -fr ImageMagick-*
 
+        echo "Installing PHP Imagick module..."
+        run apt-get install php-imagick
+
         if "${DRYRUN}"; then
             warning "ImageMagick installed in dryrun mode."
         else

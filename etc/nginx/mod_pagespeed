@@ -1,0 +1,10 @@
+# PageSpeed
+
+pagespeed CreateSharedMemoryMetadataCache /var/cache/nginx/pagespeed_cache 512000;
+pagespeed DefaultSharedMemoryCacheKB 500000;
+pagespeed MessageBufferSize 1000000;
+
+pagespeed LogDir /var/log/pagespeed;
+
+pagespeed GlobalStatisticsPath /ngx_pagespeed_global_statistics;
+pagespeed GlobalAdminPath /pagespeed_global_admin;

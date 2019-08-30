@@ -48,12 +48,26 @@ function init_redis_install {
             fi
 
             # Custom Redis configuration.
+            local RAM_SIZE && \
+            RAM_SIZE=$(get_ram_size)
+            if [[ ${RAM_SIZE} -le 1024 ]]; then
+                # If machine RAM less than / equal 1GiB, set Redis max mem to 1/8 of RAM size.
+                local REDISMEM_SIZE=$((RAM_SIZE / 8))
+            elif [[ ${RAM_SIZE} -gt 2048 && ${RAM_SIZE} -le 8192 ]]; then
+                # If machine RAM less than / equal 8GiB and greater than 2GiB, 
+                # set Redis max mem to 1/4 of RAM size.
+                local REDISMEM_SIZE=$((RAM_SIZE / 4))
+            else
+                # Otherwise, set Memcached to max of 2048MiB.
+                local REDISMEM_SIZE=2048
+            fi
+
             cat >> /etc/redis/redis.conf <<EOL
 
 ###################################################################
 # Custom configuration for LEMPer
 #
-maxmemory 128mb
+maxmemory ${REDISMEM_SIZE}mb
 maxmemory-policy allkeys-lru
 EOL
 

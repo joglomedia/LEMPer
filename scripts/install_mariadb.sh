@@ -176,12 +176,12 @@ function enable_mariabackup() {
     echo "Please enter your current MySQL root password to process!"
     export MYSQL_ROOT_PASS
     until [[ "${MYSQL_ROOT_PASS}" != "" ]]; do
-        #echo -n "MySQL root password: "; stty echo; read -rp MYSQL_ROOT_PASS; stty echo; echo
-        read -s -rp "MySQL root password: " -e MYSQL_ROOT_PASS
+        echo -n "MySQL root password: "; stty echo; read -rp MYSQL_ROOT_PASS; stty echo; echo
+        #read -s -rp "MySQL root password: " -e MYSQL_ROOT_PASS
     done
 
-    # Chreate user if not exists.
-    if [[ -z $(mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT User FROM mysql.user;" | grep "${MARIABACKUP_USER}") ]]; then
+    # Create user if not exists.
+    if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT User FROM mysql.user;" | grep -q "${MARIABACKUP_USER}"; then
         # Create mariabackup user.
         SQL_QUERY="CREATE USER '${MARIABACKUP_USER}'@'localhost' IDENTIFIED BY '${MARIABACKUP_PASS}';
 GRANT RELOAD, PROCESS, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${MARIABACKUP_USER}'@'localhost';"
@@ -211,7 +211,7 @@ open_files_limit=65535
         status "Mariaback user '${MARIABACKUP_USER}' added successfully."
     else
         warning "It seems that user '${MARIABACKUP_USER}' already exists. \
-Try to add mariabackup user manually! "
+Or try to add mariabackup user manually! "
     fi
 }
 

@@ -262,6 +262,20 @@ function requires_root() {
     fi
 }
 
+function delete_if_already_exists() {
+     if "$DRYRUN"; then return; fi
+
+    local directory="$1"
+    if [ -d "$directory" ]; then
+        if [ ${#directory} -lt 8 ]; then
+            fail "Not deleting $directory; name is suspiciously short. Something is wrong."
+        fi
+
+        continue_or_exit "OK to delete $directory?"
+        run rm -rf "$directory"
+    fi
+}
+
 function get_distrib_name() {
     if [ -f "/etc/os-release" ]; then
         # Export os-release vars.
@@ -474,12 +488,14 @@ function create_account() {
             # Generate passhword hash.
             if [[ -n $(command -v mkpasswd) ]]; then
                 PASSWORD_HASH=$(mkpasswd --method=sha-256 "${PASSWORD}")
-                run bash -c "echo \"${USERNAME}:${PASSWORD_HASH}\" > /srv/.htpasswd"
+                run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
+                run echo "${USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             elif [[ -n $(command -v htpasswd) ]]; then
                 run htpasswd -b /srv/.htpasswd "${USERNAME}" "${PASSWORD}"
             else
                 PASSWORD_HASH=$(openssl passwd -1 "${PASSWORD}")
-                run bash -c "echo \"${USERNAME}:${PASSWORD_HASH}\" > /srv/.htpasswd"
+                run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
+                run echo "${USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             fi
 
             # Save data to log file.

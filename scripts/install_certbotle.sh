@@ -19,10 +19,14 @@ requires_root
 
 # Install Certbot Let's Encrypt.
 function init_certbotle_install() {
+    if "${AUTO_INSTALL}"; then
+        INSTALL_CERTBOT="y"
+    else
+        while [[ "${INSTALL_CERTBOT}" != "y" && "${INSTALL_CERTBOT}" != "n" ]]; do
+            read -rp "Do you want to install Certbot Let's Encrypt client? [y/n]: " -e INSTALL_CERTBOT
+        done
+    fi
 
-    while [[ "${INSTALL_CERTBOT}" != "y" && "${INSTALL_CERTBOT}" != "n" ]]; do
-        read -rp "Do you want to install Certbot Let's Encrypt? [y/n]: " -e INSTALL_CERTBOT
-    done
     if [[ "${INSTALL_CERTBOT}" == Y* || "${INSTALL_CERTBOT}" == y* ]]; then
         echo -e "\nInstalling Certbot Let's Encrypt client..."
 
@@ -56,10 +60,13 @@ EOL
                 rm -f lemper.cron
             fi
 
-            # Register a new account
+            # Register a new account.
             LE_EMAIL=${ADMIN_EMAIL:-"cert@lemper.sh"}
-            run certbot register --email "${LE_EMAIL}" --no-eff-email
-            #run certbot rupdate_account --email "${LE_EMAIL}" --no-eff-email
+            if [[ "$(ls -A /etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory/)" ]]; then
+                run certbot rupdate_account --email "${LE_EMAIL}" --no-eff-email
+            else
+                run certbot register --email "${LE_EMAIL}" --no-eff-email
+            fi
         fi
 
         if "${DRYRUN}"; then
