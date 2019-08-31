@@ -389,7 +389,7 @@ function get_ram_size() {
 
 # Create custom Swap.
 function create_swap() {
-    local SWAP_FILE="/root/lemper-swapfile"
+    local SWAP_FILE="/swapfile"
     local RAM_SIZE && \
     RAM_SIZE=$(get_ram_size)
 
@@ -417,31 +417,41 @@ function create_swap() {
     if "${DRYRUN}"; then
         echo "Add persistent swap to fstab in dryrun mode."
     else
-        run echo "${SWAP_FILE} swap swap defaults 0 0" >> /etc/fstab
+        if grep -qwE "#${SWAP_FILE}" /etc/fstab; then
+            run sed -i "s|#${SWAP_FILE}|${SWAP_FILE}|g" /etc/fstab
+        else
+            run echo "${SWAP_FILE} swap swap defaults 0 0" >> /etc/fstab
+        fi
     fi
 
     # Adjust swappiness, default Ubuntu set to 60
     # meaning that the swap file will be used fairly often if the memory usage is
     # around half RAM, for production servers you may need to set a lower value.
-    if [[ $(cat /proc/sys/vm/swappiness) -gt 15 ]]; then
+    if [[ $(cat /proc/sys/vm/swappiness) -gt 10 ]]; then
         if "${DRYRUN}"; then
             echo "Update swappiness value in dryrun mode."
         else
-            run sysctl vm.swappiness=15
-            run echo "vm.swappiness=15" >> /etc/sysctl.conf
+            run sysctl vm.swappiness=10
+            run echo "vm.swappiness=10" >> /etc/sysctl.conf
         fi
     fi
 }
 
 # Remove created Swap.
 function remove_swap() {
-    local SWAP_FILE="/root/lemper-swapfile"
+    local SWAP_FILE="/swapfile"
 
     echo "Disabling swap..."
 
-    run swapoff -v ${SWAP_FILE} && \
-    run sed -i "s/${SWAP_FILE}/#\ ${SWAP_FILE}/g" /etc/fstab && \
-    run rm -f ${SWAP_FILE}
+    if [ -f ${SWAP_FILE} ]; then
+        run swapoff ${SWAP_FILE} && \
+        run sed -i "s|${SWAP_FILE}|#\ ${SWAP_FILE}|g" /etc/fstab && \
+        run rm -f ${SWAP_FILE}
+
+        echo "Swap file removed."
+    else
+        warning "Unable to remove swap."
+    fi
 }
 
 # Enable swap.

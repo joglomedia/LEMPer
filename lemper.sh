@@ -272,6 +272,17 @@ Now, you can reboot your server and enjoy it!"
             fi
         fi
 
+        # Remove created swap.
+        echo ""
+        while [[ "${REMOVE_SWAP}" != "y" && "${REMOVE_SWAP}" != "n" && "${AUTO_REMOVE}" != true ]]; do
+            read -rp "Remove created Swap? [y/n]: " -i y -e REMOVE_SWAP
+        done
+        if [[ "${REMOVE_SWAP}" == Y* || "${REMOVE_SWAP}" == y* || "${FORCE_REMOVE}" == true ]]; then
+            if [ "$(type -t remove_swap)" == "function" ]; then
+                remove_swap
+            fi
+        fi
+
         # Remove unnecessary packages.
         echo -e "\nCleaning up unnecessary packages...\n"
         run apt-get autoremove -y
