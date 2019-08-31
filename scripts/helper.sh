@@ -18,7 +18,7 @@ if [ -f ".env" ]; then
     source <(grep -v '^#' .env | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
 else
     echo "Environment variables required, but the Dotenv file not found."
-    exit 1
+    exit 0
 fi
 
 # Direct access? make as dryrun mode.
