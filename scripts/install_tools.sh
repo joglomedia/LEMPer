@@ -123,7 +123,7 @@ function init_webadmin_install() {
         #local CUR_DIR && \
         #CUR_DIR=$(pwd)
         run pushd /usr/share/nginx/html/lcp/phpMemcachedAdmin/
-        run git pull
+        run git pull -q
         run popd
         #run cd "${CUR_DIR}"
     fi

@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # +-------------------------------------------------------------------------+
-# | LEMPer.sh is a Simple LNMP Installer for Ubuntu                         |
+# | LEMPer.sh is a simple LEMP stack installer for Debian/Ubuntu            |
 # |-------------------------------------------------------------------------+
 # | Features    :                                                           |
 # |     - Nginx latest                                                      |
+# |     - MariaDB 10 (MySQL drop-in replacement)                            |
 # |     - PHP latest                                                        |
 # |     - Zend OpCache                                                      |
 # |     - Memcached latest                                                  |
 # |     - ionCube Loader                                                    |
 # |     - SourceGuardian Loader                                             |
-# |     - MariaDB 10 (MySQL drop-in replacement)                            |
 # |     - Adminer (PhpMyAdmin replacement)                                  |
 # | Min requirement   : GNU/Linux Ubuntu 14.04 or Linux Mint 17             |
 # | Last Update       : 10/08/2019                                          |
@@ -29,7 +29,8 @@
 # | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
 # +-------------------------------------------------------------------------+
 
-set -e # Work even if somebody does "sh lemper.sh".
+# Work even if somebody does "sh lemper.sh".
+set -e
 
 if [ -z "${PATH}" ] ; then
     export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin

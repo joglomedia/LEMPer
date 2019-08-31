@@ -699,10 +699,10 @@ function install_wordpress() {
     else
         # Create default index file.
         status "Creating default WordPress index file..."
-
         create_index_file > "${WEBROOT}/index.html"
-        run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
     fi
+
+    run wget -q -O "${WEBROOT}/favicon.ico" https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
 
     # Pre-install nginx helper plugin.
     if [[ -d "${WEBROOT}/wp-content/plugins" && ! -d "${WEBROOT}/wp-content/plugins/nginx-helper" ]]; then
@@ -713,6 +713,8 @@ function install_wordpress() {
         run unzip -q "${TMPDIR}/nginx-helper.zip" -d "${WEBROOT}/wp-content/plugins/"
         run rm -f "${TMPDIR}/nginx-helper.zip"
     fi
+
+    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 }
 
 # Get server IP Address.
@@ -928,14 +930,15 @@ function init_app() {
                         # Create default index file.
                         status "Creating default index file..."
                         create_index_file > "${WEBROOT}/index.html"
-
-                        run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
                     fi
+
+                    run wget -q -O "${WEBROOT}/favicon.ico" \
+                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_drupal > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 laravel|lumen)
@@ -947,7 +950,77 @@ function init_app() {
                         # Check Laravel install.
                         if [ ! -f "${WEBROOT}/artisan" ]; then
                             status "Copying ${FRAMEWORK^} skeleton files..."
-                            run git clone -q "https://github.com/laravel/${FRAMEWORK}.git" "${WEBROOT}"
+                            run git clone -q --depth=1 --branch=master \
+                                "https://github.com/laravel/${FRAMEWORK}.git" "${WEBROOT}"
+                        else
+                            warning "It seems that ${FRAMEWORK^} skeleton files already exists."
+                        fi
+                    else
+                        # Create default index file.
+                        status "Creating default index file..."
+                        run mkdir -p "${WEBROOT}/public"
+                        create_index_file > "${WEBROOT}/public/index.html"
+                    fi
+
+                    run wget -q -O "${WEBROOT}/public/favicon.ico" \
+                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
+
+                    # Create vhost.
+                    echo "Creating virtual host file: ${VHOST_FILE}..."
+                    create_vhost_laravel > "${VHOST_FILE}"
+                ;;
+
+                phalcon)
+                    echo "Setting up Phalcon framework virtual host..."
+
+                    # Auto install Phalcon PHP framework skeleton.
+                    if [ ${CLONE_SKELETON} == true ]; then
+                        # Check Phalcon skeleton install.
+                        if [ ! -f "${WEBROOT}/app/config/loader.php" ]; then
+                            status "Copying ${FRAMEWORK^} skeleton files..."
+                            run git clone -q --depth=1 --branch=master \
+                                "https://github.com/joglomedia/${FRAMEWORK}-skeleton.git" "${WEBROOT}"
+                        else
+                            warning "It seems that ${FRAMEWORK^} skeleton files already exists."
+                        fi
+                    else
+                        # Create default index file.
+                        status "Creating default index file..."
+                        run mkdir -p "${WEBROOT}/public"
+                        create_index_file > "${WEBROOT}/public/index.html"
+                    fi
+
+                    run wget -q -O "${WEBROOT}/public/favicon.ico" \
+                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
+
+                    # Create vhost.
+                    echo "Creating virtual host file: ${VHOST_FILE}..."
+                    create_vhost_phalcon > "${VHOST_FILE}"
+                ;;
+
+                symfony)
+                    echo "Setting up Symfony framework virtual host..."
+
+                    # Auto install Symfony PHP framework skeleton.
+                    if [ ${CLONE_SKELETON} == true ]; then
+                        # Install Symfony binary if not exists.
+                        if [[ -z $(command -v symfony) ]]; then
+                            run wget -q https://get.symfony.com/cli/installer -O - | bash
+                            if [ -f "${HOME}/.symfony/bin/symfony" ]; then
+                                run cp -f "${HOME}/.symfony/bin/symfony" /usr/local/bin/symfony
+                                run chmod ugo+x /usr/local/bin/symfony
+                            else
+                                run export PATH="${HOME}/.symfony/bin:${PATH}"
+                            fi
+                        fi
+
+                        # Check Laravel install.
+                        if [ ! -f "${WEBROOT}/src/Kernel.php" ]; then
+                            status "Copying ${FRAMEWORK^} skeleton files..."
+                            run git clone -q --depth=1 --branch=master \
+                                "https://github.com/joglomedia/${FRAMEWORK}-skeleton.git" "${WEBROOT}"
                         else
                             warning "It seems that ${FRAMEWORK^} skeleton files already exists."
                         fi
@@ -955,35 +1028,15 @@ function init_app() {
                         # Create default index file.
                         status "Creating default index file..."
                         create_index_file > "${WEBROOT}/index.html"
-                        run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
                     fi
 
-                    # Create vhost.
-                    echo "Creating virtual host file: ${VHOST_FILE}..."
-                    create_vhost_laravel > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
-                ;;
-
-                phalcon)
-                    echo "Setting up Phalcon framework virtual host..."
-
-                    # TODO: Auto install Phalcon PHP framework skeleton
-
-                    # Create vhost.
-                    echo "Creating virtual host file: ${VHOST_FILE}..."
-                    create_vhost_phalcon > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
-                ;;
-
-                symfony)
-                    echo "Setting up Symfony framework virtual host..."
-
-                    # TODO: Auto install Symfony PHP framework skeleton
+                    run wget -q -O "${WEBROOT}/public/favicon.ico" \
+                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_default > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 wordpress|woocommerce)
@@ -1004,14 +1057,13 @@ function init_app() {
                             run rm -f "${TMPDIR}/woocommerce.zip"
                         fi
 
-                        # Update framework as Wordpress.
+                        # Return framework as Wordpress.
                         FRAMEWORK="wordpress"
                     fi
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_default > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 wordpress-ms)
@@ -1036,38 +1088,40 @@ function init_app() {
 
                     # Create vhost.
                     create_vhost_default >> "${VHOST_FILE}"
-
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 filerun)
                     echo "Setting up FileRun virtual host..."
 
                     # Install FileRun skeleton.
-                    if [ ! -f "${WEBROOT}/system/classes/filerun.php" ]; then
+                    if [ ${CLONE_SKELETON} == true ]; then
                         # Clone new Filerun files.
-                        if [ ${CLONE_SKELETON} == true ]; then
+                        if [ ! -f "${WEBROOT}/system/classes/filerun.php" ]; then
                             echo "Copying FileRun skeleton files..."
                             run wget -q -O "${TMPDIR}/FileRun.zip" http://www.filerun.com/download-latest
                             run unzip -q "${TMPDIR}/FileRun.zip" -d "${WEBROOT}"
                             run rm -f "${TMPDIR}/FileRun.zip"
                         else
-                            # Create default index file.
-                            echo "Creating default index files..."
-                            create_index_file > "${WEBROOT}/index.html"
-                            run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
+                            warning "FileRun skeleton files already exists."
                         fi
                     else
-                        warning "FileRun skeleton files already exists."
+                        # Create default index file.
+                        echo "Creating default index files..."
+                        create_index_file > "${WEBROOT}/index.html"
                     fi
+
+                    run wget -q -O "${WEBROOT}/favicon.ico" \
+                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_default > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 codeigniter|mautic|default)
+                    # TODO: Auto install framework skeleton.
+
                     # Create default index file.
                     create_index_file > "${WEBROOT}/index.html"
                     run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
@@ -1075,7 +1129,6 @@ function init_app() {
                     # Create default vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_default > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 *)
