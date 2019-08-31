@@ -612,7 +612,12 @@ function init_php_fpm_install() {
     # Install PHP loader.
     if [[ "${PHPv}" != "unsupported" && "${PHP_IS_INSTALLED}" != "yes" ]]; then
         if "${AUTO_INSTALL}"; then
-            INSTALL_PHPLOADER="y"
+            if [[ -n "${PHP_LOADER}" ]]; then
+                INSTALL_PHPLOADER="y"
+                SELECTED_PHPLOADER=${PHP_LOADER}
+            else
+                INSTALL_PHPLOADER="n"
+            fi
         else
             echo ""
             while [[ ${INSTALL_PHPLOADER} != "y" && ${INSTALL_PHPLOADER} != "n" ]]; do
@@ -620,7 +625,6 @@ function init_php_fpm_install() {
             done
         fi
 
-        SELECTED_PHPLOADER=${PHP_LOADER:-"ioncube"}
         if [[ "${INSTALL_PHPLOADER}" == Y* || "${INSTALL_PHPLOADER}" == y* ]]; then
             echo ""
             echo "Available PHP Loaders:"
@@ -632,7 +636,7 @@ function init_php_fpm_install() {
             while [[ ${SELECTED_PHPLOADER} != "1" && ${SELECTED_PHPLOADER} != "2" && \
                     ${SELECTED_PHPLOADER} != "3" && ${SELECTED_PHPLOADER} != "ioncube" && \
                     ${SELECTED_PHPLOADER} != "sourceguardian" && ${SELECTED_PHPLOADER} != "all" ]]; do
-                read -rp "Select an option [1-3]: " -e SELECTED_PHPLOADER
+                read -rp "Select an option [1-3]: " -i "${PHP_LOADER}" -e SELECTED_PHPLOADER
             done
 
             echo ""
