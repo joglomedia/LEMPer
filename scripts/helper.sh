@@ -8,11 +8,16 @@
 
 # Export environment variables.
 if [ -f ".env" ]; then
+    # Clean environemnt first.
+    # shellcheck source=.env
+    # shellcheck disable=SC2046
+    unset $(grep -v '^#' .env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+
     # shellcheck source=.env
     # shellcheck disable=SC1094
     source <(grep -v '^#' .env | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
 else
-    echo "Environment variables required, but not found."
+    echo "Environment variables required, but the Dotenv file not found."
     exit 1
 fi
 

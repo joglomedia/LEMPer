@@ -32,14 +32,10 @@
 # Work even if somebody does "sh lemper.sh".
 set -e
 
+# Try to export global path.
 if [ -z "${PATH}" ] ; then
     export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 fi
-
-# Unset existing variables.
-# shellcheck source=.env
-# shellcheck disable=SC2046
-unset $(grep -v '^#' .env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
 
 # Get base directory.
 export BASEDIR && \
