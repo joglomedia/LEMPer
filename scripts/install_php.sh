@@ -14,12 +14,6 @@ if [ "$(type -t run)" != "function" ]; then
     . "${BASEDIR}/helper.sh"
 fi
 
-# Define build directory.
-BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
-if [ ! -d "${BUILD_DIR}" ]; then
-    run mkdir -p "${BUILD_DIR}"
-fi
-
 # Make sure only root can run this installer script.
 requires_root
 
@@ -32,12 +26,10 @@ function add_php_repo() {
     if "${DRYRUN}"; then
         warning "PHP repository added in dryrun mode."
     else
-        {
-            # Fix for NO_PUBKEY key servers error
-            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
-            run add-apt-repository -y ppa:ondrej/php
-            run apt-get update -y
-        }
+        # Fix for NO_PUBKEY key servers error
+        run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
+        run add-apt-repository -y ppa:ondrej/php
+        run apt-get -qq update -y
     fi
 }
 
@@ -74,7 +66,7 @@ php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS
         if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
             echo "Installing PHP${PHPv} & FPM packages..."
             # shellcheck disable=SC2068
-            run apt-get install -y ${PHP_PKGS[@]}
+            run apt-get -qq install -y ${PHP_PKGS[@]}
         fi
 
         if [[ -n $(command -v "php${PHPv}") ]]; then
@@ -91,9 +83,9 @@ php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS
 
         if [[ "$INSTALL_PHPMCRYPT" == Y* || "$INSTALL_PHPMCRYPT" == y* ]]; then
             if [ "${PHPv//.}" -lt "72" ]; then
-                run apt-get install -y "php${PHPv}-mcrypt"
+                run apt-get -qq install -y "php${PHPv}-mcrypt"
             elif [ "${PHPv}" == "7.2" ]; then
-                run apt-get -y install gcc make autoconf libc-dev pkg-config \
+                run apt-get -qq install -y gcc make autoconf libc-dev pkg-config \
                     libmcrypt-dev libreadline-dev && \
                     pecl install mcrypt-1.0.1
 
@@ -111,7 +103,7 @@ php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS
                         "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
                 fi
             else
-                run apt-get install -y dh-php
+                run apt-get -qq install -y dh-php
 
                 # use libsodium instead
                 warning "Mcrypt is deprecated for PHP version ${PHPv} or greater, you should using Libsodium or OpenSSL."
@@ -325,57 +317,6 @@ function remove_sourceguardian() {
     else
         warning "SourceGuardian PHP${PHPv} loader couldn't be found."
     fi
-}
-
-# Phalcon Framework.
-function install_phalcon() {
-    local PHPv=${1:-$PHP_VERSION}
-
-    # Install prerequisite packages.
-    run apt-get install -y gcc libpcre3-dev make re2c autoconf automake
-
-    # Install Zephir from source.
-    while [[ $INSTALL_ZEPHIR != "y" && $INSTALL_ZEPHIR != "n" ]]; do
-        read -rp "Install Zephir Interpreter? [y/n]: " -e INSTALL_ZEPHIR
-    done
-
-    if [[ "$INSTALL_ZEPHIR" == Y* || "$INSTALL_ZEPHIR" == y* ]]; then
-        # Install Zephir parser.
-        run git clone -q git://github.com/phalcon/php-zephir-parser.git "${BUILD_DIR}/php-zephir-parser"
-        run pushd "${BUILD_DIR}/php-zephir-parser"
-
-        if [[ -n "${PHPv}" ]]; then
-            run "phpize${PHPv}"
-            run ./configure --with-php-config="/usr/bin/php-config${PHPv}"
-        else
-            run phpize
-            run ./configure
-        fi
-
-        run make
-        run make install
-        run popd
-
-        # Install Zephir.
-        ZEPHIR_BRANCH=$(git ls-remote https://github.com/phalcon/zephir 0.12.* | sort -t/ -k3 -Vr | head -n1 | awk -F/ '{ print $NF }')
-        run git clone --depth 1 --branch "${ZEPHIR_BRANCH}" -q https://github.com/phalcon/zephir.git "${BUILD_DIR}/zephir"
-        run pushd "${BUILD_DIR}/zephir"
-        # install zephir
-        run composer install
-        run popd
-    fi
-
-    # Install cPhalcon from source.
-    run git clone --depth=1 --branch=3.4.x -q https://github.com/phalcon/cphalcon.git "${BUILD_DIR}/cphalcon"
-    run pushd "${BUILD_DIR}/cphalcon/build"
-
-    if [[ -n "${PHPv}" ]]; then
-        run ./install --phpize "/usr/bin/phpize${PHPv}" --php-config "/usr/bin/php-config${PHPv}"
-    else
-        run ./install
-    fi
-
-    run popd
 }
 
 # PHP & FPM Optimization.
@@ -612,11 +553,11 @@ function init_php_fpm_install() {
     # Install PHP loader.
     if [[ "${PHPv}" != "unsupported" && "${PHP_IS_INSTALLED}" != "yes" ]]; then
         if "${AUTO_INSTALL}"; then
-            if [[ -n "${PHP_LOADER}" ]]; then
+            if [[ -z "${PHP_LOADER}" || "${PHP_LOADER}" == "none" ]]; then
+                INSTALL_PHPLOADER="n"
+            else
                 INSTALL_PHPLOADER="y"
                 SELECTED_PHPLOADER=${PHP_LOADER}
-            else
-                INSTALL_PHPLOADER="n"
             fi
         else
             echo ""
@@ -708,41 +649,6 @@ function init_php_fpm_install() {
 
                 *)
                     warning "Your selected PHP loader ${SELECTED_PHPLOADER} is not supported yet."
-                ;;
-            esac
-        fi
-
-        # Install Phalcon PHP Framework.
-        if "${AUTO_INSTALL}"; then
-            INSTALL_PHALCON="y"
-        else
-            echo ""
-            while [[ ${INSTALL_PHALCON} != "y" && ${INSTALL_PHALCON} != "n" ]]; do
-                read -rp "Do you want to install Phalcon framework? [y/n]: " -e INSTALL_PHALCON
-            done
-        fi
-
-        SELECTED_PHALCON=${PHP_PHALCON_INSTALLER:-"source"}
-        if [[ "${INSTALL_PHALCON}" == Y* || "${INSTALL_PHALCON}" == y* ]]; then
-            echo ""
-            echo "Available Phalcon framework installer:"
-            echo "  1). Repository (repo)"
-            echo "  2). Source (source)"
-            echo "--------------------------------------------"
-
-            while [[ ${SELECTED_PHALCON} != "1" && ${SELECTED_PHALCON} != "2" && \
-                    ${SELECTED_PHALCON} != "repo" && ${SELECTED_PHALCON} != "source" ]]; do
-                read -rp "Select an option [1-2]: " -e SELECTED_PHALCON
-            done
-
-            echo ""
-
-            case ${SELECTED_PHALCON} in
-                1|"source")
-                    run install_phalcon "${PHPv}"
-                ;;
-                2|"repo"|*)
-                    run apt-get install -y php-phalcon
                 ;;
             esac
         fi

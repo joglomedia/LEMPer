@@ -23,16 +23,16 @@ function init_certbotle_install() {
         INSTALL_CERTBOT="y"
     else
         while [[ "${INSTALL_CERTBOT}" != "y" && "${INSTALL_CERTBOT}" != "n" ]]; do
-            read -rp "Do you want to install Certbot Let's Encrypt client? [y/n]: " -e INSTALL_CERTBOT
+            read -rp "Do you want to install Certbot Let's Encrypt client? [y/n]: " -i y -e INSTALL_CERTBOT
         done
     fi
 
     if [[ "${INSTALL_CERTBOT}" == Y* || "${INSTALL_CERTBOT}" == y* ]]; then
-        echo -e "\nInstalling Certbot Let's Encrypt client..."
+        echo "Installing Certbot Let's Encrypt client..."
 
         run add-apt-repository -y ppa:certbot/certbot
-        run apt-get -y update
-        run apt-get -y install certbot
+        run apt-get -qq update -y
+        run apt-get -qq install -y certbot
 
         # Add Certbot auto renew command to cron
         #15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/bin/systemctl reload nginx"

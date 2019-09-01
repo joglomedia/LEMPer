@@ -18,11 +18,11 @@ fi
 requires_root
 
 function init_certbotle_removal() {
-    if [[ -n $(dpkg-query -l | grep certbot | awk '/certbot/ { print $2 }') ]]; then
+    if dpkg-query -l | awk '/certbot/ { print $2 }' | grep -qwE "^certbot$"; then
         echo "Found Certbot package installation. Removing..."
 
         # Remove Certbot.
-        run apt-get --purge remove -y certbot
+        run apt-get -qq --purge remove -y certbot
 
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:certbot/certbot
@@ -33,7 +33,7 @@ function init_certbotle_removal() {
 
         CERTBOT_BIN=$(command -v certbot)
 
-        echo "Which certbot bin: ${CERTBOT_BIN}"
+        echo "Certbot binary executable: ${CERTBOT_BIN}"
     fi
 
     # Remove Certbot config files.

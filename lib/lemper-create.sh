@@ -194,22 +194,28 @@ server {
 
     ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
+
+    # Authorizing domain.
+    #pagespeed Domain ${SERVERNAME};
+    #pagespeed Domain *.${SERVERNAME};
+
+    # Enable fetch HTTPS.
+    #pagespeed FetchHttps enable;
+
+    # This setting should be enabled when using HTTPS
+    # Take care when using HTTP > HTTPS redirection to avoid loops.
+    #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
+
     # Async Google Analytics
     #pagespeed EnableFilters make_google_analytics_async;
+
     # Async Google Adsense.
     #pagespeed EnableFilters make_show_ads_async;
+
     # PageSpeed should be disabled on the WP admin  (adjust to suit custom admin URLs).
     #pagespeed Disallow "*/wp-admin/*";
     #pagespeed Disallow "*/dashboard/*";
     #pagespeed Disallow "*/admin/*";
-    # Authorizing domain.
-    #pagespeed Domain ${SERVERNAME};
-    #pagespeed Domain *.${SERVERNAME};
-    # Enable fetch HTTPS.
-    #pagespeed FetchHttps enable;
-    # This setting should be enabled when using HTTPS
-    # Take care when using HTTP > HTTPS redirection to avoid loops.
-    #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -287,20 +293,27 @@ server {
 
     ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
-    # Async Google Analytics
-    #pagespeed EnableFilters make_google_analytics_async;
-    # Async Google Adsense.
-    #pagespeed EnableFilters make_show_ads_async;
-    # PageSpeed should be disabled on the user panel  (adjust to suit custom admin URLs).
-    #pagespeed Disallow "*/user/*";
+
     # Authorizing domain.
     #pagespeed Domain ${SERVERNAME};
     #pagespeed Domain *.${SERVERNAME};
+
     # Enable fetch HTTPS.
     #pagespeed FetchHttps enable;
+
     # This setting should be enabled when using HTTPS
     # Take care when using HTTP > HTTPS redirection to avoid loops.
     #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
+
+    # Async Google Analytics
+    #pagespeed EnableFilters make_google_analytics_async;
+
+    # Async Google Adsense.
+    #pagespeed EnableFilters make_show_ads_async;
+
+    # PageSpeed should be disabled on the user panel  (adjust to suit custom admin URLs).
+    #pagespeed Disallow "*/user/*";
+    #pagespeed Disallow "*/account/*";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -392,22 +405,28 @@ server {
 
     ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
+
+    # Authorizing domain.
+    #pagespeed Domain ${SERVERNAME};
+    #pagespeed Domain *.${SERVERNAME};
+
+    # Enable fetch HTTPS.
+    #pagespeed FetchHttps enable;
+
+    # This setting should be enabled when using HTTPS
+    # Take care when using HTTP > HTTPS redirection to avoid loops.
+    #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
+
     # Async Google Analytics
     #pagespeed EnableFilters make_google_analytics_async;
+
     # Async Google Adsense.
     #pagespeed EnableFilters make_show_ads_async;
+
     # PageSpeed should be disabled on the admin  (adjust to suit custom admin URLs).
     #pagespeed Disallow "*/account/*";
     #pagespeed Disallow "*/dashboard/*";
     #pagespeed Disallow "*/admin/*";
-    # Authorizing domain.
-    #pagespeed Domain ${SERVERNAME};
-    #pagespeed Domain *.${SERVERNAME};
-    # Enable fetch HTTPS.
-    #pagespeed FetchHttps enable;
-    # This setting should be enabled when using HTTPS
-    # Take care when using HTTP > HTTPS redirection to avoid loops.
-    #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -489,22 +508,28 @@ server {
 
     ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
-    # Async Google Analytics
-    #pagespeed EnableFilters make_google_analytics_async;
-    # Async Google Adsense.
-    #pagespeed EnableFilters make_show_ads_async;
-    # PageSpeed should be disabled on the admin  (adjust to suit custom admin URLs).
-    #pagespeed Disallow "*/account/*";
-    #pagespeed Disallow "*/dashboard/*";
-    #pagespeed Disallow "*/admin/*";
+
     # Authorizing domain.
     #pagespeed Domain ${SERVERNAME};
     #pagespeed Domain *.${SERVERNAME};
+
     # Enable fetch HTTPS.
     #pagespeed FetchHttps enable;
+
     # This setting should be enabled when using HTTPS
     # Take care when using HTTP > HTTPS redirection to avoid loops.
     #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
+
+    # Async Google Analytics
+    #pagespeed EnableFilters make_google_analytics_async;
+
+    # Async Google Adsense.
+    #pagespeed EnableFilters make_show_ads_async;
+
+    # PageSpeed should be disabled on the admin (adjust to suit custom admin URLs).
+    #pagespeed Disallow "*/account/*";
+    #pagespeed Disallow "*/dashboard/*";
+    #pagespeed Disallow "*/admin/*";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;

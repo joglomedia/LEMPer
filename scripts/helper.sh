@@ -21,6 +21,12 @@ else
     exit 0
 fi
 
+# Define build directory.
+BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
+if [ ! -d "${BUILD_DIR}" ]; then
+    run mkdir -p "${BUILD_DIR}"
+fi
+
 # Direct access? make as dryrun mode.
 DRYRUN=${DRYRUN:-true}
 
@@ -484,7 +490,7 @@ function create_account() {
 
     if [[ -z $(getent passwd "${USERNAME}") ]]; then
         if "${DRYRUN}"; then
-            echo "Username ${USERNAME} created in dryrun mode."
+            echo "Create ${USERNAME} account in dryrun mode."
         else
             run useradd -d "/home/${USERNAME}" -m -s /bin/bash "${USERNAME}"
             run echo "${USERNAME}:${PASSWORD}" | chpasswd

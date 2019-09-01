@@ -1,4 +1,12 @@
-# PageSpeed
+# PageSpeed global variables.
+
+pagespeed FileCachePath /var/cache/nginx/pagespeed_cache;
+pagespeed FileCacheSizeKb 204800;
+pagespeed FileCacheCleanIntervalMs 3600000;
+pagespeed FileCacheInodeLimit 500000;
+
+pagespeed LRUCacheKbPerProcess 16384;
+pagespeed LRUCacheByteLimit 32768;
 
 pagespeed CreateSharedMemoryMetadataCache /var/cache/nginx/pagespeed_cache 512000;
 pagespeed DefaultSharedMemoryCacheKB 500000;

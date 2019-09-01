@@ -125,6 +125,12 @@ case "${1}" in
             . ./scripts/install_memcached.sh
         fi
 
+        ### Phalcon PHP installation ###
+        echo ""
+        if [ -f scripts/install_phalcon.sh ]; then
+            . ./scripts/install_phalcon.sh
+        fi
+
         ### MySQL database installation ###
         echo ""
         if [ -f scripts/install_mariadb.sh ]; then
@@ -281,7 +287,7 @@ Now, you can reboot your server and enjoy it!"
 
         # Remove unnecessary packages.
         echo -e "\nCleaning up unnecessary packages...\n"
-        run apt-get autoremove -y
+        run apt-get -qq autoremove -y
 
         status -e "\nLEMP stack has been removed completely."
         warning -e "\nDid you know? that we're so sad to see you leave :'(

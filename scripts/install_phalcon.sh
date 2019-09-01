@@ -17,27 +17,38 @@ fi
 # Make sure only root can run this installer script.
 requires_root
 
-function init_phalcon_install() {
-    local PHPv=${1:-$PHP_VERSION}
-
-    # Define build directory.
-    BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
-    if [ ! -d "${BUILD_DIR}" ]; then
-        run mkdir -p "${BUILD_DIR}"
+# Install Phalcon from source.
+function install_phalcon() {
+    # PHP version.
+    local PHPv="${1}"
+    if [ -z "${PHPv}" ]; then
+        PHPv=${PHP_VERSION:-"7.3"}
     fi
 
+    local CURRENT_DIR && \
+    CURRENT_DIR=$(pwd)
+    run cd "${BUILD_DIR}"
+
     # Install prerequisite packages.
-    run apt-get install -y gcc libpcre3-dev make re2c autoconf automake
+    run apt-get -qq install -y autoconf automake gcc libpcre3-dev make re2c
 
     # Install Zephir from source.
-    while [[ $INSTALL_ZEPHIR != "y" && $INSTALL_ZEPHIR != "n" ]]; do
-        read -rp "Install Zephir Interpreter? [y/n]: " -e INSTALL_ZEPHIR
-    done
+    if "${AUTO_INSTALL}"; then
+        if [[ "${PHP_PHALCON_ZEPHIR}" == y* || "${PHP_PHALCON_ZEPHIR}" == true ]]; then
+            INSTALL_ZEPHIR="y"
+        else
+            INSTALL_ZEPHIR="n"
+        fi
+    else
+        while [[ $INSTALL_ZEPHIR != "y" && $INSTALL_ZEPHIR != "n" ]]; do
+            read -rp "Install Zephir Interpreter? [y/n]: " -i n -e INSTALL_ZEPHIR
+        done
+    fi
 
     if [[ "$INSTALL_ZEPHIR" == Y* || "$INSTALL_ZEPHIR" == y* ]]; then
         # Install Zephir parser.
-        run git clone -q git://github.com/phalcon/php-zephir-parser.git "${BUILD_DIR}/php-zephir-parser"
-        run pushd "${BUILD_DIR}/php-zephir-parser"
+        run git clone -q git://github.com/phalcon/php-zephir-parser.git
+        run cd php-zephir-parser
 
         if [[ -n "${PHPv}" ]]; then
             run "phpize${PHPv}"
@@ -49,20 +60,29 @@ function init_phalcon_install() {
 
         run make
         run make install
-        run popd
+        run cd ../
 
         # Install Zephir.
         ZEPHIR_BRANCH=$(git ls-remote https://github.com/phalcon/zephir 0.12.* | sort -t/ -k3 -Vr | head -n1 | awk -F/ '{ print $NF }')
-        run git clone --depth 1 --branch "${ZEPHIR_BRANCH}" -q https://github.com/phalcon/zephir.git "${BUILD_DIR}/zephir"
-        run pushd "${BUILD_DIR}/zephir"
-        # install zephir
+        run git clone --depth=1 --branch="${ZEPHIR_BRANCH}" -q https://github.com/phalcon/zephir.git
+        run cd zephir
         run composer install
-        run popd
+        run cd ../
     fi
 
     # Install cPhalcon from source.
-    run git clone --depth=1 --branch=3.4.x -q https://github.com/phalcon/cphalcon.git "${BUILD_DIR}/cphalcon"
-    run pushd "${BUILD_DIR}/cphalcon/build"
+    PHALCON_VERSION=${PHP_PHALCON_VERSION:-"3.4.4"}
+
+    if [[ "${PHALCON_VERSION}" == "latest" ]]; then
+        run git clone --depth=1 --branch=master -q https://github.com/phalcon/cphalcon.git
+        run cd cphalcon/build
+    else
+        run wget --no-check-certificate -q -O "cphalcon-${PHALCON_VERSION}.tar.gz" \
+            "https://github.com/phalcon/cphalcon/archive/v${PHALCON_VERSION}.tar.gz"
+        run tar -zxf "cphalcon-${PHALCON_VERSION}.tar.gz"
+        #run rm -f "cphalcon-${PHALCON_VERSION}.tar.gz"
+        run cd "cphalcon-${PHALCON_VERSION}/build"
+    fi
 
     if [[ -n "${PHPv}" ]]; then
         run ./install --phpize "/usr/bin/phpize${PHPv}" --php-config "/usr/bin/php-config${PHPv}"
@@ -70,7 +90,127 @@ function init_phalcon_install() {
         run ./install
     fi
 
-    run popd
+    run cd "${CURRENT_DIR}"
+}
+
+# Enable Phalcon extension.
+function enable_phalcon() {
+    # PHP version.
+    local PHPv="${1}"
+    if [ -z "${PHPv}" ]; then
+        PHPv=${PHP_VERSION:-"7.3"}
+    fi
+
+    if "${DRYRUN}"; then
+        echo "Enabling Phalcon PHP extension in dryrun mode."
+    else
+        # Optimize Phalcon PHP extension.
+        if [ -d "/etc/php/${PHPv}/mods-available/" ]; then
+            # Add the extension to php.ini.
+            local PHPLIB_DIR && \
+                PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+            if [[ -f "${PHPLIB_DIR}/phalcon.so" && ! -f "/etc/php/${PHPv}/mods-available/phalcon.ini" ]]; then
+                run touch "/etc/php/${PHPv}/mods-available/phalcon.ini"
+                run echo "extension=phalcon.so" > "/etc/php/${PHPv}/mods-available/phalcon.ini"
+
+                # Enable extension.
+                if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-phalcon.ini" ]; then
+                    run ln -s "/etc/php/${PHPv}/mods-available/phalcon.ini" "/etc/php/${PHPv}/fpm/conf.d/20-phalcon.ini"
+                fi
+
+                if [ ! -f "/etc/php/${PHPv}/cli/conf.d/20-phalcon.ini" ]; then
+                    run ln -s "/etc/php/${PHPv}/mods-available/phalcon.ini" "/etc/php/${PHPv}/cli/conf.d/20-phalcon.ini"
+                fi
+            fi
+
+            # Reload PHP-FPM service.
+            if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
+                run service "php${PHPv}-fpm" reload
+                status "PHP${PHPv}-FPM restarted successfully."
+            elif [[ -n $(command -v "php${PHPv}") ]]; then
+                run service "php${PHPv}-fpm" start
+
+                if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
+                    status "PHP${PHPv}-FPM started successfully."
+                else
+                    warning "Something wrong with PHP & FPM ${PHPv} installation."
+                fi
+            fi
+
+        else
+            warning "It seems that PHP ${PHPv} not yet installed. Please install it before!"
+        fi
+    fi
+}
+
+# Init Phalcon installer.
+function init_phalcon_install() {
+    # PHP version.
+    local PHPv="${1}"
+    if [ -z "${PHPv}" ]; then
+        PHPv=${PHP_VERSION:-"7.3"}
+    fi
+
+    if "${AUTO_INSTALL}"; then
+        if [[ -z "${PHP_PHALCON_INSTALLER}" || "${PHP_PHALCON_INSTALLER}" == "none" ]]; then
+            INSTALL_PHALCON="n"
+        else
+            INSTALL_PHALCON="y"
+            SELECTED_PHALCON=${PHP_PHALCON_INSTALLER}
+        fi
+    else
+        while [[ ${INSTALL_PHALCON} != "y" && ${INSTALL_PHALCON} != "n" ]]; do
+            read -rp "Do you want to install Phalcon PHP framework? [y/n]: " -e INSTALL_PHALCON
+        done
+        echo ""
+    fi
+
+    if [[ "${INSTALL_PHALCON}" == Y* || "${INSTALL_PHALCON}" == y* ]]; then
+        echo "Available Phalcon framework installer:"
+        echo "  1). Repository (repo)"
+        echo "  2). Source (source)"
+        echo "--------------------------------------------"
+
+        while [[ ${SELECTED_PHALCON} != "1" && ${SELECTED_PHALCON} != "2" && ${SELECTED_PHALCON} != "none" && \
+            ${SELECTED_PHALCON} != "repo" && ${SELECTED_PHALCON} != "source" ]]; do
+            read -rp "Select an option [1-2]: " -e SELECTED_PHALCON
+        done
+
+        echo ""
+
+        case ${SELECTED_PHALCON} in
+            1|"source")
+                echo "Installing Phalcon extension from source..."
+                run install_phalcon "${PHPv}"
+            ;;
+
+            2|"repo")
+                echo "Installing Phalcon extension from repository..."
+                run apt-get -qq install -y php-phalcon
+            ;;
+
+            *)
+                # Skip installation.
+                warning "Phalcon installation skipped."
+            ;;
+        esac
+
+        # Enable Phalcon extension.
+        if [ "${PHPv}" != "all" ]; then
+            run enable_phalcon "${PHPv}"
+
+            # Default PHP Required for LEMPer
+            if [ "${PHPv}" != "7.3" ]; then
+                run enable_phalcon "7.3"
+            fi
+        else
+            run enable_phalcon "5.6"
+            run enable_phalcon "7.0"
+            run enable_phalcon "7.1"
+            run enable_phalcon "7.2"
+            run enable_phalcon "7.3"
+        fi
+    fi
 }
 
 echo "[welcome to Phalcon PHP Framework Installer]"
@@ -80,9 +220,13 @@ echo ""
 # after a partial download it doesn't do anything.
 PHP_VERSION=${1:-$PHP_VERSION}
 if [[ -n $(command -v "php${PHP_VERSION}") ]]; then
-    if "php${PHP_VERSION}" --ri phalcon | grep -qwE "phalcon => enabled"; then
-        warning "Phalcon PHP already installed. Installation skipped..."
-    else
+    #if "php${PHP_VERSION}" --ri phalcon | grep -qwE "phalcon => enabled"; then
+    PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+    if [ ! -f "${PHPLIB_DIR}/phalcon.so" ]; then
         init_phalcon_install "$@"
+    else
+        warning "Phalcon PHP already installed. Installation skipped..."
     fi
+else
+    warning "PHP${PHP_VERSION} & FPM not found. Installation skipped..."
 fi

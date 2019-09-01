@@ -25,46 +25,42 @@ function init_nginx_removal() {
     fi
 
     # Remove nginx installation.
-    if [[ -n $(dpkg-query -l | grep nginx-common | awk '/nginx-common/ { print $2 }') ]]; then
+    if dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-common"; then
         echo "Nginx-common package found. Removing..."
-        run apt-get --purge remove -y nginx-common
+        run apt-get -qq --purge remove -y nginx-common
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:nginx/stable
         fi
-    elif [[ -n $(dpkg-query -l | grep nginx-custom | awk '/nginx-custom/ { print $2 }') ]]; then
+    elif dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-custom"; then
         echo "Nginx-custom package found. Removing..."
-        run apt-get --purge remove -y nginx-custom
+        run apt-get -qq --purge remove -y nginx-custom
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:rtcamp/nginx
         fi
-    elif [[ -n $(dpkg-query -l | grep nginx-full | awk '/nginx-full/ { print $2 }') ]]; then
+    elif dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-full"; then
         echo "Nginx-full package found. Removing..."
-        run apt-get --purge remove -y nginx-full
+        run apt-get -qq --purge remove -y nginx-full
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:nginx/stable
         fi
-    elif [[ -n $(dpkg-query -l | grep nginx-stable | awk '/nginx-stable/ { print $2 }') ]]; then
+    elif dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-stable"; then
         echo "Nginx-stable package found. Removing..."
-        run apt-get --purge remove -y nginx-stable
+        run apt-get -qq --purge remove -y nginx-stable
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:nginx/stable
         fi
     else
         echo "Nginx package not found. Possibly installed from source."
 
-        if [[ -n $(command -v nginx) ]]; then
+        NGINX_BIN=$(command -v nginx)
+
+        echo "Nginx binary executable: ${MEMCACHED_BIN}"
+
+        if [[ -n "${NGINX_BIN}" ]]; then
             # Disable systemctl.
             if [ -f /etc/systemd/system/multi-user.target.wants/nginx.service ]; then
+                echo "Disable Nginx service..."
                 run systemctl disable nginx.service
-            fi
-
-            # Only if nginx package not installed / nginx installed from source.
-            if [ -f /usr/sbin/nginx ]; then
-                run rm -f /usr/sbin/nginx
-            fi
-
-            if [ -f /etc/init.d/nginx ]; then
-                run rm -f /etc/init.d/nginx
             fi
 
             if [ -f /etc/systemd/system/multi-user.target.wants/nginx.service ]; then
@@ -75,21 +71,32 @@ function init_nginx_removal() {
                 run rm -f /lib/systemd/system/nginx.service
             fi
 
-            if [ -d /usr/lib/nginx/ ]; then
-                run rm -fr /usr/lib/nginx/
+            # Remove binary executable file.
+            if [ -f "${NGINX_BIN}" ]; then
+                echo "Remove Nginx binary executable file..."
+                run rm -f "${NGINX_BIN}"
             fi
 
-            if [ -d /etc/nginx/modules-available ]; then
-                run rm -fr /etc/nginx/modules-available
+            # Remove init file.
+            if [ -f /etc/init.d/nginx ]; then
+                run rm -f /etc/init.d/nginx
+            fi
+
+            if [ -d /usr/lib/nginx/ ]; then
+                run rm -fr /usr/lib/nginx/
             fi
 
             if [ -d /etc/nginx/modules-enabled ]; then
                 run rm -fr /etc/nginx/modules-enabled
             fi
 
+            if [ -d /etc/nginx/modules-available ]; then
+                run rm -fr /etc/nginx/modules-available
+            fi
+
             # Delete lemper account from PageSpeed admin.
             if [ -f /srv/.htpasswd ]; then
-                #run rm -f /srv/.htpasswd'
+                #run echo "" > /srv/.htpasswd
                 run sed -i "/^lemper:/d" /srv/.htpasswd
             fi
         fi

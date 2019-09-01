@@ -23,19 +23,20 @@ function init_redis_removal() {
         run service redis-server stop
     fi
 
-    if [[ -n $(dpkg-query -l | grep redis-server | awk '/redis-server/ { print $2 }') ]]; then
+    if dpkg-query -l | awk '/redis/ { print $2 }' | grep -qwE "^redis-server"; then
         echo "Found Redis package installation. Removing..."
 
         # Remove Redis server.
-        run apt-get --purge remove -y redis-server php-redis
+        run apt-get -qq --purge remove -y redis-server redis-tools php-redis
         run add-apt-repository -y --remove ppa:chris-lea/redis-server
+        run apt-get -qq autoremove -y
     else
         echo "Redis package not found, possibly installed from source."
-        echo "Remove it manually."
+        echo "Remove it manually!!"
 
         REDIS_BIN=$(command -v redis-server)
 
-        echo "Which redis-server bin: ${REDIS_BIN}"
+        echo "Redis server binary executable: ${REDIS_BIN}"
     fi
 
     # Remove Redis config files.

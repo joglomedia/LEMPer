@@ -352,6 +352,16 @@ function disable_mod_pagespeed() {
         run sed -i "s|include\ /etc/nginx/includes/mod_pagespeed.conf|#include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
         run sed -i "s|pagespeed\ EnableFilters|#pagespeed\ EnableFilters|g" "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s|pagespeed\ Disallow|#pagespeed\ Disallow|g" "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s|pagespeed\ Domain|#pagespeed\ Domain|g" "/etc/nginx/sites-available/${1}.conf"
+
+        # If SSL enabled, ensure to also disable PageSpeed related vars.
+        if grep -qwE "\   include\ /etc/nginx/includes/ssl.conf"; then
+            run sed -i "s/pagespeed\ FetchHttps/#pagespeed\ FetchHttps/g" \
+                "/etc/nginx/sites-available/${1}.conf"
+            run sed -i "s/pagespeed\ MapOriginDomain/#pagespeed\ MapOriginDomain/g" \
+                "/etc/nginx/sites-available/${1}.conf"
+        fi
     else
         warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
@@ -372,6 +382,7 @@ function enable_https() {
 
         # Certbot get Let's Encrypt SSL.
         if [[ -n $(command -v certbot) ]]; then
+            # Is it wildcard vhost?
             if grep -qwE "\*.${1}" "/etc/nginx/sites-available/${1}.conf"; then
                 run certbot certonly --manual --preferred-challenges dns --manual-public-ip-logging-ok \
                     --webroot-path="/home/lemper/webapps/${1}" -d "${1}" -d "*.${1}"
@@ -411,6 +422,16 @@ function enable_https() {
             run sed -i "s/#ssl_trusted_certificate/ssl_trusted_certificate/g" "/etc/nginx/sites-available/${1}.conf"
             run sed -i "s|#include\ /etc/nginx/includes/ssl.conf|include\ /etc/nginx/includes/ssl.conf|g" \
                 "/etc/nginx/sites-available/${1}.conf"
+
+            # Adjust PageSpeed if enabled.
+            if grep -qwE "\   include\ /etc/nginx/includes/mod_pagespeed.conf"; then
+                echo "Adjusting PageSpeed configuration..."
+
+                run sed -i "s/#pagespeed\ FetchHttps/pagespeed\ FetchHttps/g" \
+                    "/etc/nginx/sites-available/${1}.conf"
+                run sed -i "s/#pagespeed\ MapOriginDomain/pagespeed\ MapOriginDomain/g" \
+                    "/etc/nginx/sites-available/${1}.conf"
+           fi
 
             # Append redirection block.
             cat >> "/etc/nginx/sites-available/${1}.conf" <<EOL

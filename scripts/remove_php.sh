@@ -64,42 +64,13 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" 
                 run rm -f "/etc/php/${PHPv}/mods-available/mcrypt.ini"
             fi
         else
-            #if [[ -n $(dpkg-query -l | grep dh-php | awk ' { print $2 }') ]]; then
-            #    #run apt-get --purge remove -y dh-php
-            #    PHP_PKGS=("dh-php" "${PHP_PKGS[@]}")
-            #fi
-
             # Use libsodium? remove separately.
             warning "If you're installing Libsodium extension, then remove it separately."
         fi
-
-        # Additional packages.
-        #if [[ -n $(dpkg-query -l | grep fcgiwrap | awk ' { print $2 }') ]]; then
-        #    PHP_PKGS=("fcgiwrap" "${PHP_PKGS[@]}")
-        #fi
-
-        #if [[ -n $(dpkg-query -l | grep geoip-database | awk ' { print $2 }') ]]; then
-        #    PHP_PKGS=("geoip-database" "${PHP_PKGS[@]}")
-        #fi
-
-        #if [[ -n $(dpkg-query -l | grep php-geoip | awk ' { print $2 }') ]]; then
-        #    PHP_PKGS=("php-geoip" "${PHP_PKGS[@]}")
-        #fi
-
-        #if [[ -n $(dpkg-query -l | grep php-pear | awk ' { print $2 }') ]]; then
-        #    PHP_PKGS=("php-pear" "${PHP_PKGS[@]}")
-        #fi
-
-        #if [[ -n $(dpkg-query -l | grep pkg-php-tools | awk ' { print $2 }') ]]; then
-        #    PHP_PKGS=("pkg-php-tools" "${PHP_PKGS[@]}")
-        #fi
-
-        #if [[ -n $(dpkg-query -l | grep spawn-fcgi | awk ' { print $2 }') ]]; then
-        #    PHP_PKGS=("spawn-fcgi" "${PHP_PKGS[@]}")
-        #fi
     
         if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
             echo "Removing PHP${PHPv} & FPM packages..."
+            # shellcheck disable=SC2068
             run apt-get --purge remove -y ${PHP_PKGS[@]}
         fi
 
@@ -108,7 +79,7 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" 
 
         while [[ "${REMOVE_PHPCONFIG}" != "y" && "${REMOVE_PHPCONFIG}" != "n" && "${AUTO_REMOVE}" != true ]]
         do
-            read -rp "Remove PHP${PHPv} & FPM configuration files? [y/n]: " -e REMOVE_PHPCONFIG
+            read -rp "Remove PHP${PHPv} & FPM configuration files? [y/n]: " -i n -e REMOVE_PHPCONFIG
         done
         if [[ "${REMOVE_PHPCONFIG}" == Y* || "${REMOVE_PHPCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
             echo "All your configuration files deleted permanently..."
@@ -176,6 +147,7 @@ function init_php_fpm_removal() {
 
             # Remove PHP repository.
             run add-apt-repository -y --remove ppa:ondrej/php
+            run apt-get -qq autoremove -y
 
             # Remove PHP loaders.
             if [[ -d /usr/lib/php/loaders ]]; then

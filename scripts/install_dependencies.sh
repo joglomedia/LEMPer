@@ -20,15 +20,13 @@ requires_root
 echo "Updating repository and installing required packages..."
 
 if hash apt-get 2>/dev/null; then
-    {
-        # Update repositories.
-        run apt-get update -y
+    # Update repositories.
+    run apt-get -qq update -y
 
-        # Install dependencies.
-        run apt-get install -y apache2-utils build-essential ca-certificates cron curl git gnupg2 libgd-dev \
-            libgeoip-dev lsb-release libssl-dev libxml2-dev libxslt1-dev openssh-server \
-            openssl rsync software-properties-common snmp sysstat unzip iptables bash whois
-    }
+    # Install dependencies.
+    run apt-get -qq install -y apache2-utils build-essential ca-certificates cron curl git gnupg2 libgd-dev \
+        libgeoip-dev lsb-release libssl-dev libxml2-dev libxslt1-dev openssh-server \
+        openssl rsync software-properties-common snmp sysstat unzip iptables bash whois
 elif hash yum 2>/dev/null; then
     fail "Unable to install LEMPer: yum distribution is not supported yet."
 
@@ -40,7 +38,7 @@ elif hash yum 2>/dev/null; then
 	    #yum -y localinstall $pkg
     fi
 else
-    fail "Unable to install LEMPer: this linux distribution is not dpkg/yum enabled."
+    fail "Unable to install LEMPer: this Linux distribution is not dpkg/yum enabled."
 fi
 
 status "Installation required packages completed..."

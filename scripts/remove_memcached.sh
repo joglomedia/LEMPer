@@ -23,11 +23,11 @@ function init_memcached_removal() {
         run service memcached stop
     fi
 
-    if [[ -n $(dpkg-query -l | grep memcached | awk '/memcached/ { print $2 }') ]]; then
+    if dpkg-query -l | awk '/memcached/ { print $2 }' | grep -qwE "^memcached$"; then
         echo "Found Memcached package installation. Removing..."
 
-        # Remove Redis server.
-        run apt-get --purge remove -y libmemcached11 memcached php-igbinary \
+        # Remove Memcached server.
+        run apt-get -qq --purge remove -y libmemcached11 memcached php-igbinary \
             php-memcache php-memcached php-msgpack
     else
         echo "Memcached package not found, possibly installed from source."
@@ -35,7 +35,38 @@ function init_memcached_removal() {
 
         MEMCACHED_BIN=$(command -v memcached)
 
-        echo "Which memcached bin: ${MEMCACHED_BIN}"
+        echo "Memcached binary executable: ${MEMCACHED_BIN}"
+
+        if [[ -n "${MEMCACHED_BIN}" ]]; then
+            # Disable systemctl.
+            if [ -f /etc/systemd/system/multi-user.target.wants/memcached.service ]; then
+                echo "Disable Memcached service..."
+                run systemctl disable memcached.service
+            fi
+
+            if [ -f /etc/systemd/system/multi-user.target.wants/memcached.service ]; then
+                run unlink /etc/systemd/system/multi-user.target.wants/memcached.service
+            fi
+
+            if [ -f /lib/systemd/system/memcached.service ]; then
+                run rm -f /lib/systemd/system/memcached.service
+            fi
+
+            if [ -d /usr/share/memcached ]; then
+                run rm -fr /usr/share/memcached
+            fi
+
+            # Remove binary executable file.
+            if [ -f "${MEMCACHED_BIN}" ]; then
+                echo "Remove Memcached binary executable file..."
+                run rm -f "${MEMCACHED_BIN}"
+            fi
+
+            # Remove init file.
+            if [ -f /etc/init.d/memcached ]; then
+                run rm -f /etc/init.d/memcached
+            fi
+        fi
     fi
 
     # Remove Redis config files.

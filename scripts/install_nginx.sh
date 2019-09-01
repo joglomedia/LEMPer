@@ -91,10 +91,8 @@ function init_nginx_install() {
             echo "Installing NGiNX from package repository..."
             if hash dpkg 2>/dev/null; then
                 if [[ -n "${NGX_PACKAGE}" ]]; then
-                    {
-                        run apt-get update
-                        run apt-get install -y --allow-unauthenticated "${NGX_PACKAGE}"
-                    }
+                    run apt-get -qq update
+                    run apt-get -qq install -y --allow-unauthenticated "${NGX_PACKAGE}"
                 fi
             elif hash yum 2>/dev/null; then
                 if [ "${VERSION_ID}" == "5" ]; then
@@ -113,34 +111,22 @@ function init_nginx_install() {
             echo "Installing NGiNX from source..."
 
             if "${DRYRUN}"; then
-                "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable \
+                run "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable \
                     -n stable --dynamic-module --extra-modules -y --dryrun
             else
                 # Additional configure arguments.
                 NGX_CONFIGURE_ARGS=""
 
                 # Build directory.
-                BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
-                if [ ! -d "${BUILD_DIR}" ]; then
-                    run mkdir -p "${BUILD_DIR}"
-                fi
-
-                # Custom OpenSSL.
-                if [[ -n "${OPENSSL_VERSION}" ]]; then
-                    echo "Build NGiNX with custom OpenSSL version..."
-
-                    run wget -q -O "${BUILD_DIR}/${OPENSSL_VERSION}.tar.gz" \
-                        "https://www.openssl.org/source/${OPENSSL_VERSION}.tar.gz"
-                    run tar -C "${BUILD_DIR}/" -xf "${BUILD_DIR}/${OPENSSL_VERSION}.tar.gz"
-                    run rm -f "${BUILD_DIR}/${OPENSSL_VERSION}.tar.gz"
-
-                    NGX_CONFIGURE_ARGS="--with-openssl=${BUILD_DIR}/${OPENSSL_VERSION} ${NGX_CONFIGURE_ARGS}"
-                fi
+                #BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
+                #if [ ! -d "${BUILD_DIR}" ]; then
+                #    run mkdir -p "${BUILD_DIR}"
+                #fi
 
                 if "${NGINX_EXTRA_MODULES}"; then
-                    echo "Build Nginx with extra modules..."
+                    echo "Build NGiNX with extra modules..."
 
-                    local extra_module_dir="${BUILD_DIR}/modules"
+                    local extra_module_dir="${BUILD_DIR}/nginx_modules"
 
                     if [ ! -d "$extra_module_dir" ]; then
                         run mkdir -p "$extra_module_dir"
@@ -149,9 +135,41 @@ function init_nginx_install() {
                         run mkdir -p "$extra_module_dir"
                     fi
 
+                    local CURRENT_DIR && \
+                    CURRENT_DIR=$(pwd)
                     run cd "$extra_module_dir"
 
-                    # Brotli compression
+                    # Custom OpenSSL.
+                    if [[ -n "${NGINX_CUSTOMSSL_VERSION}" ]]; then
+                        echo "Downloading custom SSL version ${NGINX_CUSTOMSSL_VERSION}..."
+
+                        if grep -q openssl <<< "${NGINX_CUSTOMSSL_VERSION}"; then
+                            if wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" \
+                                "https://www.openssl.org/source/${NGINX_CUSTOMSSL_VERSION}.tar.gz"; then
+                                run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                                run rm -f "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                                NGX_CONFIGURE_ARGS="--with-openssl=$extra_module_dir/${NGINX_CUSTOMSSL_VERSION} \
+                                    --with-openssl-opt=enable-ec_nistp_64_gcc_128 --with-openssl-opt=no-nextprotoneg \
+                                    --with-openssl-opt=no-weak-ssl-ciphers --with-openssl-opt=no-ssl3 ${NGX_CONFIGURE_ARGS}"
+                            else
+                                warning "Unable to determine Custom SSL source page."
+                            fi
+                        elif grep -q libressl <<< "${NGINX_CUSTOMSSL_VERSION}"; then
+                            if wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" \
+                                "https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/${NGINX_CUSTOMSSL_VERSION}.tar.gz"; then
+                                run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                                run rm -f "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                                NGX_CONFIGURE_ARGS="--with-openssl=$extra_module_dir/${NGINX_CUSTOMSSL_VERSION} ${NGX_CONFIGURE_ARGS}"
+                            else
+                                warning "Unable to determine Custom SSL source page."
+                            fi
+                        else
+                            warning "Unable to determine Custom SSL version."
+                            echo "Revert back to use default stack OpenSSL..."
+                        fi
+                    fi
+
+                    # Brotli compression.
                     if "$NGX_BROTLI"; then
                         echo "Downloading ngx_brotli module..."
 
@@ -430,12 +448,12 @@ function init_nginx_install() {
 
                     #configure_args=("${add_extra_modules[@]}" "${configure_args[@]}")
 
-                    run cd "${BASEDIR}"
+                    run cd "${CURRENT_DIR}"
                 fi
 
                 # Execute nginx from source installer.
                 "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n stable --dynamic-module \
---extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
+                    --extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
             fi
 
             echo ""
@@ -540,7 +558,6 @@ function init_nginx_install() {
             fi
 
             if [[ "${ENABLE_NGXDM}" == Y* || "${ENABLE_NGXDM}" == y* ]]; then
-
                 if [[ "${NGX_BROTLI}" && \
                     -f /etc/nginx/modules-available/mod-http-brotli-filter.conf ]]; then
                     run ln -fs /etc/nginx/modules-available/mod-http-brotli-filter.conf \
@@ -575,11 +592,7 @@ function init_nginx_install() {
                     -f /etc/nginx/modules-available/mod-pagespeed.conf ]]; then
                     run ln -fs /etc/nginx/modules-available/mod-pagespeed.conf \
                         /etc/nginx/modules-enabled/50-mod-pagespeed.conf
-                    
-                    run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" \
-                        /etc/nginx/nginx.conf
                 fi
-
             fi
 
             # NGiNX init script.
@@ -621,12 +634,12 @@ function init_nginx_install() {
         run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.old
     fi
 
+    run cp -f etc/nginx/nginx.conf /etc/nginx/
     run cp -f etc/nginx/charset /etc/nginx/
     run cp -f etc/nginx/{comp_brotli,comp_gzip} /etc/nginx/
     run cp -f etc/nginx/{fastcgi_cache,fastcgi_https_map,fastcgi_params,mod_pagespeed,proxy_cache,proxy_params} \
         /etc/nginx/
     run cp -f etc/nginx/{http_cloudflare_ips,http_proxy_ips,upstream} /etc/nginx/
-    run cp -f etc/nginx/nginx.conf /etc/nginx/
     run cp -fr etc/nginx/{includes,vhost,ssl} /etc/nginx/
 
     if [ -f /etc/nginx/sites-available/default ]; then
@@ -685,6 +698,13 @@ function init_nginx_install() {
 
     run sed -i "s/worker_connections\ 4096/worker_connections\ ${NGX_CONNECTIONS}/g" /etc/nginx/nginx.conf
 
+    # Enable PageSpeed config.
+    if [[ "${NGX_PAGESPEED}" && \
+        -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then                    
+        run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" \
+            /etc/nginx/nginx.conf
+    fi
+
     # Generate Diffie-Hellman parameters.
     DH_NUMBITS=${HASH_LENGTH:-2048}
     if [ ! -f "/etc/nginx/ssl/dhparam-${DH_NUMBITS}.pem" ]; then
@@ -708,15 +728,23 @@ function init_nginx_install() {
         # Restart NGiNX server
         echo "Starting NGiNX HTTP server..."
         if [[ $(pgrep -c nginx) -gt 0 ]]; then
-            run service nginx reload -s
-            status "NGiNX HTTP server restarted successfully."
-        elif [[ -n $(command -v nginx) ]]; then
-            run service nginx start
-
-            if [[ $(pgrep -c nginx) -gt 0 ]]; then
-                status "NgiNX HTTP server started successfully."
+            if nginx -t 2>/dev/null > /dev/null; then
+                run service nginx reload -s
+                status "NGiNX HTTP server restarted successfully."
             else
-                warning "Something wrong with NGiNX installation."
+                error "Nginx configuration test failed."
+            fi
+        elif [[ -n $(command -v nginx) ]]; then
+            if nginx -t 2>/dev/null > /dev/null; then
+                run service nginx start
+                
+                if [[ $(pgrep -c nginx) -gt 0 ]]; then
+                    status "NGiNX HTTP server started successfully."
+                else
+                    warning "Something wrong with NGiNX installation."
+                fi
+            else
+                error "Nginx configuration test failed."
             fi
         fi
     fi

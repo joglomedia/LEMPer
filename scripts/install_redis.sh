@@ -30,14 +30,12 @@ function init_redis_install {
     if [[ "${DO_INSTALL_REDIS}" == y* && "${INSTALL_REDIS}" == true ]]; then
         echo "Installing Redis server and Redis PHP module..."
 
-        {
-            # Add Redis repos.
-            run add-apt-repository -y ppa:chris-lea/redis-server
-            run apt-get update -y
+        # Add Redis repos.
+        run add-apt-repository -y ppa:chris-lea/redis-server
+        run apt-get -qq update -y
 
-            # Install Redis.
-            run apt-get install -y redis-server php-redis
-        }
+        # Install Redis.
+        run apt-get -qq install -y redis-server redis-tools php-redis
 
         # Configure Redis.
         if "${DRYRUN}"; then

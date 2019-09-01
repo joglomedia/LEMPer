@@ -23,30 +23,30 @@ function init_mariadb_removal() {
         run service mysql stop
     fi
 
-    if [[ -n $(dpkg-query -l | grep mariadb-server | awk '/mariadb-server/ { print $2 }') ]]; then
+    if dpkg-query -l | awk '/mariadb/ { print $2 }' | grep -qwE "^mariadb-server"; then
         echo "Found MariaDB package installation. Removing..."
 
         # Remove MariaDB server.
-        run apt-get --purge remove -y libmariadbclient18 mariadb-backup mariadb-server mysql-common
+        run apt-get -qq --purge remove -y libmariadbclient18 mariadb-backup mariadb-common mariadb-server
 
         # Remove repository.
         if "${FORCE_REMOVE}"; then
             run rm -f /etc/apt/sources.list.d/MariaDB-*.list
         fi
-    elif [[ -n $(dpkg-query -l | grep mysql-server | awk '/mysql-server/ { print $2 }') ]]; then
+    elif dpkg-query -l | awk '/mysql/ { print $2 }' | grep -qwE "^mysql-server"; then
         echo "Found MySQL package installation. Removing..."
 
         # Remove MySQL server.
-        run apt-get --purge remove -y mysql-client mysql-server mysql-common
+        run apt-get -qq --purge remove -y mysql-client mysql-common mysql-server
     else
         echo "Mariadb package not found, possibly installed from source."
-        echo "Remove it manually."
+        echo "Remove it manually!!"
 
         MYSQL_BIN=$(command -v mysql)
         MYSQLD_BIN=$(command -v mysqld)
 
-        echo "Which mysql bin: ${MYSQL_BIN}"
-        echo "which mysqld bin: ${MYSQLD_BIN}"
+        echo "Mysql binary executable: ${MYSQL_BIN}"
+        echo "Mysqld binary executable: ${MYSQLD_BIN}"
     fi
 
     # Remove MariaDB (MySQL) config files.
