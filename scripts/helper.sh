@@ -21,12 +21,6 @@ else
     exit 0
 fi
 
-# Define build directory.
-BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
-if [ ! -d "${BUILD_DIR}" ]; then
-    run mkdir -p "${BUILD_DIR}"
-fi
-
 # Direct access? make as dryrun mode.
 DRYRUN=${DRYRUN:-true}
 
@@ -592,3 +586,9 @@ function footer_msg() {
 #==========================================================================#
 _EOF_
 }
+
+# Define build directory.
+BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
+if [ ! -d "${BUILD_DIR}" ]; then
+    run mkdir -p "${BUILD_DIR}"
+fi

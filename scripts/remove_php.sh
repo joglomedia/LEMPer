@@ -71,7 +71,7 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" 
         if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
             echo "Removing PHP${PHPv} & FPM packages..."
             # shellcheck disable=SC2068
-            run apt-get --purge remove -y ${PHP_PKGS[@]}
+            run apt-get -qq --purge remove -y ${PHP_PKGS[@]}
         fi
 
         # Remove PHP & FPM config files.
@@ -147,6 +147,8 @@ function init_php_fpm_removal() {
 
             # Remove PHP repository.
             run add-apt-repository -y --remove ppa:ondrej/php
+
+            echo -e "\Cleane up unused packages..."
             run apt-get -qq autoremove -y
 
             # Remove PHP loaders.

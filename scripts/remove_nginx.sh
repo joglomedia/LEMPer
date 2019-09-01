@@ -54,7 +54,7 @@ function init_nginx_removal() {
 
         NGINX_BIN=$(command -v nginx)
 
-        echo "Nginx binary executable: ${MEMCACHED_BIN}"
+        echo "Nginx binary executable: ${NGINX_BIN}"
 
         if [[ -n "${NGINX_BIN}" ]]; then
             # Disable systemctl.
