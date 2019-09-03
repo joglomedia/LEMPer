@@ -175,6 +175,7 @@ case "${1}" in
 
         ### FINAL STEP ###
         # Cleaning up all build dependencies hanging around on production server?
+        echo -e "\nClean up installation process..."
         run apt-get autoremove -y
 
         status -e "\nLEMPer installation has been completed."
@@ -286,7 +287,7 @@ Now, you can reboot your server and enjoy it!"
         fi
 
         # Remove unnecessary packages.
-        echo -e "\nCleaning up unnecessary packages...\n"
+        echo -e "\nCleaning up unnecessary packages..."
         run apt-get -qq autoremove -y
 
         status -e "\nLEMP stack has been removed completely."
