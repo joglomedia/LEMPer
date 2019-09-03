@@ -118,14 +118,14 @@ function init_webadmin_install() {
     # Install Memcached Web Admin
     #http://blog.elijaa.org/index.php?pages/phpMemcachedAdmin-Installation-Guide
     if [ ! -d /usr/share/nginx/html/lcp/phpMemcachedAdmin/ ]; then
-        run git clone -q https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/lcp/phpMemcachedAdmin/
+        run git clone -q --depth=1 --branch=master \
+            https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/lcp/phpMemcachedAdmin/
     else
-        #local CUR_DIR && \
-        #CUR_DIR=$(pwd)
-        run pushd /usr/share/nginx/html/lcp/phpMemcachedAdmin/
+        local CUR_DIR && \
+        CUR_DIR=$(pwd)
+        run cd /usr/share/nginx/html/lcp/phpMemcachedAdmin/
         run git pull -q
-        run popd
-        #run cd "${CUR_DIR}"
+        run cd "${CUR_DIR}"
     fi
 
     # Assign ownership properly
