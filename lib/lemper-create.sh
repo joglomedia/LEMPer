@@ -20,7 +20,7 @@ set -e
 
 # Version Control.
 APP_NAME=$(basename "$0")
-APP_VERSION="1.2.0"
+APP_VERSION="1.3.0"
 CMD_PARENT="lemper-cli"
 CMD_NAME="create"
 

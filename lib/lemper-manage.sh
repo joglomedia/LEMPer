@@ -19,7 +19,7 @@ set -e
 
 # Version control
 APP_NAME=$(basename "$0")
-APP_VERSION="1.2.0"
+APP_VERSION="1.3.0"
 CMD_PARENT="lemper-cli"
 CMD_NAME="manage"
 
@@ -104,8 +104,8 @@ fi
 function show_usage() {
 cat <<- _EOF_
 ${APP_NAME^} ${APP_VERSION}
-Simple NGiNX virtual host (vHost) manager
-enable/disable/remove NGiNX vHost config file on Debian/Ubuntu Server.
+Simple NGiNX virtual host (vHost) manager,
+enable/disable/remove NGiNX vHost on Debian/Ubuntu Server.
 
 Requirements:
   * LEMP stack setup uses [LEMPer](https://github.com/joglomedia/LEMPer)
@@ -198,10 +198,6 @@ function remove_vhost() {
     echo "Removing virtual host is not reversible."
     read -t 30 -rp "Press [Enter] to continue..." </dev/tty
 
-    # Get web root path from vhost config.
-    # shellcheck disable=SC2154
-    WEBROOT=$(grep -wE "set\ $root_path" "/etc/nginx/sites-available/${1}.conf" | awk '{print $3}' | cut -d"'" -f2)
-
     # Remove Nginx's vhost config.
     if [ -f "/etc/nginx/sites-enabled/${1}.conf" ]; then
         run unlink "/etc/nginx/sites-enabled/${1}.conf"
@@ -214,13 +210,17 @@ function remove_vhost() {
     # Remove vhost root directory.
     read -rp "Do you want to delete website root directory? [y/n]: " -e DELETE_DIR
     if [[ "${DELETE_DIR}" == Y* || "${DELETE_DIR}" == y* ]]; then
+        # Get web root path from vhost config.
+        
+        local WEBROOT && \
+        WEBROOT=$(grep -wE "set\ \$root_path" "/etc/nginx/sites-available/${1}.conf" | awk '{print $3}' | cut -d"'" -f2)
 
         if [[ ! -d "${WEBROOT}" ]]; then
             read -rp "Enter real path to website root directory: " -e WEBROOT
         fi
 
         if [ -d "${WEBROOT}" ]; then
-            run rm -fr "${WEBROOT}"
+            #run rm -fr "${WEBROOT}"
             status "Virtual host root directory removed."
         else
             warning "Sorry, directory couldn't be found. Skipped..."
