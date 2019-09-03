@@ -563,9 +563,9 @@ function header_msg() {
     clear
     cat <<- _EOF_
 #==========================================================================#
-#        LEMPer v1.2.0 for Ubuntu-based server, Written by ESLabs.ID       #
+#        LEMPer v1.3.0 for Ubuntu-based server, Written by ESLabs.ID       #
 #==========================================================================#
-#      A small tool to install Nginx + MariaDB (MySQL) + PHP on Linux      #
+#      Bash scripts to install Nginx + MariaDB (MySQL) + PHP on Linux      #
 #                                                                          #
 #        For more information please visit https://eslabs.id/lemper        #
 #==========================================================================#
@@ -578,11 +578,11 @@ function footer_msg() {
 
 #==========================================================================#
 #         Thank's for installing LEMP stack using LEMPer Installer         #
-#        Found any bugs / errors / suggestions? please let me know         #
+#        Found any bugs/errors, or suggestions? please let me know         #
 #    If this script useful, don't forget to buy me a coffee or milk :D     #
 #   My PayPal is always open for donation, here https://paypal.me/masedi   #
 #                                                                          #
-#         (c) 2014-2019 - ESLabs.ID - https://eslabs.id/lemper ;)          #
+#         (c) 2014-2019 / ESLabs.ID / https://eslabs.id/lemper ;)          #
 #==========================================================================#
 _EOF_
 }
