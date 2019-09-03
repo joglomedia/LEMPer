@@ -25,6 +25,12 @@ function install_phalcon() {
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
+    # Phalcon version.
+    local PHALCON_VERSION="${2}"
+    if [ -z "${PHALCON_VERSION}" ]; then
+        PHALCON_VERSION=${PHP_PHALCON_VERSION:-"3.4.4"}
+    fi
+
     local CURRENT_DIR && \
     CURRENT_DIR=$(pwd)
     run cd "${BUILD_DIR}"
@@ -71,8 +77,6 @@ function install_phalcon() {
     fi
 
     # Install cPhalcon from source.
-    PHALCON_VERSION=${PHP_PHALCON_VERSION:-"3.4.4"}
-
     if [[ "${PHALCON_VERSION}" == "latest" ]]; then
         run git clone --depth=1 --branch=master -q https://github.com/phalcon/cphalcon.git
         run cd cphalcon/build
