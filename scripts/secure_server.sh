@@ -464,7 +464,7 @@ function init_secure_server() {
 
     if [[ ${SSH_PORT} -ne 22 ]]; then
         warning -e "\nYou're running SSH server with modified config, restart to apply your changes."
-        echo "  use this command:  service ssh restart"
+        echo "use this command: service ssh restart"
     fi
 }
 
