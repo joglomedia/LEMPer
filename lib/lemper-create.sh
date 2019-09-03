@@ -188,7 +188,7 @@ server {
     #charset utf-8;
 
     ## Virtual host root directory.
-    set \$root_path '${WEBROOT}';
+    set \$root_path "${WEBROOT}";
     root \$root_path;
     index index.php index.html index.htm;
 
@@ -221,6 +221,10 @@ server {
     include /etc/nginx/includes/rules_security.conf;
     include /etc/nginx/includes/rules_staticfiles.conf;
     include /etc/nginx/includes/rules_restriction.conf;
+
+    ## Access control Cross-origin Resource Sharing (CORS).
+    set \$cors "http://*.\$server_name, https://*.\$server_name";
+    #include /etc/nginx/includes/cors.conf;
 
     ## Default vhost directives configuration.
     #include /etc/nginx/includes/rules_fastcgi_cache.conf;
@@ -287,7 +291,7 @@ server {
     #charset utf-8;
 
     ## Virtual host root directory.
-    set \$root_path '${WEBROOT}';
+    set \$root_path "${WEBROOT}";
     root \$root_path;
     index index.php index.html index.htm;
 
@@ -399,7 +403,7 @@ server {
     #charset utf-8;
 
     ## Virtual host root directory.
-    set \$root_path '${WEBROOT}/public';
+    set \$root_path "${WEBROOT}/public";
     root \$root_path;
     index index.php index.html index.htm;
 
@@ -502,7 +506,7 @@ server {
     #charset utf-8;
 
     ## Virtual host root directory.
-    set \$root_path '${WEBROOT}/public';
+    set \$root_path "${WEBROOT}/public";
     root \$root_path;
     index index.php index.html index.htm;
 
