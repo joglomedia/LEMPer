@@ -146,10 +146,7 @@ function enable_phalcon() {
 # Init Phalcon installer.
 function init_phalcon_install() {
     # PHP version.
-    local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
-    fi
+    local PHPv=${PHP_VERSION:-"7.3"}
 
     if "${AUTO_INSTALL}"; then
         if [[ -z "${PHP_PHALCON_INSTALLER}" || "${PHP_PHALCON_INSTALLER}" == "none" ]]; then
@@ -218,7 +215,7 @@ echo ""
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-PHP_VERSION=${1:-$PHP_VERSION}
+PHP_VERSION=${PHP_VERSION:"7.3"}
 if [[ -n $(command -v "php${PHP_VERSION}") ]]; then
     #if "php${PHP_VERSION}" --ri phalcon | grep -qwE "phalcon => enabled"; then
     PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)

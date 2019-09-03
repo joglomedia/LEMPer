@@ -75,11 +75,14 @@ php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS
 
         # Install php mcrypt?
         echo ""
-        while [[ $INSTALL_PHPMCRYPT != "y" && $INSTALL_PHPMCRYPT != "n" ]]; do
-            read -rp "Do you want to install PHP Mcrypt for encryption/decryption? [y/n]: " \
-                -i n -e INSTALL_PHPMCRYPT
-        done
-        echo ""
+        if "${AUTO_INSTALL}"; then
+            local INSTALL_PHPMCRYPT="y"
+        else
+            while [[ $INSTALL_PHPMCRYPT != "y" && $INSTALL_PHPMCRYPT != "n" ]]; do
+                read -rp "Do you want to install PHP Mcrypt for encryption/decryption? [y/n]: " \
+                    -i n -e INSTALL_PHPMCRYPT
+            done
+        fi
 
         if [[ "$INSTALL_PHPMCRYPT" == Y* || "$INSTALL_PHPMCRYPT" == y* ]]; then
             if [ "${PHPv//.}" -lt "72" ]; then
@@ -106,7 +109,7 @@ php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS
                 run apt-get -qq install -y dh-php
 
                 # use libsodium instead
-                warning "Mcrypt is deprecated for PHP version ${PHPv} or greater, you should using Libsodium or OpenSSL."
+                warning "Mcrypt module is deprecated for PHP version ${PHPv} or greater, you should using Libsodium or OpenSSL for encryption."
             fi
         fi
 
