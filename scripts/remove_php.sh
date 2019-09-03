@@ -148,9 +148,6 @@ function init_php_fpm_removal() {
             # Remove PHP repository.
             run add-apt-repository -y --remove ppa:ondrej/php
 
-            echo -e "\Cleane up unused packages..."
-            run apt-get -qq autoremove -y
-
             # Remove PHP loaders.
             if [[ -d /usr/lib/php/loaders ]]; then
                 run rm -fr /usr/lib/php/loaders
