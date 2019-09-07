@@ -76,22 +76,32 @@ function install_phalcon() {
         run cd ../
     fi
 
-    # Install cPhalcon from source.
+    # Download cPhalcon source.
     if [[ "${PHALCON_VERSION}" == "latest" ]]; then
-        run git clone --depth=1 --branch=master -q https://github.com/phalcon/cphalcon.git
-        run cd cphalcon/build
-    else
-        run wget --no-check-certificate -q -O "cphalcon-${PHALCON_VERSION}.tar.gz" \
-            "https://github.com/phalcon/cphalcon/archive/v${PHALCON_VERSION}.tar.gz"
+        PHALCON_VERSION="master"
+    fi
+
+    if wget --no-check-certificate -q -O "cphalcon-${PHALCON_VERSION}.tar.gz" \
+        "https://github.com/phalcon/cphalcon/archive/v${PHALCON_VERSION}.tar.gz"; then
         run tar -zxf "cphalcon-${PHALCON_VERSION}.tar.gz"
         #run rm -f "cphalcon-${PHALCON_VERSION}.tar.gz"
         run cd "cphalcon-${PHALCON_VERSION}/build"
+    elif wget --no-check-certificate -q -O /dev/null \
+        "https://github.com/phalcon/cphalcon/blob/${PHALCON_VERSION}/README.md"; then
+        # Clone repository
+        run git clone --depth=1 --branch="${PHALCON_VERSION}" -q https://github.com/phalcon/cphalcon.git
+        run cd cphalcon/build
+    else
+        error "cPhalcon ${PHALCON_VERSION} source couldn't be downloaded."
     fi
 
-    if [[ -n "${PHPv}" ]]; then
-        run ./install --phpize "/usr/bin/phpize${PHPv}" --php-config "/usr/bin/php-config${PHPv}"
-    else
-        run ./install
+    # Install cPhalcon.
+    if [ -f install ]; then
+        if [[ -n "${PHPv}" ]]; then
+            run ./install --phpize "/usr/bin/phpize${PHPv}" --php-config "/usr/bin/php-config${PHPv}"
+        else
+            run ./install
+        fi
     fi
 
     run cd "${CURRENT_DIR}"
@@ -219,7 +229,7 @@ echo ""
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-PHP_VERSION=${PHP_VERSION:"7.3"}
+PHP_VERSION=${PHP_VERSION:-"7.3"}
 if [[ -n $(command -v "php${PHP_VERSION}") ]]; then
     #if "php${PHP_VERSION}" --ri phalcon | grep -qwE "phalcon => enabled"; then
     PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
