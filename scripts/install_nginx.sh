@@ -761,7 +761,7 @@ function init_nginx_install() {
 
     # Enable PageSpeed config.
     if [[ "${NGX_PAGESPEED}" && \
-        -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then                    
+        -f /etc/nginx/modules-enabled/60-mod-pagespeed.conf ]]; then                    
         run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" \
             /etc/nginx/nginx.conf
     fi
