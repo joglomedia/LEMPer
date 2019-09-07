@@ -21,8 +21,7 @@ requires_root
 function securing_ssh() {
     #SSH_PASSWORDLESS=${SSH_PASSWORDLESS:-true}
     if "${SSH_PASSWORDLESS}"; then
-        echo "
-Before starting, let's create a pair of keys that some hosts ask for during installation of the server.
+        echo "Before starting, let's create a pair of keys that some hosts ask for during installation of the server.
 
 On your local machine, open new terminal and create an SSH key pair using the ssh-keygen tool,
 use the following command:
@@ -47,7 +46,7 @@ Never share your private key.
             echo -e "\nSecuring your SSH server with public key..."
 
             if [ ! -d /home/lemper/.ssh ]; then
-                run mkdir /home/lemper/.ssh
+                run mkdir -p /home/lemper/.ssh
             fi
 
             if [ ! -f /home/lemper/.ssh/authorized_keys ]; then
@@ -70,9 +69,12 @@ EOL
             run chmod 600 /home/lemper/.ssh/authorized_keys
 
             echo -e "\nEnable SSH_PASSWORDLESS login..."
+
             # Restrict root login directly, use sudo user instead.
             SSH_ROOT_LOGIN=${SSH_ROOT_LOGIN:-false}
-            if ! ${SSH_ROOT_LOGIN}; then
+            if ! "${SSH_ROOT_LOGIN}"; then
+                echo "Restricting SSH root login..."
+
                 if grep -qwE "^PermitRootLogin\ [a-z]*" /etc/ssh/sshd_config; then
                     run sed -i "s/^PermitRootLogin\ [a-z]*/PermitRootLogin\ no/g" /etc/ssh/sshd_config
                 else
@@ -226,16 +228,20 @@ function install_csf() {
             libgd-graph-perl libio-socket-inet6-perl
     fi
 
+    local CURRENT_DIR && \
+    CURRENT_DIR=$(pwd)
+    run cd "${BUILD_DIR}"
+
     echo "Installing CSF+LFD firewall..."
-    run wget -q https://download.configserver.com/csf.tgz
-    run tar -xzf csf.tgz
-    run cd csf/
-    run sh install.sh
-    run cd ../
+    if wget --no-check-certificate -q https://download.configserver.com/csf.tgz; then
+        run tar -xzf csf.tgz
+        run cd csf/
+        run sh install.sh
+        run cd ../
+        run perl /usr/local/csf/bin/csftest.pl
+    fi
 
-    run perl /usr/local/csf/bin/csftest.pl
-
-    if [ ! -f /etc/csf/csf.conf ]; then
+    if [ -f /etc/csf/csf.conf ]; then
         echo "Configuring CSF+LFD firewall rules..."
 
         # Enable CSF.
@@ -269,6 +275,7 @@ function install_csf() {
 
     # Clean up installation files.
     run rm -fr csf/
+    run cd "${CURRENT_DIR}"
 
     if "${DRYRUN}"; then
         echo "CSF+LFD firewall installed in dryrun mode."
@@ -294,7 +301,7 @@ function install_csf() {
 # Install & Configure the Advancef Policy Firewall (APF)
 function install_apf() {
     SSH_PORT=${1:-$SSH_PORT}
-    APF_VERSION="1.7.6-1"
+    APF_VERSION=${APF_VERSION:-"1.7.6-1"}
 
     echo -e "\nInstalling APF+BFD iptables firewall...\n"
 
@@ -308,15 +315,21 @@ function install_apf() {
         remove_csf
     fi
 
-    echo "Installing APF+BFD firewall..."
-    run wget -q --no-check-certificate https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz \
-        -O apf.tar.gz
-    run tar -xf apf.tar.gz
-    run cd advanced-policy-firewall-*/
-    run bash install.sh
-    run cd ../
+    local CURRENT_DIR && \
+    CURRENT_DIR=$(pwd)
+    run cd "${BUILD_DIR}"
 
-    if [ ! -f /etc/apf/conf.apf ]; then
+    echo "Installing APF+BFD firewall..."
+    if wget -q --no-check-certificate -O apf.tar.gz \
+        "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz"; then
+        
+        run tar -xf apf.tar.gz
+        run cd advanced-policy-firewall-*/
+        run bash install.sh
+        run cd ../
+    fi
+
+    if [ -f /etc/apf/conf.apf ]; then
         echo "Configuring APF+BFD firewall rules..."
 
         # Enable APF.
@@ -334,6 +347,7 @@ function install_apf() {
 
     # Clean up installation files.
     run rm -fr advanced-policy-firewall-*/
+    run cd "${CURRENT_DIR}"
 
     if "${DRYRUN}"; then
         echo "APF+BFD firewall installed in dryrun mode."
@@ -468,9 +482,14 @@ function init_secure_server() {
     fi
 }
 
-echo "[Welcome to LEMPer Basic Server Security]"
-echo ""
-
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-init_secure_server "$@"
+if [[ "${1}" == "--install" ]]; then
+    echo "[Welcome to LEMPer Basic Server Security]"
+    echo ""
+    init_secure_server "$@"
+elif [[ "${1}" == "--remove" || "${1}" == "--uninstall" ]]; then
+    remove_apf
+    remove_csf
+    remove_ufw
+fi
