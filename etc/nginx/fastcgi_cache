@@ -1,12 +1,14 @@
-## Include this file if you want to use fastcgi_cache across many sites
-# Designed to be included in /etc/nginx/nginx.conf http {} block
+## Include this file if you want to use fastcgi_cache across many sites.
+# Designed to be included in /etc/nginx/nginx.conf http {} block.
 
 fastcgi_cache_path /var/cache/nginx/fastcgi_cache levels=1:2 keys_zone=FASTCGICACHE:100m max_size=1g inactive=60m;
 fastcgi_cache_key "$scheme$request_method$host$request_uri";
 fastcgi_cache_use_stale	error timeout invalid_header updating http_500 http_503;
 fastcgi_cache_revalidate on;
 fastcgi_cache_background_update on;
-fastcgi_cache_lock on;
+
+# Header status
+add_header X-FastCGI-Cache $upstream_cache_status;
 
 # Ignore header
 fastcgi_ignore_headers Cache-Control Expires Set-Cookie;
@@ -14,9 +16,6 @@ fastcgi_ignore_headers Cache-Control Expires Set-Cookie;
 # Designed to be used with Nginx Cache Controller WP plugin
 #fastcgi_pass_header "X-Accel-Redirect";
 #fastcgi_pass_header "X-Accel-Expires";
-
-# Header status
-add_header X-Cache-Status $upstream_cache_status;
 
 # FastCGI Log Format
 log_format cache '$remote_addr - $upstream_cache_status [$time_local] '
