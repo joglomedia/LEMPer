@@ -372,25 +372,6 @@ function build_ngx_pagespeed() {
     NGINX_DYNAMIC_MODULE=false
     NGINX_EXTRA_MODULES=false
 
-    # Extra Modules
-    NGX_BROTLI=${NGX_BROTLI:-true}
-    NGX_CACHE_PURGE=${NGX_CACHE_PURGE:-true}
-    NGX_ECHO=${NGX_ECHO:-false}
-    NGX_FANCYINDEX=${NGX_FANCYINDEX:-false}
-    NGX_HEADERS_MORE=${NGX_HEADERS_MORE:-true}
-    NGX_HTTP_AUTH_PAM=${NGX_HTTP_AUTH_PAM:-false}
-    NGX_HTTP_GEOIP2=${NGX_HTTP_GEOIP2:-false}
-    NGX_HTTP_SUBS_FILTER=${NGX_HTTP_SUBS_FILTER:-false}
-    NGX_MEMCACHED=${NGX_MEMCACHED:-false}
-    NGX_NAXSI=${NGX_NAXSI:-true}
-    NGX_NCHAN=${NGX_NCHAN:-false}
-    NGX_PAGESPEED=${NGX_PAGESPEED:-true}
-    NGX_REDIS2=${NGX_REDIS2:-false}
-    NGX_RTMP=${NGX_RTMP:-false}
-    NGX_UPSTREAM_FAIR=${NGX_UPSTREAM_FAIR:-false}
-    NGX_VTS=${NGX_VTS:-true}
-    NGX_WEB_DAV_EXT=${NGX_WEB_DAV_EXT:-false}
-
     while true; do
         case "$1" in
             -v | --ngx-pagespeed-version) shift
@@ -790,10 +771,8 @@ with --no-deps-check."
                         "--with-http_addition_module"
                         "--with-http_auth_request_module"
                         "--with-http_flv_module"
-                        "--with-http_geoip_module=dynamic"
                         "--with-http_gunzip_module"
                         "--with-http_gzip_static_module"
-                        "--with-http_image_filter_module=dynamic"
                         "--with-http_mp4_module"
                         "--with-http_random_index_module"
                         "--with-http_realip_module"
@@ -803,10 +782,7 @@ with --no-deps-check."
                         "--with-http_stub_status_module"
                         "--with-http_sub_module"
                         "--with-http_v2_module"
-                        "--with-http_xslt_module=dynamic"
-                        "--with-mail=dynamic"
                         "--with-mail_ssl_module"
-                        "--with-stream=dynamic"
                         "--with-stream_realip_module"
                         "--with-stream_ssl_module"
                         "--with-stream_ssl_preread_module"
@@ -817,11 +793,13 @@ with --no-deps-check."
         # Just prepare the module for them to install.
         status "ngx_pagespeed is ready to be built against nginx."
         echo "When running ./configure:"
+
         if "$PSOL_FROM_SOURCE"; then
             echo "Set the following environment variables:"
             echo "  MOD_PAGESPEED_DIR=$MOD_PAGESPEED_DIR"
             echo "  PSOL_BINARY=$PSOL_BINARY"
         fi
+
         echo "  Give ./configure the following arguments:"
         echo "      $(quote_arguments "${configure_args[@]}")"
         echo ""
@@ -903,7 +881,7 @@ with --no-deps-check."
             continue_or_exit "Install nginx?"
             run sudo make install
 
-            # Create default ngx_pagespeed cache directory
+            # Create default ngx_pagespeed cache directory.
             if [ ! -d /var/cache/nginx/pagespeed_cache ]; then
                 run mkdir -p /var/cache/nginx/pagespeed_cache
                 run chown -hR root:www-data /var/cache/nginx
@@ -915,9 +893,9 @@ with --no-deps-check."
             fi
 
             # Cleanup build dir
-            if [ -d "$BUILDDIR" ]; then
-                run rm -fr "$BUILDDIR"
-            fi
+            #if [ -d "$BUILDDIR" ]; then
+            #    run rm -fr "$BUILDDIR"
+            #fi
 
             if "$NGINX_DYNAMIC_MODULE"; then
                 echo "Nginx installed with ngx_pagespeed support available as a"
