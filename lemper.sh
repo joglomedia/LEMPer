@@ -311,6 +311,10 @@ Now, you can reboot your server and enjoy it!"
             fi
         fi
 
+        # Remove Tools
+        run rm -f /usr/local/bin/lemper-cli
+        run rm -fr /usr/local/lib/lemper
+
         # Remove unnecessary packages.
         echo -e "\nCleaning up unnecessary packages..."
         run apt-get -qq autoremove -y
