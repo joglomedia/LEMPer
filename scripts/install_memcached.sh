@@ -52,20 +52,20 @@ function init_memcached_install() {
 
                 if wget -q -O "memcached.tar.gz" "${memcached_download_url}"; then
                     run tar -zxf "memcached.tar.gz"
-                    #run pushd "${BUILD_DIR}"/memcached-*
                     run cd memcached-*
                     run ./configure --bindir=/usr/bin && \
                     run make && \
                     run make test && \
                     run make install
-                    #run popd
 
-                    # Create memcache user.
+                    # Create memcache user. 
+                    # TODO: not realy used, due to LEMPer will run memcached as www-data to comply Nginx PageSpeed module.
                     if [[ -z $(getent passwd memcache) ]]; then
                         if "${DRYRUN}"; then
                             echo "Create memcache user in dryrun mode."
                         else
-                            run useradd -M memcache
+                            run groupadd -r memcache
+                            run useradd -r -M -g memcache memcache
                         fi
                     fi
                 else
@@ -79,9 +79,14 @@ function init_memcached_install() {
         if [[ -n $(command -v memcached) ]]; then
             echo "Configuring Memcached server..."
 
-            # Memcached config.
-            if [ ! -f /etc/memcached.conf ]; then
-                run cp -f etc/memcached/memcached.conf /etc/
+            # Remove existing Memcached config.
+            if [ -f /etc/memcached.conf ]; then
+                run mv /etc/memcached.conf /etc/memcached.conf~
+            fi
+
+            # Copy multi user instance config.
+            if [ ! -d /etc/memcached ]; then
+                run cp -fr etc/memcached /etc/
             fi
 
             # Memcached init script.
@@ -90,14 +95,23 @@ function init_memcached_install() {
                 run chmod ugo+x /etc/init.d/memcached
             fi
 
-            # Memcached systemd script.
-            if [ ! -f /lib/systemd/system/memcached.service ]; then
-                run cp etc/systemd/memcached.service /lib/systemd/system/
+            # Memcached systemd script (multi user instance).
+            if [ -f /lib/systemd/system/memcached.service ]; then
+                run mv /lib/systemd/system/memcached.service /lib/systemd/system/memcached.service~
             fi
 
-            if [ ! -f /etc/systemd/system/multi-user.target.wants/memcached.service ]; then
-                run ln -s /lib/systemd/system/memcached.service \
-                    /etc/systemd/system/multi-user.target.wants/memcached.service
+            if [ ! -f /lib/systemd/system/memcached@.service ]; then
+                run cp etc/systemd/memcached@.service /lib/systemd/system/
+            fi
+
+            if [ -f /etc/systemd/system/multi-user.target.wants/memcached@.service ]; then
+                run mv /etc/systemd/system/multi-user.target.wants/memcached@.service \
+                    /etc/systemd/system/multi-user.target.wants/memcached@.service~
+            fi
+
+            if [ ! -f /etc/systemd/system/multi-user.target.wants/memcached@.service ]; then
+                run ln -s /lib/systemd/system/memcached@.service \
+                    /etc/systemd/system/multi-user.target.wants/memcached@.service
             fi
 
             # Custom memcached scripts.
@@ -113,22 +127,24 @@ function init_memcached_install() {
             run systemctl daemon-reload
 
             # Enable in start up.
-            run systemctl enable memcached.service
+            run systemctl enable memcached@memcache.service
+            run systemctl enable memcached@www-data.service
 
             # Optimizing Memcached conf.
             local RAM_SIZE && \
             RAM_SIZE=$(get_ram_size)
-            if [[ ${RAM_SIZE} -le 1024 ]]; then
-                # If machine RAM less than / equal 1GiB, set Memcached to 1/8 of RAM size.
-                local MEMCACHED_SIZE=$((RAM_SIZE / 8))
-            elif [[ ${RAM_SIZE} -gt 2048 && ${RAM_SIZE} -le 8192 ]]; then
+            if [[ ${RAM_SIZE} -le 2048 ]]; then
+                # If machine RAM less than / equal 1GiB, set Memcached to 1/16 of RAM size.
+                local MEMCACHED_SIZE=$((RAM_SIZE / 16))
+            elif [[ ${RAM_SIZE} -gt 2049 && ${RAM_SIZE} -le 8192 ]]; then
                 # If machine RAM less than / equal 8GiB and greater than 2GiB, set Memcached to 1/4 of RAM size.
-                local MEMCACHED_SIZE=$((RAM_SIZE / 4))
+                local MEMCACHED_SIZE=$((RAM_SIZE / 8))
             else
                 # Otherwise, set Memcached to max of 2048GiB.
                 local MEMCACHED_SIZE=2048
             fi
-            run sed -i "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached.conf
+            run sed -i "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached/memcache.conf
+            run sed -i "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached/www-data.conf
         fi
 
         # Install PHP memcached module.
@@ -160,10 +176,12 @@ function init_memcached_install() {
             warning "Memcached server installed in dryrun mode."
         else
             if [[ $(pgrep -c memcached) -gt 0 ]]; then
-                run service memcached restart
+                run service memcached@memcache restart
+                run service memcached@www-data restart
                 status "Memcached server restarted successfully."
             elif [[ -n $(command -v memcached) ]]; then
-                run service memcached start
+                run service memcached@memcache start
+                run service memcached@www-data start
                 sleep 1
 
                 if [[ $(pgrep -c memcached) -gt 0 ]]; then

@@ -20,7 +20,9 @@ requires_root
 function init_memcached_removal() {
     # Stop Memcached server process.
     if [[ $(pgrep -c memcached) -gt 0 ]]; then
-        run service memcached stop
+        run service memcached@memcache stop
+        run service memcached@www-data stop
+        #run kill -9 "$(pidof memcached)"
     fi
 
     if dpkg-query -l | awk '/memcached/ { print $2 }' | grep -qwE "^memcached$"; then
@@ -41,7 +43,8 @@ function init_memcached_removal() {
             # Disable systemctl.
             if [ -f /etc/systemd/system/multi-user.target.wants/memcached.service ]; then
                 echo "Disable Memcached service..."
-                run systemctl disable memcached.service
+                run systemctl disable memcached@memcache.service
+                run systemctl disable memcached@www-data.service
             fi
 
             if [ -f /etc/systemd/system/multi-user.target.wants/memcached.service ]; then
@@ -50,6 +53,15 @@ function init_memcached_removal() {
 
             if [ -f /lib/systemd/system/memcached.service ]; then
                 run rm -f /lib/systemd/system/memcached.service
+            fi
+
+            # Memcached systemd script (multi user instance).
+            if [ -f /etc/systemd/system/multi-user.target.wants/memcached@.service ]; then
+                run unlink /etc/systemd/system/multi-user.target.wants/memcached@.service
+            fi
+
+            if [ -f /lib/systemd/system/memcached@.service ]; then
+                run rm -f /lib/systemd/system/memcached@.service
             fi
 
             if [ -d /usr/share/memcached ]; then
@@ -69,7 +81,7 @@ function init_memcached_removal() {
         fi
     fi
 
-    # Remove Redis config files.
+    # Remove Memcached config files.
     warning "!! This action is not reversible !!"
     while [[ "${REMOVE_MEMCACHEDCONFIG}" != "y" && "${REMOVE_MEMCACHEDCONFIG}" != "n" && \
             "${AUTO_REMOVE}" != true ]]; do
@@ -81,6 +93,16 @@ function init_memcached_removal() {
         fi
 
         echo "All your Memcached configuration files deleted permanently."
+    fi
+
+    # Delete memcache user.
+    if [[ -n $(getent passwd memcache) ]]; then
+        if "${DRYRUN}"; then
+            echo "Delete memcache user in dryrun mode."
+        else
+            run userdel -r memcache
+            #run groupdel memcache
+        fi
     fi
 
     # Final test.
