@@ -1,7 +1,23 @@
 # PageSpeed global variables.
 
-pagespeed FileCachePath /var/cache/nginx/pagespeed_cache;
-pagespeed FileCacheSizeKb 204800;
+# Unplugged (inactive) by default, standby, off, on.
+pagespeed unplugged;
+
+# Other settings.
+pagespeed HonorCsp on;
+pagespeed RespectVary on;
+pagespeed DisableRewriteOnNoTransform off;
+#pagespeed ModifyCachingHeaders off;
+
+# Do not show PageSpeed version in the header.
+pagespeed XHeaderValue "LEMPer/PageSpeed";
+
+pagespeed PreserveUrlRelativity on;
+#pagespeed AllowVaryOn Auto;
+
+# Cache settings.
+pagespeed FileCachePath "/var/cache/nginx/pagespeed_cache";
+pagespeed FileCacheSizeKb 102400;
 pagespeed FileCacheCleanIntervalMs 3600000;
 pagespeed FileCacheInodeLimit 500000;
 
