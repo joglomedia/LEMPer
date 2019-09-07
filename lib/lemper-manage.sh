@@ -198,11 +198,15 @@ function remove_vhost() {
     echo "Removing virtual host is not reversible."
     read -t 30 -rp "Press [Enter] to continue..." </dev/tty
 
+    # Get web root path from vhost config, first.
+    #shellcheck disable=SC2154
+    local WEBROOT && \
+    WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${1}.conf" | awk '{print $3}' | cut -d'"' -f2)
+
     # Remove Nginx's vhost config.
     if [ -f "/etc/nginx/sites-enabled/${1}.conf" ]; then
         run unlink "/etc/nginx/sites-enabled/${1}.conf"
     fi
-
     run rm -f "/etc/nginx/sites-available/${1}.conf"
 
     status "Virtual host configuration file removed."
@@ -210,13 +214,8 @@ function remove_vhost() {
     # Remove vhost root directory.
     read -rp "Do you want to delete website root directory? [y/n]: " -e DELETE_DIR
     if [[ "${DELETE_DIR}" == Y* || "${DELETE_DIR}" == y* ]]; then
-        # Get web root path from vhost config.
-        
-        local WEBROOT && \
-        WEBROOT=$(grep -wE "set\ \$root_path" "/etc/nginx/sites-available/${1}.conf" | awk '{print $3}' | cut -d"'" -f2)
-
-        if [[ ! -d "${WEBROOT}" ]]; then
-            read -rp "Enter real path to website root directory: " -e WEBROOT
+        if [[ ! -d ${WEBROOT} ]]; then
+            read -rp "Enter real path to website root directory: " -i "${WEBROOT}" -e WEBROOT
         fi
 
         if [ -d "${WEBROOT}" ]; then
@@ -228,14 +227,14 @@ function remove_vhost() {
     fi
 
     # Drop MySQL database.
-    read -rp "Do you want to Drop database associated with this vhost? [y/n]: " -e DROP_DB
+    read -rp "Do you want to Drop database associated with this domain? [y/n]: " -e DROP_DB
     if [[ "${DROP_DB}" == Y* || "${DROP_DB}" == y* ]]; then
         until [[ "$MYSQLUSER" != "" ]]; do
 			read -rp "MySQL Username: " -e MYSQLUSER
 		done
 
-        until [[ "$MYSQLPSWD" != "" ]]; do
-			echo -n "MySQL Password: "; stty -echo; read -r MYSQLPSWD; stty echo; echo
+        until [[ "$MYSQLPASS" != "" ]]; do
+			echo -n "MySQL Password: "; stty -echo; read -r MYSQLPASS; stty echo; echo
 		done
 
         echo "Starting to drop database..."
@@ -243,7 +242,13 @@ function remove_vhost() {
         echo "+----------------------+"
 
         # Show user's databases
-        run mysql -u "$MYSQLUSER" -p"$MYSQLPSWD" -e "SHOW DATABASES" | grep -E -v "Database|mysql|*_schema"
+        #run mysql -u "$MYSQLUSER" -p"$MYSQLPASS" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema"
+        local DATABASES=$(mysql -u "$MYSQLUSER" -p"$MYSQLPASS" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
+        if [[ -n "${DATABASES}" ]]; then
+            printf '%s\n' ${DATABASES}
+        else
+            echo "No databse found."
+        fi
 
         echo "+----------------------+"
 
@@ -253,7 +258,7 @@ function remove_vhost() {
 
         if [ -d "/var/lib/mysql/${DBNAME}" ]; then
             echo "Dropping database..."
-            run mysql -u "$MYSQLUSER" -p"$MYSQLPSWD" -e "DROP DATABASE $DBNAME"
+            run mysql -u "$MYSQLUSER" -p"$MYSQLPASS" -e "DROP DATABASE $DBNAME"
             status "Database [${DBNAME}] dropped."
         else
             warning "Sorry, database ${DBNAME} not found. Skipped..."
@@ -299,11 +304,11 @@ function disable_fastcgi_cache() {
 
     if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]; then
         # enable cached directives
-        run sed -i "s|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" \
+        run sed -i "s|^\    include\ /etc/nginx/includes/rules_fastcgi_cache.conf|\    #include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
 
         # enable fastcgi_cache conf
-        run sed -i "s|include\ /etc/nginx/includes/fastcgi_cache.conf|#include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
+        run sed -i "s|^\        include\ /etc/nginx/includes/fastcgi_cache.conf|\        #include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
     else
         warning "FastCGI cache is not enabled. There is no cached configuration."
@@ -330,6 +335,14 @@ function enable_mod_pagespeed() {
             "/etc/nginx/sites-available/${1}.conf"
         run sed -i "s|#pagespeed\ Disallow|pagespeed\ Disallow|g" "/etc/nginx/sites-available/${1}.conf"
         run sed -i "s|#pagespeed\ Domain|pagespeed\ Domain|g" "/etc/nginx/sites-available/${1}.conf"
+
+        # If SSL enabled, ensure to also to enable PageSpeed related vars.
+        #if grep -qwE "^\    include\ /etc/nginx/includes/ssl.conf" "/etc/nginx/sites-available/${1}.conf"; then
+        #    run sed -i "s/#pagespeed\ FetchHttps/pagespeed\ FetchHttps/g" \
+        #        "/etc/nginx/sites-available/${1}.conf"
+        #    run sed -i "s/#pagespeed\ MapOriginDomain/pagespeed\ MapOriginDomain/g" \
+        #        "/etc/nginx/sites-available/${1}.conf"
+        #fi
     else
         warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
@@ -347,21 +360,21 @@ function disable_mod_pagespeed() {
     echo "Disabling Mod PageSpeed for ${1}..."
 
     if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
-        # Enable mod pagespeed
-        #run sed -i "s|include\ /etc/nginx/mod_pagespeed|#include\ /etc/nginx/mod_pagespeed|g" /etc/nginx/nginx.conf
-        run sed -i "s|include\ /etc/nginx/includes/mod_pagespeed.conf|#include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
+        # Disable mod pagespeed
+        #run sed -i "s|^\    include\ /etc/nginx/mod_pagespeed|\    #include\ /etc/nginx/mod_pagespeed|g" /etc/nginx/nginx.conf
+        run sed -i "s|^\    include\ /etc/nginx/includes/mod_pagespeed.conf|\    #include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
-        run sed -i "s|pagespeed\ EnableFilters|#pagespeed\ EnableFilters|g" "/etc/nginx/sites-available/${1}.conf"
-        run sed -i "s|pagespeed\ Disallow|#pagespeed\ Disallow|g" "/etc/nginx/sites-available/${1}.conf"
-        run sed -i "s|pagespeed\ Domain|#pagespeed\ Domain|g" "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s|^\    pagespeed\ EnableFilters|\    #pagespeed\ EnableFilters|g" "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s|^\    pagespeed\ Disallow|\    #pagespeed\ Disallow|g" "/etc/nginx/sites-available/${1}.conf"
+        run sed -i "s|^\    pagespeed\ Domain|\    #pagespeed\ Domain|g" "/etc/nginx/sites-available/${1}.conf"
 
         # If SSL enabled, ensure to also disable PageSpeed related vars.
-        if grep -qwE "\   include\ /etc/nginx/includes/ssl.conf"; then
-            run sed -i "s/pagespeed\ FetchHttps/#pagespeed\ FetchHttps/g" \
-                "/etc/nginx/sites-available/${1}.conf"
-            run sed -i "s/pagespeed\ MapOriginDomain/#pagespeed\ MapOriginDomain/g" \
-                "/etc/nginx/sites-available/${1}.conf"
-        fi
+        #if grep -qwE "\    include /etc/nginx/includes/ssl.conf" "/etc/nginx/sites-available/${1}.conf"; then
+        #    run sed -i "s/^\    pagespeed\ FetchHttps/\    #pagespeed\ FetchHttps/g" \
+        #        "/etc/nginx/sites-available/${1}.conf"
+        #    run sed -i "s/^\    pagespeed\ MapOriginDomain/\    #pagespeed\ MapOriginDomain/g" \
+        #        "/etc/nginx/sites-available/${1}.conf"
+        #fi
     else
         warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
@@ -407,7 +420,7 @@ function enable_https() {
         warning "Updating HTTPS config in dryrun mode."
     else
         # Ensure there is no HTTPS enabled server block.
-        if ! grep -qwE "listen\ 443 ssl http2" "/etc/nginx/sites-available/${1}.conf"; then
+        if ! grep -qwE "^\    listen\ 443 ssl http2" "/etc/nginx/sites-available/${1}.conf"; then
 
             # Make backup first.
             run cp -f "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-available/${1}.nonssl-conf"
@@ -424,14 +437,14 @@ function enable_https() {
                 "/etc/nginx/sites-available/${1}.conf"
 
             # Adjust PageSpeed if enabled.
-            if grep -qwE "\   include\ /etc/nginx/includes/mod_pagespeed.conf"; then
-                echo "Adjusting PageSpeed configuration..."
-
-                run sed -i "s/#pagespeed\ FetchHttps/pagespeed\ FetchHttps/g" \
-                    "/etc/nginx/sites-available/${1}.conf"
-                run sed -i "s/#pagespeed\ MapOriginDomain/pagespeed\ MapOriginDomain/g" \
-                    "/etc/nginx/sites-available/${1}.conf"
-           fi
+            #if grep -qwE "^\    include\ /etc/nginx/includes/mod_pagespeed.conf" \
+            #    "/etc/nginx/sites-available/${1}.conf"; then
+            #    echo "Adjusting PageSpeed configuration..."
+            #    run sed -i "s/#pagespeed\ FetchHttps/pagespeed\ FetchHttps/g" \
+            #        "/etc/nginx/sites-available/${1}.conf"
+            #    run sed -i "s/#pagespeed\ MapOriginDomain/pagespeed\ MapOriginDomain/g" \
+            #        "/etc/nginx/sites-available/${1}.conf"
+            #fi
 
             # Append redirection block.
             cat >> "/etc/nginx/sites-available/${1}.conf" <<EOL
@@ -494,13 +507,16 @@ function enable_brotli() {
     if [[ -f /etc/nginx/nginx.conf && -f /etc/nginx/modules-enabled/50-mod-http-brotli-static.conf ]]; then
         echo "Enable NGiNX Brotli compression..."
         
-        if grep -qwE "^\    include\ /etc/nginx/comp_gzip" /etc/nginx/nginx.conf; then
-            echo "Found Gzip compression enabled, update to Brotli."
+        if grep -qwE "^\    include\ /etc/nginx/comp_brotli" /etc/nginx/nginx.conf; then
+            status "Brotli compression module already enabled."
+            exit 0
+        elif grep -qwE "^\    include\ /etc/nginx/comp_gzip" /etc/nginx/nginx.conf; then
+            echo "Found Gzip compression enabled, updating to Brotli..."
 
             run sed -i "s|include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_brotli;|g" \
                 /etc/nginx/nginx.conf
-        elif grep -qwE "^\    #include\ /etc/nginx/comp_gzip" /etc/nginx/nginx.conf; then
-            echo "No compression module previously, enable Brotli."
+        elif grep -qwE "^\    #include\ /etc/nginx/comp_[a-z]*" /etc/nginx/nginx.conf; then
+            echo "Enabling Brotli compression module..."
 
             run sed -i "s|#include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_brotli;|g" \
                 /etc/nginx/nginx.conf
@@ -524,13 +540,16 @@ function enable_gzip() {
     if [[ -f /etc/nginx/nginx.conf && -d /etc/nginx/vhost ]]; then
         echo "Enable NGiNX Gzip compression..."
 
-        if grep -qwE "^\    include\ /etc/nginx/comp_brotli" /etc/nginx/nginx.conf; then
-            echo "Found Brotli compression enabled, update to Gzip."
+        if grep -qwE "^\    include\ /etc/nginx/comp_gzip" /etc/nginx/nginx.conf; then
+            status "Gzip compression module already enabled."
+            exit 0
+        elif grep -qwE "^\    include\ /etc/nginx/comp_brotli" /etc/nginx/nginx.conf; then
+            echo "Found Brotli compression enabled, updating to Gzip..."
 
             run sed -i "s|include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_gzip;|g" \
                 /etc/nginx/nginx.conf
-        elif grep -qwE "^\    #include\ /etc/nginx/comp_gzip" /etc/nginx/nginx.conf; then
-            echo "No compression module previously, enable Gzip."
+        elif grep -qwE "^\    #include\ /etc/nginx/comp_[a-z]*" /etc/nginx/nginx.conf; then
+            echo "Enabling Gzip compression module..."
 
             run sed -i "s|#include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_gzip;|g" \
                 /etc/nginx/nginx.conf
