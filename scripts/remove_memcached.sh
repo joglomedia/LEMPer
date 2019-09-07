@@ -83,11 +83,15 @@ function init_memcached_removal() {
 
     # Remove Memcached config files.
     warning "!! This action is not reversible !!"
-    while [[ "${REMOVE_MEMCACHEDCONFIG}" != "y" && "${REMOVE_MEMCACHEDCONFIG}" != "n" && \
-            "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Remove Memcached configuration files? [y/n]: " -i n -e REMOVE_MEMCACHEDCONFIG
-    done
-    if [[ "${REMOVE_MEMCACHEDCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
+    if "${AUTO_REMOVE}"; then
+        REMOVE_MEMCACHEDCONFIG="y"
+    else
+        while [[ "${REMOVE_MEMCACHEDCONFIG}" != "y" && "${REMOVE_MEMCACHEDCONFIG}" != "n" ]]; do
+            read -rp "Remove Memcached configuration files? [y/n]: " -i n -e REMOVE_MEMCACHEDCONFIG
+        done
+    fi
+
+    if [[ "${REMOVE_MEMCACHEDCONFIG}" == Y* || "${REMOVE_MEMCACHEDCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
         if [ -f /etc/memcached.conf ]; then
             run rm -f /etc/memcached.conf
         fi
@@ -119,10 +123,15 @@ function init_memcached_removal() {
 
 echo "Uninstalling Memcached server..."
 if [[ -n $(command -v memcached) ]]; then
-    while [[ "${REMOVE_MEMCACHED}" != "y" && "${REMOVE_MEMCACHED}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Are you sure to remove Memcached? [y/n]: " -e REMOVE_MEMCACHED
-    done
-    if [[ "${REMOVE_MEMCACHED}" == Y* || "${REMOVE_MEMCACHED}" == y* || "${AUTO_REMOVE}" == true ]]; then
+    if "${AUTO_REMOVE}"; then
+        REMOVE_MEMCACHED="y"
+    else
+        while [[ "${REMOVE_MEMCACHED}" != "y" && "${REMOVE_MEMCACHED}" != "n" ]]; do
+            read -rp "Are you sure to remove Memcached? [y/n]: " -e REMOVE_MEMCACHED
+        done
+    fi
+
+    if [[ "${REMOVE_MEMCACHED}" == Y* || "${REMOVE_MEMCACHED}" == y* ]]; then
         init_memcached_removal "$@"
     else
         echo "Found Memcached server, but not removed."

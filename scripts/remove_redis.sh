@@ -41,9 +41,15 @@ function init_redis_removal() {
 
     # Remove Redis config files.
     warning "!! This action is not reversible !!"
-    while [[ "${REMOVE_REDISCONFIG}" != "y" && "${REMOVE_REDISCONFIG}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Remove Redis database and configuration files? [y/n]: " -e REMOVE_REDISCONFIG
-    done
+
+    if "${AUTO_REMOVE}"; then
+        REMOVE_REDISCONFIG="y"
+    else
+        while [[ "${REMOVE_REDISCONFIG}" != "y" && "${REMOVE_REDISCONFIG}" != "n" ]]; do
+            read -rp "Remove Redis database and configuration files? [y/n]: " -e REMOVE_REDISCONFIG
+        done
+    fi
+
     if [[ "${REMOVE_REDISCONFIG}" == Y* || "${REMOVE_REDISCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
         if [ -d /etc/redis ]; then
             run rm -fr /etc/redis
@@ -68,9 +74,14 @@ function init_redis_removal() {
 
 echo "Uninstalling Redis server..."
 if [[ -n $(command -v redis-server) ]]; then
-    while [[ "${REMOVE_REDIS}" != "y" && "${REMOVE_REDIS}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Are you sure to remove Redis server? [y/n]: " -e REMOVE_REDIS
-    done
+    if "${AUTO_REMOVE}"; then
+        REMOVE_REDIS="y"
+    else
+        while [[ "${REMOVE_REDIS}" != "y" && "${REMOVE_REDIS}" != "n" ]]; do
+            read -rp "Are you sure to remove Redis server? [y/n]: " -e REMOVE_REDIS
+        done
+    fi
+
     if [[ "${REMOVE_REDIS}" == Y* || "${REMOVE_REDIS}" == y* || "${AUTO_REMOVE}" == true ]]; then
         init_redis_removal "$@"
     else

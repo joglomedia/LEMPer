@@ -77,10 +77,14 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" 
         # Remove PHP & FPM config files.
         warning "!! This action is not reversible !!"
 
-        while [[ "${REMOVE_PHPCONFIG}" != "y" && "${REMOVE_PHPCONFIG}" != "n" && "${AUTO_REMOVE}" != true ]]
-        do
-            read -rp "Remove PHP${PHPv} & FPM configuration files? [y/n]: " -i n -e REMOVE_PHPCONFIG
-        done
+        if "${AUTO_REMOVE}"; then
+            REMOVE_PHPCONFIG="y"
+        else
+            while [[ "${REMOVE_PHPCONFIG}" != "y" && "${REMOVE_PHPCONFIG}" != "n" ]]; do
+                read -rp "Remove PHP${PHPv} & FPM configuration files? [y/n]: " -i n -e REMOVE_PHPCONFIG
+            done
+        fi
+
         if [[ "${REMOVE_PHPCONFIG}" == Y* || "${REMOVE_PHPCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
             echo "All your configuration files deleted permanently..."
             if [ -d "/etc/php/${PHPv}" ]; then
@@ -163,10 +167,15 @@ if [[ -n $(command -v php5.6) || \
     -n $(command -v php7.2) || \
     -n $(command -v php7.3) ]]; then
 
-    while [[ "${REMOVE_PHP}" != "y" && "${REMOVE_PHP}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Are you sure to remove PHP & FPM? [y/n]: " -e REMOVE_PHP
-    done
-    if [[ "${REMOVE_PHP}" == Y* || "${REMOVE_PHP}" == y* || "${AUTO_REMOVE}" == true ]]; then
+    if "${AUTO_REMOVE}"; then
+        REMOVE_PHP="y"
+    else
+        while [[ "${REMOVE_PHP}" != "y" && "${REMOVE_PHP}" != "n" ]]; do
+            read -rp "Are you sure to remove PHP & FPM? [y/n]: " -e REMOVE_PHP
+        done
+    fi
+
+    if [[ "${REMOVE_PHP}" == Y* || "${REMOVE_PHP}" == y* ]]; then
         init_php_fpm_removal "$@"
     else
         echo "Found PHP & FPM, but not removed."

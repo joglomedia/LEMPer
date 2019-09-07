@@ -51,10 +51,14 @@ function init_mariadb_removal() {
 
     # Remove MariaDB (MySQL) config files.
     warning "!! This action is not reversible !!"
-    while [[ "${REMOVE_MYSQLCONFIG}" != "y" && "${REMOVE_MYSQLCONFIG}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Remove MariaDB (MySQL) database and configuration files? [y/n]: " \
-        -i n -e REMOVE_MYSQLCONFIG
-    done
+    if "${AUTO_REMOVE}"; then
+        REMOVE_MYSQLCONFIG="y"
+    else
+        while [[ "${REMOVE_MYSQLCONFIG}" != "y" && "${REMOVE_MYSQLCONFIG}" != "n" ]]; do
+            read -rp "Remove MariaDB (MySQL) database and configuration files? [y/n]: " -e REMOVE_MYSQLCONFIG
+        done
+    fi
+
     if [[ "${REMOVE_MYSQLCONFIG}" == Y* || "${REMOVE_MYSQLCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
         if [ -d /etc/mysql ]; then
             run rm -fr /etc/mysql
@@ -63,6 +67,7 @@ function init_mariadb_removal() {
         if [ -d /var/lib/mysql ]; then
             run rm -fr /var/lib/mysql
         fi
+
         echo "All your SQL database and configuration files deleted permanently."
     fi
 
@@ -80,10 +85,15 @@ function init_mariadb_removal() {
 
 echo "Uninstalling MariaDB (MySQL) server..."
 if [[ -n $(command -v mysql) || -n $(command -v mysqld) ]]; then
-    while [[ "${REMOVE_MARIADB}" != "y" && "${REMOVE_MARIADB}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Are you sure to to remove MariaDB (MySQL)? [y/n]: " -e REMOVE_MARIADB
-    done
-    if [[ "${REMOVE_MARIADB}" == Y* || "${REMOVE_MARIADB}" == y* || "${AUTO_REMOVE}" == true ]]; then
+    if "${AUTO_REMOVE}"; then
+        REMOVE_MARIADB="y"
+    else
+        while [[ "${REMOVE_MARIADB}" != "y" && "${REMOVE_MARIADB}" != "n" ]]; do
+            read -rp "Are you sure to to remove MariaDB (MySQL)? [y/n]: " -e REMOVE_MARIADB
+        done
+    fi
+
+    if [[ "${REMOVE_MARIADB}" == Y* || "${REMOVE_MARIADB}" == y* ]]; then
         init_mariadb_removal "$@"
     else
         echo "Found MariaDB (MySQL), but not removed."

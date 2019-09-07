@@ -104,10 +104,14 @@ function init_nginx_removal() {
 
     # Remove nginx config files.
     warning "!! This action is not reversible !!"
-    while [[ "${REMOVE_NGXCONFIG}" != "y" && "${REMOVE_NGXCONFIG}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Remove all Nginx configs under /etc/nginx directory? [y/n]: " \
-            -i y -e REMOVE_NGXCONFIG
-    done
+    if "${AUTO_REMOVE}"; then
+        REMOVE_NGXCONFIG="y"
+    else
+        while [[ "${REMOVE_NGXCONFIG}" != "y" && "${REMOVE_NGXCONFIG}" != "n" ]]; do
+            read -rp "Remove all Nginx configs under /etc/nginx directory? [y/n]: " -e REMOVE_NGXCONFIG
+        done
+    fi
+
     if [[ "${REMOVE_NGXCONFIG}" == Y* || "${REMOVE_NGXCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
         echo "All your Nginx configs files deleted permanently..."
         run rm -fr /etc/nginx
@@ -126,10 +130,16 @@ function init_nginx_removal() {
 
 echo "Uninstalling Nginx HTTP server..."
 if [[ -n $(command -v nginx) || -x /usr/sbin/nginx ]]; then
-    while [[ "${REMOVE_NGINX}" != "y" && "${REMOVE_NGINX}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Are you sure to remove Nginx HTTP server? [y/n]: " -e REMOVE_NGINX
-    done
-    if [[ "${REMOVE_NGINX}" == Y* || "${REMOVE_NGINX}" == y* || "${AUTO_REMOVE}" == true ]]; then
+
+    if "${AUTO_REMOVE}"; then
+        REMOVE_NGINX="y"
+    else
+        while [[ "${REMOVE_NGINX}" != "y" && "${REMOVE_NGINX}" != "n" ]]; do
+            read -rp "Are you sure to remove Nginx HTTP server? [y/n]: " -e REMOVE_NGINX
+        done
+    fi
+
+    if [[ "${REMOVE_NGINX}" == Y* || "${REMOVE_NGINX}" == y* ]]; then
         init_nginx_removal "$@"
     else
         echo "Found NGiNX HTTP server, but not removed."
