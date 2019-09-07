@@ -62,7 +62,7 @@ EOL
 
             # Register a new account.
             LE_EMAIL=${ADMIN_EMAIL:-"cert@lemper.sh"}
-            if [[ "$(ls -A /etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory/)" ]]; then
+            if [ -d /etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory ]; then
                 run certbot rupdate_account --email "${LE_EMAIL}" --no-eff-email
             else
                 run certbot register --email "${LE_EMAIL}" --no-eff-email
