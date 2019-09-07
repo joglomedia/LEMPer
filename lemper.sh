@@ -102,81 +102,89 @@ case "${1}" in
         create_account "${LEMPER_USERNAME}"
 
         ### Nginx installation ###
-        echo ""
         if [ -f scripts/install_nginx.sh ]; then
+            echo ""
             . ./scripts/install_nginx.sh
         fi
 
         ### PHP installation ###
-        echo ""
         if [ -f scripts/install_php.sh ]; then
+            echo ""
             . ./scripts/install_php.sh
         fi
 
         ### Imagick installation ###
-        echo ""
         if [ -f scripts/install_imagemagick.sh ]; then
+            echo ""
             . ./scripts/install_imagemagick.sh
         fi
 
         ### Memcached installation ###
-        echo ""
         if [ -f scripts/install_memcached.sh ]; then
+            echo ""
             . ./scripts/install_memcached.sh
         fi
 
         ### Phalcon PHP installation ###
-        echo ""
         if [ -f scripts/install_phalcon.sh ]; then
+            echo ""
             . ./scripts/install_phalcon.sh
         fi
 
         ### MySQL database installation ###
-        echo ""
         if [ -f scripts/install_mariadb.sh ]; then
+            echo ""
             . ./scripts/install_mariadb.sh
         fi
 
         ### Redis database installation ###
-        echo ""
         if [ -f scripts/install_redis.sh ]; then
+            echo ""
             . ./scripts/install_redis.sh
         fi
 
         ### MongoDB database installation ###
-        echo ""
         if [ -f scripts/install_mongodb.sh ]; then
+            echo ""
             . ./scripts/install_mongodb.sh
         fi
 
         ### Certbot Let's Encrypt SSL installation ###
-        echo ""
         if [ -f scripts/install_certbotle.sh ]; then
+            echo ""
             . ./scripts/install_certbotle.sh
         fi
 
         ### Mail server installation ###
-        echo ""
         if [ -f scripts/install_mailer.sh ]; then
+            echo ""
             . ./scripts/install_mailer.sh
         fi
 
         ### Addon-tools installation ###
-        echo ""
         if [ -f scripts/install_tools.sh ]; then
+            echo ""
             . ./scripts/install_tools.sh
         fi
 
         ### Basic server security ###
-        echo ""
         if [ -f scripts/secure_server.sh ]; then
-            . ./scripts/secure_server.sh
+            echo ""
+            . ./scripts/secure_server.sh "--install"
         fi
 
         ### FINAL STEP ###
-        # Cleaning up all build dependencies hanging around on production server?
-        echo -e "\nClean up installation process..."
-        run apt-get autoremove -y
+        if "${FORCE_REMOVE}"; then
+            # Cleaning up all build dependencies hanging around on production server?
+            echo -e "\nClean up installation process..."
+            run apt-get autoremove -y
+
+            # Cleanup build dir
+            echo "Clean up build directorty..."
+            if [ -d "$BUILDDIR" ]; then
+                run rm -fr "$BUILDDIR"
+            fi
+        fi
 
         status -e "\nLEMPer installation has been completed."
 
@@ -222,53 +230,65 @@ Now, you can reboot your server and enjoy it!"
         echo "Are you sure to remove LEMP stack installation?"
         echo "Please ensure that you've back up your critical data!"
         echo ""
-        read -rt 10 -p "Press [Enter] to continue..." </dev/tty
+        read -rt 15 -p "Press [Enter] to continue..." </dev/tty
 
         # Fix broken install, first?
         run dpkg --configure -a
         run apt-get --fix-broken install
 
         ### Remove Nginx ###
-        echo ""
         if [ -f scripts/remove_nginx.sh ]; then
+            echo ""
             . ./scripts/remove_nginx.sh
         fi
 
         ### Remove PHP & FPM ###
-        echo ""
         if [ -f scripts/remove_php.sh ]; then
+            echo ""
             . ./scripts/remove_php.sh
         fi
 
-        ### Remove PHP & FPM ###
-        echo ""
-        if [ -f scripts/remove_memcached.sh ]; then
-            . ./scripts/remove_memcached.sh
-        fi
-
         ### Remove MySQL ###
-        echo ""
         if [ -f scripts/remove_mariadb.sh ]; then
+            echo ""
             . ./scripts/remove_mariadb.sh
         fi
 
+        ### Remove PHP & FPM ###
+        if [ -f scripts/remove_memcached.sh ]; then
+            echo ""
+            . ./scripts/remove_memcached.sh
+        fi
+
         ### Remove Redis ###
-        echo ""
         if [ -f scripts/remove_redis.sh ]; then
+            echo ""
             . ./scripts/remove_redis.sh
         fi
 
         ### Remove Certbot LE ###
-        echo ""
         if [ -f scripts/remove_certbotle.sh ]; then
+            echo ""
             . ./scripts/remove_certbotle.sh
         fi
 
+        ### Remove server security ###
+        if [ -f scripts/secure_server.sh ]; then
+            echo ""
+            . ./scripts/secure_server.sh "--remove"
+        fi
+
+        ### Remove 
+
         # Remove default user account.
-        echo ""
-        while [[ "${REMOVE_ACCOUNT}" != "y" && "${REMOVE_ACCOUNT}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-            read -rp "Remove default LEMPer account? [y/n]: " -i y -e REMOVE_ACCOUNT
-        done
+        echo "Removing created default account..."
+        if "${AUTO_REMOVE}"; then
+            REMOVE_ACCOUNT="y"
+        else
+            while [[ "${REMOVE_ACCOUNT}" != "y" && "${REMOVE_ACCOUNT}" != "n" ]]; do
+                read -rp "Remove default LEMPer account? [y/n]: " -i y -e REMOVE_ACCOUNT
+            done
+        fi
         if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* || "${FORCE_REMOVE}" == true ]]; then
             if [ "$(type -t delete_account)" == "function" ]; then
                 delete_account "lemper"
@@ -277,9 +297,14 @@ Now, you can reboot your server and enjoy it!"
 
         # Remove created swap.
         echo ""
-        while [[ "${REMOVE_SWAP}" != "y" && "${REMOVE_SWAP}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-            read -rp "Remove created Swap? [y/n]: " -i y -e REMOVE_SWAP
-        done
+        echo "Removing created swap..."
+        if "${AUTO_REMOVE}"; then
+            REMOVE_SWAP="y"
+        else
+            while [[ "${REMOVE_SWAP}" != "y" && "${REMOVE_SWAP}" != "n" ]]; do
+                read -rp "Remove created Swap? [y/n]: " -i y -e REMOVE_SWAP
+            done
+        fi
         if [[ "${REMOVE_SWAP}" == Y* || "${REMOVE_SWAP}" == y* || "${FORCE_REMOVE}" == true ]]; then
             if [ "$(type -t remove_swap)" == "function" ]; then
                 remove_swap

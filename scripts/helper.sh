@@ -446,8 +446,6 @@ function create_swap() {
 function remove_swap() {
     local SWAP_FILE="/swapfile"
 
-    echo "Disabling swap..."
-
     if [ -f ${SWAP_FILE} ]; then
         run swapoff ${SWAP_FILE} && \
         run sed -i "s|${SWAP_FILE}|#\ ${SWAP_FILE}|g" /etc/fstab && \
@@ -477,7 +475,7 @@ function enable_swap() {
 # Create system account.
 function create_account() {
     export USERNAME=${1:-"lemper"}
-    PASSWORD=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)}
+    PASSWORD=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)} && \
     export PASSWORD
 
     echo "Creating default LEMPer account..."
@@ -522,7 +520,7 @@ Username: ${USERNAME} | Password: ${PASSWORD}
             status "Username ${USERNAME} created."
         fi
     else
-        warning "Unable to create account, username \"${USERNAME}\" already exists."
+        warning "Unable to create account, username ${USERNAME} already exists."
     fi
 }
 
@@ -532,9 +530,9 @@ function delete_account() {
 
     if [[ -n $(getent passwd "${USERNAME}") ]]; then
         run userdel -r "${USERNAME}"
-        status "Default LEMPer account deleted."
+        status "Account ${USERNAME} deleted."
     else
-        warning "Default LEMPer account not found."
+        warning "Account ${USERNAME} not found."
     fi
 }
 
