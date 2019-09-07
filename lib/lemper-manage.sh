@@ -243,9 +243,11 @@ function remove_vhost() {
 
         # Show user's databases
         #run mysql -u "$MYSQLUSER" -p"$MYSQLPASS" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema"
-        local DATABASES=$(mysql -u "$MYSQLUSER" -p"$MYSQLPASS" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
+        local DATABASES && \
+        DATABASES=$(mysql -u "$MYSQLUSER" -p"$MYSQLPASS" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
+        
         if [[ -n "${DATABASES}" ]]; then
-            printf '%s\n' ${DATABASES}
+            printf '%s\n' "${DATABASES}"
         else
             echo "No databse found."
         fi
