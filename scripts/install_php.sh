@@ -129,7 +129,8 @@ function install_ioncube() {
         run rm -fr /usr/lib/php/loaders/ioncube
     fi
 
-    run pushd "${BUILD_DIR}"
+    local CURRENT_DIR && CURRENT_DIR=$(pwd)
+    run cd "${BUILD_DIR}"
 
     ARCH=${ARCH:-$(uname -p)}
     if [[ "${ARCH}" == "x86_64" ]]; then
@@ -144,7 +145,7 @@ function install_ioncube() {
 
     echo "Installing latest ionCube PHP loader..."
     run mv -f ioncube /usr/lib/php/loaders/
-    run popd
+    run cd "${CURRENT_DIR}"
 }
 
 # Enable ionCube Loader
@@ -232,7 +233,8 @@ function install_sourceguardian() {
         run mkdir -p "${BUILD_DIR}/sourceguardian"
     fi
 
-    run pushd "${BUILD_DIR}/sourceguardian"
+    local CURRENT_DIR && CURRENT_DIR=$(pwd)
+    run cd "${BUILD_DIR}/sourceguardian"
 
     ARCH=${ARCH:-$(uname -p)}
     if [[ "${ARCH}" == "x86_64" ]]; then
@@ -245,7 +247,7 @@ function install_sourceguardian() {
         run rm -f loaders.linux-x86.tar.gz
     fi
 
-    run popd
+    run cd "${CURRENT_DIR}"
 
     echo "Installing latest SourceGuardian PHP loader..."
     run mv -f "${BUILD_DIR}/sourceguardian" /usr/lib/php/loaders/
