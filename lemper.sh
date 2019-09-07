@@ -181,8 +181,8 @@ case "${1}" in
 
             # Cleanup build dir
             echo "Clean up build directorty..."
-            if [ -d "$BUILDDIR" ]; then
-                run rm -fr "$BUILDDIR"
+            if [ -d "$BUILD_DIR" ]; then
+                run rm -fr "$BUILD_DIR"
             fi
         fi
 
