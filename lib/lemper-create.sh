@@ -20,7 +20,7 @@ set -e
 
 # Version Control.
 APP_NAME=$(basename "$0")
-APP_VERSION="1.2.0"
+APP_VERSION="1.3.0"
 CMD_PARENT="lemper-cli"
 CMD_NAME="create"
 
@@ -188,28 +188,36 @@ server {
     #charset utf-8;
 
     ## Virtual host root directory.
-    set \$root_path '${WEBROOT}';
+    set \$root_path "${WEBROOT}";
     root \$root_path;
     index index.php index.html index.htm;
 
     ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
-    # Async Google Analytics
-    #pagespeed EnableFilters make_google_analytics_async;
-    # Async Google Adsense.
-    #pagespeed EnableFilters make_show_ads_async;
-    # PageSpeed should be disabled on the WP admin  (adjust to suit custom admin URLs).
-    #pagespeed Disallow "*/wp-admin/*";
-    #pagespeed Disallow "*/dashboard/*";
-    #pagespeed Disallow "*/admin/*";
+
     # Authorizing domain.
     #pagespeed Domain ${SERVERNAME};
     #pagespeed Domain *.${SERVERNAME};
-    # Enable fetch HTTPS.
-    #pagespeed FetchHttps enable;
+
     # This setting should be enabled when using HTTPS
     # Take care when using HTTP > HTTPS redirection to avoid loops.
     #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
+
+    # Enable fetch HTTPS (enabled by default).
+    #pagespeed FetchHttps enable;
+
+    # PageSpeed should be disabled on the WP admin (adjust to suit custom admin URLs).
+    #pagespeed Disallow "*/wp-admin/*";
+    #pagespeed Disallow "*/dashboard/*";
+    #pagespeed Disallow "*/admin/*";
+
+    ## Access control Cross-origin Resource Sharing (CORS).
+    set \$cors "http://*.\$server_name, https://*.\$server_name";
+    #include /etc/nginx/includes/cors.conf;
+
+    # PageSpeed CORS support.
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "http://*.\$server_name";
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "https://*.\$server_name";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -240,9 +248,6 @@ server {
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
     }
 
-    ## Uncomment to enable error page directives configuration.
-    #include /etc/nginx/includes/error_pages.conf;
-
     ## PHP-FPM status monitoring
     location ~ ^/(status|ping)$ {
         include /etc/nginx/fastcgi_params;
@@ -253,6 +258,9 @@ server {
         auth_basic "Denied";
         auth_basic_user_file /srv/.htpasswd;
     }
+
+    ## Uncomment to enable error page directives configuration.
+    include /etc/nginx/includes/error_pages.conf;
 
     ## Add your custom site directives here.
 }
@@ -281,26 +289,35 @@ server {
     #charset utf-8;
 
     ## Virtual host root directory.
-    set \$root_path '${WEBROOT}';
+    set \$root_path "${WEBROOT}";
     root \$root_path;
     index index.php index.html index.htm;
 
     ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
-    # Async Google Analytics
-    #pagespeed EnableFilters make_google_analytics_async;
-    # Async Google Adsense.
-    #pagespeed EnableFilters make_show_ads_async;
-    # PageSpeed should be disabled on the user panel  (adjust to suit custom admin URLs).
-    #pagespeed Disallow "*/user/*";
+
     # Authorizing domain.
     #pagespeed Domain ${SERVERNAME};
     #pagespeed Domain *.${SERVERNAME};
-    # Enable fetch HTTPS.
+
+    # Enable fetch HTTPS (enabled by default).
     #pagespeed FetchHttps enable;
+
     # This setting should be enabled when using HTTPS
     # Take care when using HTTP > HTTPS redirection to avoid loops.
     #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
+
+    # PageSpeed should be disabled on the user panel (adjust to suit custom admin URLs).
+    #pagespeed Disallow "*/user/*";
+    #pagespeed Disallow "*/account/*";
+
+    ## Access control Cross-origin Resource Sharing (CORS).
+    set \$cors "http://*.\$server_name, https://*.\$server_name";
+    #include /etc/nginx/includes/cors.conf;
+
+    # PageSpeed CORS support.
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "http://*.\$server_name";
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "https://*.\$server_name";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -319,19 +336,6 @@ server {
         # Include FastCGI Params.
         include /etc/nginx/fastcgi_params;
 
-        # Overwrite FastCGI Params here.
-        # Block httpoxy attacks. See https://httpoxy.org/.
-        fastcgi_param HTTP_PROXY "";
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-        fastcgi_param PATH_INFO \$fastcgi_path_info;
-        fastcgi_param QUERY_STRING \$query_string;
-
-        # Comment out HTTPS line for PHP behind SSL https.
-        # old pre .03 method
-        #fastcgi_param HTTPS on;
-        # new .04+ map method
-        #fastcgi_param HTTPS \$server_https;
-
         # Include FastCGI Configs.
         include /etc/nginx/includes/fastcgi.conf;
 
@@ -341,9 +345,6 @@ server {
         # FastCGI socket, change to fits your own socket!
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
     }
-
-    ## Uncomment to enable error page directives configuration.
-    #include /etc/nginx/includes/error_pages.conf;
 
     ## PHP-FPM status monitoring
     location ~ ^/(status|ping)$ {
@@ -355,6 +356,9 @@ server {
         auth_basic "Denied";
         auth_basic_user_file /srv/.htpasswd;
     }
+
+    ## Uncomment to enable error page directives configuration.
+    include /etc/nginx/includes/error_pages.conf;
 
     ## Add your custom site directives here.
 }
@@ -386,28 +390,36 @@ server {
     #charset utf-8;
 
     ## Virtual host root directory.
-    set \$root_path '${WEBROOT}/public';
+    set \$root_path "${WEBROOT}/public";
     root \$root_path;
     index index.php index.html index.htm;
 
     ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
-    # Async Google Analytics
-    #pagespeed EnableFilters make_google_analytics_async;
-    # Async Google Adsense.
-    #pagespeed EnableFilters make_show_ads_async;
-    # PageSpeed should be disabled on the admin  (adjust to suit custom admin URLs).
-    #pagespeed Disallow "*/account/*";
-    #pagespeed Disallow "*/dashboard/*";
-    #pagespeed Disallow "*/admin/*";
+
     # Authorizing domain.
     #pagespeed Domain ${SERVERNAME};
     #pagespeed Domain *.${SERVERNAME};
-    # Enable fetch HTTPS.
+
+    # Enable fetch HTTPS (enabled by default).
     #pagespeed FetchHttps enable;
+
     # This setting should be enabled when using HTTPS
     # Take care when using HTTP > HTTPS redirection to avoid loops.
     #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
+
+    # PageSpeed should be disabled on the admin (adjust to suit custom admin URLs).
+    #pagespeed Disallow "*/account/*";
+    #pagespeed Disallow "*/dashboard/*";
+    #pagespeed Disallow "*/admin/*";
+
+    ## Access control Cross-origin Resource Sharing (CORS).
+    set \$cors "http://*.\$server_name, https://*.\$server_name";
+    #include /etc/nginx/includes/cors.conf;
+
+    # PageSpeed CORS support.
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "http://*.\$server_name";
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "https://*.\$server_name";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -426,9 +438,6 @@ server {
         # Include FastCGI Params.
         include /etc/nginx/fastcgi_params;
 
-        # Overwrite FastCGI Params here.
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-
         # Include FastCGI Configs.
         include /etc/nginx/includes/fastcgi.conf;
 
@@ -438,9 +447,6 @@ server {
         # FastCGI socket, change to fits your own socket!
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
     }
-
-    ## Uncomment to enable error page directives configuration.
-    #include /etc/nginx/includes/error_pages.conf;
 
     ## PHP-FPM status monitoring
     location ~ ^/(status|ping)$ {
@@ -452,6 +458,9 @@ server {
         auth_basic "Denied";
         auth_basic_user_file /srv/.htpasswd;
     }
+
+    ## Uncomment to enable error page directives configuration.
+    include /etc/nginx/includes/error_pages.conf;
 
     ## Add your custom site directives here.
 }
@@ -483,28 +492,36 @@ server {
     #charset utf-8;
 
     ## Virtual host root directory.
-    set \$root_path '${WEBROOT}/public';
+    set \$root_path "${WEBROOT}/public";
     root \$root_path;
     index index.php index.html index.htm;
 
     ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
-    # Async Google Analytics
-    #pagespeed EnableFilters make_google_analytics_async;
-    # Async Google Adsense.
-    #pagespeed EnableFilters make_show_ads_async;
-    # PageSpeed should be disabled on the admin  (adjust to suit custom admin URLs).
-    #pagespeed Disallow "*/account/*";
-    #pagespeed Disallow "*/dashboard/*";
-    #pagespeed Disallow "*/admin/*";
+
     # Authorizing domain.
     #pagespeed Domain ${SERVERNAME};
     #pagespeed Domain *.${SERVERNAME};
-    # Enable fetch HTTPS.
+
+    # Enable fetch HTTPS (enabled by default).
     #pagespeed FetchHttps enable;
+
     # This setting should be enabled when using HTTPS
     # Take care when using HTTP > HTTPS redirection to avoid loops.
     #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
+
+    # PageSpeed should be disabled on the admin (adjust to suit custom admin URLs).
+    #pagespeed Disallow "*/account/*";
+    #pagespeed Disallow "*/dashboard/*";
+    #pagespeed Disallow "*/admin/*";
+
+    ## Access control Cross-origin Resource Sharing (CORS).
+    set \$cors "http://*.\$server_name, https://*.\$server_name";
+    #include /etc/nginx/includes/cors.conf;
+
+    # PageSpeed CORS support.
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "http://*.\$server_name";
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "https://*.\$server_name";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -541,9 +558,6 @@ server {
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
     }
 
-    ## Uncomment to enable error page directives configuration.
-    #include /etc/nginx/includes/error_pages.conf;
-
     ## PHP-FPM status monitoring
     location ~ ^/(status|ping)$ {
         include /etc/nginx/fastcgi_params;
@@ -554,6 +568,9 @@ server {
         auth_basic "Denied";
         auth_basic_user_file /srv/.htpasswd;
     }
+
+    ## Uncomment to enable error page directives configuration.
+    include /etc/nginx/includes/error_pages.conf;
 
     ## Add your custom site directives here.
 }
@@ -601,29 +618,50 @@ _EOF_
 function create_index_file() {
 cat <<- _EOF_
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Welcome to nginx!</title>
+<!--
+Served by
+ _     _____ __  __ ____           
+| |   | ____|  \/  |  _ \ ___ _ __ 
+| |   |  _| | |\/| | |_) / _ \ '__|
+| |___| |___| |  | |  __/  __/ |   
+|_____|_____|_|  |_|_|   \___|_|      
+-->
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Default Page</title>
+<link href="https://fonts.googleapis.com/css?family=Cabin:400,700" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Montserrat:900" rel="stylesheet">
+<link type="text/css" rel="stylesheet" href="css/style.css" />
 <style>
-    body {
-        width: 35em;
-        margin: 0 auto;
-        font-family: Tahoma, Verdana, Arial, sans-serif;
-    }
+/**
+ * Forked from Colorlib https://colorlib.com/etc/404/colorlib-error-404-3/
+*/
+*{-webkit-box-sizing:border-box;box-sizing:border-box}body{padding:0;margin:0}#errorpg{position:relative;height:100vh}#errorpg .errorpg{position:absolute;left:50%;top:50%;-webkit-transform:translate(-50%,-50%);-ms-transform:translate(-50%,-50%);transform:translate(-50%,-50%)}.errorpg{max-width:520px;width:100%;line-height:1.4;/*text-align:center*/}.errorpg .errorpg-msg{position:relative;height:240px}.errorpg .errorpg-msg h1{font-family:Montserrat,sans-serif;position:absolute;left:50%;top:50%;-webkit-transform:translate(-50%,-50%);-ms-transform:translate(-50%,-50%);transform:translate(-50%,-50%);font-size:252px;font-weight:900;margin:0;color:#262626;text-transform:uppercase;letter-spacing:-40px;margin-left:-20px}.errorpg .errorpg-msg h1>span{text-shadow:-8px 0 0 #fff}.errorpg .errorpg-msg h3{font-family:Cabin,sans-serif;position:relative;font-size:16px;font-weight:700;text-transform:uppercase;color:#262626;margin:0;letter-spacing:3px;padding-left:6px}.errorpg h2{font-family:Cabin,sans-serif;font-size:20px;font-weight:400;text-transform:uppercase;color:#000;margin-top:0;margin-bottom:25px}@media only screen and (max-width:767px){.errorpg .errorpg-msg{height:200px}.errorpg .errorpg-msg h1{font-size:200px}}@media only screen and (max-width:480px){.errorpg .errorpg-msg{height:162px}.errorpg .errorpg-msg h1{font-size:162px;height:150px;line-height:162px}.errorpg h2{font-size:16px}}
+div.banner{color:#009639;font-family:Montserrat,sans-serif;position:absolute;left:50%;top:50%;-webkit-transform:translate(-50%,-50%);-ms-transform:translate(-50%,-50%);transform:translate(-50%,-50%);font-size:180px;font-weight:900;margin:0;letter-spacing:-25px;margin-left:-10px}
 </style>
+<!--[if lt IE 9]>
+<script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+<script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+<![endif]-->
 </head>
 <body>
-<h1>Welcome to nginx!</h1>
-<p>If you see this page, the nginx web server is successfully installed using LEMPer. Further configuration is required.</p>
-
-<p>For online documentation and support please refer to
-<a href="http://nginx.org/">nginx.org</a>.<br/>
-LEMPer and ngxTools support is available at
-<a href="https://github.com/joglomedia/LEMPer/issues">LEMPer Github</a>.</p>
-
-<p><em>Thank you for using nginx, ngxTools, and LEMPer.</em></p>
-
-<p style="font-size:90%;">Generated using <em>LEMPer</em> from <a href="https://eslabs.id/lemper">Nginx vHost Tool</a>, a simple nginx web server management tool.</p>
+<div id="errorpg">
+<div class="errorpg">
+<div class="errorpg-msg">
+<h3>Bad_Coder presents...</h3>
+<div class="banner">
+<span>L</span><span>E</span><span>M</span><span>P</span><span>er</span></div>
+</div>
+<h2>This is the default index page of your website.</h2>
+<p>This file may be deleted or overwritten without any difficulty. This is produced by the file index.html in the web directory.</p>
+<p>To disable this page, please remove the index.html file and replace it with your own. Our handy <a href="https://github.com/joglomedia/LEMPer/wiki">Quick Start Guide</a> can help you get up and running fast.</p>
+<p>For questions or problems, please contact our support team.</p>
+</div>
+</div>
+<script src="https://ajax.cloudflare.com/cdn-cgi/scripts/95c75768/cloudflare-static/rocket-loader.min.js" data-cf-settings="d841170f43ff1e03f58512ad-|49" defer=""></script>
 </body>
 </html>
 _EOF_
@@ -699,10 +737,10 @@ function install_wordpress() {
     else
         # Create default index file.
         status "Creating default WordPress index file..."
-
         create_index_file > "${WEBROOT}/index.html"
-        run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
     fi
+
+    run wget -q -O "${WEBROOT}/favicon.ico" https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
 
     # Pre-install nginx helper plugin.
     if [[ -d "${WEBROOT}/wp-content/plugins" && ! -d "${WEBROOT}/wp-content/plugins/nginx-helper" ]]; then
@@ -713,6 +751,8 @@ function install_wordpress() {
         run unzip -q "${TMPDIR}/nginx-helper.zip" -d "${WEBROOT}/wp-content/plugins/"
         run rm -f "${TMPDIR}/nginx-helper.zip"
     fi
+
+    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 }
 
 # Get server IP Address.
@@ -928,14 +968,15 @@ function init_app() {
                         # Create default index file.
                         status "Creating default index file..."
                         create_index_file > "${WEBROOT}/index.html"
-
-                        run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
                     fi
+
+                    run wget -q -O "${WEBROOT}/favicon.ico" \
+                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_drupal > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 laravel|lumen)
@@ -947,7 +988,77 @@ function init_app() {
                         # Check Laravel install.
                         if [ ! -f "${WEBROOT}/artisan" ]; then
                             status "Copying ${FRAMEWORK^} skeleton files..."
-                            run git clone -q "https://github.com/laravel/${FRAMEWORK}.git" "${WEBROOT}"
+                            run git clone -q --depth=1 --branch=master \
+                                "https://github.com/laravel/${FRAMEWORK}.git" "${WEBROOT}"
+                        else
+                            warning "It seems that ${FRAMEWORK^} skeleton files already exists."
+                        fi
+                    else
+                        # Create default index file.
+                        status "Creating default index file..."
+                        run mkdir -p "${WEBROOT}/public"
+                        create_index_file > "${WEBROOT}/public/index.html"
+                    fi
+
+                    run wget -q -O "${WEBROOT}/public/favicon.ico" \
+                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
+
+                    # Create vhost.
+                    echo "Creating virtual host file: ${VHOST_FILE}..."
+                    create_vhost_laravel > "${VHOST_FILE}"
+                ;;
+
+                phalcon)
+                    echo "Setting up Phalcon framework virtual host..."
+
+                    # Auto install Phalcon PHP framework skeleton.
+                    if [ ${CLONE_SKELETON} == true ]; then
+                        # Check Phalcon skeleton install.
+                        if [ ! -f "${WEBROOT}/app/config/loader.php" ]; then
+                            status "Copying ${FRAMEWORK^} skeleton files..."
+                            run git clone -q --depth=1 --branch=master \
+                                "https://github.com/joglomedia/${FRAMEWORK}-skeleton.git" "${WEBROOT}"
+                        else
+                            warning "It seems that ${FRAMEWORK^} skeleton files already exists."
+                        fi
+                    else
+                        # Create default index file.
+                        status "Creating default index file..."
+                        run mkdir -p "${WEBROOT}/public"
+                        create_index_file > "${WEBROOT}/public/index.html"
+                    fi
+
+                    run wget -q -O "${WEBROOT}/public/favicon.ico" \
+                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
+
+                    # Create vhost.
+                    echo "Creating virtual host file: ${VHOST_FILE}..."
+                    create_vhost_phalcon > "${VHOST_FILE}"
+                ;;
+
+                symfony)
+                    echo "Setting up Symfony framework virtual host..."
+
+                    # Auto install Symfony PHP framework skeleton.
+                    if [ ${CLONE_SKELETON} == true ]; then
+                        # Install Symfony binary if not exists.
+                        if [[ -z $(command -v symfony) ]]; then
+                            run wget -q https://get.symfony.com/cli/installer -O - | bash
+                            if [ -f "${HOME}/.symfony/bin/symfony" ]; then
+                                run cp -f "${HOME}/.symfony/bin/symfony" /usr/local/bin/symfony
+                                run chmod ugo+x /usr/local/bin/symfony
+                            else
+                                run export PATH="${HOME}/.symfony/bin:${PATH}"
+                            fi
+                        fi
+
+                        # Check Laravel install.
+                        if [ ! -f "${WEBROOT}/src/Kernel.php" ]; then
+                            status "Copying ${FRAMEWORK^} skeleton files..."
+                            run git clone -q --depth=1 --branch=master \
+                                "https://github.com/joglomedia/${FRAMEWORK}-skeleton.git" "${WEBROOT}"
                         else
                             warning "It seems that ${FRAMEWORK^} skeleton files already exists."
                         fi
@@ -955,35 +1066,15 @@ function init_app() {
                         # Create default index file.
                         status "Creating default index file..."
                         create_index_file > "${WEBROOT}/index.html"
-                        run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
                     fi
 
-                    # Create vhost.
-                    echo "Creating virtual host file: ${VHOST_FILE}..."
-                    create_vhost_laravel > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
-                ;;
-
-                phalcon)
-                    echo "Setting up Phalcon framework virtual host..."
-
-                    # TODO: Auto install Phalcon PHP framework skeleton
-
-                    # Create vhost.
-                    echo "Creating virtual host file: ${VHOST_FILE}..."
-                    create_vhost_phalcon > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
-                ;;
-
-                symfony)
-                    echo "Setting up Symfony framework virtual host..."
-
-                    # TODO: Auto install Symfony PHP framework skeleton
+                    run wget -q -O "${WEBROOT}/public/favicon.ico" \
+                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_default > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 wordpress|woocommerce)
@@ -1004,14 +1095,13 @@ function init_app() {
                             run rm -f "${TMPDIR}/woocommerce.zip"
                         fi
 
-                        # Update framework as Wordpress.
+                        # Return framework as Wordpress.
                         FRAMEWORK="wordpress"
                     fi
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_default > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 wordpress-ms)
@@ -1036,38 +1126,40 @@ function init_app() {
 
                     # Create vhost.
                     create_vhost_default >> "${VHOST_FILE}"
-
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 filerun)
                     echo "Setting up FileRun virtual host..."
 
                     # Install FileRun skeleton.
-                    if [ ! -f "${WEBROOT}/system/classes/filerun.php" ]; then
+                    if [ ${CLONE_SKELETON} == true ]; then
                         # Clone new Filerun files.
-                        if [ ${CLONE_SKELETON} == true ]; then
+                        if [ ! -f "${WEBROOT}/system/classes/filerun.php" ]; then
                             echo "Copying FileRun skeleton files..."
                             run wget -q -O "${TMPDIR}/FileRun.zip" http://www.filerun.com/download-latest
                             run unzip -q "${TMPDIR}/FileRun.zip" -d "${WEBROOT}"
                             run rm -f "${TMPDIR}/FileRun.zip"
                         else
-                            # Create default index file.
-                            echo "Creating default index files..."
-                            create_index_file > "${WEBROOT}/index.html"
-                            run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
+                            warning "FileRun skeleton files already exists."
                         fi
                     else
-                        warning "FileRun skeleton files already exists."
+                        # Create default index file.
+                        echo "Creating default index files..."
+                        create_index_file > "${WEBROOT}/index.html"
                     fi
+
+                    run wget -q -O "${WEBROOT}/favicon.ico" \
+                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_default > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 codeigniter|mautic|default)
+                    # TODO: Auto install framework skeleton.
+
                     # Create default index file.
                     create_index_file > "${WEBROOT}/index.html"
                     run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
@@ -1075,7 +1167,6 @@ function init_app() {
                     # Create default vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
                     create_vhost_default > "${VHOST_FILE}"
-                    #status "New domain ${SERVERNAME} has been added to virtual host."
                 ;;
 
                 *)
@@ -1117,7 +1208,7 @@ function init_app() {
             if [ ${ENABLE_PAGESPEED} == true ]; then
                 echo "Enable Mod PageSpeed for ${SERVERNAME}..."
 
-                if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
+                if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/60-mod-pagespeed.conf ]]; then
                     # enable mod pagespeed
                     run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" /etc/nginx/nginx.conf
                     run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" "${VHOST_FILE}"

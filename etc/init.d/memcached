@@ -37,7 +37,9 @@ set -e
 
 . /lib/lsb/init-functions
 
-FILES=(/etc/memcached_*.conf)
+# Modified for LEMPer usage.
+#FILES=(/etc/memcached_*.conf)
+FILES=(/etc/memcached/*.conf)
 # check for alternative config schema
 if [ -r "${FILES[0]}" ]; then
   CONFIGS=()

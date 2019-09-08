@@ -18,11 +18,11 @@ fi
 requires_root
 
 function init_certbotle_removal() {
-    if [[ -n $(dpkg-query -l | grep certbot | awk '/certbot/ { print $2 }') ]]; then
+    if dpkg-query -l | awk '/certbot/ { print $2 }' | grep -qwE "^certbot$"; then
         echo "Found Certbot package installation. Removing..."
 
         # Remove Certbot.
-        run apt-get --purge remove -y certbot
+        run apt-get -qq --purge remove -y certbot
 
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:certbot/certbot
@@ -33,18 +33,24 @@ function init_certbotle_removal() {
 
         CERTBOT_BIN=$(command -v certbot)
 
-        echo "Which certbot bin: ${CERTBOT_BIN}"
+        echo "Certbot binary executable: ${CERTBOT_BIN}"
     fi
 
     # Remove Certbot config files.
     warning "!! This action is not reversible !!"
-    while [[ "${REMOVE_CERTBOTCONF}" != "y" && "${REMOVE_CERTBOTCONF}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Remove Certbot config and Let's Encrypt certificate files? [y/n]: " -e REMOVE_CERTBOTCONF
-    done
+    if "${AUTO_REMOVE}"; then
+        REMOVE_CERTBOTCONF="y"
+    else
+        while [[ "${REMOVE_CERTBOTCONF}" != "y" && "${REMOVE_CERTBOTCONF}" != "n" ]]; do
+            read -rp "Remove Certbot config and Let's Encrypt certificate files? [y/n]: " -e REMOVE_CERTBOTCONF
+        done
+    fi
+
     if [[ "${REMOVE_CERTBOTCONF}" == Y* || "${REMOVE_CERTBOTCONF}" == y* || "${FORCE_REMOVE}" == true ]]; then
         if [ -d /etc/letsencrypt ]; then
             run rm -fr /etc/letsencrypt
         fi
+
         echo "All your Certbot config and Let's Encrypt certificate files deleted permanently."
     fi
 
@@ -62,10 +68,15 @@ function init_certbotle_removal() {
 
 echo "Uninstalling Certbot Let's Encrypt..."
 if [[ -n $(command -v certbot) ]]; then
-    while [[ "${REMOVE_CERTBOT}" != "y" && "${REMOVE_CERTBOT}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Are you sure to remove Certbot Let's Encrypt client? [y/n]: " -e REMOVE_CERTBOT
-    done
-    if [[ "${REMOVE_CERTBOT}" == Y* || "${REMOVE_CERTBOT}" == y* || "${AUTO_REMOVE}" == true ]]; then
+    if "${AUTO_REMOVE}"; then
+        REMOVE_CERTBOT="y"
+    else
+        while [[ "${REMOVE_CERTBOT}" != "y" && "${REMOVE_CERTBOT}" != "n" ]]; do
+            read -rp "Are you sure to remove Certbot Let's Encrypt client? [y/n]: " -e REMOVE_CERTBOT
+        done
+    fi
+
+    if [[ "${REMOVE_CERTBOT}" == Y* || "${REMOVE_CERTBOT}" == y* ]]; then
         init_certbotle_removal "$@"
     else
         echo "Found Certbot Let's Encrypt, but not removed."

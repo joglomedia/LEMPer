@@ -2,7 +2,7 @@
 LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Debian-based/Ubuntu LEMP stack. LEMPer is _ServerPilot_, _CloudWays_, _RunCloud_, and _EasyEngine_ alternative for wide range PHP framework.
 
 
-[![Build Status](https://travis-ci.org/joglomedia/LEMPer.svg?branch=1.2.0)](https://travis-ci.org/joglomedia/LEMPer)
+[![Build Status](https://travis-ci.org/joglomedia/LEMPer.svg?branch=1.3.0)](https://travis-ci.org/joglomedia/LEMPer)
 
 
 ## Features
@@ -20,12 +20,17 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * SourceGuardian PHP Loader.
 * [Adminer](https://www.adminer.org/) for MySQL database administration (PhpMyAdmin replacement).
 
-## Usage
+## Setting Up
+
+* Ensure you have git installed.
+* Make a copy of .env.dist to .env in the LEMPer base directory and replace the values.
+* Enter LEMPer directory.
+* Execute lemper.sh file.
 
 ### Install Nginx, PHP &amp; MariaDB
 ```bash
 sudo apt-get install git
-git clone -q https://github.com/joglomedia/LEMPer.git; cd LEMPer; sudo ./lemper.sh --install
+git clone -q https://github.com/joglomedia/LEMPer.git; cd LEMPer; cp -f .env.dist .env; sudo ./lemper.sh --install
 ```
 
 ### Uninstall Nginx, PHP &amp; MariaDB

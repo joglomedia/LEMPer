@@ -29,7 +29,7 @@ echo ""
 
 # Fix broken install, first?
 run dpkg --configure -a
-run apt-get --fix-broken install
+run apt-get -qq --fix-broken install
 
 # Remove Apache2 service if exists.
 if [[ -n $(command -v apache2) ]]; then
@@ -42,7 +42,7 @@ if [[ -n $(command -v apache2) ]]; then
         echo "Removing Apache2 installation in dryrun mode."
     else
         run service apache2 stop
-        run apt-get --purge remove -y apache2 apache2-doc apache2-utils \
+        run apt-get -qq --purge remove -y apache2 apache2-doc apache2-utils \
             apache2.2-common apache2.2-bin apache2-mpm-prefork \
             apache2-doc apache2-mpm-worker
     fi

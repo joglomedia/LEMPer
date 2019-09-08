@@ -8,12 +8,17 @@
 
 # Export environment variables.
 if [ -f ".env" ]; then
-    # shellcheck source=.env
+    # Clean environemnt first.
+    # shellcheck source=.env.dist
+    # shellcheck disable=SC2046
+    unset $(grep -v '^#' .env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+
+    # shellcheck source=.env.dist
     # shellcheck disable=SC1094
     source <(grep -v '^#' .env | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
 else
-    echo "Environment variables required, but not found."
-    exit 1
+    echo "Environment variables required, but the Dotenv file not found."
+    exit 0
 fi
 
 # Direct access? make as dryrun mode.
@@ -389,7 +394,7 @@ function get_ram_size() {
 
 # Create custom Swap.
 function create_swap() {
-    local SWAP_FILE="/root/lemper-swapfile"
+    local SWAP_FILE="/swapfile"
     local RAM_SIZE && \
     RAM_SIZE=$(get_ram_size)
 
@@ -417,31 +422,39 @@ function create_swap() {
     if "${DRYRUN}"; then
         echo "Add persistent swap to fstab in dryrun mode."
     else
-        run echo "${SWAP_FILE} swap swap defaults 0 0" >> /etc/fstab
+        if grep -qwE "#${SWAP_FILE}" /etc/fstab; then
+            run sed -i "s|#${SWAP_FILE}|${SWAP_FILE}|g" /etc/fstab
+        else
+            run echo "${SWAP_FILE} swap swap defaults 0 0" >> /etc/fstab
+        fi
     fi
 
     # Adjust swappiness, default Ubuntu set to 60
     # meaning that the swap file will be used fairly often if the memory usage is
     # around half RAM, for production servers you may need to set a lower value.
-    if [[ $(cat /proc/sys/vm/swappiness) -gt 15 ]]; then
+    if [[ $(cat /proc/sys/vm/swappiness) -gt 10 ]]; then
         if "${DRYRUN}"; then
             echo "Update swappiness value in dryrun mode."
         else
-            run sysctl vm.swappiness=15
-            run echo "vm.swappiness=15" >> /etc/sysctl.conf
+            run sysctl vm.swappiness=10
+            run echo "vm.swappiness=10" >> /etc/sysctl.conf
         fi
     fi
 }
 
 # Remove created Swap.
 function remove_swap() {
-    local SWAP_FILE="/root/lemper-swapfile"
+    local SWAP_FILE="/swapfile"
 
-    echo "Disabling swap..."
+    if [ -f ${SWAP_FILE} ]; then
+        run swapoff ${SWAP_FILE} && \
+        run sed -i "s|${SWAP_FILE}|#\ ${SWAP_FILE}|g" /etc/fstab && \
+        run rm -f ${SWAP_FILE}
 
-    run swapoff -v ${SWAP_FILE} && \
-    run sed -i "s/${SWAP_FILE}/#\ ${SWAP_FILE}/g" /etc/fstab && \
-    run rm -f ${SWAP_FILE}
+        echo "Swap file removed."
+    else
+        warning "Unable to remove swap."
+    fi
 }
 
 # Enable swap.
@@ -462,14 +475,14 @@ function enable_swap() {
 # Create system account.
 function create_account() {
     export USERNAME=${1:-"lemper"}
+    export PASSWORD && \
     PASSWORD=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)}
-    export PASSWORD
 
     echo "Creating default LEMPer account..."
 
     if [[ -z $(getent passwd "${USERNAME}") ]]; then
         if "${DRYRUN}"; then
-            echo "Username ${USERNAME} created in dryrun mode."
+            echo "Create ${USERNAME} account in dryrun mode."
         else
             run useradd -d "/home/${USERNAME}" -m -s /bin/bash "${USERNAME}"
             run echo "${USERNAME}:${PASSWORD}" | chpasswd
@@ -481,7 +494,7 @@ function create_account() {
             fi
 
             # Add account credentials to /srv/.htpasswd.
-            if [[ ! -f "/srv/.htpasswd" ]]; then 
+            if [ ! -f "/srv/.htpasswd" ]; then
                 run touch /srv/.htpasswd
             fi
 
@@ -507,7 +520,7 @@ Username: ${USERNAME} | Password: ${PASSWORD}
             status "Username ${USERNAME} created."
         fi
     else
-        warning "Unable to create account, username \"${USERNAME}\" already exists."
+        warning "Unable to create account, username ${USERNAME} already exists."
     fi
 }
 
@@ -517,9 +530,14 @@ function delete_account() {
 
     if [[ -n $(getent passwd "${USERNAME}") ]]; then
         run userdel -r "${USERNAME}"
-        status "Default LEMPer account deleted."
+
+        if [ -f "/srv/.htpasswd" ]; then
+            run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
+        fi
+
+        status "Account ${USERNAME} deleted."
     else
-        warning "Default LEMPer account not found."
+        warning "Account ${USERNAME} not found."
     fi
 }
 
@@ -548,9 +566,9 @@ function header_msg() {
     clear
     cat <<- _EOF_
 #==========================================================================#
-#        LEMPer v1.2.0 for Ubuntu-based server, Written by ESLabs.ID       #
+#        LEMPer v1.3.0 for Ubuntu-based server, Written by ESLabs.ID       #
 #==========================================================================#
-#      A small tool to install Nginx + MariaDB (MySQL) + PHP on Linux      #
+#      Bash scripts to install Nginx + MariaDB (MySQL) + PHP on Linux      #
 #                                                                          #
 #        For more information please visit https://eslabs.id/lemper        #
 #==========================================================================#
@@ -563,11 +581,17 @@ function footer_msg() {
 
 #==========================================================================#
 #         Thank's for installing LEMP stack using LEMPer Installer         #
-#        Found any bugs / errors / suggestions? please let me know         #
+#        Found any bugs/errors, or suggestions? please let me know         #
 #    If this script useful, don't forget to buy me a coffee or milk :D     #
 #   My PayPal is always open for donation, here https://paypal.me/masedi   #
 #                                                                          #
-#         (c) 2014-2019 - ESLabs.ID - https://eslabs.id/lemper ;)          #
+#         (c) 2014-2019 / ESLabs.ID / https://eslabs.id/lemper ;)          #
 #==========================================================================#
 _EOF_
 }
+
+# Define build directory.
+BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
+if [ ! -d "${BUILD_DIR}" ]; then
+    run mkdir -p "${BUILD_DIR}"
+fi

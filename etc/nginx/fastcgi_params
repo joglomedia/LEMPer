@@ -32,6 +32,9 @@ fastcgi_param SERVER_ADDR $server_addr;
 fastcgi_param SERVER_PORT $server_port;
 fastcgi_param SERVER_NAME $server_name;
 
+# Block httpoxy attacks. See https://httpoxy.org/.
+fastcgi_param HTTP_PROXY "";
+
 #fastcgi_param HTTPS $https;
 
 # PHP only, required if PHP was built with --enable-force-cgi-redirect

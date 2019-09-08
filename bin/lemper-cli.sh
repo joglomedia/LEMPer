@@ -18,25 +18,30 @@
 set -e
 
 # Version control
-ProgName=$(basename "$0")
-ProgVersion="1.2.0-dev"
+APP_NAME=$(basename "$0")
+APP_VERSION="1.3.0"
 
 LibDir="/usr/local/lib/lemper"
 
 function cmd_help() {
-    echo "Usage: $ProgName [--version] [--help]"
-    echo "       <command> [<options>]"
-    echo ""
-    echo "These are common $ProgName commands used in various situations:"
-    echo "  create  Create new virtual host"
-    echo "  manage  Enable, disable, delete existing virtual host"
-    echo ""
-    echo "For help with each command run:"
-    echo "$ProgName <command> -h|--help"
+cat <<- _EOF_
+${APP_NAME^} ${APP_VERSION}
+Command line management tool for LEMPer stack.
+
+Usage: $APP_NAME [--version] [--help]
+       <command> [<options>]
+
+These are common $APP_NAME commands used in various situations:
+  create  Create new virtual host
+  manage  Enable, disable, delete existing virtual host
+
+For help with each command run:
+$APP_NAME <command> -h|--help
+_EOF_
 }
 
 function cmd_version() {
-    echo "$ProgName version $ProgVersion"
+    echo "$APP_NAME version $APP_VERSION"
 }
 
 function cmd_create() {
@@ -73,7 +78,7 @@ case ${SubCommand} in
             "cmd_${SubCommand}" "$@"
         else
             echo "Error: '${SubCommand}' is not a known command." >&2
-            echo "      Run '${ProgName} --help' for a list of known commands." >&2
+            echo "      Run '${APP_NAME} --help' for a list of known commands." >&2
             exit 1
         fi
     ;;

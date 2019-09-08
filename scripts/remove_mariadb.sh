@@ -23,38 +23,42 @@ function init_mariadb_removal() {
         run service mysql stop
     fi
 
-    if [[ -n $(dpkg-query -l | grep mariadb-server | awk '/mariadb-server/ { print $2 }') ]]; then
+    if dpkg-query -l | awk '/mariadb/ { print $2 }' | grep -qwE "^mariadb-server"; then
         echo "Found MariaDB package installation. Removing..."
 
         # Remove MariaDB server.
-        run apt-get --purge remove -y libmariadbclient18 mariadb-backup mariadb-server mysql-common
+        run apt-get -qq --purge remove -y libmariadbclient18 mariadb-backup mariadb-common mariadb-server
 
         # Remove repository.
         if "${FORCE_REMOVE}"; then
             run rm -f /etc/apt/sources.list.d/MariaDB-*.list
         fi
-    elif [[ -n $(dpkg-query -l | grep mysql-server | awk '/mysql-server/ { print $2 }') ]]; then
+    elif dpkg-query -l | awk '/mysql/ { print $2 }' | grep -qwE "^mysql-server"; then
         echo "Found MySQL package installation. Removing..."
 
         # Remove MySQL server.
-        run apt-get --purge remove -y mysql-client mysql-server mysql-common
+        run apt-get -qq --purge remove -y mysql-client mysql-common mysql-server
     else
         echo "Mariadb package not found, possibly installed from source."
-        echo "Remove it manually."
+        echo "Remove it manually!!"
 
         MYSQL_BIN=$(command -v mysql)
         MYSQLD_BIN=$(command -v mysqld)
 
-        echo "Which mysql bin: ${MYSQL_BIN}"
-        echo "which mysqld bin: ${MYSQLD_BIN}"
+        echo "Mysql binary executable: ${MYSQL_BIN}"
+        echo "Mysqld binary executable: ${MYSQLD_BIN}"
     fi
 
     # Remove MariaDB (MySQL) config files.
     warning "!! This action is not reversible !!"
-    while [[ "${REMOVE_MYSQLCONFIG}" != "y" && "${REMOVE_MYSQLCONFIG}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Remove MariaDB (MySQL) database and configuration files? [y/n]: " \
-        -i n -e REMOVE_MYSQLCONFIG
-    done
+    if "${AUTO_REMOVE}"; then
+        REMOVE_MYSQLCONFIG="y"
+    else
+        while [[ "${REMOVE_MYSQLCONFIG}" != "y" && "${REMOVE_MYSQLCONFIG}" != "n" ]]; do
+            read -rp "Remove MariaDB (MySQL) database and configuration files? [y/n]: " -e REMOVE_MYSQLCONFIG
+        done
+    fi
+
     if [[ "${REMOVE_MYSQLCONFIG}" == Y* || "${REMOVE_MYSQLCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
         if [ -d /etc/mysql ]; then
             run rm -fr /etc/mysql
@@ -63,6 +67,7 @@ function init_mariadb_removal() {
         if [ -d /var/lib/mysql ]; then
             run rm -fr /var/lib/mysql
         fi
+
         echo "All your SQL database and configuration files deleted permanently."
     fi
 
@@ -80,10 +85,15 @@ function init_mariadb_removal() {
 
 echo "Uninstalling MariaDB (MySQL) server..."
 if [[ -n $(command -v mysql) || -n $(command -v mysqld) ]]; then
-    while [[ "${REMOVE_MARIADB}" != "y" && "${REMOVE_MARIADB}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Are you sure to to remove MariaDB (MySQL)? [y/n]: " -e REMOVE_MARIADB
-    done
-    if [[ "${REMOVE_MARIADB}" == Y* || "${REMOVE_MARIADB}" == y* || "${AUTO_REMOVE}" == true ]]; then
+    if "${AUTO_REMOVE}"; then
+        REMOVE_MARIADB="y"
+    else
+        while [[ "${REMOVE_MARIADB}" != "y" && "${REMOVE_MARIADB}" != "n" ]]; do
+            read -rp "Are you sure to to remove MariaDB (MySQL)? [y/n]: " -e REMOVE_MARIADB
+        done
+    fi
+
+    if [[ "${REMOVE_MARIADB}" == Y* || "${REMOVE_MARIADB}" == y* ]]; then
         init_mariadb_removal "$@"
     else
         echo "Found MariaDB (MySQL), but not removed."
