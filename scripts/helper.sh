@@ -475,8 +475,8 @@ function enable_swap() {
 # Create system account.
 function create_account() {
     export USERNAME=${1:-"lemper"}
-    PASSWORD=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)} && \
-    export PASSWORD
+    export PASSWORD && \
+    PASSWORD=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)}
 
     echo "Creating default LEMPer account..."
 
@@ -494,7 +494,7 @@ function create_account() {
             fi
 
             # Add account credentials to /srv/.htpasswd.
-            if [[ ! -f "/srv/.htpasswd" ]]; then 
+            if [ ! -f "/srv/.htpasswd" ]; then
                 run touch /srv/.htpasswd
             fi
 
@@ -530,6 +530,11 @@ function delete_account() {
 
     if [[ -n $(getent passwd "${USERNAME}") ]]; then
         run userdel -r "${USERNAME}"
+
+        if [ -f "/srv/.htpasswd" ]; then
+            run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
+        fi
+
         status "Account ${USERNAME} deleted."
     else
         warning "Account ${USERNAME} not found."
