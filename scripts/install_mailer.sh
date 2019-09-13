@@ -49,8 +49,7 @@ function install_postfix() {
 # https://www.linode.com/docs/email/postfix/email-with-postfix-dovecot-and-mysql/
 
 
-echo "[Welcome to Mail Installer]"
-echo ""
+echo "[Mail Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

@@ -91,8 +91,7 @@ function init_imagemagick_install() {
     fi
 }
 
-echo "[Welcome to ImageMagick Installer]"
-echo ""
+echo "[ImageMagick Packages Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

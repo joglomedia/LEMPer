@@ -17,40 +17,6 @@ fi
 # Make sure only root can run this installer script.
 requires_root
 
-function create_index_file() {
-    cat <<- _EOF_
-<!DOCTYPE html>
-<html>
-<head>
-<title>Welcome to nginx!</title>
-<style>
-    body {
-        width: 35em;
-        margin: 0 auto;
-        font-family: Tahoma, Verdana, Arial, sans-serif;
-    }
-</style>
-</head>
-<body>
-<h1>Welcome to nginx!</h1>
-<p>If you see this page, the nginx web server is successfully installed using
-LEMPer. Further configuration is required.</p>
-
-<p>For online documentation and support please refer to
-<a href="http://nginx.org/">nginx.org</a>.<br/>
-LEMPer and ngxTools support is available at
-<a href="https://github.com/joglomedia/LEMPer/issues">LEMPer git</a>.</p>
-
-<p><em>Thank you for using nginx, ngxTools, and LEMPer.</em></p>
-
-<p style="font-size:90%;">Generated using <em>LEMPer</em> from
-<a href="https://eslabs.id/lemper">Nginx vHost Tool</a>, a simple nginx web
-server management tool.</p>
-</body>
-</html>
-_EOF_
-}
-
 function init_webadmin_install() {
     # Install Lemper CLI tool.
     echo "Installing Lemper CLI tool..."
@@ -72,17 +38,8 @@ function init_webadmin_install() {
         run mkdir -p /usr/share/nginx/html/lcp
     fi
 
-    if ! "${DRYRUN}"; then
-        if [ -d /usr/share/nginx/html ]; then
-            run touch /usr/share/nginx/html/index.html
-            run create_index_file > /usr/share/nginx/html/index.html
-        fi
-
-        if [ -d /usr/share/nginx/html/lcp ]; then
-            run touch /usr/share/nginx/html/lcp/index.html
-            run create_index_file > /usr/share/nginx/html/lcp/index.html
-        fi
-    fi
+    # Copy default index file.
+    run cp -f share/nginx/html/index.html /usr/share/nginx/html/
 
     # Install PHP Info
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php'
@@ -95,9 +52,9 @@ function init_webadmin_install() {
     # Install Adminer for Web-based MySQL Administration Tool
     if [ ! -d /usr/share/nginx/html/lcp/dbadminer ]; then
         run mkdir /usr/share/nginx/html/lcp/dbadminer
-        run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.3/adminer-4.7.3.php \
+        run wget -q https://github.com/vrana/adminer/releases/download/v4.7.3/adminer-4.7.3.php \
             -O /usr/share/nginx/html/lcp/dbadminer/index.php
-        run wget -q --no-check-certificate https://github.com/vrana/adminer/releases/download/v4.7.3/editor-4.7.3.php \
+        run wget -q https://github.com/vrana/adminer/releases/download/v4.7.3/editor-4.7.3.php \
             -O /usr/share/nginx/html/lcp/dbadminer/editor.php
     fi
 
@@ -112,7 +69,7 @@ function init_webadmin_install() {
     # TODO: Replace FileRun with Tinyfilemanager https://github.com/prasathmani/tinyfilemanager
 
     # Install Zend OpCache Web Admin
-    run wget -q --no-check-certificate https://raw.github.com/rlerdorf/opcache-status/master/opcache.php \
+    run wget -q https://raw.github.com/rlerdorf/opcache-status/master/opcache.php \
         -O /usr/share/nginx/html/lcp/opcache.php
 
     # Install Memcached Web Admin
@@ -136,8 +93,7 @@ function init_webadmin_install() {
     fi
 }
 
-echo "[Welcome to LEMPer Tools Installer]"
-echo ""
+echo "[LEMPer CLI & Panel Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

@@ -529,13 +529,18 @@ function delete_account() {
     local USERNAME=${1:-"lemper"}
 
     if [[ -n $(getent passwd "${USERNAME}") ]]; then
-        run userdel -r "${USERNAME}"
 
-        if [ -f "/srv/.htpasswd" ]; then
-            run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
+        if pgrep -u "${USERNAME}"; then
+            error "User lemper is currently used by process."
+        else
+            run userdel -r "${USERNAME}"
+
+            if [ -f "/srv/.htpasswd" ]; then
+                run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
+            fi
+
+            status "Account ${USERNAME} deleted."
         fi
-
-        status "Account ${USERNAME} deleted."
     else
         warning "Account ${USERNAME} not found."
     fi
@@ -543,9 +548,11 @@ function delete_account() {
 
 # Get server IP Address.
 function get_ip_addr() {
+    local IP_INTERNAL && \
     IP_INTERNAL=$(ip addr | grep 'inet' | grep -v inet6 | \
         grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | \
         grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
+    local IP_EXTERNAL && \
     IP_EXTERNAL=$(curl -s http://ipecho.net/plain)
 
     if [[ "${IP_INTERNAL}" == "${IP_EXTERNAL}" ]]; then

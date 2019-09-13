@@ -81,16 +81,21 @@ function install_phalcon() {
         PHALCON_VERSION="master"
     fi
 
-    if wget --no-check-certificate -q -O "cphalcon-${PHALCON_VERSION}.tar.gz" \
+    if wget -q -O "cphalcon-${PHALCON_VERSION}.tar.gz" \
         "https://github.com/phalcon/cphalcon/archive/v${PHALCON_VERSION}.tar.gz"; then
         run tar -zxf "cphalcon-${PHALCON_VERSION}.tar.gz"
         #run rm -f "cphalcon-${PHALCON_VERSION}.tar.gz"
         run cd "cphalcon-${PHALCON_VERSION}/build"
-    elif wget --no-check-certificate -q -O /dev/null \
-        "https://github.com/phalcon/cphalcon/blob/${PHALCON_VERSION}/README.md"; then
-        # Clone repository
-        run git clone --depth=1 --branch="${PHALCON_VERSION}" -q https://github.com/phalcon/cphalcon.git
-        run cd cphalcon/build
+    elif wget -q -O /dev/null "https://raw.githubusercontent.com/phalcon/cphalcon/${PHALCON_VERSION}/README.md"; then
+        # Clone repository.
+        if [ ! -d cphalcon ]; then
+            run git clone --depth=1 --branch="${PHALCON_VERSION}" -q https://github.com/phalcon/cphalcon.git && \
+            run cd cphalcon/build
+        else
+            run cd cphalcon && \
+            run git pull -q && \
+            run cd build
+        fi
     else
         error "cPhalcon ${PHALCON_VERSION} source couldn't be downloaded."
     fi
@@ -102,6 +107,12 @@ function install_phalcon() {
         else
             run ./install
         fi
+    fi
+
+    PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+    if [ -f "${PHPLIB_DIR}/phalcon.so" ]; then
+        status "Phalcon.so module sucessfully installed."
+        run chmod 0644 "${PHPLIB_DIR}/phalcon.so"
     fi
 
     run cd "${CURRENT_DIR}"
@@ -124,15 +135,17 @@ function enable_phalcon() {
             local PHPLIB_DIR && \
                 PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
             if [[ -f "${PHPLIB_DIR}/phalcon.so" && ! -f "/etc/php/${PHPv}/mods-available/phalcon.ini" ]]; then
+                run echo "Enabling Phalcon extension for PHP${PHPv}..."
+
                 run touch "/etc/php/${PHPv}/mods-available/phalcon.ini"
                 run echo "extension=phalcon.so" > "/etc/php/${PHPv}/mods-available/phalcon.ini"
 
                 # Enable extension.
-                if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-phalcon.ini" ]; then
+                if [ ! -s "/etc/php/${PHPv}/fpm/conf.d/20-phalcon.ini" ]; then
                     run ln -s "/etc/php/${PHPv}/mods-available/phalcon.ini" "/etc/php/${PHPv}/fpm/conf.d/20-phalcon.ini"
                 fi
 
-                if [ ! -f "/etc/php/${PHPv}/cli/conf.d/20-phalcon.ini" ]; then
+                if [ ! -s "/etc/php/${PHPv}/cli/conf.d/20-phalcon.ini" ]; then
                     run ln -s "/etc/php/${PHPv}/mods-available/phalcon.ini" "/etc/php/${PHPv}/cli/conf.d/20-phalcon.ini"
                 fi
             fi
@@ -224,8 +237,7 @@ function init_phalcon_install() {
     fi
 }
 
-echo "[welcome to Phalcon PHP Framework Installer]"
-echo ""
+echo "[Phalcon Framework (PHP Extension) Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
@@ -236,7 +248,7 @@ if [[ -n $(command -v "php${PHP_VERSION}") ]]; then
     if [ ! -f "${PHPLIB_DIR}/phalcon.so" ]; then
         init_phalcon_install "$@"
     else
-        warning "Phalcon PHP already installed. Installation skipped..."
+        warning "Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so. Installation skipped..."
     fi
 else
     warning "PHP${PHP_VERSION} & FPM not found. Installation skipped..."
