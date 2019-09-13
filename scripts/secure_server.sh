@@ -32,8 +32,9 @@ After this step, you will have the following files: id_rsa and id_rsa.pub (priva
 Never share your private key.
 "
 
-        read -rt 60 -p "Press [Enter] to continue..." </dev/tty
-        echo ""
+        #read -rt 120 -p "Press [Enter] to continue..." </dev/tty
+        #echo ""
+        sleep 5
 
         RSA_PUB_KEY=${RSA_PUB_KEY:-n}
         while ! [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; do
@@ -68,7 +69,7 @@ EOL
             run chmod 700 /home/lemper/.ssh
             run chmod 600 /home/lemper/.ssh/authorized_keys
 
-            echo -e "\nEnable SSH_PASSWORDLESS login..."
+            echo -e "\nEnable SSH password-less login..."
 
             # Restrict root login directly, use sudo user instead.
             SSH_ROOT_LOGIN=${SSH_ROOT_LOGIN:-false}
@@ -130,7 +131,7 @@ EOL
 function install_ufw() {
     SSH_PORT=${1:-$SSH_PORT}
 
-    echo -e "\nInstalling Uncomplicated Firewall (UFW)...\n"
+    echo "Installing Uncomplicated Firewall (UFW)..."
 
     if [[ -n $(command -v apf) ]]; then
         # Remove APF+BFD if exists.
@@ -191,7 +192,7 @@ function install_ufw() {
 
         # Restart
         if "${DRYRUN}"; then
-            echo "UFW firewall installed in dryrun mode."
+            warning "UFW firewall installed in dryrun mode."
         else
             if service ufw restart; then
                 status "UFW firewall installed successfully."
@@ -206,7 +207,7 @@ function install_ufw() {
 function install_csf() {
     SSH_PORT=${1:-$SSH_PORT}
 
-    echo -e "\nInstalling CSF+LFD firewall...\n"
+    echo "Installing CSF+LFD firewall..."
 
     if [[ -n $(command -v ufw) ]]; then
         # Remove default Ubuntu firewall (UFW) if exists.
@@ -233,12 +234,15 @@ function install_csf() {
     run cd "${BUILD_DIR}"
 
     echo "Installing CSF+LFD firewall..."
-    if wget --no-check-certificate -q https://download.configserver.com/csf.tgz; then
+    if wget -q https://download.configserver.com/csf.tgz; then
         run tar -xzf csf.tgz
         run cd csf/
         run sh install.sh
         run cd ../
-        run perl /usr/local/csf/bin/csftest.pl
+
+        if [ -f /usr/local/csf/bin/csftest.pl ]; then
+            run perl /usr/local/csf/bin/csftest.pl
+        fi
     fi
 
     if [ -f /etc/csf/csf.conf ]; then
@@ -278,7 +282,7 @@ function install_csf() {
     run cd "${CURRENT_DIR}"
 
     if "${DRYRUN}"; then
-        echo "CSF+LFD firewall installed in dryrun mode."
+        warning "CSF+LFD firewall installed in dryrun mode."
     else
         if [[ -n $(command -v csf) && -n $(command -v lfd) ]]; then
             if service csf restart; then
@@ -303,7 +307,7 @@ function install_apf() {
     SSH_PORT=${1:-$SSH_PORT}
     APF_VERSION=${APF_VERSION:-"1.7.6-1"}
 
-    echo -e "\nInstalling APF+BFD iptables firewall...\n"
+    echo "Installing APF+BFD iptables firewall..."
 
     if [[ -n $(command -v ufw) ]]; then
         # Remove default Ubuntu firewall (UFW) if exists.
@@ -320,10 +324,9 @@ function install_apf() {
     run cd "${BUILD_DIR}"
 
     echo "Installing APF+BFD firewall..."
-    if wget -q --no-check-certificate -O apf.tar.gz \
-        "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz"; then
+    if wget -q "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz"; then
         
-        run tar -xf apf.tar.gz
+        run tar -xf "${APF_VERSION}.tar.gz"
         run cd advanced-policy-firewall-*/
         run bash install.sh
         run cd ../
@@ -350,7 +353,7 @@ function install_apf() {
     run cd "${CURRENT_DIR}"
 
     if "${DRYRUN}"; then
-        echo "APF+BFD firewall installed in dryrun mode."
+        warning "APF+BFD firewall installed in dryrun mode."
     else
         if [[ -n $(command -v apf) ]]; then
             if service apf restart; then
@@ -407,8 +410,7 @@ function remove_apf() {
 # Install Firewall.
 function install_firewall() {
     echo ""
-    echo "[Welcome to Iptables-based Firewall Installer]"
-    echo ""
+    echo "[Iptables-based Firewall Installation]"
     warning "You should not run any other iptables firewall configuration script.
 Any other iptables based firewall will be removed otherwise they will conflict."
     echo ""
@@ -416,7 +418,7 @@ Any other iptables based firewall will be removed otherwise they will conflict."
     if "${AUTO_INSTALL}"; then
         DO_INSTALL_FW="y"
     fi
-    while [[ ${DO_INSTALL_FW} != "y" && ${DO_INSTALL_FW} != "n" && "${AUTO_INSTALL}" != true ]]; do
+    while [[ ${DO_INSTALL_FW} != "y" && ${DO_INSTALL_FW} != "n" ]]; do
         read -rp "Do you want to install Firewall configurator? [y/n]: " -i y -e DO_INSTALL_FW
     done
 
@@ -440,6 +442,8 @@ Any other iptables based firewall will be removed otherwise they will conflict."
                     && ${SELECTED_FW} != "csf" && ${SELECTED_FW} != "apf" ]]; do
                 read -rp "Select an option [1-3]: " -i "${FW_ENGINE}" -e SELECTED_FW
             done
+
+            echo ""
         fi
 
         # Ensure that iptables installed.
@@ -482,14 +486,16 @@ function init_secure_server() {
     fi
 }
 
+echo "[LEMPer Basic Server Security]"
+
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ "${1}" == "--install" ]]; then
-    echo "[Welcome to LEMPer Basic Server Security]"
-    echo ""
     init_secure_server "$@"
 elif [[ "${1}" == "--remove" || "${1}" == "--uninstall" ]]; then
     remove_apf
     remove_csf
     remove_ufw
+else
+    error "'--' command is required." >&2
 fi
