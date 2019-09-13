@@ -25,6 +25,9 @@ server {
     access_log /var/log/nginx/localhost.access.log;
     error_log /var/log/nginx/localhost.error.log;
 
+    # Error page directives.
+    include /etc/nginx/includes/error_pages.conf
+
     location / {
         # First attempt to serve request as file, then
         # as directory, then fall back to index.html
@@ -119,6 +122,9 @@ server {
     # Log Settings.
     access_log /var/log/nginx/localhost.access.log;
     error_log /var/log/nginx/localhost.error.log;
+
+    # Error page directives.
+    include /etc/nginx/includes/error_pages.conf;
 
     location / {
         # First attempt to serve request as file, then
