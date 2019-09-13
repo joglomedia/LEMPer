@@ -395,14 +395,19 @@ function enable_https() {
     if [[ ! -d "/etc/nginx/ssl/${1}" ]]; then
         echo "Certbot: Get Let's Encrypt certificate..."
 
+        # Get web root path from vhost config, first.
+        #shellcheck disable=SC2154
+        local WEBROOT && \
+        WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${1}.conf" | awk '{print $3}' | cut -d'"' -f2)
+
         # Certbot get Let's Encrypt SSL.
         if [[ -n $(command -v certbot) ]]; then
             # Is it wildcard vhost?
             if grep -qwE "\*.${1}" "/etc/nginx/sites-available/${1}.conf"; then
                 run certbot certonly --manual --preferred-challenges dns --manual-public-ip-logging-ok \
-                    --webroot-path="/home/lemper/webapps/${1}" -d "${1}" -d "*.${1}"
+                    --webroot-path="${WEBROOT}" -d "${1}" -d "*.${1}"
             else
-                run certbot certonly --webroot --webroot-path="/home/lemper/webapps/${1}" -d "${1}"
+                run certbot certonly --webroot --webroot-path="${WEBROOT}" -d "${1}"
             fi
         else
             fail "Certbot executable binary not found. Install it first!"
@@ -435,8 +440,8 @@ function enable_https() {
             run sed -i "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${1}.conf"
             run sed -i "s/#ssl_certificate_key/ssl_certificate_key/g" "/etc/nginx/sites-available/${1}.conf"
             run sed -i "s/#ssl_trusted_certificate/ssl_trusted_certificate/g" "/etc/nginx/sites-available/${1}.conf"
-            run sed -i "s|#include\ /etc/nginx/includes/ssl.conf|include\ /etc/nginx/includes/ssl.conf|g" \
-                "/etc/nginx/sites-available/${1}.conf"
+            #run sed -i "s|#include\ /etc/nginx/includes/ssl.conf|include\ /etc/nginx/includes/ssl.conf|g" \
+            #    "/etc/nginx/sites-available/${1}.conf"
 
             # Adjust PageSpeed if enabled.
             #if grep -qwE "^\    include\ /etc/nginx/includes/mod_pagespeed.conf" \

@@ -38,7 +38,7 @@ function init_certbotle_install() {
         #15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/bin/systemctl reload nginx"
 
         if "${DRYRUN}"; then
-            status "Add Certbot auto-renew to cronjob in dryrun mode."
+            warning "Add Certbot auto-renew to cronjob in dryrun mode."
         else
             export EDITOR=nano
             CRONCMD='15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
@@ -70,7 +70,7 @@ EOL
         fi
 
         if "${DRYRUN}"; then
-            status -e "\nCertbot installed in dryrun mode."
+            warning -e "\nCertbot installed in dryrun mode."
         else
             if certbot --version | grep -q "certbot"; then
                 status -e "\nCertbot installed successfully."
@@ -81,8 +81,7 @@ EOL
     fi
 }
 
-echo "[Welcome to Certbot Let's Encrypt Installer]"
-echo ""
+echo "[Certbot Let's Encrypt Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

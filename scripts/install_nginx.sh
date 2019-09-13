@@ -15,7 +15,7 @@ if [ "$(type -t run)" != "function" ]; then
 fi
 
 # Define scripts directory.
-if echo "${BASEDIR}" | grep -qwE "scripts"; then
+if grep -q "scripts" <<< "${BASEDIR}"; then
     SCRIPTS_DIR="${BASEDIR}"
 else
     SCRIPTS_DIR="${BASEDIR}/scripts"
@@ -48,7 +48,7 @@ function add_nginx_repo() {
             NGX_PACKAGE="nginx-custom"
         ;;
 
-        bionic)
+        bionic|disco)
             # NGiNX official repo.
             run apt-key fingerprint ABF5BD827BD9BF62
             run add-apt-repository -y ppa:nginx/stable
@@ -691,7 +691,7 @@ function init_nginx_install() {
 
     # Copy custom NGiNX Config.
     if [ -f /etc/nginx/nginx.conf ]; then
-        run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.old
+        run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf~
     fi
 
     run cp -f etc/nginx/nginx.conf /etc/nginx/
@@ -716,11 +716,13 @@ function init_nginx_install() {
     fi
     run ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/01-default
 
-    # Custom error pages.
+    # Custom pages.
     if [ ! -d /usr/share/nginx/html ]; then
         run mkdir -p /usr/share/nginx/html
     fi
     run cp -fr share/nginx/html/error-pages /usr/share/nginx/html/
+    run cp -f share/nginx/html/index.html /usr/share/nginx/html/
+    
     if [ -d /usr/share/nginx/html ]; then
         run chown -hR www-data:www-data /usr/share/nginx/html
     fi
@@ -811,8 +813,7 @@ function init_nginx_install() {
     fi
 }
 
-echo "[Welcome to NGiNX Installer]"
-echo ""
+echo "[NGiNX HTTP Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

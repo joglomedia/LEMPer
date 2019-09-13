@@ -134,8 +134,7 @@ EOL
     fi
 }
 
-echo "[Welcome to Redis server Installer]"
-echo ""
+echo "[Redis (Key-value) Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

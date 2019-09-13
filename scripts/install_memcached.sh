@@ -243,8 +243,7 @@ EOL
     fi
 }
 
-echo "[Welcome to Memcached Installer]"
-echo ""
+echo "[Memcached Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

@@ -42,7 +42,7 @@ function init_memcached_removal() {
         if [[ -n "${MEMCACHED_BIN}" ]]; then
             # Disable systemctl.
             if [ -f /etc/systemd/system/multi-user.target.wants/memcached.service ]; then
-                echo "Disable Memcached service..."
+                echo "Disabling Memcached service..."
                 run systemctl disable memcached@memcache.service
                 run systemctl disable memcached@www-data.service
             fi
@@ -70,7 +70,7 @@ function init_memcached_removal() {
 
             # Remove binary executable file.
             if [ -f "${MEMCACHED_BIN}" ]; then
-                echo "Remove Memcached binary executable file..."
+                echo "Removing Memcached binary executable file..."
                 run rm -f "${MEMCACHED_BIN}"
             fi
 
@@ -102,7 +102,7 @@ function init_memcached_removal() {
     # Delete memcache user.
     if [[ -n $(getent passwd memcache) ]]; then
         if "${DRYRUN}"; then
-            echo "Delete memcache user in dryrun mode."
+            echo "Memcache user deleted in dryrun mode."
         else
             run userdel -r memcache
             #run groupdel memcache

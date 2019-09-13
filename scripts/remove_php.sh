@@ -86,10 +86,11 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" 
         fi
 
         if [[ "${REMOVE_PHPCONFIG}" == Y* || "${REMOVE_PHPCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
-            echo "All your configuration files deleted permanently..."
             if [ -d "/etc/php/${PHPv}" ]; then
                 run rm -fr "/etc/php/${PHPv}"
             fi
+
+            echo "All your configuration files deleted permanently."
         fi
 
         if [[ -z $(command -v "php${PHPv}") ]]; then
@@ -105,10 +106,10 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" 
 # Remove PHP & FPM.
 function init_php_fpm_removal() {
     # PHP version.
-    #local PHPv="${1}"
-    #if [ -z "${PHPv}" ]; then
+    local PHPv="${1}"
+    if [[ -z "${PHPv}" || "${PHPv}" =~ *install || "${PHPv}" == *remove ]]; then
         PHPv=${PHP_VERSION:-"7.3"}
-    #fi
+    fi
 
     case "${PHPv}" in
         "5.6")
@@ -156,6 +157,8 @@ function init_php_fpm_removal() {
             if [[ -d /usr/lib/php ]]; then
                 run rm -fr /usr/lib/php
             fi
+
+            echo "All PHP-FPM installation completely removed."
         fi
     fi
 }

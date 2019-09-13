@@ -340,7 +340,7 @@ function optimize_php_fpm() {
 
     # Copy the optimized-version of php.ini
     if [ -f "etc/php/${PHPv}/fpm/php.ini" ]; then
-        run mv "/etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/php.ini.old"
+        run mv "/etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/php.ini~"
         run cp -f "etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/"
     else
         cat >> "/etc/php/${PHPv}/fpm/php.ini" <<EOL
@@ -366,7 +366,7 @@ EOL
 
     # Copy the optimized-version of php-fpm config file.
     if [ -f "etc/php/${PHPv}/fpm/php-fpm.conf" ]; then
-        run mv "/etc/php/${PHPv}/fpm/php-fpm.conf" "/etc/php/${PHPv}/fpm/php-fpm.conf.old"
+        run mv "/etc/php/${PHPv}/fpm/php-fpm.conf" "/etc/php/${PHPv}/fpm/php-fpm.conf~"
         run cp -f "etc/php/${PHPv}/fpm/php-fpm.conf" "/etc/php/${PHPv}/fpm/"
     else
         if grep -qwE "^emergency_restart_threshold\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
@@ -398,25 +398,28 @@ EOL
         run mkdir "/etc/php/${PHPv}/fpm/pool.d"
     fi
 
-    # Copy the optimized-version of php fpm default pool
+    # Copy the optimized-version of php fpm default pool.
     if [ -f "etc/php/${PHPv}/fpm/pool.d/www.conf" ]; then
-        run mv "/etc/php/${PHPv}/fpm/pool.d/www.conf" "/etc/php/${PHPv}/fpm/pool.d/www.conf.old"
+        run mv "/etc/php/${PHPv}/fpm/pool.d/www.conf" "/etc/php/${PHPv}/fpm/pool.d/www.conf~"
         run cp -f "etc/php/${PHPv}/fpm/pool.d/www.conf" "/etc/php/${PHPv}/fpm/pool.d/"
     fi
 
-    # Copy the optimized-version of php fpm lemper pool
+    # Copy the optimized-version of php fpm default lemper pool.
+    local POOLNAME=${LEMPER_USERNAME:-"lemper"}
     if [ -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" ]; then
-        run mv "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/lemper.conf.old"
-        run cp -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/"
+        if [[ -f "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" && ${POOLNAME} != "lemper" ]]; then
+            run mv "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/lemper.conf~"
+        fi
+        run cp -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
     else
-        cat >> "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" <<EOL
-[lemper]
-user = lemper
-group = lemper
+        cat >> "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf" <<EOL
+[${POOLNAME}]
+user = ${POOLNAME}
+group = ${POOLNAME}
 
 listen = /run/php/php${PHPv}-fpm.\$pool.sock
-listen.owner = lemper
-listen.group = lemper
+listen.owner = ${POOLNAME}
+listen.group = ${POOLNAME}
 listen.mode = 0666
 ;listen.allowed_clients = 127.1.0.1
 
@@ -436,7 +439,7 @@ ping.path = /ping
 request_slowlog_timeout = 5s
 slowlog = /var/log/php/php${PHPv}-fpm_slow.\$pool.log
 
-chdir = /home/lemper
+chdir = /home/${POOLNAME}
 
 security.limit_extensions = .php .php3 .php4 .php5 .php${PHPv//./}
 
@@ -446,7 +449,7 @@ php_flag[display_errors] = on
 php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
 php_admin_value[memory_limit] = 128M
-php_admin_value[open_basedir] = /home/lemper
+php_admin_value[open_basedir] = /home/${POOLNAME}
 
 EOL
     fi
@@ -476,7 +479,7 @@ EOL
         if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
             status "PHP${PHPv}-FPM started successfully."
         else
-            warning "Something wrong with PHP${PHPv} & FPM installation."
+            warning "Something goes wrong with PHP${PHPv} & FPM installation."
         fi
     fi
 }
@@ -680,8 +683,7 @@ function init_php_fpm_install() {
     fi
 }
 
-echo "[Welcome to PHP Installer]"
-echo ""
+echo "[PHP & FPM Packages Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

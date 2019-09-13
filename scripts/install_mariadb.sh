@@ -171,7 +171,7 @@ function enable_mariabackup() {
 
     export MARIABACKUP_USER=${MARIABACKUP_USER:-"lemperdb"}
     export MARIABACKUP_PASS && \
-    MARIABACKUP_PASS=$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)
+    MARIABACKUP_PASS=${MARIABACKUP_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)}
 
     echo "Please enter your current MySQL root password to process!"
     export MYSQL_ROOT_PASS
@@ -214,8 +214,7 @@ Or try to add mariabackup user manually! "
     fi
 }
 
-echo "[Welcome to MariaDB (MySQL) Installer]"
-echo ""
+echo "[MariaDB (MySQL drop-in replacement) Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

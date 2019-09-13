@@ -109,8 +109,7 @@ _EOF_
     fi
 }
 
-echo "[Welcome to MongoDB Installer]"
-echo ""
+echo "[MongoDB Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

@@ -34,7 +34,7 @@ set -e
 
 # Try to export global path.
 if [ -z "${PATH}" ] ; then
-    export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 fi
 
 # Get base directory.
@@ -79,7 +79,7 @@ case "${1}" in
         echo "Starting LEMP stack installation..."
         echo "Please ensure that you're on a fresh install!"
         echo ""
-        read -t 10 -rp "Press [Enter] to continue..." </dev/tty
+        read -t 60 -rp "Press [Enter] to continue..." </dev/tty
 
         ### Clean-up server ###
         echo ""
@@ -180,17 +180,20 @@ case "${1}" in
             run apt-get autoremove -y
 
             # Cleanup build dir
-            echo "Clean up build directorty..."
+            echo "Clean up build directory..."
             if [ -d "$BUILD_DIR" ]; then
                 run rm -fr "$BUILD_DIR"
             fi
         fi
 
-        status -e "\nLEMPer installation has been completed."
+        if "${DRYRUN}"; then
+            warning -e "\nLEMPer installation has been completed in dry-run mode."
+        else
+            status -e "\nLEMPer installation has been completed."
 
-        ### Recap ###
-        if [[ -n "${PASSWORD}" ]]; then
-            CREDENTIALS="
+            ### Recap ###
+            if [[ -n "${PASSWORD}" ]]; then
+                CREDENTIALS="
 Here is your default system account information:
     Hostname : $(hostname)
     Server IP: ${IP_SERVER}
@@ -213,10 +216,11 @@ Access to your File manager (FileRun):
 Please Save & Keep It Private!
 ~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~"
 
-            status "${CREDENTIALS}"
+                status "${CREDENTIALS}"
 
-            # Save it to log file
-            echo "${CREDENTIALS}" >> lemper.log
+                # Save it to log file
+                echo "${CREDENTIALS}" >> lemper.log
+            fi
         fi
 
         echo "
