@@ -15,7 +15,7 @@ if [ "$(type -t run)" != "function" ]; then
 fi
 
 # Define scripts directory.
-if echo "${BASEDIR}" | grep -qwE "scripts"; then
+if grep -q "scripts" <<< "${BASEDIR}"; then
     SCRIPTS_DIR="${BASEDIR}"
 else
     SCRIPTS_DIR="${BASEDIR}/scripts"
@@ -25,7 +25,6 @@ fi
 requires_root
 
 echo "Cleaning up server..."
-echo ""
 
 # Fix broken install, first?
 run dpkg --configure -a
@@ -33,24 +32,39 @@ run apt-get -qq --fix-broken install
 
 # Remove Apache2 service if exists.
 if [[ -n $(command -v apache2) ]]; then
-    warning -e "\nIt seems Apache web server installed on this server."
+    warning -e "\nIt seems that Apache/httpd server installed on this server."
     echo "Any other HTTP web server will be removed, otherwise they will conflict."
-    read -t 15 -rp "Press [Enter] to continue..." </dev/tty
-    echo -e "\nUninstall existing Apache web server..."
+    echo ""
+    #read -rt 120 -p "Press [Enter] to continue..." </dev/tty
 
-    if "${DRYRUN}"; then
-        echo "Removing Apache2 installation in dryrun mode."
+    if "${AUTO_REMOVE}"; then
+        REMOVE_APACHE="y"
     else
-        run service apache2 stop
-        run apt-get -qq --purge remove -y apache2 apache2-doc apache2-utils \
-            apache2.2-common apache2.2-bin apache2-mpm-prefork \
-            apache2-doc apache2-mpm-worker
+        while [[ "${REMOVE_APACHE}" != "y" && "${REMOVE_APACHE}" != "n" ]]; do
+            read -rp "Are you sure to remove Apache/HTTPD server? [y/n]: " -e REMOVE_APACHE
+        done
+        echo ""
+    fi
+
+    if [[ "${REMOVE_APACHE}" == Y* || "${REMOVE_APACHE}" == y* ]]; then
+        echo "Uninstall existing Apache/HTTPD server..."
+        
+        if "${DRYRUN}"; then
+            echo "Removing Apache2 installation in dryrun mode."
+        else
+            run service apache2 stop
+            run apt-get -qq --purge remove -y apache2 apache2-doc apache2-utils \
+                apache2.2-common apache2.2-bin apache2-mpm-prefork \
+                apache2-doc apache2-mpm-worker
+        fi
+    else
+        echo "Found Apache/HTTPD server, but not removed."
     fi
 fi
 
 # Remove NGiNX service if exists.
 if [[ -n $(command -v nginx) ]]; then
-    warning -e "\nNGiNX HTTP server already installed on this server. Should we remove it?"
+    warning -e "\nNGiNX HTTP server already installed. Should we remove it?"
     echo "Backup your config and data before continue!"
 
     # shellchechk source=scripts/remove_nginx.sh
@@ -65,7 +79,7 @@ if [[ -n $(command -v php5.6) || \
     -n $(command -v php7.2) || \
     -n $(command -v php7.3) ]]; then
 
-    warning -e "\nPHP & FPM already installed on this server. Should we remove it?"
+    warning -e "\nPHP & FPM already installed. Should we remove it?"
     echo "Backup your config and data before continue!"
 
     # shellchechk source=scripts/remove_php.sh
@@ -75,7 +89,7 @@ fi
 
 # Remove Mysql service if exists.
 if [[ -n $(command -v mysql) ]]; then
-    warning -e "\nMySQL database server already installed on this server. Should we remove it?"
+    warning -e "\nMariaDB (MySQL) database server already installed. Should we remove it?"
     echo "Backup your database before continue!"
 
     # shellchechk source=scripts/remove_mariadb.sh
@@ -89,10 +103,15 @@ if [[ -n $(getent passwd "${USERNAME}") ]]; then
     warning -e "\nDefault lemper account already exists. Should we remove it?"
     echo "Backup your data before continue!"
 
-    while [[ "${REMOVE_ACCOUNT}" != "y" && "${REMOVE_ACCOUNT}" != "n" && "${AUTO_REMOVE}" != true ]]; do
-        read -rp "Are you sure to remove PHP & FPM? [y/n]: " -e REMOVE_ACCOUNT
-    done
-    if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* || "${AUTO_REMOVE}" == true ]]; then
+    if "${AUTO_REMOVE}"; then
+       REMOVE_ACCOUNT="y"
+    else
+        while [[ "${REMOVE_ACCOUNT}" != "y" && "${REMOVE_ACCOUNT}" != "n" ]]; do
+            read -rp "Are you sure to remove default account [y/n]: " -e REMOVE_ACCOUNT
+        done
+    fi
+
+    if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* ]]; then
         delete_account "${USERNAME}"
     else
         echo "Found default lemper account, but not removed."
@@ -100,7 +119,7 @@ if [[ -n $(getent passwd "${USERNAME}") ]]; then
 fi
 
 # Autoremove unused packages.
-echo -e "\nClean up unused packages."
+echo -e "\nCleaning up unused packages..."
 run apt autoremove -y
 
 if [[ -z $(command -v apache2) && -z $(command -v nginx) && -z $(command -v mysql) ]]; then

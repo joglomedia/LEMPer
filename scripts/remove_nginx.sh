@@ -94,10 +94,12 @@ function init_nginx_removal() {
                 run rm -fr /etc/nginx/modules-available
             fi
 
-            # Delete lemper account from PageSpeed admin.
+            # Delete default account from PageSpeed admin.
             if [ -f /srv/.htpasswd ]; then
+                local USERNAME=${LEMPER_USERNAME:-"lemper"}
                 #run echo "" > /srv/.htpasswd
-                run sed -i "/^lemper:/d" /srv/.htpasswd
+                #run sed -i "/^lemper:/d" /srv/.htpasswd
+                run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
             fi
         fi
     fi
@@ -108,23 +110,29 @@ function init_nginx_removal() {
         REMOVE_NGXCONFIG="y"
     else
         while [[ "${REMOVE_NGXCONFIG}" != "y" && "${REMOVE_NGXCONFIG}" != "n" ]]; do
-            read -rp "Remove all Nginx configs under /etc/nginx directory? [y/n]: " -e REMOVE_NGXCONFIG
+            read -rp "Remove all Nginx configuration files? [y/n]: " -e REMOVE_NGXCONFIG
         done
     fi
 
     if [[ "${REMOVE_NGXCONFIG}" == Y* || "${REMOVE_NGXCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
-        echo "All your Nginx configs files deleted permanently..."
         run rm -fr /etc/nginx
         # Remove nginx-cache.
         run rm -fr /var/cache/nginx
         # Remove nginx html.
         run rm -fr /usr/share/nginx
-    fi
 
-    if [[ -z $(command -v nginx) ]]; then
-        status "Nginx HTTP server removed."
+        echo "All your Nginx configs files deleted permanently."
+    fi
+    
+    # Final test.
+    if "${DRYRUN}"; then
+        warning "Nginx HTTP server removed in dryrun mode."
     else
-        warning "Nginx HTTP server not removed."
+        if [[ -z $(command -v nginx) ]]; then
+            status "Nginx HTTP server removed succesfully."
+        else
+            warning "Unable to remove Nginx HTTP server."
+        fi
     fi
 }
 
