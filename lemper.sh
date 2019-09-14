@@ -237,6 +237,7 @@ Now, you can reboot your server and enjoy it!"
         read -rt 15 -p "Press [Enter] to continue..." </dev/tty
 
         # Fix broken install, first?
+        echo ""
         run dpkg --configure -a
         run apt-get --fix-broken install
 
