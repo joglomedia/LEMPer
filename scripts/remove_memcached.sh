@@ -20,9 +20,9 @@ requires_root
 function init_memcached_removal() {
     # Stop Memcached server process.
     if [[ $(pgrep -c memcached) -gt 0 ]]; then
-        run service memcached@memcache stop
-        run service memcached@www-data stop
-        #run kill -9 "$(pidof memcached)"
+        #run service memcached@memcache stop
+        #run service memcached@www-data stop
+        run kill -9 "$(pidof memcached)"
     fi
 
     if dpkg-query -l | awk '/memcached/ { print $2 }' | grep -qwE "^memcached$"; then
