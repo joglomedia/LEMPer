@@ -51,7 +51,7 @@ function init_webadmin_install() {
 
     # Install Adminer for Web-based MySQL Administration Tool
     if [ ! -d /usr/share/nginx/html/lcp/dbadminer ]; then
-        run mkdir /usr/share/nginx/html/lcp/dbadminer
+        run mkdir -p /usr/share/nginx/html/lcp/dbadminer
         run wget -q https://github.com/vrana/adminer/releases/download/v4.7.3/adminer-4.7.3.php \
             -O /usr/share/nginx/html/lcp/dbadminer/index.php
         run wget -q https://github.com/vrana/adminer/releases/download/v4.7.3/editor-4.7.3.php \
@@ -60,9 +60,9 @@ function init_webadmin_install() {
 
     # Install FileRun File Manager
     if [ ! -d /usr/share/nginx/html/lcp/filemanager ]; then
-        run mkdir /usr/share/nginx/html/lcp/filemanager
-        run wget -q http://www.filerun.com/download-latest -O /usr/share/nginx/html/lcp/FileRun.zip
-        run unzip -o -qq /usr/share/nginx/html/lcp/FileRun.zip -d /usr/share/nginx/html/lcp/filemanager
+        run mkdir -p /usr/share/nginx/html/lcp/filemanager
+        run wget -q http://www.filerun.com/download-latest -O /usr/share/nginx/html/lcp/FileRun.zip && \
+        run unzip -o -qq /usr/share/nginx/html/lcp/FileRun.zip -d /usr/share/nginx/html/lcp/filemanager && \
         run rm -f /usr/share/nginx/html/lcp/FileRun.zip
     fi
 
