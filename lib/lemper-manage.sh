@@ -245,7 +245,7 @@ function remove_vhost() {
         #run mysql -u "$MYSQLUSER" -p"$MYSQLPASS" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema"
         local DATABASES && \
         DATABASES=$(mysql -u "$MYSQLUSER" -p"$MYSQLPASS" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
-        
+
         if [[ -n "${DATABASES}" ]]; then
             printf '%s\n' "${DATABASES}"
         else
@@ -404,10 +404,13 @@ function enable_https() {
         if [[ -n $(command -v certbot) ]]; then
             # Is it wildcard vhost?
             if grep -qwE "\*.${1}" "/etc/nginx/sites-available/${1}.conf"; then
-                run certbot certonly --manual --preferred-challenges dns --manual-public-ip-logging-ok \
+                run certbot certonly --rsa-key-size 4096 --manual --agree-tos --preferred-challenges dns --manual-public-ip-logging-ok \
                     --webroot-path="${WEBROOT}" -d "${1}" -d "*.${1}"
+                #run certbot certonly --manual --agree-tos --preferred-challenges dns --manual-public-ip-logging-ok \
+                #    --webroot-path="${WEBROOT}" -d "${1}" -d "*.${1}"
             else
-                run certbot certonly --webroot --webroot-path="${WEBROOT}" -d "${1}"
+                run certbot certonly --rsa-key-size 4096 --webroot --agree-tos --webroot-path="${WEBROOT}" -d "${1}"
+                #run certbot certonly --webroot --agree-tos --webroot-path="${WEBROOT}" -d "${1}"
             fi
         else
             fail "Certbot executable binary not found. Install it first!"
@@ -415,11 +418,11 @@ function enable_https() {
     fi
 
     # Generate Diffie-Hellman parameters.
-    if [ ! -f /etc/nginx/ssl/dhparam-2048.pem ]; then
-        echo "Generating Diffie-Hellman parameters for enhanced HTTPS/SSL security,"
-        echo "this is going to take a long time..."
+    if [ ! -f /etc/nginx/ssl/dhparam-4096.pem ]; then
+        echo "Generating Diffie-Hellman parameters for enhanced HTTPS/SSL security."
 
-        run openssl dhparam -out /etc/nginx/ssl/dhparam-2048.pem 2048
+        #run openssl dhparam -out /etc/nginx/ssl/dhparam-2048.pem 2048
+        run openssl dhparam -out /etc/nginx/ssl/dhparam-4096.pem 4096
     fi
 
     # Update vhost config.
@@ -431,17 +434,17 @@ function enable_https() {
 
             # Make backup first.
             run cp -f "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-available/${1}.nonssl-conf"
-            
+
             # Change listening port to 443.
             run sed -i "s/listen\ 80/listen\ 443 ssl http2/g" "/etc/nginx/sites-available/${1}.conf"
             run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443 ssl http2/g" "/etc/nginx/sites-available/${1}.conf"
-            
+
             # Enable SSL configs.
             run sed -i "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${1}.conf"
             run sed -i "s/#ssl_certificate_key/ssl_certificate_key/g" "/etc/nginx/sites-available/${1}.conf"
             run sed -i "s/#ssl_trusted_certificate/ssl_trusted_certificate/g" "/etc/nginx/sites-available/${1}.conf"
-            #run sed -i "s|#include\ /etc/nginx/includes/ssl.conf|include\ /etc/nginx/includes/ssl.conf|g" \
-            #    "/etc/nginx/sites-available/${1}.conf"
+            run sed -i "s|#include\ /etc/nginx/includes/ssl.conf|include\ /etc/nginx/includes/ssl.conf|g" \
+                "/etc/nginx/sites-available/${1}.conf"
 
             # Adjust PageSpeed if enabled.
             #if grep -qwE "^\    include\ /etc/nginx/includes/mod_pagespeed.conf" \
@@ -494,7 +497,7 @@ function disable_https() {
             # Disable first.
             run unlink "/etc/nginx/sites-enabled/${1}.conf"
             run mv "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-available/${1}.ssl-conf"
-            
+
             # Restore non ssl.
             run cp -f "/etc/nginx/sites-available/${1}.nonssl-conf" "/etc/nginx/sites-available/${1}.conf"
             run ln -s "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-enabled/${1}.conf"
@@ -513,7 +516,7 @@ function disable_https() {
 function enable_brotli() {
     if [[ -f /etc/nginx/nginx.conf && -f /etc/nginx/modules-enabled/50-mod-http-brotli-static.conf ]]; then
         echo "Enable NGiNX Brotli compression..."
-        
+
         if grep -qwE "^\    include\ /etc/nginx/comp_brotli" /etc/nginx/nginx.conf; then
             status "Brotli compression module already enabled."
             exit 0
@@ -606,7 +609,7 @@ function reload_nginx() {
             nginx -t
             exit 1
         fi
-    # NGiNX service dead? Try to start it.    
+    # NGiNX service dead? Try to start it.
     else
         if [[ -n $(command -v nginx) ]]; then
             if nginx -t 2>/dev/null > /dev/null; then
