@@ -17,7 +17,7 @@ if [ -f ".env" ]; then
     # shellcheck disable=SC1094
     source <(grep -v '^#' .env | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
 else
-    echo "Environment variables required, but the Dotenv file not found."
+    echo "Environment variables required, but the dotenv file doesn't exist. Copy .env.dist to .env first!"
     exit 0
 fi
 
