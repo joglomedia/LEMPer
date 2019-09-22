@@ -57,9 +57,9 @@ function install_php_fpm() {
 
         PHP_PKGS=("php${PHPv} php${PHPv}-bcmath php${PHPv}-cli php${PHPv}-common \
 php${PHPv}-curl php${PHPv}-dev php${PHPv}-fpm php${PHPv}-mysql php${PHPv}-gd \
-php${PHPv}-gmp php${PHPv}-imap php${PHPv}-intl php${PHPv}-json php${PHPv}-ldap \
+php${PHPv}-gmp php${PHPv}-imap php${PHPv}-intl php${PHPv}-json \
 php${PHPv}-mbstring php${PHPv}-opcache php${PHPv}-pspell php${PHPv}-readline \
-php${PHPv}-recode php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
+php${PHPv}-ldap php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
 php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
 php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS[@]}")
 
@@ -74,7 +74,6 @@ php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS
         fi
 
         # Install php mcrypt?
-        echo ""
         if "${AUTO_INSTALL}"; then
             local INSTALL_PHPMCRYPT="y"
         else
@@ -360,7 +359,6 @@ opcache.validate_timestamps=1
 opcache.revalidate_freq=1
 opcache.save_comments=1
 opcache.error_log="/var/log/php/php${PHPv}-opcache_error.log"
-
 EOL
     fi
 
@@ -369,6 +367,14 @@ EOL
         run mv "/etc/php/${PHPv}/fpm/php-fpm.conf" "/etc/php/${PHPv}/fpm/php-fpm.conf~"
         run cp -f "etc/php/${PHPv}/fpm/php-fpm.conf" "/etc/php/${PHPv}/fpm/"
     else
+        if grep -qwE "^error_log\ =\ \/var\/log\/php${PHPv}-fpm.log" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
+            run sed -i "s|^error_log\ =\ /var/log/php${PHPv}-fpm.log|error_log\ =\ /var/log/php/php${PHPv}-fpm.log/g" \
+                "/etc/php/${PHPv}/fpm/php-fpm.conf"
+        else
+            run sed -i "/^;error_log/a error_log\ =\ \/var\/log\/php\/php${PHPv}-fpm.log" \
+                "/etc/php/${PHPv}/fpm/php-fpm.conf"
+        fi
+
         if grep -qwE "^emergency_restart_threshold\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
             run sed -i "s/^emergency_restart_threshold\ =\ [0-9]*/emergency_restart_threshold\ =\ 10/g" \
                 "/etc/php/${PHPv}/fpm/php-fpm.conf"
@@ -402,6 +408,29 @@ EOL
     if [ -f "etc/php/${PHPv}/fpm/pool.d/www.conf" ]; then
         run mv "/etc/php/${PHPv}/fpm/pool.d/www.conf" "/etc/php/${PHPv}/fpm/pool.d/www.conf~"
         run cp -f "etc/php/${PHPv}/fpm/pool.d/www.conf" "/etc/php/${PHPv}/fpm/pool.d/"
+    else
+        # Enable FPM ping service.
+        run sed -i "/^;ping.path\ =.*/a ping.path\ =\ \/ping" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
+
+        # Enable FPM status.
+        run sed -i "/^;pm.status_path\ =.*/a pm.status_path\ =\ \/status" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
+        
+        # Enable chdir.
+        run sed -i "/^;chdir\ =.*/a chdir\ =\ \/usr\/share\/nginx\/html" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
+    
+        # Add custom php extension (ex .php70, .php71)
+        PHPExt=".php${PHPv//.}"
+        run sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/" \
+            "/etc/php/${PHPv}/fpm/pool.d/www.conf"
+
+        # Customize php ini settings.
+        cat >> "/etc/php/${PHPv}/fpm/pool.d/www.conf" <<EOL
+php_flag[display_errors] = on
+php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.$pool.log
+php_admin_flag[log_errors] = on
+php_admin_value[memory_limit] = 128M
+php_admin_value[open_basedir] = /usr/share/nginx/html
+EOL
     fi
 
     # Copy the optimized-version of php fpm default lemper pool.
@@ -441,7 +470,7 @@ slowlog = /var/log/php/php${PHPv}-fpm_slow.\$pool.log
 
 chdir = /home/${POOLNAME}
 
-security.limit_extensions = .php .php3 .php4 .php5 .php${PHPv//./}
+security.limit_extensions = .php .php5 .php7 .php${PHPv//./}
 
 ; Custom PHP ini settings.
 php_flag[display_errors] = on
@@ -450,24 +479,11 @@ php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /home/${POOLNAME}
-
 EOL
     fi
 
     # Fix cgi.fix_pathinfo (for PHP older than 5.3)
     #sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
-
-    # Add custom php extension (ex .php70, .php71)
-    PHPExt=".php${PHPv//.}"
-    run sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/" \
-        "/etc/php/${PHPv}/fpm/pool.d/www.conf"
-
-    # Enable FPM ping service.
-    run sed -i "/^;ping.path\ =.*/a ping.path\ =\ \/ping" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
-
-    # Enable FPM status.
-    run sed -i "/^;pm.status_path\ =.*/a pm.status_path\ =\ \/status" \
-        "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
     # Restart PHP-fpm server.
     if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
@@ -492,18 +508,19 @@ function init_php_fpm_install() {
     else
         echo "Which version of PHP to install?"
         echo "Supported PHP version:"
-        echo "  1). PHP 5.6 (old stable)"
-        echo "  2). PHP 7.0 (stable)"
-        echo "  3). PHP 7.1 (stable)"
-        echo "  4). PHP 7.2 (stable)"
-        echo "  5). PHP 7.3 (latest stable)"
-        echo "  6). All available versions"
+        echo "  1). PHP 5.6 (EOL)"
+        echo "  2). PHP 7.0 (EOL)"
+        echo "  3). PHP 7.1 (SFO)"
+        echo "  4). PHP 7.2 (Stable)"
+        echo "  5). PHP 7.3 (Latest stable)"
+        echo "  6). PHP 7.4 (Beta)"
+        echo "  7). All available versions"
         echo "---------------------------------"
 
         while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                 ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
-                ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" ]]; do
-            read -rp "Select an option [1-6]: " -i 5 -e SELECTED_PHP
+                ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" ]]; do
+            read -rp "Select an option [1-7]: " -i 5 -e SELECTED_PHP
         done
 
         echo ""
@@ -536,13 +553,20 @@ function init_php_fpm_install() {
             install_php_fpm "${PHPv}"
         ;;
 
-        "all")
+        6|"7.4")
+            PHPv="7.4"
+            install_php_fpm "${PHPv}"
+        ;;
+
+        7|"all")
+            # Install all PHP version (except EOL & Beta).
             PHPv="all"
-            install_php_fpm "5.6"
-            install_php_fpm "7.0"
+            #install_php_fpm "5.6"
+            #install_php_fpm "7.0"
             install_php_fpm "7.1"
             install_php_fpm "7.2"
             install_php_fpm "7.3"
+            #install_php_fpm "7.4"
         ;;
 
         *)
@@ -568,9 +592,8 @@ function init_php_fpm_install() {
                 SELECTED_PHPLOADER=${PHP_LOADER}
             fi
         else
-            echo ""
             while [[ ${INSTALL_PHPLOADER} != "y" && ${INSTALL_PHPLOADER} != "n" ]]; do
-                read -rp "Do you want to install PHP Loaders? [y/n]: " -e INSTALL_PHPLOADER
+                read -rp "Do you want to install PHP Loaders? [y/n]: " -i n -e INSTALL_PHPLOADER
             done
         fi
 
@@ -602,16 +625,18 @@ function init_php_fpm_install() {
                     if [ "${PHPv}" != "all" ]; then
                         enable_ioncube "${PHPv}"
 
-                        # Required for LEMPer default PHP
-                        if [ "${PHPv}" != "7.3" ]; then
+                        # Required for LEMPer default PHP.
+                        if [[ "${PHPv}" != "7.3" && -n $(command -v php7.3) ]]; then
                             enable_ioncube "7.3"
                         fi
                     else
-                        enable_ioncube "5.6"
-                        enable_ioncube "7.0"
+                        # Install all PHP version (except EOL & Beta).
+                        #enable_ioncube "5.6"
+                        #enable_ioncube "7.0"
                         enable_ioncube "7.1"
                         enable_ioncube "7.2"
                         enable_ioncube "7.3"
+                        #enable_ioncube "7.4"
                     fi
                 ;;
                 2|"sourceguardian")
@@ -619,12 +644,19 @@ function init_php_fpm_install() {
 
                     if [ "${PHPv}" != "all" ]; then
                         enable_sourceguardian "${PHPv}"
+
+                        # Required for LEMPer default PHP.
+                        if [[ "${PHPv}" != "7.3" && -n $(command -v php7.3) ]]; then
+                            enable_sourceguardian "7.3"
+                        fi
                     else
-                        enable_sourceguardian "5.6"
-                        enable_sourceguardian "7.0"
+                        # Install all PHP version (except EOL & Beta).
+                        #enable_sourceguardian "5.6"
+                        #enable_sourceguardian "7.0"
                         enable_sourceguardian "7.1"
                         enable_sourceguardian "7.2"
                         enable_sourceguardian "7.3"
+                        #enable_sourceguardian "7.4"
                     fi
                 ;;
                 "all")
@@ -641,17 +673,20 @@ function init_php_fpm_install() {
 
                         enable_sourceguardian "${PHPv}"
                     else
-                        enable_ioncube "5.6"
-                        enable_ioncube "7.0"
+                        # Install all PHP version (except EOL & Beta).
+                        #enable_ioncube "5.6"
+                        #enable_ioncube "7.0"
                         enable_ioncube "7.1"
                         enable_ioncube "7.2"
                         enable_ioncube "7.3"
+                        #enable_ioncube "7.4"
 
-                        enable_sourceguardian "5.6"
-                        enable_sourceguardian "7.0"
+                        #enable_sourceguardian "5.6"
+                        #enable_sourceguardian "7.0"
                         enable_sourceguardian "7.1"
                         enable_sourceguardian "7.2"
                         enable_sourceguardian "7.3"
+                        #enable_sourceguardian "7.4"
                     fi
                 ;;
 
@@ -673,11 +708,13 @@ function init_php_fpm_install() {
                     optimize_php_fpm "7.3"
                 fi
             else
-                optimize_php_fpm "5.6"
-                optimize_php_fpm "7.0"
+                # Install all PHP version (except EOL & Beta).
+                #optimize_php_fpm "5.6"
+                #optimize_php_fpm "7.0"
                 optimize_php_fpm "7.1"
                 optimize_php_fpm "7.2"
                 optimize_php_fpm "7.3"
+                #optimize_php_fpm "7.4"
             fi
         fi
     fi
@@ -691,7 +728,8 @@ if [[ -n $(command -v php5.6) && \
     -n $(command -v php7.0) && \
     -n $(command -v php7.1) && \
     -n $(command -v php7.2) && \
-    -n $(command -v php7.3) ]]; then
+    -n $(command -v php7.3) && \
+    -n $(command -v php7.4) ]]; then
     warning "All available PHP version already exists. Installation skipped..."
 else
     init_php_fpm_install "$@"
