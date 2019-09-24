@@ -61,7 +61,7 @@ php${PHPv}-gmp php${PHPv}-imap php${PHPv}-intl php${PHPv}-json \
 php${PHPv}-mbstring php${PHPv}-opcache php${PHPv}-pspell php${PHPv}-readline \
 php${PHPv}-ldap php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
 php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
-php-geoip php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS[@]}")
+php-geoip php-imagick php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS[@]}")
 
         if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
             echo "Installing PHP${PHPv} & FPM packages..."
