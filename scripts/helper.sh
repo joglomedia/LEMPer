@@ -520,7 +520,7 @@ function delete_account() {
     local USERNAME=${1:-"lemper"}
 
     if [[ -n $(getent passwd "${USERNAME}") ]]; then
-        if pgrep -u "${USERNAME}"; then
+        if pgrep -u "${USERNAME}" > /dev/null; then
             error "User lemper is currently used by running processes."
         else
             run userdel -r "${USERNAME}"

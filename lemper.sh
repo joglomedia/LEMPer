@@ -80,7 +80,10 @@ case "${1}" in
         echo "Starting LEMP stack installation..."
         echo "Please ensure that you're on a fresh install!"
         echo ""
-        read -t 60 -rp "Press [Enter] to continue..." </dev/tty
+
+        if ! "${AUTO_INSTALL}"; then
+            read -t 60 -rp "Press [Enter] to continue..." </dev/tty
+        fi
 
         ### Clean-up server ###
         echo ""
@@ -235,7 +238,10 @@ Now, you can reboot your server and enjoy it!"
         echo "Are you sure to remove LEMP stack installation?"
         echo "Please ensure that you've back up your critical data!"
         echo ""
-        read -rt 15 -p "Press [Enter] to continue..." </dev/tty
+
+        if ! "${AUTO_REMOVE}"; then
+            read -rt 15 -p "Press [Enter] to continue..." </dev/tty
+        fi
 
         # Fix broken install, first?
         echo ""

@@ -34,7 +34,7 @@ Never share your private key.
 
         #read -rt 120 -p "Press [Enter] to continue..." </dev/tty
         #echo ""
-        sleep 5
+        sleep 3
 
         RSA_PUB_KEY=${RSA_PUB_KEY:-n}
         while ! [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; do
