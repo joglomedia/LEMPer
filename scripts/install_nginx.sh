@@ -32,29 +32,28 @@ function add_nginx_repo() {
     DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
     DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
 
+    # Nginx version.
+    local NGX_VERSION=${NGINX_VERSION:-"stable"}
+
     case "${DISTRIB_REPO}" in
         trusty)
-            # NGiNX custom with ngx cache purge from rtCamp.
+            # NGiNX custom with ngx cache purge from rtCamp repo.
             # https://rtcamp.com/wordpress-nginx/tutorials/single-site/fastcgi-cache-with-purging/
             run add-apt-repository -y ppa:rtcamp/nginx
             NGX_PACKAGE="nginx-custom"
         ;;
+        xenial|bionic|disco)
+            # NGiNX custom with ngx cache purge from Ondrej repo.
+            run wget -qO /etc/apt/trusted.gpg.d/nginx.gpg https://packages.sury.org/nginx/apt.gpg
 
-        xenial)
-            # NGiNX custom with ngx cache purge from rtCamp.
-            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3050AC3CD2AE6F03
-            run bash -c "echo 'deb http://download.opensuse.org/repositories/home:/rtCamp:/EasyEngine/xUbuntu_16.04/ /' \
-                >> /etc/apt/sources.list.d/nginx-xenial.list"
-            NGX_PACKAGE="nginx-custom"
+            if [[ ${NGX_VERSION} == "mainline" || ${NGX_VERSION} == "latest" ]]; then
+                run add-apt-repository -y ppa:ondrej/nginx-mainline
+            else
+                run add-apt-repository -y ppa:ondrej/nginx
+            fi
+
+            NGX_PACKAGE="nginx-extras"
         ;;
-
-        bionic|disco)
-            # NGiNX official repo.
-            run apt-key fingerprint ABF5BD827BD9BF62
-            run add-apt-repository -y ppa:nginx/stable
-            NGX_PACKAGE="nginx-stable nginx-extras"
-        ;;
-
         *)
             NGX_PACKAGE=""
 
@@ -91,8 +90,8 @@ function init_nginx_install() {
             echo "Installing NGiNX from package repository..."
             if hash dpkg 2>/dev/null; then
                 if [[ -n "${NGX_PACKAGE}" ]]; then
-                    run apt-get -qq update
-                    run apt-get -qq install -y --allow-unauthenticated "${NGX_PACKAGE}"
+                    run apt-get -qq update -y
+                    run apt-get -qq install -y "${NGX_PACKAGE}"
                 fi
             elif hash yum 2>/dev/null; then
                 if [ "${VERSION_ID}" == "5" ]; then
@@ -114,6 +113,14 @@ function init_nginx_install() {
                 run "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable \
                     -n stable --dynamic-module --extra-modules -y --dryrun
             else
+                # Nginx version.
+                local NGX_VERSION=${NGINX_VERSION:-"stable"}
+                if [[ ${NGX_VERSION} == "mainline" || ${NGX_VERSION} == "latest" ]]; then
+                    NGX_VERSION="latest"
+                else
+                    NGX_VERSION="stable"
+                fi
+
                 # Additional configure arguments.
                 NGX_CONFIGURE_ARGS=""
 
@@ -463,11 +470,10 @@ function init_nginx_install() {
                 fi
 
                 # Execute nginx from source installer.
-                "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n stable --dynamic-module \
+                "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n "${NGX_VERSION}" --dynamic-module \
                     --extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
             fi
 
-            echo ""
             echo "Configuring NGiNX extra modules..."
 
             # Create NGiNX directories.
@@ -679,7 +685,7 @@ function init_nginx_install() {
         ;;
     esac
 
-    echo -e "\nCreating NGiNX configuration..."
+    echo "Creating NGiNX configuration..."
 
     if [ ! -d /etc/nginx/sites-available ]; then
         run mkdir /etc/nginx/sites-available
@@ -774,14 +780,11 @@ function init_nginx_install() {
     # Generate Diffie-Hellman parameters.
     DH_NUMBITS=${HASH_LENGTH:-2048}
     if [ ! -f "/etc/nginx/ssl/dhparam-${DH_NUMBITS}.pem" ]; then
-        echo "Generating Diffie-Hellman parameters for enhanced HTTPS/SSL security,"
-        echo "this is going to take a long time..."
-
+        echo "Enhance HTTPS/SSL security."
         run openssl dhparam -out "/etc/nginx/ssl/dhparam-${DH_NUMBITS}.pem" "${DH_NUMBITS}"
     fi
 
     # Final test.
-    echo ""
     if "${DRYRUN}"; then
         IP_SERVER="127.0.0.1"
         warning "NGiNX HTTP server installed in dryrun mode."
