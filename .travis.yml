@@ -20,7 +20,7 @@ matrix:
       dist: bionic
       script:
         # Copy .env file.
-        - "cp .env.dist .env"
+        - cp .env.dist .env
         # Run the source through ShellCheck (http://www.shellcheck.net).
         - shellcheck -s bash -x scripts/helper.sh
         - #shellcheck -s bash scripts/install_*.sh
