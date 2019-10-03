@@ -287,15 +287,10 @@ function get_distrib_name() {
         . /etc/os-release
 
         # Export lsb-release vars.
-        if [ -f /etc/lsb-release ]; then
-            . /etc/lsb-release
-        fi
+        [ -f /etc/lsb-release ] && . /etc/lsb-release
 
-        if [[ "${ID_LIKE}" == "ubuntu" ]]; then
-            DISTRIB_NAME="ubuntu"
-        else
-            DISTRIB_NAME=${ID:-}
-        fi
+        # Get distribution name.
+        [[ "${ID_LIKE}" == "ubuntu" ]] && DISTRIB_NAME="ubuntu" || DISTRIB_NAME=${ID:-"unsupported"}
     elif [ -e /etc/system-release ]; then
     	DISTRIB_NAME="unsupported"
     else
@@ -313,15 +308,10 @@ function get_release_name() {
         . /etc/os-release
 
         # Export lsb-release vars.
-        if [ -f /etc/lsb-release ]; then
-            . /etc/lsb-release
-        fi
+        [ -f /etc/lsb-release ] && . /etc/lsb-release
 
-        if [[ "${ID_LIKE}" == "ubuntu" ]]; then
-            DISTRIB_NAME="ubuntu"
-        else
-            DISTRIB_NAME=${ID:-}
-        fi
+        # Get distribution name.
+        [[ "${ID_LIKE}" == "ubuntu" ]] && DISTRIB_NAME="ubuntu" || DISTRIB_NAME=${ID:-"unsupported"}
 
         case ${DISTRIB_NAME} in
             debian)
@@ -330,46 +320,46 @@ function get_release_name() {
 
                 # TODO for Debian install
             ;;
-
             ubuntu)
                 # Hack for Linux Mint release number.
                 DISTRO_VERSION=${VERSION_ID:-$DISTRIB_RELEASE}
                 MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print $1}')
-                if [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]]; then
+                [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]] && \
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
-                fi
 
-                if [[ "${DISTRIB_RELEASE}" == "14.04" || "${DISTRIB_RELEASE}" == "LM17" ]]; then
-                    # Ubuntu release 14.04, LinuxMint 17
-                    RELEASE_NAME=${UBUNTU_CODENAME:-"trusty"}
-                elif [[ "${DISTRIB_RELEASE}" == "16.04" || "${DISTRIB_RELEASE}" == "LM18" ]]; then
-                    # Ubuntu release 16.04, LinuxMint 18
-                    RELEASE_NAME=${UBUNTU_CODENAME:-"xenial"}
-                elif [[ "${DISTRIB_RELEASE}" == "18.04" || "${DISTRIB_RELEASE}" == "LM19" ]]; then
-                    # Ubuntu release 18.04, LinuxMint 19
-                    RELEASE_NAME=${UBUNTU_CODENAME:-"bionic"}
-                else
-                    RELEASE_NAME="unsupported"
-                fi
+                case ${DISTRIB_RELEASE} in
+                    "14.04"|"LM17")
+                        # Ubuntu release 14.04, LinuxMint 17
+                        RELEASE_NAME=${UBUNTU_CODENAME:-"trusty"}
+                    ;;
+                    "16.04"|"LM18")
+                        # Ubuntu release 16.04, LinuxMint 18
+                        RELEASE_NAME=${UBUNTU_CODENAME:-"xenial"}
+                    ;;
+                    "18.04"|"LM19")
+                        # Ubuntu release 18.04, LinuxMint 19
+                        RELEASE_NAME=${UBUNTU_CODENAME:-"bionic"}
+                    ;;
+                    *)
+                        RELEASE_NAME="unsupported"
+                    ;;
+                esac
             ;;
-
             amzn)
                 # Amazon based on RHEL/CentOS
                 RELEASE_NAME="unsupported"
 
                 # TODO for Amzn install
             ;;
-
             centos)
                 # CentOS
                 RELEASE_NAME="unsupported"
 
-                # TODO for Amzn install
+                # TODO for CentOS install
             ;;
-
             *)
                 RELEASE_NAME="unsupported"
-                warning "Sorry, this distro isn't supported yet. If you'd like it to be, let us know at eslabs.id@gmail.com."
+                warning "Sorry, this Linux distribution isn't supported yet. If you'd like it to be, let us know at eslabs.id@gmail.com."
             ;;
         esac
     elif [ -e /etc/system-release ]; then
@@ -530,7 +520,6 @@ function delete_account() {
     local USERNAME=${1:-"lemper"}
 
     if [[ -n $(getent passwd "${USERNAME}") ]]; then
-
         if pgrep -u "${USERNAME}"; then
             error "User lemper is currently used by running processes."
         else
