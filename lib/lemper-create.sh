@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | Lemper Create - Simple LEMP Virtual Host Generator                      |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/ngxvhost)             |
+# | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/lemper)               |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -13,7 +13,6 @@
 # | to license@eslabs.id so we can send you a copy immediately.             |
 # +-------------------------------------------------------------------------+
 # | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
-# | Original concept: Fideloper <https://gist.github.com/fideloper/9063376> |
 # +-------------------------------------------------------------------------+
 
 set -e
@@ -184,8 +183,8 @@ server {
     #ssl_trusted_certificate /etc/letsencrypt/live/${SERVERNAME}/fullchain.pem;
 
     ## Log Settings.
-    access_log /var/log/nginx/${SERVERNAME}_access.log;
-    error_log /var/log/nginx/${SERVERNAME}_error.log error;
+    access_log ${WEBROOT}/access_log combined buffer=32k;
+    error_log ${WEBROOT}/error_log error;
 
     #charset utf-8;
 
@@ -201,17 +200,20 @@ server {
     #pagespeed Domain ${SERVERNAME};
     #pagespeed Domain *.${SERVERNAME};
 
-    # This setting should be enabled when using HTTPS
-    # Take care when using HTTP > HTTPS redirection to avoid loops.
-    #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
+    # Authorize CDN host below here!
+    ##pagespeed Domain your-cdn-host;
 
-    # Enable fetch HTTPS (enabled by default).
-    #pagespeed FetchHttps enable;
+    # Map CDN host below here!
+    ##pagespeed MapOriginDomain https://your-cdn-address https://\$server_name;
 
-    # PageSpeed should be disabled on the WP admin (adjust to suit custom admin URLs).
-    #pagespeed Disallow "*/wp-admin/*";
-    #pagespeed Disallow "*/dashboard/*";
+    # Rewrite CDN host below here!
+    ##pagespeed MapRewriteDomain https://your-cdn-address https://\$server_name;
+
+    # PageSpeed should be disabled on the WP admin/dashboard (adjust to suit custom admin URLs).
     #pagespeed Disallow "*/admin/*";
+    #pagespeed Disallow "*/dashboard/*";
+    #pagespeed Disallow "*/wp-login*";
+    #pagespeed Disallow "*/wp-admin/*";
 
     ## Access control Cross-origin Resource Sharing (CORS).
     set \$cors "http://*.\$server_name, https://*.\$server_name";
@@ -243,11 +245,11 @@ server {
         # Include FastCGI Configs.
         include /etc/nginx/includes/fastcgi.conf;
 
-        # Uncomment to Enable PHP FastCGI cache.
-        #include /etc/nginx/includes/fastcgi_cache.conf;
-
         # FastCGI socket, change to fits your own socket!
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
+
+        # Uncomment to Enable PHP FastCGI cache.
+        #include /etc/nginx/includes/fastcgi_cache.conf;
     }
 
     ## PHP-FPM status monitoring
@@ -263,6 +265,9 @@ server {
 
     ## Uncomment to enable error page directives configuration.
     include /etc/nginx/includes/error_pages.conf;
+
+    ## Uncomment to enable support cgi-bin scripts using fcgiwrap (like cgi-bin in Apache).
+    #include /etc/nginx/includes/fcgiwrap.conf;
 
     ## Add your custom site directives here.
 }
@@ -285,8 +290,8 @@ server {
     #ssl_trusted_certificate /etc/letsencrypt/live/${SERVERNAME}/fullchain.pem;
 
     ## Log Settings.
-    access_log /var/log/nginx/${SERVERNAME}_access.log;
-    error_log /var/log/nginx/${SERVERNAME}_error.log error;
+    access_log ${WEBROOT}/access_log combined buffer=32k;
+    error_log ${WEBROOT}/error_log error;
 
     #charset utf-8;
 
@@ -302,12 +307,14 @@ server {
     #pagespeed Domain ${SERVERNAME};
     #pagespeed Domain *.${SERVERNAME};
 
-    # Enable fetch HTTPS (enabled by default).
-    #pagespeed FetchHttps enable;
+    # Authorize CDN host below here!
+    ##pagespeed Domain your-cdn-host;
 
-    # This setting should be enabled when using HTTPS
-    # Take care when using HTTP > HTTPS redirection to avoid loops.
-    #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
+    # Map CDN host below here!
+    ##pagespeed MapOriginDomain https://your-cdn-address https://\$server_name;
+
+    # Rewrite CDN host below here!
+    ##pagespeed MapRewriteDomain https://your-cdn-address https://\$server_name;
 
     # PageSpeed should be disabled on the user panel (adjust to suit custom admin URLs).
     #pagespeed Disallow "*/user/*";
@@ -341,11 +348,11 @@ server {
         # Include FastCGI Configs.
         include /etc/nginx/includes/fastcgi.conf;
 
-        # Uncomment to Enable PHP FastCGI cache.
-        #include /etc/nginx/includes/fastcgi_cache.conf;
-
         # FastCGI socket, change to fits your own socket!
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
+
+        # Uncomment to Enable PHP FastCGI cache.
+        #include /etc/nginx/includes/fastcgi_cache.conf;
     }
 
     ## PHP-FPM status monitoring
@@ -386,8 +393,8 @@ server {
     #ssl_trusted_certificate /etc/letsencrypt/live/${SERVERNAME}/fullchain.pem;
 
     ## Log Settings.
-    access_log /var/log/nginx/${SERVERNAME}_access.log;
-    error_log /var/log/nginx/${SERVERNAME}_error.log error;
+    access_log ${WEBROOT}/access_log combined buffer=32k;
+    error_log ${WEBROOT}/error_log error;
 
     #charset utf-8;
 
@@ -403,12 +410,14 @@ server {
     #pagespeed Domain ${SERVERNAME};
     #pagespeed Domain *.${SERVERNAME};
 
-    # Enable fetch HTTPS (enabled by default).
-    #pagespeed FetchHttps enable;
+    # Authorize CDN host below here!
+    ##pagespeed Domain your-cdn-host;
 
-    # This setting should be enabled when using HTTPS
-    # Take care when using HTTP > HTTPS redirection to avoid loops.
-    #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
+    # Map CDN host below here!
+    ##pagespeed MapOriginDomain https://your-cdn-address https://\$server_name;
+
+    # Rewrite CDN host below here!
+    ##pagespeed MapRewriteDomain https://your-cdn-address https://\$server_name;
 
     # PageSpeed should be disabled on the admin (adjust to suit custom admin URLs).
     #pagespeed Disallow "*/account/*";
@@ -443,11 +452,11 @@ server {
         # Include FastCGI Configs.
         include /etc/nginx/includes/fastcgi.conf;
 
-        # Uncomment to Enable PHP FastCGI cache.
-        #include /etc/nginx/includes/fastcgi_cache.conf;
-
         # FastCGI socket, change to fits your own socket!
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
+
+        # Uncomment to Enable PHP FastCGI cache.
+        #include /etc/nginx/includes/fastcgi_cache.conf;
     }
 
     ## PHP-FPM status monitoring
@@ -488,8 +497,8 @@ server {
     #ssl_trusted_certificate /etc/letsencrypt/live/${SERVERNAME}/fullchain.pem;
 
     ## Log Settings.
-    access_log /var/log/nginx/${SERVERNAME}_access.log;
-    error_log /var/log/nginx/${SERVERNAME}_error.log error;
+    access_log ${WEBROOT}/access_log combined buffer=32k;
+    error_log ${WEBROOT}/error_log error;
 
     #charset utf-8;
 
@@ -505,12 +514,14 @@ server {
     #pagespeed Domain ${SERVERNAME};
     #pagespeed Domain *.${SERVERNAME};
 
-    # Enable fetch HTTPS (enabled by default).
-    #pagespeed FetchHttps enable;
+    # Authorize CDN host below here!
+    ##pagespeed Domain your-cdn-host;
 
-    # This setting should be enabled when using HTTPS
-    # Take care when using HTTP > HTTPS redirection to avoid loops.
-    #pagespeed MapOriginDomain "http://\$server_name" "https://\$server_name";
+    # Map CDN host below here!
+    ##pagespeed MapOriginDomain https://your-cdn-address https://\$server_name;
+
+    # Rewrite CDN host below here!
+    ##pagespeed MapRewriteDomain https://your-cdn-address https://\$server_name;
 
     # PageSpeed should be disabled on the admin (adjust to suit custom admin URLs).
     #pagespeed Disallow "*/account/*";
@@ -553,11 +564,11 @@ server {
         # Include FastCGI Configs.
         include /etc/nginx/includes/fastcgi.conf;
 
-        # Uncomment to Enable PHP FastCGI cache.
-        #include /etc/nginx/includes/fastcgi_cache.conf;
-
         # FastCGI socket, change to fits your own socket!
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
+
+        # Uncomment to Enable PHP FastCGI cache.
+        #include /etc/nginx/includes/fastcgi_cache.conf;
     }
 
     ## PHP-FPM status monitoring
@@ -586,7 +597,7 @@ cat <<- _EOF_
 # Wordpress Multisite Mapping for NGiNX (Requires NGiNX Helper plugin).
 map \$http_host \$blogid {
     default 0;
-    include ${WEBROOT}/wp-content/uploads/nginx-helper/map.conf;
+    include ${WEBROOT}/wp-content/uploads/nginx-helper/[map].conf;
 }
 
 _EOF_
@@ -699,7 +710,7 @@ pm.max_requests = 500
 pm.status_path = /status
 ping.path = /ping
 
-request_slowlog_timeout = 6s
+request_slowlog_timeout = 5s
 slowlog = /var/log/php/php${PHP_VERSION}-fpm_slow.\$pool.log
 
 chdir = /home/${USERNAME}
@@ -712,7 +723,7 @@ php_admin_value[error_log] = /var/log/php/php${PHP_VERSION}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /home/${USERNAME}
-
+php_admin_value[upload_tmp_dir] = /home/${USERNAME}/.tmp
 _EOF_
 }
 
@@ -733,7 +744,7 @@ function install_wordpress() {
                 run rm -f "${TMPDIR}/wordpress.zip" && \
                 run rm -fr "${TMPDIR}/wordpress/"
             else
-                error "Something goes wrong when downloading WordPress files."
+                error "Something went wrong while downloading WordPress files."
             fi
         else
             warning "It seems that WordPress files already exists."
@@ -886,7 +897,7 @@ function init_app() {
             fi
         fi
 
-        # Temp dir.
+        # Make temp dir.
         if [ ! -d "${TMPDIR}" ]; then
             run mkdir -p "${TMPDIR}"
         fi
@@ -941,6 +952,8 @@ function init_app() {
                 echo "Creating web root directory: ${WEBROOT}..."
 
                 run mkdir -p "${WEBROOT}" && \
+                run touch "${WEBROOT}/access_log" && \
+                run touch "${WEBROOT}/error_log" && \
                 run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}" && \
                 run chmod 755 "${WEBROOT}"
             fi
@@ -977,7 +990,7 @@ function init_app() {
                                 run rm -f "${TMPDIR}/drupal.zip"
                                 run rm -fr ${TMPDIR}/drupal-*/
                             else
-                                error "Something goes wrong when downloading Drupal files."
+                                error "Something went wrong while downloading Drupal files."
                             fi
                         else
                             warning "It seems that Drupal files already exists."
@@ -1010,7 +1023,7 @@ function init_app() {
                             status "Downloading ${FRAMEWORK^} skeleton files..."
                             run git clone -q --depth=1 --branch=master \
                                 "https://github.com/laravel/${FRAMEWORK}.git" "${WEBROOT}" || \
-                                error "Something goes wrong when downloading ${FRAMEWORK^} files."
+                                error "Something went wrong while downloading ${FRAMEWORK^} files."
                         else
                             warning "It seems that ${FRAMEWORK^} skeleton files already exists."
                         fi
@@ -1047,7 +1060,7 @@ function init_app() {
                             status "Downloading ${FRAMEWORK^} skeleton files..."
                             run git clone -q --depth=1 --branch=master \
                                 "https://github.com/joglomedia/${FRAMEWORK}-skeleton.git" "${WEBROOT}" || \
-                                error "Something goes wrong when downloading ${FRAMEWORK^} files."
+                                error "Something went wrong while downloading ${FRAMEWORK^} files."
                         else
                             warning "It seems that ${FRAMEWORK^} skeleton files already exists."
                         fi
@@ -1095,7 +1108,7 @@ function init_app() {
                             status "Downloading Symfony skeleton files..."
                             run git clone -q --depth=1 --branch=master \
                                 "https://github.com/joglomedia/${FRAMEWORK}-skeleton.git" "${WEBROOT}" || \
-                                error "Something goes wrong when downloading Symfony files."
+                                error "Something went wrong while downloading Symfony files."
                         else
                             warning "It seems that Symfony skeleton files already exists."
                         fi
@@ -1138,7 +1151,7 @@ function init_app() {
                                 run unzip -q "${TMPDIR}/woocommerce.zip" -d "${WEBROOT}/wp-content/plugins/"
                                 run rm -f "${TMPDIR}/woocommerce.zip"
                             else
-                                error "Something goes wrong when downloading WooCommerce files."
+                                error "Something went wrong while downloading WooCommerce files."
                             fi
                         fi
 
@@ -1179,6 +1192,12 @@ function init_app() {
 
                         # Create vhost.
                         create_vhost_default >> "${VHOST_FILE}"
+
+                        # Enable wildcard host.
+                        if grep -qwE "server_name\ ${SERVERNAME};$" "${VHOST_FILE}"; then
+                            run sed -i "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" \
+                                "${VHOST_FILE}"
+                        fi
                     else
                         warning "Virtual host created in dryrun mode, no data written."
                     fi
@@ -1197,7 +1216,7 @@ function init_app() {
                                 run unzip -q "${TMPDIR}/FileRun.zip" -d "${WEBROOT}"
                                 run rm -f "${TMPDIR}/FileRun.zip"
                             else
-                                error "Something goes wrong when downloading FileRun files."
+                                error "Something went wrong while downloading FileRun files."
                             fi
                         else
                             warning "FileRun skeleton files already exists."
@@ -1244,49 +1263,62 @@ function init_app() {
                 ;;
             esac
 
-            # Confirm virtual host.
-            if ! "${DRYRUN}"; then
+            if "${DRYRUN}"; then
+                warning "New domain ${SERVERNAME} has been added in dry run mode."
+            else
+                # Confirm virtual host.
                 if grep -qwE "server_name ${SERVERNAME}" "${VHOST_FILE}"; then
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 fi
-            fi
 
-            # Enable Wildcard domain.
-            if [[ ${ENABLE_WILDCARD_DOMAIN} == true && "${DRYRUN}" != true ]]; then
-                echo "Enable wildcard domain for ${SERVERNAME}..."
+                # Enable Wildcard domain.
+                if [[ ${ENABLE_WILDCARD_DOMAIN} == true ]]; then
+                    echo "Enable wildcard domain for ${SERVERNAME}..."
 
-                if grep -qwE "server_name\ ${SERVERNAME};$" "${VHOST_FILE}"; then
-                    run sed -i "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" "${VHOST_FILE}"
+                    if grep -qwE "server_name\ ${SERVERNAME};$" "${VHOST_FILE}"; then
+                        run sed -i "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" "${VHOST_FILE}"
+                    fi
                 fi
-            fi
 
-            # Enable FastCGI cache.
-            if [[ ${ENABLE_FASTCGI_CACHE} == true && "${DRYRUN}" != true ]]; then
-                echo "Enable FastCGI cache for ${SERVERNAME}..."
+                # Enable FastCGI cache.
+                if [[ ${ENABLE_FASTCGI_CACHE} == true ]]; then
+                    echo "Enable FastCGI cache for ${SERVERNAME}..."
 
-                if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]; then
-                    # enable cached directives
-                    run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" "${VHOST_FILE}"
-                    # enable fastcgi_cache conf
-                    run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" "${VHOST_FILE}"
-                else
-                    warning "FastCGI cache is not enabled due to no cached version of ${FRAMEWORK^} directive."
+                    if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]; then
+                        # enable cached directives
+                        run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" "${VHOST_FILE}"
+                        # enable fastcgi_cache conf
+                        run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" "${VHOST_FILE}"
+                    else
+                        warning "FastCGI cache is not enabled due to no cached version of ${FRAMEWORK^} directive."
+                    fi
                 fi
-            fi
 
-            # Enable PageSpeed.
-            if [[ ${ENABLE_PAGESPEED} == true && "${DRYRUN}" != true ]]; then
-                echo "Enable Mod PageSpeed for ${SERVERNAME}..."
+                # Enable PageSpeed.
+                if [[ ${ENABLE_PAGESPEED} == true ]]; then
+                    echo "Enable Mod PageSpeed for ${SERVERNAME}..."
 
-                if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/60-mod-pagespeed.conf ]]; then
-                    # enable mod pagespeed
-                    run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" /etc/nginx/nginx.conf
-                    run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" "${VHOST_FILE}"
-                    run sed -i "s|#pagespeed\ EnableFilters|pagespeed\ EnableFilters|g" "${VHOST_FILE}"
-                    run sed -i "s|#pagespeed\ Disallow|pagespeed\ Disallow|g" "${VHOST_FILE}"
-                    run sed -i "s|#pagespeed\ Domain|pagespeed\ Domain|g" "${VHOST_FILE}"
-                else
-                    warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
+                    if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/60-mod-pagespeed.conf ]]; then
+                        # enable mod pagespeed
+                        run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" /etc/nginx/nginx.conf
+                        run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" "${VHOST_FILE}"
+                        run sed -i "s|#pagespeed\ EnableFilters|pagespeed\ EnableFilters|g" "${VHOST_FILE}"
+                        run sed -i "s|#pagespeed\ Disallow|pagespeed\ Disallow|g" "${VHOST_FILE}"
+                        run sed -i "s|#pagespeed\ Domain|pagespeed\ Domain|g" "${VHOST_FILE}"
+                    else
+                        warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
+                    fi
+                fi
+
+                echo "Fix files ownership and permission..."
+
+                # Fix document root ownership.
+                run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
+
+                # Fix document root permission.
+                if [ "$(ls -A "${WEBROOT}")" ]; then
+                    run find "${WEBROOT}" -type d -print0 | xargs -0 chmod 755
+                    run find "${WEBROOT}" -type f -print0 | xargs -0 chmod 644
                 fi
             fi
 
@@ -1297,19 +1329,6 @@ function init_app() {
                 run ln -s "/etc/nginx/sites-available/${SERVERNAME}.conf" \
                     "/etc/nginx/sites-enabled/${SERVERNAME}.conf"
             fi
-
-            # Fix document root ownership.
-            run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
-
-            # Fix document root permission.
-            if [ "$(ls -A "${WEBROOT}")" ]; then
-                if ! "${DRYRUN}"; then
-                    run find "${WEBROOT}" -type d -print0 | xargs -0 chmod 755
-                    run find "${WEBROOT}" -type f -print0 | xargs -0 chmod 644
-                else
-                    warning "Fix ownership and permission in dryrun mode..."
-                fi
-            fi    
 
             # Reload Nginx
             echo "Reloading NGiNX HTTP server configuration..."
