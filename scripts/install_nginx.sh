@@ -722,7 +722,10 @@ function init_nginx_install() {
     fi
     run cp -fr share/nginx/html/error-pages /usr/share/nginx/html/
     run cp -f share/nginx/html/index.html /usr/share/nginx/html/
-    
+
+    # Custom PHP tmp dir.
+    run mkdir -p /usr/share/nginx/html/.tmp
+
     if [ -d /usr/share/nginx/html ]; then
         run chown -hR www-data:www-data /usr/share/nginx/html
     fi

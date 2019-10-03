@@ -89,7 +89,7 @@ php-geoip php-imagick php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database"
             elif [ "${PHPv}" == "7.2" ]; then
                 run apt-get -qq install -y gcc make autoconf libc-dev pkg-config \
                     libmcrypt-dev libreadline-dev && \
-                    pecl install mcrypt-1.0.1
+                run pecl install mcrypt-1.0.1
 
                 # Enable Mcrypt module.
                 echo "Update PHP ini file with Mcrypt module..."
@@ -113,7 +113,7 @@ php-geoip php-imagick php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database"
         fi
 
         if [ ! -d /var/log/php ]; then
-            mkdir /var/log/php
+            mkdir -p /var/log/php
         fi
     fi
 }
@@ -334,7 +334,7 @@ function optimize_php_fpm() {
     echo "Optimizing PHP${PHPv} & FPM configuration..."
 
     if [ ! -d "/etc/php/${PHPv}/fpm" ]; then
-        run mkdir "/etc/php/${PHPv}/fpm"
+        run mkdir -p "/etc/php/${PHPv}/fpm"
     fi
 
     # Copy the optimized-version of php.ini
@@ -342,7 +342,10 @@ function optimize_php_fpm() {
         run mv "/etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/php.ini~"
         run cp -f "etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/"
     else
-        cat >> "/etc/php/${PHPv}/fpm/php.ini" <<EOL
+        if "${DRYRUN}"; then
+            warning "PHP configuration optimized in dry run mode."
+        else
+            cat >> "/etc/php/${PHPv}/fpm/php.ini" <<EOL
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Custom Optimization for LEMPer ;
@@ -360,6 +363,7 @@ opcache.revalidate_freq=1
 opcache.save_comments=1
 opcache.error_log="/var/log/php/php${PHPv}-opcache_error.log"
 EOL
+        fi
     fi
 
     # Copy the optimized-version of php-fpm config file.
@@ -401,7 +405,7 @@ EOL
     fi
 
     if [ ! -d "/etc/php/${PHPv}/fpm/pool.d" ]; then
-        run mkdir "/etc/php/${PHPv}/fpm/pool.d"
+        run mkdir -p "/etc/php/${PHPv}/fpm/pool.d"
     fi
 
     # Copy the optimized-version of php fpm default pool.
@@ -424,24 +428,34 @@ EOL
             "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
         # Customize php ini settings.
-        cat >> "/etc/php/${PHPv}/fpm/pool.d/www.conf" <<EOL
+        if "${DRYRUN}"; then
+            warning "Default FPM pool optimized in dry run mode."
+        else
+            cat >> "/etc/php/${PHPv}/fpm/pool.d/www.conf" <<EOL
 php_flag[display_errors] = on
-php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.$pool.log
+php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /usr/share/nginx/html
+php_admin_value[upload_tmp_dir] = /usr/share/nginx/html/.tmp
 EOL
+        fi
     fi
 
     # Copy the optimized-version of php fpm default lemper pool.
     local POOLNAME=${LEMPER_USERNAME:-"lemper"}
-    if [ -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" ]; then
-        if [[ -f "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" && ${POOLNAME} != "lemper" ]]; then
-            run mv "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/lemper.conf~"
-        fi
+    if [[ -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" && ${POOLNAME} == "lemper" ]]; then
         run cp -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
     else
-        cat >> "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf" <<EOL
+        if [[ -f "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" && -z $(getent passwd "${POOLNAME}") ]]; then
+            run mv "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/lemper.conf~"
+        fi
+
+        # Create custom pool configuration.
+        if "${DRYRUN}"; then
+            warning "Custom FPM pool ${POOLNAME} created & optimized in dry run mode."
+        else
+            cat >> "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf" <<EOL
 [${POOLNAME}]
 user = ${POOLNAME}
 group = ${POOLNAME}
@@ -479,23 +493,29 @@ php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /home/${POOLNAME}
+php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.tmp
 EOL
+        fi
     fi
 
     # Fix cgi.fix_pathinfo (for PHP older than 5.3)
     #sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
 
     # Restart PHP-fpm server.
-    if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-        run service "php${PHPv}-fpm" reload
-        status "PHP${PHPv}-FPM reloaded successfully."
-    elif [[ -n $(command -v "php${PHPv}") ]]; then
-        run service "php${PHPv}-fpm" start
-
+    if "${DRYRUN}"; then
+        warning "PHP${PHPv}-FPM reloaded in dry run mode."
+    else
         if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-            status "PHP${PHPv}-FPM started successfully."
-        else
-            warning "Something goes wrong with PHP${PHPv} & FPM installation."
+            run service "php${PHPv}-fpm" reload
+            status "PHP${PHPv}-FPM reloaded successfully."
+        elif [[ -n $(command -v "php${PHPv}") ]]; then
+            run service "php${PHPv}-fpm" start
+
+            if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
+                status "PHP${PHPv}-FPM started successfully."
+            else
+                warning "Something goes wrong with PHP${PHPv} & FPM installation."
+            fi
         fi
     fi
 }
@@ -506,7 +526,7 @@ function init_php_fpm_install() {
     if "${AUTO_INSTALL}"; then
         SELECTED_PHP=${PHP_VERSION:-"7.3"}
     else
-        echo "Which version of PHP to install?"
+        echo "Which version of PHP to be installed?"
         echo "Supported PHP version:"
         echo "  1). PHP 5.6 (EOL)"
         echo "  2). PHP 7.0 (EOL)"
@@ -515,7 +535,7 @@ function init_php_fpm_install() {
         echo "  5). PHP 7.3 (Latest stable)"
         echo "  6). PHP 7.4 (Beta)"
         echo "  7). All available versions"
-        echo "---------------------------------"
+        echo "+--------------------------------------+"
 
         while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                 ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
@@ -697,9 +717,9 @@ function init_php_fpm_install() {
         fi
 
         # Final optimization.
-        if "${DRYRUN}"; then
-            warning "PHP${PHPv} & FPM installed and optimized in dryrun mode."
-        else
+        #if "${DRYRUN}"; then
+        #    warning "PHP${PHPv} & FPM installed and optimized in dryrun mode."
+        #else
             if [ "${PHPv}" != "all" ]; then
                 optimize_php_fpm "${PHPv}"
 
@@ -716,7 +736,7 @@ function init_php_fpm_install() {
                 optimize_php_fpm "7.3"
                 #optimize_php_fpm "7.4"
             fi
-        fi
+        #fi
     fi
 }
 
