@@ -488,10 +488,10 @@ function create_account() {
             run echo "${USERNAME}:${PASSWORD}" | chpasswd
             run usermod -aG sudo "${USERNAME}"
 
-            if [ -d "/home/${USERNAME}" ]; then
-                run mkdir "/home/${USERNAME}/webapps"
-                run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/webapps"
-            fi
+            # Create default directories.
+            run mkdir -p "/home/${USERNAME}/webapps"
+            run mkdir -p "/home/${USERNAME}/.tmp"
+            run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
 
             # Add account credentials to /srv/.htpasswd.
             if [ ! -f "/srv/.htpasswd" ]; then
@@ -514,7 +514,8 @@ function create_account() {
             # Save data to log file.
             echo "
 Your default system account information:
-Username: ${USERNAME} | Password: ${PASSWORD}
+Username: ${USERNAME}
+Password: ${PASSWORD}
 "
 
             status "Username ${USERNAME} created."
@@ -531,7 +532,7 @@ function delete_account() {
     if [[ -n $(getent passwd "${USERNAME}") ]]; then
 
         if pgrep -u "${USERNAME}"; then
-            error "User lemper is currently used by process."
+            error "User lemper is currently used by running processes."
         else
             run userdel -r "${USERNAME}"
 
