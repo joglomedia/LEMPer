@@ -404,13 +404,13 @@ function enable_https() {
         if [[ -n $(command -v certbot) ]]; then
             # Is it wildcard vhost?
             if grep -qwE "\*.${1}" "/etc/nginx/sites-available/${1}.conf"; then
-                run certbot certonly --rsa-key-size 4096 --manual --agree-tos --preferred-challenges dns --manual-public-ip-logging-ok \
-                    --webroot-path="${WEBROOT}" -d "${1}" -d "*.${1}"
-                #run certbot certonly --manual --agree-tos --preferred-challenges dns --manual-public-ip-logging-ok \
+                #run certbot certonly --rsa-key-size 4096 --manual --agree-tos --preferred-challenges dns --manual-public-ip-logging-ok \
                 #    --webroot-path="${WEBROOT}" -d "${1}" -d "*.${1}"
+                run certbot certonly --manual --agree-tos --preferred-challenges dns --manual-public-ip-logging-ok \
+                    --webroot-path="${WEBROOT}" -d "${1}" -d "*.${1}"
             else
-                run certbot certonly --rsa-key-size 4096 --webroot --agree-tos --webroot-path="${WEBROOT}" -d "${1}"
-                #run certbot certonly --webroot --agree-tos --webroot-path="${WEBROOT}" -d "${1}"
+                #run certbot certonly --rsa-key-size 4096 --webroot --agree-tos --webroot-path="${WEBROOT}" -d "${1}"
+                run certbot certonly --webroot --agree-tos --webroot-path="${WEBROOT}" -d "${1}"
             fi
         else
             fail "Certbot executable binary not found. Install it first!"
@@ -418,11 +418,11 @@ function enable_https() {
     fi
 
     # Generate Diffie-Hellman parameters.
-    if [ ! -f /etc/nginx/ssl/dhparam-4096.pem ]; then
+    if [ ! -f /etc/nginx/ssl/dhparam-2048.pem ]; then
         echo "Generating Diffie-Hellman parameters for enhanced HTTPS/SSL security."
 
-        #run openssl dhparam -out /etc/nginx/ssl/dhparam-2048.pem 2048
-        run openssl dhparam -out /etc/nginx/ssl/dhparam-4096.pem 4096
+        run openssl dhparam -out /etc/nginx/ssl/dhparam-2048.pem 2048
+        #run openssl dhparam -out /etc/nginx/ssl/dhparam-4096.pem 4096
     fi
 
     # Update vhost config.
