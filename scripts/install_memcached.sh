@@ -26,8 +26,7 @@ function init_memcached_install() {
         done
     fi
 
-    if [[ "${DO_INSTALL_MEMCACHED}" == y* && ${INSTALL_MEMCACHED} == true ]]; then
-
+    if [[ ${DO_INSTALL_MEMCACHED} == y* && ${INSTALL_MEMCACHED} == true ]]; then
         local SELECTED_MEMCACHED_INSTALLER=${MEMCACHED_INSTALLER:-"repo"}
         case "${SELECTED_MEMCACHED_INSTALLER}" in
             1|"repo")
@@ -53,9 +52,14 @@ function init_memcached_install() {
                 if wget -q -O "memcached.tar.gz" "${memcached_download_url}"; then
                     run tar -zxf "memcached.tar.gz"
                     run cd memcached-*
-                    run ./configure --bindir=/usr/bin && \
+
+                    if [[ ${MEMCACHED_SASL} == "enable" || ${MEMCACHED_SASL} == true ]]; then
+                        run ./configure --bindir=/usr/bin --enable-sasl
+                    else
+                        run ./configure --bindir=/usr/bin
+                    fi
+
                     run make && \
-                    run make test && \
                     run make install
 
                     # Create memcache user. 
@@ -78,6 +82,22 @@ function init_memcached_install() {
 
         if [[ -n $(command -v memcached) ]]; then
             echo "Configuring Memcached server..."
+
+            # SASL auth enabled.
+            if "${DRYRUN}"; then
+                warning "Memcahed SASL-auth configured in dry run mode."
+            else
+                if [[ ${MEMCACHED_SASL} == "enable" || ${MEMCACHED_SASL} == true ]]; then
+                    run mkdir -p /etc/sasl2 && run touch /etc/sasl2/memcached.conf
+                    cat >> /etc/sasl2/memcached.conf <<EOL
+mech_list: plain
+log_level: 5
+sasldb_path: /etc/sasl2/sasldb2-memcached
+EOL
+                    run saslpasswd2 -p -a memcached -f /etc/sasl2/sasldb2-memcached -c "${USERNAME}" <<< "${PASSWORD}"
+                    run chown memcache:memcache /etc/sasl2/sasldb2-memcached
+                fi
+            fi
 
             # Remove existing Memcached config.
             if [ -f /etc/memcached.conf ]; then

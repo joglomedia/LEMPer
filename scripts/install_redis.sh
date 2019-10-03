@@ -27,7 +27,7 @@ function init_redis_install {
         done
     fi
 
-    if [[ "${DO_INSTALL_REDIS}" == y* && "${INSTALL_REDIS}" == true ]]; then
+    if [[ ${DO_INSTALL_REDIS} == y* && "${INSTALL_REDIS}" == true ]]; then
         echo "Installing Redis server and Redis PHP module..."
 
         # Add Redis repos.
@@ -62,7 +62,7 @@ function init_redis_install {
 
             cat >> /etc/redis/redis.conf <<EOL
 
-###################################################################
+####################################
 # Custom configuration for LEMPer
 #
 maxmemory ${REDISMEM_SIZE}mb
@@ -72,7 +72,7 @@ EOL
             # Custom Optimization.
             cat >> /etc/sysctl.conf <<EOL
 
-###################################################################
+###################################
 # Custom optimization for LEMPer
 #
 net.core.somaxconn=65535

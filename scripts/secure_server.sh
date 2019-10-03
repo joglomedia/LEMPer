@@ -188,7 +188,7 @@ function install_ufw() {
         run ufw allow 123/udp
 
         # Turn on firewall.
-        run ufw enable
+        run ufw --force enable
 
         # Restart
         if "${DRYRUN}"; then

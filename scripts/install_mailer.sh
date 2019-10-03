@@ -19,27 +19,27 @@ requires_root
 
 # Install Postfix mail server
 function install_postfix() {
-    while [[ $INSTALL_POSTFIX != "y" && $INSTALL_POSTFIX != "n" ]]; do
-        read -p "Do you want to install Postfix Mail Transfer Agent? [y/n]: " -e INSTALL_POSTFIX
-    done
-    if [[ "$INSTALL_POSTFIX" == Y* || "$INSTALL_POSTFIX" == y* ]]; then
+    if "${AUTO_INSTALL}"; then
+        DO_INSTALL_POSTFIX="y"
+    else
+        while [[ $DO_INSTALL_POSTFIX != "y" && $DO_INSTALL_POSTFIX != "n" ]]; do
+            read -rp "Do you want to install Postfix Mail Transfer Agent? [y/n]: " -i y -e DO_INSTALL_POSTFIX
+        done
+    fi
 
-        echo -e "\nInstalling Postfix Mail Transfer Agent..."
+    if [[ ${DO_INSTALL_POSTFIX} == y* && "${INSTALL_POSTFIX}" == true ]]; then
+        echo "Installing Postfix Mail Transfer Agent..."
 
-        run apt-get install -y mailutils postfix
-
-        # Update local time
-        run apt-get install -y ntpdate
-        run ntpdate -d cn.pool.ntp.org
+        run apt-get -qq install -y mailutils postfix
 
         # Installation status.
         if "${DRYRUN}"; then
-            status -e "\nPostfix installed in dryrun mode."
+            warning "Postfix installed in dryrun mode."
         else
-            if [[ $(ps -ef | grep -v grep | grep postfix | wc -l) > 0 ]]; then
-                status -e "\nPostfix installed successfully."
+            if [[ $(pgrep -c postfix) -gt 0 ]]; then
+                status "Postfix installed successfully."
             else
-                warning -e "\nSomething wrong with Postfix installation."
+                warning "Something wrong with Postfix installation."
             fi
         fi
     fi
