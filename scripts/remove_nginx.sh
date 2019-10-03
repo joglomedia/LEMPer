@@ -25,9 +25,9 @@ function init_nginx_removal() {
     fi
 
     # Remove nginx installation.
-    if dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-common"; then
+    if dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-stable"; then
         echo "Nginx-common package found. Removing..."
-        run apt-get -qq --purge remove -y nginx-common
+        run apt-get -qq --purge remove -y nginx-stable
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:nginx/stable
         fi
@@ -37,17 +37,11 @@ function init_nginx_removal() {
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:rtcamp/nginx
         fi
-    elif dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-full"; then
-        echo "Nginx-full package found. Removing..."
-        run apt-get -qq --purge remove -y nginx-full
-        if "${FORCE_REMOVE}"; then
-            run add-apt-repository -y --remove ppa:nginx/stable
-        fi
-    elif dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-stable"; then
+    elif dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-extras"; then
         echo "Nginx-stable package found. Removing..."
-        run apt-get -qq --purge remove -y nginx-stable
+        run apt-get -qq --purge remove -y nginx-extras
         if "${FORCE_REMOVE}"; then
-            run add-apt-repository -y --remove ppa:nginx/stable
+            run add-apt-repository -y --remove ppa:ondrej/nginx
         fi
     else
         echo "Nginx package not found. Possibly installed from source."

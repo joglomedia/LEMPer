@@ -27,17 +27,45 @@ function add_mongodb_repo() {
     DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
 
     case ${DISTRIB_NAME} in
-        debian|ubuntu)
+        debian)
+            [[ ${DISTRIB_REPO} == "buster" ]] && local DISTRIB_REPO="stretch"
+
             if [ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list" ]; then
-                run bash -c "echo 'deb [ arch=amd64 ] https://repo.mongodb.org/apt/${DISTRIB_NAME} ${DISTRIB_REPO}/mongodb-org/${MONGODB_VERSION} multiverse' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}.list"
-                run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
+                run bash -c "echo 'deb [ arch=amd64 ] https://repo.mongodb.org/apt/debian ${DISTRIB_REPO}/mongodb-org/${MONGODB_VERSION} main' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}.list"
+                run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -"
+                #run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
+                run apt-get -qq update -y
             else
                 warning "MongoDB ${MONGODB_VERSION} repository already exists."
             fi
         ;;
+        ubuntu)
+            case ${ARCH} in
+                x86_64)
+                    DISTRIB_ARCH="amd64"
+                ;;
+                i386|i486|i586|i686)
+                    DISTRIB_ARCH="i386"
+                ;;
+                armv8)
+                    DISTRIB_ARCH="arm64"
+                ;;
+                *)
+                    DISTRIB_ARCH="amd64,arm64,i386"
+                ;;
+            esac
 
+            if [ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list" ]; then
+                run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/ubuntu ${DISTRIB_REPO}/mongodb-org/${MONGODB_VERSION} multiverse' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}.list"
+                run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -"
+                #run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
+                run apt-get -qq update -y
+            else
+                warning "MongoDB ${MONGODB_VERSION} repository already exists."
+            fi
+        ;;
         *)
-            fail "Unable to install LEMPer: this GNU/Linux distribution is not supported.}"
+            fail "Unable to install LEMPer: this GNU/Linux distribution is not supported."
         ;;
     esac
 }
@@ -52,12 +80,13 @@ function init_mongodb_install() {
     fi
 
     if [[ "${DO_INSTALL_MONGODB}" == y* && ${INSTALL_MONGODB} == true ]]; then
+        # Add repository.
         add_mongodb_repo
 
         echo "Installing MongoDB server and MongoDB PHP module..."
-        if hash dpkg 2>/dev/null; then
-            run apt-get update
-            run apt-get -y install mongodb-org mongodb-org-server
+
+        if hash apt-get 2>/dev/null; then
+            run apt-get -qq install -y libcurl3 mongodb-org mongodb-org-server mongodb-org-shell mongodb-org-tools
         elif hash yum 2>/dev/null; then
             if [ "${VERSION_ID}" == "5" ]; then
                 yum -y update
@@ -71,20 +100,15 @@ function init_mongodb_install() {
         fi
 
         # Enable in start-up
-        while [[ "${AUTOSTART_MONGODB}" != "y" && "${AUTOSTART_MONGODB}" != "n" && ${AUTO_INSTALL} != true ]]; do
-            read -rp "Do you want to add MongoDB to systemctl? [y/n]: " -i y -e AUTOSTART_MONGODB
-        done
-        if [[ "${AUTOSTART_MONGODB}" == Y* || "${AUTOSTART_MONGODB}" == y* || ${AUTO_INSTALL} == true ]]; then
-            run systemctl restart mongod
-            run systemctl enable mongodb
-            run systemctl status mongod
-        fi
+        run systemctl restart mongod
+        run systemctl enable mongodb
+        run systemctl status mongod
 
         if "${DRYRUN}"; then
             warning "MongoDB server installed in dryrun mode."
         else
-            echo "Installation completed."
-            echo "Please create an administrative user. Example command lines below:";
+            echo "MongoDB installation completed."
+            echo "After LEMPer installation finished, create an MongoDB administrative user. Example command lines below:";
             cat <<- _EOF_
 
 mongo

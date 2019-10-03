@@ -20,14 +20,14 @@ requires_root
 # Install Certbot Let's Encrypt.
 function init_certbotle_install() {
     if "${AUTO_INSTALL}"; then
-        INSTALL_CERTBOT="y"
+        DO_INSTALL_CERTBOT="y"
     else
-        while [[ "${INSTALL_CERTBOT}" != "y" && "${INSTALL_CERTBOT}" != "n" ]]; do
-            read -rp "Do you want to install Certbot Let's Encrypt client? [y/n]: " -i y -e INSTALL_CERTBOT
+        while [[ "${DO_INSTALL_CERTBOT}" != "y" && "${DO_INSTALL_CERTBOT}" != "n" ]]; do
+            read -rp "Do you want to install Certbot Let's Encrypt client? [y/n]: " -i y -e DO_INSTALL_CERTBOT
         done
     fi
 
-    if [[ "${INSTALL_CERTBOT}" == Y* || "${INSTALL_CERTBOT}" == y* ]]; then
+    if [[ ${DO_INSTALL_CERTBOT} == y* && ${INSTALL_CERTBOT} == true ]]; then
         echo "Installing Certbot Let's Encrypt client..."
 
         run add-apt-repository -y ppa:certbot/certbot
@@ -70,12 +70,12 @@ EOL
         fi
 
         if "${DRYRUN}"; then
-            warning -e "\nCertbot installed in dryrun mode."
+            warning "Certbot installed in dryrun mode."
         else
             if certbot --version | grep -q "certbot"; then
-                status -e "\nCertbot installed successfully."
+                status "Certbot installed successfully."
             else
-                warning -e "\nSomething wrong with Certbot installation."
+                warning "Something wrong with Certbot installation."
             fi
         fi
     fi

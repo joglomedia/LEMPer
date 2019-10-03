@@ -29,19 +29,16 @@ function add_mariadb_repo() {
             local MARIADB_VERSION="10.3"
             local MARIADB_ARCH="amd64,i386,ppc64el"
         ;;
-
         xenial)
             # Support 10.3 & 10.4.
             local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
             local MARIADB_ARCH="amd64,arm64,i386,ppc64el"
         ;;
-
         bionic)
             # Support 10.3 & 10.4.
             local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
             local MARIADB_ARCH="amd64,arm64,ppc64el"
         ;;
-
         *)
             echo ""
             error "Unsupported distribution release: ${DISTRIB_REPO}."
@@ -83,8 +80,8 @@ function init_mariadb_install() {
         -i y -e DO_INSTALL_MYSQL
     done
 
-    if [[ "${DO_INSTALL_MYSQL}" == y* || "${INSTALL_MYSQL}" == true ]]; then
-        echo -e "\nInstalling MariaDB (MySQL) server..."
+    if [[ ${DO_INSTALL_MYSQL} == y* && ${INSTALL_MYSQL} == true ]]; then
+        echo "Installing MariaDB (MySQL drop-in replacement) server..."
 
         # Install MariaDB
         run apt-get install -y libmariadbclient18 mariadb-backup mariadb-common mariadb-server
@@ -98,7 +95,7 @@ function init_mariadb_install() {
 
         # Installation status.
         if "${DRYRUN}"; then
-            status "MariaDB (MySQL) installed in dryrun mode."
+            warning "MariaDB (MySQL) installed in dryrun mode."
         else
             if [[ -n $(command -v mysql) ]]; then
                 if [ ! -f /etc/mysql/my.cnf ]; then
@@ -152,11 +149,11 @@ function init_mariadb_install() {
             fi
 
             if [[ $(pgrep -c mysql) -gt 0 ]]; then
-                status -e "\nMariaDB (MySQL) installed successfully."
+                status "MariaDB (MySQL) installed successfully."
 
                 enable_mariabackup
             else
-                warning -e "\nSomething wrong with MariaDB (MySQL) installation."
+                warning "Something wrong with MariaDB (MySQL) installation."
             fi
         fi
     fi

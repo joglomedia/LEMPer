@@ -50,23 +50,24 @@ fi
 requires_root
 
 # Make sure this script only run on supported distribution.
-export DISTRIB_NAME && \
-DISTRIB_NAME=$(get_distrib_name)
-export DISTRIB_REPO && \
-DISTRIB_REPO=$(get_release_name)
+export DISTRIB_NAME && DISTRIB_NAME=$(get_distrib_name)
+export DISTRIB_REPO && DISTRIB_REPO=$(get_release_name)
+
 if [[ "${DISTRIB_REPO}" == "unsupported" ]]; then
-    warning "This installer only work on Ubuntu 16.04 & 18.04 and LinuxMint 18 & 19."
+    warning "This installer only work for Ubuntu (Xenial & Bionic)..."
     exit 1
 else
     # Get system architecture.
     export ARCH && \
     ARCH=$(uname -p)
+
     # Get ethernet interface.
     export IFACE && \
     IFACE=$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)
+
     # Get ethernet IP.
     export IP_SERVER && \
-    IP_SERVER=$(ifconfig "${IFACE}" | grep "inet " | cut -d: -f2 | awk '{print $2}')
+    IP_SERVER=$(get_ip_addr)
 fi
 
 # Init log.

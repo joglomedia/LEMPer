@@ -17,8 +17,8 @@ if [ -f ".env" ]; then
     # shellcheck disable=SC1094
     source <(grep -v '^#' .env | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
 else
-    echo "Environment variables required, but the Dotenv file not found."
-    exit 0
+    echo "Environment variables required, but the dotenv file doesn't exist. Copy .env.dist to .env first!"
+    exit 1
 fi
 
 # Direct access? make as dryrun mode.
@@ -287,15 +287,10 @@ function get_distrib_name() {
         . /etc/os-release
 
         # Export lsb-release vars.
-        if [ -f /etc/lsb-release ]; then
-            . /etc/lsb-release
-        fi
+        [ -f /etc/lsb-release ] && . /etc/lsb-release
 
-        if [[ "${ID_LIKE}" == "ubuntu" ]]; then
-            DISTRIB_NAME="ubuntu"
-        else
-            DISTRIB_NAME=${ID:-}
-        fi
+        # Get distribution name.
+        [[ "${ID_LIKE}" == "ubuntu" ]] && DISTRIB_NAME="ubuntu" || DISTRIB_NAME=${ID:-"unsupported"}
     elif [ -e /etc/system-release ]; then
     	DISTRIB_NAME="unsupported"
     else
@@ -313,15 +308,10 @@ function get_release_name() {
         . /etc/os-release
 
         # Export lsb-release vars.
-        if [ -f /etc/lsb-release ]; then
-            . /etc/lsb-release
-        fi
+        [ -f /etc/lsb-release ] && . /etc/lsb-release
 
-        if [[ "${ID_LIKE}" == "ubuntu" ]]; then
-            DISTRIB_NAME="ubuntu"
-        else
-            DISTRIB_NAME=${ID:-}
-        fi
+        # Get distribution name.
+        [[ "${ID_LIKE}" == "ubuntu" ]] && DISTRIB_NAME="ubuntu" || DISTRIB_NAME=${ID:-"unsupported"}
 
         case ${DISTRIB_NAME} in
             debian)
@@ -330,46 +320,46 @@ function get_release_name() {
 
                 # TODO for Debian install
             ;;
-
             ubuntu)
                 # Hack for Linux Mint release number.
                 DISTRO_VERSION=${VERSION_ID:-$DISTRIB_RELEASE}
                 MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print $1}')
-                if [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]]; then
+                [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]] && \
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
-                fi
 
-                if [[ "${DISTRIB_RELEASE}" == "14.04" || "${DISTRIB_RELEASE}" == "LM17" ]]; then
-                    # Ubuntu release 14.04, LinuxMint 17
-                    RELEASE_NAME=${UBUNTU_CODENAME:-"trusty"}
-                elif [[ "${DISTRIB_RELEASE}" == "16.04" || "${DISTRIB_RELEASE}" == "LM18" ]]; then
-                    # Ubuntu release 16.04, LinuxMint 18
-                    RELEASE_NAME=${UBUNTU_CODENAME:-"xenial"}
-                elif [[ "${DISTRIB_RELEASE}" == "18.04" || "${DISTRIB_RELEASE}" == "LM19" ]]; then
-                    # Ubuntu release 18.04, LinuxMint 19
-                    RELEASE_NAME=${UBUNTU_CODENAME:-"bionic"}
-                else
-                    RELEASE_NAME="unsupported"
-                fi
+                case ${DISTRIB_RELEASE} in
+                    "14.04"|"LM17")
+                        # Ubuntu release 14.04, LinuxMint 17
+                        RELEASE_NAME=${UBUNTU_CODENAME:-"trusty"}
+                    ;;
+                    "16.04"|"LM18")
+                        # Ubuntu release 16.04, LinuxMint 18
+                        RELEASE_NAME=${UBUNTU_CODENAME:-"xenial"}
+                    ;;
+                    "18.04"|"LM19")
+                        # Ubuntu release 18.04, LinuxMint 19
+                        RELEASE_NAME=${UBUNTU_CODENAME:-"bionic"}
+                    ;;
+                    *)
+                        RELEASE_NAME="unsupported"
+                    ;;
+                esac
             ;;
-
             amzn)
                 # Amazon based on RHEL/CentOS
                 RELEASE_NAME="unsupported"
 
                 # TODO for Amzn install
             ;;
-
             centos)
                 # CentOS
                 RELEASE_NAME="unsupported"
 
-                # TODO for Amzn install
+                # TODO for CentOS install
             ;;
-
             *)
                 RELEASE_NAME="unsupported"
-                warning "Sorry, this distro isn't supported yet. If you'd like it to be, let us know at eslabs.id@gmail.com."
+                warning "Sorry, this Linux distribution isn't supported yet. If you'd like it to be, let us know at eslabs.id@gmail.com."
             ;;
         esac
     elif [ -e /etc/system-release ]; then
@@ -488,10 +478,10 @@ function create_account() {
             run echo "${USERNAME}:${PASSWORD}" | chpasswd
             run usermod -aG sudo "${USERNAME}"
 
-            if [ -d "/home/${USERNAME}" ]; then
-                run mkdir "/home/${USERNAME}/webapps"
-                run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/webapps"
-            fi
+            # Create default directories.
+            run mkdir -p "/home/${USERNAME}/webapps"
+            run mkdir -p "/home/${USERNAME}/.tmp"
+            run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
 
             # Add account credentials to /srv/.htpasswd.
             if [ ! -f "/srv/.htpasswd" ]; then
@@ -514,7 +504,8 @@ function create_account() {
             # Save data to log file.
             echo "
 Your default system account information:
-Username: ${USERNAME} | Password: ${PASSWORD}
+Username: ${USERNAME}
+Password: ${PASSWORD}
 "
 
             status "Username ${USERNAME} created."
@@ -529,9 +520,8 @@ function delete_account() {
     local USERNAME=${1:-"lemper"}
 
     if [[ -n $(getent passwd "${USERNAME}") ]]; then
-
         if pgrep -u "${USERNAME}"; then
-            error "User lemper is currently used by process."
+            error "User lemper is currently used by running processes."
         else
             run userdel -r "${USERNAME}"
 
@@ -556,9 +546,10 @@ function get_ip_addr() {
     IP_EXTERNAL=$(curl -s http://ipecho.net/plain)
 
     if [[ "${IP_INTERNAL}" == "${IP_EXTERNAL}" ]]; then
-        echo "${IP_EXTERNAL}"
-    else
         echo "${IP_INTERNAL}"
+    else
+        # Ugly hack to detect aws-lightsail public IP address.
+        echo "${IP_EXTERNAL}"
     fi
 }
 

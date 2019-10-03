@@ -207,12 +207,10 @@ function init_phalcon_install() {
                 echo "Installing Phalcon extension from source..."
                 run install_phalcon "${PHPv}"
             ;;
-
             2|"repo")
                 echo "Installing Phalcon extension from repository..."
                 run apt-get -qq install -y php-phalcon
             ;;
-
             *)
                 # Skip installation.
                 warning "Phalcon installation skipped."

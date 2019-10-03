@@ -3,43 +3,42 @@
 
 fastcgi_cache_path /var/cache/nginx/fastcgi_cache levels=1:2 keys_zone=FASTCGICACHE:100m max_size=1g inactive=60m;
 fastcgi_cache_key "$scheme$request_method$host$request_uri";
-fastcgi_cache_use_stale	error timeout invalid_header updating http_500 http_503;
+fastcgi_cache_use_stale error timeout invalid_header updating http_500 http_503;
 fastcgi_cache_revalidate on;
 fastcgi_cache_background_update on;
 
-# Header status
-add_header X-FastCGI-Cache $upstream_cache_status;
-
-# Ignore header
-fastcgi_ignore_headers Cache-Control Expires Set-Cookie;
-
-# Designed to be used with Nginx Cache Controller WP plugin
-#fastcgi_pass_header "X-Accel-Redirect";
-#fastcgi_pass_header "X-Accel-Expires";
 
 # FastCGI Log Format
 log_format cache '$remote_addr - $upstream_cache_status [$time_local] '
                  '"$request" $status $body_bytes_sent '
                  '"$http_referer" "$http_user_agent"';
 
-# Map Mobile
-map $http_user_agent $is_mobile {
-	default 0;
-	~*android|ip(hone|ad|od)|windows\s+(?:ce|phone) 1;
-	~*symbian|sony|samsung|lg|blackberry 1;
-	~*mobile|mini 1;
+
+## Initialize default caching conditions. ##
+
+# Purge cache for request method.
+map $request_method $purge_method {
+    PURGE 1;
+    default 0;
 }
 
-# Map Cache
-
-# Skip caching on post
+# Skip caching for request method.
 map $request_method $skip_cache {
-	default 0;
-	POST 1;
+    default 0;
+    POST 1;
 }
 
-# Skip PHP Session cookie
-map $http_cookie $skip_cache {
-	default 0;
-	~SESS 1;
+# Skip caching for mobile device.
+# COMMENTED by default as most modern website are responsive and smartphone are widely used.
+map $http_user_agent $is_mobile {
+   default 0;
+#    ~*2.0\ MMP|240x320|400X240|AvantGo|BlackBerry|Blazer|Cellphone|Danger|DoCoMo|Elaine/3.0|EudoraWeb|Googlebot-Mobile|hiptop|IEMobile|KYOCERA/WX310K|LG/U990|MIDP-2.|MMEF20|MOT-V|NetFront|Newt|Nintendo\ Wii|Nitro|Nokia|Opera\ Mini|Palm|PlayStation\ Portable|portalmmm|Proxinet|ProxiNet|SHARP-TQ-GX10|SHG-i900|Small|SonyEricsson|Symbian\ OS|SymbianOS|TS21i-10|UP.Browser|UP.Link|webOS|Windows\ CE|WinWAP|YahooSeeker/M1A1-R2D2|iPhone|iPod|Android|BlackBerry9530|LG-TU915\ Obigo|LGE\ VX|webOS|Nokia5800 1;
+#    ~*w3c\ |w3c-|acs-|alav|alca|amoi|audi|avan|benq|bird|blac|blaz|brew|cell|cldc|cmd-|dang|doco|eric|hipt|htc_|inno|ipaq|ipod|jigs|kddi|keji|leno|lg-c|lg-d|lg-g|lge-|lg/u|maui|maxo|midp|mits|mmef|mobi|mot-|moto|mwbp|nec-|newt|noki|palm|pana|pant|phil|play|port|prox|qwap|sage|sams|sany|sch-|sec-|send|seri|sgh-|shar|sie-|siem|smal|smar|sony|sph-|symb|t-mo|teli|tim-|tosh|tsm-|upg1|upsi|vk-v|voda|wap-|wapa|wapi|wapp|wapr|webc|winw|winw|xda\ |xda- 1;
+#    ~*symbian|sony|samsung|lg|blackberry|nokia|mobile|mini|wap 1;
+}
+
+# Cache uri request method (used by WP SuperCache).
+map $request_method $cache_uri {
+    default $request_uri;
+    POST "null cache";
 }
