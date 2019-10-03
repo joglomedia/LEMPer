@@ -557,9 +557,10 @@ function get_ip_addr() {
     IP_EXTERNAL=$(curl -s http://ipecho.net/plain)
 
     if [[ "${IP_INTERNAL}" == "${IP_EXTERNAL}" ]]; then
-        echo "${IP_EXTERNAL}"
-    else
         echo "${IP_INTERNAL}"
+    else
+        # Ugly hack to detect aws-lightsail public IP address.
+        echo "${IP_EXTERNAL}"
     fi
 }
 
