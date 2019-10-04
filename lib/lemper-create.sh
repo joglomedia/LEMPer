@@ -724,6 +724,8 @@ php_admin_flag[log_errors] = on
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /home/${USERNAME}
 php_admin_value[upload_tmp_dir] = /home/${USERNAME}/.tmp
+php_admin_value[upload_max_filesize] = 10M
+php_admin_value[opcache.file_cache] = /home/${USERNAME}/.opcache
 _EOF_
 }
 
@@ -922,15 +924,21 @@ function init_app() {
 
             # Check PHP fpm version is exists.
             if [[ -n $(command -v "php-fpm${PHP_VERSION}") && -d "/etc/php/${PHP_VERSION}/fpm" ]]; then
-                # Additional check - if FPM user's pool already exist
+                # Additional check - if FPM user's pool already exist.
                 if [ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]; then
                     warning "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."
                     echo "Creating new PHP-FPM pool [${USERNAME}] configuration..."
 
+                    # Create PHP FPM pool conf.
                     create_fpm_pool_conf > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
                     run touch "/var/log/php${PHP_VERSION}-fpm_slow.${USERNAME}.log"
 
-                    # Restart PHP FPM
+                    # Create default directories.
+                    run mkdir -p "/home/${USERNAME}/.tmp"
+                    run mkdir -p "/home/${USERNAME}/.opcache"
+                    run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
+
+                    # Restart PHP FPM.
                     echo "Restart php${PHP_VERSION}-fpm configuration..."
 
                     run service "php${PHP_VERSION}-fpm" restart
