@@ -60,29 +60,27 @@ function init_webadmin_install() {
 
     # Install File Manager
     # Experimental: Replace FileRun with Tinyfilemanager https://github.com/PHPlayground/tinyfilemanager
-    if [ ! -d /usr/share/nginx/html/lcp/filemanager ]; then
+    # Clone custom TinyFileManager.
+    if [ ! -d /usr/share/nginx/html/lcp/filemanager/config ]; then
         #run mkdir -p /usr/share/nginx/html/lcp/filemanager
         #run wget -q http://www.filerun.com/download-latest -O /usr/share/nginx/html/lcp/FileRun.zip && \
         #run unzip -o -qq /usr/share/nginx/html/lcp/FileRun.zip -d /usr/share/nginx/html/lcp/filemanager && \
         #run rm -f /usr/share/nginx/html/lcp/FileRun.zip
 
-        # Clone custom TinyFileManager.
-        if [ ! -d /usr/share/nginx/html/lcp/filemanager/config ]; then
-            run git clone -q --depth=1 --branch=lemperfm_1.3.0 https://github.com/PHPlayground/tinyfilemanager.git \
-                /usr/share/nginx/html/lcp/filemanager
-        else
-            local CUR_DIR && \
-            CUR_DIR=$(pwd)
-            run cd /usr/share/nginx/html/lcp/filemanager/
-            run git pull -q
-            run cd "${CUR_DIR}"
-        fi
+        run git clone -q --depth=1 --branch=lemperfm_1.3.0 https://github.com/PHPlayground/tinyfilemanager.git \
+            /usr/share/nginx/html/lcp/filemanager
+    else
+        local CUR_DIR && \
+        CUR_DIR=$(pwd)
+        run cd /usr/share/nginx/html/lcp/filemanager/
+        run git pull -q
+        run cd "${CUR_DIR}"
+    fi
 
-        # Copy TinyFileManager custom account creator.
-        if [ -f /usr/share/nginx/html/lcp/filemanager/adduser-tfm.sh ]; then
-            run cp -f /usr/share/nginx/html/lcp/filemanager/adduser-tfm.sh /usr/local/lib/lemper/lemper-tfm
-            run chmod ugo+x /usr/local/lib/lemper/lemper-tfm
-        fi
+    # Copy TinyFileManager custom account creator.
+    if [ -f /usr/share/nginx/html/lcp/filemanager/adduser-tfm.sh ]; then
+        run cp -f /usr/share/nginx/html/lcp/filemanager/adduser-tfm.sh /usr/local/lib/lemper/lemper-tfm
+        run chmod ugo+x /usr/local/lib/lemper/lemper-tfm
     fi
 
     # Install Zend OpCache Web Admin
