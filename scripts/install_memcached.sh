@@ -163,8 +163,8 @@ EOL
                 # Otherwise, set Memcached to max of 2048GiB.
                 local MEMCACHED_SIZE=2048
             fi
-            run sed -i "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached/memcache.conf
-            run sed -i "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached/www-data.conf
+            run sed -i "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached_memcache.conf
+            run sed -i "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached_www-data.conf
         fi
 
         # Install PHP memcached module.
@@ -196,12 +196,22 @@ EOL
             warning "Memcached server installed in dryrun mode."
         else
             if [[ $(pgrep -c memcached) -gt 0 ]]; then
-                run service memcached@memcache restart
-                run service memcached@www-data restart
+                #run service memcached@memcache restart
+                #run service memcached@www-data restart
+                run /usr/share/memcached/scripts/start-memcached \
+                    /etc/memcached_memcache.conf /var/run/memcached_memcache.pid
+                run /usr/share/memcached/scripts/start-memcached \
+                    /etc/memcached_www-data.conf /var/run/memcached_www-data.pid
+
                 status "Memcached server restarted successfully."
             elif [[ -n $(command -v memcached) ]]; then
-                run service memcached@memcache start
-                run service memcached@www-data start
+                #run service memcached@memcache start
+                #run service memcached@www-data start
+                run /usr/share/memcached/scripts/start-memcached \
+                    /etc/memcached_memcache.conf /var/run/memcached_memcache.pid
+                run /usr/share/memcached/scripts/start-memcached \
+                    /etc/memcached_www-data.conf /var/run/memcached_www-data.pid
+
                 sleep 1
 
                 if [[ $(pgrep -c memcached) -gt 0 ]]; then
