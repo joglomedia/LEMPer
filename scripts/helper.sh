@@ -480,7 +480,6 @@ function create_account() {
 
             # Create default directories.
             run mkdir -p "/home/${USERNAME}/webapps"
-            run mkdir -p "/home/${USERNAME}/.tmp"
             run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
 
             # Add account credentials to /srv/.htpasswd.

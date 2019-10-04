@@ -438,6 +438,8 @@ php_admin_flag[log_errors] = on
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /usr/share/nginx/html
 php_admin_value[upload_tmp_dir] = /usr/share/nginx/html/.tmp
+php_admin_value[upload_max_filesize] = 10M
+php_admin_value[opcache.file_cache] = /usr/share/nginx/html/.opcache
 EOL
         fi
     fi
@@ -494,9 +496,16 @@ php_admin_flag[log_errors] = on
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /home/${POOLNAME}
 php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.tmp
+php_admin_value[upload_max_filesize] = 10M
+php_admin_value[opcache.file_cache] = /home/${POOLNAME}/.opcache
 EOL
         fi
     fi
+
+    # Create default directories.
+    run mkdir -p "/home/${POOLNAME}/.tmp"
+    run mkdir -p "/home/${POOLNAME}/.opcache"
+    run chown -hR "${POOLNAME}:${POOLNAME}" "/home/${POOLNAME}"
 
     # Fix cgi.fix_pathinfo (for PHP older than 5.3)
     #sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini

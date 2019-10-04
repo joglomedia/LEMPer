@@ -732,6 +732,9 @@ function init_nginx_install() {
     # Custom PHP tmp dir.
     run mkdir -p /usr/share/nginx/html/.tmp
 
+    # Custom PHP opcache dir.
+    run mkdir -p /usr/share/nginx/html/.opcache
+
     if [ -d /usr/share/nginx/html ]; then
         run chown -hR www-data:www-data /usr/share/nginx/html
     fi
