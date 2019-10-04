@@ -70,9 +70,6 @@ else
     IP_SERVER=$(get_ip_addr)
 fi
 
-# Init log.
-run init_log
-
 ### Main ###
 case "${1}" in
     "--install")
@@ -84,6 +81,9 @@ case "${1}" in
         if ! "${AUTO_INSTALL}"; then
             read -t 60 -rp "Press [Enter] to continue..." </dev/tty
         fi
+
+        # Init log.
+        run init_log
 
         ### Clean-up server ###
         echo ""
