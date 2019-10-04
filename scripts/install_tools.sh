@@ -91,7 +91,7 @@ function init_webadmin_install() {
 
     # Install Memcached Web Admin
     #http://blog.elijaa.org/index.php?pages/phpMemcachedAdmin-Installation-Guide
-    if [ ! -d /usr/share/nginx/html/lcp/phpMemcachedAdmin/ ]; then
+    if [ ! -d /usr/share/nginx/html/lcp/memcadmin/ ]; then
         run git clone -q --depth=1 --branch=master \
             https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/lcp/memcadmin/
     else
