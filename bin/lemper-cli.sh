@@ -62,6 +62,15 @@ function cmd_manage() {
     fi
 }
 
+function cmd_tfm() {
+    if [ -x "$LibDir/lemper-tfm" ]; then
+        "$LibDir/lemper-tfm" "$@"
+    else
+        echo "Oops, lemper tfm subcommand module couldn't be loaded."
+        exit 1
+    fi
+}
+
 SubCommand=$1
 case ${SubCommand} in
     "" | "-h" | "--help")
