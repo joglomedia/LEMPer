@@ -126,7 +126,7 @@ server {
     # Error page directives.
     include /etc/nginx/includes/error_pages.conf;
 
-    location / {
+    location /lcp {
         # First attempt to serve request as file, then
         # as directory, then fall back to index.html
         try_files $uri $uri/ /index.html;
@@ -136,20 +136,11 @@ server {
 
         # Uncomment to enable auto index
         autoindex off;
-    }
 
-    location ~ ^/dbadminer {
-        #root /usr/share/nginx/html/lcp/dbadminer;
-        try_files $uri $uri/ /index.php?$args;
-        #include /etc/nginx/naxsi.rules;
-        autoindex off;
-    }
-
-    location ~ ^/filemanager {
-        #root /usr/share/nginx/html/lcp/filemanager;
-        try_files $uri $uri/ /index.php?$args;
-        #include /etc/nginx/naxsi.rules;
-        autoindex off;
+        # Set basic auth.
+        allow all;
+        auth_basic "Denied";
+        auth_basic_user_file /srv/.htpasswd;
     }
 
     # Pass the PHP scripts to FastCGI server listening on Unix socket.
