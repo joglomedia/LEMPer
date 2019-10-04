@@ -2,7 +2,7 @@
 
 # LEMPer administration installer
 # Min. Requirement  : GNU/Linux Ubuntu 14.04
-# Last Build        : 01/07/2019
+# Last Build        : 04/10/2019
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
@@ -67,12 +67,20 @@ function init_webadmin_install() {
         #run rm -f /usr/share/nginx/html/lcp/FileRun.zip
 
         # Clone custom TinyFileManager.
-        run git clone -q --depth=1 --branch=lemperfm_1.3.0 https://github.com/PHPlayground/tinyfilemanager.git \
-            /usr/share/nginx/html/lcp/filemanager
-        
+        if [ ! -d /usr/share/nginx/html/lcp/filemanager/config ]; then
+            run git clone -q --depth=1 --branch=lemperfm_1.3.0 https://github.com/PHPlayground/tinyfilemanager.git \
+                /usr/share/nginx/html/lcp/filemanager
+        else
+            local CUR_DIR && \
+            CUR_DIR=$(pwd)
+            run cd /usr/share/nginx/html/lcp/filemanager/
+            run git pull -q
+            run cd "${CUR_DIR}"
+        fi
+
         # Copy TinyFileManager custom account creator.
         if [ -f /usr/share/nginx/html/lcp/filemanager/adduser-tfm.sh ]; then
-            run cp /usr/share/nginx/html/lcp/filemanager/adduser-tfm.sh /usr/local/lib/lemper/lemper-tfm
+            run cp -f /usr/share/nginx/html/lcp/filemanager/adduser-tfm.sh /usr/local/lib/lemper/lemper-tfm
             run chmod ugo+x /usr/local/lib/lemper/lemper-tfm
         fi
     fi
