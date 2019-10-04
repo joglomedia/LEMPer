@@ -206,7 +206,7 @@ Here is your default system account information:
     Password : ${PASSWORD}
 
 Access to your Database administration (Adminer):
-    http://${IP_SERVER}:8082/lcp/dbadminer/
+    http://${IP_SERVER}:8082/lcp/dbadmin/
 
     Database root password: ${MYSQL_ROOT_PASS}
 
@@ -214,7 +214,7 @@ Access to your Database administration (Adminer):
     DB Username: ${MARIABACKUP_USER}
     DB Password: ${MARIABACKUP_PASS}
 
-Access to your File manager (FileRun):
+Access to your File manager (TinyFileManager):
     http://${IP_SERVER}:8082/lcp/filemanager/
 
 Please Save & Keep It Private!
