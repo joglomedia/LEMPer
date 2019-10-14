@@ -67,7 +67,7 @@ http://YOUR_IP_ADDRESS:8082/lcp/
 ```
 Adminer (SQL database management tool)
 ```bash
-http://YOUR_DOMAIN_NAME:8082/lcp/dbadminer
+http://YOUR_DOMAIN_NAME:8082/lcp/dbadmin
 ```
 FileRun (File management tool)
 ```bash
