@@ -403,14 +403,14 @@ function enable_https() {
         # Certbot get Let's Encrypt SSL.
         if [[ -n $(command -v certbot) ]]; then
             # Is it wildcard vhost?
-            if grep -qwE "\*.${1}" "/etc/nginx/sites-available/${1}.conf"; then
+            if grep -qwE "${1}\ \*.${1}" "/etc/nginx/sites-available/${1}.conf"; then
                 #run certbot certonly --rsa-key-size 4096 --manual --agree-tos --preferred-challenges dns --manual-public-ip-logging-ok \
                 #    --webroot-path="${WEBROOT}" -d "${1}" -d "*.${1}"
                 run certbot certonly --manual --agree-tos --preferred-challenges dns --manual-public-ip-logging-ok \
                     --webroot-path="${WEBROOT}" -d "${1}" -d "*.${1}"
             else
-                #run certbot certonly --rsa-key-size 4096 --webroot --agree-tos --webroot-path="${WEBROOT}" -d "${1}"
-                run certbot certonly --webroot --agree-tos --webroot-path="${WEBROOT}" -d "${1}"
+                #run certbot certonly --rsa-key-size 4096 --webroot --agree-tos --preferred-challenges http --webroot-path="${WEBROOT}" -d "${1}"
+                run certbot certonly --webroot --agree-tos --preferred-challenges http --webroot-path="${WEBROOT}" -d "${1}"
             fi
         else
             fail "Certbot executable binary not found. Install it first!"

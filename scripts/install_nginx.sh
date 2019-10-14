@@ -781,10 +781,10 @@ function init_nginx_install() {
     fi
 
     # Generate Diffie-Hellman parameters.
-    DH_NUMBITS=${HASH_LENGTH:-2048}
-    if [ ! -f "/etc/nginx/ssl/dhparam-${DH_NUMBITS}.pem" ]; then
+    DH_LENGTH=${HASH_LENGTH:-2048}
+    if [ ! -f "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" ]; then
         echo "Enhance HTTPS/SSL security."
-        run openssl dhparam -out "/etc/nginx/ssl/dhparam-${DH_NUMBITS}.pem" "${DH_NUMBITS}"
+        run openssl dhparam -out "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" "${DH_LENGTH}"
     fi
 
     # Final test.

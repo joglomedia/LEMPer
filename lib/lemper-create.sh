@@ -755,7 +755,10 @@ function install_wordpress() {
         # Create default index file.
         if ! "${DRYRUN}"; then
             status "Creating default WordPress index file..."
-            create_index_file > "${WEBROOT}/index.html"
+
+            if [ ! -e "${WEBROOT}/index.html" ]; then
+                create_index_file > create_index_file > "${WEBROOT}/index.html"
+            fi
         fi
     fi
 
@@ -960,17 +963,19 @@ function init_app() {
                 echo "Creating web root directory: ${WEBROOT}..."
 
                 run mkdir -p "${WEBROOT}" && \
-                run touch "${WEBROOT}/access_log" && \
-                run touch "${WEBROOT}/error_log" && \
                 run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}" && \
                 run chmod 755 "${WEBROOT}"
             fi
 
             # Well-Known URIs: RFC 8615.
             if [ ! -d "${WEBROOT}/.well-known" ]; then
-                echo "Creating well-known directory (RFC8615)..."
-                run mkdir -p "${WEBROOT}/.well-known"
+                echo "Creating .well-known directory (RFC8615)..."
+                run mkdir -p "${WEBROOT}/.well-known/acme-challenge"
             fi
+
+            # Create log files.
+            run touch "${WEBROOT}/access_log"
+            run touch "${WEBROOT}/error_log"
 
             # Check framework option.
             if [[ -z "${FRAMEWORK}" ]]; then
@@ -1006,7 +1011,10 @@ function init_app() {
                     else
                         # Create default index file.
                         status "Creating default index file..."
-                        create_index_file > "${WEBROOT}/index.html"
+
+                        if [ ! -e "${WEBROOT}/index.html" ]; then
+                            create_index_file > "${WEBROOT}/index.html"
+                        fi
                     fi
 
                     run wget -q -O "${WEBROOT}/favicon.ico" \
@@ -1039,11 +1047,14 @@ function init_app() {
                         # Create default index file.
                         status "Creating default index file..."
                         run mkdir -p "${WEBROOT}/public"
-                        create_index_file > "${WEBROOT}/public/index.html"
+
+                        if [ ! -e "${WEBROOT}/public/index.html" ]; then
+                            create_index_file > "${WEBROOT}/public/index.html"
+                        fi
                     fi
 
                     # Well-Known URIs: RFC 8615.
-                    if [ ! -d "${WEBROOT}/.well-known" ]; then
+                    if [ ! -d "${WEBROOT}/public/.well-known" ]; then
                         run mkdir -p "${WEBROOT}/public/.well-known"
                     fi
 
@@ -1076,11 +1087,14 @@ function init_app() {
                         # Create default index file.
                         status "Creating default index file..."
                         run mkdir -p "${WEBROOT}/public"
-                        create_index_file > "${WEBROOT}/public/index.html"
+                        
+                        if [ ! -e "${WEBROOT}/public/index.html" ]; then
+                            create_index_file > "${WEBROOT}/public/index.html"
+                        fi
                     fi
 
                     # Well-Known URIs: RFC 8615.
-                    if [ ! -d "${WEBROOT}/.well-known" ]; then
+                    if [ ! -d "${WEBROOT}/public/.well-known" ]; then
                         run mkdir -p "${WEBROOT}/public/.well-known"
                     fi
 
@@ -1123,11 +1137,14 @@ function init_app() {
                     else
                         # Create default index file.
                         status "Creating default index file..."
-                        create_index_file > "${WEBROOT}/index.html"
+
+                        if [ ! -e "${WEBROOT}/index.html" ]; then
+                            create_index_file > "${WEBROOT}/index.html"
+                        fi
                     fi
 
                     # Well-Known URIs: RFC 8615.
-                    if [ ! -d "${WEBROOT}/.well-known" ]; then
+                    if [ ! -d "${WEBROOT}/public/.well-known" ]; then
                         run mkdir -p "${WEBROOT}/public/.well-known"
                     fi
 
@@ -1232,7 +1249,10 @@ function init_app() {
                     else
                         # Create default index file.
                         echo "Creating default index files..."
-                        create_index_file > "${WEBROOT}/index.html"
+
+                        if [ ! -e "${WEBROOT}/index.html" ]; then
+                            create_index_file > "${WEBROOT}/index.html"
+                        fi
                     fi
 
                     run wget -q -O "${WEBROOT}/favicon.ico" \
@@ -1250,8 +1270,9 @@ function init_app() {
                     # TODO: Auto install framework skeleton.
 
                     # Create default index file.
-                    create_index_file > "${WEBROOT}/index.html"
-                    run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
+                    if [ ! -e "${WEBROOT}/index.html" ]; then
+                        create_index_file > "${WEBROOT}/index.html"
+                    fi
 
                     run wget -q -O "${WEBROOT}/favicon.ico" \
                         https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
