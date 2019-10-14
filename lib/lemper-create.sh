@@ -128,7 +128,7 @@ Options:
   -f, --framework <website framework>
       Type of PHP web Framework and CMS, i.e. default.
       Supported Framework and CMS: default (vanilla PHP), codeigniter, drupal, laravel,
-      lumen, phalcon, symfony, wordpress, wordpress-ms.
+      lumen, mautic, phalcon, sendy, symfony, wordpress, wordpress-ms.
       Another framework and cms will be added soon.
   -p, --php-version
       PHP version for selected framework. Latest recommended PHP version is "7.3".
@@ -724,6 +724,8 @@ php_admin_flag[log_errors] = on
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /home/${USERNAME}
 php_admin_value[upload_tmp_dir] = /home/${USERNAME}/.tmp
+php_admin_value[upload_max_filesize] = 10M
+php_admin_value[opcache.file_cache] = /home/${USERNAME}/.opcache
 _EOF_
 }
 
@@ -753,7 +755,10 @@ function install_wordpress() {
         # Create default index file.
         if ! "${DRYRUN}"; then
             status "Creating default WordPress index file..."
-            create_index_file > "${WEBROOT}/index.html"
+
+            if [ ! -e "${WEBROOT}/index.html" ]; then
+                create_index_file > "${WEBROOT}/index.html"
+            fi
         fi
     fi
 
@@ -922,15 +927,21 @@ function init_app() {
 
             # Check PHP fpm version is exists.
             if [[ -n $(command -v "php-fpm${PHP_VERSION}") && -d "/etc/php/${PHP_VERSION}/fpm" ]]; then
-                # Additional check - if FPM user's pool already exist
+                # Additional check - if FPM user's pool already exist.
                 if [ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]; then
                     warning "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."
                     echo "Creating new PHP-FPM pool [${USERNAME}] configuration..."
 
+                    # Create PHP FPM pool conf.
                     create_fpm_pool_conf > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
                     run touch "/var/log/php${PHP_VERSION}-fpm_slow.${USERNAME}.log"
 
-                    # Restart PHP FPM
+                    # Create default directories.
+                    run mkdir -p "/home/${USERNAME}/.tmp"
+                    run mkdir -p "/home/${USERNAME}/.opcache"
+                    run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
+
+                    # Restart PHP FPM.
                     echo "Restart php${PHP_VERSION}-fpm configuration..."
 
                     run service "php${PHP_VERSION}-fpm" restart
@@ -952,17 +963,19 @@ function init_app() {
                 echo "Creating web root directory: ${WEBROOT}..."
 
                 run mkdir -p "${WEBROOT}" && \
-                run touch "${WEBROOT}/access_log" && \
-                run touch "${WEBROOT}/error_log" && \
                 run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}" && \
                 run chmod 755 "${WEBROOT}"
             fi
 
             # Well-Known URIs: RFC 8615.
             if [ ! -d "${WEBROOT}/.well-known" ]; then
-                echo "Creating well-known directory (RFC8615)..."
-                run mkdir -p "${WEBROOT}/.well-known"
+                echo "Creating .well-known directory (RFC8615)..."
+                run mkdir -p "${WEBROOT}/.well-known/acme-challenge"
             fi
+
+            # Create log files.
+            run touch "${WEBROOT}/access_log"
+            run touch "${WEBROOT}/error_log"
 
             # Check framework option.
             if [[ -z "${FRAMEWORK}" ]]; then
@@ -998,7 +1011,10 @@ function init_app() {
                     else
                         # Create default index file.
                         status "Creating default index file..."
-                        create_index_file > "${WEBROOT}/index.html"
+
+                        if [ ! -e "${WEBROOT}/index.html" ]; then
+                            create_index_file > "${WEBROOT}/index.html"
+                        fi
                     fi
 
                     run wget -q -O "${WEBROOT}/favicon.ico" \
@@ -1031,11 +1047,14 @@ function init_app() {
                         # Create default index file.
                         status "Creating default index file..."
                         run mkdir -p "${WEBROOT}/public"
-                        create_index_file > "${WEBROOT}/public/index.html"
+
+                        if [ ! -e "${WEBROOT}/public/index.html" ]; then
+                            create_index_file > "${WEBROOT}/public/index.html"
+                        fi
                     fi
 
                     # Well-Known URIs: RFC 8615.
-                    if [ ! -d "${WEBROOT}/.well-known" ]; then
+                    if [ ! -d "${WEBROOT}/public/.well-known" ]; then
                         run mkdir -p "${WEBROOT}/public/.well-known"
                     fi
 
@@ -1068,11 +1087,14 @@ function init_app() {
                         # Create default index file.
                         status "Creating default index file..."
                         run mkdir -p "${WEBROOT}/public"
-                        create_index_file > "${WEBROOT}/public/index.html"
+                        
+                        if [ ! -e "${WEBROOT}/public/index.html" ]; then
+                            create_index_file > "${WEBROOT}/public/index.html"
+                        fi
                     fi
 
                     # Well-Known URIs: RFC 8615.
-                    if [ ! -d "${WEBROOT}/.well-known" ]; then
+                    if [ ! -d "${WEBROOT}/public/.well-known" ]; then
                         run mkdir -p "${WEBROOT}/public/.well-known"
                     fi
 
@@ -1115,11 +1137,14 @@ function init_app() {
                     else
                         # Create default index file.
                         status "Creating default index file..."
-                        create_index_file > "${WEBROOT}/index.html"
+
+                        if [ ! -e "${WEBROOT}/index.html" ]; then
+                            create_index_file > "${WEBROOT}/index.html"
+                        fi
                     fi
 
                     # Well-Known URIs: RFC 8615.
-                    if [ ! -d "${WEBROOT}/.well-known" ]; then
+                    if [ ! -d "${WEBROOT}/public/.well-known" ]; then
                         run mkdir -p "${WEBROOT}/public/.well-known"
                     fi
 
@@ -1224,7 +1249,10 @@ function init_app() {
                     else
                         # Create default index file.
                         echo "Creating default index files..."
-                        create_index_file > "${WEBROOT}/index.html"
+
+                        if [ ! -e "${WEBROOT}/index.html" ]; then
+                            create_index_file > "${WEBROOT}/index.html"
+                        fi
                     fi
 
                     run wget -q -O "${WEBROOT}/favicon.ico" \
@@ -1238,12 +1266,13 @@ function init_app() {
                     create_vhost_default > "${VHOST_FILE}"
                 ;;
 
-                codeigniter|mautic|default)
+                codeigniter|mautic|sendy|default)
                     # TODO: Auto install framework skeleton.
 
                     # Create default index file.
-                    create_index_file > "${WEBROOT}/index.html"
-                    run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/index.html"
+                    if [ ! -e "${WEBROOT}/index.html" ]; then
+                        create_index_file > "${WEBROOT}/index.html"
+                    fi
 
                     run wget -q -O "${WEBROOT}/favicon.ico" \
                         https://github.com/joglomedia/LEMPer/raw/master/favicon.ico

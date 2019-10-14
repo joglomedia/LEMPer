@@ -480,7 +480,6 @@ function create_account() {
 
             # Create default directories.
             run mkdir -p "/home/${USERNAME}/webapps"
-            run mkdir -p "/home/${USERNAME}/.tmp"
             run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
 
             # Add account credentials to /srv/.htpasswd.
@@ -520,7 +519,7 @@ function delete_account() {
     local USERNAME=${1:-"lemper"}
 
     if [[ -n $(getent passwd "${USERNAME}") ]]; then
-        if pgrep -u "${USERNAME}"; then
+        if pgrep -u "${USERNAME}" > /dev/null; then
             error "User lemper is currently used by running processes."
         else
             run userdel -r "${USERNAME}"

@@ -6,26 +6,27 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 
 
 ## Features
-* Nginx from custom repository & build from source.
+* Nginx from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/nginx)
+* Nginx build from [source](https://github.com/nginx/nginx) with [Mod PageSpeed](https://github.com/apache/incubator-pagespeed-ngx).
 * Nginx with FastCGI cache enable & disable feature.
 * Nginx pre-configured optimization for low-end VPS/cloud server. Need reliable VPS/cloud server? Get one [here](https://eslabs.id/digitalocean/) or [here](https://eslabs.id/upcloud/).
-* Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework (CodeIgniter, Symfony, Laravel, Phalcon).
+* Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework (CodeIgniter, Sendy, Symfony, Laravel, Mautic, Phalcon).
 * MariaDB 10 (MySQL drop-in replacement).
 * In-memory database with Redis.
 * Memory cache with Memcached.
-* PHP 5.6, 7.0, 7.1, 7.2, 7.3 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
-* PHP-FPM sets as user running the PHP script (pool), Feel the faster Nginx with multi-user FPM like a top-notch shared hosting.
-* Zend OPcache.
-* ionCube PHP Loader.
-* SourceGuardian PHP Loader.
-* [Adminer](https://www.adminer.org/) for MySQL database administration (PhpMyAdmin replacement).
+* Multi PHP version 5.6 [EOL], 7.0 [EOL], 7.1, 7.2, 7.3, 7.4 [Beta] from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
+* PHP-FPM sets as user running the PHP script (pool). Feel the faster Nginx with secure multi-user FPM environment like a top-notch shared hosting.
+* PHP Zend OPcache.
+* PHP Loader (ionCube & SourceGuardian).
+* [Adminer](https://www.adminer.org/) web-based MySQL database administration (PhpMyAdmin replacement).
+* [TinyFileManager](https://github.com/prasathmani/tinyfilemanager) alternative web-based filemanager (Experimental).
 
 ## Setting Up
 
 * Ensure you have git installed.
 * Make a copy of .env.dist to .env in the LEMPer base directory and replace the values.
 * Enter LEMPer directory.
-* Execute lemper.sh file.
+* Execute lemper.sh file, sudo ./lemper.sh --install.
 
 ### Install Nginx, PHP &amp; MariaDB
 ```bash
@@ -66,7 +67,7 @@ http://YOUR_IP_ADDRESS:8082/lcp/
 ```
 Adminer (SQL database management tool)
 ```bash
-http://YOUR_DOMAIN_NAME:8082/lcp/dbadminer
+http://YOUR_DOMAIN_NAME:8082/lcp/dbadmin
 ```
 FileRun (File management tool)
 ```bash

@@ -70,9 +70,6 @@ else
     IP_SERVER=$(get_ip_addr)
 fi
 
-# Init log.
-run init_log
-
 ### Main ###
 case "${1}" in
     "--install")
@@ -80,7 +77,13 @@ case "${1}" in
         echo "Starting LEMP stack installation..."
         echo "Please ensure that you're on a fresh install!"
         echo ""
-        read -t 60 -rp "Press [Enter] to continue..." </dev/tty
+
+        if ! "${AUTO_INSTALL}"; then
+            read -t 60 -rp "Press [Enter] to continue..." </dev/tty
+        fi
+
+        # Init log.
+        run init_log
 
         ### Clean-up server ###
         echo ""
@@ -203,7 +206,7 @@ Here is your default system account information:
     Password : ${PASSWORD}
 
 Access to your Database administration (Adminer):
-    http://${IP_SERVER}:8082/lcp/dbadminer/
+    http://${IP_SERVER}:8082/lcp/dbadmin/
 
     Database root password: ${MYSQL_ROOT_PASS}
 
@@ -211,7 +214,7 @@ Access to your Database administration (Adminer):
     DB Username: ${MARIABACKUP_USER}
     DB Password: ${MARIABACKUP_PASS}
 
-Access to your File manager (FileRun):
+Access to your File manager (TinyFileManager):
     http://${IP_SERVER}:8082/lcp/filemanager/
 
 Please Save & Keep It Private!
@@ -221,6 +224,18 @@ Please Save & Keep It Private!
 
                 # Save it to log file
                 echo "${CREDENTIALS}" >> lemper.log
+
+                # Save to lemper.conf
+                cat > /etc/lemper.conf <<EOL
+HOSTNAME=$(hostname)
+IP_SERVER=${IP_SERVER}
+SSH_PORT=${SSH_PORT}
+LEMPER_USERNAME=${USERNAME}
+LEMPER_PASSWORD=${PASSWORD}
+MYSQL_ROOT_PASS=${MYSQL_ROOT_PASS}
+MARIABACKUP_USER=${MARIABACKUP_USER}
+MARIABACKUP_PASS=${MARIABACKUP_PASS}
+EOL
             fi
         fi
 
@@ -235,7 +250,10 @@ Now, you can reboot your server and enjoy it!"
         echo "Are you sure to remove LEMP stack installation?"
         echo "Please ensure that you've back up your critical data!"
         echo ""
-        read -rt 15 -p "Press [Enter] to continue..." </dev/tty
+
+        if ! "${AUTO_REMOVE}"; then
+            read -rt 15 -p "Press [Enter] to continue..." </dev/tty
+        fi
 
         # Fix broken install, first?
         echo ""

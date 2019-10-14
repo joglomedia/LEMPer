@@ -8,14 +8,14 @@
 #     [Service]
 #     Environment=OPTIONS="-l 127.0.0.1,::1"
 
-
 [Unit]
 Description=memcached daemon for %i
 After=network.target
 Documentation=man:memcached(1)
 
 [Service]
-ExecStart=/usr/share/memcached/scripts/systemd-memcached-wrapper /etc/memcached/%i.conf
+#ExecStart=/usr/share/memcached/scripts/systemd-memcached-wrapper /etc/memcached_%i.conf
+ExecStart=/usr/share/memcached/scripts/start-memcached /etc/memcached_%i.conf /var/run/memcached_%i.pid
 
 # Set up a new file system namespace and mounts private /tmp and /var/tmp
 # directories so this service cannot access the global directories and
@@ -75,7 +75,7 @@ RestrictRealtime=true
 # Takes away the ability to create or manage any kind of namespace
 RestrictNamespaces=true
 
-PIDFile=/var/run/memcached/%i.pid
+PIDFile=/var/run/memcached_%i.pid
 
 # try to restart if errors encountered
 Restart=always

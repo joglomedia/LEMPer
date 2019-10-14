@@ -52,47 +52,71 @@ server {
         auth_basic_user_file /srv/.htpasswd;
     }
 
-    # Default PHP set to 7.3
-    location ~ \.php$ {
+    # Pass the PHP scripts to FastCGI server listening on Unix socket.
+    #
+    location ~ \.(php|php73)$ {
+        try_files $uri =404;
+
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
         fastcgi_index index.php;
+
         include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+
+        # Uncomment to Enable PHP FastCGI cache.
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+
+        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
     }
 
-    location ~ \.php73$ {
+    location ~ \.php74$ {
+        try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass unix:/run/php/php7.3-fpm.sock;
         fastcgi_index index.php;
         include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+        fastcgi_pass unix:/run/php/php7.4-fpm.sock;
     }
 
     location ~ \.php72$ {
+        try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass unix:/run/php/php7.2-fpm.sock;
         fastcgi_index index.php;
         include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+        fastcgi_pass unix:/run/php/php7.2-fpm.sock;
     }
 
     location ~ \.php71$ {
+        try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass unix:/run/php/php7.1-fpm.sock;
         fastcgi_index index.php;
         include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+        fastcgi_pass unix:/run/php/php7.1-fpm.sock;
     }
 
     location ~ \.php70$ {
+        try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass unix:/run/php/php7.0-fpm.sock;
         fastcgi_index index.php;
         include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+        fastcgi_pass unix:/run/php/php7.0-fpm.sock;
     }
 
     location ~ \.php56$ {
+        try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
-        fastcgi_pass unix:/run/php/php5.6-fpm.sock;
         fastcgi_index index.php;
         include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+        fastcgi_pass unix:/run/php/php5.6-fpm.sock;
     }
 
     # Deny access to lcp directory.
@@ -126,7 +150,7 @@ server {
     # Error page directives.
     include /etc/nginx/includes/error_pages.conf;
 
-    location / {
+    location /lcp {
         # First attempt to serve request as file, then
         # as directory, then fall back to index.html
         try_files $uri $uri/ /index.html;
@@ -136,25 +160,16 @@ server {
 
         # Uncomment to enable auto index
         autoindex off;
-    }
 
-    location ~ ^/dbadminer {
-        #root /usr/share/nginx/html/lcp/dbadminer;
-        try_files $uri $uri/ /index.php?$args;
-        #include /etc/nginx/naxsi.rules;
-        autoindex off;
-    }
-
-    location ~ ^/filemanager {
-        #root /usr/share/nginx/html/lcp/filemanager;
-        try_files $uri $uri/ /index.php?$args;
-        #include /etc/nginx/naxsi.rules;
-        autoindex off;
+        # Set basic auth.
+        allow all;
+        auth_basic "Denied";
+        auth_basic_user_file /srv/.htpasswd;
     }
 
     # Pass the PHP scripts to FastCGI server listening on Unix socket.
     #
-    location ~ \.php$ {
+    location ~ \.(php|php73)$ {
         try_files $uri =404;
 
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
@@ -167,6 +182,56 @@ server {
         #include /etc/nginx/includes/fastcgi_cache.conf;
 
         fastcgi_pass unix:/run/php/php7.3-fpm.sock;
+    }
+
+    location ~ \.php74$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+        fastcgi_pass unix:/run/php/php7.4-fpm.sock;
+    }
+
+    location ~ \.php72$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+        fastcgi_pass unix:/run/php/php7.2-fpm.sock;
+    }
+
+    location ~ \.php71$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+        fastcgi_pass unix:/run/php/php7.1-fpm.sock;
+    }
+
+    location ~ \.php70$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+        fastcgi_pass unix:/run/php/php7.0-fpm.sock;
+    }
+
+    location ~ \.php56$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+        fastcgi_pass unix:/run/php/php5.6-fpm.sock;
     }
 
     # Deny access to .htaccess files, if Apache's document root
