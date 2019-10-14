@@ -224,6 +224,18 @@ Please Save & Keep It Private!
 
                 # Save it to log file
                 echo "${CREDENTIALS}" >> lemper.log
+
+                # Save to lemper.conf
+                cat > /etc/lemper.conf <<EOL
+HOSTNAME=$(hostname)
+IP_SERVER=${IP_SERVER}
+SSH_PORT=${SSH_PORT}
+LEMPER_USERNAME=${USERNAME}
+LEMPER_PASSWORD=${PASSWORD}
+MYSQL_ROOT_PASS=${MYSQL_ROOT_PASS}
+MARIABACKUP_USER=${MARIABACKUP_USER}
+MARIABACKUP_PASS=${MARIABACKUP_PASS}
+EOL
             fi
         fi
 
