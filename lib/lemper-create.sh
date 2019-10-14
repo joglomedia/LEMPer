@@ -128,7 +128,7 @@ Options:
   -f, --framework <website framework>
       Type of PHP web Framework and CMS, i.e. default.
       Supported Framework and CMS: default (vanilla PHP), codeigniter, drupal, laravel,
-      lumen, phalcon, symfony, wordpress, wordpress-ms.
+      lumen, mautic, phalcon, sendy, symfony, wordpress, wordpress-ms.
       Another framework and cms will be added soon.
   -p, --php-version
       PHP version for selected framework. Latest recommended PHP version is "7.3".
@@ -1266,7 +1266,7 @@ function init_app() {
                     create_vhost_default > "${VHOST_FILE}"
                 ;;
 
-                codeigniter|mautic|default)
+                codeigniter|mautic|sendy|default)
                     # TODO: Auto install framework skeleton.
 
                     # Create default index file.
