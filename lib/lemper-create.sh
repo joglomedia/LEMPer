@@ -757,7 +757,7 @@ function install_wordpress() {
             status "Creating default WordPress index file..."
 
             if [ ! -e "${WEBROOT}/index.html" ]; then
-                create_index_file > create_index_file > "${WEBROOT}/index.html"
+                create_index_file > "${WEBROOT}/index.html"
             fi
         fi
     fi
