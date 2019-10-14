@@ -433,6 +433,8 @@ EOL
         else
             cat >> "/etc/php/${PHPv}/fpm/pool.d/www.conf" <<EOL
 php_flag[display_errors] = on
+;php_admin_value[error_reporting] = E_ALL & ~E_NOTICE & ~E_WARNING & ~E_STRICT & ~E_DEPRECATED
+;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
 php_admin_value[memory_limit] = 128M
@@ -490,7 +492,8 @@ security.limit_extensions = .php .php5 .php7 .php${PHPv//./}
 
 ; Custom PHP ini settings.
 php_flag[display_errors] = on
-;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com
+php_admin_value[error_reporting] = E_ALL & ~E_NOTICE & ~E_WARNING & ~E_STRICT & ~E_DEPRECATED
+php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
 php_admin_value[memory_limit] = 128M
@@ -498,6 +501,7 @@ php_admin_value[open_basedir] = /home/${POOLNAME}
 php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.tmp
 php_admin_value[upload_max_filesize] = 10M
 php_admin_value[opcache.file_cache] = /home/${POOLNAME}/.opcache
+;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com
 EOL
         fi
     fi
