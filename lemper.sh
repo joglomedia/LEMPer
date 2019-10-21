@@ -177,6 +177,12 @@ case "${1}" in
             . ./scripts/secure_server.sh "--install"
         fi
 
+        ### Fail2Ban installation ###
+        if [ -f scripts/install_fail2ban.sh ]; then
+            echo ""
+            . ./scripts/install_fail2ban.sh
+        fi
+
         ### FINAL STEP ###
         if "${FORCE_REMOVE}"; then
             # Cleaning up all build dependencies hanging around on production server?
