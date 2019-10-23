@@ -83,22 +83,6 @@ function init_memcached_install() {
         if [[ -n $(command -v memcached) ]]; then
             echo "Configuring Memcached server..."
 
-            # SASL auth enabled.
-            if "${DRYRUN}"; then
-                warning "Memcahed SASL-auth configured in dry run mode."
-            else
-                if [[ ${MEMCACHED_SASL} == "enable" || ${MEMCACHED_SASL} == true ]]; then
-                    run mkdir -p /etc/sasl2 && run touch /etc/sasl2/memcached.conf
-                    cat >> /etc/sasl2/memcached.conf <<EOL
-mech_list: plain
-log_level: 5
-sasldb_path: /etc/sasl2/sasldb2-memcached
-EOL
-                    run saslpasswd2 -p -a memcached -f /etc/sasl2/sasldb2-memcached -c "${USERNAME}" <<< "${PASSWORD}"
-                    run chown memcache:memcache /etc/sasl2/sasldb2-memcached
-                fi
-            fi
-
             # Remove existing Memcached config.
             if [ -f /etc/memcached.conf ]; then
                 run mv /etc/memcached.conf /etc/memcached.conf~
@@ -149,6 +133,34 @@ EOL
             # Enable in start up.
             run systemctl enable memcached@memcache.service
             run systemctl enable memcached@www-data.service
+
+            # Enabled SASL auth?
+            if [[ ${MEMCACHED_SASL} == "enable" || ${MEMCACHED_SASL} == true ]]; then
+                echo "Memcached SASL auth is enabled..."
+
+                if "${DRYRUN}"; then
+                    warning "Memcahed SASL-auth configured in dry run mode."
+                else
+                    MEMCACHED_PASSWORD=${MEMCACHED_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+
+                    run mkdir -p /etc/sasl2 && run touch /etc/sasl2/memcached_memcache.conf
+                    cat >> /etc/sasl2/memcached_memcache.conf <<EOL
+mech_list: plain
+log_level: 5
+sasldb_path: /etc/sasl2/sasldb2-memcached_memcache
+EOL
+
+                    run saslpasswd2 -p -a memcached -f /etc/sasl2/sasldb2-memcached_memcache -c "${USERNAME}" <<< "${MEMCACHED_PASSWORD}"
+                    run chown memcache:memcache /etc/sasl2/sasldb2-memcached_memcache
+                    run echo -e "\n# Enable SASL auth\n-S" >> /etc/memcached_memcache.conf
+
+                    # Save config.
+                    save_config -e "MEMCACHED_USERNAME=${USERNAME}\nMEMCACHED_PASSWORD=${MEMCACHED_PASSWORD}\nMEMCACHED_INSTANCE=memcache"
+
+                    # Save log.
+                    save_log -e "Memcached SASL auth is enabled, below is your default auth credential.\nUsername: ${MEMCACHED_PASSWORD}, password: ${MEMCACHED_PASSWORD}\nSave this credential and use it to authenticate your Memcached connection."
+                fi
+            fi
 
             # Optimizing Memcached conf.
             local RAM_SIZE && \
