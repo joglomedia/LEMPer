@@ -155,7 +155,7 @@ EOL
                     run echo -e "\n# Enable SASL auth\n-S" >> /etc/memcached_memcache.conf
 
                     # Save config.
-                    save_config -e "MEMCACHED_USERNAME=${USERNAME}\nMEMCACHED_PASSWORD=${MEMCACHED_PASSWORD}\nMEMCACHED_INSTANCE=memcache"
+                    save_config -e "MEMCACHED_SASL_USERNAME=${USERNAME}\nMEMCACHED_SASL_PASSWORD=${MEMCACHED_PASSWORD}\nMEMCACHED_SASL_INSTANCE=memcache"
 
                     # Save log.
                     save_log -e "Memcached SASL auth is enabled, below is your default auth credential.\nUsername: ${MEMCACHED_PASSWORD}, password: ${MEMCACHED_PASSWORD}\nSave this credential and use it to authenticate your Memcached connection."
