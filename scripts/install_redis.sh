@@ -84,7 +84,7 @@ EOL
                 save_config "REDIS_PASSWORD=${REDIS_PASSWORD}"
 
                 # Save log.
-                save_log -e "Redis server AUTH pass: ${REDIS_PASSWORD}\nSave this password and use it to authenticate your Redis connection (typically use -a parameter)."
+                save_log -e "Redis server requirepass is enabled, here is your authentication password: ${REDIS_PASSWORD}\nSave this password and use it to authenticate your Redis connection (typically use -a parameter)."
             fi
 
             # Custom kernel optimization for Redis.
