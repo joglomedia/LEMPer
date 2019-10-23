@@ -596,12 +596,12 @@ function init_php_fpm_install() {
         7|"all")
             # Install all PHP version (except EOL & Beta).
             PHPv="all"
-            #install_php_fpm "5.6"
-            #install_php_fpm "7.0"
+            install_php_fpm "5.6"
+            install_php_fpm "7.0"
             install_php_fpm "7.1"
             install_php_fpm "7.2"
             install_php_fpm "7.3"
-            #install_php_fpm "7.4"
+            install_php_fpm "7.4"
         ;;
 
         *)
@@ -666,8 +666,8 @@ function init_php_fpm_install() {
                         fi
                     else
                         # Install all PHP version (except EOL & Beta).
-                        #enable_ioncube "5.6"
-                        #enable_ioncube "7.0"
+                        enable_ioncube "5.6"
+                        enable_ioncube "7.0"
                         enable_ioncube "7.1"
                         enable_ioncube "7.2"
                         enable_ioncube "7.3"
@@ -686,8 +686,8 @@ function init_php_fpm_install() {
                         fi
                     else
                         # Install all PHP version (except EOL & Beta).
-                        #enable_sourceguardian "5.6"
-                        #enable_sourceguardian "7.0"
+                        enable_sourceguardian "5.6"
+                        enable_sourceguardian "7.0"
                         enable_sourceguardian "7.1"
                         enable_sourceguardian "7.2"
                         enable_sourceguardian "7.3"
@@ -709,15 +709,15 @@ function init_php_fpm_install() {
                         enable_sourceguardian "${PHPv}"
                     else
                         # Install all PHP version (except EOL & Beta).
-                        #enable_ioncube "5.6"
-                        #enable_ioncube "7.0"
+                        enable_ioncube "5.6"
+                        enable_ioncube "7.0"
                         enable_ioncube "7.1"
                         enable_ioncube "7.2"
                         enable_ioncube "7.3"
                         #enable_ioncube "7.4"
 
-                        #enable_sourceguardian "5.6"
-                        #enable_sourceguardian "7.0"
+                        enable_sourceguardian "5.6"
+                        enable_sourceguardian "7.0"
                         enable_sourceguardian "7.1"
                         enable_sourceguardian "7.2"
                         enable_sourceguardian "7.3"
@@ -744,8 +744,8 @@ function init_php_fpm_install() {
                 fi
             else
                 # Install all PHP version (except EOL & Beta).
-                #optimize_php_fpm "5.6"
-                #optimize_php_fpm "7.0"
+                optimize_php_fpm "5.6"
+                optimize_php_fpm "7.0"
                 optimize_php_fpm "7.1"
                 optimize_php_fpm "7.2"
                 optimize_php_fpm "7.3"
