@@ -27,7 +27,7 @@ if hash apt-get 2>/dev/null; then
     run apt-get -qq install -y apache2-utils apt-transport-https bash build-essential ca-certificates cron curl \
         git gnupg2 iptables libgd-dev libgeoip-dev libssl-dev libxml2-dev libpcre3-dev libxslt1-dev lsb-release \
         ntpdate openssh-server openssl rsync software-properties-common sasl2-bin snmp sudo sysstat tar unzip \
-        wget whois
+        wget whois dnsutils
 elif hash yum 2>/dev/null; then
     fail "Unable to install LEMPer: yum distribution is not supported yet."
 
