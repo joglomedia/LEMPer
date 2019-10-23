@@ -507,12 +507,11 @@ function create_account() {
                 run echo "${USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             fi
 
+            # Save config.
+            save_config -e "LEMPER_USERNAME=${USERNAME}\nLEMPER_PASSWORD=${PASSWORD}\nLEMPER_ADMIN_EMAIL=${ADMIN_EMAIL}"
+
             # Save data to log file.
-            echo "
-Your default system account information:
-Username: ${USERNAME}
-Password: ${PASSWORD}
-"
+            save_log -e "Your default system account information:\nUsername: ${USERNAME}\nPassword: ${PASSWORD}"
 
             status "Username ${USERNAME} created."
         fi
@@ -559,6 +558,12 @@ function get_ip_addr() {
     fi
 }
 
+# Init logging.
+function init_log() {
+    [ ! -e lemper.log ] && touch lemper.log
+    save_log "Initialize LEMPer installation log..."
+}
+
 # Save log.
 function save_log() {
     {
@@ -568,10 +573,14 @@ function save_log() {
     } >> lemper.log
 }
 
-# Init logging.
-function init_log() {
-    touch lemper.log
-    save_log "Initialize LEMPer installation log..."
+# Make config file if not exist.
+function init_config() {
+    [ ! -e /etc/lemper/lemper.conf ] && mkdir -p /etc/lemper/ && touch /etc/lemper/lemper.conf
+}
+
+# Save configuration.
+function save_config() {
+    echo "$@" >> /etc/lemper/lemper.conf
 }
 
 # Header message.

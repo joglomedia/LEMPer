@@ -85,6 +85,9 @@ case "${1}" in
         # Init log.
         run init_log
 
+        # Init config.
+        run init_config
+
         ### Clean-up server ###
         echo ""
         if [ -f scripts/cleanup_server.sh ]; then
@@ -181,7 +184,7 @@ case "${1}" in
         if "${FORCE_REMOVE}"; then
             # Cleaning up all build dependencies hanging around on production server?
             echo -e "\nClean up installation process..."
-            run apt-get autoremove -y
+            run apt-get -qq autoremove -y
 
             # Cleanup build dir
             echo "Clean up build directory..."
@@ -223,19 +226,7 @@ Please Save & Keep It Private!
                 status "${CREDENTIALS}"
 
                 # Save it to log file
-                echo "${CREDENTIALS}" >> lemper.log
-
-                # Save to lemper.conf
-                cat > /etc/lemper.conf <<EOL
-HOSTNAME=$(hostname)
-IP_SERVER=${IP_SERVER}
-SSH_PORT=${SSH_PORT}
-LEMPER_USERNAME=${USERNAME}
-LEMPER_PASSWORD=${PASSWORD}
-MYSQL_ROOT_PASS=${MYSQL_ROOT_PASS}
-MARIABACKUP_USER=${MARIABACKUP_USER}
-MARIABACKUP_PASS=${MARIABACKUP_PASS}
-EOL
+                save_log "${CREDENTIALS}"
             fi
         fi
 
@@ -335,7 +326,7 @@ Now, you can reboot your server and enjoy it!"
             fi
         fi
 
-        # Remove Tools
+        # Remove tools.
         run rm -f /usr/local/bin/lemper-cli
         run rm -fr /usr/local/lib/lemper
 
