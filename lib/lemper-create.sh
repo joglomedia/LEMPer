@@ -31,8 +31,6 @@ RED=91
 GREEN=92
 YELLOW=93
 
-DRYRUN=false
-
 function begin_color() {
     color="${1}"
     echo -e -n "\e[${color}m"
@@ -94,7 +92,7 @@ function run() {
 }
 
 # May need to run this as sudo!
-# I have it in /usr/local/bin and run command 'ngxvhost' from anywhere, using sudo.
+# I have it in /usr/local/bin and run command 'lemper-cli' from anywhere, using sudo.
 if [ "$(id -u)" -ne 0 ]; then
     error "This command can only be used by root."
     exit 1  #error
@@ -127,8 +125,8 @@ Options:
       Any valid domain name and/or sub domain name is allowed, i.e. example.app or sub.example.app.
   -f, --framework <website framework>
       Type of PHP web Framework and CMS, i.e. default.
-      Supported Framework and CMS: default (vanilla PHP), codeigniter, drupal, laravel,
-      lumen, mautic, phalcon, sendy, symfony, wordpress, wordpress-ms.
+      Supported PHP Framework and CMS: default (vanilla PHP), framework (codeigniter, laravel,
+      lumen, phalcon, symfony), CMS (drupal, mautic, roundcube, sendy, wordpress, wordpress-ms).
       Another framework and cms will be added soon.
   -p, --php-version
       PHP version for selected framework. Latest recommended PHP version is "7.3".
@@ -717,15 +715,18 @@ chdir = /home/${USERNAME}
 
 security.limit_extensions = .php .php3 .php4 .php5 .php${PHP_VERSION//./}
 
-;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com
 php_flag[display_errors] = on
+php_admin_value[error_reporting] = E_ALL & ~E_NOTICE & ~E_WARNING & ~E_STRICT & ~E_DEPRECATED
+php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_value[error_log] = /var/log/php/php${PHP_VERSION}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
+php_admin_value[date.timezone] = UTC
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /home/${USERNAME}
 php_admin_value[upload_tmp_dir] = /home/${USERNAME}/.tmp
 php_admin_value[upload_max_filesize] = 10M
 php_admin_value[opcache.file_cache] = /home/${USERNAME}/.opcache
+;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com
 _EOF_
 }
 
@@ -966,16 +967,6 @@ function init_app() {
                 run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}" && \
                 run chmod 755 "${WEBROOT}"
             fi
-
-            # Well-Known URIs: RFC 8615.
-            if [ ! -d "${WEBROOT}/.well-known" ]; then
-                echo "Creating .well-known directory (RFC8615)..."
-                run mkdir -p "${WEBROOT}/.well-known/acme-challenge"
-            fi
-
-            # Create log files.
-            run touch "${WEBROOT}/access_log"
-            run touch "${WEBROOT}/error_log"
 
             # Check framework option.
             if [[ -z "${FRAMEWORK}" ]]; then
@@ -1266,7 +1257,7 @@ function init_app() {
                     create_vhost_default > "${VHOST_FILE}"
                 ;;
 
-                codeigniter|mautic|sendy|default)
+                default|codeigniter|mautic|roundcube|sendy)
                     # TODO: Auto install framework skeleton.
 
                     # Create default index file.
@@ -1299,6 +1290,16 @@ function init_app() {
                 if grep -qwE "server_name ${SERVERNAME}" "${VHOST_FILE}"; then
                     status "New domain ${SERVERNAME} has been added to virtual host."
                 fi
+
+                # Creates Well-Known URIs: RFC 8615.
+                if [ ! -d "${WEBROOT}/.well-known" ]; then
+                    echo "Creating .well-known directory (RFC8615)..."
+                    run mkdir -p "${WEBROOT}/.well-known/acme-challenge"
+                fi
+
+                # Create log files.
+                run touch "${WEBROOT}/access_log"
+                run touch "${WEBROOT}/error_log"
 
                 # Enable Wildcard domain.
                 if [[ ${ENABLE_WILDCARD_DOMAIN} == true ]]; then
