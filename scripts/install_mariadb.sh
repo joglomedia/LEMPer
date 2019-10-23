@@ -168,7 +168,7 @@ function enable_mariabackup() {
 
     export MARIABACKUP_USER=${MARIABACKUP_USER:-"lemperdb"}
     export MARIABACKUP_PASS && \
-    MARIABACKUP_PASS=${MARIABACKUP_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)}
+    MARIABACKUP_PASS=${MARIABACKUP_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
 
     echo "Please enter your current MySQL root password to process!"
     export MYSQL_ROOT_PASS
@@ -205,6 +205,12 @@ open_files_limit=65535
         systemctl restart mariadb.service
 
         status "Mariaback user '${MARIABACKUP_USER}' added successfully."
+
+        # Save config.
+        save_config -e "MYSQL_ROOT_PASS=${MYSQL_ROOT_PASS}\nMARIABACKUP_USERNAME=${MARIABACKUP_USER}\nMARIABACKUP_PASSWORD=${MARIABACKUP_PASS}"
+
+        # Save log.
+        save_log -e "MariaDB (MySQL) credentials.\nMySQL Root Password: ${MYSQL_ROOT_PASS}, MariaBackup DB Username: ${MARIABACKUP_USER}, MariaBackup DB Password: ${MARIABACKUP_PASS}\nSave this credential and use it to authenticate your MySQL database connection."
     else
         warning "It seems that user '${MARIABACKUP_USER}' already exists. \
 Or try to add mariabackup user manually! "
