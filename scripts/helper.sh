@@ -24,10 +24,16 @@ fi
 # Direct access? make as dryrun mode.
 DRYRUN=${DRYRUN:-true}
 
+# Define build directory.
+BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
+if [ ! -d "${BUILD_DIR}" ]; then
+    run mkdir -p "${BUILD_DIR}"
+fi
+
 # Set default color decorator.
-RED=${RED:-31}
-GREEN=${GREEN:-32}
-YELLOW=${YELLOW:-33}
+RED=31
+GREEN=32
+YELLOW=33
 
 function begin_color() {
     color="$1"
@@ -322,7 +328,7 @@ function get_release_name() {
             ;;
             ubuntu)
                 # Hack for Linux Mint release number.
-                DISTRO_VERSION=${VERSION_ID:-$DISTRIB_RELEASE}
+                DISTRO_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE}"}
                 MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print $1}')
                 [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]] && \
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
@@ -330,7 +336,8 @@ function get_release_name() {
                 case ${DISTRIB_RELEASE} in
                     "14.04"|"LM17")
                         # Ubuntu release 14.04, LinuxMint 17
-                        RELEASE_NAME=${UBUNTU_CODENAME:-"trusty"}
+                        #RELEASE_NAME=${UBUNTU_CODENAME:-"trusty"}
+                        RELEASE_NAME="unsupported"
                     ;;
                     "16.04"|"LM18")
                         # Ubuntu release 16.04, LinuxMint 18
@@ -359,7 +366,7 @@ function get_release_name() {
             ;;
             *)
                 RELEASE_NAME="unsupported"
-                warning "Sorry, this Linux distribution isn't supported yet. If you'd like it to be, let us know at eslabs.id@gmail.com."
+                warning "Sorry, this Linux distribution isn't supported yet. If you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
             ;;
         esac
     elif [ -e /etc/system-release ]; then
@@ -402,7 +409,7 @@ function create_swap() {
     echo "Creating ${SWAP_SIZE}MiB swap..."
 
     # Create swap.
-    run fallocate -l ${SWAP_SIZE}M ${SWAP_FILE} && \
+    run fallocate -l "${SWAP_SIZE}M" ${SWAP_FILE} && \
     run chmod 600 ${SWAP_FILE} && \
     run chown root:root ${SWAP_FILE} && \
     run mkswap ${SWAP_FILE} && \
@@ -462,11 +469,11 @@ function enable_swap() {
     fi
 }
 
-# Create system account.
+# Create default system account.
 function create_account() {
     export USERNAME=${1:-"lemper"}
     export PASSWORD && \
-    PASSWORD=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 12 | head -n 1)}
+    PASSWORD=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
 
     echo "Creating default LEMPer account..."
 
@@ -500,12 +507,11 @@ function create_account() {
                 run echo "${USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             fi
 
+            # Save config.
+            save_config -e "LEMPER_USERNAME=${USERNAME}\nLEMPER_PASSWORD=${PASSWORD}\nLEMPER_ADMIN_EMAIL=${ADMIN_EMAIL}"
+
             # Save data to log file.
-            echo "
-Your default system account information:
-Username: ${USERNAME}
-Password: ${PASSWORD}
-"
+            save_log -e "Your default system account information:\nUsername: ${USERNAME}\nPassword: ${PASSWORD}"
 
             status "Username ${USERNAME} created."
         fi
@@ -514,7 +520,7 @@ Password: ${PASSWORD}
     fi
 }
 
-# Delete system account.
+# Delete default system account.
 function delete_account() {
     local USERNAME=${1:-"lemper"}
 
@@ -544,18 +550,37 @@ function get_ip_addr() {
     local IP_EXTERNAL && \
     IP_EXTERNAL=$(curl -s http://ipecho.net/plain)
 
+    # Ugly hack to detect aws-lightsail public IP address.
     if [[ "${IP_INTERNAL}" == "${IP_EXTERNAL}" ]]; then
         echo "${IP_INTERNAL}"
     else
-        # Ugly hack to detect aws-lightsail public IP address.
         echo "${IP_EXTERNAL}"
     fi
 }
 
 # Init logging.
 function init_log() {
-    touch lemper.log
-    echo "" > lemper.log
+    [ ! -e lemper.log ] && touch lemper.log
+    save_log "Initialize LEMPer installation log..."
+}
+
+# Save log.
+function save_log() {
+    {
+        date '+%d-%m-%Y %T %Z'
+        echo "$@"
+        echo ""
+    } >> lemper.log
+}
+
+# Make config file if not exist.
+function init_config() {
+    [ ! -e /etc/lemper/lemper.conf ] && mkdir -p /etc/lemper/ && touch /etc/lemper/lemper.conf
+}
+
+# Save configuration.
+function save_config() {
+    echo "$@" >> /etc/lemper/lemper.conf
 }
 
 # Header message.
@@ -563,7 +588,7 @@ function header_msg() {
     clear
     cat <<- _EOF_
 #==========================================================================#
-#        LEMPer v1.3.0 for Ubuntu-based server, Written by ESLabs.ID       #
+#      Welcome to LEMPer for Ubuntu-based server, Written by ESLabs.ID     #
 #==========================================================================#
 #      Bash scripts to install Nginx + MariaDB (MySQL) + PHP on Linux      #
 #                                                                          #
@@ -579,16 +604,10 @@ function footer_msg() {
 #==========================================================================#
 #         Thank's for installing LEMP stack using LEMPer Installer         #
 #        Found any bugs/errors, or suggestions? please let me know         #
-#    If this script useful, don't forget to buy me a coffee or milk :D     #
+#       If useful, don't forget to buy me a cup of coffee or milk :D       #
 #   My PayPal is always open for donation, here https://paypal.me/masedi   #
 #                                                                          #
-#         (c) 2014-2019 / ESLabs.ID / https://eslabs.id/lemper ;)          #
+#           (c) 2014-2019 / ESLabs.ID / https://eslabs.id/lemper           #
 #==========================================================================#
 _EOF_
 }
-
-# Define build directory.
-BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
-if [ ! -d "${BUILD_DIR}" ]; then
-    run mkdir -p "${BUILD_DIR}"
-fi

@@ -132,10 +132,14 @@ Options:
       Disable Mod PageSpeed.
   -r, --remove <vhost domain name>
       Remove virtual host configuration.
-  -s, --enable-https <vhost domain name>
-      Enable HTTPS with Let's Encrypt SSL certificate.
-  --disable-https <vhost domain name>
-      Disable HTTPS.
+  -s, --enable-ssl <vhost domain name>
+      Enable HTTP over SSL with Let's Encrypt.
+  --disable-ssl <vhost domain name>
+      Disable HTTP over SSL.
+  --remove-ssl <vhost domain name>
+      Remove SSL certificate.
+  --renew-ssl <vhost domain name>
+      Renew SSL certificate.
 
   -h, --help
       Print this message and exit.
@@ -229,12 +233,12 @@ function remove_vhost() {
     # Drop MySQL database.
     read -rp "Do you want to Drop database associated with this domain? [y/n]: " -e DROP_DB
     if [[ "${DROP_DB}" == Y* || "${DROP_DB}" == y* ]]; then
-        until [[ "$MYSQLUSER" != "" ]]; do
-			read -rp "MySQL Username: " -e MYSQLUSER
+        until [[ "${MYSQL_USER}" != "" ]]; do
+			read -rp "MySQL Username: " -e MYSQL_USER
 		done
 
-        until [[ "$MYSQLPASS" != "" ]]; do
-			echo -n "MySQL Password: "; stty -echo; read -r MYSQLPASS; stty echo; echo
+        until [[ "${MYSQL_PASS}" != "" ]]; do
+			echo -n "MySQL Password: "; stty -echo; read -r MYSQL_PASS; stty echo; echo
 		done
 
         echo "Starting to drop database..."
@@ -242,9 +246,9 @@ function remove_vhost() {
         echo "+----------------------+"
 
         # Show user's databases
-        #run mysql -u "$MYSQLUSER" -p"$MYSQLPASS" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema"
+        #run mysql -u "$MYSQL_USER" -p"$MYSQL_PASS" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema"
         local DATABASES && \
-        DATABASES=$(mysql -u "$MYSQLUSER" -p"$MYSQLPASS" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
+        DATABASES=$(mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
 
         if [[ -n "${DATABASES}" ]]; then
             printf '%s\n' "${DATABASES}"
@@ -260,7 +264,7 @@ function remove_vhost() {
 
         if [ -d "/var/lib/mysql/${DBNAME}" ]; then
             echo "Dropping database..."
-            run mysql -u "$MYSQLUSER" -p"$MYSQLPASS" -e "DROP DATABASE $DBNAME"
+            run mysql -u "$MYSQL_USER" -p"$MYSQL_PASS" -e "DROP DATABASE $DBNAME"
             status "Database [${DBNAME}] dropped."
         else
             warning "Sorry, database ${DBNAME} not found. Skipped..."
@@ -386,13 +390,13 @@ function disable_mod_pagespeed() {
     reload_nginx
 }
 
-# Enable HTTPS.
-function enable_https() {
+# Enable HTTP over SSL.
+function enable_ssl() {
     # Verify user input hostname (domain name).
     verify_host "${1}"
 
     #TODO: Generate Let's Encrypt SSL using Certbot.
-    if [[ ! -d "/etc/nginx/ssl/${1}" ]]; then
+    if [ ! -d "/etc/letsencrypt/live/${1}" ]; then
         echo "Certbot: Get Let's Encrypt certificate..."
 
         # Get web root path from vhost config, first.
@@ -406,8 +410,8 @@ function enable_https() {
             if grep -qwE "${1}\ \*.${1}" "/etc/nginx/sites-available/${1}.conf"; then
                 #run certbot certonly --rsa-key-size 4096 --manual --agree-tos --preferred-challenges dns --manual-public-ip-logging-ok \
                 #    --webroot-path="${WEBROOT}" -d "${1}" -d "*.${1}"
-                run certbot certonly --manual --agree-tos --preferred-challenges dns --manual-public-ip-logging-ok \
-                    --webroot-path="${WEBROOT}" -d "${1}" -d "*.${1}"
+                run certbot certonly --manual --agree-tos --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory \
+                    --manual-public-ip-logging-ok --webroot-path="${WEBROOT}" -d "${1}" -d "*.${1}"
             else
                 #run certbot certonly --rsa-key-size 4096 --webroot --agree-tos --preferred-challenges http --webroot-path="${WEBROOT}" -d "${1}"
                 run certbot certonly --webroot --agree-tos --preferred-challenges http --webroot-path="${WEBROOT}" -d "${1}"
@@ -485,7 +489,7 @@ EOL
 }
 
 # Disable HTTPS.
-function disable_https() {
+function disable_ssl() {
     # Verify user input hostname (domain name)
     verify_host "${1}"
 
@@ -493,13 +497,17 @@ function disable_https() {
     if "${DRYRUN}"; then
         warning "Disabling HTTPS config in dryrun mode."
     else
+        echo "Disabling HTTPS configuration..."
+
         if [ -f "/etc/nginx/sites-available/${1}.nonssl-conf" ]; then
-            # Disable first.
+            # Disable vhost first.
             run unlink "/etc/nginx/sites-enabled/${1}.conf"
+
+            # Backup ssl config.
             run mv "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-available/${1}.ssl-conf"
 
-            # Restore non ssl.
-            run cp -f "/etc/nginx/sites-available/${1}.nonssl-conf" "/etc/nginx/sites-available/${1}.conf"
+            # Restore non ssl config.
+            run mv "/etc/nginx/sites-available/${1}.nonssl-conf" "/etc/nginx/sites-available/${1}.conf"
             run ln -s "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-enabled/${1}.conf"
 
             reload_nginx
@@ -510,6 +518,72 @@ function disable_https() {
     fi
 
     exit 0
+}
+
+# Remove SSL and disable HTTP over SSL config.
+function remove_ssl() {
+    # Verify user input hostname (domain name)
+    verify_host "${1}"
+
+    # Update vhost config.
+    if "${DRYRUN}"; then
+        warning "Disabling HTTPS and removing SSL certificate in dryrun mode."
+    else
+        # Disable HTTPS first.
+        disable_ssl "${1}"
+
+        # Remove SSL config.
+        if [ -f "/etc/nginx/sites-available/${1}.ssl-conf" ]; then
+            run rm "/etc/nginx/sites-available/${1}.ssl-conf"
+        fi
+
+        # Remove SSL cert.
+        echo "Removing SSL certificate..."
+
+        if [[ -n $(command -v certbot) ]]; then
+            run certbot delete --cert-name "${1}"
+        else
+            fail "Certbot executable binary not found. Install it first!"
+        fi
+    fi
+}
+
+# Renew SSL.
+function renew_ssl() {
+    # Verify user input hostname (domain name)
+    verify_host "${1}"
+
+    # Update vhost config.
+    if "${DRYRUN}"; then
+        warning "Renew SSL certificate in dryrun mode."
+    else
+        echo "Renew SSL certificate..."
+
+        # Renew Let's Encrypt SSL using Certbot.
+        if [ -d "/etc/letsencrypt/live/${1}" ]; then
+            echo "Certbot: Renew Let's Encrypt certificate..."
+
+            # Get web root path from vhost config, first.
+            #shellcheck disable=SC2154
+            local WEBROOT && \
+            WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${1}.conf" | awk '{print $3}' | cut -d'"' -f2)
+
+            # Certbot get Let's Encrypt SSL.
+            if [[ -n $(command -v certbot) ]]; then
+                # Is it wildcard vhost?
+                if grep -qwE "${1}\ \*.${1}" "/etc/nginx/sites-available/${1}.conf"; then
+                    run certbot certonly --manual --agree-tos --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory \
+                        --manual-public-ip-logging-ok --webroot-path="${WEBROOT}" -d "${1}" -d "*.${1}"
+                else
+                    run certbot renew --cert-name "${1}" --dry-run
+                fi
+            else
+                fail "Certbot executable binary not found. Install it first!"
+            fi
+        else
+            warning "Certificate file not found. May be your SSL is not activated yet."
+        fi
+    fi
 }
 
 # Enable Brotli compression module.
@@ -676,12 +750,20 @@ function init_app() {
                 disable_mod_pagespeed "${2}"
                 shift 2
             ;;
-            -s | --enable-https)
-                enable_https "${2}"
+            -s | --enable-ssl)
+                enable_ssl "${2}"
                 shift 2
             ;;
-            --disable-https)
-                disable_https "${2}"
+            --disable-ssl)
+                disable_ssl "${2}"
+                shift 2
+            ;;
+            --remove-ssl)
+                remove_ssl "${2}"
+                shift 2
+            ;;
+            --renew-ssl)
+                renew_ssl "${2}"
                 shift 2
             ;;
             -b | --enable-brotli)

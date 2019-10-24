@@ -2,7 +2,7 @@
 
 # Redis server installer
 # Min. Requirement  : GNU/Linux Ubuntu 14.04
-# Last Build        : 01/08/2019
+# Last Build        : 23/10/2019
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
@@ -60,6 +60,7 @@ function init_redis_install {
                 local REDISMEM_SIZE=2048
             fi
 
+            # Optimize Redis config.
             cat >> /etc/redis/redis.conf <<EOL
 
 ####################################
@@ -69,7 +70,24 @@ maxmemory ${REDISMEM_SIZE}mb
 maxmemory-policy allkeys-lru
 EOL
 
-            # Custom Optimization.
+            # Is Redis password protected enable?
+            if "${REDIS_REQUIREPASS}"; then
+                echo "Redis Requirepass is enabled..."
+
+                REDIS_PASSWORD=${REDIS_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+
+                # Update Redis config.
+                cat >> /etc/redis/redis.conf <<EOL
+requirepass ${REDIS_PASSWORD}
+EOL
+                # Save config.
+                save_config "REDIS_PASSWORD=${REDIS_PASSWORD}"
+
+                # Save log.
+                save_log -e "Redis server requirepass is enabled, here is your authentication password: ${REDIS_PASSWORD}\nSave this password and use it to authenticate your Redis connection (typically use -a parameter)."
+            fi
+
+            # Custom kernel optimization for Redis.
             cat >> /etc/sysctl.conf <<EOL
 
 ###################################
@@ -83,6 +101,7 @@ EOL
                 run touch /etc/rc.local
             fi
 
+            # Make the change persistent.
             cat >> /etc/rc.local <<EOL
 
 ###################################################################
@@ -93,7 +112,7 @@ echo never > /sys/kernel/mm/transparent_hugepage/enabled
 EOL
         fi
 
-        # Init script.
+        # Init Redis script.
         if [ ! -f /etc/init.d/redis-server ]; then
             run cp -f etc/init.d/redis-server /etc/init.d/
             run chmod ugo+x /etc/init.d/redis-server
@@ -105,11 +124,11 @@ EOL
                 run link -s /lib/systemd/system/redis-server.service /etc/systemd/system/redis.service
             fi
 
-            # Reloading daemon.
+            # Reloading systemctl daemon.
             run systemctl daemon-reload
         fi
 
-        # Restart redis daemon.
+        # Restart Redis daemon.
         echo "Starting Redis server..."
         if [ -f /etc/systemd/system/redis.service ]; then
             run systemctl restart redis-server.service

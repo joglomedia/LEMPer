@@ -10,11 +10,12 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * Nginx build from [source](https://github.com/nginx/nginx) with [Mod PageSpeed](https://github.com/apache/incubator-pagespeed-ngx).
 * Nginx with FastCGI cache enable & disable feature.
 * Nginx pre-configured optimization for low-end VPS/cloud server. Need reliable VPS/cloud server? Get one [here](https://eslabs.id/digitalocean/) or [here](https://eslabs.id/upcloud/).
-* Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework (CodeIgniter, Sendy, Symfony, Laravel, Mautic, Phalcon).
+* Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework.
+* Supported PHP Framework and CMS: default (vanilla PHP), framework (codeigniter, laravel, lumen, phalcon, symfony), CMS (drupal, mautic, roundcube, sendy, wordpress, wordpress-ms), and more coming soon.
 * MariaDB 10 (MySQL drop-in replacement).
 * In-memory database with Redis.
 * Memory cache with Memcached.
-* Multi PHP version 5.6 [EOL], 7.0 [EOL], 7.1, 7.2, 7.3, 7.4 [Beta] from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
+* Multiple PHP version 5.6 [EOL], 7.0 [EOL], 7.1, 7.2, 7.3, 7.4 [Beta] from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
 * PHP-FPM sets as user running the PHP script (pool). Feel the faster Nginx with secure multi-user FPM environment like a top-notch shared hosting.
 * PHP Zend OPcache.
 * PHP Loader (ionCube & SourceGuardian).

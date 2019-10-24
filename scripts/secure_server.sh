@@ -118,6 +118,12 @@ EOL
             run sed -i "/^#Port\ [0-9]*/a Port\ ${SSH_PORT}" /etc/ssh/sshd_config
         fi
 
+        # Save config.
+        save_config -e "HOSTNAME=$(hostname)\nIP_SERVER=${IP_SERVER}\nSSH_PORT=${SSH_PORT}"
+
+        # Save log.
+        save_log "Default SSH port updated to ${SSH_PORT}."
+
         status "SSH port updated to ${SSH_PORT}."
     else
         warning "Unable to update SSH port."
@@ -481,7 +487,7 @@ function init_secure_server() {
     install_firewall "$@"
 
     if [[ ${SSH_PORT} -ne 22 ]]; then
-        warning -e "\nYou're running SSH server with modified config, restart to apply your changes."
+        warning -e "\nYou're running SSH server with modified configuration, restart to apply your changes."
         echo "use this command: service ssh restart"
     fi
 }

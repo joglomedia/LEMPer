@@ -437,6 +437,7 @@ php_flag[display_errors] = on
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
+php_admin_value[date.timezone] = UTC
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /usr/share/nginx/html
 php_admin_value[upload_tmp_dir] = /usr/share/nginx/html/.tmp
@@ -496,6 +497,7 @@ php_admin_value[error_reporting] = E_ALL & ~E_NOTICE & ~E_WARNING & ~E_STRICT & 
 php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
+php_admin_value[date.timezone] = UTC
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /home/${POOLNAME}
 php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.tmp
@@ -594,12 +596,12 @@ function init_php_fpm_install() {
         7|"all")
             # Install all PHP version (except EOL & Beta).
             PHPv="all"
-            #install_php_fpm "5.6"
-            #install_php_fpm "7.0"
+            install_php_fpm "5.6"
+            install_php_fpm "7.0"
             install_php_fpm "7.1"
             install_php_fpm "7.2"
             install_php_fpm "7.3"
-            #install_php_fpm "7.4"
+            install_php_fpm "7.4"
         ;;
 
         *)
@@ -664,8 +666,8 @@ function init_php_fpm_install() {
                         fi
                     else
                         # Install all PHP version (except EOL & Beta).
-                        #enable_ioncube "5.6"
-                        #enable_ioncube "7.0"
+                        enable_ioncube "5.6"
+                        enable_ioncube "7.0"
                         enable_ioncube "7.1"
                         enable_ioncube "7.2"
                         enable_ioncube "7.3"
@@ -684,8 +686,8 @@ function init_php_fpm_install() {
                         fi
                     else
                         # Install all PHP version (except EOL & Beta).
-                        #enable_sourceguardian "5.6"
-                        #enable_sourceguardian "7.0"
+                        enable_sourceguardian "5.6"
+                        enable_sourceguardian "7.0"
                         enable_sourceguardian "7.1"
                         enable_sourceguardian "7.2"
                         enable_sourceguardian "7.3"
@@ -707,15 +709,15 @@ function init_php_fpm_install() {
                         enable_sourceguardian "${PHPv}"
                     else
                         # Install all PHP version (except EOL & Beta).
-                        #enable_ioncube "5.6"
-                        #enable_ioncube "7.0"
+                        enable_ioncube "5.6"
+                        enable_ioncube "7.0"
                         enable_ioncube "7.1"
                         enable_ioncube "7.2"
                         enable_ioncube "7.3"
                         #enable_ioncube "7.4"
 
-                        #enable_sourceguardian "5.6"
-                        #enable_sourceguardian "7.0"
+                        enable_sourceguardian "5.6"
+                        enable_sourceguardian "7.0"
                         enable_sourceguardian "7.1"
                         enable_sourceguardian "7.2"
                         enable_sourceguardian "7.3"
@@ -742,8 +744,8 @@ function init_php_fpm_install() {
                 fi
             else
                 # Install all PHP version (except EOL & Beta).
-                #optimize_php_fpm "5.6"
-                #optimize_php_fpm "7.0"
+                optimize_php_fpm "5.6"
+                optimize_php_fpm "7.0"
                 optimize_php_fpm "7.1"
                 optimize_php_fpm "7.2"
                 optimize_php_fpm "7.3"
