@@ -89,10 +89,12 @@ function install_phalcon() {
     elif wget -q -O /dev/null "https://raw.githubusercontent.com/phalcon/cphalcon/${PHALCON_VERSION}/README.md"; then
         # Clone repository.
         if [ ! -d cphalcon ]; then
-            run git clone --depth=1 --branch="${PHALCON_VERSION}" -q https://github.com/phalcon/cphalcon.git && \
+            run git clone -q https://github.com/phalcon/cphalcon.git && \
+            run git checkout "${PHALCON_VERSION}" && \
             run cd cphalcon/build
         else
             run cd cphalcon && \
+            run git checkout "${PHALCON_VERSION}" && \
             run git pull -q && \
             run cd build
         fi

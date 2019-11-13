@@ -24,6 +24,9 @@ fi
 # Direct access? make as dryrun mode.
 DRYRUN=${DRYRUN:-true}
 
+# Init timezone, set default to UTC.
+TIMEZONE=${TIMEZONE:-"UTC"}
+
 # Define build directory.
 BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
 if [ ! -d "${BUILD_DIR}" ]; then

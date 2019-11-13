@@ -51,6 +51,9 @@ echo -e "\nReconfigure server clock..."
 if [[ -n ${TIMEZONE} && ${TIMEZONE} != "none" ]]; then
     run echo "${TIMEZONE}" > /etc/timezone
     run dpkg-reconfigure -f noninteractive tzdata
+
+    # Save config.
+    save_config "TIMEZONE=${TIMEZONE}"
 fi
 
 # Update local time
