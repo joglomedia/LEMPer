@@ -25,6 +25,7 @@ function add_mariadb_repo() {
     MYSQL_SERVER=${MYSQL_SERVER:-"mariadb"}
     MYSQL_VERSION=${MYSQL_VERSION:-"10.4"}
 
+    # TODO: for future usage.
     #run curl -sS -o mariadb_repo_setup https://downloads.mariadb.com/MariaDB/mariadb_repo_setup && \
     #run bash mariadb_repo_setup --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
     #    --os-type="${DISTRIB_NAME}" --os-version="${DISTRIB_REPO}" && \
