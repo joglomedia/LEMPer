@@ -18,8 +18,15 @@ fi
 requires_root
 
 function init_memcached_install() {
+    local SELECTED_INSTALLER=""
+
     if "${AUTO_INSTALL}"; then
-        DO_INSTALL_MEMCACHED="y"
+        if [[ -z "${MEMCACHED_INSTALLER}" || "${MEMCACHED_INSTALLER}" == "none" ]]; then
+            DO_INSTALL_MEMCACHED="n"
+        else
+            DO_INSTALL_MEMCACHED="y"
+            SELECTED_INSTALLER=${MEMCACHED_INSTALLER:-"repo"}
+        fi
     else
         while [[ "${DO_INSTALL_MEMCACHED}" != "y" && "${DO_INSTALL_MEMCACHED}" != "n" ]]; do
             read -rp "Do you want to install Memcached server? [y/n]: " -i y -e DO_INSTALL_MEMCACHED
@@ -27,35 +34,58 @@ function init_memcached_install() {
     fi
 
     if [[ ${DO_INSTALL_MEMCACHED} == y* && ${INSTALL_MEMCACHED} == true ]]; then
-        local SELECTED_MEMCACHED_INSTALLER=${MEMCACHED_INSTALLER:-"repo"}
-        case "${SELECTED_MEMCACHED_INSTALLER}" in
+        # Install menu.
+        echo "Available Memcached installation method:"
+        echo "  1). Install from Repository (repo)"
+        echo "  2). Compile from Source (source)"
+        echo "-------------------------------------"
+
+        while [[ ${SELECTED_INSTALLER} != "1" && ${SELECTED_INSTALLER} != "2" && ${SELECTED_INSTALLER} != "none" && \
+            ${SELECTED_INSTALLER} != "repo" && ${SELECTED_INSTALLER} != "source" ]]; do
+            read -rp "Select an option [1-2]: " -e SELECTED_INSTALLER
+        done
+
+        case "${SELECTED_INSTALLER}" in
             1|"repo")
                 echo "Installing Memcached server from repository..."
                 run apt-get -qq install -y libmemcached11 libmemcachedutil2 libmemcached-tools memcached
             ;;
-
             2|"source"|*)
                 echo "Installing Memcached server from source..."
 
-                run apt-get -qq install -y libevent-dev libmemcached-tools libmemcached11 libmemcachedutil2
+                run apt-get -qq install -y libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2
                 
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
                 run cd "${BUILD_DIR}"
 
+                # Libevent
+                #libevent_download_url="https://github.com/libevent/libevent/releases/download/release-2.1.11-stable/libevent-2.1.11-stable.tar.gz"
+                #if wget -q -O libevent.tar.gz "${libevent_download_url}"; then
+                #    run tar -zxf libevent.tar.gz
+                #    run cd libevent-*
+                #    run ./configure --prefix=/usr/local/libevent
+                #    run make
+                #    run make install
+                #    run cd "${BUILD_DIR}"
+                #fi
+
+                # Memcache.
                 if [[ ${MEMCACHED_VERSION} == "latest" ]]; then
                     memcached_download_url="http://memcached.org/latest"
                 else
                     memcached_download_url="https://memcached.org/files/memcached-${MEMCACHED_VERSION}.tar.gz"
                 fi
 
-                if wget -q -O "memcached.tar.gz" "${memcached_download_url}"; then
-                    run tar -zxf "memcached.tar.gz"
+                if wget -q -O memcached.tar.gz "${memcached_download_url}"; then
+                    run tar -zxf memcached.tar.gz
                     run cd memcached-*
 
                     if [[ ${MEMCACHED_SASL} == "enable" || ${MEMCACHED_SASL} == true ]]; then
-                        run ./configure --bindir=/usr/bin --enable-sasl
+                        #run ./configure --enable-sasl --bindir=/usr/bin --with-libevent=/usr/local/libevent
+                        run ./configure --enable-sasl --bindir=/usr/bin
                     else
+                        #run ./configure --bindir=/usr/bin --with-libevent=/usr/local/libevent
                         run ./configure --bindir=/usr/bin
                     fi
 
@@ -73,10 +103,14 @@ function init_memcached_install() {
                         fi
                     fi
                 else
-                    warning "An error occured when downloading Memcached source."
+                    error "An error occured while downloading Memcached source."
                 fi
 
                 run cd "${CURRENT_DIR}"
+            ;;
+            *)
+                # Skip installation.
+                error "Installer method not supported. Memcached installation skipped."
             ;;
         esac
 
@@ -84,39 +118,31 @@ function init_memcached_install() {
             echo "Configuring Memcached server..."
 
             # Remove existing Memcached config.
-            if [ -f /etc/memcached.conf ]; then
-                run mv /etc/memcached.conf /etc/memcached.conf~
-            fi
+            [ -f /etc/memcached.conf ] && run mv /etc/memcached.conf /etc/memcached.conf~
 
             # Copy multi user instance config.
-            if [ ! -d /etc/memcached ]; then
-                run cp -fr etc/memcached /etc/
-            fi
+            run cp -fr etc/memcached/memcache.conf /etc/memcached_memcache.conf
+            run cp -fr etc/memcached/www-data.conf /etc/memcached_www-data.conf
 
             # Memcached init script.
-            if [ ! -f /etc/init.d/memcached ]; then
-                run cp -f etc/init.d/memcached /etc/init.d/
-                run chmod ugo+x /etc/init.d/memcached
-            fi
+            [ -f /etc/init.d/memcached ] && run mv /etc/init.d/memcached /etc/init.d/memcached~
+            run cp -f etc/init.d/memcached /etc/init.d/
+            run chmod ugo+x /etc/init.d/memcached
 
             # Memcached systemd script (multi user instance).
-            if [ -f /lib/systemd/system/memcached.service ]; then
-                run mv /lib/systemd/system/memcached.service /lib/systemd/system/memcached.service~
-            fi
+            [ -f /lib/systemd/system/memcached.service ] && \
+            run mv /lib/systemd/system/memcached.service /lib/systemd/system/memcached.service~
 
-            if [ ! -f /lib/systemd/system/memcached@.service ]; then
-                run cp etc/systemd/memcached@.service /lib/systemd/system/
-            fi
+            [ ! -f /lib/systemd/system/memcached@.service ] && \
+            run cp etc/systemd/memcached@.service /lib/systemd/system/
 
-            if [ -f /etc/systemd/system/multi-user.target.wants/memcached@.service ]; then
-                run mv /etc/systemd/system/multi-user.target.wants/memcached@.service \
-                    /etc/systemd/system/multi-user.target.wants/memcached@.service~
-            fi
+            [ -f /etc/systemd/system/multi-user.target.wants/memcached@.service ] && \
+            run mv /etc/systemd/system/multi-user.target.wants/memcached@.service \
+                /etc/systemd/system/multi-user.target.wants/memcached@.service~
 
-            if [ ! -f /etc/systemd/system/multi-user.target.wants/memcached@.service ]; then
-                run ln -s /lib/systemd/system/memcached@.service \
-                    /etc/systemd/system/multi-user.target.wants/memcached@.service
-            fi
+            [ ! -f /etc/systemd/system/multi-user.target.wants/memcached@.service ] && \
+            run ln -s /lib/systemd/system/memcached@.service \
+                /etc/systemd/system/multi-user.target.wants/memcached@.service
 
             # Custom memcached scripts.
             if [ ! -f /usr/share/memcached/scripts/systemd-memcached-wrapper ]; then
@@ -145,15 +171,17 @@ function init_memcached_install() {
                     MEMCACHED_PASSWORD=${MEMCACHED_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
 
                     run mkdir -p /etc/sasl2 && run touch /etc/sasl2/memcached_memcache.conf
-                    cat >> /etc/sasl2/memcached_memcache.conf <<EOL
+                    cat > /etc/sasl2/memcached_memcache.conf <<EOL
 mech_list: plain
 log_level: 5
-sasldb_path: /etc/sasl2/sasldb2-memcached_memcache
+sasldb_path: /etc/sasl2/memcached-sasldb2
 EOL
 
-                    run saslpasswd2 -p -a memcached -f /etc/sasl2/sasldb2-memcached_memcache -c "${MEMCACHED_USERNAME}" <<< "${MEMCACHED_PASSWORD}"
-                    run chown memcache:memcache /etc/sasl2/sasldb2-memcached_memcache
+                    # Add new sasl auth for memcached.
+                    run saslpasswd2 -p -a memcached -f /etc/sasl2/memcached-sasldb2 -c "${MEMCACHED_USERNAME}" <<< "${MEMCACHED_PASSWORD}"
+                    run chown memcache:memcache /etc/sasl2/memcached-sasldb2
                     run echo -e "\n# Enable SASL auth\n-S" >> /etc/memcached_memcache.conf
+                    run sed -i "/#\ -vv/a -vv" /etc/memcached_memcache.conf
 
                     # Save config.
                     save_config -e "MEMCACHED_SASL=enabled\nMEMCACHED_USERNAME=${MEMCACHED_USERNAME}\nMEMCACHED_PASSWORD=${MEMCACHED_PASSWORD}\nMEMCACHED_INSTANCE=memcache"
@@ -202,6 +230,7 @@ EOL
             run enable_memcached "7.1"
             run enable_memcached "7.2"
             run enable_memcached "7.3"
+            run enable_memcached "7.4"
         fi
 
         # Installation status.
