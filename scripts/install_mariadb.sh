@@ -22,26 +22,53 @@ function add_mariadb_repo() {
 
     DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
     DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
+    MYSQL_SERVER=${MYSQL_SERVER:-"mariadb"}
+    MYSQL_VERSION=${MYSQL_VERSION:-"10.4"}
+
+    #run curl -sS -o mariadb_repo_setup https://downloads.mariadb.com/MariaDB/mariadb_repo_setup && \
+    #run bash mariadb_repo_setup --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
+    #    --os-type="${DISTRIB_NAME}" --os-version="${DISTRIB_REPO}" && \
+    #run rm -f mariadb_repo_setup
 
     case "${DISTRIB_REPO}" in
         trusty)
             # Only support 10.3 and lesser.
-            local MARIADB_VERSION="10.3"
+            local MARIADB_VERSION=${MYSQL_VERSION:-"10.3"}
             local MARIADB_ARCH="amd64,i386,ppc64el"
+            run apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xcbcb082a1bb943db
         ;;
         xenial)
-            # Support 10.3 & 10.4.
+            # Support 10.0, 10.1, 10.2, 10.3 & 10.4.
             local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
             local MARIADB_ARCH="amd64,arm64,i386,ppc64el"
+            run apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
         ;;
         bionic)
-            # Support 10.3 & 10.4.
+            # Support 10.1, 10.2, 10.3 & 10.4.
             local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
             local MARIADB_ARCH="amd64,arm64,ppc64el"
+            run apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
+        ;;
+        disco|buster)
+            # Support 10.3 & 10.4.
+            local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
+            local MARIADB_ARCH="amd64"
+            run apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
+        ;;
+        jessie)
+            # Support 10.0, 10.1, 10.2, 10.3 & 10.4.
+            local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
+            local MARIADB_ARCH="amd64,i386,ppc64el"
+            run apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xcbcb082a1bb943db
+        ;;
+        stretch)
+            # Support 10.1, 10.2, 10.3 & 10.4.
+            local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
+            local MARIADB_ARCH="amd64,i386,ppc64el"
+            run apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
         ;;
         *)
-            echo ""
-            error "Unsupported distribution release: ${DISTRIB_REPO}."
+            error "Unable to add MariaDB, unsupported distribution release: ${DISTRIB_NAME^} ${DISTRIB_REPO^}."
             echo "Sorry your system is not supported yet, installing from source may fix the issue."
             exit 1
         ;;
@@ -51,40 +78,64 @@ function add_mariadb_repo() {
     if "${DRYRUN}"; then
         status "MariaDB (MySQL) repository added in dryrun mode."
     else
-        if [ ! -f "/etc/apt/sources.list.d/MariaDB-${DISTRIB_REPO}.list" ]; then
-            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 0xF1656F24C74CD1D8
-
-            touch "/etc/apt/sources.list.d/MariaDB-${DISTRIB_REPO}.list"
-            cat > "/etc/apt/sources.list.d/MariaDB-${DISTRIB_REPO}.list" <<EOL
-# MariaDB ${MARIADB_VERSION} repository list - created 2019-04-26 08:58 UTC
+        # Add repo.
+        case ${DISTRIB_NAME} in
+            debian|ubuntu)
+                if [ ! -f "/etc/apt/sources.list.d/mariadb-${DISTRIB_REPO}.list" ]; then
+                    run touch "/etc/apt/sources.list.d/mariadb-${DISTRIB_REPO}.list"
+                    cat > "/etc/apt/sources.list.d/mariadb-${DISTRIB_REPO}.list" <<EOL
+# MariaDB ${MARIADB_VERSION} repository list - created 2019-11-05 11:48 UTC
 # http://mariadb.org/mariadb/repositories/
 deb [arch=${MARIADB_ARCH}] http://ftp.osuosl.org/pub/mariadb/repo/${MARIADB_VERSION}/${DISTRIB_NAME} ${DISTRIB_REPO} main
 deb-src http://ftp.osuosl.org/pub/mariadb/repo/${MARIADB_VERSION}/${DISTRIB_NAME} ${DISTRIB_REPO} main
 EOL
-        else
-            warning "MariaDB (MySQL) repository already exists."
-        fi
 
-        run apt-get update -y
+                    run apt-get -qq update -y
+                else
+                    warning "MariaDB (MySQL) repository already exists."
+                fi
+            ;;
+            *)
+                fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
+            ;;
+        esac
     fi
 }
 
 function init_mariadb_install() {
-    add_mariadb_repo
+    MYSQL_VERSION=${MYSQL_VERSION:-"10.4"}
 
     if "${AUTO_INSTALL}"; then
         DO_INSTALL_MYSQL="y"
+    else
+        while [[ "${DO_INSTALL_MYSQL}" != "y" && "${DO_INSTALL_MYSQL}" != "n" ]]; do
+            read -rp "Do you want to install MariaDB (MySQL) database server? [y/n]: " \
+            -i y -e DO_INSTALL_MYSQL
+        done
     fi
-    while [[ "${DO_INSTALL_MYSQL}" != "y" && "${DO_INSTALL_MYSQL}" != "n" ]]; do
-        read -rp "Do you want to install MariaDB (MySQL) database server? [y/n]: " \
-        -i y -e DO_INSTALL_MYSQL
-    done
 
     if [[ ${DO_INSTALL_MYSQL} == y* && ${INSTALL_MYSQL} == true ]]; then
+        # Add repository.
+        add_mariadb_repo
+
         echo "Installing MariaDB (MySQL drop-in replacement) server..."
 
         # Install MariaDB
-        run apt-get install -y libmariadbclient18 mariadb-backup mariadb-common mariadb-server
+        if hash apt-get 2>/dev/null; then
+            run apt-get -qq install -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
+                "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
+                "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
+        elif hash yum 2>/dev/null; then
+            if [ "${VERSION_ID}" == "5" ]; then
+                yum -y update
+                #yum -y localinstall mongodb-org mongodb-org-server --nogpgcheck
+            else
+                yum -y update
+            	#yum -y localinstall mongodb-org mongodb-org-server
+            fi
+        else
+            fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
+        fi
 
         # Fix MySQL error?
         # Ref: https://serverfault.com/questions/104014/innodb-error-log-file-ib-logfile0-is-of-different-size
@@ -93,7 +144,7 @@ function init_mariadb_install() {
         #mv /var/lib/mysql/ib_logfile1 /var/lib/mysql/ib_logfile1.bak
         #service mysql start
 
-        # Installation status.
+        # Configure MySQL installation.
         if "${DRYRUN}"; then
             warning "MariaDB (MySQL) installed in dryrun mode."
         else
@@ -122,15 +173,15 @@ function init_mariadb_install() {
                 if [ ! -f /lib/systemd/system/mariadb.service ]; then
                     run cp etc/systemd/mariadb.service /lib/systemd/system/
                 fi
-                if [ ! -f /etc/systemd/system/multi-user.target.wants/mariadb.service ]; then
+                if [[ ! -f /etc/systemd/system/multi-user.target.wants/mariadb.service && -f /lib/systemd/system/mariadb.service ]]; then
                     run ln -s /lib/systemd/system/mariadb.service \
                         /etc/systemd/system/multi-user.target.wants/mariadb.service
                 fi
-                if [ ! -f /etc/systemd/system/mysqld.service ]; then
+                if [[ ! -f /etc/systemd/system/mysqld.service && -f /lib/systemd/system/mariadb.service ]]; then
                     run ln -s /lib/systemd/system/mariadb.service \
                         /etc/systemd/system/mysqld.service
                 fi
-                if [ ! -f /etc/systemd/system/mysql.service ]; then
+                if [[ ! -f /etc/systemd/system/mysql.service && -f /lib/systemd/system/mariadb.service ]]; then
                     run ln -s /lib/systemd/system/mariadb.service \
                         /etc/systemd/system/mysql.service
                 fi
@@ -138,13 +189,18 @@ function init_mariadb_install() {
                 # Trying to reload daemon.
                 run systemctl daemon-reload
 
-                # Restart MariaDB
-                run systemctl restart mariadb.service
-
                 # Enable MariaDB on startup.
                 run systemctl enable mariadb.service
 
+                # Unmask (?).
+#               run systemctl unmask mariadb.service
+
+                # Restart MariaDB
+#                run systemctl start mariadb.service
+                run service mysql start
+
                 # MySQL Secure Install
+                # TODO: https://mariadb.com/kb/en/library/security-of-mariadb-root-account/
                 run mysql_secure_installation
             fi
 
@@ -153,7 +209,7 @@ function init_mariadb_install() {
 
                 enable_mariabackup
             else
-                warning "Something wrong with MariaDB (MySQL) installation."
+                warning "Something went wrong with MariaDB (MySQL) installation."
             fi
         fi
     fi
@@ -167,14 +223,14 @@ function enable_mariabackup() {
     sleep 1
 
     export MARIABACKUP_USER=${MARIABACKUP_USER:-"lemperdb"}
-    export MARIABACKUP_PASS && \
     MARIABACKUP_PASS=${MARIABACKUP_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+    export MARIABACKUP_PASS
 
     echo "Please enter your current MySQL root password to process!"
-    export MYSQL_ROOT_PASS
     until [[ "${MYSQL_ROOT_PASS}" != "" ]]; do
         echo -n "MySQL root password: "; stty -echo; read -r MYSQL_ROOT_PASS; stty echo; echo
     done
+    export MYSQL_ROOT_PASS
 
     # Create default LEMPer database user if not exists.
     if ! mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT User FROM mysql.user;" | grep -q "${MARIABACKUP_USER}"; then
