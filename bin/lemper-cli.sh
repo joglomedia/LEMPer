@@ -30,6 +30,7 @@ if [ -f "/etc/lemper/lemper.conf" ]; then
 
     # shellcheck source=/etc/lemper/lemper.conf
     # shellcheck disable=SC1094
+    # shellcheck disable=SC1091
     source <(grep -v '^#' /etc/lemper/lemper.conf | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
 else
     echo "LEMPer stack configuration required, but the file doesn't exist."
