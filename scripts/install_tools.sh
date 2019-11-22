@@ -27,9 +27,13 @@ function init_webadmin_install() {
         run mkdir -p /usr/local/lib/lemper
     fi
 
-    run cp -f lib/lemper-create.sh /usr/local/lib/lemper/lemper-create
-    run cp -f lib/lemper-manage.sh /usr/local/lib/lemper/lemper-manage
+    run cp -f lib/lemper-create.sh /usr/local/lib/lemper/lemper-create && \
     run chmod ugo+x /usr/local/lib/lemper/lemper-create
+
+    run cp -f lib/lemper-db.sh /usr/local/lib/lemper/lemper-db && \
+    run chmod ugo+x /usr/local/lib/lemper/lemper-db
+
+    run cp -f lib/lemper-manage.sh /usr/local/lib/lemper/lemper-manage && \
     run chmod ugo+x /usr/local/lib/lemper/lemper-manage
 
     # Install Web Admin.
