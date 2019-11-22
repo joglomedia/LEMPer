@@ -24,10 +24,10 @@ if hash apt-get 2>/dev/null; then
 
     # Install dependencies.
     echo "Installing pre-requisite packages..."
-    run apt-get -qq install -y apache2-utils apt-transport-https bash build-essential ca-certificates cron curl \
-        git gnupg2 iptables libgd-dev libgeoip-dev libssl-dev libxml2-dev libpcre3-dev libxslt1-dev lsb-release \
-        ntpdate openssh-server openssl rsync software-properties-common sasl2-bin snmp sudo sysstat tar unzip \
-        wget whois dnsutils
+    run apt-get -qq install -y apache2-utils apt-transport-https autoconf bash build-essential ca-certificates cmake cron \
+        curl dnsutils gcc geoip-bin geoip-database git gnupg2 htop iptables libc-dev libcurl4-openssl-dev libgd-dev libgeoip-dev \
+        libssl-dev libxml2-dev libpcre3-dev libxslt1-dev lsb-release make ntpdate openssh-server openssl pkg-config rsync \
+        software-properties-common sasl2-bin snmp sudo sysstat tar tzdata unzip wget whois zlib1g-dev
 elif hash yum 2>/dev/null; then
     fail "Unable to install LEMPer: yum distribution is not supported yet."
 
@@ -49,7 +49,7 @@ echo -e "\nReconfigure server clock..."
 
 #run dpkg-reconfigure tzdata
 if [[ -n ${TIMEZONE} && ${TIMEZONE} != "none" ]]; then
-    run echo "${TIMEZONE}" > /etc/timezone
+    run bash -c "echo '${TIMEZONE}' > /etc/timezone"
     run dpkg-reconfigure -f noninteractive tzdata
 
     # Save config.
