@@ -21,51 +21,53 @@ requires_root
 function add_mongodb_repo() {
     echo "Adding MongoDB ${MONGODB_VERSION} repository..."
 
-    # Add repository
     MONGODB_VERSION=${MONGODB_VERSION:-"4.0"}
     DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
     DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
+    local DISTRIB_ARCH
+
+    case ${ARCH} in
+        x86_64)
+            DISTRIB_ARCH="amd64"
+        ;;
+        i386|i486|i586|i686)
+            DISTRIB_ARCH="i386"
+        ;;
+        armv8)
+            DISTRIB_ARCH="arm64"
+        ;;
+        *)
+            DISTRIB_ARCH="amd64,i386"
+        ;;
+    esac
 
     case ${DISTRIB_NAME} in
         debian)
             [[ ${DISTRIB_REPO} == "buster" ]] && local DISTRIB_REPO="stretch"
 
             if [ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list" ]; then
-                run bash -c "echo 'deb [ arch=amd64 ] https://repo.mongodb.org/apt/debian ${DISTRIB_REPO}/mongodb-org/${MONGODB_VERSION} main' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}.list"
+                run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list"
+                run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/debian ${DISTRIB_REPO}/mongodb-org/${MONGODB_VERSION} main' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list"
                 run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -"
-                #run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
                 run apt-get -qq update -y
             else
                 warning "MongoDB ${MONGODB_VERSION} repository already exists."
             fi
         ;;
         ubuntu)
-            case ${ARCH} in
-                x86_64)
-                    DISTRIB_ARCH="amd64"
-                ;;
-                i386|i486|i586|i686)
-                    DISTRIB_ARCH="i386"
-                ;;
-                armv8)
-                    DISTRIB_ARCH="arm64"
-                ;;
-                *)
-                    DISTRIB_ARCH="amd64,arm64,i386"
-                ;;
-            esac
-
             if [ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list" ]; then
-                run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/ubuntu ${DISTRIB_REPO}/mongodb-org/${MONGODB_VERSION} multiverse' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}.list"
+                run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list"
+                run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/ubuntu ${DISTRIB_REPO}/mongodb-org/${MONGODB_VERSION} multiverse' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list"
                 run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -"
-                #run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 9DA31620334BD75D9DCB49F368818C72E52529D4
                 run apt-get -qq update -y
             else
                 warning "MongoDB ${MONGODB_VERSION} repository already exists."
             fi
         ;;
         *)
-            fail "Unable to install LEMPer: this GNU/Linux distribution is not supported."
+            error "Unable to add MongoDB, unsupported distribution release: ${DISTRIB_NAME^} ${DISTRIB_REPO^}."
+            echo "Sorry your system is not supported yet, installing from source may fix the issue."
+            exit 1
         ;;
     esac
 }
@@ -79,14 +81,15 @@ function init_mongodb_install() {
         done
     fi
 
-    if [[ "${DO_INSTALL_MONGODB}" == y* && ${INSTALL_MONGODB} == true ]]; then
+    if [[ ${DO_INSTALL_MONGODB} == y* && ${INSTALL_MONGODB} == true ]]; then
         # Add repository.
         add_mongodb_repo
 
         echo "Installing MongoDB server and MongoDB PHP module..."
 
         if hash apt-get 2>/dev/null; then
-            run apt-get -qq install -y libcurl3 mongodb-org mongodb-org-server mongodb-org-shell mongodb-org-tools
+            run apt-get -qq install -y libbson-1.0 libmongoc-1.0-0 mongodb-org mongodb-org-server \
+                mongodb-org-shell mongodb-org-tools php-mongodb
         elif hash yum 2>/dev/null; then
             if [ "${VERSION_ID}" == "5" ]; then
                 yum -y update
@@ -100,15 +103,14 @@ function init_mongodb_install() {
         fi
 
         # Enable in start-up
+        run systemctl enable mongod.service
         run systemctl restart mongod
-        run systemctl enable mongodb
-        run systemctl status mongod
 
         if "${DRYRUN}"; then
             warning "MongoDB server installed in dryrun mode."
         else
             echo "MongoDB installation completed."
-            echo "After LEMPer installation finished, create an MongoDB administrative user. Example command lines below:";
+            echo "After installation finished, create a MongoDB administrative user. Example command lines below:";
             cat <<- _EOF_
 
 mongo
@@ -126,7 +128,20 @@ mongo -u admin -p --authenticationDatabase user-data
 > db.exampleCollection.find({"name" : "John Doe"})
 _EOF_
 
-            sleep 3
+            # Add MongoDB default admin user.
+            if [[ -n $(command -v mongo) ]]; then
+                MONGODB_ADMIN_USER=${MONGODB_ADMIN_USER:-"lemperdb"}
+                MONGODB_ADMIN_PASS=${MONGODB_ADMIN_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+                run mongo admin --eval "db.createUser({user: \"${MONGODB_ADMIN_USER}\", pwd: \"${MONGODB_ADMIN_PASS}\", roles:[{role: \"root\", db: \"admin\"}]});"
+
+                # Save config.
+                save_config -e "MONGODB_HOST=127.0.0.1\nMONGODB_PORT=27017\nMONGODB_ADMIN_USER=${MONGODB_ADMIN_USER}\nMONGODB_ADMIN_PASS=${MONGODB_ADMIN_PASS}"
+
+                # Save log.
+                save_log -e "MongoDB default admin user is enabled, here is your admin credentials:\nAdmin username: ${MONGODB_ADMIN_USER} | Admin password: ${MONGODB_ADMIN_PASS}\nSave this credentials and use it to authenticate your MongoDB connection."
+            fi
+
+            sleep 2
         fi
     else
         warning "MongoDB installation skipped..."
