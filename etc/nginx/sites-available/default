@@ -151,15 +151,13 @@ server {
     include /etc/nginx/includes/error_pages.conf;
 
     location /lcp {
-        # First attempt to serve request as file, then
-        # as directory, then fall back to index.html
-        try_files $uri $uri/ /index.html;
+        try_files $uri $uri/ /index.php?$args;
 
         # Uncomment to enable naxsi on this location
         #include /etc/nginx/naxsi.rules;
 
         # Uncomment to enable auto index
-        autoindex off;
+        #autoindex on;
 
         # Set basic auth.
         allow all;
