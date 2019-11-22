@@ -495,6 +495,10 @@ function create_account() {
                 run touch /srv/.htpasswd
             fi
 
+            # Protect .htpasswd file.
+            run chmod 0600 /srv/.htpasswd
+            run chown www-data:www-data /srv/.htpasswd
+
             # Generate passhword hash.
             if [[ -n $(command -v mkpasswd) ]]; then
                 PASSWORD_HASH=$(mkpasswd --method=sha-256 "${PASSWORD}")
