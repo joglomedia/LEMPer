@@ -1,5 +1,9 @@
 .env
+.env.save
 lemper.log
+scripts/install_ffmpeg.sh
+scripts/createssl.sh
+scripts/mysqltuner.pl
 #bin/lemper-cli.sh
 #lib/lemper-create.sh
 #lib/lemper-manage.sh
