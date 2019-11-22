@@ -2,7 +2,7 @@
 
 # ImageMagick Installer
 # Min. Requirement  : GNU/Linux Ubuntu 14.04
-# Last Build        : 17/07/2019
+# Last Build        : 02/11/2019
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
@@ -18,12 +18,14 @@ fi
 requires_root
 
 function init_imagemagick_install() {
+    local SELECTED_INSTALLER=""
+
     if "${AUTO_INSTALL}"; then
         if [[ -z "${PHP_IMAGEMAGICK_INSTALLER}" || "${PHP_IMAGEMAGICK_INSTALLER}" == "none" ]]; then
             INSTALL_IMAGEMAGICK="n"
         else
             INSTALL_IMAGEMAGICK="y"
-            SELECTED_IMAGEMAGICK=${PHP_IMAGEMAGICK_INSTALLER}
+            SELECTED_INSTALLER=${PHP_IMAGEMAGICK_INSTALLER}
         fi
     else
         while [[ "${INSTALL_IMAGEMAGICK}" != "y" && "${INSTALL_IMAGEMAGICK}" != "n" ]]; do
@@ -33,24 +35,21 @@ function init_imagemagick_install() {
     fi
 
     if [[ "${INSTALL_IMAGEMAGICK}" == Y* || "${INSTALL_IMAGEMAGICK}" == y* ]]; then
-        echo "Available ImageMagick installer:"
-        echo "  1). Repository (repo)"
-        echo "  2). Source (source)"
+        echo "Available ImageMagick installation method:"
+        echo "  1). Install from Repository (repo)"
+        echo "  2). Compile from Source (source)"
         echo "--------------------------------"
 
-        while [[ ${SELECTED_IMAGEMAGICK} != "1" && ${SELECTED_IMAGEMAGICK} != "2" && ${SELECTED_IMAGEMAGICK} != "none" && \
-            ${SELECTED_IMAGEMAGICK} != "repo" && ${SELECTED_IMAGEMAGICK} != "source" ]]; do
-            read -rp "Select an option [1-2]: " -e SELECTED_IMAGEMAGICK
+        while [[ ${SELECTED_INSTALLER} != "1" && ${SELECTED_INSTALLER} != "2" && ${SELECTED_INSTALLER} != "none" && \
+            ${SELECTED_INSTALLER} != "repo" && ${SELECTED_INSTALLER} != "source" ]]; do
+            read -rp "Select an option [1-2]: " -e SELECTED_INSTALLER
         done
 
-        echo ""
-
-        case ${SELECTED_IMAGEMAGICK} in
+        case ${SELECTED_INSTALLER} in
             1|"repo")
                 echo "Installing ImageMagick library from repository..."
                 run apt-get -qq install -y imagemagick
             ;;
-
             2|"source")
                 echo "Installing ImageMagick library from source..."
                 local CURRENT_DIR && \
@@ -70,7 +69,7 @@ function init_imagemagick_install() {
 
             *)
                 # Skip installation.
-                warning "ImageMagick installation skipped."
+                error "Installer method not supported. ImageMagick installation skipped."
             ;;
         esac
 
