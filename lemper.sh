@@ -54,7 +54,7 @@ export DISTRIB_NAME && DISTRIB_NAME=$(get_distrib_name)
 export DISTRIB_REPO && DISTRIB_REPO=$(get_release_name)
 
 if [[ "${DISTRIB_REPO}" == "unsupported" ]]; then
-    warning "This installer only work for Ubuntu (Xenial & Bionic)..."
+    error "This Linux distribution isn't supported yet. If you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
     exit 1
 else
     # Get system architecture.
@@ -74,11 +74,12 @@ fi
 case "${1}" in
     "--install")
         header_msg
+
         echo "Starting LEMP stack installation..."
         echo "Please ensure that you're on a fresh install!"
-        echo ""
 
         if ! "${AUTO_INSTALL}"; then
+            echo ""
             read -t 60 -rp "Press [Enter] to continue..." </dev/tty
         fi
 
@@ -237,12 +238,12 @@ Now, you can reboot your server and enjoy it!"
 
     "--remove"|"--uninstall")
         header_msg
-        echo ""
+
         echo "Are you sure to remove LEMP stack installation?"
         echo "Please ensure that you've back up your critical data!"
-        echo ""
 
         if ! "${AUTO_REMOVE}"; then
+            echo ""
             read -rt 15 -p "Press [Enter] to continue..." </dev/tty
         fi
 
@@ -281,6 +282,12 @@ Now, you can reboot your server and enjoy it!"
             . ./scripts/remove_redis.sh
         fi
 
+        ### Remove MongoDB ###
+        if [ -f scripts/remove_mongodb.sh ]; then
+            echo ""
+            . ./scripts/remove_mongodb.sh
+        fi
+
         ### Remove Certbot LE ###
         if [ -f scripts/remove_certbotle.sh ]; then
             echo ""
@@ -296,6 +303,7 @@ Now, you can reboot your server and enjoy it!"
         ### Remove 
 
         # Remove default user account.
+        echo ""
         echo "Removing created default account..."
         if "${AUTO_REMOVE}"; then
             REMOVE_ACCOUNT="y"
@@ -327,8 +335,11 @@ Now, you can reboot your server and enjoy it!"
         fi
 
         # Remove tools.
-        run rm -f /usr/local/bin/lemper-cli
-        run rm -fr /usr/local/lib/lemper
+        [ -f /usr/local/bin/lemper-cli ] && run rm -f /usr/local/bin/lemper-cli
+        [ -d /usr/local/lib/lemper ] && run rm -fr /usr/local/lib/lemper
+
+        # Clean up existing lemper config.
+        [ -f /etc/lemper/lemper.conf ] && run rm -f /etc/lemper/lemper.conf
 
         # Remove unnecessary packages.
         echo -e "\nCleaning up unnecessary packages..."
