@@ -27,12 +27,6 @@ DRYRUN=${DRYRUN:-true}
 # Init timezone, set default to UTC.
 TIMEZONE=${TIMEZONE:-"UTC"}
 
-# Define build directory.
-BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
-if [ ! -d "${BUILD_DIR}" ]; then
-    run mkdir -p "${BUILD_DIR}"
-fi
-
 # Set default color decorator.
 RED=31
 GREEN=32
@@ -290,6 +284,7 @@ function delete_if_already_exists() {
     fi
 }
 
+# Get general distribution name.
 function get_distrib_name() {
     if [ -f "/etc/os-release" ]; then
         # Export os-release vars.
@@ -310,7 +305,7 @@ function get_distrib_name() {
     echo "${DISTRIB_NAME}"
 }
 
-# Get general distribution release name.
+# Get general release name.
 function get_release_name() {
     if [ -f "/etc/os-release" ]; then
         # Export os-release vars.
@@ -324,7 +319,7 @@ function get_release_name() {
 
         case ${DISTRIB_NAME} in
             debian)
-                #RELEASE_NAME=${VERSION_CODENAME:-}
+                #RELEASE_NAME=${VERSION_CODENAME:-"unsupported"}
                 RELEASE_NAME="unsupported"
 
                 # TODO for Debian install
@@ -338,7 +333,7 @@ function get_release_name() {
 
                 case ${DISTRIB_RELEASE} in
                     "14.04"|"LM17")
-                        # Ubuntu release 14.04, LinuxMint 17
+                        # Ubuntu release 14.04, LinuxMint 17 (End of Life)
                         #RELEASE_NAME=${UBUNTU_CODENAME:-"trusty"}
                         RELEASE_NAME="unsupported"
                     ;;
@@ -349,6 +344,10 @@ function get_release_name() {
                     "18.04"|"LM19")
                         # Ubuntu release 18.04, LinuxMint 19
                         RELEASE_NAME=${UBUNTU_CODENAME:-"bionic"}
+                    ;;
+                    "19.04")
+                        # Ubuntu release 19.04
+                        RELEASE_NAME=${UBUNTU_CODENAME:-"disco"}
                     ;;
                     *)
                         RELEASE_NAME="unsupported"
@@ -369,7 +368,6 @@ function get_release_name() {
             ;;
             *)
                 RELEASE_NAME="unsupported"
-                warning "Sorry, this Linux distribution isn't supported yet. If you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
             ;;
         esac
     elif [ -e /etc/system-release ]; then
@@ -569,27 +567,34 @@ function init_log() {
 
 # Save log.
 function save_log() {
-    {
-        date '+%d-%m-%Y %T %Z'
-        echo "$@"
-        echo ""
-    } >> lemper.log
+    if ! ${DRYRUN}; then
+        {
+            date '+%d-%m-%Y %T %Z'
+            echo "$@"
+            echo ""
+        } >> lemper.log
+    fi
 }
 
 # Make config file if not exist.
 function init_config() {
-    [ ! -e /etc/lemper/lemper.conf ] && mkdir -p /etc/lemper/ && touch /etc/lemper/lemper.conf
+    if [ ! -f /etc/lemper/lemper.conf ]; then
+        run mkdir -p /etc/lemper/ 
+        run bash -c "echo '' > /etc/lemper/lemper.conf"
+    fi
 }
 
 # Save configuration.
 function save_config() {
-    echo "$@" >> /etc/lemper/lemper.conf
+    if ! ${DRYRUN}; then
+        echo "$@" >> /etc/lemper/lemper.conf
+    fi
 }
 
 # Header message.
 function header_msg() {
     clear
-    cat <<- _EOF_
+#    cat <<- _EOF_
 #==========================================================================#
 #      Welcome to LEMPer for Ubuntu-based server, Written by ESLabs.ID     #
 #==========================================================================#
@@ -597,7 +602,14 @@ function header_msg() {
 #                                                                          #
 #        For more information please visit https://eslabs.id/lemper        #
 #==========================================================================#
-_EOF_
+#_EOF_
+    status "
+         _     _____ __  __ ____               _     
+        | |   | ____|  \/  |  _ \ _welcome_to_| |__  
+        | |   |  _| | |\/| | |_) / _ \ '__/ __| '_ \ 
+        | |___| |___| |  | |  __/  __/ | _\__ \ | | |
+        |_____|_____|_|  |_|_|   \___|_|(_)___/_| |_|
+    "
 }
 
 # Footer credit message.
@@ -614,3 +626,9 @@ function footer_msg() {
 #==========================================================================#
 _EOF_
 }
+
+# Define build directory.
+BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
+if [ ! -d "${BUILD_DIR}" ]; then
+    run mkdir -p "${BUILD_DIR}"
+fi
