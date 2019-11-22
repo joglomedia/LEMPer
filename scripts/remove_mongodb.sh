@@ -31,6 +31,24 @@ function init_mongodb_removal() {
         run apt-get -qq --purge remove -y $(dpkg-query -l | awk '/mongodb/ { print $2 }' | grep -wE "^mongodb")
         run rm -f /etc/apt/sources.list.d/mongodb-org-*
         run apt-get -qq autoremove -y
+
+        # Remove MongoDB config files.
+        warning "!! This action is not reversible !!"
+
+        if "${AUTO_REMOVE}"; then
+            REMOVE_MONGODCONFIG="y"
+        else
+            while [[ "${REMOVE_MONGODCONFIG}" != "y" && "${REMOVE_MONGODCONFIG}" != "n" ]]; do
+                read -rp "Remove MongoDB database and configuration files? [y/n]: " -e REMOVE_MONGODCONFIG
+            done
+        fi
+
+        if [[ "${REMOVE_MONGODCONFIG}" == Y* || "${REMOVE_MONGODCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
+            [ -f /etc/mongod.conf ] && run rm -fr /etc/mongod.conf
+            [ -d /var/lib/mongodb ] && run rm -fr /var/lib/mongodb
+
+            echo "All your MongoDB database and configuration files deleted permanently."
+        fi
     else
         echo "MongoDB package not found, possibly installed from source."
         echo "Remove it manually!!"
@@ -38,24 +56,6 @@ function init_mongodb_removal() {
         MONGOD_BIN=$(command -v mongod)
 
         echo "MongoDB server binary executable: ${MONGOD_BIN}"
-    fi
-
-    # Remove MongoDB config files.
-    warning "!! This action is not reversible !!"
-
-    if "${AUTO_REMOVE}"; then
-        REMOVE_MONGODCONFIG="y"
-    else
-        while [[ "${REMOVE_MONGODCONFIG}" != "y" && "${REMOVE_MONGODCONFIG}" != "n" ]]; do
-            read -rp "Remove MongoDB database and configuration files? [y/n]: " -e REMOVE_MONGODCONFIG
-        done
-    fi
-
-    if [[ "${REMOVE_MONGODCONFIG}" == Y* || "${REMOVE_MONGODCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
-        [ -f /etc/mongod.conf ] && run rm -fr /etc/mongod.conf
-        [ -d /var/lib/mongodb ] && run rm -fr /var/lib/mongodb
-
-        echo "All your MongoDB database and configuration files deleted permanently."
     fi
 
     # Final test.
