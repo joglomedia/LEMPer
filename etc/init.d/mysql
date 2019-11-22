@@ -29,7 +29,7 @@ MYADMIN="/usr/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"
 ERR_LOGGER="logger -p daemon.err -t /etc/init.d/mysql -i"
 
 if [ -f /etc/default/mysql ]; then
-    . /etc/default/mysql
+  . /etc/default/mysql
 fi
 
 # Safeguard (relative paths, core dumps..)

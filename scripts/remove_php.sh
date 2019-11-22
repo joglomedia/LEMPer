@@ -24,34 +24,43 @@ function remove_php_fpm() {
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
-    # Related PHP packages to be removed.
-    local PHP_PKGS=()
-
     # Stop default PHP FPM process.
     if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
         run service "php${PHPv}-fpm" stop
     fi
 
-    if [[ -n $(command -v "php${PHPv}") ]]; then
-        # Installed PHP Packages.
-        PHP_PKGS=("php${PHPv} php${PHPv}-bcmath php${PHPv}-cli php${PHPv}-common \
-php${PHPv}-curl php${PHPv}-dev php${PHPv}-fpm php${PHPv}-mysql php${PHPv}-gd \
-php${PHPv}-gmp php${PHPv}-imap php${PHPv}-intl php${PHPv}-json php${PHPv}-ldap \
-php${PHPv}-mbstring php${PHPv}-opcache php${PHPv}-pspell php${PHPv}-readline \
-php${PHPv}-recode php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
-php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" "${PHP_PKGS[@]}")
+    if dpkg-query -l | awk '/php/ { print $2 }' | grep -qwE "^php${PHPv}"; then
+        echo "Found PHP${PHPv} packages installation. Removing..."
 
+        # Remove geoip module.
+        if "php${PHPv}" -m | grep -qw geoip; then
+            # Uninstall geoip pecl.
+            #run pecl uninstall geoip-1.1.1
+
+            # Unlink enabled module.
+            if [ -f "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini" ]; then
+                run unlink "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini"
+            fi
+
+            if [ -f "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini" ]; then
+                run unlink "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini"
+            fi
+
+            # Remove module.
+            run rm -f "/etc/php/${PHPv}/mods-available/geoip.ini"
+        fi
+
+        # Remove mcrypt module.
         if [[ "${PHPv//.}" -lt "72" ]]; then
-            if "php${PHPv}" -m | grep -qw "mcrypt"; then
-                #run apt-get --purge remove -y php${PHPv}-mcrypt
-                PHP_PKGS=("php${PHPv}-mcrypt" "${PHP_PKGS[@]}")
+            if "php${PHPv}" -m | grep -qw mcrypt; then
+                run apt-get --purge remove -y "php${PHPv}-mcrypt"
             fi
         elif [[ "${PHPv}" == "7.2" ]]; then
-            if "php${PHPv}" -m | grep -qw "mcrypt"; then
+            if "php${PHPv}" -m | grep -qw mcrypt; then
                 # Uninstall mcrypt pecl.
-                run pecl uninstall mcrypt-1.0.1
+                #run pecl uninstall mcrypt-1.0.1
 
-                # Unlink eabled module.
+                # Unlink enabled module.
                 if [ -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ]; then
                     run unlink "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini"
                 fi
@@ -67,12 +76,10 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" 
             # Use libsodium? remove separately.
             warning "If you're installing Libsodium extension, then remove it separately."
         fi
-    
-        if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
-            echo "Removing PHP${PHPv} & FPM packages..."
-            # shellcheck disable=SC2068
-            run apt-get -qq --purge remove -y ${PHP_PKGS[@]}
-        fi
+
+        # Remove PHP packages.
+        # shellcheck disable=SC2046
+        run apt-get -qq --purge remove -y $(dpkg-query -l | awk '/php/ { print $2 }' | grep -wE "^php${PHPv}")
 
         # Remove PHP & FPM config files.
         warning "!! This action is not reversible !!"
@@ -81,14 +88,12 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" 
             REMOVE_PHPCONFIG="y"
         else
             while [[ "${REMOVE_PHPCONFIG}" != "y" && "${REMOVE_PHPCONFIG}" != "n" ]]; do
-                read -rp "Remove PHP${PHPv} & FPM configuration files? [y/n]: " -i n -e REMOVE_PHPCONFIG
+                read -rp "Remove PHP${PHPv} & FPM configuration files? [y/n]: " -e REMOVE_PHPCONFIG
             done
         fi
 
-        if [[ "${REMOVE_PHPCONFIG}" == Y* || "${REMOVE_PHPCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
-            if [ -d "/etc/php/${PHPv}" ]; then
-                run rm -fr "/etc/php/${PHPv}"
-            fi
+        if [[ ${REMOVE_PHPCONFIG} == Y* || ${REMOVE_PHPCONFIG} == y* || ${FORCE_REMOVE} == true ]]; then
+            [ -d "/etc/php/${PHPv}" ] && run rm -fr "/etc/php/${PHPv}"
 
             echo "All your configuration files deleted permanently."
         fi
@@ -107,7 +112,7 @@ php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip" 
 function init_php_fpm_removal() {
     # PHP version.
     local PHPv="${1}"
-    if [[ -z "${PHPv}" || "${PHPv}" =~ *install || "${PHPv}" == *remove ]]; then
+    if [[ -z "${PHPv}" || "${PHPv}" == *install || "${PHPv}" == *remove ]]; then
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
@@ -127,12 +132,16 @@ function init_php_fpm_removal() {
         "7.3")
             remove_php_fpm "7.3"
         ;;
+        "7.4")
+            remove_php_fpm "7.4"
+        ;;
         "all")
             remove_php_fpm "5.6"
             remove_php_fpm "7.0"
             remove_php_fpm "7.1"
             remove_php_fpm "7.2"
             remove_php_fpm "7.3"
+            remove_php_fpm "7.4"
         ;;
         *)
             fail "Invalid argument: ${PHPv}"
@@ -140,7 +149,7 @@ function init_php_fpm_removal() {
         ;;
     esac
 
-    # Final clean up.
+    # Final clean up (executed only if no PHP version installed).
     if "${DRYRUN}"; then
         warning "PHP${PHPv} & FPM removed in dryrun mode."
     else
@@ -148,17 +157,21 @@ function init_php_fpm_removal() {
             -z $(command -v php7.0) && \
             -z $(command -v php7.1) && \
             -z $(command -v php7.2) && \
-            -z $(command -v php7.3) ]]; then
+            -z $(command -v php7.3) && \
+            -z $(command -v php7.4) ]]; then
+
+            echo "Removing additional unused PHP modules..."
+            run apt-get -qq --purge remove -y php-common php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap
 
             # Remove PHP repository.
             run add-apt-repository -y --remove ppa:ondrej/php
 
-            # Remove all the rest PHP lib files.
-            if [[ -d /usr/lib/php ]]; then
-                run rm -fr /usr/lib/php
-            fi
+            # Remove all the rest of PHP lib files.
+            [ -d /usr/lib/php ] && run rm -fr /usr/lib/php
+            [ -d /usr/share/php ] && run rm -fr /usr/share/php
+            [ -d /var/lib/php ] && run rm -fr /var/lib/php
 
-            echo "All PHP-FPM installation completely removed."
+            status "All PHP modules installation completely removed."
         fi
     fi
 }
@@ -168,7 +181,8 @@ if [[ -n $(command -v php5.6) || \
     -n $(command -v php7.0) || \
     -n $(command -v php7.1) || \
     -n $(command -v php7.2) || \
-    -n $(command -v php7.3) ]]; then
+    -n $(command -v php7.3) || \
+    -n $(command -v php7.4) ]]; then
 
     if "${AUTO_REMOVE}"; then
         REMOVE_PHP="y"

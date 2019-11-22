@@ -19,9 +19,12 @@ requires_root
 
 # Securing SSH server.
 function securing_ssh() {
-    #SSH_PASSWORDLESS=${SSH_PASSWORDLESS:-true}
+    LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
+    SSH_PASSWORDLESS=${SSH_PASSWORDLESS:-false}
+
     if "${SSH_PASSWORDLESS}"; then
-        echo "Before starting, let's create a pair of keys that some hosts ask for during installation of the server.
+        echo "
+Before starting, let's create a pair of keys that some hosts ask for during installation of the server.
 
 On your local machine, open new terminal and create an SSH key pair using the ssh-keygen tool,
 use the following command:
@@ -36,38 +39,39 @@ Never share your private key.
         #echo ""
         sleep 3
 
+        echo "Open your public key (id_rsa.pub) file, copy paste the key here..."
+
         RSA_PUB_KEY=${RSA_PUB_KEY:-n}
         while ! [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; do
-            echo "Open your public key (id_rsa.pub) file,"
-            read -rp "copy paste the key here: " -e RSA_PUB_KEY
+            read -rp ": " -e RSA_PUB_KEY
         done
 
         # Grand access to SSH with key.
         if [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; then
             echo -e "\nSecuring your SSH server with public key..."
 
-            if [ ! -d /home/lemper/.ssh ]; then
-                run mkdir -p /home/lemper/.ssh
+            if [ ! -d "/home/${LEMPER_USERNAME}/.ssh" ]; then
+                run mkdir -p "/home/${LEMPER_USERNAME}/.ssh"
             fi
 
-            if [ ! -f /home/lemper/.ssh/authorized_keys ]; then
-                run touch /home/lemper/.ssh/authorized_keys
+            if [ ! -f "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" ]; then
+                run touch "/home/${LEMPER_USERNAME}/.ssh/authorized_keys"
             fi
 
             # Create authorized_keys file and copy your public key here.
             if "${DRYRUN}"; then
                 echo "RSA public key added in dryrun mode."
             else
-                cat >> /home/lemper/.ssh/authorized_keys <<EOL
+                cat >> "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" <<EOL
 ${RSA_PUB_KEY}
 EOL
                 status "RSA public key added to the authorized_keys."
             fi
 
             # Fix authorized_keys file ownership and permission.
-            run chown -hR lemper /home/lemper/.ssh
-            run chmod 700 /home/lemper/.ssh
-            run chmod 600 /home/lemper/.ssh/authorized_keys
+            run chown -hR "${LEMPER_USERNAME}:${LEMPER_USERNAME}" "/home/${LEMPER_USERNAME}/.ssh"
+            run chmod 700 "/home/${LEMPER_USERNAME}/.ssh"
+            run chmod 600 "/home/${LEMPER_USERNAME}/.ssh/authorized_keys"
 
             echo -e "\nEnable SSH password-less login..."
 
@@ -108,7 +112,7 @@ EOL
     echo "Securing your SSH server with custom port..."
     SSH_PORT=${SSH_PORT:-n}
     while ! [[ ${SSH_PORT} =~ ^[0-9]+$ ]]; do
-        read -rp "SSH Port (LEMPer default SSH port sets to 2269): " -i 2269 -e SSH_PORT
+        read -rp "Custom SSH port (default SSH port is 22): " -e SSH_PORT
     done
 
     if [[ ${SSH_PORT} =~ ^[0-9]+$ ]]; then
@@ -176,14 +180,15 @@ function install_ufw() {
         # Open MySQL port.
         run ufw allow 3306
 
-        # Open SMTP port.
+        # Open SMTPs port.
         run ufw allow 25
+        run ufw allow 587
 
-        # Open IMAPS ports.
+        # Open IMAPs ports.
         run ufw allow 143
         run ufw allow 993
 
-        # Open POP3S ports.
+        # Open POP3s ports.
         run ufw allow 110
         run ufw allow 995
 
@@ -416,7 +421,7 @@ function remove_apf() {
 # Install Firewall.
 function install_firewall() {
     echo ""
-    echo "[Iptables-based Firewall Installation]"
+    echo "IPtables-based Firewall Installation"
     warning "You should not run any other iptables firewall configuration script.
 Any other iptables based firewall will be removed otherwise they will conflict."
     echo ""
@@ -487,8 +492,9 @@ function init_secure_server() {
     install_firewall "$@"
 
     if [[ ${SSH_PORT} -ne 22 ]]; then
-        warning -e "\nYou're running SSH server with modified configuration, restart to apply your changes."
-        echo "use this command: service ssh restart"
+        echo "
+You're running SSH server with modified configuration, restart to apply your changes.
+use this command: service ssh restart"
     fi
 }
 

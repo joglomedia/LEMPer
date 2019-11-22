@@ -202,10 +202,10 @@ server {
     ##pagespeed Domain your-cdn-host;
 
     # Map CDN host below here!
-    ##pagespeed MapOriginDomain https://your-cdn-address https://\$server_name;
+    ##pagespeed MapOriginDomain https://your-cdn-address https://${SERVERNAME};
 
     # Rewrite CDN host below here!
-    ##pagespeed MapRewriteDomain https://your-cdn-address https://\$server_name;
+    ##pagespeed MapRewriteDomain https://your-cdn-address https://${SERVERNAME};
 
     # PageSpeed should be disabled on the WP admin/dashboard (adjust to suit custom admin URLs).
     #pagespeed Disallow "*/admin/*";
@@ -214,12 +214,11 @@ server {
     #pagespeed Disallow "*/wp-admin/*";
 
     ## Access control Cross-origin Resource Sharing (CORS).
-    set \$cors "http://*.\$server_name, https://*.\$server_name";
-    #include /etc/nginx/includes/cors.conf;
+    set \$cors "${SERVERNAME},*.${SERVERNAME}";
 
     # PageSpeed CORS support.
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "http://*.\$server_name";
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "https://*.\$server_name";
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "${SERVERNAME}";
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "*.${SERVERNAME}";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -309,22 +308,21 @@ server {
     ##pagespeed Domain your-cdn-host;
 
     # Map CDN host below here!
-    ##pagespeed MapOriginDomain https://your-cdn-address https://\$server_name;
+    ##pagespeed MapOriginDomain https://your-cdn-address https://${SERVERNAME};
 
     # Rewrite CDN host below here!
-    ##pagespeed MapRewriteDomain https://your-cdn-address https://\$server_name;
+    ##pagespeed MapRewriteDomain https://your-cdn-address https://${SERVERNAME};
 
     # PageSpeed should be disabled on the user panel (adjust to suit custom admin URLs).
     #pagespeed Disallow "*/user/*";
     #pagespeed Disallow "*/account/*";
 
     ## Access control Cross-origin Resource Sharing (CORS).
-    set \$cors "http://*.\$server_name, https://*.\$server_name";
-    #include /etc/nginx/includes/cors.conf;
+    set \$cors "${SERVERNAME},*.${SERVERNAME}";
 
     # PageSpeed CORS support.
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "http://*.\$server_name";
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "https://*.\$server_name";
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "${SERVERNAME}";
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "*.${SERVERNAME}";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -412,10 +410,10 @@ server {
     ##pagespeed Domain your-cdn-host;
 
     # Map CDN host below here!
-    ##pagespeed MapOriginDomain https://your-cdn-address https://\$server_name;
+    ##pagespeed MapOriginDomain https://your-cdn-address https://${SERVERNAME};
 
     # Rewrite CDN host below here!
-    ##pagespeed MapRewriteDomain https://your-cdn-address https://\$server_name;
+    ##pagespeed MapRewriteDomain https://your-cdn-address https://${SERVERNAME};
 
     # PageSpeed should be disabled on the admin (adjust to suit custom admin URLs).
     #pagespeed Disallow "*/account/*";
@@ -423,12 +421,11 @@ server {
     #pagespeed Disallow "*/admin/*";
 
     ## Access control Cross-origin Resource Sharing (CORS).
-    set \$cors "http://*.\$server_name, https://*.\$server_name";
-    #include /etc/nginx/includes/cors.conf;
+    set \$cors "${SERVERNAME},*.${SERVERNAME}";
 
     # PageSpeed CORS support.
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "http://*.\$server_name";
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "https://*.\$server_name";
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "${SERVERNAME}";
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "*.${SERVERNAME}";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -516,10 +513,10 @@ server {
     ##pagespeed Domain your-cdn-host;
 
     # Map CDN host below here!
-    ##pagespeed MapOriginDomain https://your-cdn-address https://\$server_name;
+    ##pagespeed MapOriginDomain https://your-cdn-address https://${SERVERNAME};
 
     # Rewrite CDN host below here!
-    ##pagespeed MapRewriteDomain https://your-cdn-address https://\$server_name;
+    ##pagespeed MapRewriteDomain https://your-cdn-address https://${SERVERNAME};
 
     # PageSpeed should be disabled on the admin (adjust to suit custom admin URLs).
     #pagespeed Disallow "*/account/*";
@@ -527,12 +524,11 @@ server {
     #pagespeed Disallow "*/admin/*";
 
     ## Access control Cross-origin Resource Sharing (CORS).
-    set \$cors "http://*.\$server_name, https://*.\$server_name";
-    #include /etc/nginx/includes/cors.conf;
+    set \$cors "${SERVERNAME},*.${SERVERNAME}";
 
     # PageSpeed CORS support.
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "http://*.\$server_name";
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "https://*.\$server_name";
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "${SERVERNAME}";
+    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "*.${SERVERNAME}";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -720,10 +716,11 @@ php_admin_value[error_reporting] = E_ALL & ~E_NOTICE & ~E_WARNING & ~E_STRICT & 
 php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_value[error_log] = /var/log/php/php${PHP_VERSION}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
-php_admin_value[date.timezone] = UTC
+php_admin_value[date.timezone] = ${TIMEZONE}
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /home/${USERNAME}
-php_admin_value[upload_tmp_dir] = /home/${USERNAME}/.tmp
+php_admin_value[sys_temp_dir] = /home/${USERNAME}/.tmp
+;php_admin_value[upload_tmp_dir] = /home/${USERNAME}/.tmp
 php_admin_value[upload_max_filesize] = 10M
 php_admin_value[opcache.file_cache] = /home/${USERNAME}/.opcache
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com

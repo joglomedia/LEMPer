@@ -1,42 +1,43 @@
 # [L]inux [E]ngine-X [M]ariaDB [P]HP Install[ER]
-LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Debian-based/Ubuntu LEMP stack. LEMPer is _ServerPilot_, _CloudWays_, _RunCloud_, and _EasyEngine_ alternative for wide range PHP framework.
 
+LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Debian-based/Ubuntu LEMP stack. LEMPer is _ServerPilot_, _CloudWays_, _RunCloud_, and _EasyEngine_ alternative crafted to support wide range PHP framework (not only WordPress).
 
 [![Build Status](https://travis-ci.org/joglomedia/LEMPer.svg?branch=1.3.0)](https://travis-ci.org/joglomedia/LEMPer)
 
-
 ## Features
+
 * Nginx from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/nginx)
-* Nginx build from [source](https://github.com/nginx/nginx) with [Mod PageSpeed](https://github.com/apache/incubator-pagespeed-ngx).
-* Nginx with FastCGI cache enable & disable feature.
+* Nginx build from [source](https://github.com/nginx/nginx) with [Mod PageSpeed](https://github.com/apache/incubator-pagespeed-ngx) module.
+* Nginx with FastCGI cache enable & disable feature (via LEMPer CLI).
 * Nginx pre-configured optimization for low-end VPS/cloud server. Need reliable VPS/cloud server? Get one [here](https://eslabs.id/digitalocean/) or [here](https://eslabs.id/upcloud/).
 * Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework.
 * Supported PHP Framework and CMS: default (vanilla PHP), framework (codeigniter, laravel, lumen, phalcon, symfony), CMS (drupal, mautic, roundcube, sendy, wordpress, wordpress-ms), and more coming soon.
+* Multiple PHP version 5.6 [EOL], 7.0 [EOL], 7.1, 7.2, 7.3, 7.4 [Beta] from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
+* PHP sets as user running the PHP script (via FPM's pool). Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
+* PHP Zend OPcache.
+* PHP Loader (ionCube & SourceGuardian).
 * MariaDB 10 (MySQL drop-in replacement).
 * In-memory database with Redis.
 * Memory cache with Memcached.
-* Multiple PHP version 5.6 [EOL], 7.0 [EOL], 7.1, 7.2, 7.3, 7.4 [Beta] from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
-* PHP-FPM sets as user running the PHP script (pool). Feel the faster Nginx with secure multi-user FPM environment like a top-notch shared hosting.
-* PHP Zend OPcache.
-* PHP Loader (ionCube & SourceGuardian).
+* NoSQL database with MongoDB *NEW*.
 * [Adminer](https://www.adminer.org/) web-based MySQL database administration (PhpMyAdmin replacement).
 * [TinyFileManager](https://github.com/prasathmani/tinyfilemanager) alternative web-based filemanager (Experimental).
 
 ## Setting Up
 
-* Ensure you have git installed.
+* Ensure that you have git installed.
 * Make a copy of .env.dist to .env in the LEMPer base directory and replace the values.
 * Enter LEMPer directory.
-* Execute lemper.sh file, sudo ./lemper.sh --install.
+* Execute lemper.sh file, ```sudo ./lemper.sh --install```.
 
-### Install Nginx, PHP &amp; MariaDB
+### Installing LEMP stack
 
 ```bash
 sudo apt-get install git
 git clone -q https://github.com/joglomedia/LEMPer.git; cd LEMPer; cp -f .env.dist .env; sudo ./lemper.sh --install
 ```
 
-### Uninstall Nginx, PHP &amp; MariaDB
+### Removing LEMP stack
 
 ```bash
 sudo ./lemper.sh --remove
@@ -66,7 +67,7 @@ for more help
 sudo lemper-cli --help
 ```
 
-Note: Lemper CLI will automagically add new PHP-FPM user's pool configuration if it doesn't exists.
+Note: Lemper CLI will automagically add a new PHP-FPM user's pool configuration if it doesn't exists. Your jos is add the user account, first.
 
 ## Web-based Administration
 
@@ -76,13 +77,13 @@ You can access pre-installed web-based administration tools here
 http://YOUR_IP_ADDRESS:8082/lcp/
 ```
 
-Adminer (SQL database management tool)
+Adminer (Web-based SQL database managemer)
 
 ```bash
 http://YOUR_DOMAIN_NAME:8082/lcp/dbadmin
 ```
 
-FileRun (File management tool)
+TinyFilemanage (Web-based file managemer)
 
 ```bash
 http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
@@ -94,18 +95,19 @@ http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
 * ~~Add [Let's Encrypt SSL](https://letsencrypt.org/)~~
 * ~~Add network security (iptable rules, firewall configurator, else?)~~
 * Add enhanced security (AppArmor, cgroups, jailkit (chrooted/jail users), else?)
-* Add file backup tool (Restic, Borg, Rsnapshot, else?)
+* Add file backup tool (Borg, Restic, Rclone, Rsnapshot, else?)
 * ~~Add database backup tool (Mariabackup, Percona Xtrabackup, else?)~~
 * Add server monitoring (Amplify, Monit, Nagios, else?)
+* Add user account & hosting package management.
 * Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new).
 
 ## Contribution
 
 Please send your PR on the Github repository to help improve this script.
 
-## TLDR;
+## TLDR
 
-Do not use this script if you're looking for feature rich and advanced tool like premium service.
+If you're looking for mature, feature rich, advanced, and 24/7 premium service, please don't use this script.
 
 ## DONATION
 
@@ -113,7 +115,7 @@ Do not use this script if you're looking for feature rich and advanced tool like
 
 ## SPONSORSHIP
 
-[![Supported by Evolution Host a DDoS Protected VPS Provider](https://ci5.googleusercontent.com/proxy/Baz3D8IAk71Yx2JUSU1gvaunKdKLFPBDsj4t7-4cuhqNyP4FBkSd3H6pSIB3g1zKNl6BqkRu6tKIZVf3z-JjeXV3uA=s0-d-e1-ft#https://evolution-host.com/images/signature4.png)](https://evolution-host.com/vps-hosting.php "Supported by Evolution Host a DDoS Protected VPS Provider")
+Be the first one!
 
 ## Copyright
 

@@ -17,38 +17,7 @@ fi
 # Make sure only root can run this installer script.
 requires_root
 
-function init_mariadb_removal() {
-    # Stop MariaDB mysql server process.
-    if [[ $(pgrep -c mysqld) -gt 0 ]]; then
-        run service mysql stop
-    fi
-
-    if dpkg-query -l | awk '/mariadb/ { print $2 }' | grep -qwE "^mariadb-server"; then
-        echo "Found MariaDB package installation. Removing..."
-
-        # Remove MariaDB server.
-        run apt-get -qq --purge remove -y libmariadbclient18 mariadb-backup mariadb-common mariadb-server
-
-        # Remove repository.
-        if "${FORCE_REMOVE}"; then
-            run rm -f /etc/apt/sources.list.d/MariaDB-*.list
-        fi
-    elif dpkg-query -l | awk '/mysql/ { print $2 }' | grep -qwE "^mysql-server"; then
-        echo "Found MySQL package installation. Removing..."
-
-        # Remove MySQL server.
-        run apt-get -qq --purge remove -y mysql-client mysql-common mysql-server
-    else
-        echo "Mariadb package not found, possibly installed from source."
-        echo "Remove it manually!!"
-
-        MYSQL_BIN=$(command -v mysql)
-        MYSQLD_BIN=$(command -v mysqld)
-
-        echo "Mysql binary executable: ${MYSQL_BIN}"
-        echo "Mysqld binary executable: ${MYSQLD_BIN}"
-    fi
-
+function mariadb_remove_conf() {
     # Remove MariaDB (MySQL) config files.
     warning "!! This action is not reversible !!"
     if "${AUTO_REMOVE}"; then
@@ -63,12 +32,55 @@ function init_mariadb_removal() {
         if [ -d /etc/mysql ]; then
             run rm -fr /etc/mysql
         fi
-        
+
         if [ -d /var/lib/mysql ]; then
             run rm -fr /var/lib/mysql
         fi
 
         echo "All your SQL database and configuration files deleted permanently."
+    fi
+}
+
+function init_mariadb_removal() {
+    MYSQL_VERSION=${MYSQL_VERSION:-"10.4"}
+
+    # Stop MariaDB mysql server process.
+    if [[ $(pgrep -c mysqld) -gt 0 ]]; then
+        run service mysql stop
+    fi
+
+    if dpkg-query -l | awk '/mariadb/ { print $2 }' | grep -qwE "^mariadb-server-${MYSQL_VERSION}"; then
+        echo "Found MariaDB package installation. Removing..."
+
+        # Remove MariaDB server.
+        run apt-get -qq --purge remove -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
+            "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
+            "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
+
+        # Remove config.
+        mariadb_remove_conf
+
+        # Remove repository.
+        if "${FORCE_REMOVE}"; then
+            run rm -f /etc/apt/sources.list.d/mariadb-*.list
+        fi
+    elif dpkg-query -l | awk '/mysql/ { print $2 }' | grep -qwE "^mysql-server"; then
+        echo "Found MySQL package installation. Removing..."
+
+        # Remove MySQL server.
+        run apt-get -qq --purge remove -y mysql-client mysql-common mysql-server
+
+        # Remove config.
+        mariadb_remove_conf
+    else
+        echo "Mariadb package not found, possibly installed from source."
+        echo "Remove it manually!!"
+
+        MYSQL_BIN=$(command -v mysql)
+        MYSQLD_BIN=$(command -v mysqld)
+
+        echo "Mysql binary executable: ${MYSQL_BIN}"
+        echo "Mysqld binary executable: ${MYSQLD_BIN}"
     fi
 
     # Final test.
@@ -89,7 +101,7 @@ if [[ -n $(command -v mysql) || -n $(command -v mysqld) ]]; then
         REMOVE_MARIADB="y"
     else
         while [[ "${REMOVE_MARIADB}" != "y" && "${REMOVE_MARIADB}" != "n" ]]; do
-            read -rp "Are you sure to to remove MariaDB (MySQL)? [y/n]: " -e REMOVE_MARIADB
+            read -rp "Are you sure to remove MariaDB (MySQL)? [y/n]: " -e REMOVE_MARIADB
         done
     fi
 

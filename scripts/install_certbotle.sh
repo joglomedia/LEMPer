@@ -30,9 +30,34 @@ function init_certbotle_install() {
     if [[ ${DO_INSTALL_CERTBOT} == y* && ${INSTALL_CERTBOT} == true ]]; then
         echo "Installing Certbot Let's Encrypt client..."
 
-        run add-apt-repository -y ppa:certbot/certbot
-        run apt-get -qq update -y
-        run apt-get -qq install -y certbot
+        DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
+        DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
+
+        case "${DISTRIB_NAME}" in
+            debian)
+                case "${DISTRIB_REPO}" in
+                    jessie)
+                        run apt-get install certbot -t jessie-backports
+                    ;;
+                    stretch)
+                        run apt-get install certbot -t stretch-backports
+                    ;;
+                    buster)
+                        run apt-get install certbot
+                    ;;
+                    *)
+                        error "Unable to add Certbot, unsupported distribution release: ${DISTRIB_NAME^} ${DISTRIB_REPO^}."
+                        echo "Sorry your system is not supported yet, installing from source may fix the issue."
+                        exit 1
+                    ;;
+                esac
+            ;;
+            ubuntu)
+                run add-apt-repository -y ppa:certbot/certbot
+                run apt-get -qq update -y
+                run apt-get -qq install -y certbot
+            ;;
+        esac
 
         # Add Certbot auto renew command to cron
         #15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/bin/systemctl reload nginx"
@@ -41,7 +66,7 @@ function init_certbotle_install() {
             warning "Add Certbot auto-renew to cronjob in dryrun mode."
         else
             export EDITOR=nano
-            CRONCMD='15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
+            CRONCMD='15 3 * * * root /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
             touch lemper.cron
             crontab -u root lemper.cron
             crontab -l > lemper.cron
@@ -50,8 +75,8 @@ function init_certbotle_install() {
                 cat >> lemper.cron <<EOL
 # LEMPer Cronjob
 # Certbot Auto-renew Let's Encrypt certificates
-SHELL=/bin/sh
-PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+#SHELL=/bin/sh
+#PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 ${CRONCMD}
 EOL

@@ -17,10 +17,44 @@ fi
 # Make sure only root can run this installer script.
 requires_root
 
+function add_redis_repo() {
+    echo "Adding Redis repository..."
+
+    DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
+    DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
+
+    case ${DISTRIB_NAME} in
+        debian)
+            if [ ! -f "/etc/apt/sources.list.d/dotdeb-stable.list" ]; then
+                run touch /etc/apt/sources.list.d/dotdeb-stable.list
+                run bash -c "echo -e 'deb http://ftp.utexas.edu/dotdeb/ stable all\ndeb-src http://ftp.utexas.edu/dotdeb/ stable all' > /etc/apt/sources.list.d/dotdeb-stable.list"
+                run bash -c "wget -qO - 'https://www.dotdeb.org/dotdeb.gpg' | apt-key add -"
+                run apt-get -qq update -y
+            else
+                warning "Dotdeb repository already exists."
+            fi
+        ;;
+        ubuntu)
+            run add-apt-repository -y ppa:chris-lea/redis-server && \
+            run apt-get -qq update -y
+        ;;
+        *)
+            fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
+        ;;
+    esac
+}
+
 # Install redis.
 function init_redis_install {
+    local SELECTED_INSTALLER=""
+
     if "${AUTO_INSTALL}"; then
-        DO_INSTALL_REDIS="y"
+        if [[ -z "${REDIS_INSTALLER}" || "${REDIS_INSTALLER}" == "none" ]]; then
+            DO_INSTALL_REDIS="n"
+        else
+            DO_INSTALL_REDIS="y"
+            SELECTED_INSTALLER=${REDIS_INSTALLER:-"repo"}
+        fi
     else
         while [[ "${DO_INSTALL_REDIS}" != "y" && "${DO_INSTALL_REDIS}" != "n" ]]; do
             read -rp "Do you want to install Redis server? [y/n]: " -i y -e DO_INSTALL_REDIS
@@ -28,14 +62,103 @@ function init_redis_install {
     fi
 
     if [[ ${DO_INSTALL_REDIS} == y* && "${INSTALL_REDIS}" == true ]]; then
-        echo "Installing Redis server and Redis PHP module..."
+        # Install menu.
+        echo "Available Redis server installation method:"
+        echo "  1). Install from Repository (repo)"
+        echo "  2). Compile from Source (source)"
+        echo "-------------------------------------"
 
-        # Add Redis repos.
-        run add-apt-repository -y ppa:chris-lea/redis-server
-        run apt-get -qq update -y
+        while [[ ${SELECTED_INSTALLER} != "1" && ${SELECTED_INSTALLER} != "2" && ${SELECTED_INSTALLER} != "none" && \
+            ${SELECTED_INSTALLER} != "repo" && ${SELECTED_INSTALLER} != "source" ]]; do
+            read -rp "Select an option [1-2]: " -e SELECTED_INSTALLER
+        done
 
-        # Install Redis.
-        run apt-get -qq install -y redis-server redis-tools php-redis
+        case "${SELECTED_INSTALLER}" in
+            1|"repo")
+                # Add Redis repos.
+                add_redis_repo
+
+                echo "Installing Redis server from repository..."
+
+                # Install Redis.
+                if hash apt-get 2>/dev/null; then
+                    run apt-get -qq install -y redis-server redis-tools php-redis
+                elif hash yum 2>/dev/null; then
+                    if [ "${VERSION_ID}" == "5" ]; then
+                        yum -y update
+                        #yum -y localinstall redis-server
+                    else
+                        yum -y update
+                        #yum -y localinstall redis-server
+                    fi
+                else
+                    fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
+                fi
+            ;;
+            2|"source"|*)
+                echo "Installing Redis server from source..."
+                
+                local CURRENT_DIR && \
+                CURRENT_DIR=$(pwd)
+                run cd "${BUILD_DIR}"
+
+                if [[ "${REDIS_VERSION}" == "latest" || "${REDIS_VERSION}" == "stable" ]]; then
+                    redis_download_url="http://download.redis.io/redis-stable.tar.gz"
+                else
+                    redis_download_url="http://download.redis.io/releases/redis-${REDIS_VERSION}.tar.gz"
+                fi
+
+                if wget -q -O "redis.tar.gz" "${redis_download_url}"; then
+                    run tar -zxf "redis.tar.gz"
+                    run cd redis-*
+
+                    run make && \
+                    run make install
+
+                    # Create Redis user. 
+                    if [[ -z $(getent passwd redis) ]]; then
+                        if "${DRYRUN}"; then
+                            echo "Create redis user in dryrun mode."
+                        else
+                            run groupadd -r redis
+                            run useradd -r -M -g redis redis
+                        fi
+                    fi
+
+                    if [ ! -d /etc/redis ]; then
+                        run mkdir /etc/redis
+                    fi
+                    if [ ! -d /run/redis ]; then
+                        run mkdir /run/redis
+                        run chown redis:redis /run/redis
+                        run chmod 770 /run/redis
+                    fi
+
+                    # Install PHP Redis.
+                    if hash apt-get 2>/dev/null; then
+                        run apt-get -qq install -y php-redis
+                    elif hash yum 2>/dev/null; then
+                        if [ "${VERSION_ID}" == "5" ]; then
+                            yum -y update
+                            #yum -y localinstall redis-server
+                        else
+                            yum -y update
+                            #yum -y localinstall redis-server
+                        fi
+                    else
+                        fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
+                    fi
+                else
+                    error "An error occured while downloading Redis source."
+                fi
+
+                run cd "${CURRENT_DIR}"
+            ;;
+            *)
+                # Skip installation.
+                error "Installer method not supported. Redis installation skipped."
+            ;;
+        esac
 
         # Configure Redis.
         if "${DRYRUN}"; then
@@ -117,6 +240,8 @@ EOL
             run cp -f etc/init.d/redis-server /etc/init.d/
             run chmod ugo+x /etc/init.d/redis-server
         fi
+
+        # Systemd Redis service.
         if [ ! -f /lib/systemd/system/redis-server.service ]; then
             run cp -f etc/systemd/redis-server.service /lib/systemd/system/
 

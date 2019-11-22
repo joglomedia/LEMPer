@@ -21,10 +21,28 @@ set -e
 APP_NAME=$(basename "$0")
 APP_VERSION="1.3.0"
 
-LibDir="/usr/local/lib/lemper"
+# Export stack configuration.
+if [ -f "/etc/lemper/lemper.conf" ]; then
+    # Clean environemnt first.
+    # shellcheck source=/etc/lemper/lemper.conf
+    # shellcheck disable=SC2046
+    unset $(grep -v '^#' /etc/lemper/lemper.conf | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+
+    # shellcheck source=/etc/lemper/lemper.conf
+    # shellcheck disable=SC1094
+    # shellcheck disable=SC1091
+    source <(grep -v '^#' /etc/lemper/lemper.conf | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+else
+    echo "LEMPer stack configuration required, but the file doesn't exist."
+    echo "It should be created during installation process and placed under '/etc/lemper/lemper.conf'"
+    exit 1
+fi
+
+# App library directory.
+APP_LIB_DIR="/usr/local/lib/lemper"
 
 function cmd_help() {
-cat <<- _EOF_
+    cat <<- _EOF_
 ${APP_NAME^} ${APP_VERSION}
 Command line management tool for LEMPer stack.
 
@@ -38,24 +56,32 @@ These are common $APP_NAME commands used in various situations:
 For help with each command run:
 $APP_NAME <command> -h|--help
 _EOF_
+
+    exit 0
 }
 
 function cmd_version() {
     echo "$APP_NAME version $APP_VERSION"
+    exit 0
 }
 
 function cmd_create() {
-    if [ -x "$LibDir/lemper-create" ]; then
-        "$LibDir/lemper-create" "$@"
+    if [ -x "$APP_LIB_DIR/lemper-create" ]; then
+        "$APP_LIB_DIR/lemper-create" "$@"
     else
         echo "Oops, lemper create subcommand module couldn't be loaded."
         exit 1
     fi
 }
 
+# Aliases to create.
+function cmd_vhost() {
+    cmd_create "$@"
+}
+
 function cmd_manage() {
-    if [ -x "$LibDir/lemper-manage" ]; then
-        "$LibDir/lemper-manage" "$@"
+    if [ -x "$APP_LIB_DIR/lemper-manage" ]; then
+        "$APP_LIB_DIR/lemper-manage" "$@"
     else
         echo "Oops, lemper manage subcommand module couldn't be loaded."
         exit 1
@@ -63,31 +89,40 @@ function cmd_manage() {
 }
 
 function cmd_tfm() {
-    if [ -x "$LibDir/lemper-tfm" ]; then
-        "$LibDir/lemper-tfm" "$@"
+    if [ -x "$APP_LIB_DIR/lemper-tfm" ]; then
+        "$APP_LIB_DIR/lemper-tfm" "$@"
     else
         echo "Oops, lemper tfm subcommand module couldn't be loaded."
         exit 1
     fi
 }
 
-SubCommand=$1
-case ${SubCommand} in
-    "" | "-h" | "--help")
+function cmd_db() {
+    if [ -x "$APP_LIB_DIR/lemper-db" ]; then
+        "$APP_LIB_DIR/lemper-db" "$@"
+    else
+        echo "Oops, lemper db (database) subcommand module couldn't be loaded."
+        exit 1
+    fi
+}
+
+SUBCOMMAND="${1}"
+case ${SUBCOMMAND} in
+    "" | "help" )
         cmd_help
     ;;
 
-    "-v" | "--version")
+    "version")
         cmd_version
     ;;
 
     *)
         shift
-        if declare -F "cmd_${SubCommand}" &>/dev/null; then
-            "cmd_${SubCommand}" "$@"
+        if declare -F "cmd_${SUBCOMMAND}" &>/dev/null; then
+            "cmd_${SUBCOMMAND}" "$@"
         else
-            echo "Error: '${SubCommand}' is not a known command." >&2
-            echo "      Run '${APP_NAME} --help' for a list of known commands." >&2
+            echo "Error: '${SUBCOMMAND}' is not a known command." >&2
+            echo "Run '${APP_NAME} --help' for a list of known commands." >&2
             exit 1
         fi
     ;;

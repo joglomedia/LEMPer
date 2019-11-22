@@ -223,7 +223,7 @@ function remove_vhost() {
         fi
 
         if [ -d "${WEBROOT}" ]; then
-            #run rm -fr "${WEBROOT}"
+            run rm -fr "${WEBROOT}"
             status "Virtual host root directory removed."
         else
             warning "Sorry, directory couldn't be found. Skipped..."
@@ -246,26 +246,26 @@ function remove_vhost() {
         echo "+----------------------+"
 
         # Show user's databases
-        #run mysql -u "$MYSQL_USER" -p"$MYSQL_PASS" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema"
+        #run mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema"
         local DATABASES && \
         DATABASES=$(mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
 
         if [[ -n "${DATABASES}" ]]; then
             printf '%s\n' "${DATABASES}"
         else
-            echo "No databse found."
+            echo "No database found."
         fi
 
         echo "+----------------------+"
 
-        until [[ "$DBNAME" != "" ]]; do
+        until [[ "${DBNAME}" != "" ]]; do
             read -rp "MySQL Database: " -e DBNAME
 		done
 
         if [ -d "/var/lib/mysql/${DBNAME}" ]; then
-            echo "Dropping database..."
-            run mysql -u "$MYSQL_USER" -p"$MYSQL_PASS" -e "DROP DATABASE $DBNAME"
-            status "Database [${DBNAME}] dropped."
+            echo "Deleting database ${DBNAME}..."
+            run mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "DROP DATABASE ${DBNAME}"
+            status "Database '${DBNAME}' dropped."
         else
             warning "Sorry, database ${DBNAME} not found. Skipped..."
         fi
@@ -512,8 +512,7 @@ function disable_ssl() {
 
             reload_nginx
         else
-            fail "Something went wrong. You still could disable HTTPS manually."
-            exit 1
+            error "Something went wrong. You still could disable HTTPS manually."
         fi
     fi
 
@@ -584,6 +583,7 @@ function renew_ssl() {
             warning "Certificate file not found. May be your SSL is not activated yet."
         fi
     fi
+    exit 0
 }
 
 # Enable Brotli compression module.
@@ -613,7 +613,7 @@ function enable_brotli() {
         reload_nginx
     else
         error "Sorry, we can't find NGiNX and Brotli module config file"
-        echo "       it should be located under /etc/nginx/ directory."
+        echo "it should be located under /etc/nginx/ directory."
         exit 1
     fi
 }
@@ -646,7 +646,7 @@ function enable_gzip() {
         reload_nginx
     else
         error "Sorry, we can't find NGiNX config file"
-        echo "       it should be located under /etc/nginx/ directory."
+        echo "it should be located under /etc/nginx/ directory."
         exit 1
     fi
 }
@@ -678,8 +678,7 @@ function reload_nginx() {
         if nginx -t 2>/dev/null > /dev/null; then
             service nginx reload -s > /dev/null 2>&1
         else
-            fail "Configuration couldn't be validated. Please correct the error below:";
-            echo ""
+            error "Configuration couldn't be validated. Please correct the error below:";
             nginx -t
             exit 1
         fi
@@ -689,8 +688,7 @@ function reload_nginx() {
             if nginx -t 2>/dev/null > /dev/null; then
                 service nginx restart > /dev/null 2>&1
             else
-                fail "Configuration couldn't be validated. Please correct the error below:";
-                echo ""
+                error "Configuration couldn't be validated. Please correct the error below:";
                 nginx -t
                 exit 1
             fi
@@ -705,7 +703,6 @@ function reload_nginx() {
         exit 0
     else
         fail "An error occurred when updating configuration.";
-        exit 1
     fi
 }
 
@@ -714,7 +711,7 @@ function reload_nginx() {
 function init_app() {
     OPTS=$(getopt -o e:d:r:c:p:s:bghv \
       -l enable:,disable:,remove:,enable-fastcgi-cache:,disable-fastcgi-cache:,enable-pagespeed: \
-      -l disable-pagespeed:,enable-https:,disable-https:,enable-brotli,enable-gzip,help,version \
+      -l disable-pagespeed:,enable-ssl:,disable-ssl:,remove-ssl:,renew-ssl:,enable-brotli,enable-gzip,help,version \
       -n "${APP_NAME}" -- "$@")
 
     eval set -- "${OPTS}"

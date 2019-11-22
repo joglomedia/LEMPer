@@ -2,7 +2,7 @@
 
 # PHP Installer
 # Min. Requirement  : GNU/Linux Ubuntu 14.04 & 16.04
-# Last Build        : 15/08/2019
+# Last Build        : 05/11/2019
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.0.0
 
@@ -18,19 +18,32 @@ fi
 requires_root
 
 function add_php_repo() {
-    # Add PHP (latest stable) from Ondrej's repo
-    # Source: https://launchpad.net/~ondrej/+archive/ubuntu/php
-
     echo "Add Ondrej's PHP repository..."
 
-    if "${DRYRUN}"; then
-        warning "PHP repository added in dryrun mode."
-    else
-        # Fix for NO_PUBKEY key servers error
-        run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
-        run add-apt-repository -y ppa:ondrej/php
-        run apt-get -qq update -y
-    fi
+    DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
+    DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
+
+    case ${DISTRIB_NAME} in
+        debian)
+            if [ ! -f "/etc/apt/sources.list.d/ondrej-php-${DISTRIB_REPO}.list" ]; then
+                run touch "/etc/apt/sources.list.d/ondrej-php-${DISTRIB_REPO}.list"
+                run bash -c "echo 'deb https://packages.sury.org/php/ ${DISTRIB_REPO} main' > /etc/apt/sources.list.d/ondrej-php-${DISTRIB_REPO}.list"
+                run bash -c "wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg"
+                run apt-get -qq update -y
+            else
+                warning "PHP repository already exists."
+            fi
+        ;;
+        ubuntu)
+            # Fix for NO_PUBKEY key servers error
+            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
+            run add-apt-repository -y ppa:ondrej/php
+            run apt-get -qq update -y
+        ;;
+        *)
+            fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
+        ;;
+    esac
 }
 
 function install_php_fpm() {
@@ -47,71 +60,116 @@ function install_php_fpm() {
         PHP_IS_INSTALLED="yes"
         warning "PHP${PHPv} & FPM package already installed..."
     else
+        # Add repo first
+        add_php_repo
+
         echo "Installing PHP${PHPv} & FPM..."
 
-        # Add repo first
-        DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
-        if [ ! -f "/etc/apt/sources.list.d/ondrej-php-${DISTRIB_REPO}.list" ]; then
-            add_php_repo
-        fi
-
-        PHP_PKGS=("php${PHPv} php${PHPv}-bcmath php${PHPv}-cli php${PHPv}-common \
+        if hash apt-get 2>/dev/null; then
+            PHP_PKGS=("php${PHPv} php${PHPv}-bcmath php${PHPv}-cli php${PHPv}-common \
 php${PHPv}-curl php${PHPv}-dev php${PHPv}-fpm php${PHPv}-mysql php${PHPv}-gd \
 php${PHPv}-gmp php${PHPv}-imap php${PHPv}-intl php${PHPv}-json \
 php${PHPv}-mbstring php${PHPv}-opcache php${PHPv}-pspell php${PHPv}-readline \
 php${PHPv}-ldap php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
 php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
-php-geoip php-imagick php-pear pkg-php-tools spawn-fcgi fcgiwrap geoip-database" "${PHP_PKGS[@]}")
+php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
 
-        if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
-            echo "Installing PHP${PHPv} & FPM packages..."
-            # shellcheck disable=SC2068
-            run apt-get -qq install -y ${PHP_PKGS[@]}
-        fi
-
-        if [[ -n $(command -v "php${PHPv}") ]]; then
-            status "PHP${PHPv} & FPM packages installed."
-        fi
-
-        # Install php mcrypt?
-        if "${AUTO_INSTALL}"; then
-            local INSTALL_PHPMCRYPT="y"
-        else
-            while [[ $INSTALL_PHPMCRYPT != "y" && $INSTALL_PHPMCRYPT != "n" ]]; do
-                read -rp "Do you want to install PHP Mcrypt for encryption/decryption? [y/n]: " \
-                    -i n -e INSTALL_PHPMCRYPT
-            done
-        fi
-
-        if [[ "$INSTALL_PHPMCRYPT" == Y* || "$INSTALL_PHPMCRYPT" == y* ]]; then
-            if [ "${PHPv//.}" -lt "72" ]; then
-                run apt-get -qq install -y "php${PHPv}-mcrypt"
-            elif [ "${PHPv}" == "7.2" ]; then
-                run apt-get -qq install -y gcc make autoconf libc-dev pkg-config \
-                    libmcrypt-dev libreadline-dev && \
-                run pecl install mcrypt-1.0.1
-
-                # Enable Mcrypt module.
-                echo "Update PHP ini file with Mcrypt module..."
-                run bash -c "echo extension=mcrypt.so > /etc/php/${PHPv}/mods-available/mcrypt.ini"
-
-                if [ ! -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ]; then
-                    run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
-                        "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini"
-                fi
-
-                if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini" ]; then
-                    run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
-                        "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
-                fi
-            else
-                run apt-get -qq install -y dh-php
-
-                # use libsodium instead
-                warning "Mcrypt module is deprecated for PHP version ${PHPv} or greater, you should using Libsodium or OpenSSL for encryption."
+            if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
+                echo "Installing PHP${PHPv} & FPM packages..."
+                # shellcheck disable=SC2068
+                run apt-get -qq install -y ${PHP_PKGS[@]}
             fi
+
+            if [[ -n $(command -v "php${PHPv}") ]]; then
+                status "PHP${PHPv} & FPM packages installed."
+            fi
+
+            # Install php geoip?
+            if "${AUTO_INSTALL}"; then
+                local INSTALL_PHPGEOIP="y"
+            else
+                while [[ "${INSTALL_PHPGEOIP}" != "y" && "${INSTALL_PHPGEOIP}" != "n" ]]; do
+                    read -rp "Do you want to install PHP GeoIP for geolocation? [y/n]: " \
+                        -i n -e INSTALL_PHPGEOIP
+                done
+            fi
+            if [[ ${INSTALL_PHPGEOIP} == Y* || ${INSTALL_PHPGEOIP} == y* ]]; then
+                echo "Installing PHP GeoIP module..."
+
+                if [ "${PHPv//.}" -lt "70" ]; then
+                    #run mkdir -p /usr/lib/php/php-helper
+                    run apt-get -qq install -y php-geoip
+                else
+                    run pecl install geoip-1.1.1
+
+                    # Enable Mcrypt module.
+                    echo "Updating PHP ini file with GeoIP module..."
+                    run bash -c "echo extension=geoip.so > /etc/php/${PHPv}/mods-available/geoip.ini"
+
+                    if [ ! -f "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini" ]; then
+                        run ln -s "/etc/php/${PHPv}/mods-available/geoip.ini" \
+                            "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini"
+                    fi
+
+                    if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini" ]; then
+                        run ln -s "/etc/php/${PHPv}/mods-available/geoip.ini" \
+                            "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini"
+                    fi
+                fi
+            fi
+
+            # Install php mcrypt?
+            if "${AUTO_INSTALL}"; then
+                local INSTALL_PHPMCRYPT="y"
+            else
+                while [[ "${INSTALL_PHPMCRYPT}" != "y" && "${INSTALL_PHPMCRYPT}" != "n" ]]; do
+                    read -rp "Do you want to install PHP Mcrypt for encryption/decryption? [y/n]: " \
+                        -i n -e INSTALL_PHPMCRYPT
+                done
+            fi
+            if [[ ${INSTALL_PHPMCRYPT} == Y* || ${INSTALL_PHPMCRYPT} == y* ]]; then
+                echo "Installing PHP Mcrypt module..."
+
+                if [ "${PHPv//.}" -lt "72" ]; then
+                    run apt-get -qq install -y "php${PHPv}-mcrypt"
+                elif [ "${PHPv}" == "7.2" ]; then
+                    run apt-get -qq install -y gcc make autoconf libc-dev pkg-config \
+                        libmcrypt-dev libreadline-dev && \
+                    run pecl install mcrypt-1.0.1
+
+                    # Enable Mcrypt module.
+                    echo "Updating PHP ini file with Mcrypt module..."
+                    run bash -c "echo extension=mcrypt.so > /etc/php/${PHPv}/mods-available/mcrypt.ini"
+
+                    if [ ! -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ]; then
+                        run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
+                            "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini"
+                    fi
+
+                    if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini" ]; then
+                        run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
+                            "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
+                    fi
+                else
+                    run apt-get -qq install -y dh-php
+
+                    # Use libsodium instead.
+                    echo "Mcrypt module is deprecated for PHP ${PHPv} or greater, you should using Libsodium or OpenSSL for encryption."
+                fi
+            fi
+        elif hash yum 2>/dev/null; then
+            if [ "${VERSION_ID}" == "5" ]; then
+                yum -y update
+                #yum -y localinstall "${NGX_PACKAGE}" --nogpgcheck
+            else
+                yum -y update
+                #yum -y localinstall "${NGX_PACKAGE}"
+            fi
+        else
+            fail "Unable to install NGiNX, this GNU/Linux distribution is not dpkg/yum enabled."
         fi
 
+        # Create PHP log dir.
         if [ ! -d /var/log/php ]; then
             mkdir -p /var/log/php
         fi
@@ -412,6 +470,10 @@ EOL
     if [ -f "etc/php/${PHPv}/fpm/pool.d/www.conf" ]; then
         run mv "/etc/php/${PHPv}/fpm/pool.d/www.conf" "/etc/php/${PHPv}/fpm/pool.d/www.conf~"
         run cp -f "etc/php/${PHPv}/fpm/pool.d/www.conf" "/etc/php/${PHPv}/fpm/pool.d/"
+
+        # Update timezone.
+        run run sed -i "s|php_admin_value\[date\.timezone\]\ =\ UTC|php_admin_value\[date\.timezone\]\ =\ ${TIMEZONE}|g" \
+            "/etc/php/${PHPv}/fpm/pool.d/www.conf"
     else
         # Enable FPM ping service.
         run sed -i "/^;ping.path\ =.*/a ping.path\ =\ \/ping" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
@@ -424,7 +486,7 @@ EOL
     
         # Add custom php extension (ex .php70, .php71)
         PHPExt=".php${PHPv//.}"
-        run sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/" \
+        run sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/g" \
             "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
         # Customize php ini settings.
@@ -437,10 +499,11 @@ php_flag[display_errors] = on
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
-php_admin_value[date.timezone] = UTC
+php_admin_value[date.timezone] = ${TIMEZONE}
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /usr/share/nginx/html
-php_admin_value[upload_tmp_dir] = /usr/share/nginx/html/.tmp
+php_admin_value[sys_temp_dir] = /usr/share/nginx/html/.tmp
+;php_admin_value[upload_tmp_dir] = /usr/share/nginx/html/.tmp
 php_admin_value[upload_max_filesize] = 10M
 php_admin_value[opcache.file_cache] = /usr/share/nginx/html/.opcache
 EOL
@@ -451,6 +514,10 @@ EOL
     local POOLNAME=${LEMPER_USERNAME:-"lemper"}
     if [[ -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" && ${POOLNAME} == "lemper" ]]; then
         run cp -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
+
+        # Update timezone.
+        run sed -i "s|php_admin_value\[date\.timezone\]\ =\ UTC|php_admin_value\[date\.timezone\]\ =\ ${TIMEZONE}|g" \
+            "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
     else
         if [[ -f "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" && -z $(getent passwd "${POOLNAME}") ]]; then
             run mv "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/lemper.conf~"
@@ -497,10 +564,11 @@ php_admin_value[error_reporting] = E_ALL & ~E_NOTICE & ~E_WARNING & ~E_STRICT & 
 php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
 php_admin_flag[log_errors] = on
-php_admin_value[date.timezone] = UTC
+php_admin_value[date.timezone] = ${TIMEZONE}
 php_admin_value[memory_limit] = 128M
 php_admin_value[open_basedir] = /home/${POOLNAME}
-php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.tmp
+php_admin_value[sys_temp_dir] = /home/${POOLNAME}/.tmp
+;php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.tmp
 php_admin_value[upload_max_filesize] = 10M
 php_admin_value[opcache.file_cache] = /home/${POOLNAME}/.opcache
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com
@@ -539,7 +607,10 @@ EOL
 #
 function init_php_fpm_install() {
     if "${AUTO_INSTALL}"; then
-        SELECTED_PHP=${PHP_VERSION:-"7.3"}
+        local SELECTED_PHP="${1}"
+        if [ -z "${SELECTED_PHP}" ]; then
+            SELECTED_PHP=${PHP_VERSION:-"7.3"}
+        fi
     else
         echo "Which version of PHP to be installed?"
         echo "Supported PHP version:"
@@ -554,11 +625,11 @@ function init_php_fpm_install() {
 
         while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                 ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
-                ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" ]]; do
-            read -rp "Select an option [1-7]: " -i 5 -e SELECTED_PHP
+                ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && \
+                ${SELECTED_PHP} != "7.1" && ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && \
+                ${SELECTED_PHP} != "7.4" && ${SELECTED_PHP} != "all" ]]; do
+            read -rp "Select a PHP version or an option [1-7]: " -i 5 -e SELECTED_PHP
         done
-
-        echo ""
     fi
 
     local PHPv
@@ -606,7 +677,7 @@ function init_php_fpm_install() {
 
         *)
             PHPv="unsupported"
-            warning "Your selected PHP version ${SELECTED_PHP} is not supported yet."
+            error "Your selected PHP version ${SELECTED_PHP} is not supported yet."
         ;;
     esac
 
@@ -627,12 +698,12 @@ function init_php_fpm_install() {
                 SELECTED_PHPLOADER=${PHP_LOADER}
             fi
         else
-            while [[ ${INSTALL_PHPLOADER} != "y" && ${INSTALL_PHPLOADER} != "n" ]]; do
+            while [[ "${INSTALL_PHPLOADER}" != "y" && "${INSTALL_PHPLOADER}" != "n" ]]; do
                 read -rp "Do you want to install PHP Loaders? [y/n]: " -i n -e INSTALL_PHPLOADER
             done
         fi
 
-        if [[ "${INSTALL_PHPLOADER}" == Y* || "${INSTALL_PHPLOADER}" == y* ]]; then
+        if [[ ${INSTALL_PHPLOADER} == Y* || ${INSTALL_PHPLOADER} == y* ]]; then
             echo ""
             echo "Available PHP Loaders:"
             echo "  1). ionCube Loader (latest stable)"
@@ -645,8 +716,6 @@ function init_php_fpm_install() {
                     ${SELECTED_PHPLOADER} != "sourceguardian" && ${SELECTED_PHPLOADER} != "all" ]]; do
                 read -rp "Select an option [1-3]: " -i "${PHP_LOADER}" -e SELECTED_PHPLOADER
             done
-
-            echo ""
 
             # Create loaders directory
             if [ ! -d /usr/lib/php/loaders ]; then
@@ -674,6 +743,7 @@ function init_php_fpm_install() {
                         #enable_ioncube "7.4"
                     fi
                 ;;
+
                 2|"sourceguardian")
                     install_sourceguardian
 
@@ -694,19 +764,20 @@ function init_php_fpm_install() {
                         #enable_sourceguardian "7.4"
                     fi
                 ;;
+
                 "all")
                     install_ioncube
                     install_sourceguardian
 
                     if [ "${PHPv}" != "all" ]; then
                         enable_ioncube "${PHPv}"
+                        enable_sourceguardian "${PHPv}"
 
                         # Required for LEMPer default PHP
-                        if [ "${PHPv}" != "7.3" ]; then
+                        if [[ "${PHPv}" != "7.3" && -n $(command -v php7.3) ]]; then
                             enable_ioncube "7.3"
+                            enable_sourceguardian "7.3"
                         fi
-
-                        enable_sourceguardian "${PHPv}"
                     else
                         # Install all PHP version (except EOL & Beta).
                         enable_ioncube "5.6"
@@ -739,7 +810,7 @@ function init_php_fpm_install() {
                 optimize_php_fpm "${PHPv}"
 
                 # Required for LEMPer default PHP
-                if [ "${PHPv}" != "7.3" ]; then
+                if [[ "${PHPv}" != "7.3" && -n $(command -v php7.3) ]]; then
                     optimize_php_fpm "7.3"
                 fi
             else
@@ -749,7 +820,7 @@ function init_php_fpm_install() {
                 optimize_php_fpm "7.1"
                 optimize_php_fpm "7.2"
                 optimize_php_fpm "7.3"
-                #optimize_php_fpm "7.4"
+                optimize_php_fpm "7.4"
             fi
         #fi
     fi

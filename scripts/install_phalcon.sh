@@ -2,7 +2,7 @@
 
 # Phalcon & Zephir Installer
 # Min. Requirement  : GNU/Linux Ubuntu 14.04
-# Last Build        : 23/08/2019
+# Last Build        : 02/11/2019
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
 # Since Version     : 1.2.0
 
@@ -176,46 +176,58 @@ function enable_phalcon() {
 function init_phalcon_install() {
     # PHP version.
     local PHPv=${PHP_VERSION:-"7.3"}
+    local SELECTED_INSTALLER=""
 
     if "${AUTO_INSTALL}"; then
         if [[ -z "${PHP_PHALCON_INSTALLER}" || "${PHP_PHALCON_INSTALLER}" == "none" ]]; then
             INSTALL_PHALCON="n"
         else
             INSTALL_PHALCON="y"
-            SELECTED_PHALCON=${PHP_PHALCON_INSTALLER}
+            SELECTED_INSTALLER=${PHP_PHALCON_INSTALLER}
         fi
     else
-        while [[ ${INSTALL_PHALCON} != "y" && ${INSTALL_PHALCON} != "n" ]]; do
+        while [[ "${INSTALL_PHALCON}" != "y" && "${INSTALL_PHALCON}" != "n" ]]; do
             read -rp "Do you want to install Phalcon PHP framework? [y/n]: " -e INSTALL_PHALCON
         done
         echo ""
     fi
 
-    if [[ "${INSTALL_PHALCON}" == Y* || "${INSTALL_PHALCON}" == y* ]]; then
-        echo "Available Phalcon framework installer:"
-        echo "  1). Repository (repo)"
-        echo "  2). Source (source)"
+    if [[ ${INSTALL_PHALCON} == Y* || ${INSTALL_PHALCON} == y* ]]; then
+        echo "Available Phalcon installation method:"
+        echo "  1). Install from Repository (repo)"
+        echo "  2). Compile from Source (source)"
         echo "--------------------------------------------"
 
-        while [[ ${SELECTED_PHALCON} != "1" && ${SELECTED_PHALCON} != "2" && ${SELECTED_PHALCON} != "none" && \
-            ${SELECTED_PHALCON} != "repo" && ${SELECTED_PHALCON} != "source" ]]; do
-            read -rp "Select an option [1-2]: " -e SELECTED_PHALCON
+        while [[ ${SELECTED_INSTALLER} != "1" && ${SELECTED_INSTALLER} != "2" && ${SELECTED_INSTALLER} != "none" && \
+            ${SELECTED_INSTALLER} != "repo" && ${SELECTED_INSTALLER} != "source" ]]; do
+            read -rp "Select an option [1-2]: " -e SELECTED_INSTALLER
         done
 
-        echo ""
+        case ${SELECTED_INSTALLER} in
+            1|"repo")
+                echo "Installing Phalcon extension from repository..."
 
-        case ${SELECTED_PHALCON} in
-            1|"source")
+                if hash apt-get 2>/dev/null; then
+                    run apt-get -qq install -y php-phalcon
+                elif hash yum 2>/dev/null; then
+                    if [ "${VERSION_ID}" == "5" ]; then
+                        yum -y update
+                        #yum -y localinstall "${NGX_PACKAGE}" --nogpgcheck
+                    else
+                        yum -y update
+                        #yum -y localinstall "${NGX_PACKAGE}"
+                    fi
+                else
+                    fail "Unable to install NGiNX, this GNU/Linux distribution is not dpkg/yum enabled."
+                fi
+            ;;
+            2|"source")
                 echo "Installing Phalcon extension from source..."
                 run install_phalcon "${PHPv}"
             ;;
-            2|"repo")
-                echo "Installing Phalcon extension from repository..."
-                run apt-get -qq install -y php-phalcon
-            ;;
             *)
                 # Skip installation.
-                warning "Phalcon installation skipped."
+                error "Installer method not supported. Phalcon installation skipped."
             ;;
         esac
 
@@ -233,7 +245,10 @@ function init_phalcon_install() {
             run enable_phalcon "7.1"
             run enable_phalcon "7.2"
             run enable_phalcon "7.3"
+            run enable_phalcon "7.4"
         fi
+    else
+        warning "Phalcon PHP framework installation skipped..."
     fi
 }
 

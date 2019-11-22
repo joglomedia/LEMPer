@@ -47,26 +47,19 @@ function init_memcached_removal() {
                 run systemctl disable memcached@www-data.service
             fi
 
-            if [ -f /etc/systemd/system/multi-user.target.wants/memcached.service ]; then
-                run unlink /etc/systemd/system/multi-user.target.wants/memcached.service
-            fi
+            [ -f /etc/systemd/system/multi-user.target.wants/memcached.service ] && \
+            run unlink /etc/systemd/system/multi-user.target.wants/memcached.service
 
-            if [ -f /lib/systemd/system/memcached.service ]; then
-                run rm -f /lib/systemd/system/memcached.service
-            fi
+            [ -f /lib/systemd/system/memcached.service ] && run rm -f /lib/systemd/system/memcached.service
 
             # Memcached systemd script (multi user instance).
-            if [ -f /etc/systemd/system/multi-user.target.wants/memcached@.service ]; then
-                run unlink /etc/systemd/system/multi-user.target.wants/memcached@.service
-            fi
+            [ -f /etc/systemd/system/multi-user.target.wants/memcached@.service ] && \
+            run unlink /etc/systemd/system/multi-user.target.wants/memcached@.service
 
-            if [ -f /lib/systemd/system/memcached@.service ]; then
-                run rm -f /lib/systemd/system/memcached@.service
-            fi
+            [ -f /lib/systemd/system/memcached@.service ] && \
+            run rm -f /lib/systemd/system/memcached@.service
 
-            if [ -d /usr/share/memcached ]; then
-                run rm -fr /usr/share/memcached
-            fi
+            [ -d /usr/share/memcached ] && run rm -fr /usr/share/memcached
 
             # Remove binary executable file.
             if [ -f "${MEMCACHED_BIN}" ]; then
@@ -75,9 +68,10 @@ function init_memcached_removal() {
             fi
 
             # Remove init file.
-            if [ -f /etc/init.d/memcached ]; then
-                run rm -f /etc/init.d/memcached
-            fi
+            [ -f /etc/init.d/memcached ] && run rm -f /etc/init.d/memcached
+
+            # Remove Libevent.
+            [ -d /usr/local/libevent ] && run rm -fr /usr/local/libevent
         fi
     fi
 
@@ -87,14 +81,12 @@ function init_memcached_removal() {
         REMOVE_MEMCACHEDCONFIG="y"
     else
         while [[ "${REMOVE_MEMCACHEDCONFIG}" != "y" && "${REMOVE_MEMCACHEDCONFIG}" != "n" ]]; do
-            read -rp "Remove Memcached configuration files? [y/n]: " -i n -e REMOVE_MEMCACHEDCONFIG
+            read -rp "Remove Memcached configuration files? [y/n]: " -e REMOVE_MEMCACHEDCONFIG
         done
     fi
 
     if [[ "${REMOVE_MEMCACHEDCONFIG}" == Y* || "${REMOVE_MEMCACHEDCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
-        if [ -f /etc/memcached.conf ]; then
-            run rm -f /etc/memcached.conf
-        fi
+        [ -f /etc/memcached.conf ] && run rm -f /etc/memcached.conf
 
         echo "All your Memcached configuration files deleted permanently."
     fi

@@ -27,9 +27,13 @@ function init_webadmin_install() {
         run mkdir -p /usr/local/lib/lemper
     fi
 
-    run cp -f lib/lemper-create.sh /usr/local/lib/lemper/lemper-create
-    run cp -f lib/lemper-manage.sh /usr/local/lib/lemper/lemper-manage
+    run cp -f lib/lemper-create.sh /usr/local/lib/lemper/lemper-create && \
     run chmod ugo+x /usr/local/lib/lemper/lemper-create
+
+    run cp -f lib/lemper-db.sh /usr/local/lib/lemper/lemper-db && \
+    run chmod ugo+x /usr/local/lib/lemper/lemper-db
+
+    run cp -f lib/lemper-manage.sh /usr/local/lib/lemper/lemper-manage && \
     run chmod ugo+x /usr/local/lib/lemper/lemper-manage
 
     # Install Web Admin.
@@ -52,21 +56,18 @@ function init_webadmin_install() {
     # Install Adminer for Web-based MySQL Administration Tool
     if [ ! -d /usr/share/nginx/html/lcp/dbadmin ]; then
         run mkdir -p /usr/share/nginx/html/lcp/dbadmin
-        run wget -q https://github.com/vrana/adminer/releases/download/v4.7.3/adminer-4.7.3.php \
-            -O /usr/share/nginx/html/lcp/dbadmin/index.php
-        run wget -q https://github.com/vrana/adminer/releases/download/v4.7.3/editor-4.7.3.php \
-            -O /usr/share/nginx/html/lcp/dbadmin/editor.php
     fi
 
-    # Install File Manager
-    # Experimental: Replace FileRun with Tinyfilemanager https://github.com/PHPlayground/tinyfilemanager
+    # Overwrite existing.
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.5/adminer-4.7.5.php \
+        -O /usr/share/nginx/html/lcp/dbadmin/index.php
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.5/editor-4.7.5.php \
+        -O /usr/share/nginx/html/lcp/dbadmin/editor.php
+
+    # Install File Manager.
+    # Experimental: Tinyfilemanager https://github.com/PHPlayground/tinyfilemanager
     # Clone custom TinyFileManager.
     if [ ! -d /usr/share/nginx/html/lcp/filemanager/config ]; then
-        #run mkdir -p /usr/share/nginx/html/lcp/filemanager
-        #run wget -q http://www.filerun.com/download-latest -O /usr/share/nginx/html/lcp/FileRun.zip && \
-        #run unzip -o -qq /usr/share/nginx/html/lcp/FileRun.zip -d /usr/share/nginx/html/lcp/filemanager && \
-        #run rm -f /usr/share/nginx/html/lcp/FileRun.zip
-
         run git clone -q --depth=1 --branch=lemperfm_1.3.0 https://github.com/PHPlayground/tinyfilemanager.git \
             /usr/share/nginx/html/lcp/filemanager
     else
@@ -83,11 +84,11 @@ function init_webadmin_install() {
         run chmod ugo+x /usr/local/lib/lemper/lemper-tfm
     fi
 
-    # Install Zend OpCache Web Admin
+    # Install Zend OpCache Web Admin.
     run wget -q https://raw.github.com/rlerdorf/opcache-status/master/opcache.php \
         -O /usr/share/nginx/html/lcp/opcache.php
 
-    # Install Memcached Web Admin
+    # Install Memcached Web Admin.
     #http://blog.elijaa.org/index.php?pages/phpMemcachedAdmin-Installation-Guide
     if [ ! -d /usr/share/nginx/html/lcp/memcadmin/ ]; then
         run git clone -q --depth=1 --branch=master \
@@ -102,6 +103,13 @@ function init_webadmin_install() {
 
     # Configure phpMemcachedAdmin.
     if ! ${DRYRUN}; then
+        if [[ ${MEMCACHED_SASL} == "enable" || ${MEMCACHED_SASL} == true ]]; then
+            MEMCACHED_SASL_CREDENTIAL="username=${MEMCACHED_USERNAME},
+            password=${MEMCACHED_PASSWORD},"
+        else
+            MEMCACHED_SASL_CREDENTIAL=""
+        fi
+
         run touch /usr/share/nginx/html/lcp/memcadmin/Config/Memcache.php
         cat > /usr/share/nginx/html/lcp/memcadmin/Config/Memcache.php <<EOL
 <?php
@@ -128,6 +136,7 @@ return [
             [
                 'hostname' => '127.0.0.1',
                 'port' => '11211',
+                ${MEMCACHED_SASL_CREDENTIAL}
             ],
             '127.0.0.1:11212' =>
             [
@@ -140,7 +149,7 @@ return [
 EOL
     fi
 
-    # Assign ownership properly
+    # Assign ownership properly.
     run chown -hR www-data:www-data /usr/share/nginx/html
 
     if [[ -x /usr/local/bin/lemper-cli && -d /usr/share/nginx/html/lcp ]]; then
