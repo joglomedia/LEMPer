@@ -165,6 +165,22 @@ server {
         allow all;
         auth_basic "Denied";
         auth_basic_user_file /srv/.htpasswd;
+
+        # Pass the PHP scripts to FastCGI with basic auth.
+        location ~ \.php$ {
+            try_files $uri =404;
+
+            fastcgi_split_path_info ^(.+\.php)(/.+)$;
+            fastcgi_index index.php;
+
+            include /etc/nginx/fastcgi_params;
+            include /etc/nginx/includes/fastcgi.conf;
+
+            # Uncomment to Enable PHP FastCGI cache.
+            #include /etc/nginx/includes/fastcgi_cache.conf;
+
+            fastcgi_pass unix:/run/php/php7.3-fpm.sock;
+        }
     }
 
     # Pass the PHP scripts to FastCGI server listening on Unix socket.
