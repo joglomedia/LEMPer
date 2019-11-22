@@ -56,13 +56,15 @@ function init_webadmin_install() {
     # Install Adminer for Web-based MySQL Administration Tool
     if [ ! -d /usr/share/nginx/html/lcp/dbadmin ]; then
         run mkdir -p /usr/share/nginx/html/lcp/dbadmin
-        run wget -q https://github.com/vrana/adminer/releases/download/v4.7.5/adminer-4.7.5.php \
-            -O /usr/share/nginx/html/lcp/dbadmin/index.php
-        run wget -q https://github.com/vrana/adminer/releases/download/v4.7.5/editor-4.7.5.php \
-            -O /usr/share/nginx/html/lcp/dbadmin/editor.php
     fi
 
-    # Install File Manager
+    # Overwrite existing.
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.5/adminer-4.7.5.php \
+        -O /usr/share/nginx/html/lcp/dbadmin/index.php
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.5/editor-4.7.5.php \
+        -O /usr/share/nginx/html/lcp/dbadmin/editor.php
+
+    # Install File Manager.
     # Experimental: Tinyfilemanager https://github.com/PHPlayground/tinyfilemanager
     # Clone custom TinyFileManager.
     if [ ! -d /usr/share/nginx/html/lcp/filemanager/config ]; then
@@ -147,7 +149,7 @@ return [
 EOL
     fi
 
-    # Assign ownership properly
+    # Assign ownership properly.
     run chown -hR www-data:www-data /usr/share/nginx/html
 
     if [[ -x /usr/local/bin/lemper-cli && -d /usr/share/nginx/html/lcp ]]; then
