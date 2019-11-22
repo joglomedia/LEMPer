@@ -20,10 +20,11 @@ requires_root
 # Securing SSH server.
 function securing_ssh() {
     LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
-    SSH_PASSWORDLESS=${SSH_PASSWORDLESS:-true}
+    SSH_PASSWORDLESS=${SSH_PASSWORDLESS:-false}
 
     if "${SSH_PASSWORDLESS}"; then
-        echo "Before starting, let's create a pair of keys that some hosts ask for during installation of the server.
+        echo "
+Before starting, let's create a pair of keys that some hosts ask for during installation of the server.
 
 On your local machine, open new terminal and create an SSH key pair using the ssh-keygen tool,
 use the following command:
@@ -38,10 +39,11 @@ Never share your private key.
         #echo ""
         sleep 3
 
+        echo "Open your public key (id_rsa.pub) file, copy paste the key here..."
+
         RSA_PUB_KEY=${RSA_PUB_KEY:-n}
         while ! [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; do
-            echo "Open your public key (id_rsa.pub) file,"
-            read -rp "copy paste the key here: " -e RSA_PUB_KEY
+            read -rp ": " -e RSA_PUB_KEY
         done
 
         # Grand access to SSH with key.
@@ -419,7 +421,7 @@ function remove_apf() {
 # Install Firewall.
 function install_firewall() {
     echo ""
-    echo "[Iptables-based Firewall Installation]"
+    echo "IPtables-based Firewall Installation"
     warning "You should not run any other iptables firewall configuration script.
 Any other iptables based firewall will be removed otherwise they will conflict."
     echo ""
@@ -490,8 +492,9 @@ function init_secure_server() {
     install_firewall "$@"
 
     if [[ ${SSH_PORT} -ne 22 ]]; then
-        warning -e "\nYou're running SSH server with modified configuration, restart to apply your changes."
-        echo "use this command: service ssh restart"
+        echo "
+You're running SSH server with modified configuration, restart to apply your changes.
+use this command: service ssh restart"
     fi
 }
 
