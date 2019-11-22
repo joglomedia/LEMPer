@@ -31,7 +31,7 @@ run dpkg --configure -a
 run apt-get -qq --fix-broken install
 
 # Remove Apache2 service if exists.
-if [[ -n $(command -v apache2) ]]; then
+if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
     warning -e "\nIt seems that Apache/httpd server installed on this server."
     echo "Any other HTTP web server will be removed, otherwise they will conflict."
     echo ""
@@ -53,9 +53,8 @@ if [[ -n $(command -v apache2) ]]; then
             echo "Removing Apache2 installation in dryrun mode."
         else
             run service apache2 stop
-            run apt-get -qq --purge remove -y apache2 apache2-doc apache2-utils \
-                apache2.2-common apache2.2-bin apache2-mpm-prefork \
-                apache2-doc apache2-mpm-worker
+            run apt-get -qq --purge remove -y $(dpkg-query -l | awk '/apache2/ { print $2 }') \
+                $(dpkg-query -l | awk '/httpd/ { print $2 }')
         fi
     else
         echo "Found Apache/HTTPD server, but not removed."
@@ -113,6 +112,9 @@ if [[ -n $(getent passwd "${USERNAME}") ]]; then
 
     if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* ]]; then
         delete_account "${USERNAME}"
+
+        # Clean up existing lemper config.
+        run bash -c "echo '' > /etc/lemper/lemper.conf"
     else
         echo "Found default lemper account, but not removed."
     fi
@@ -120,7 +122,7 @@ fi
 
 # Autoremove unused packages.
 echo -e "\nCleaning up unused packages..."
-run apt autoremove -y
+run apt-get -qq autoremove -y
 
 if [[ -z $(command -v apache2) && -z $(command -v nginx) && -z $(command -v mysql) ]]; then
     status -e "\nYour server cleaned up."
