@@ -4,8 +4,13 @@
 
 script_under_test=$(basename "$0")
 
+# Nginx
+nginx_stable_version="1.16.1"
+nginx_latest_version="1.17.6"
+
+# Source the helper functions.
 if [ -f "./scripts/helper.sh" ]; then
-    . ./scripts/helper.sh
+    source ./scripts/helper.sh
 else
     echo "Helper function (scripts/helper.sh) not found."
     exit 1
@@ -30,25 +35,25 @@ testEqualityGetReleaseName()
 
 testEqualityCreateAccount()
 {
-    release_name=$(create_account lemper)
+    release_name=$(sudo create_account lemper)
     assertEquals "Username lemper created." "${release_name}"
 }
 
 testEqualityGetNginxStableVersion()
 {
     ngx_stable_version=$(determine_stable_nginx_version)
-    assertEquals "1.16.1" "${ngx_stable_version}"
+    assertEquals "${nginx_stable_version}" "${ngx_stable_version}"
 }
 
 testEqualityGetNginxLatestVersion()
 {
     ngx_latest_version=$(determine_latest_nginx_version)
-    assertEquals "1.17.6" "${ngx_latest_version}"
+    assertEquals "${nginx_latest_version}" "${ngx_latest_version}"
 }
 
 testEqualityInstallNginx()
 {
-    . ./scripts/install_nginx.sh
+    sudo bash ./scripts/install_nginx.sh
 
     nginx_bin=$(command -v nginx)
     assertEquals "/usr/sbin/nginx" "${nginx_bin}"
@@ -56,7 +61,7 @@ testEqualityInstallNginx()
 
 testEqualityInstallPhp()
 {
-    . ./scripts/install_php.sh
+    sudo bash ./scripts/install_php.sh
 
     php_bin=$(command -v php)
     assertEquals "/usr/bin/php" "${php_bin}"
@@ -64,7 +69,7 @@ testEqualityInstallPhp()
 
 testEqualityInstallMySQL()
 {
-    . ./scripts/install_mariadb.sh
+    sudo bash ./scripts/install_mariadb.sh
 
     mysql_bin=$(command -v mysql)
     assertEquals "/usr/bin/mysql" "${mysql_bin}"

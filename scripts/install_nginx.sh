@@ -569,7 +569,7 @@ function init_nginx_install() {
                     fi
 
                     # Execute nginx from source installer.
-                    "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n "${NGX_VERSION}" --dynamic-module \
+                    run bash "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n "${NGX_VERSION}" --dynamic-module \
                         --extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
                 fi
 
