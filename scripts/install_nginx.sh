@@ -826,7 +826,7 @@ function init_nginx_install() {
         run cp -f etc/nginx/{fastcgi_cache,fastcgi_https_map,fastcgi_params,mod_pagespeed,proxy_cache,proxy_params} \
             /etc/nginx/
         run cp -f etc/nginx/{http_cloudflare_ips,http_proxy_ips,upstream} /etc/nginx/
-        run cp -fr etc/nginx/{includes,vhost,ssl} /etc/nginx/
+        run cp -fr etc/nginx/{includes,vhost} /etc/nginx/
 
         if [ -f /etc/nginx/sites-available/default ]; then
             run mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default~
@@ -906,6 +906,8 @@ function init_nginx_install() {
         DH_LENGTH=${HASH_LENGTH:-2048}
         if [ ! -f "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" ]; then
             echo "Enhance HTTPS/SSL security with DH key."
+
+            [ ! -d /etc/nginx/ssl ] && mkdir -p /etc/nginx/ssl
             run openssl dhparam -out "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" "${DH_LENGTH}"
         fi
 
