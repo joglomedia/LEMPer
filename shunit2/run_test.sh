@@ -11,6 +11,8 @@ nginx_latest_version="1.17.6"
 # Source the helper functions.
 if [ -f "./scripts/helper.sh" ]; then
     source ./scripts/helper.sh
+    init_log
+    init_config
 else
     echo "Helper function (scripts/helper.sh) not found."
     exit 1
@@ -53,7 +55,7 @@ testEqualityGetNginxLatestVersion()
 
 testEqualityInstallNginx()
 {
-    sudo bash ./scripts/install_nginx.sh
+    . ./scripts/install_nginx.sh
 
     nginx_bin=$(command -v nginx)
     assertEquals "/usr/sbin/nginx" "${nginx_bin}"
@@ -61,7 +63,7 @@ testEqualityInstallNginx()
 
 testEqualityInstallPhp()
 {
-    sudo bash ./scripts/install_php.sh
+    . ./scripts/install_php.sh
 
     php_bin=$(command -v php)
     assertEquals "/usr/bin/php" "${php_bin}"
@@ -69,7 +71,7 @@ testEqualityInstallPhp()
 
 testEqualityInstallMySQL()
 {
-    sudo bash ./scripts/install_mariadb.sh
+    . ./scripts/install_mariadb.sh
 
     mysql_bin=$(command -v mysql)
     assertEquals "/usr/bin/mysql" "${mysql_bin}"

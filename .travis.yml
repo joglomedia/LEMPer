@@ -21,6 +21,8 @@ matrix:
       script:
         # Copy .env file.
         - cp .env.dist .env
+        - sed -i "s/AUTO_REMOVE=false/AUTO_REMOVE=true/g" .env
+        - sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
         # Run the source through ShellCheck (http://www.shellcheck.net).
         - shellcheck -s bash -x scripts/helper.sh
         - shellcheck -s bash scripts/cleanup_server.sh
