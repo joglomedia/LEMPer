@@ -23,7 +23,8 @@ matrix:
         - cp .env.dist .env
         # Run the source through ShellCheck (http://www.shellcheck.net).
         - shellcheck -s bash -x scripts/helper.sh
-        #- shellcheck -s bash scripts/install_*.sh
+        - shellcheck -s bash scripts/install_*.sh
+        - shellcheck -s bash scripts/remove_*.sh
         - shellcheck -s bash -x lemper.sh
         - shellcheck -s bash bin/lemper-cli.sh
         - shellcheck -s bash lib/lemper-*.sh

@@ -16,10 +16,22 @@ testEquality()
     assertEquals 1 1
 }
 
+testEqualityGetDistribName()
+{
+    distrib_name=$(get_distrib_name)
+    assertEquals "ubuntu" "${distrib_name}"
+}
+
 testEqualityGetReleaseName()
 {
-    distro_name=$(get_release_name)
-    assertEquals "bionic" "${distro_name}"
+    release_name=$(get_release_name)
+    assertEquals "bionic" "${release_name}"
+}
+
+testEqualityCreateAccount()
+{
+    release_name=$(create_account lemper)
+    assertEquals "Username lemper created." "${release_name}"
 }
 
 testEqualityGetNginxStableVersion()
@@ -32,6 +44,33 @@ testEqualityGetNginxLatestVersion()
 {
     ngx_latest_version=$(determine_latest_nginx_version)
     assertEquals "1.17.6" "${ngx_latest_version}"
+}
+
+testEqualityInstallNginx()
+{
+    . ./scripts/install_nginx.sh
+
+    nginx_bin=$(command -v nginx)
+    assertEquals "/usr/sbin/nginx" "${nginx_bin}"
+}
+
+testEqualityInstallPhp()
+{
+    . ./scripts/install_php.sh
+
+    php_bin=$(command -v php)
+    assertEquals "/usr/bin/php" "${php_bin}"
+}
+
+testEqualityInstallMySQL()
+{
+    . ./scripts/install_mariadb.sh
+
+    mysql_bin=$(command -v mysql)
+    assertEquals "/usr/bin/mysql" "${mysql_bin}"
+
+    mysqld_bin=$(command -v mysqld)
+    assertEquals "/usr/sbin/mysqld" "${mysqld_bin}"
 }
 
 # load shunit2
