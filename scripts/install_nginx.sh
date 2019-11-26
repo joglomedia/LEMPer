@@ -569,8 +569,15 @@ function init_nginx_install() {
                     fi
 
                     # Execute nginx from source installer.
-                    run bash "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n "${NGX_VERSION}" --dynamic-module \
-                        --extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
+                    if [ -f "${SCRIPTS_DIR}/install_nginx_from_source.sh" ]; then
+                        run "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n "${NGX_VERSION}" --dynamic-module \
+                            --extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
+                    elif [ -f ".${SCRIPTS_DIR}/install_nginx_from_source.sh" ]; then
+                        run ".${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n "${NGX_VERSION}" --dynamic-module \
+                            --extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
+                    else
+                        error "Nginx from source installer not found."
+                    fi
                 fi
 
                 echo "Configuring NGiNX extra modules..."
