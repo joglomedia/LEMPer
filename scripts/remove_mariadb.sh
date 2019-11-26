@@ -62,7 +62,8 @@ function init_mariadb_removal() {
 
         # Remove repository.
         if "${FORCE_REMOVE}"; then
-            run rm -f /etc/apt/sources.list.d/mariadb-*.list
+            #run rm -f /etc/apt/sources.list.d/mariadb-*.list
+            run rm -f /etc/apt/sources.list.d/mariadb.list
         fi
     elif dpkg-query -l | awk '/mysql/ { print $2 }' | grep -qwE "^mysql-server"; then
         echo "Found MySQL package installation. Removing..."

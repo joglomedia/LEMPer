@@ -95,7 +95,7 @@ function init_redis_install {
                     fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
                 fi
             ;;
-            2|"source"|*)
+            2|"source")
                 echo "Installing Redis server from source..."
                 
                 local CURRENT_DIR && \

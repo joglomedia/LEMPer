@@ -25,81 +25,17 @@ function add_mariadb_repo() {
     MYSQL_SERVER=${MYSQL_SERVER:-"mariadb"}
     MYSQL_VERSION=${MYSQL_VERSION:-"10.4"}
 
-    # TODO: for future usage.
-    #run curl -sS -o mariadb_repo_setup https://downloads.mariadb.com/MariaDB/mariadb_repo_setup && \
-    #run bash mariadb_repo_setup --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
-    #    --os-type="${DISTRIB_NAME}" --os-version="${DISTRIB_REPO}" && \
-    #run rm -f mariadb_repo_setup
-
-    case "${DISTRIB_REPO}" in
-        trusty)
-            # Only support 10.3 and lesser.
-            local MARIADB_VERSION=${MYSQL_VERSION:-"10.3"}
-            local MARIADB_ARCH="amd64,i386,ppc64el"
-            run apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xcbcb082a1bb943db
-        ;;
-        xenial)
-            # Support 10.0, 10.1, 10.2, 10.3 & 10.4.
-            local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
-            local MARIADB_ARCH="amd64,arm64,i386,ppc64el"
-            run apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
-        ;;
-        bionic)
-            # Support 10.1, 10.2, 10.3 & 10.4.
-            local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
-            local MARIADB_ARCH="amd64,arm64,ppc64el"
-            run apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
-        ;;
-        disco|buster)
-            # Support 10.3 & 10.4.
-            local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
-            local MARIADB_ARCH="amd64"
-            run apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
-        ;;
-        jessie)
-            # Support 10.0, 10.1, 10.2, 10.3 & 10.4.
-            local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
-            local MARIADB_ARCH="amd64,i386,ppc64el"
-            run apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xcbcb082a1bb943db
-        ;;
-        stretch)
-            # Support 10.1, 10.2, 10.3 & 10.4.
-            local MARIADB_VERSION=${MYSQL_VERSION:-"10.4"}
-            local MARIADB_ARCH="amd64,i386,ppc64el"
-            run apt-key adv --recv-keys --keyserver hkp://keyserver.ubuntu.com:80 0xF1656F24C74CD1D8
-        ;;
-        *)
-            error "Unable to add MariaDB, unsupported distribution release: ${DISTRIB_NAME^} ${DISTRIB_REPO^}."
-            echo "Sorry your system is not supported yet, installing from source may fix the issue."
-            exit 1
-        ;;
-    esac
-
     # Add MariaDB source list from MariaDB repo configuration tool
     if "${DRYRUN}"; then
         status "MariaDB (MySQL) repository added in dryrun mode."
     else
-        # Add repo.
-        case ${DISTRIB_NAME} in
-            debian|ubuntu)
-                if [ ! -f "/etc/apt/sources.list.d/mariadb-${DISTRIB_REPO}.list" ]; then
-                    run touch "/etc/apt/sources.list.d/mariadb-${DISTRIB_REPO}.list"
-                    cat > "/etc/apt/sources.list.d/mariadb-${DISTRIB_REPO}.list" <<EOL
-# MariaDB ${MARIADB_VERSION} repository list - created 2019-11-05 11:48 UTC
-# http://mariadb.org/mariadb/repositories/
-deb [arch=${MARIADB_ARCH}] http://ftp.osuosl.org/pub/mariadb/repo/${MARIADB_VERSION}/${DISTRIB_NAME} ${DISTRIB_REPO} main
-deb-src http://ftp.osuosl.org/pub/mariadb/repo/${MARIADB_VERSION}/${DISTRIB_NAME} ${DISTRIB_REPO} main
-EOL
-
-                    run apt-get -qq update -y
-                else
-                    warning "MariaDB (MySQL) repository already exists."
-                fi
-            ;;
-            *)
-                fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
-            ;;
-        esac
+        # Add MariaDB official repo.
+        # Ref: https://mariadb.com/kb/en/library/mariadb-package-repository-setup-and-usage/
+        run curl -sS -o "${BUILD_DIR}/mariadb_repo_setup" https://downloads.mariadb.com/MariaDB/mariadb_repo_setup && \
+        run bash "${BUILD_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
+            --os-type="${DISTRIB_NAME}" --os-version="${DISTRIB_REPO}"
+        #run rm -f "${BUILD_DIR}/mariadb_repo_setup"
+        run apt-get -qq update -y
     fi
 }
 
@@ -193,16 +129,52 @@ function init_mariadb_install() {
                 # Enable MariaDB on startup.
                 run systemctl enable mariadb.service
 
-                # Unmask (?).
-#               run systemctl unmask mariadb.service
+                # Unmask systemd service (?)
+                #run systemctl unmask mariadb.service
 
-                # Restart MariaDB
-#                run systemctl start mariadb.service
+                # Restart MariaDB service daemon.
+                #run systemctl start mariadb.service
                 run service mysql start
 
-                # MySQL Secure Install
-                # TODO: https://mariadb.com/kb/en/library/security-of-mariadb-root-account/
-                run mysql_secure_installation
+                # MySQL Secure Install.
+                if "${AUTO_INSTALL}"; then
+                    echo "Securing MariaDB (MySQL) Installation..."
+
+                    # Ref: https://bertvv.github.io/notes-to-self/2015/11/16/automating-mysql_secure_installation/
+                    MYSQL_ROOT_PASS=${MYSQL_ROOT_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+                    local SQL_QUERY=""
+
+                    # Setting the database root password.
+                    SQL_QUERY="ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASS}';"
+
+                    # Delete anonymous users.
+                    SQL_QUERY="${SQL_QUERY}
+                            DELETE FROM mysql.user WHERE User='';"
+                    
+                    # Ensure the root user can not log in remotely.
+                    SQL_QUERY="${SQL_QUERY}
+                            DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+
+                    # Remove the test database.
+                    SQL_QUERY="${SQL_QUERY}
+                            DROP DATABASE IF EXISTS test;
+                            DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%';"
+
+                    # Flush the privileges tables.
+                    SQL_QUERY="${SQL_QUERY}
+                            FLUSH PRIVILEGES;"
+
+                    # Root password is blank for newly installed MariaDB (MySQL).
+                    if mysql --user=root --password="" -e "${SQL_QUERY}"; then
+                        status -n "Success: "
+                        echo "Securing MariaDB (MySQL) installation has been done."
+                    else
+                        error "Unable to secure MariaDB (MySQL) installation."
+                    fi
+                else
+                    # Ref: https://mariadb.com/kb/en/library/security-of-mariadb-root-account/
+                    run mysql_secure_installation
+                fi
             fi
 
             if [[ $(pgrep -c mysql) -gt 0 ]]; then

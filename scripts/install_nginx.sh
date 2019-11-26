@@ -569,8 +569,15 @@ function init_nginx_install() {
                     fi
 
                     # Execute nginx from source installer.
-                    "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n "${NGX_VERSION}" --dynamic-module \
-                        --extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
+                    if [ -f "${SCRIPTS_DIR}/install_nginx_from_source.sh" ]; then
+                        run "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n "${NGX_VERSION}" --dynamic-module \
+                            --extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
+                    elif [ -f ".${SCRIPTS_DIR}/install_nginx_from_source.sh" ]; then
+                        run ".${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n "${NGX_VERSION}" --dynamic-module \
+                            --extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
+                    else
+                        error "Nginx from source installer not found."
+                    fi
                 fi
 
                 echo "Configuring NGiNX extra modules..."
@@ -826,7 +833,7 @@ function init_nginx_install() {
         run cp -f etc/nginx/{fastcgi_cache,fastcgi_https_map,fastcgi_params,mod_pagespeed,proxy_cache,proxy_params} \
             /etc/nginx/
         run cp -f etc/nginx/{http_cloudflare_ips,http_proxy_ips,upstream} /etc/nginx/
-        run cp -fr etc/nginx/{includes,vhost,ssl} /etc/nginx/
+        run cp -fr etc/nginx/{includes,vhost} /etc/nginx/
 
         if [ -f /etc/nginx/sites-available/default ]; then
             run mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default~
@@ -876,21 +883,23 @@ function init_nginx_install() {
         local CPU_CORES && \
         CPU_CORES=$(grep -c processor /proc/cpuinfo)
 
-        run sed -i "s/worker_processes\ auto/worker_processes\ ${CPU_CORES}/g" /etc/nginx/nginx.conf
+        # Adjust worker processes.
+        #run sed -i "s/worker_processes\ auto/worker_processes\ ${CPU_CORES}/g" /etc/nginx/nginx.conf
 
         local NGX_CONNECTIONS
         case ${CPU_CORES} in
             1)
-                NGX_CONNECTIONS=4096
+                NGX_CONNECTIONS=1024
             ;;
             2|3)
                 NGX_CONNECTIONS=2048
             ;;
             *)
-                NGX_CONNECTIONS=1024
+                NGX_CONNECTIONS=4096
             ;;
         esac
 
+        # Adjust worker connections.
         run sed -i "s/worker_connections\ 4096/worker_connections\ ${NGX_CONNECTIONS}/g" /etc/nginx/nginx.conf
 
         # Enable PageSpeed config.
@@ -903,7 +912,9 @@ function init_nginx_install() {
         # Generate Diffie-Hellman parameters.
         DH_LENGTH=${HASH_LENGTH:-2048}
         if [ ! -f "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" ]; then
-            echo "Enhance HTTPS/SSL security."
+            echo "Enhance HTTPS/SSL security with DH key."
+
+            [ ! -d /etc/nginx/ssl ] && mkdir -p /etc/nginx/ssl
             run openssl dhparam -out "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" "${DH_LENGTH}"
         fi
 

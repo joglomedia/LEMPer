@@ -50,7 +50,7 @@ function init_memcached_install() {
                 echo "Installing Memcached server from repository..."
                 run apt-get -qq install -y libmemcached11 libmemcachedutil2 libmemcached-tools memcached
             ;;
-            2|"source"|*)
+            2|"source")
                 echo "Installing Memcached server from source..."
 
                 run apt-get -qq install -y libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2
@@ -59,7 +59,7 @@ function init_memcached_install() {
                 CURRENT_DIR=$(pwd)
                 run cd "${BUILD_DIR}"
 
-                # Libevent
+                # Install Libevent from source.
                 #libevent_download_url="https://github.com/libevent/libevent/releases/download/release-2.1.11-stable/libevent-2.1.11-stable.tar.gz"
                 #if wget -q -O libevent.tar.gz "${libevent_download_url}"; then
                 #    run tar -zxf libevent.tar.gz
