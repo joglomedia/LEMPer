@@ -37,8 +37,10 @@ testEqualityGetReleaseName()
 
 testEqualityCreateAccount()
 {
-    release_name=$(create_account lemper)
-    assertEquals "Username lemper created." "${release_name}"
+    create_account_status=""
+    create_account lemper
+    [[ -n $(getent passwd "${USERNAME}") ]] && create_account_status="success"
+    assertEquals "success" "${create_account_status}"
 }
 
 testEqualityGetNginxStableVersion()

@@ -145,8 +145,9 @@ function init_mariadb_install() {
                     local SQL_QUERY=""
 
                     # Setting the database root password.
-                    SQL_QUERY="UPDATE mysql.user SET Password=PASSWORD('${MYSQL_ROOT_PASS}') WHERE User='root';"
-                    
+                    #SQL_QUERY="UPDATE mysql.user SET Password=PASSWORD('${MYSQL_ROOT_PASS}') WHERE User='root';"
+                    SQL_QUERY="ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASS}';"
+
                     # Delete anonymous users.
                     SQL_QUERY="${SQL_QUERY}
 DELETE FROM mysql.user WHERE User='';"
