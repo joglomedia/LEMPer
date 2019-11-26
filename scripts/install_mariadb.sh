@@ -145,25 +145,24 @@ function init_mariadb_install() {
                     local SQL_QUERY=""
 
                     # Setting the database root password.
-                    #SQL_QUERY="UPDATE mysql.user SET Password=PASSWORD('${MYSQL_ROOT_PASS}') WHERE User='root';"
                     SQL_QUERY="ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASS}';"
 
                     # Delete anonymous users.
                     SQL_QUERY="${SQL_QUERY}
-DELETE FROM mysql.user WHERE User='';"
+                            DELETE FROM mysql.user WHERE User='';"
                     
                     # Ensure the root user can not log in remotely.
                     SQL_QUERY="${SQL_QUERY}
-DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+                            DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
 
                     # Remove the test database.
                     SQL_QUERY="${SQL_QUERY}
-DROP DATABASE test;
-DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%';"
+                            DROP DATABASE IF EXISTS test;
+                            DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%';"
 
                     # Flush the privileges tables.
                     SQL_QUERY="${SQL_QUERY}
-FLUSH PRIVILEGES;"
+                            FLUSH PRIVILEGES;"
 
                     # Root password is blank for newly installed MariaDB (MySQL).
                     if mysql --user=root --password="" -e "${SQL_QUERY}"; then
