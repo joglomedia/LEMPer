@@ -35,9 +35,6 @@ function install_phalcon() {
     CURRENT_DIR=$(pwd)
     run cd "${BUILD_DIR}"
 
-    # Install prerequisite packages.
-    run apt-get -qq install -y autoconf automake gcc libpcre3-dev make re2c
-
     # Install Zephir from source.
     if "${AUTO_INSTALL}"; then
         if [[ "${PHP_PHALCON_ZEPHIR}" == y* || "${PHP_PHALCON_ZEPHIR}" == true ]]; then
