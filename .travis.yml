@@ -36,8 +36,6 @@ matrix:
         - shellcheck -s bash -x scripts/remove_*.sh
         - shellcheck -s bash -x scripts/secure_server.sh
         # Run initialization install.
-        - sudo . scripts/helper.sh
-        - sudo system_check
         - sudo bash scripts/cleanup_server.sh
         - sudo bash scripts/install_dependencies.sh
         # Run the install test cases through ShUnit2.
