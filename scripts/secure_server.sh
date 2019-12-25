@@ -123,7 +123,7 @@ EOL
         fi
 
         # Save config.
-        save_config -e "HOSTNAME=$(hostname)\nIP_SERVER=${IP_SERVER}\nSSH_PORT=${SSH_PORT}"
+        save_config -e "HOSTNAME=${HOSTNAME}\nSERVER_IP=${SERVER_IP}\nSSH_PORT=${SSH_PORT}"
 
         # Save log.
         save_log "Default SSH port updated to ${SSH_PORT}."
@@ -170,18 +170,18 @@ function install_ufw() {
 
         # Open HTTP port.
         run ufw allow 80
-        run ufw allow 8082
-        run ufw allow 8083
+        run ufw allow 8082 #LEMPer port
 
         # Open HTTPS port.
         run ufw allow 443
-        run ufw allow 8443
+        run ufw allow 8083 #LEMPer port
 
         # Open MySQL port.
         run ufw allow 3306
 
         # Open SMTPs port.
         run ufw allow 25
+        run ufw allow 465
         run ufw allow 587
 
         # Open IMAPs ports.
@@ -245,10 +245,11 @@ function install_csf() {
     run cd "${BUILD_DIR}"
 
     echo "Installing CSF+LFD firewall..."
-    if wget -q https://download.configserver.com/csf.tgz; then
-        run tar -xzf csf.tgz
-        run cd csf/
-        run sh install.sh
+    if curl -sL --head https://download.configserver.com/csf.tgz | grep -q "HTTP/[12].[01] [23].."; then
+        run wget -q https://download.configserver.com/csf.tgz && \
+        run tar -xzf csf.tgz && \
+        run cd csf/ && \
+        run sh install.sh && \
         run cd ../
 
         if [ -f /usr/local/csf/bin/csftest.pl ]; then
@@ -335,11 +336,12 @@ function install_apf() {
     run cd "${BUILD_DIR}"
 
     echo "Installing APF+BFD firewall..."
-    if wget -q "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz"; then
-        
-        run tar -xf "${APF_VERSION}.tar.gz"
-        run cd advanced-policy-firewall-*/
-        run bash install.sh
+    if curl -sL --head "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
+    | grep -q "HTTP/[12].[01] [23].."; then
+        run wget -q "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" && \
+        run tar -xf "${APF_VERSION}.tar.gz" && \
+        run cd advanced-policy-firewall-*/ && \
+        run bash install.sh && \
         run cd ../
     fi
 
