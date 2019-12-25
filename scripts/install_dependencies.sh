@@ -24,13 +24,11 @@ if hash apt-get 2>/dev/null; then
 
     # Install dependencies.
     echo "Installing pre-requisite packages..."
-    run apt-get -qq install -y apache2-utils apt-transport-https autoconf bash build-essential ca-certificates cmake cron \
+    run apt-get -qq install -y apache2-utils apt-transport-https autoconf automake bash build-essential ca-certificates cmake cron \
         curl dnsutils gcc geoip-bin geoip-database git gnupg2 htop iptables libc-dev libcurl4-openssl-dev libgd-dev libgeoip-dev \
-        libssl-dev libxml2-dev libpcre3-dev libxslt1-dev lsb-release make ntpdate openssh-server openssl pkg-config rsync \
+        libssl-dev libxml2-dev libpcre3-dev libxslt1-dev lsb-release make ntpdate openssh-server openssl pkg-config re2c rsync \
         software-properties-common sasl2-bin snmp sudo sysstat tar tzdata unzip wget whois zlib1g-dev
 elif hash yum 2>/dev/null; then
-    fail "Unable to install LEMPer: yum distribution is not supported yet."
-
     if [ "${VERSION_ID}" == "5" ]; then
         run yum -y update
         #yum -y localinstall $pkg --nogpgcheck
@@ -39,7 +37,7 @@ elif hash yum 2>/dev/null; then
 	    #yum -y localinstall $pkg
     fi
 else
-    fail "Unable to install LEMPer: this Linux distribution is not dpkg/yum enabled."
+    fail "Unable to install LEMPer, this GNU/Linux distribution is not supported."
 fi
 
 status "Required packages installation completed..."
@@ -47,14 +45,17 @@ status "Required packages installation completed..."
 # Configure server clock.
 echo -e "\nReconfigure server clock..."
 
-#run dpkg-reconfigure tzdata
+# Reconfigure timezone.
 if [[ -n ${TIMEZONE} && ${TIMEZONE} != "none" ]]; then
     run bash -c "echo '${TIMEZONE}' > /etc/timezone"
+    run rm -f /etc/localtime
     run dpkg-reconfigure -f noninteractive tzdata
 
     # Save config.
     save_config "TIMEZONE=${TIMEZONE}"
 fi
 
-# Update local time
-run ntpdate -d cn.pool.ntp.org
+# Update local time.
+run service ntp stop
+run ntpdate -s cn.pool.ntp.org
+run service ntp start
