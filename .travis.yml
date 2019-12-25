@@ -19,28 +19,20 @@ matrix:
     - os: linux
       dist: bionic
       script:
-        # Copy .env file.
+        # Copy dotenv file.
         - cp .env.dist .env
+        - sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/g" .env
         - sed -i "s/AUTO_REMOVE=false/AUTO_REMOVE=true/g" .env
         - sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
         # Run the source through ShellCheck (http://www.shellcheck.net).
-        - shellcheck -s bash -x scripts/helper.sh
-        - shellcheck -s bash scripts/cleanup_server.sh
-        - shellcheck -s bash scripts/install_dependencies.sh
-        - shellcheck -s bash scripts/install_nginx.sh
-        - shellcheck -s bash scripts/install_php.sh
-        - shellcheck -s bash scripts/install_mariadb.sh
-        - shellcheck -s bash scripts/install_memcached.sh
-        - shellcheck -s bash scripts/install_mongodb.sh
-        - shellcheck -s bash scripts/install_redis.sh
-        - shellcheck -s bash scripts/install_certbotle.sh
-        - shellcheck -s bash scripts/install_mailer.sh
-        - shellcheck -s bash scripts/install_tools.sh
-        - shellcheck -s bash scripts/secure_server.sh
-        - shellcheck -s bash scripts/remove_*.sh
         - shellcheck -s bash -x lemper.sh
-        - shellcheck -s bash bin/lemper-cli.sh
-        - shellcheck -s bash lib/lemper-*.sh
+        - shellcheck -s bash -x bin/lemper-cli.sh
+        - shellcheck -s bash -x lib/lemper-*.sh
+        - shellcheck -s bash -x scripts/cleanup_server.sh
+        - shellcheck -s bash -x scripts/helper.sh
+        - shellcheck -s bash -x scripts/install_*.sh
+        - shellcheck -s bash -x scripts/remove_*.sh
+        - shellcheck -s bash -x scripts/secure_server.sh
         # Run initialization install.
         - sudo bash scripts/cleanup_server.sh
         - sudo bash scripts/install_dependencies.sh
