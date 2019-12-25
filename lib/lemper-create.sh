@@ -379,6 +379,9 @@ server {
 
     ## Uncomment to enable error page directives configuration.
     include /etc/nginx/includes/error_pages.conf;
+
+    ## Uncomment to enable support cgi-bin scripts using fcgiwrap (like cgi-bin in Apache).
+    #include /etc/nginx/includes/fcgiwrap.conf;
 }
 _EOF_
 }
@@ -482,6 +485,9 @@ server {
 
     ## Uncomment to enable error page directives configuration.
     include /etc/nginx/includes/error_pages.conf;
+
+    ## Uncomment to enable support cgi-bin scripts using fcgiwrap (like cgi-bin in Apache).
+    #include /etc/nginx/includes/fcgiwrap.conf;
 }
 _EOF_
 }
@@ -588,6 +594,9 @@ server {
 
     ## Uncomment to enable error page directives configuration.
     include /etc/nginx/includes/error_pages.conf;
+
+    ## Uncomment to enable support cgi-bin scripts using fcgiwrap (like cgi-bin in Apache).
+    #include /etc/nginx/includes/fcgiwrap.conf;
 }
 _EOF_
 }
