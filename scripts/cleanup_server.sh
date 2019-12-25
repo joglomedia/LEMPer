@@ -48,7 +48,7 @@ if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
 
     if [[ "${REMOVE_APACHE}" == Y* || "${REMOVE_APACHE}" == y* ]]; then
         echo "Uninstall existing Apache/HTTPD server..."
-        
+
         if "${DRYRUN}"; then
             echo "Removing Apache2 installation in dryrun mode."
         else
