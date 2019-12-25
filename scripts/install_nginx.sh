@@ -807,7 +807,7 @@ function init_nginx_install() {
                 # Enable in start up.
                 run systemctl enable nginx.service
 
-                # Unmask (?).
+                # Masked (?).
                 run systemctl unmask nginx.service
             ;;
             *)
@@ -943,7 +943,8 @@ function init_nginx_install() {
                     run service nginx reload -s
                     status "NGiNX HTTP server restarted successfully."
                 else
-                    error "Nginx configuration test failed."
+                    error "Nginx configuration test failed. Please correct the error below:"
+                    run nginx -t
                 fi
             elif [[ -n $(command -v nginx) ]]; then
                 if nginx -t 2>/dev/null > /dev/null; then
@@ -955,7 +956,8 @@ function init_nginx_install() {
                         warning "Something wrong with NGiNX installation."
                     fi
                 else
-                    error "Nginx configuration test failed."
+                    error "Nginx configuration test failed. Please correct the error below:"
+                    run nginx -t
                 fi
             fi
         fi
