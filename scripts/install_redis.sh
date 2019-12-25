@@ -39,7 +39,7 @@ function add_redis_repo() {
             run apt-get -qq update -y
         ;;
         *)
-            fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
+            fail "Unable to add Redis, this GNU/Linux distribution is not supported."
         ;;
     esac
 }
@@ -92,7 +92,7 @@ function init_redis_install {
                         #yum -y localinstall redis-server
                     fi
                 else
-                    fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
+                    fail "Unable to install Redis, this GNU/Linux distribution is not supported."
                 fi
             ;;
             2|"source")
@@ -103,15 +103,15 @@ function init_redis_install {
                 run cd "${BUILD_DIR}"
 
                 if [[ "${REDIS_VERSION}" == "latest" || "${REDIS_VERSION}" == "stable" ]]; then
-                    redis_download_url="http://download.redis.io/redis-stable.tar.gz"
+                    REDIS_DOWNLOAD_URL="http://download.redis.io/redis-stable.tar.gz"
                 else
-                    redis_download_url="http://download.redis.io/releases/redis-${REDIS_VERSION}.tar.gz"
+                    REDIS_DOWNLOAD_URL="http://download.redis.io/releases/redis-${REDIS_VERSION}.tar.gz"
                 fi
 
-                if wget -q -O "redis.tar.gz" "${redis_download_url}"; then
-                    run tar -zxf "redis.tar.gz"
-                    run cd redis-*
-
+                if curl -sL --head "${REDIS_DOWNLOAD_URL}" | grep -q "HTTP/[12].[01] [23].."; then
+                    run wget -q -O "redis.tar.gz" "${REDIS_DOWNLOAD_URL}" && \
+                    run tar -zxf "redis.tar.gz" && \
+                    run cd redis-* && \
                     run make && \
                     run make install
 
@@ -146,7 +146,7 @@ function init_redis_install {
                             #yum -y localinstall redis-server
                         fi
                     else
-                        fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
+                        fail "Unable to install PHP Redis, this GNU/Linux distribution is not supported."
                     fi
                 else
                     error "An error occured while downloading Redis source."
