@@ -22,6 +22,7 @@ matrix:
         # Copy dotenv file.
         - cp .env.dist .env
         - sed -i "s/ENVIRONMENT=\"production\"/ENVIRONMENT=\"development\"/g" .env
+        - sed -i "s/SERVER_IP=\"\"/SERVER_IP=\"127.0.0.1\"/g" .env
         - sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/g" .env
         - sed -i "s/AUTO_REMOVE=false/AUTO_REMOVE=true/g" .env
         - sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
