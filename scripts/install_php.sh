@@ -17,6 +17,9 @@ fi
 # Make sure only root can run this installer script.
 requires_root
 
+##
+# Add PHP repository.
+#
 function add_php_repo() {
     echo "Add Ondrej's PHP repository..."
 
@@ -35,17 +38,20 @@ function add_php_repo() {
             fi
         ;;
         ubuntu)
-            # Fix for NO_PUBKEY key servers error
+            # Fix for NO_PUBKEY key servers error.
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
             run add-apt-repository -y ppa:ondrej/php
             run apt-get -qq update -y
         ;;
         *)
-            fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
+            fail "Unable to install PHP, this GNU/Linux distribution is not supported."
         ;;
     esac
 }
 
+##
+# Install PHP & FPM package.
+#
 function install_php_fpm() {
     # PHP version.
     local PHPv="${1}"
@@ -173,7 +179,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                 #yum -y localinstall ${PHP_PKGS[@]}
             fi
         else
-            fail "Unable to install NGiNX, this GNU/Linux distribution is not dpkg/yum enabled."
+            fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
         fi
 
         # Create PHP log dir.
@@ -183,7 +189,9 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
     fi
 }
 
-# Install ionCube Loader
+##
+# Install ionCube Loader.
+#
 function install_ioncube() {
     echo "Installing ionCube PHP loader..."
 
@@ -212,7 +220,9 @@ function install_ioncube() {
     run cd "${CURRENT_DIR}"
 }
 
-# Enable ionCube Loader
+##
+# Enable ionCube Loader.
+#
 function enable_ioncube() {
     # PHP version.
     local PHPv="${1}"
@@ -246,7 +256,9 @@ EOL
     fi
 }
 
+##
 # Disable ionCube Loader.
+#
 function disable_ioncube() {
     # PHP version.
     local PHPv="${1}"
@@ -260,7 +272,9 @@ function disable_ioncube() {
     run unlink "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini"
 }
 
+##
 # Remove ionCube Loader.
+#
 function remove_ioncube() {
     # PHP version.
     local PHPv="${1}"
@@ -283,7 +297,9 @@ function remove_ioncube() {
     fi
 }
 
-# Install SourceGuardian.
+##
+# Install SourceGuardian Loader.
+#
 function install_sourceguardian() {
     echo "Installing SourceGuardian PHP loader..."
 
@@ -317,7 +333,9 @@ function install_sourceguardian() {
     run mv -f "${BUILD_DIR}/sourceguardian" /usr/lib/php/loaders/
 }
 
-# Enable SourceGuardian.
+##
+# Enable SourceGuardian Loader.
+#
 function enable_sourceguardian() {
     # PHP version.
     local PHPv="${1}"
@@ -351,7 +369,9 @@ EOL
     fi
 }
 
+##
 # Disable SourceGuardian Loader.
+#
 function disable_sourceguardian() {
     # PHP version.
     local PHPv="${1}"
@@ -365,7 +385,9 @@ function disable_sourceguardian() {
     run unlink "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini"
 }
 
-# Remove SourceGuardian Loader
+##
+# Remove SourceGuardian Loader.
+#
 function remove_sourceguardian() {
     # PHP version.
     local PHPv="${1}"
@@ -388,7 +410,9 @@ function remove_sourceguardian() {
     fi
 }
 
+##
 # PHP & FPM Optimization.
+#
 function optimize_php_fpm() {
     # PHP version.
     local PHPv="${1}"
@@ -407,9 +431,7 @@ function optimize_php_fpm() {
         run mv "/etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/php.ini~"
         run cp -f "etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/"
     else
-        if "${DRYRUN}"; then
-            warning "PHP configuration optimized in dry run mode."
-        else
+        if ! "${DRYRUN}"; then
             cat >> "/etc/php/${PHPv}/fpm/php.ini" <<EOL
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -428,6 +450,8 @@ opcache.revalidate_freq=1
 opcache.save_comments=1
 opcache.error_log="/var/log/php/php${PHPv}-opcache_error.log"
 EOL
+        else
+            warning "PHP configuration optimized in dry run mode."
         fi
     fi
 
@@ -497,15 +521,13 @@ EOL
             "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
         # Customize php ini settings.
-        if "${DRYRUN}"; then
-            warning "Default FPM pool optimized in dry run mode."
-        else
+        if ! "${DRYRUN}"; then
             cat >> "/etc/php/${PHPv}/fpm/pool.d/www.conf" <<EOL
 php_flag[display_errors] = On
 ;php_admin_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
-;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexits$
+;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_flag[log_errors] = On
-php_admin_value[error_log] = /var/log/php/php7.3-fpm.$pool.log
+php_admin_value[error_log] = /var/log/php/php7.3-fpm.\$pool.log
 php_admin_value[date.timezone] = UTC
 php_admin_value[memory_limit] = 128M
 php_admin_value[opcache.file_cache] = /usr/share/nginx/html/.lemper/php/opcache
@@ -516,12 +538,14 @@ php_admin_value[upload_tmp_dir] = /usr/share/nginx/html/.lemper/tmp
 php_admin_value[upload_max_filesize] = 20M
 php_admin_value[post_max_size] = 20M
 EOL
+        else
+            warning "Default FPM pool optimized in dry run mode."
         fi
     fi
 
     # Copy the optimized-version of php fpm default lemper pool.
     local POOLNAME=${LEMPER_USERNAME:-"lemper"}
-    if [[ -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" && ${POOLNAME} == "lemper" ]]; then
+    if [[ -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" && ${POOLNAME} = "lemper" ]]; then
         run cp -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
 
         # Update timezone.
@@ -533,10 +557,9 @@ EOL
         fi
 
         # Create custom pool configuration.
-        if "${DRYRUN}"; then
-            warning "Custom FPM pool ${POOLNAME} created & optimized in dry run mode."
-        else
-            cat >> "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf" <<EOL
+        if ! "${DRYRUN}"; then
+            touch "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
+            cat > "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf" <<EOL
 [${POOLNAME}]
 user = ${POOLNAME}
 group = ${POOLNAME}
@@ -574,7 +597,7 @@ security.limit_extensions = .php .php5 .php7 .php${PHPv//./}
 ; Custom PHP ini settings.
 php_flag[display_errors] = On
 ;php_admin_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
-;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexits$
+;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_flag[log_errors] = On
 php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
 php_admin_value[date.timezone] = ${TIMEZONE}
@@ -587,6 +610,8 @@ php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.lemper/tmp
 php_admin_value[upload_max_filesize] = 20M
 php_admin_value[post_max_size] = 20M
 EOL
+        else
+            warning "Custom FPM pool ${POOLNAME} created & optimized in dry run mode."
         fi
     fi
 
@@ -595,7 +620,7 @@ EOL
     run mkdir -p "/home/${POOLNAME}/.lemper/opcache"
     run chown -hR "${POOLNAME}:${POOLNAME}" "/home/${POOLNAME}"
 
-    # Fix cgi.fix_pathinfo (for PHP older than 5.3)
+    # Fix cgi.fix_pathinfo (for PHP older than 5.3).
     #sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
 
     # Restart PHP-fpm server.
@@ -617,7 +642,45 @@ EOL
     fi
 }
 
-# Start PHP & FPM Installation.
+##
+# Install PHP Composer.
+#
+function install_php_composer() {
+    if "${AUTO_INSTALL}"; then
+        DO_INSTALL_COMPOSER="y"
+    else
+        while [[ "${DO_INSTALL_COMPOSER}" != "y" && "${DO_INSTALL_COMPOSER}" != "n" ]]; do
+            read -rp "Do you want to install PHP Composer? [y/n]: " -i n -e DO_INSTALL_COMPOSER
+        done
+    fi
+
+    if [[ ${DO_INSTALL_COMPOSER} == y* && ${INSTALL_PHPCOMPOSER} == true ]]; then
+        echo "Installing PHP Composer..."
+
+        local CURRENT_DIR && CURRENT_DIR=$(pwd)
+        run cd "${BUILD_DIR}"
+
+        PHPBIN=$(command -v php)
+        EXPECTED_SIGNATURE="$(wget -q -O - https://composer.github.io/installer.sig)"
+        run "${PHPBIN}" -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+        ACTUAL_SIGNATURE="$(${PHPBIN} -r "echo hash_file('sha384', 'composer-setup.php');")"
+
+        if [[ "$EXPECTED_SIGNATURE" == "$ACTUAL_SIGNATURE" ]]; then
+            run "${PHPBIN}" composer-setup.php --filename=composer --install-dir=/usr/local/bin --quiet
+
+            # Fix chmod permission to executable.
+            [ -f /usr/local/bin/composer ] && run chmod ugo+x /usr/local/bin/composer
+        else
+            error 'Invalid PHP Composer installer signature.'
+        fi
+
+        #run rm composer-setup.php
+        run cd "${CURRENT_DIR}"
+    fi
+}
+
+##
+# Initialize PHP & FPM Installation.
 #
 function init_php_fpm_install() {
     if "${AUTO_INSTALL}"; then
@@ -838,6 +901,9 @@ function init_php_fpm_install() {
             fi
         #fi
     fi
+
+    # Install PHP composer.
+    install_php_composer
 }
 
 echo "[PHP & FPM Packages Installation]"
