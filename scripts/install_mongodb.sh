@@ -23,7 +23,7 @@ function add_mongodb_repo() {
 
     MONGODB_VERSION=${MONGODB_VERSION:-"4.0"}
     DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-    DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
+    RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
     local DISTRIB_ARCH
 
     case ${ARCH} in
@@ -43,11 +43,11 @@ function add_mongodb_repo() {
 
     case ${DISTRIB_NAME} in
         debian)
-            [[ ${DISTRIB_REPO} == "buster" ]] && local DISTRIB_REPO="stretch"
+            [[ ${RELEASE_NAME} == "buster" ]] && local RELEASE_NAME="stretch"
 
-            if [ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list" ]; then
-                run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list"
-                run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/debian ${DISTRIB_REPO}/mongodb-org/${MONGODB_VERSION} main' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list"
+            if [ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" ]; then
+                run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
+                run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/debian ${RELEASE_NAME}/mongodb-org/${MONGODB_VERSION} main' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
                 run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -"
                 run apt-get -qq update -y
             else
@@ -55,9 +55,9 @@ function add_mongodb_repo() {
             fi
         ;;
         ubuntu)
-            if [ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list" ]; then
-                run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list"
-                run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/ubuntu ${DISTRIB_REPO}/mongodb-org/${MONGODB_VERSION} multiverse' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${DISTRIB_REPO}.list"
+            if [ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" ]; then
+                run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
+                run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/ubuntu ${RELEASE_NAME}/mongodb-org/${MONGODB_VERSION} multiverse' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
                 run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -"
                 run apt-get -qq update -y
             else
@@ -65,7 +65,7 @@ function add_mongodb_repo() {
             fi
         ;;
         *)
-            error "Unable to add MongoDB, unsupported distribution release: ${DISTRIB_NAME^} ${DISTRIB_REPO^}."
+            error "Unable to add MongoDB, unsupported distribution release: ${DISTRIB_NAME^} ${RELEASE_NAME^}."
             echo "Sorry your system is not supported yet, installing from source may fix the issue."
             exit 1
         ;;
@@ -77,7 +77,7 @@ function init_mongodb_install() {
         DO_INSTALL_MONGODB="y"
     else
         while [[ "${DO_INSTALL_MONGODB}" != "y" && "${DO_INSTALL_MONGODB}" != "n" ]]; do
-            read -rp "Do you want to Install MongoDB? [y/n]: " -i n -e DO_INSTALL_MONGODB
+            read -rp "Do you want to install MongoDB? [y/n]: " -i n -e DO_INSTALL_MONGODB
         done
     fi
 
@@ -90,6 +90,9 @@ function init_mongodb_install() {
         if hash apt-get 2>/dev/null; then
             run apt-get -qq install -y libbson-1.0 libmongoc-1.0-0 mongodb-org mongodb-org-server \
                 mongodb-org-shell mongodb-org-tools php-mongodb
+            
+            # Install PHP-MongoDB
+            #install_php_mongodb
         elif hash yum 2>/dev/null; then
             if [ "${VERSION_ID}" == "5" ]; then
                 yum -y update
@@ -99,7 +102,7 @@ function init_mongodb_install() {
             	#yum -y localinstall mongodb-org mongodb-org-server
             fi
         else
-            fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
+            fail "Unable to install MongoDB, this GNU/Linux distribution is not supported."
         fi
 
         # Enable in start-up
@@ -110,29 +113,30 @@ function init_mongodb_install() {
             warning "MongoDB server installed in dryrun mode."
         else
             echo "MongoDB installation completed."
-            echo "After installation finished, create a MongoDB administrative user. Example command lines below:";
+            echo "After installation finished, you can add a MongoDB administrative user. Example command lines below:";
             cat <<- _EOF_
 
 mongo
 > use admin
-> db.createUser({user: "admin", pwd: "<Enter a secure password>", roles:[{role: "root", db: "admin"}]})
+> db.createUser({"user": "admin", "pwd": "<Enter a secure password>", "roles":[{"role": "root", "db": "admin"}]})
 > quit()
 
 mongo -u admin -p --authenticationDatabase user-data
 > use exampledb
-> db.createCollection("exampleCollection", {capped: false})
-> var a = { name : "John Doe",  attributes: { age : 30, address : "123 Main St", phone : 8675309 }}
+> db.createCollection("exampleCollection", {"capped": false})
+> var a = {"name": "John Doe", "attributes": {"age": 30, "address": "123 Main St", "phone": 8675309}}
 > db.exampleCollection.insert(a)
 > WriteResult({ "nInserted" : 1 })
 > db.exampleCollection.find()
 > db.exampleCollection.find({"name" : "John Doe"})
+
 _EOF_
 
             # Add MongoDB default admin user.
             if [[ -n $(command -v mongo) ]]; then
                 MONGODB_ADMIN_USER=${MONGODB_ADMIN_USER:-"lemperdb"}
                 MONGODB_ADMIN_PASS=${MONGODB_ADMIN_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
-                run mongo admin --eval "db.createUser({user: \"${MONGODB_ADMIN_USER}\", pwd: \"${MONGODB_ADMIN_PASS}\", roles:[{role: \"root\", db: \"admin\"}]});"
+                run mongo admin --eval "db.createUser({'user': '${MONGODB_ADMIN_USER}', 'pwd': '${MONGODB_ADMIN_PASS}', 'roles':[{'role': 'root', 'db': 'admin'}]});" >/dev/null 2>&1
 
                 # Save config.
                 save_config -e "MONGODB_HOST=127.0.0.1\nMONGODB_PORT=27017\nMONGODB_ADMIN_USER=${MONGODB_ADMIN_USER}\nMONGODB_ADMIN_PASS=${MONGODB_ADMIN_PASS}"
@@ -146,6 +150,33 @@ _EOF_
     else
         warning "MongoDB installation skipped..."
     fi
+}
+
+# Install PHP MongoDB module.
+function install_php_mongodb() {
+    echo "Installing PHP MongoDB module..."
+
+    local CURRENT_DIR && \
+    CURRENT_DIR=$(pwd)
+    run cd "${BUILD_DIR}"
+
+    run git clone --depth=1 -q https://github.com/mongodb/mongo-php-driver.git && \
+    run cd mongo-php-driver && \
+    run git submodule update --init
+
+    if [[ -n "${PHP_VERSION}" ]]; then
+        run "/usr/bin/phpize${PHP_VERSION}" && \
+        run ./configure --with-php-config="/usr/bin/php-config${PHP_VERSION}"
+    else
+        run /usr/bin/phpize && \
+        run ./configure
+    fi
+
+    run make all && \
+    run make install && \
+    run service "php${PHP_VERSION}-fpm" restart
+
+    run cd "${CURRENT_DIR}"
 }
 
 echo "[MongoDB Server Installation]"
