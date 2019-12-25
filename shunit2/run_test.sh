@@ -4,13 +4,14 @@
 
 script_under_test=$(basename "$0")
 
-# Nginx
+# Nginx versions.
 nginx_stable_version="1.16.1"
-nginx_latest_version="1.17.6"
+nginx_latest_version="1.17.7"
 
 # Source the helper functions.
 if [ -f scripts/helper.sh ]; then
     source scripts/helper.sh
+    system_check
     init_log
     init_config
 else

@@ -35,9 +35,6 @@ function install_phalcon() {
     CURRENT_DIR=$(pwd)
     run cd "${BUILD_DIR}"
 
-    # Install prerequisite packages.
-    run apt-get -qq install -y autoconf automake gcc libpcre3-dev make re2c
-
     # Install Zephir from source.
     if "${AUTO_INSTALL}"; then
         if [[ "${PHP_PHALCON_ZEPHIR}" == y* || "${PHP_PHALCON_ZEPHIR}" == true ]]; then
@@ -53,14 +50,14 @@ function install_phalcon() {
 
     if [[ "$INSTALL_ZEPHIR" == Y* || "$INSTALL_ZEPHIR" == y* ]]; then
         # Install Zephir parser.
-        run git clone -q git://github.com/phalcon/php-zephir-parser.git
+        run git clone -q git://github.com/phalcon/php-zephir-parser.git && \
         run cd php-zephir-parser
 
         if [[ -n "${PHPv}" ]]; then
-            run "phpize${PHPv}"
+            run "/usr/bin/phpize${PHPv}" && \
             run ./configure --with-php-config="/usr/bin/php-config${PHPv}"
         else
-            run phpize
+            run /usr/bin/phpize && \
             run ./configure
         fi
 
@@ -81,12 +78,16 @@ function install_phalcon() {
         PHALCON_VERSION="master"
     fi
 
-    if wget -q -O "cphalcon-${PHALCON_VERSION}.tar.gz" \
-        "https://github.com/phalcon/cphalcon/archive/v${PHALCON_VERSION}.tar.gz"; then
-        run tar -zxf "cphalcon-${PHALCON_VERSION}.tar.gz"
-        #run rm -f "cphalcon-${PHALCON_VERSION}.tar.gz"
+    CPHALCON_DOWNLOAD_URL="https://github.com/phalcon/cphalcon/archive/v${PHALCON_VERSION}.tar.gz"
+
+    if curl -sL --head "${CPHALCON_DOWNLOAD_URL}" | grep -q "HTTP/[12].[01] [23].."; then
+        run wget -q -O "cphalcon-${PHALCON_VERSION}.tar.gz" "${CPHALCON_DOWNLOAD_URL}" && \
+        run tar -zxf "cphalcon-${PHALCON_VERSION}.tar.gz" && \
+        #run rm -f "cphalcon-${PHALCON_VERSION}.tar.gz" && \
         run cd "cphalcon-${PHALCON_VERSION}/build"
-    elif wget -q -O /dev/null "https://raw.githubusercontent.com/phalcon/cphalcon/${PHALCON_VERSION}/README.md"; then
+    elif curl -s --head "https://raw.githubusercontent.com/phalcon/cphalcon/${PHALCON_VERSION}/README.md" \
+        | grep -q "HTTP/[12].[01] [23].."; then
+
         # Clone repository.
         if [ ! -d cphalcon ]; then
             run git clone -q https://github.com/phalcon/cphalcon.git && \
@@ -218,7 +219,7 @@ function init_phalcon_install() {
                         #yum -y localinstall "${NGX_PACKAGE}"
                     fi
                 else
-                    fail "Unable to install NGiNX, this GNU/Linux distribution is not dpkg/yum enabled."
+                    fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
                 fi
             ;;
             2|"source")

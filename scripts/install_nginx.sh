@@ -32,7 +32,7 @@ function add_nginx_repo() {
     export NGX_PACKAGE
 
     DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-    DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
+    RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
 
     case "${DISTRIB_NAME}" in
         debian)
@@ -40,13 +40,7 @@ function add_nginx_repo() {
             NGX_PACKAGE="nginx-extras"
         ;;
         ubuntu)
-            case "${DISTRIB_REPO}" in
-                trusty)
-                    # NGiNX custom with ngx cache purge from rtCamp repo.
-                    # https://rtcamp.com/wordpress-nginx/tutorials/single-site/fastcgi-cache-with-purging/
-                    run add-apt-repository -y ppa:rtcamp/nginx
-                    NGX_PACKAGE="nginx-custom"
-                ;;
+            case "${RELEASE_NAME}" in
                 xenial|bionic|disco)
                     # NGiNX custom with ngx cache purge from Ondrej repo.
                     run wget -qO /etc/apt/trusted.gpg.d/nginx.gpg https://packages.sury.org/nginx/apt.gpg
@@ -62,14 +56,14 @@ function add_nginx_repo() {
                 *)
                     NGX_PACKAGE=""
 
-                    error "Unable to add NGiNX, unsupported distribution release: ${DISTRIB_NAME^} ${DISTRIB_REPO^}."
+                    error "Unable to add NGiNX, unsupported distribution release: ${DISTRIB_NAME^} ${RELEASE_NAME^}."
                     echo "Sorry your system is not supported yet, installing from source may be fix the issue."
                     exit 1
                 ;;
             esac
         ;;
         *)
-            fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
+            fail "Unable to add Nginx, this GNU/Linux distribution is not supported."
         ;;
     esac
 }
@@ -126,14 +120,14 @@ function init_nginx_install() {
                         #yum -y localinstall "${NGX_PACKAGE}"
                     fi
                 else
-                    fail "Unable to install NGiNX, this GNU/Linux distribution is not dpkg/yum enabled."
+                    fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
                 fi
             ;;
             2|"source")
                 echo "Installing NGiNX from source..."
 
                 if "${DRYRUN}"; then
-                    run "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable \
+                    run "${SCRIPTS_DIR}/build_nginx.sh" -v latest-stable \
                         -n stable --dynamic-module --extra-modules -y --dryrun
                 else
                     # Nginx version.
@@ -170,42 +164,50 @@ function init_nginx_install() {
                         if [[ -n "${NGINX_CUSTOMSSL_VERSION}" ]]; then
                             echo "Add custom SSL ${NGINX_CUSTOMSSL_VERSION^}..."
 
-                            if grep -q openssl <<< "${NGINX_CUSTOMSSL_VERSION}"; then
-                                if wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" \
-                                    "https://www.openssl.org/source/${NGINX_CUSTOMSSL_VERSION}.tar.gz"; then
-                                    run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
-                                    run rm -f "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                            if grep -iq openssl <<< "${NGINX_CUSTOMSSL_VERSION}"; then
+                                OPENSSL_DOWNLOAD_URL="https://www.openssl.org/source/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                                #OPENSSL_DOWNLOAD_URL="https://github.com/openssl/openssl/archive/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+
+                                if curl -sL --head "${OPENSSL_DOWNLOAD_URL}" | grep -q "HTTP/[12].[01] [23].."; then
+                                    run wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${OPENSSL_DOWNLOAD_URL}" && \
+                                    run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz" && \
+                                    #run rm -f "${NGINX_CUSTOMSSL_VERSION}.tar.gz" && \
                                     NGX_CONFIGURE_ARGS="--with-openssl=${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION} \
                                         --with-openssl-opt=enable-ec_nistp_64_gcc_128 --with-openssl-opt=no-nextprotoneg \
                                         --with-openssl-opt=no-weak-ssl-ciphers ${NGX_CONFIGURE_ARGS}"
                                 else
                                     warning "Unable to determine Custom SSL source page."
                                 fi
-                            elif grep -q libressl <<< "${NGINX_CUSTOMSSL_VERSION}"; then
-                                if wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" \
-                                    "https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/${NGINX_CUSTOMSSL_VERSION}.tar.gz"; then
-                                    run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
-                                    #run rm -f "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                            elif grep -iq libressl <<< "${NGINX_CUSTOMSSL_VERSION}"; then
+                                LIBRESSL_DOWNLOAD_URL="https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+
+                                if curl -sL --head "${LIBRESSL_DOWNLOAD_URL}" | grep -q "HTTP/[12].[01] [23].."; then
+                                    run wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${LIBRESSL_DOWNLOAD_URL}" && \
+                                    run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz" && \
+                                    #run rm -f "${NGINX_CUSTOMSSL_VERSION}.tar.gz" && \
                                     NGX_CONFIGURE_ARGS="--with-openssl=${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION} ${NGX_CONFIGURE_ARGS}"
                                 else
                                     warning "Unable to determine Custom SSL source page."
                                 fi
-                            elif grep -q boringssl <<< "${NGINX_CUSTOMSSL_VERSION}"; then
+                            elif grep -iq boringssl <<< "${NGINX_CUSTOMSSL_VERSION}"; then
                                 # BoringSSL requires Golang, install it first.
                                 if [[ -z $(command -v go) ]]; then
                                     case "${DISTRIB_NAME}" in
                                         debian)
-                                            if wget -q -O golang.tar.gz https://dl.google.com/go/go1.13.4.linux-amd64.tar.gz; then
-                                                run tar -C /usr/local -zxf golang.tar.gz
-                                                run bash -c "echo -e '\nexport PATH=\"\$PATH:/usr/local/go/bin\"' >> ~/.profile"
+                                            GOLANG_DOWNLOAD_URL="https://dl.google.com/go/go1.13.4.linux-amd64.tar.gz"
+
+                                            if curl -sL --head "${GOLANG_DOWNLOAD_URL}" | grep -q "HTTP/[12].[01] [23].."; then
+                                                run wget -q -O golang.tar.gz "${GOLANG_DOWNLOAD_URL}" && \
+                                                run tar -C /usr/local -zxf golang.tar.gz && \
+                                                run bash -c "echo -e '\nexport PATH=\"\$PATH:/usr/local/go/bin\"' >> ~/.profile" && \
                                                 run source ~/.profile
                                             else
                                                 warning "Unable to determine Golang source page."
                                             fi
                                         ;;
                                         ubuntu)
-                                            run add-apt-repository -y ppa:longsleep/golang-backports
-                                            run apt-get -qq update -y
+                                            run add-apt-repository -y ppa:longsleep/golang-backports && \
+                                            run apt-get -qq update -y && \
                                             run apt-get -qq install -y golang-go
                                         ;;
                                         *)
@@ -215,38 +217,40 @@ function init_nginx_install() {
                                 fi
 
                                 # Split version.
+                                SAVEIFS=${IFS} # Save current IFS
                                 IFS='- ' read -r -a BSPARTS <<< "${NGINX_CUSTOMSSL_VERSION}"
+                                IFS=${SAVEIFS} # Restore IFS
                                 BORINGSSL_VERSION=${BSPARTS[1]}
                                 [[ -z ${BORINGSSL_VERSION} || ${BORINGSSL_VERSION} = "latest" ]] && BORINGSSL_VERSION="master"
+                                BORINGSSL_DOWNLOAD_URL="https://boringssl.googlesource.com/boringssl/+archive/refs/heads/${BORINGSSL_VERSION}.tar.gz"
 
-                                if wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" \
-                                    "https://boringssl.googlesource.com/boringssl/+archive/refs/heads/${BORINGSSL_VERSION}.tar.gz"; then
-                                    run mkdir "${NGINX_CUSTOMSSL_VERSION}"
-                                    run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz" -C "${NGINX_CUSTOMSSL_VERSION}"
-                                    run rm -f "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
-
+                                if curl -sL --head "${BORINGSSL_DOWNLOAD_URL}" | grep -q "HTTP/[12].[01] [23].."; then
+                                    run wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${BORINGSSL_DOWNLOAD_URL}" && \
+                                    run mkdir "${NGINX_CUSTOMSSL_VERSION}" && \
+                                    run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz" -C "${NGINX_CUSTOMSSL_VERSION}" && \
+                                    run rm -f "${NGINX_CUSTOMSSL_VERSION}.tar.gz" && \
                                     run cd "${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}"
 
                                     # Make an .openssl directory for nginx and then symlink BoringSSL's include directory tree.
-                                    run mkdir -p build .openssl/lib .openssl/include
-                                    run ln -sf "${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}/include/openssl" .openssl/include/openssl
+                                    run mkdir -p build .openssl/lib .openssl/include && \
+                                    run ln -sf "${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}/include/openssl" .openssl/include/openssl && \
 
                                     # Build BoringSSL.
-                                    run cmake -B"${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}/build" -H"${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}"
-                                    run make -C"${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}/build" -j"$(getconf _NPROCESSORS_ONLN)"
+                                    run cmake -B"${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}/build" -H"${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}" && \
+                                    run make -C"${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}/build" -j"$(getconf _NPROCESSORS_ONLN)" && \
 
                                     # Copy the BoringSSL crypto libraries to .openssl/lib so nginx can find them.
-                                    run cp build/crypto/libcrypto.a .openssl/lib
-                                    run cp build/ssl/libssl.a .openssl/lib
+                                    run cp build/crypto/libcrypto.a .openssl/lib && \
+                                    run cp build/ssl/libssl.a .openssl/lib && \
 
                                     # Fix "Error 127" during build.
-                                    run touch "${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/include/openssl/ssl.h"
+                                    run touch "${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/include/openssl/ssl.h" && \
 
                                     # Back to extra module dir.
-                                    run cd "${EXTRA_MODULE_DIR}"
+                                    run cd "${EXTRA_MODULE_DIR}" && \
 
                                     #NGX_CONFIGURE_ARGS="--with-openssl=${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION} ${NGX_CONFIGURE_ARGS}"
-                                    NGX_CONFIGURE_ARGS="--with-cc-opt=-I${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/include ${NGX_CONFIGURE_ARGS}"
+                                    NGX_CONFIGURE_ARGS="--with-cc-opt=-I${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/include ${NGX_CONFIGURE_ARGS}" && \
                                     NGX_CONFIGURE_ARGS="--with-ld-opt=-L${EXTRA_MODULE_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/lib ${NGX_CONFIGURE_ARGS}"
                                 else
                                     warning "Unable to determine Custom SSL source page."
@@ -325,7 +329,7 @@ function init_nginx_install() {
 
                         # HTTP Geoip module.
                         if "$NGX_HTTP_GEOIP"; then
-                            echo "Add Nginx GeoIP module..." 
+                            echo "Add Nginx GeoIP module..."
 
                             if "$NGINX_DYNAMIC_MODULE"; then
                                 NGX_CONFIGURE_ARGS="--with-http_geoip_module=dynamic ${NGX_CONFIGURE_ARGS}"
@@ -390,7 +394,7 @@ function init_nginx_install() {
 
                         # HTTP Image Filter module.
                         if "$NGX_HTTP_IMAGE_FILTER"; then
-                            echo "Build with Nginx Image Filter module..." 
+                            echo "Build with Nginx Image Filter module..."
 
                             if "$NGINX_DYNAMIC_MODULE"; then
                                 NGX_CONFIGURE_ARGS="--with-http_image_filter_module=dynamic ${NGX_CONFIGURE_ARGS}"
@@ -426,7 +430,7 @@ function init_nginx_install() {
                         # Nginx mod HTTP Passenger.
                         if "$NGX_HTTP_PASSENGER"; then
                             echo "Add Passenger module..."
-                            
+
                             if [[ -n $(command -v passenger-config) ]]; then
                                 if "$NGINX_DYNAMIC_MODULE"; then
                                     NGX_CONFIGURE_ARGS="--add-dynamic-module=$(passenger-config --nginx-addon-dir) ${NGX_CONFIGURE_ARGS}"
@@ -477,7 +481,7 @@ function init_nginx_install() {
 
                         # HTTP XSLT module.
                         if "$NGX_HTTP_XSLT_FILTER"; then
-                            echo "Add Nginx XSLT module..." 
+                            echo "Add Nginx XSLT module..."
 
                             if "$NGINX_DYNAMIC_MODULE"; then
                                 NGX_CONFIGURE_ARGS="--with-http_xslt_module=dynamic ${NGX_CONFIGURE_ARGS}"
@@ -488,7 +492,7 @@ function init_nginx_install() {
 
                         # Mail module.
                         if "$NGX_MAIL"; then
-                            echo "Add Nginx mail module..." 
+                            echo "Add Nginx mail module..."
 
                             if "$NGINX_DYNAMIC_MODULE"; then
                                 NGX_CONFIGURE_ARGS="--with-mail=dynamic --with-mail_ssl_module ${NGX_CONFIGURE_ARGS}"
@@ -523,7 +527,7 @@ function init_nginx_install() {
 
                         # Stream module.
                         if "$NGX_STREAM"; then
-                            echo "Add Nginx stream module..." 
+                            echo "Add Nginx stream module..."
 
                             if "$NGINX_DYNAMIC_MODULE"; then
                                 NGX_CONFIGURE_ARGS="--with-stream=dynamic --with-stream_ssl_module --with-stream_ssl_preread_module --with-stream_realip_module --with-stream_geoip_module=dynamic ${NGX_CONFIGURE_ARGS}"
@@ -569,11 +573,11 @@ function init_nginx_install() {
                     fi
 
                     # Execute nginx from source installer.
-                    if [ -f "${SCRIPTS_DIR}/install_nginx_from_source.sh" ]; then
-                        run "${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n "${NGX_VERSION}" --dynamic-module \
+                    if [ -f "${SCRIPTS_DIR}/build_nginx.sh" ]; then
+                        run "${SCRIPTS_DIR}/build_nginx.sh" -v latest-stable -n "${NGX_VERSION}" --dynamic-module \
                             --extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
-                    elif [ -f ".${SCRIPTS_DIR}/install_nginx_from_source.sh" ]; then
-                        run ".${SCRIPTS_DIR}/install_nginx_from_source.sh" -v latest-stable -n "${NGX_VERSION}" --dynamic-module \
+                    elif [ -f ".${SCRIPTS_DIR}/build_nginx.sh" ]; then
+                        run ".${SCRIPTS_DIR}/build_nginx.sh" -v latest-stable -n "${NGX_VERSION}" --dynamic-module \
                             --extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
                     else
                         error "Nginx from source installer not found."
@@ -803,7 +807,7 @@ function init_nginx_install() {
                 # Enable in start up.
                 run systemctl enable nginx.service
 
-                # Unmask (?).
+                # Masked (?).
                 run systemctl unmask nginx.service
             ;;
             *)
@@ -856,11 +860,14 @@ function init_nginx_install() {
         run cp -fr share/nginx/html/error-pages /usr/share/nginx/html/
         run cp -f share/nginx/html/index.html /usr/share/nginx/html/
 
-        # Custom PHP tmp dir.
-        run mkdir -p /usr/share/nginx/html/.tmp
+        # Custom tmp dir.
+        run mkdir -p /usr/share/nginx/html/.lemper/tmp
 
         # Custom PHP opcache dir.
-        run mkdir -p /usr/share/nginx/html/.opcache
+        run mkdir -p /usr/share/nginx/html/.lemper/php/opcache
+
+        # Custom PHP sessions dir.
+        run mkdir -p /usr/share/nginx/html/.lemper/php/sessions
 
         if [ -d /usr/share/nginx/html ]; then
             run chown -hR www-data:www-data /usr/share/nginx/html
@@ -876,7 +883,7 @@ function init_nginx_install() {
 
         # Fix ownership.
         run chown -hR www-data:www-data /var/cache/nginx
-        
+
         # Adjust nginx to meet hardware resources.
         echo "Adjusting NGiNX configuration..."
 
@@ -904,13 +911,13 @@ function init_nginx_install() {
 
         # Enable PageSpeed config.
         if [[ "${NGX_PAGESPEED}" && \
-            -f /etc/nginx/modules-enabled/60-mod-pagespeed.conf ]]; then                    
+            -f /etc/nginx/modules-enabled/60-mod-pagespeed.conf ]]; then
             run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" \
                 /etc/nginx/nginx.conf
         fi
 
         # Generate Diffie-Hellman parameters.
-        DH_LENGTH=${HASH_LENGTH:-2048}
+        local DH_LENGTH=${HASH_LENGTH:-2048}
         if [ ! -f "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" ]; then
             echo "Enhance HTTPS/SSL security with DH key."
 
@@ -920,13 +927,14 @@ function init_nginx_install() {
 
         # Final test.
         if "${DRYRUN}"; then
-            IP_SERVER="127.0.0.1"
             warning "NGiNX HTTP server installed in dryrun mode."
         else
-            IP_SERVER=${IP_SERVER:-$(get_ip_addr)}
-
-            # Make default server accessible from IP address.
-            run sed -i "s/localhost.localdomain/${IP_SERVER}/g" /etc/nginx/sites-available/default
+            # Make default server accessible from hostname or IP address.
+            if [[ $(dig "${HOSTNAME}" +short) = "${SERVER_IP}" ]]; then
+                run sed -i "s/localhost.localdomain/${HOSTNAME}/g" /etc/nginx/sites-available/default
+            else
+                run sed -i "s/localhost.localdomain/${SERVER_IP}/g" /etc/nginx/sites-available/default
+            fi
 
             # Restart NGiNX server
             echo "Starting NGiNX HTTP server..."
@@ -935,19 +943,21 @@ function init_nginx_install() {
                     run service nginx reload -s
                     status "NGiNX HTTP server restarted successfully."
                 else
-                    error "Nginx configuration test failed."
+                    error "Nginx configuration test failed. Please correct the error below:"
+                    run nginx -t
                 fi
             elif [[ -n $(command -v nginx) ]]; then
                 if nginx -t 2>/dev/null > /dev/null; then
                     run service nginx start
-                    
+
                     if [[ $(pgrep -c nginx) -gt 0 ]]; then
                         status "NGiNX HTTP server started successfully."
                     else
                         warning "Something wrong with NGiNX installation."
                     fi
                 else
-                    error "Nginx configuration test failed."
+                    error "Nginx configuration test failed. Please correct the error below:"
+                    run nginx -t
                 fi
             fi
         fi

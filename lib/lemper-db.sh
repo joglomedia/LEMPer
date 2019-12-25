@@ -1,20 +1,39 @@
 #!/bin/bash
 
+# +-------------------------------------------------------------------------+
+# | Lemper Create - Simple LEMP Database Manager                            |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/lemper)               |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@eslabs.id so we can send you a copy immediately.             |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
+# +-------------------------------------------------------------------------+
+
 set -e
 
-## Version control ##
-
+# Version control.
 APP_NAME=$(basename "$0")
 APP_VERSION="1.0.0"
 CMD_PARENT="lemper-cli"
 CMD_NAME="db"
 
+# Test mode.
+DRYRUN=false
 
-## Decorator ##
-
+# Color decorator.
 RED=91
 GREEN=92
 YELLOW=93
+
+##
+# Helper Functions
+#
 
 function begin_color() {
     color="${1}"
@@ -58,11 +77,6 @@ function warning() {
     echo_color "$YELLOW" "$@"
 }
 
-# If we set -e or -u then users of this script will see it silently exit on
-# failure.  Instead we need to check the exit status of each command manually.
-# The run function handles exit-status checking for system-changing commands.
-# Additionally, this allows us to easily have a dryrun mode where we don't
-# actually make any changes.
 function run() {
     if "${DRYRUN}"; then
         echo_color "$YELLOW" -n "would run "
@@ -77,17 +91,20 @@ function run() {
 }
 
 # May need to run this as sudo!
-# I have it in /usr/local/bin and run command 'ngxvhost' from anywhere, using sudo.
 if [ "$(id -u)" -ne 0 ]; then
     error "This command can only be used by root."
-    exit 1  #error
+    exit 1
 fi
 
 
-## Helper Functions.
+##
+# Main Functions
+#
 
+##
 # Trim whitespace.
 # Ref: https://stackoverflow.com/a/3352015/12077262
+#
 function str_trim() {
     local str="$*"
 
@@ -100,20 +117,22 @@ function str_trim() {
     echo -n "${str}"
 }
 
+##
 # Convert string to uppercase.
 # Ref: https://unix.stackexchange.com/a/51987
+#
 function str_to_upper() {
     local str="$*"
 
     printf '%s\n' "${str}" | awk '{ print toupper($0) }'
 }
 
-
-## Main Functions.
-
+##
+# Prints help.
+#
 function cmd_help() {
     cat <<- _EOF_
-${APP_NAME^} ${APP_VERSION}
+${CMD_PARENT} ${CMD_NAME} ${APP_VERSION}
 Command line database management tool for LEMPer stack.
 
 Usage: ${CMD_PARENT} ${CMD_NAME} [--version] [--help]
@@ -126,16 +145,59 @@ These are common ${CMD_PARENT} ${CMD_NAME} subcommands used in various situation
   account       Creates a new user account.
   create        Creates a new database.
   databases     Lists the databases.
-  drop          Deletes the existing database.
-  export        Exports the database to a file or to STDOUT.
+  drop          Deletes the database.
+  export        Exports a database to a file or to STDOUT.
   import        Imports a database from a file or from STDIN.
   optimize      Optimizes the database.
   query         Executes a SQL query against the database.
   repair        Repairs the database.
   reset         Removes all tables from the database.
   search        Finds a string in the database.
+  show          An aliases of databases subcommand.
   size          Displays the database name and size.
-  tables        Lists the database tables.
+  tables        Lists all tables from the database.
+  user          An aliases of account subcommand.
+  users         Lists all existing users.
+
+
+GLOBAL PARAMETERS
+
+  --dbhost=<hostname>
+      MySQL database host / server address, default is localhost.
+
+  --dbport=<port_number>
+      MySQL database host / server port, default is 3306.
+
+  --dbuser=<username>
+      MySQL database account username.
+
+  --dbpass=<password>
+      MySQL database account password.
+
+  --dbname=<database_name>
+      Selected database that will be used for operations.
+
+  --dbprefix=<prefix>
+      Database name prefix, such as prefix_.
+
+  --dbcollation=<collation>
+      A set of rules used to compare characters in a particular character set, default is utf8_unicode_ci.
+
+  --dbprivileges=<privileges>
+      Granted to a MySQL account determine which operations the account can perform.
+
+  --dbfile=<path>
+      Path to the SQL database file.
+
+  --dbquery=<SQL_query>
+      A set of SQL query.
+
+  --extra-args=<arguments>
+      Passes extra arguments to the command or subcommand operations.
+
+
+Example:
+  ${CMD_PARENT} ${CMD_NAME} account create --dbuser=user --dbpass=secret
 
 For help with each command run:
 ${CMD_PARENT} ${CMD_NAME} <command> -h|--help
@@ -198,6 +260,15 @@ function cmd_search() {
     db_ops "--action=search" "$@"
 }
 
+function cmd_user() {
+    cmd_account "$@"
+}
+
+# Aliases of cmd database.
+function cmd_show() {
+    cmd_databases "$@"
+}
+
 function cmd_size() {
     echo "Displays the database name and size."
     db_ops "--action=size" "$@"
@@ -213,6 +284,7 @@ function cmd_users() {
     db_ops "--action=users" "$@"
 }
 
+##
 # Initialize account subcommand.
 # 
 function sub_cmd_account() {
@@ -248,6 +320,30 @@ _EOF_
         exit 0
     }
 
+    # Grant access privileges.
+    function cmd_account_access() {
+        if [ -z "${DBUSER}" ]; then
+            fail "Please specify the account's username using --dbuser parameter."
+        fi
+
+        if [ -z "${DBNAME}" ]; then
+            fail "Please specify the database name using --dbname parameter."
+        fi
+
+        if [ -z "${DBPRIVILEGES}" ]; then
+            DBPRIVILEGES="ALL PRIVILEGES"
+        fi
+
+        #if [ -d "/var/lib/mysql/${DBNAME}" ]; then
+        if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+            echo "Grants database '${DBNAME}' privileges to '${DBUSER}'@'${DBHOST}'"
+            run mysql -u root -p"${MYSQL_ROOT_PASS}" -e "GRANT ${DBPRIVILEGES} ON ${DBNAME}.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
+        else
+            error "Specified database '${DBNAME}' does not exist."
+            exit 1
+        fi
+    }
+
     # Creates a new account.
     function cmd_account_create() {
         if [ "${DBUSER}" != "root" ]; then
@@ -257,17 +353,20 @@ _EOF_
             # Create database account.
             if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
                 error "MySQL account ${DBUSER} is already exist. Please use another one!"
+                exit 1
             else
                 echo "Creating new MySQL account '${DBUSER}'@'${DBHOST}' using password ${DBPASS}..."
+
                 run mysql -u root -p"${MYSQL_ROOT_PASS}" -e "CREATE USER '${DBUSER}'@'${DBHOST}' IDENTIFIED BY '${DBPASS}';"
 
                 if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
-                    status -n "Success: "; echo "A new database account has been created."
+                    status -n "Success: "; echo "A new database's account has been created."
                     echo -e "Below the account details:\nUsername: ${DBUSER}\nPassword: ${DBPASS}\nHost: ${DBHOST}"
                 fi
             fi
         else
             error "Root user is already exist. Please use another one!"
+            exit 1
         fi
     }
 
@@ -287,23 +386,28 @@ _EOF_
             fail "Please specify the account's username using --dbuser parameter."
         fi
 
-        if [[ "${DBUSER}" = "root" || "${DBUSER}" = lemper* ]]; then
-            error "you're not allowed to delete this user."
+        if [[ "${DBUSER}" = "root" || "${DBUSER}" = "lemper" ]]; then
+            error "You're not allowed to delete this user."
+            exit 1
         else
-            if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "DROP USER '${DBUSER}'@'${DBHOST}';"; then
-                status -n "Success: "; echo "database account '${DBUSER}'@'${DBHOST}' has been deleted."
+            local SQL_QUERY="DROP USER '${DBUSER}'@'${DBHOST}';"
+
+            if ! ${DRYRUN}; then
+                if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "${SQL_QUERY}"; then
+                    status -n "Success: "; echo "The database's account '${DBUSER}'@'${DBHOST}' has been deleted."
+                else
+                    error "Unable to delete database account '${DBUSER}'@'${DBHOST}'."
+                    exit 1
+                fi
             else
-                error "unable to delete database account '${DBUSER}'@'${DBHOST}'."
+                warning -n "would run "; echo "SQL query: \"${SQL_QUERY}\""
             fi
         fi
     }
 
     # Update password.
     function cmd_account_passwd() {
-        DBHOST=${DBHOST:-"localhost"}
-        DBUSER=${DBUSER:-""}
         DBPASS2=${DBPASS2:-"$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"}
-        DBROOT_PASS=${DBROOTPASS:-"${MYSQL_ROOT_PASS}"}
 
         if [ -z "${DBUSER}" ]; then
             fail "Please specify the account's username using --dbuser parameter."
@@ -316,11 +420,16 @@ _EOF_
         fi
 
         local SQL_QUERY="UPDATE mysql.user SET Password=PASSWORD('${DBPASS2}') WHERE USER='${DBUSER}' AND Host='${DBHOST}';"
-        if mysql -u root -p"${DBROOT_PASS}" -e "${SQL_QUERY}"; then
-            status -n "Success: "
-            echo "Password for account '${DBUSER}'@'${DBHOST}' has been updated to '${DBPASS2}'."
+
+        if ! ${DRYRUN}; then
+            if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "${SQL_QUERY}"; then
+                status -n "Success: "
+                echo "Password for account '${DBUSER}'@'${DBHOST}' has been updated to '${DBPASS2}'."
+            else
+                error "Unable to update password for '${DBUSER}'@'${DBHOST}'."
+            fi
         else
-            error "Unable to update password for '${DBUSER}'@'${DBHOST}'."
+            warning -n "would run "; echo "SQL query: \"${SQL_QUERY}\""
         fi
     }
 
@@ -340,7 +449,7 @@ _EOF_
             exit 1
         fi
 
-        if [[ "${DBUSER}" = "root" || "${DBUSER}" = lemper* ]]; then
+        if [[ "${DBUSER}" = "root" || "${DBUSER}" = "lemper" ]]; then
             error "You are not allowed to rename this account."
         else
             if mysql -u root -p"${DBROOT_PASS}" -e "RENAME USER '${DBUSER}'@'${DBHOST}' TO '${DBUSER2}'@'${DBHOST2}';"; then
@@ -348,6 +457,7 @@ _EOF_
                 echo "Database account '${DBUSER}'@'${DBHOST}' has been renamed to '${DBUSER2}'@'${DBHOST2}'."
             else
                 error "Unable to rename database account '${DBUSER}'@'${DBHOST}'."
+                exit 1
             fi
         fi
     }
@@ -382,11 +492,12 @@ _EOF_
     init_cmd_account "$@"
 }
 
+##
 # Main database operations.
 #
 function db_ops() {
-    OPTS=$(getopt -o a:H:u:p:n:P:C:g:f:q:x:Dcdeirhv \
-      -l action:,dbhost:,dbuser:,dbpass:,dbname:,dbprefix:,dbcollation:,dbprivileges:,dbfile:,dbquery:,extra-args: \
+    OPTS=$(getopt -o a:H:P:u:p:n:b:C:g:f:q:x:Drhv \
+      -l action:,dbhost:,dbport:,dbuser:,dbpass:,dbname:,dbprefix:,dbcollation:,dbprivileges:,dbfile:,dbquery:,extra-args: \
       -l dry-run,root,help,version \
       -n "${CMD_PARENT} ${CMD_NAME}" -- "$@")
 
@@ -405,26 +516,7 @@ function db_ops() {
                 MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
-            -H | --dbhost) shift
-                DBHOST=${1}
-                shift
-            ;;
-            -u | --dbuser) shift
-                DBUSER="${1}"
-                #MAIN_ARGS=$((MAIN_ARGS + 1))
-                shift
-            ;;
-            -p | --dbpass) shift
-                DBPASS="${1}"
-                #MAIN_ARGS=$((MAIN_ARGS + 1))
-                shift
-            ;;
-            -n | --dbname) shift
-                DBNAME="${1}"
-                #MAIN_ARGS=$((MAIN_ARGS + 1))
-                shift
-            ;;
-            -P | --dbprefix) shift
+            -b | --dbprefix) shift
                 DBPREFIX="${1}"
                 shift
             ;;
@@ -432,35 +524,57 @@ function db_ops() {
                 DBCOLLATION="${1}"
                 shift
             ;;
+            -f | --dbfile) shift
+                DBFILE="${1}"
+                shift
+            ;;
             -g | --dbprivileges) shift
                 DBPRIVILEGES="${1}"
                 shift
             ;;
-            -f | --dbfile) shift
-                DBFILE="${1}"
+            -H | --dbhost) shift
+                DBHOST=${1}
+                shift
+            ;;
+            -n | --dbname) shift
+                DBNAME="${1}"
+                shift
+            ;;
+            -p | --dbpass) shift
+                DBPASS="${1}"
+                shift
+            ;;
+            -P | --dbport) shift
+                DBPORT=${1}
                 shift
             ;;
             -q | --dbquery) shift
                 DBQUERY="${1}"
                 shift
             ;;
-            -D | --dry-run) shift
-                DRYRUN=true
-            ;;
-            -r | --root) shift
-                USE_ROOT=true
-            ;;
-            -h | --help) shift
-                # bypass
-                BYPASSED_ARGS="${BYPASSED_ARGS} --help"
-            ;;
-            -v | --version) shift
-                # bypass
-                BYPASSED_ARGS="${BYPASSED_ARGS} --version"
+            -u | --dbuser) shift
+                DBUSER="${1}"
+                shift
             ;;
             -x | --extra-args) shift
                 EXTRA_ARGS="${1}"
                 shift
+            ;;
+
+            -D | --dry-run) shift
+                DRYRUN=true
+            ;;
+            -r | --root) shift
+                USEROOT=true
+            ;;
+
+            -h | --help) shift
+                # Bypass args.
+                BYPASSED_ARGS="${BYPASSED_ARGS} --help"
+            ;;
+            -v | --version) shift
+                # Bypass args.
+                BYPASSED_ARGS="${BYPASSED_ARGS} --version"
             ;;
             --) shift
                 break
@@ -475,26 +589,31 @@ function db_ops() {
     if [ ${MAIN_ARGS} -ge 1 ]; then
         # Set default value.
         DBHOST=${DBHOST:-"localhost"}
+        DBPORT=${DBPORT:-"3306"}
         DBUSER=${DBUSER:-""}
         DBPASS=${DBPASS:-""}
         DBNAME=${DBNAME:-""}
         DBPREFIX=${DBPREFIX:-""}
-        DBCOLLATION=${DBCOLLATION:-""}
+        DBCOLLATION=${DBCOLLATION:-"utf8_unicode_ci"}
         DBPRIVILEGES=${DBPRIVILEGES:-""}
         DBFILE=${DBFILE:-""}
         DBQUERY=${DBQUERY:-""}
         DRYRUN=${DRYRUN:-false}
-        USE_ROOT=${USE_ROOT:-false}
+        USEROOT=${USEROOT:-false}
 
         # Parse and export extra arguments.
         EXTRA_ARGS=${EXTRA_ARGS:-""}
         if [ -n "${EXTRA_ARGS}" ]; then
+            SAVEIFS=${IFS}  # Save current IFS
             IFS=', ' read -r -a FIELDS <<< "${EXTRA_ARGS}"
+            IFS=${SAVEIFS}    # Restore IFS
             for FIELD in "${FIELDS[@]}"; do
                 #export "${FIELD}"
-                # Convert argument name to uppercase.
+                SAVEIFS=${IFS}  # Save current IFS
                 IFS='= ' read -r -a ARG_PARTS <<< "${FIELD}"
-                ARG=$(str_to_upper "${ARG_PARTS[0]}")
+                IFS=${SAVEIFS}    # Restore IFS
+                #ARG=$(str_to_upper "${ARG_PARTS[0]}")
+                ARG=${ARG_PARTS[0]}
                 VAL=${ARG_PARTS[1]}
                 export "${ARG^^}=${VAL}"
             done
@@ -523,107 +642,133 @@ function db_ops() {
                     echo "New auto-generated MySQL database name '${DBNAME}'"
                 done
 
-                local SQL_QUERY && \
-                SQL_QUERY="CREATE DATABASE ${DBNAME}; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
+                local SQL_QUERY="CREATE DATABASE ${DBNAME}; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
                 run mysql -u root -p"${DBPASS}" -e "${SQL_QUERY}"
 
                 if mysql -u root -p"${DBPASS}" -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -qwE "${DBNAME}"; then
-                    status -n "Success: "; echo "A ne database '${DBNAME}' created."
+                    status -n "Success: "; echo "A new database '${DBNAME}' has been created."
                 else
-                    error "failed creating database '${DBNAME}'."
+                    error "Failed creating database '${DBNAME}'."
+                    exit 1
                 fi
             ;;
 
             "databases")
                 DBUSER=${DBUSER:-"root"}
-                DBPASS=${DBPASS:-""}
-                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
+                local DATABASES
 
-                local DATABASES && \
-                DATABASES=$(mysql -u "${DBUSER}" -p"${DBPASS}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
+                #[[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
+                if [[ -z "${DBPASS}" || ${USEROOT} = true ]]; then
+                    [[ -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
+                    DATABASES=$(mysql -u root -p"${DBPASS}" -h "${DBHOST}" -P "${DBPORT}" -e "SELECT Db,Host FROM mysql.db WHERE User='${DBUSER}' AND Grant_priv='Y';")
+                else
+                    DATABASES=$(mysql -u "${DBUSER}" -p"${DBPASS}" -h "${DBHOST}" -P "${DBPORT}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
+                fi
 
-                echo "List of databases granted to user ${DBUSER}"
-                echo "----------------------------"
+                #local DATABASES && \
+                #DATABASES=$(mysql -u "${DBUSER}" -p"${DBPASS}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
 
                 if [[ -n "${DATABASES}" ]]; then
-                    printf '%s\n' "${DATABASES}"
+                    DATABASES=$(grep -vE "Host" <<< "${DATABASES}")
+                    #printf '%s\n' "${DATABASES}"
+                    SAVEIFS=${IFS}  # Save current IFS
+                    IFS=$'\n'
+                    # shellcheck disable=SC2206
+                    DBS=(${DATABASES})
+                    IFS=${SAVEIFS}    # Restore IFS
+
+                    echo "There are ${#DBS[@]} databases granted to '${DBUSER}'"
+                    echo "+-------------------------------+"
+                    echo "|  'database'@'host'"
+                    echo "+-------------------------------+"
+                    #for DB in "${DBS[@]}"; do
+                    #    echo "|  ${DB}"
+                    #done
+                    for ((i=0; i<${#DBS[@]}; i++)); do
+                        # shellcheck disable=SC2206
+                        ROW=(${DBS[${i}]})
+                        echo "| '${ROW[0]}'@'${ROW[1]}'"
+                    done
+
+                    echo "+-------------------------------+"
                 else
                     echo "No database found."
                 fi
-
-                echo "----------------------------"
             ;;
 
             "drop")
                 if [[ -z "${DBNAME}" ]]; then
-                    fail "please specify the name of database using --dbname parameter."
+                    fail "Please specify the name of database using --dbname parameter."
                 fi
 
                 DBUSER=${DBUSER:-"root"}
-                DBPASS=${DBPASS:-""}
                 [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
 
-                if [ -d "/var/lib/mysql/${DBNAME}" ]; then
+                #if [ -d "/var/lib/mysql/${DBNAME}" ]; then
+                if mysql -u root -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
                     echo "Deleting database ${DBNAME}..."
+
                     run mysql -u "${DBUSER}" -p"${DBPASS}" -e "DROP DATABASE ${DBNAME};"
 
                     if ! mysql -u root -p"${DBPASS}" -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -qwE "${DBNAME}"; then
                         status -n "Success: "; echo "Database '${DBNAME}' has been dropped."
                     else
-                        error "failed deleting database '${DBNAME}'."
+                        error "Failed deleting database '${DBNAME}'."
+                        exit 1
                     fi
                 else
-                    error "database ${DBNAME} not found."
+                    error "Specified database '${DBNAME}' does not exist."
+                    exit 1
                 fi
             ;;
 
             "export")
                 if [[ -z "${DBNAME}" ]]; then
-                    fail "please specify the name of database using --dbname parameter."
+                    fail "Please specify the name of database using --dbname parameter."
                 fi
 
                 DBUSER=${DBUSER:-"root"}
-                DBPASS=${DBPASS:-""}
                 [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
 
                 DBFILE=${DBFILE:-"${DBNAME}_$(date '+%d-%m-%Y_%T').sql"}
 
                 # Export database tables.
-                echo "Exporting database ${DBNAME} tables..."
+                echo "Exporting database ${DBNAME}'s tables..."
 
                 if [[ -n $(command -v mysqldump) ]]; then
                     if mysql -u "${DBUSER}" -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
                         run mysqldump -u "${DBUSER}" -p"${DBPASS}" --databases "${DBNAME}" > "${DBFILE}"
                         [ -f "${DBFILE}" ] && status -n "Success: "; echo "database ${DBNAME} exported to ${DBFILE}."
                     else
-                        error "specified database '${DBNAME}' is not exist."
+                        error "Specified database '${DBNAME}' does not exist."
+                        exit 1
                     fi
                 else
-                    fail "mysqldump is required to export database, but not available on your stack. Please install it first!"
+                    fail "Mysqldump is required to export database, but not available on your stack. Please install it first!"
                 fi
             ;;
 
             "import")
                 if [[ -z "${DBNAME}" ]]; then
-                    fail "please specify the name of database using --dbname parameter."
+                    fail "Please specify the name of database using --dbname parameter."
                 fi
 
                 DBUSER=${DBUSER:-"root"}
-                DBPASS=${DBPASS:-""}
                 [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
 
                 # Import database tables.
-                echo "Importing database ${DBNAME} tables..."
-
                 if [[ -n "${DBFILE}" && -e "${DBFILE}" ]]; then
+                    echo "Importing '${DBNAME}' database's tables..."
+
                     if mysql -u "${DBUSER}" -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
                         run mysql -u "${DBUSER}" -p"${DBPASS}" "${DBNAME}" < "${DBFILE}"
-                        echo "Database file ${DBFILE} imported to ${DBNAME}."
+                        echo "Database file '${DBFILE}' imported to '${DBNAME}'."
                     else
-                        error "specified database '${DBNAME}' is not exist."
+                        error "Specified database '${DBNAME}' does not exist."
+                        exit 1
                     fi
                 else
-                    error "please specifiy the database file (typically .sql) to import using --dbfile parameter."
+                    fail "Please specifiy the database file (typically .sql) to import using --dbfile parameter."
                 fi
             ;;
 
@@ -636,7 +781,7 @@ function db_ops() {
                 DBPASS=${DBPASS:-""}
                 [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
                 
-                echo "List all users..."
+                echo "List all existing database users..."
 
                 run mysql -u "${DBUSER}" -p"${DBPASS}" -e "SELECT user,host FROM mysql.user;"
             ;;
@@ -651,7 +796,8 @@ function db_ops() {
     fi
 }
 
-## Init main App
+##
+# Main App
 #
 function init_db_app() {
     local SUBCMD="${1}"

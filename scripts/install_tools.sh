@@ -17,6 +17,9 @@ fi
 # Make sure only root can run this installer script.
 requires_root
 
+##
+# Webadmin install.
+#
 function init_webadmin_install() {
     # Install Lemper CLI tool.
     echo "Installing Lemper CLI tool..."
@@ -88,8 +91,7 @@ function init_webadmin_install() {
     run wget -q https://raw.github.com/rlerdorf/opcache-status/master/opcache.php \
         -O /usr/share/nginx/html/lcp/opcache.php
 
-    # Install Memcached Web Admin.
-    #http://blog.elijaa.org/index.php?pages/phpMemcachedAdmin-Installation-Guide
+    # Install phpMemcachedAdmin Web Admin.
     if [ ! -d /usr/share/nginx/html/lcp/memcadmin/ ]; then
         run git clone -q --depth=1 --branch=master \
             https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/lcp/memcadmin/
@@ -147,6 +149,32 @@ return [
     ],
 ];
 EOL
+    fi
+
+    # Install phpRedisAdmin Web Admin.
+    if "${INSTALL_REDIS}"; then
+        #echo "Installing PHP Redis Admin web panel..."
+
+        COMPOSERBIN=$(command -v composer)
+
+        local CUR_DIR && \
+        CUR_DIR=$(pwd)
+        run cd /usr/share/nginx/html/lcp
+
+        if [ ! -f redisadmin/includes/config.inc.php ]; then
+            run "${COMPOSERBIN}" -q create-project erik-dubbelboer/php-redis-admin redisadmin && \
+            run cd redisadmin
+            run "${COMPOSERBIN}" -q update
+            run cp includes/config.sample.inc.php includes/config.inc.php
+
+            if "${REDIS_REQUIREPASS}"; then
+                run sed -i "s|//'auth'\ =>\ 'redispasswordhere'|'auth'\ =>\ '${REDIS_PASSWORD}'|g" includes/config.inc.php
+            fi
+        else 
+            run "${COMPOSERBIN}" -q update
+        fi
+
+        run cd "${CUR_DIR}"        
     fi
 
     # Assign ownership properly.

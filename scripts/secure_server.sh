@@ -17,7 +17,9 @@ fi
 # Make sure only root can run this installer script.
 requires_root
 
+##
 # Securing SSH server.
+#
 function securing_ssh() {
     LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
     SSH_PASSWORDLESS=${SSH_PASSWORDLESS:-false}
@@ -123,7 +125,7 @@ EOL
         fi
 
         # Save config.
-        save_config -e "HOSTNAME=$(hostname)\nIP_SERVER=${IP_SERVER}\nSSH_PORT=${SSH_PORT}"
+        save_config -e "HOSTNAME=${HOSTNAME}\nSERVER_IP=${SERVER_IP}\nSSH_PORT=${SSH_PORT}"
 
         # Save log.
         save_log "Default SSH port updated to ${SSH_PORT}."
@@ -137,7 +139,9 @@ EOL
     #run service sshd restart
 }
 
-# Install & Configure the Uncomplicated Firewall (UFW)
+##
+# Install & Configure Uncomplicated Firewall (UFW).
+#
 function install_ufw() {
     SSH_PORT=${1:-$SSH_PORT}
 
@@ -170,18 +174,18 @@ function install_ufw() {
 
         # Open HTTP port.
         run ufw allow 80
-        run ufw allow 8082
-        run ufw allow 8083
+        run ufw allow 8082 #LEMPer port
 
         # Open HTTPS port.
         run ufw allow 443
-        run ufw allow 8443
+        run ufw allow 8083 #LEMPer port
 
         # Open MySQL port.
         run ufw allow 3306
 
         # Open SMTPs port.
         run ufw allow 25
+        run ufw allow 465
         run ufw allow 587
 
         # Open IMAPs ports.
@@ -214,7 +218,9 @@ function install_ufw() {
     fi
 }
 
-# Install & Configure the ConfigServer Security & Firewall (CSF)
+##
+# Install & Configure ConfigServer Security & Firewall (CSF).
+#
 function install_csf() {
     SSH_PORT=${1:-$SSH_PORT}
 
@@ -245,10 +251,11 @@ function install_csf() {
     run cd "${BUILD_DIR}"
 
     echo "Installing CSF+LFD firewall..."
-    if wget -q https://download.configserver.com/csf.tgz; then
-        run tar -xzf csf.tgz
-        run cd csf/
-        run sh install.sh
+    if curl -sL --head https://download.configserver.com/csf.tgz | grep -q "HTTP/[12].[01] [23].."; then
+        run wget -q https://download.configserver.com/csf.tgz && \
+        run tar -xzf csf.tgz && \
+        run cd csf/ && \
+        run sh install.sh && \
         run cd ../
 
         if [ -f /usr/local/csf/bin/csftest.pl ]; then
@@ -313,7 +320,9 @@ function install_csf() {
     fi
 }
 
-# Install & Configure the Advancef Policy Firewall (APF)
+##
+# Install & Configure Advancef Policy Firewall (APF).
+#
 function install_apf() {
     SSH_PORT=${1:-$SSH_PORT}
     APF_VERSION=${APF_VERSION:-"1.7.6-1"}
@@ -335,11 +344,12 @@ function install_apf() {
     run cd "${BUILD_DIR}"
 
     echo "Installing APF+BFD firewall..."
-    if wget -q "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz"; then
-        
-        run tar -xf "${APF_VERSION}.tar.gz"
-        run cd advanced-policy-firewall-*/
-        run bash install.sh
+    if curl -sL --head "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
+    | grep -q "HTTP/[12].[01] [23].."; then
+        run wget -q "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" && \
+        run tar -xf "${APF_VERSION}.tar.gz" && \
+        run cd advanced-policy-firewall-*/ && \
+        run bash install.sh && \
         run cd ../
     fi
 
@@ -378,6 +388,9 @@ function install_apf() {
     fi
 }
 
+##
+# Remove UFW.
+#
 function remove_ufw() {
     if [[ -n $(command -v ufw) ]]; then
         echo "Found UFW iptables firewall, trying to remove it..."
@@ -391,6 +404,9 @@ function remove_ufw() {
     fi
 }
 
+##
+# Remove CSF.
+#
 function remove_csf() {
     if [[ -n $(command -v csf) || -f /usr/lib/systemd/system/csf.service ]]; then
         echo "Found CSF+LFD iptables firewall, trying to remove it..."
@@ -401,6 +417,9 @@ function remove_csf() {
     fi
 }
 
+##
+# Remove APF.
+#
 function remove_apf() {
     if [[ -n $(command -v apf) && -f /etc/apf/conf.apf ]]; then
         echo "Found APF+BFD iptables firewall, trying to remove it..."
@@ -418,7 +437,9 @@ function remove_apf() {
     fi
 }
 
-# Install Firewall.
+##
+# Install IP-tables based firewall.
+#
 function install_firewall() {
     echo ""
     echo "IPtables-based Firewall Installation"
@@ -481,6 +502,9 @@ Any other iptables based firewall will be removed otherwise they will conflict."
     fi
 }
 
+##
+# Initialize server security.
+#
 function init_secure_server() {
     while [[ "${SECURED_SERVER}" != "y" && "${SECURED_SERVER}" != "n" && "${AUTO_INSTALL}" != true ]]; do
         read -rp "Do you want to enable basic server security? [y/n]: " -i y -e SECURED_SERVER

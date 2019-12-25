@@ -31,11 +31,11 @@ function init_certbotle_install() {
         echo "Installing Certbot Let's Encrypt client..."
 
         DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-        DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
+        RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
 
         case "${DISTRIB_NAME}" in
             debian)
-                case "${DISTRIB_REPO}" in
+                case "${RELEASE_NAME}" in
                     jessie)
                         run apt-get install certbot -t jessie-backports
                     ;;
@@ -46,7 +46,7 @@ function init_certbotle_install() {
                         run apt-get install certbot
                     ;;
                     *)
-                        error "Unable to add Certbot, unsupported distribution release: ${DISTRIB_NAME^} ${DISTRIB_REPO^}."
+                        error "Unable to add Certbot, unsupported distribution release: ${DISTRIB_NAME^} ${RELEASE_NAME^}."
                         echo "Sorry your system is not supported yet, installing from source may fix the issue."
                         exit 1
                     ;;
@@ -59,11 +59,9 @@ function init_certbotle_install() {
             ;;
         esac
 
-        # Add Certbot auto renew command to cron
-        #15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/bin/systemctl reload nginx"
-
+        # Add Certbot auto renew command to cronjob.
         if "${DRYRUN}"; then
-            warning "Add Certbot auto-renew to cronjob in dryrun mode."
+            warning "Certbot auto-renew command added to cronjob in dryrun mode."
         else
             export EDITOR=nano
             CRONCMD='15 3 * * * root /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
@@ -88,9 +86,9 @@ EOL
             # Register a new account.
             LE_EMAIL=${ADMIN_EMAIL:-"cert@lemper.sh"}
             if [ -d /etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory ]; then
-                run certbot rupdate_account --email "${LE_EMAIL}" --no-eff-email
+                run certbot update_account --email "${LE_EMAIL}" --no-eff-email --agree-tos
             else
-                run certbot register --email "${LE_EMAIL}" --no-eff-email
+                run certbot register --email "${LE_EMAIL}" --no-eff-email --agree-tos
             fi
         fi
 

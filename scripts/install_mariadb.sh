@@ -21,11 +21,11 @@ function add_mariadb_repo() {
     echo "Adding MariaDB (MySQL) repository..."
 
     DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-    DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
+    RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
     MYSQL_SERVER=${MYSQL_SERVER:-"mariadb"}
     MYSQL_VERSION=${MYSQL_VERSION:-"10.4"}
 
-    # Add MariaDB source list from MariaDB repo configuration tool
+    # Add MariaDB source list from MariaDB repo configuration tool.
     if "${DRYRUN}"; then
         status "MariaDB (MySQL) repository added in dryrun mode."
     else
@@ -33,7 +33,7 @@ function add_mariadb_repo() {
         # Ref: https://mariadb.com/kb/en/library/mariadb-package-repository-setup-and-usage/
         run curl -sS -o "${BUILD_DIR}/mariadb_repo_setup" https://downloads.mariadb.com/MariaDB/mariadb_repo_setup && \
         run bash "${BUILD_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
-            --os-type="${DISTRIB_NAME}" --os-version="${DISTRIB_REPO}"
+            --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}"
         #run rm -f "${BUILD_DIR}/mariadb_repo_setup"
         run apt-get -qq update -y
     fi
@@ -65,13 +65,13 @@ function init_mariadb_install() {
         elif hash yum 2>/dev/null; then
             if [ "${VERSION_ID}" == "5" ]; then
                 yum -y update
-                #yum -y localinstall mongodb-org mongodb-org-server --nogpgcheck
+                #yum -y localinstall mariadb-common mariadb-server --nogpgcheck
             else
                 yum -y update
-            	#yum -y localinstall mongodb-org mongodb-org-server
+            	#yum -y localinstall mariadb-common mariadb-server
             fi
         else
-            fail "Unable to install LEMPer: this GNU/Linux distribution is not dpkg/yum enabled."
+            fail "Unable to install MariaDB, this GNU/Linux distribution is not supported."
         fi
 
         # Fix MySQL error?

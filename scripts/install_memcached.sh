@@ -48,7 +48,20 @@ function init_memcached_install() {
         case "${SELECTED_INSTALLER}" in
             1|"repo")
                 echo "Installing Memcached server from repository..."
-                run apt-get -qq install -y libmemcached11 libmemcachedutil2 libmemcached-tools memcached
+
+                if hash apt-get 2>/dev/null; then
+                    run apt-get -qq install -y libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2 memcached
+                elif hash yum 2>/dev/null; then
+                    if [ "${VERSION_ID}" == "5" ]; then
+                        yum -y update
+                        #yum -y localinstall "${NGX_PACKAGE}" --nogpgcheck
+                    else
+                        yum -y update
+                        #yum -y localinstall "${NGX_PACKAGE}"
+                    fi
+                else
+                    fail "Unable to install Memcached, this GNU/Linux distribution is not supported."
+                fi
             ;;
             2|"source")
                 echo "Installing Memcached server from source..."
@@ -60,8 +73,9 @@ function init_memcached_install() {
                 run cd "${BUILD_DIR}"
 
                 # Install Libevent from source.
-                #libevent_download_url="https://github.com/libevent/libevent/releases/download/release-2.1.11-stable/libevent-2.1.11-stable.tar.gz"
-                #if wget -q -O libevent.tar.gz "${libevent_download_url}"; then
+                #LIBEVENT_DOWNLOAD_URL="https://github.com/libevent/libevent/releases/download/release-2.1.11-stable/libevent-2.1.11-stable.tar.gz"
+                #if curl -sL --head "${LIBEVENT_DOWNLOAD_URL}" | grep -q "HTTP/[12].[01] [23].."; then
+                #    run wget -q -O libevent.tar.gz "${LIBEVENT_DOWNLOAD_URL}"
                 #    run tar -zxf libevent.tar.gz
                 #    run cd libevent-*
                 #    run ./configure --prefix=/usr/local/libevent
@@ -72,13 +86,14 @@ function init_memcached_install() {
 
                 # Memcache.
                 if [[ ${MEMCACHED_VERSION} == "latest" ]]; then
-                    memcached_download_url="http://memcached.org/latest"
+                    MEMCACHED_DOWNLOAD_URL="http://memcached.org/latest"
                 else
-                    memcached_download_url="https://memcached.org/files/memcached-${MEMCACHED_VERSION}.tar.gz"
+                    MEMCACHED_DOWNLOAD_URL="https://memcached.org/files/memcached-${MEMCACHED_VERSION}.tar.gz"
                 fi
 
-                if wget -q -O memcached.tar.gz "${memcached_download_url}"; then
-                    run tar -zxf memcached.tar.gz
+                if curl -sL --head "${MEMCACHED_DOWNLOAD_URL}" | grep -q "HTTP/[12].[01] [23].."; then
+                    run wget -q -O memcached.tar.gz "${MEMCACHED_DOWNLOAD_URL}" && \
+                    run tar -zxf memcached.tar.gz && \
                     run cd memcached-*
 
                     if [[ ${MEMCACHED_SASL} == "enable" || ${MEMCACHED_SASL} == true ]]; then

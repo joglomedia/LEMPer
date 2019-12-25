@@ -57,6 +57,9 @@ function init_mariadb_removal() {
             "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
             "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
 
+        # shellcheck disable=SC2046
+        #run apt-get -qq --purge remove -y $(dpkg-query -l | awk '/mariadb/ { print $2 }')
+
         # Remove config.
         mariadb_remove_conf
 
@@ -65,11 +68,14 @@ function init_mariadb_removal() {
             #run rm -f /etc/apt/sources.list.d/mariadb-*.list
             run rm -f /etc/apt/sources.list.d/mariadb.list
         fi
-    elif dpkg-query -l | awk '/mysql/ { print $2 }' | grep -qwE "^mysql-server"; then
+    elif dpkg-query -l | awk '/mysql/ { print $2 }' | grep -qwE "^mysql"; then
         echo "Found MySQL package installation. Removing..."
 
         # Remove MySQL server.
         run apt-get -qq --purge remove -y mysql-client mysql-common mysql-server
+        
+        # shellcheck disable=SC2046
+        #run apt-get -qq --purge remove -y $(dpkg-query -l | awk '/mysql/ { print $2 }' | grep -wE "^mysql")
 
         # Remove config.
         mariadb_remove_conf
