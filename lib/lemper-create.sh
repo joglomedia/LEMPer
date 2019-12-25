@@ -17,19 +17,23 @@
 
 set -e
 
-# Version Control.
+# Version control.
 APP_NAME=$(basename "$0")
-APP_VERSION="1.3.0"
+APP_VERSION="1.0.0"
 CMD_PARENT="lemper-cli"
 CMD_NAME="create"
 
 # Test mode.
 DRYRUN=false
 
-# Decorator.
+# Color decorator.
 RED=91
 GREEN=92
 YELLOW=93
+
+##
+# Helper Functions
+#
 
 function begin_color() {
     color="${1}"
@@ -73,11 +77,6 @@ function warning() {
     echo_color "$YELLOW" "$@"
 }
 
-# If we set -e or -u then users of this script will see it silently exit on
-# failure.  Instead we need to check the exit status of each command manually.
-# The run function handles exit-status checking for system-changing commands.
-# Additionally, this allows us to easily have a dryrun mode where we don't
-# actually make any changes.
 function run() {
     if "${DRYRUN}"; then
         echo_color "$YELLOW" -n "would run "
@@ -92,24 +91,29 @@ function run() {
 }
 
 # May need to run this as sudo!
-# I have it in /usr/local/bin and run command 'lemper-cli' from anywhere, using sudo.
 if [ "$(id -u)" -ne 0 ]; then
     error "This command can only be used by root."
-    exit 1  #error
+    exit 1
 fi
 
-# Check prerequisite packages.
+# Check pre-requisite packages.
 if [[ ! -f $(command -v unzip) || ! -f $(command -v git) || ! -f $(command -v rsync) ]]; then
-    warning "${APP_NAME^} requires rsync, unzip and git, please install it first!"
-    echo "help: sudo apt-get install rsync unzip git"
-    exit 0
+    error "${APP_NAME^} requires git, rsync, unzip, wget, please install it first!"
+    echo "help: sudo apt-get install git rsync unzip wget"
+    exit 1
 fi
 
-## Show usage
+
+##
+# Main Functions
+#
+
+## 
+# Show usage
 # output to STDERR.
 #
 function show_usage {
-cat <<- _EOF_
+    cat <<- _EOF_
 ${APP_NAME^} ${APP_VERSION}
 Creates NGiNX virtual host (vHost) configuration file.
 
@@ -121,6 +125,10 @@ Usage: ${CMD_PARENT} ${CMD_NAME} [options]...
        ${CMD_PARENT} ${CMD_NAME} -d <domain-name> -f <framework> -w <webroot-path>
 
 Options:
+  -4, --ipv4 <IPv4 address>
+      Any valid IPv4 addreess for listening on.
+  -6, --ipv6 <IPv6 address>
+      Any valid IPv6 addreess for listening on.
   -d, --domain-name <server domain name>
       Any valid domain name and/or sub domain name is allowed, i.e. example.app or sub.example.app.
   -f, --framework <website framework>
@@ -135,10 +143,12 @@ Options:
   -w, --webroot <web root>
       Web root is an absolute path to the website root directory, i.e. /home/lemper/webapps/example.test.
 
-  -s, --clone-skeleton
-      Clone default skeleton for selected framework.
   -c, --enable-fastcgi-cache
       Enable FastCGI cache module.
+  -D, --dryrun
+      Dry run mode, only for testing.
+  -s, --clone-skeleton
+      Clone default skeleton for selected framework.
   -S, --enable-https
       Enable HTTPS with Let's Encrypt free SSL certificate.
   -P, --enable-pagespeed
@@ -146,8 +156,6 @@ Options:
   -W, --wildcard-domain
       Enable wildcard (*) domain.
 
-  -D, --dryrun
-      Dry run mode, only for testing.
   -h, --help
       Print this message and exit.
   -v, --version
@@ -161,17 +169,17 @@ Mail bug reports and suggestions to <eslabs.id@gmail.com>
 _EOF_
 }
 
-## Output Default virtual host directive, fill with user input
+##
+# Output Default virtual host directive, fill with user input
 # To be outputted into new file
 # Work for default and WordPress site.
 #
 function create_vhost_default() {
-cat <<- _EOF_
+    cat <<- _EOF_
 server {
     listen 80;
     listen [::]:80;
 
-    ## Make site accessible from world web.
     server_name ${SERVERNAME};
 
     ## SSL configuration.
@@ -183,8 +191,6 @@ server {
     ## Log Settings.
     access_log ${WEBROOT}/access_log combined buffer=32k;
     error_log ${WEBROOT}/error_log error;
-
-    #charset utf-8;
 
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}";
@@ -207,11 +213,13 @@ server {
     # Rewrite CDN host below here!
     ##pagespeed MapRewriteDomain https://your-cdn-address https://${SERVERNAME};
 
-    # PageSpeed should be disabled on the WP admin/dashboard (adjust to suit custom admin URLs).
+    # PageSpeed should be disabled on the WP admin/dashboard 
+    # adjust manually to suit your custom admin URLs.
     #pagespeed Disallow "*/admin/*";
+    #pagespeed Disallow "*/account/*";
     #pagespeed Disallow "*/dashboard/*";
-    #pagespeed Disallow "*/wp-login*";
     #pagespeed Disallow "*/wp-admin/*";
+    #pagespeed Disallow "*/wp-login*";
 
     ## Access control Cross-origin Resource Sharing (CORS).
     set \$cors "${SERVERNAME},*.${SERVERNAME}";
@@ -228,6 +236,10 @@ server {
     ## Default vhost directives configuration.
     #include /etc/nginx/includes/rules_fastcgi_cache.conf;
     include /etc/nginx/vhost/site_${FRAMEWORK}.conf;
+
+    ## Add your custom site directives here.
+
+    ## End of custom site directives. 
 
     ## Pass the PHP scripts to FastCGI server listening on Unix socket.
     location ~ \.php$ {
@@ -265,20 +277,21 @@ server {
 
     ## Uncomment to enable support cgi-bin scripts using fcgiwrap (like cgi-bin in Apache).
     #include /etc/nginx/includes/fcgiwrap.conf;
-
-    ## Add your custom site directives here.
 }
 _EOF_
 }
 
-## Output Drupal virtual host directive, fill with user input
+##
+# Output Drupal virtual host directive, fill with user input
 # To be outputted into new file.
 #
 function create_vhost_drupal() {
-cat <<- _EOF_
+    cat <<- _EOF_
 server {
     listen 80;
     listen [::]:80;
+
+    server_name ${SERVERNAME};
 
     ## SSL configuration.
     #include /etc/nginx/includes/ssl.conf;
@@ -289,8 +302,6 @@ server {
     ## Log Settings.
     access_log ${WEBROOT}/access_log combined buffer=32k;
     error_log ${WEBROOT}/error_log error;
-
-    #charset utf-8;
 
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}";
@@ -333,6 +344,10 @@ server {
     #include /etc/nginx/includes/rules_fastcgi_cache.conf;
     include /etc/nginx/vhost/site_${FRAMEWORK}.conf;
 
+    ## Add your custom site directives here.
+
+    ## End of custom site directives. 
+
     ## Pass the PHP scripts to FastCGI server listening on Unix socket.
     location ~ '\.php$|^/update.php' {
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
@@ -364,22 +379,20 @@ server {
 
     ## Uncomment to enable error page directives configuration.
     include /etc/nginx/includes/error_pages.conf;
-
-    ## Add your custom site directives here.
 }
 _EOF_
 }
 
-## Output Laravel virtual host skeleton, fill with user input
+##
+# Output Laravel virtual host skeleton, fill with user input
 # To be outputted into new file.
 #
 function create_vhost_laravel() {
-cat <<- _EOF_
+    cat <<- _EOF_
 server {
     listen 80;
     listen [::]:80;
 
-    ## Make site accessible from world web.
     server_name ${SERVERNAME};
 
     ## SSL configuration.
@@ -391,8 +404,6 @@ server {
     ## Log Settings.
     access_log ${WEBROOT}/access_log combined buffer=32k;
     error_log ${WEBROOT}/error_log error;
-
-    #charset utf-8;
 
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}/public";
@@ -435,6 +446,10 @@ server {
     ## Default vhost directives configuration.
     #include /etc/nginx/includes/rules_fastcgi_cache.conf;
     include /etc/nginx/vhost/site_${FRAMEWORK}.conf;
+
+    ## Add your custom site directives here.
+
+    ## End of custom site directives. 
 
     ## Pass the PHP scripts to FastCGI server listening on Unix socket.
     location ~ \.php$ {
@@ -467,22 +482,20 @@ server {
 
     ## Uncomment to enable error page directives configuration.
     include /etc/nginx/includes/error_pages.conf;
-
-    ## Add your custom site directives here.
 }
 _EOF_
 }
 
-## Output Phalcon virtual host skeleton, fill with user input
+##
+# Output Phalcon virtual host skeleton, fill with user input
 # To be outputted into new file.
 #
 function create_vhost_phalcon() {
-cat <<- _EOF_
+    cat <<- _EOF_
 server {
     listen 80;
     listen [::]:80;
 
-    ## Make site accessible from world web.
     server_name ${SERVERNAME};
 
     ## SSL configuration.
@@ -494,8 +507,6 @@ server {
     ## Log Settings.
     access_log ${WEBROOT}/access_log combined buffer=32k;
     error_log ${WEBROOT}/error_log error;
-
-    #charset utf-8;
 
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}/public";
@@ -539,6 +550,10 @@ server {
     #include /etc/nginx/includes/rules_fastcgi_cache.conf;
     include /etc/nginx/vhost/site_${FRAMEWORK}.conf;
 
+    ## Add your custom site directives here.
+
+    ## End of custom site directives. 
+
     ## Pass the PHP scripts to FastCGI server listening on Unix socket.
     location ~ \.php {
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
@@ -546,11 +561,6 @@ server {
 
         # Include FastCGI Params.
         include /etc/nginx/fastcgi_params;
-
-        # Overwrite FastCGI Params here.
-        fastcgi_param PATH_INFO \$fastcgi_path_info;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-        fastcgi_param SCRIPT_NAME \$fastcgi_script_name;
 
         # Phalcon PHP custom params.
         fastcgi_param APPLICATION_ENV production; # development | production
@@ -578,16 +588,15 @@ server {
 
     ## Uncomment to enable error page directives configuration.
     include /etc/nginx/includes/error_pages.conf;
-
-    ## Add your custom site directives here.
 }
 _EOF_
 }
 
-## Output Wordpress Multisite vHost header.
+##
+# Output Wordpress Multisite vHost header.
 #
 function prepare_vhost_wpms() {
-cat <<- _EOF_
+    cat <<- _EOF_
 # Wordpress Multisite Mapping for NGiNX (Requires NGiNX Helper plugin).
 map \$http_host \$blogid {
     default 0;
@@ -597,17 +606,17 @@ map \$http_host \$blogid {
 _EOF_
 }
 
-## Output server block for HTTP to HTTPS redirection.
+##
+# Output server block for HTTP to HTTPS redirection.
 #
 function redirect_http_to_https() {
-cat <<- _EOF_
+    cat <<- _EOF_
 
 # HTTP to HTTPS redirection
 server {
     listen 80;
     listen [::]:80;
 
-    ## Make site accessible from world web.
     server_name ${SERVERNAME};
 
     ## Automatically redirect site to HTTPS protocol.
@@ -619,11 +628,12 @@ server {
 _EOF_
 }
 
-## Output index.html skeleton for default index page
+##
+# Output index.html skeleton for default index page
 # To be outputted into new index.html file in document root.
 #
 function create_index_file() {
-cat <<- _EOF_
+    cat <<- _EOF_
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -638,10 +648,9 @@ Served by
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Default Page</title>
+<title>Welcome to ${SERVERNAME}!</title>
 <link href="https://fonts.googleapis.com/css?family=Cabin:400,700" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css?family=Montserrat:900" rel="stylesheet">
-<link type="text/css" rel="stylesheet" href="css/style.css" />
 <style>
 /**
  * Forked from Colorlib https://colorlib.com/etc/404/colorlib-error-404-3/
@@ -674,7 +683,8 @@ div.banner{color:#009639;font-family:Montserrat,sans-serif;position:absolute;lef
 _EOF_
 }
 
-## Output PHP-FPM pool configuration
+##
+# Output PHP-FPM pool configuration
 # To be outputted into new pool file in fpm/pool.d.
 #
 function create_fpm_pool_conf() {
@@ -700,34 +710,40 @@ pm.process_idle_timeout = 30s
 pm.max_requests = 500
 
 ; PHP-FPM monitoring
-; Do Not change this two lines
 pm.status_path = /status
 ping.path = /ping
 
-request_slowlog_timeout = 5s
 slowlog = /var/log/php/php${PHP_VERSION}-fpm_slow.\$pool.log
+request_slowlog_timeout = 5s
 
 chdir = /home/${USERNAME}
 
-security.limit_extensions = .php .php3 .php4 .php5 .php${PHP_VERSION//./}
+;catch_workers_output = yes
+;decorate_workers_output = no
 
-php_flag[display_errors] = on
-php_admin_value[error_reporting] = E_ALL & ~E_NOTICE & ~E_WARNING & ~E_STRICT & ~E_DEPRECATED
-php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
+security.limit_extensions = .php .php${PHP_VERSION//./}
+
+; Custom PHP ini settings.
+php_flag[display_errors] = On
+;php_admin_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
+;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
+php_admin_flag[log_errors] = On
 php_admin_value[error_log] = /var/log/php/php${PHP_VERSION}-fpm.\$pool.log
-php_admin_flag[log_errors] = on
 php_admin_value[date.timezone] = ${TIMEZONE}
 php_admin_value[memory_limit] = 128M
+php_admin_value[opcache.file_cache] = /home/${USERNAME}/.lemper/php/opcache
 php_admin_value[open_basedir] = /home/${USERNAME}
-php_admin_value[sys_temp_dir] = /home/${USERNAME}/.tmp
-;php_admin_value[upload_tmp_dir] = /home/${USERNAME}/.tmp
-php_admin_value[upload_max_filesize] = 10M
-php_admin_value[opcache.file_cache] = /home/${USERNAME}/.opcache
+php_admin_value[session.save_path] = /home/${USERNAME}/.lemper/php/sessions
+php_admin_value[sys_temp_dir] = /home/${USERNAME}/.lemper/tmp
+php_admin_value[upload_tmp_dir] = /home/${USERNAME}/.lemper/tmp
+php_admin_value[upload_max_filesize] = 20M
+php_admin_value[post_max_size] = 20M
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com
 _EOF_
 }
 
-## Install WordPress
+##
+# Install WordPress
 # Installing WordPress skeleton.
 #
 function install_wordpress() {
@@ -777,7 +793,9 @@ function install_wordpress() {
     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 }
 
+##
 # Get server IP Address.
+#
 function get_ip_addr() {
     local IP_INTERNAL && \
     IP_INTERNAL=$(ip addr | grep 'inet' | grep -v inet6 | \
@@ -793,17 +811,53 @@ function get_ip_addr() {
     fi
 }
 
-## Main App
+##
+# Check whether IPv4 is valid.
+#
+function validate_ipv4() {
+    local ip=${1}
+    local return=false
+
+    if [[ ${ip} =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        #OIFS=${IFS}
+        IFS='.' read -r -a ips <<< "${ip}"
+        #IFS=${OIFS}
+        if [[ ${ips[0]} -le 255 && ${ips[1]} -le 255 && ${ips[2]} -le 255 && ${ips[3]} -le 255 ]]; then
+            return=true
+        fi
+    fi
+
+    echo ${return}
+}
+
+##
+# Check whether IPv6 is valid.
+#
+function validate_ipv6() {
+    local ip=${1}
+    local return=false
+
+    if [[ ${ip} =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$ ]]; then
+        return=true
+    fi
+
+    echo ${return}
+}
+
+##
+# Main App
 #
 function init_app() {
-    OPTS=$(getopt -o u:d:f:w:p:scPSWDhv \
-      -l username:,domain-name:,framework:,webroot:,php-version:,clone-skeleton \
+    OPTS=$(getopt -o u:d:f:4:6:w:p:scPSWDhv \
+      -l username:,domain-name:,framework:,ipv4:,ipv6:,webroot:,php:,clone-skeleton \
       -l enable-fastcgi-cache,enable-pagespeed,enable-https,wildcard-domain,dryrun,help,version \
       -n "${APP_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
 
     # Default value
+    IPv4=""
+    IPv6=""
     USERNAME=""
     SERVERNAME=""
     WEBROOT=""
@@ -823,9 +877,12 @@ function init_app() {
     while true
     do
         case "${1}" in
-            -u | --username) shift
-                USERNAME="${1}"
-                #MAIN_ARGS=$((MAIN_ARGS + 1))
+            -4 | --ipv4) shift
+                IPv4="${1}"
+                shift
+            ;;
+            -6 | --ipv6) shift
+                IPv6="${1}"
                 shift
             ;;
             -d | --domain-name) shift
@@ -835,34 +892,25 @@ function init_app() {
             ;;
             -f | --framework) shift
                 FRAMEWORK="${1}"
-                #MAIN_ARGS=$((MAIN_ARGS + 1))
+                shift
+            ;;
+            -u | --username) shift
+                USERNAME="${1}"
                 shift
             ;;
             -w | --webroot) shift
                 # Remove trailing slash.
                 # shellcheck disable=SC2001
                 WEBROOT=$(echo "${1}" | sed 's:/*$::')
-                #MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
-            -p | --php-version) shift
+            -p | --php) shift
                 PHP_VERSION="${1}"
                 shift
             ;;
-            -s | --clone-skeleton) shift
-                CLONE_SKELETON=true
-            ;;
+
             -c | --enable-fastcgi-cache) shift
                 ENABLE_FASTCGI_CACHE=true
-            ;;
-            -P | --enable-pagespeed) shift
-                ENABLE_PAGESPEED=true
-            ;;
-            -S | --enable-https) shift
-                ENABLE_HTTPS=true
-            ;;
-            -W | --wildcard-domain) shift
-                ENABLE_WILDCARD_DOMAIN=true
             ;;
             -D | --dryrun) shift
                 DRYRUN=true
@@ -871,9 +919,21 @@ function init_app() {
                 show_usage
                 exit 0
             ;;
+            -P | --enable-pagespeed) shift
+                ENABLE_PAGESPEED=true
+            ;;
+            -s | --clone-skeleton) shift
+                CLONE_SKELETON=true
+            ;;
+            -S | --enable-https) shift
+                ENABLE_HTTPS=true
+            ;;
             -v | --version) shift
                 echo "${APP_NAME^} version ${APP_VERSION}"
                 exit 1
+            ;;
+            -W | --wildcard-domain) shift
+                ENABLE_WILDCARD_DOMAIN=true
             ;;
             --) shift
                 break
@@ -935,8 +995,10 @@ function init_app() {
                     run touch "/var/log/php${PHP_VERSION}-fpm_slow.${USERNAME}.log"
 
                     # Create default directories.
-                    run mkdir -p "/home/${USERNAME}/.tmp"
-                    run mkdir -p "/home/${USERNAME}/.opcache"
+                    run mkdir -p "/home/${USERNAME}/.lemper/tmp"
+                    run mkdir -p "/home/${USERNAME}/.lemper/php/opcache"
+                    run mkdir -p "/home/${USERNAME}/.lemper/php/sessions"
+                    run mkdir -p "/home/${USERNAME}/cgi-bin"
                     run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
 
                     # Restart PHP FPM.
@@ -1005,8 +1067,8 @@ function init_app() {
                         fi
                     fi
 
-                    run wget -q -O "${WEBROOT}/favicon.ico" \
-                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    #run wget -q -O "${WEBROOT}/favicon.ico" \
+                    #    https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
 
                     # Fix ownership.
                     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
@@ -1243,8 +1305,8 @@ function init_app() {
                         fi
                     fi
 
-                    run wget -q -O "${WEBROOT}/favicon.ico" \
-                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    #run wget -q -O "${WEBROOT}/favicon.ico" \
+                    #    https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
                     
                     # Fix ownership.
                     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
@@ -1262,8 +1324,8 @@ function init_app() {
                         create_index_file > "${WEBROOT}/index.html"
                     fi
 
-                    run wget -q -O "${WEBROOT}/favicon.ico" \
-                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    #run wget -q -O "${WEBROOT}/favicon.ico" \
+                    #    https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
                     
                     # Fix ownership.
                     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
@@ -1297,6 +1359,24 @@ function init_app() {
                 # Create log files.
                 run touch "${WEBROOT}/access_log"
                 run touch "${WEBROOT}/error_log"
+
+                # Assign IPv4 to server vhost.
+                if [[ $(validate_ipv4 "${IPv4}") = true ]]; then
+                    echo "Assigning IPv4 ${IPv4} to ${SERVERNAME}..."
+
+                    if grep -qwE "listen\ 80" "${VHOST_FILE}"; then
+                        run sed -i "s/^\    listen\ 80/\    listen ${IPv4}:80/g" "${VHOST_FILE}"
+                    fi
+                fi
+
+                # Assign IPv6 to server vhost.
+                if [[ $(validate_ipv6 "${IPv6}") = true ]]; then
+                    echo "Assigning IPv6 ${IPv6} to ${SERVERNAME}..."
+
+                    if grep -qwE "listen\ \[::\]:80" "${VHOST_FILE}"; then
+                        run sed -i "s/^\    listen\ \[::\]:80/\    listen [${IPv6}]:80/g" "${VHOST_FILE}"
+                    fi
+                fi
 
                 # Enable Wildcard domain.
                 if [[ ${ENABLE_WILDCARD_DOMAIN} == true ]]; then
@@ -1343,7 +1423,7 @@ function init_app() {
                 run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
                 # Fix document root permission.
-                if [ "$(ls -A "${WEBROOT}")" ]; then
+                if [[ $(ls -A "${WEBROOT}") ]]; then
                     run find "${WEBROOT}" -type d -print0 | xargs -0 chmod 755
                     run find "${WEBROOT}" -type f -print0 | xargs -0 chmod 644
                 fi
