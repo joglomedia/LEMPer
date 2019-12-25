@@ -50,53 +50,7 @@ fi
 requires_root
 
 # Make sure only supported distribution can run this installer script.
-export DISTRIB_NAME && DISTRIB_NAME=$(get_distrib_name)
-export RELEASE_NAME && RELEASE_NAME=$(get_release_name)
-
-if [[ "${RELEASE_NAME}" == "unsupported" ]]; then
-    fail "This Linux distribution isn't supported yet. If you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
-else
-    # Set system architecture.
-    export ARCH && \
-    ARCH=$(uname -p)
-
-    # Set default timezone.
-    export TIMEZONE
-    if [[ -z "${TIMEZONE}" || "${TIMEZONE}" = "none" ]]; then
-        [ -f /etc/timezone ] && TIMEZONE=$(cat /etc/timezone) || TIMEZONE="UTC"
-    fi
-
-    # Set ethernet interface.
-    export IFACE && \
-    IFACE=$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)
-
-    # Set server IP.
-    export SERVER_IP && \
-    SERVER_IP=${SERVER_IP:-$(get_ip_addr)}
-
-    # Set server hostname.
-    if [ -z "${HOSTNAME}" ]; then
-        export HOSTNAME && \
-        HOSTNAME=$(hostname)
-    fi
-
-    # Validate server's hostname for production stack.
-    if [[ "${ENVIRONMENT}" = "production" ]]; then
-        # Check if the hostname is valid.
-        if [[ $(validate_fqdn "${HOSTNAME}") != true ]]; then
-            error "Your server's hostname is not fully qualified domain name (FQDN)."
-            echo -e "Please update your hostname to qualify the FQDN format and\nthen points your hostname to this server ip ${SERVER_IP} !"
-            exit 1
-        fi
-
-        # Check if the hostname is pointed to server IP address.
-        if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" ]]; then
-            error "It seems that your server's hostname is not yet pointed to your server's IP address."
-            echo -e "Please update your DNS record by adding an A record and point it to your server IP ${SERVER_IP} !"
-            exit 1
-        fi
-    fi
-fi
+system_check
 
 
 ##
