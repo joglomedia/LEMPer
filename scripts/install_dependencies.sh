@@ -56,6 +56,8 @@ if [[ -n ${TIMEZONE} && ${TIMEZONE} != "none" ]]; then
 fi
 
 # Update local time.
+# Masked (?).
+run systemctl unmask ntp.service
 run service ntp stop
 run ntpdate -s cn.pool.ntp.org
 run service ntp start
