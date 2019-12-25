@@ -17,21 +17,23 @@
 
 set -e
 
-# Version control
+# Version control.
 APP_NAME=$(basename "$0")
-APP_VERSION="1.3.0"
+APP_VERSION="1.0.0"
 CMD_PARENT="lemper-cli"
 CMD_NAME="manage"
 
 # Test mode.
 DRYRUN=false
 
-# Decorator
+# Color decorator.
 RED=91
 GREEN=92
 YELLOW=93
 
-DRYRUN=false
+##
+# Helper Functions
+#
 
 function begin_color() {
     color="${1}"
@@ -75,11 +77,6 @@ function warning() {
     echo_color "$YELLOW" "$@"
 }
 
-# If we set -e or -u then users of this script will see it silently exit on
-# failure.  Instead we need to check the exit status of each command manually.
-# The run function handles exit-status checking for system-changing commands.
-# Additionally, this allows us to easily have a dryrun mode where we don't
-# actually make any changes.
 function run() {
     if "${DRYRUN}"; then
         echo_color "$YELLOW" -n "would run "
@@ -94,13 +91,20 @@ function run() {
 }
 
 # May need to run this as sudo!
-# I have it in /usr/local/bin and run command 'ngxvhost' from anywhere, using sudo.
 if [ "$(id -u)" -ne 0 ]; then
     error "This command can only be used by root."
-    exit 1  #error
+    exit 1
 fi
 
-# Help
+
+##
+# Main Functions
+#
+
+## 
+# Show usage
+# output to STDERR.
+#
 function show_usage() {
 cat <<- _EOF_
 ${APP_NAME^} ${APP_VERSION}
@@ -154,10 +158,12 @@ Mail bug reports and suggestions to <eslabs.id@gmail.com>
 _EOF_
 }
 
-# Enable vhost
+##
+# Enable vhost.
+#
 function enable_vhost() {
     # Verify user input hostname (domain name)
-    verify_host "${1}"
+    verify_vhost "${1}"
 
     echo "Enabling virtual host: ${1}..."
 
@@ -174,10 +180,12 @@ function enable_vhost() {
     fi
 }
 
-# Disable vhost
+##
+# Disable vhost.
+#
 function disable_vhost() {
     # Verify user input hostname (domain name)
-    verify_host "${1}"
+    verify_vhost "${1}"
 
     echo "Disabling virtual host: ${1}..."
 
@@ -194,10 +202,12 @@ function disable_vhost() {
     fi
 }
 
-# Remove vhost
+##
+# Remove vhost.
+#
 function remove_vhost() {
     # Verify user input hostname (domain name)
-    verify_host "${1}"
+    verify_vhost "${1}"
 
     echo "Removing virtual host is not reversible."
     read -t 30 -rp "Press [Enter] to continue..." </dev/tty
@@ -241,9 +251,11 @@ function remove_vhost() {
 			echo -n "MySQL Password: "; stty -echo; read -r MYSQL_PASS; stty echo; echo
 		done
 
-        echo "Starting to drop database..."
-        echo "Please select your database name below!"
-        echo "+----------------------+"
+        echo ""
+        echo "Please select your database below!"
+        echo "+-------------------------------+"
+        echo "|         Database name          "
+        echo "+-------------------------------+"
 
         # Show user's databases
         #run mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema"
@@ -277,10 +289,12 @@ function remove_vhost() {
     reload_nginx
 }
 
-# Enable fastcgi cache
+##
+# Enable Nginx's fastcgi cache.
+#
 function enable_fastcgi_cache() {
     # Verify user input hostname (domain name)
-    verify_host "${1}"
+    verify_vhost "${1}"
 
     echo "Enabling FastCGI cache for ${1}..."
 
@@ -301,10 +315,12 @@ function enable_fastcgi_cache() {
     reload_nginx
 }
 
-# Disable fastcgi cache
+##
+# Disable Nginx's fastcgi cache.
+#
 function disable_fastcgi_cache() {
     # Verify user input hostname (domain name)
-    verify_host "${1}"
+    verify_vhost "${1}"
 
     echo "Disabling FastCGI cache for ${1}..."
 
@@ -325,10 +341,12 @@ function disable_fastcgi_cache() {
     reload_nginx
 }
 
-# Enable Mod PageSpeed
+##
+# Enable Nginx's Mod PageSpeed.
+#
 function enable_mod_pagespeed() {
     # Verify user input hostname (domain name)
-    verify_host "${1}"
+    verify_vhost "${1}"
 
     echo "Enabling Mod PageSpeed for ${1}..."
 
@@ -358,10 +376,12 @@ function enable_mod_pagespeed() {
     reload_nginx
 }
 
-# Disable Mod PageSpeed
+##
+# Disable Nginx's Mod PageSpeed.
+#
 function disable_mod_pagespeed() {
     # Verify user input hostname (domain name)
-    verify_host "${1}"
+    verify_vhost "${1}"
 
     echo "Disabling Mod PageSpeed for ${1}..."
 
@@ -390,10 +410,12 @@ function disable_mod_pagespeed() {
     reload_nginx
 }
 
-# Enable HTTP over SSL.
+##
+# Enable HTTPS (HTTP over SSL).
+#
 function enable_ssl() {
     # Verify user input hostname (domain name).
-    verify_host "${1}"
+    verify_vhost "${1}"
 
     #TODO: Generate Let's Encrypt SSL using Certbot.
     if [ ! -d "/etc/letsencrypt/live/${1}" ]; then
@@ -488,10 +510,12 @@ EOL
     exit 0
 }
 
-# Disable HTTPS.
+##
+# Disable HTTPS (HTTP over SSL).
+#
 function disable_ssl() {
     # Verify user input hostname (domain name)
-    verify_host "${1}"
+    verify_vhost "${1}"
 
     # Update vhost config.
     if "${DRYRUN}"; then
@@ -519,10 +543,12 @@ function disable_ssl() {
     exit 0
 }
 
-# Remove SSL and disable HTTP over SSL config.
+##
+# Disable HTTPS and remove Let's Encrypt SSL certificate.
+#
 function remove_ssl() {
     # Verify user input hostname (domain name)
-    verify_host "${1}"
+    verify_vhost "${1}"
 
     # Update vhost config.
     if "${DRYRUN}"; then
@@ -547,10 +573,12 @@ function remove_ssl() {
     fi
 }
 
-# Renew SSL.
+##
+# Renew Let's Encrypt SSL certificate.
+#
 function renew_ssl() {
     # Verify user input hostname (domain name)
-    verify_host "${1}"
+    verify_vhost "${1}"
 
     # Update vhost config.
     if "${DRYRUN}"; then
@@ -586,7 +614,9 @@ function renew_ssl() {
     exit 0
 }
 
+##
 # Enable Brotli compression module.
+#
 function enable_brotli() {
     if [[ -f /etc/nginx/nginx.conf && -f /etc/nginx/modules-enabled/50-mod-http-brotli-static.conf ]]; then
         echo "Enable NGiNX Brotli compression..."
@@ -618,8 +648,10 @@ function enable_brotli() {
     fi
 }
 
+##
 # Enable Gzip compression module,
 # enabled by default.
+#
 function enable_gzip() {
     if [[ -f /etc/nginx/nginx.conf && -d /etc/nginx/vhost ]]; then
         echo "Enable NGiNX Gzip compression..."
@@ -651,8 +683,10 @@ function enable_gzip() {
     fi
 }
 
+##
 # Verify if virtual host exists.
-function verify_host() {
+#
+function verify_vhost() {
     if [[ -z "${1}" ]]; then
         error "Virtual host (vhost) or domain name is required. Type ${APP_NAME} --help for more info!"
         exit 1
@@ -669,7 +703,9 @@ function verify_host() {
     fi
 }
 
+##
 # Reload NGiNX safely.
+#
 function reload_nginx() {
     # Reload Nginx
     echo "Reloading NGiNX configuration..."
@@ -706,6 +742,8 @@ function reload_nginx() {
     fi
 }
 
+
+##
 # Main App
 #
 function init_app() {
