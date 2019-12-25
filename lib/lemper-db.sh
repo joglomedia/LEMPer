@@ -1,5 +1,20 @@
 #!/bin/bash
 
+# +-------------------------------------------------------------------------+
+# | Lemper Create - Simple LEMP Database Manager                            |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/lemper)               |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@eslabs.id so we can send you a copy immediately.             |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
+# +-------------------------------------------------------------------------+
+
 set -e
 
 # Version control.
@@ -658,6 +673,7 @@ function db_ops() {
                     #printf '%s\n' "${DATABASES}"
                     SAVEIFS=${IFS}  # Save current IFS
                     IFS=$'\n'
+                    # shellcheck disable=SC2206
                     DBS=(${DATABASES})
                     IFS=${SAVEIFS}    # Restore IFS
 
@@ -669,6 +685,7 @@ function db_ops() {
                     #    echo "|  ${DB}"
                     #done
                     for ((i=0; i<${#DBS[@]}; i++)); do
+                        # shellcheck disable=SC2206
                         ROW=(${DBS[${i}]})
                         echo "| '${ROW[0]}'@'${ROW[1]}'"
                     done
