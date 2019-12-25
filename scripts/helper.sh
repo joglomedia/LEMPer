@@ -256,9 +256,20 @@ $latest_version on $nginx_download_url"
 # Validate Nginx configuration.
 function validate_nginx_config() {
     if nginx -t 2>/dev/null > /dev/null; then
-        return 1
+        echo "true" # success
     else
-        return 0
+        echo "false" # error
+    fi
+}
+
+# Validate FQDN domain.
+function validate_fqdn() {
+    local FQDN=${1}
+
+    if grep -qP '(?=^.{1,254}$)(^(?>(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$)' <<< "${FQDN}"; then
+        echo true # success
+    else
+        echo false # error
     fi
 }
 
@@ -332,11 +343,6 @@ function get_release_name() {
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
 
                 case ${DISTRIB_RELEASE} in
-                    "14.04"|"LM17")
-                        # Ubuntu release 14.04, LinuxMint 17 (End of Life)
-                        #RELEASE_NAME=${UBUNTU_CODENAME:-"trusty"}
-                        RELEASE_NAME="unsupported"
-                    ;;
                     "16.04"|"LM18")
                         # Ubuntu release 16.04, LinuxMint 18
                         RELEASE_NAME=${UBUNTU_CODENAME:-"xenial"}
@@ -488,6 +494,7 @@ function create_account() {
 
             # Create default directories.
             run mkdir -p "/home/${USERNAME}/webapps"
+            run mkdir -p "/home/${USERNAME}/.lemper"
             run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
 
             # Add account credentials to /srv/.htpasswd.
@@ -583,9 +590,10 @@ function save_log() {
 # Make config file if not exist.
 function init_config() {
     if [ ! -f /etc/lemper/lemper.conf ]; then
-        run mkdir -p /etc/lemper/ 
-        run bash -c "echo '' > /etc/lemper/lemper.conf"
+        run mkdir -p /etc/lemper/
     fi
+
+    run bash -c "echo -e '# LEMPer configuration.\n# Edit here if you change your password manullay, but do NOT delete!' > /etc/lemper/lemper.conf"
 }
 
 # Save configuration.
