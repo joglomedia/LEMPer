@@ -17,11 +17,11 @@
 
 set -e
 
-# Version control
+# Version control.
 APP_NAME=$(basename "$0")
 APP_VERSION="1.3.0"
 
-# Export stack configuration.
+# Export LEMPer stack configuration.
 if [ -f "/etc/lemper/lemper.conf" ]; then
     # Clean environemnt first.
     # shellcheck source=/etc/lemper/lemper.conf
@@ -38,9 +38,19 @@ else
     exit 1
 fi
 
+# Set default variables.
+LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
+LEMPER_PASSWORD=${LEMPER_PASSWORD:-""}
+MYSQL_ROOT_PASS=${MYSQL_ROOT_PASS:-""}
+
 # App library directory.
 APP_LIB_DIR="/usr/local/lib/lemper"
 
+
+## 
+# Show usage
+# output to STDERR.
+#
 function cmd_help() {
     cat <<- _EOF_
 ${APP_NAME^} ${APP_VERSION}
@@ -60,11 +70,17 @@ _EOF_
     exit 0
 }
 
+## 
+# Show version.
+#
 function cmd_version() {
     echo "$APP_NAME version $APP_VERSION"
     exit 0
 }
 
+##
+# Create new webapp.
+#
 function cmd_create() {
     if [ -x "$APP_LIB_DIR/lemper-create" ]; then
         "$APP_LIB_DIR/lemper-create" "$@"
@@ -79,6 +95,14 @@ function cmd_vhost() {
     cmd_create "$@"
 }
 
+# Aliases to create.
+function cmd_site() {
+    cmd_create "$@"
+}
+
+##
+# Manage existing webapp.
+#
 function cmd_manage() {
     if [ -x "$APP_LIB_DIR/lemper-manage" ]; then
         "$APP_LIB_DIR/lemper-manage" "$@"
@@ -88,15 +112,9 @@ function cmd_manage() {
     fi
 }
 
-function cmd_tfm() {
-    if [ -x "$APP_LIB_DIR/lemper-tfm" ]; then
-        "$APP_LIB_DIR/lemper-tfm" "$@"
-    else
-        echo "Oops, lemper tfm subcommand module couldn't be loaded."
-        exit 1
-    fi
-}
-
+##
+# Manage database.
+#
 function cmd_db() {
     if [ -x "$APP_LIB_DIR/lemper-db" ]; then
         "$APP_LIB_DIR/lemper-db" "$@"
@@ -106,6 +124,22 @@ function cmd_db() {
     fi
 }
 
+##
+# TinyFileManager add user.
+#
+function cmd_tfm() {
+    if [ -x "$APP_LIB_DIR/lemper-tfm" ]; then
+        "$APP_LIB_DIR/lemper-tfm" "$@"
+    else
+        echo "Oops, lemper tfm subcommand module couldn't be loaded."
+        exit 1
+    fi
+}
+
+
+##
+# Main App
+#
 SUBCOMMAND="${1}"
 case ${SUBCOMMAND} in
     "" | "help" )
