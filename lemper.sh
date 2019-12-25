@@ -37,7 +37,7 @@ if [ -z "${PATH}" ] ; then
     export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 fi
 
-# Get base directory.
+# Get installer base directory.
 export BASEDIR && \
 BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
 
@@ -49,28 +49,59 @@ fi
 # Make sure only root can run this installer script.
 requires_root
 
-# Make sure this script only run on supported distribution.
+# Make sure only supported distribution can run this installer script.
 export DISTRIB_NAME && DISTRIB_NAME=$(get_distrib_name)
-export DISTRIB_REPO && DISTRIB_REPO=$(get_release_name)
+export RELEASE_NAME && RELEASE_NAME=$(get_release_name)
 
-if [[ "${DISTRIB_REPO}" == "unsupported" ]]; then
-    error "This Linux distribution isn't supported yet. If you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
-    exit 1
+if [[ "${RELEASE_NAME}" == "unsupported" ]]; then
+    fail "This Linux distribution isn't supported yet. If you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
 else
-    # Get system architecture.
+    # Set system architecture.
     export ARCH && \
     ARCH=$(uname -p)
 
-    # Get ethernet interface.
+    # Set default timezone.
+    export TIMEZONE
+    if [[ -z "${TIMEZONE}" || "${TIMEZONE}" = "none" ]]; then
+        [ -f /etc/timezone ] && TIMEZONE=$(cat /etc/timezone) || TIMEZONE="UTC"
+    fi
+
+    # Set ethernet interface.
     export IFACE && \
     IFACE=$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)
 
-    # Get ethernet IP.
-    export IP_SERVER && \
-    IP_SERVER=$(get_ip_addr)
+    # Set server IP.
+    export SERVER_IP && \
+    SERVER_IP=${SERVER_IP:-$(get_ip_addr)}
+
+    # Set server hostname.
+    if [ -z "${HOSTNAME}" ]; then
+        export HOSTNAME && \
+        HOSTNAME=$(hostname)
+    fi
+
+    # Validate server's hostname for production stack.
+    if [[ "${ENVIRONMENT}" = "production" ]]; then
+        # Check if the hostname is valid.
+        if [[ $(validate_fqdn "${HOSTNAME}") != true ]]; then
+            error "Your server's hostname is not fully qualified domain name (FQDN)."
+            echo -e "Please update your hostname to qualify the FQDN format and\nthen points your hostname to this server ip ${SERVER_IP} !"
+            exit 1
+        fi
+
+        # Check if the hostname is pointed to server IP address.
+        if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" ]]; then
+            error "It seems that your server's hostname is not yet pointed to your server's IP address."
+            echo -e "Please update your DNS record by adding an A record and point it to your server IP ${SERVER_IP} !"
+            exit 1
+        fi
+    fi
 fi
 
-### Main ###
+
+##
+# Main
+#
 case "${1}" in
     "--install")
         header_msg
@@ -108,6 +139,12 @@ case "${1}" in
         ### Create default account ###
         echo ""
         create_account "${LEMPER_USERNAME}"
+
+        ### Certbot Let's Encrypt SSL installation ###
+        if [ -f scripts/install_certbotle.sh ]; then
+            echo ""
+            . ./scripts/install_certbotle.sh
+        fi
 
         ### Nginx installation ###
         if [ -f scripts/install_nginx.sh ]; then
@@ -157,12 +194,6 @@ case "${1}" in
             . ./scripts/install_mongodb.sh
         fi
 
-        ### Certbot Let's Encrypt SSL installation ###
-        if [ -f scripts/install_certbotle.sh ]; then
-            echo ""
-            . ./scripts/install_certbotle.sh
-        fi
-
         ### Mail server installation ###
         if [ -f scripts/install_mailer.sh ]; then
             echo ""
@@ -173,6 +204,12 @@ case "${1}" in
         if [ -f scripts/install_tools.sh ]; then
             echo ""
             . ./scripts/install_tools.sh
+        fi
+
+        ### Fail2ban, intrusion prevention software framework that protects computer servers from brute-force attacks. ###
+        if [ -f scripts/install_fail2ban.sh ]; then
+            echo ""
+            . ./scripts/install_fail2ban.sh
         fi
 
         ### Basic server security ###
@@ -197,20 +234,20 @@ case "${1}" in
         if "${DRYRUN}"; then
             warning -e "\nLEMPer installation has been completed in dry-run mode."
         else
-            status -e "\nLEMPer installation has been completed."
+            status -e "\nCongrats, your LEMP stack installation has been completed."
 
             ### Recap ###
             if [[ -n "${PASSWORD}" ]]; then
                 CREDENTIALS="
 Here is your default system account information:
-    Hostname : $(hostname)
-    Server IP: ${IP_SERVER}
+    Hostname : ${HOSTNAME}
+    Server IP: ${SERVER_IP}
     SSH Port : ${SSH_PORT}
     Username : ${USERNAME}
     Password : ${PASSWORD}
 
 Access to your Database administration (Adminer):
-    http://${IP_SERVER}:8082/lcp/dbadmin/
+    http://${SERVER_IP}:8082/lcp/dbadmin/
 
     Database root password: ${MYSQL_ROOT_PASS}
 
@@ -219,7 +256,7 @@ Access to your Database administration (Adminer):
     DB Password: ${MARIABACKUP_PASS}
 
 Access to your File manager (TinyFileManager):
-    http://${IP_SERVER}:8082/lcp/filemanager/
+    http://${SERVER_IP}:8082/lcp/filemanager/
 
 Please Save & Keep It Private!
 ~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~"
