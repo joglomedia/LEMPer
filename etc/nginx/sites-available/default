@@ -119,9 +119,6 @@ server {
     access_log /var/log/nginx/localhost.access.log;
     error_log /var/log/nginx/localhost.error.log;
 
-    # Error page directives.
-    include /etc/nginx/includes/error_pages.conf;
-
     location /lcp {
         try_files $uri $uri/ /index.php?$args;
 
