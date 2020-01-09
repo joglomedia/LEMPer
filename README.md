@@ -7,7 +7,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 ## Features
 
 * Nginx from [Ondrej's](https://launchpad.net/~ondrej/+archive/ubuntu/nginx) repository.
-* Nginx build from [source](https://github.com/nginx/nginx) with [Mod PageSpeed](https://github.com/apache/incubator-pagespeed-ngx) module (enable from the configuration file).
+* Nginx build from [source](https://github.com/nginx/nginx) with [Mod PageSpeed](https://github.com/apache/incubator-pagespeed-ngx) module (enable it from the configuration file).
 * Nginx with FastCGI cache enable & disable feature (via LEMPer CLI).
 * Nginx pre-configured optimization for low-end VPS/cloud server. Need reliable VPS/cloud server? Get one  [here](https://eslabs.id/upcloud/) or [here](https://eslabs.id/digitalocean/).
 * Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework.
@@ -22,11 +22,11 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
   * CMS: drupal, mautic, roundcube, sendy, wordpress, wordpress-ms), and
   * more coming soon.
 * PHP Zend OPcache.
-* PHP Loader (ionCube & SourceGuardian).
-* SQL database with MariaDB 10 (MySQL drop-in replacement).
-* NoSQL database with MongoDB *NEW*.
-* In-memory database with Redis.
-* Memory cache with Memcached.
+* PHP Loader, ionCube & SourceGuardian (enable it from the configuration file).
+* SQL database with MariaDB 10, MySQL drop-in replacement (enable it from the configuration file).
+* NoSQL database with MongoDB *NEW* (enable it from the configuration file).
+* In-memory database with Redis (enable it from the configuration file).
+* Memory cache with Memcached (enable it from the configuration file).
 * [Adminer](https://www.adminer.org/) web-based SQL & MongoDB database manager (PhpMyAdmin replacement).
 * [phpRedisAdmin](https://github.com/erikdubbelboer/phpRedisAdmin) web-based Redis database manager.
 * [phpMemcachedAdmin](https://github.com/elijaa/phpmemcachedadmin) web-based Memcached manager.
