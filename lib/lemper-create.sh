@@ -23,9 +23,6 @@ APP_VERSION="1.0.0"
 CMD_PARENT="lemper-cli"
 CMD_NAME="create"
 
-# Test mode.
-DRYRUN=false
-
 # Color decorator.
 RED=91
 GREEN=92
@@ -34,7 +31,6 @@ YELLOW=93
 ##
 # Helper Functions
 #
-
 function begin_color() {
     color="${1}"
     echo -e -n "\e[${color}m"
@@ -47,39 +43,46 @@ function end_color() {
 function echo_color() {
     color="${1}"
     shift
-    begin_color "$color"
+    begin_color "${color}"
     echo "$@"
     end_color
 }
 
 function error() {
-    #local error_message="$@"
-    echo_color "$RED" -n "Error: " >&2
+    echo_color "${RED}" -n "Error: " >&2
     echo "$@" >&2
 }
 
 # Prints an error message and exits with an error code.
 function fail() {
     error "$@"
-
-    # Normally I'd use $0 in "usage" here, but since most people will be running
-    # this via curl, that wouldn't actually give something useful.
     echo >&2
     echo "For usage information, run this script with --help" >&2
     exit 1
 }
 
 function status() {
-    echo_color "$GREEN" "$@"
+    echo_color "${GREEN}" "$@"
 }
 
 function warning() {
-    echo_color "$YELLOW" "$@"
+    echo_color "${YELLOW}" "$@"
 }
 
+function success() {
+    echo_color "${GREEN}" -n "Success: " >&2
+    echo "$@" >&2
+}
+
+function info() {
+    echo_color "${YELLOW}" -n "Warn: " >&2
+    echo "$@" >&2
+}
+
+# Run command
 function run() {
-    if "${DRYRUN}"; then
-        echo_color "$YELLOW" -n "would run "
+    if "$DRYRUN"; then
+        echo_color "${YELLOW}" -n "would run "
         echo "$@"
     else
         if ! "$@"; then
@@ -175,7 +178,8 @@ _EOF_
 # Work for default and WordPress site.
 #
 function create_vhost_default() {
-    cat <<- _EOF_
+    if ! "${DRYRUN}"; then
+        cat <<- _EOF_
 server {
     listen 80;
     listen [::]:80;
@@ -279,6 +283,9 @@ server {
     #include /etc/nginx/includes/fcgiwrap.conf;
 }
 _EOF_
+    else
+        info "Vhost created in dryrun mode, no data written."
+    fi
 }
 
 ##
@@ -286,7 +293,8 @@ _EOF_
 # To be outputted into new file.
 #
 function create_vhost_drupal() {
-    cat <<- _EOF_
+    if ! "${DRYRUN}"; then
+        cat <<- _EOF_
 server {
     listen 80;
     listen [::]:80;
@@ -384,6 +392,9 @@ server {
     #include /etc/nginx/includes/fcgiwrap.conf;
 }
 _EOF_
+    else
+        info "Vhost created in dryrun mode, no data written."
+    fi
 }
 
 ##
@@ -391,7 +402,8 @@ _EOF_
 # To be outputted into new file.
 #
 function create_vhost_laravel() {
-    cat <<- _EOF_
+    if ! "${DRYRUN}"; then
+        cat <<- _EOF_
 server {
     listen 80;
     listen [::]:80;
@@ -490,6 +502,9 @@ server {
     #include /etc/nginx/includes/fcgiwrap.conf;
 }
 _EOF_
+    else
+        info "Vhost created in dryrun mode, no data written."
+    fi
 }
 
 ##
@@ -497,7 +512,8 @@ _EOF_
 # To be outputted into new file.
 #
 function create_vhost_phalcon() {
-    cat <<- _EOF_
+    if ! "${DRYRUN}"; then
+        cat <<- _EOF_
 server {
     listen 80;
     listen [::]:80;
@@ -599,6 +615,9 @@ server {
     #include /etc/nginx/includes/fcgiwrap.conf;
 }
 _EOF_
+    else
+        info "Vhost created in dryrun mode, no data written."
+    fi
 }
 
 ##
@@ -642,7 +661,8 @@ _EOF_
 # To be outputted into new index.html file in document root.
 #
 function create_index_file() {
-    cat <<- _EOF_
+    if ! "${DRYRUN}"; then
+        cat <<- _EOF_
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -690,6 +710,9 @@ div.banner{color:#009639;font-family:Montserrat,sans-serif;position:absolute;lef
 </body>
 </html>
 _EOF_
+    else
+        info "index file created in dryrun mode, no data written."
+    fi
 }
 
 ##
@@ -772,7 +795,7 @@ function install_wordpress() {
                 error "Something went wrong while downloading WordPress files."
             fi
         else
-            warning "It seems that WordPress files already exists."
+            info "It seems that WordPress files already exists."
         fi
     else
         # Create default index file.
@@ -879,6 +902,9 @@ function init_app() {
     ENABLE_WILDCARD_DOMAIN=false
     TMPDIR="/tmp/lemper"
 
+    # Test mode
+    DRYRUN=false
+
     # Args counter
     MAIN_ARGS=0
 
@@ -954,6 +980,9 @@ function init_app() {
         esac
     done
 
+    PHP_BIN=$(command -v "php${PHP_VERSION}")
+    PHP_COMPOSER_BIN=$(command -v composer)
+
     if [ ${MAIN_ARGS} -ge 1 ]; then
         # Additional Check - ensure that Nginx's configuration meets the requirements.
         if [[ ! -d /etc/nginx/sites-available && ! -d /etc/nginx/vhost ]]; then
@@ -983,7 +1012,7 @@ function init_app() {
 
             # Check for username.
             if [[ -z "${USERNAME}" ]]; then
-                warning "Username option is empty. Attempt to use default \"lemper\" account."
+                info "Username option is empty. Attempt to use default \"lemper\" account."
                 USERNAME="lemper"
             fi
 
@@ -996,7 +1025,7 @@ function init_app() {
             if [[ -n $(command -v "php-fpm${PHP_VERSION}") && -d "/etc/php/${PHP_VERSION}/fpm" ]]; then
                 # Additional check - if FPM user's pool already exist.
                 if [ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]; then
-                    warning "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."
+                    info "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."
                     echo "Creating new PHP-FPM pool [${USERNAME}] configuration..."
 
                     # Create PHP FPM pool conf.
@@ -1013,7 +1042,7 @@ function init_app() {
                     # Restart PHP FPM.
                     echo "Restart php${PHP_VERSION}-fpm configuration..."
 
-                    run service "php${PHP_VERSION}-fpm" restart
+                    run systemctl restart "php${PHP_VERSION}-fpm"
 
                     status "New PHP-FPM pool [${USERNAME}] has been created."
                 fi
@@ -1024,7 +1053,7 @@ function init_app() {
             # Check web root option.
             if [[ -z "${WEBROOT}" ]]; then
                 WEBROOT="/home/${USERNAME}/webapps/${SERVERNAME}"
-                warning "Webroot option is empty. Set to default web root: ${WEBROOT}"
+                info "Webroot option is empty. Set to default web root: ${WEBROOT}"
             fi
 
             # Creates document root.
@@ -1039,7 +1068,7 @@ function init_app() {
             # Check framework option.
             if [[ -z "${FRAMEWORK}" ]]; then
                 FRAMEWORK="default"
-                warning "Framework option is empty. Set to default framework: ${FRAMEWORK}"
+                info "Framework option is empty. Set to default framework: ${FRAMEWORK}"
             fi
 
             echo "Selecting ${FRAMEWORK^} framework..."
@@ -1055,23 +1084,22 @@ function init_app() {
                         if [ ! -d "${WEBROOT}/core/lib/Drupal" ]; then
                             status "Downloading Drupal latest skeleton files..."
 
-                            if wget -q -O "${TMPDIR}/drupal.zip" \
-                                    https://www.drupal.org/download-latest/zip; then
-                                run unzip -q "${TMPDIR}/drupal.zip" -d "${TMPDIR}"
-                                run rsync -rq ${TMPDIR}/drupal-*/ "${WEBROOT}"
-                                run rm -f "${TMPDIR}/drupal.zip"
+                            if curl -sL --head https://www.drupal.org/download-latest/zip | grep -q "HTTP/[.12]* [2].."; then
+                                run wget -q -O "${TMPDIR}/drupal.zip" https://www.drupal.org/download-latest/zip && \
+                                run unzip -q "${TMPDIR}/drupal.zip" -d "${TMPDIR}" && \
+                                run rsync -rq ${TMPDIR}/drupal-*/ "${WEBROOT}" && \
+                                run rm -f "${TMPDIR}/drupal.zip" && \
                                 run rm -fr ${TMPDIR}/drupal-*/
                             else
                                 error "Something went wrong while downloading Drupal files."
                             fi
                         else
-                            warning "It seems that Drupal files already exists."
+                            info "It seems that Drupal files already exists."
                         fi
                     else
                         # Create default index file.
-                        status "Creating default index file..."
-
-                        if [ ! -e "${WEBROOT}/index.html" ]; then
+                        if [ ! -e "${WEBROOT}/index.php" ]; then
+                            status "Creating default index file..."
                             create_index_file > "${WEBROOT}/index.html"
                         fi
                     fi
@@ -1096,18 +1124,22 @@ function init_app() {
                         # Check Laravel install.
                         if [ ! -f "${WEBROOT}/artisan" ]; then
                             status "Downloading ${FRAMEWORK^} skeleton files..."
-                            run git clone -q --depth=1 --branch=master \
-                                "https://github.com/laravel/${FRAMEWORK}.git" "${WEBROOT}" || \
-                                error "Something went wrong while downloading ${FRAMEWORK^} files."
+
+                            if [[ -n "${PHP_COMPOSER_BIN}" ]]; then
+                                run "${PHP_BIN}" "${PHP_COMPOSER_BIN}" create-project --prefer-dist "laravel/${FRAMEWORK}" "${WEBROOT}"
+                            else
+                                run git clone -q --depth=1 --branch=master \
+                                    "https://github.com/laravel/${FRAMEWORK}.git" "${WEBROOT}" || \
+                                    error "Something went wrong while downloading ${FRAMEWORK^} files."
+                            fi
                         else
-                            warning "It seems that ${FRAMEWORK^} skeleton files already exists."
+                            info "It seems that ${FRAMEWORK^} skeleton files already exists."
                         fi
                     else
                         # Create default index file.
-                        status "Creating default index file..."
-                        run mkdir -p "${WEBROOT}/public"
-
-                        if [ ! -e "${WEBROOT}/public/index.html" ]; then
+                        if [ ! -e "${WEBROOT}/public/index.php" ]; then
+                            status "Creating default index file..."
+                            run mkdir -p "${WEBROOT}/public"
                             create_index_file > "${WEBROOT}/public/index.html"
                         fi
                     fi
@@ -1117,37 +1149,62 @@ function init_app() {
                         run mkdir -p "${WEBROOT}/public/.well-known"
                     fi
 
-                    run wget -q -O "${WEBROOT}/public/favicon.ico" \
-                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    #run wget -q -O "${WEBROOT}/public/favicon.ico" \
+                    #    https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
 
                     # Fix ownership.
                     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
+
+                    # Return Lumen framework as Laravel for vhost creation.
+                    [ "${FRAMEWORK}" == "lumen" ] && FRAMEWORK="laravel"
                     create_vhost_laravel > "${VHOST_FILE}"
                 ;;
 
-                phalcon|phalcon-micro)
+                phalcon|phalcon-cli|phalcon-micro|phalcon-modules)
                     echo "Setting up ${FRAMEWORK^} framework virtual host..."
 
                     # Auto install Phalcon PHP framework skeleton.
                     if [ ${CLONE_SKELETON} == true ]; then
                         # Check Phalcon skeleton install.
-                        if [ ! -f "${WEBROOT}/app/config/loader.php" ]; then
+                        if [ ! -f "${WEBROOT}/app/config/config.php" ]; then
                             status "Downloading ${FRAMEWORK^} skeleton files..."
-                            run git clone -q --depth=1 --branch=master \
-                                "https://github.com/joglomedia/${FRAMEWORK}-skeleton.git" "${WEBROOT}" || \
-                                error "Something went wrong while downloading ${FRAMEWORK^} files."
+
+                            PHP_PHALCON_BIN=$(command -v phalcon)
+
+                            # Switch Phalcon framework type.
+                            case "${FRAMEWORK}" in
+                                phalcon-cli)
+                                    PHALCON_TYPE="cli"
+                                ;;
+                                phalcon-micro)
+                                    PHALCON_TYPE="micro"
+                                ;;
+                                phalcon-modules)
+                                    PHALCON_TYPE="modules"
+                                ;;
+                                *)
+                                    PHALCON_TYPE="simple"
+                                ;;
+                            esac
+
+                            if [[ -n "${PHP_PHALCON_BIN}" ]]; then
+                                run "${PHP_PHALCON_BIN}" project --name="${SERVERNAME}" --type="${PHALCON_TYPE}" --directory="/home/${USERNAME}/webapps"
+                            else
+                                run git clone -q --depth=1 --branch=master \
+                                    "https://github.com/joglomedia/${FRAMEWORK}-skeleton.git" "${WEBROOT}" || \
+                                    error "Something went wrong while downloading ${FRAMEWORK^} files."
+                            fi
                         else
-                            warning "It seems that ${FRAMEWORK^} skeleton files already exists."
+                            info "It seems that ${FRAMEWORK^} skeleton files already exists."
                         fi
                     else
                         # Create default index file.
-                        status "Creating default index file..."
-                        run mkdir -p "${WEBROOT}/public"
-                        
-                        if [ ! -e "${WEBROOT}/public/index.html" ]; then
+                        if [ ! -e "${WEBROOT}/public/index.php" ]; then
+                            status "Creating default index file..."
+                            run mkdir -p "${WEBROOT}/public"
                             create_index_file > "${WEBROOT}/public/index.html"
                         fi
                     fi
@@ -1157,14 +1214,17 @@ function init_app() {
                         run mkdir -p "${WEBROOT}/public/.well-known"
                     fi
 
-                    run wget -q -O "${WEBROOT}/public/favicon.ico" \
-                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    #run wget -q -O "${WEBROOT}/public/favicon.ico" \
+                    #    https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
 
                     # Fix ownership.
                     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
                     # Create vhost.
                     echo "Creating virtual host file: ${VHOST_FILE}..."
+
+                    # Return Micro framework as Phalcon for vhost creation.
+                    [[ "${FRAMEWORK}" == "phalcon-cli" || "${FRAMEWORK}" == "phalcon-micro" || "${FRAMEWORK}" == "phalcon-modules" ]] && FRAMEWORK="phalcon"
                     create_vhost_phalcon > "${VHOST_FILE}"
                 ;;
 
@@ -1173,31 +1233,29 @@ function init_app() {
 
                     # Auto install Symfony PHP framework skeleton.
                     if [ ${CLONE_SKELETON} == true ]; then
-                        # Install Symfony binary if not exists.
-                        if [[ -z $(command -v symfony) ]]; then
-                            run wget -q https://get.symfony.com/cli/installer -O - | bash
-                            if [ -f "${HOME}/.symfony/bin/symfony" ]; then
-                                run cp -f "${HOME}/.symfony/bin/symfony" /usr/local/bin/symfony
-                                run chmod ugo+x /usr/local/bin/symfony
-                            else
-                                run export PATH="${HOME}/.symfony/bin:${PATH}"
-                            fi
-                        fi
-
                         # Check Symfony install.
                         if [ ! -f "${WEBROOT}/src/Kernel.php" ]; then
                             status "Downloading Symfony skeleton files..."
-                            run git clone -q --depth=1 --branch=master \
-                                "https://github.com/joglomedia/${FRAMEWORK}-skeleton.git" "${WEBROOT}" || \
-                                error "Something went wrong while downloading Symfony files."
+
+                            if [[ -n "${PHP_COMPOSER_BIN}" ]]; then
+                                run "${PHP_BIN}" "${PHP_COMPOSER_BIN}" create-project --prefer-dist symfony/website-skeleton "${WEBROOT}"
+                            else
+                                run wget -q https://get.symfony.com/cli/installer -O - | bash
+                                if [ -f "${HOME}/.symfony/bin/symfony" ]; then
+                                    run cp -f "${HOME}/.symfony/bin/symfony" /usr/local/bin/symfony
+                                    run chmod ugo+x /usr/local/bin/symfony
+                                else
+                                    run export PATH="${HOME}/.symfony/bin:${PATH}"
+                                fi
+                                run symfony new "${WEBROOT}" --full
+                            fi
                         else
-                            warning "It seems that Symfony skeleton files already exists."
+                            info "It seems that Symfony skeleton files already exists."
                         fi
                     else
                         # Create default index file.
-                        status "Creating default index file..."
-
-                        if [ ! -e "${WEBROOT}/index.html" ]; then
+                        if [ ! -e "${WEBROOT}/index.php" ]; then
+                            status "Creating default index file..."
                             create_index_file > "${WEBROOT}/index.html"
                         fi
                     fi
@@ -1207,8 +1265,8 @@ function init_app() {
                         run mkdir -p "${WEBROOT}/public/.well-known"
                     fi
 
-                    run wget -q -O "${WEBROOT}/public/favicon.ico" \
-                        https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    #run wget -q -O "${WEBROOT}/public/favicon.ico" \
+                    #    https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
                     
                     # Fix ownership.
                     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
@@ -1238,18 +1296,14 @@ function init_app() {
                                 error "Something went wrong while downloading WooCommerce files."
                             fi
                         fi
-
-                        # Return framework as Wordpress for vhost creation.
-                        FRAMEWORK="wordpress"
                     fi
 
                     # Create vhost.
-                    if ! "${DRYRUN}"; then
-                        echo "Create virtual host file: ${VHOST_FILE}"
-                        create_vhost_default > "${VHOST_FILE}"
-                    else
-                        warning "Virtual host created in dryrun mode, no data written."
-                    fi
+                    echo "Create virtual host file: ${VHOST_FILE}"
+
+                    # Return framework as Wordpress for vhost creation.
+                    [ "${FRAMEWORK}" == "woocommerce" ] && FRAMEWORK="wordpress"
+                    create_vhost_default > "${VHOST_FILE}"
                 ;;
 
                 wordpress-ms)
@@ -1283,7 +1337,7 @@ function init_app() {
                                 "${VHOST_FILE}"
                         fi
                     else
-                        warning "Virtual host created in dryrun mode, no data written."
+                        info "Virtual host created in dryrun mode, no data written."
                     fi
                 ;;
 
@@ -1303,7 +1357,7 @@ function init_app() {
                                 error "Something went wrong while downloading FileRun files."
                             fi
                         else
-                            warning "FileRun skeleton files already exists."
+                            info "FileRun skeleton files already exists."
                         fi
                     else
                         # Create default index file.
@@ -1352,7 +1406,7 @@ function init_app() {
             esac
 
             if "${DRYRUN}"; then
-                warning "New domain ${SERVERNAME} has been added in dry run mode."
+                info "New domain ${SERVERNAME} has been added in dry run mode."
             else
                 # Confirm virtual host.
                 if grep -qwE "server_name ${SERVERNAME}" "${VHOST_FILE}"; then
@@ -1406,7 +1460,7 @@ function init_app() {
                         # enable fastcgi_cache conf
                         run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" "${VHOST_FILE}"
                     else
-                        warning "FastCGI cache is not enabled due to no cached version of ${FRAMEWORK^} directive."
+                        info "FastCGI cache is not enabled due to no cached version of ${FRAMEWORK^} directive."
                     fi
                 fi
 
@@ -1422,7 +1476,7 @@ function init_app() {
                         run sed -i "s|#pagespeed\ Disallow|pagespeed\ Disallow|g" "${VHOST_FILE}"
                         run sed -i "s|#pagespeed\ Domain|pagespeed\ Domain|g" "${VHOST_FILE}"
                     else
-                        warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
+                        info "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
                     fi
                 fi
 
@@ -1451,10 +1505,10 @@ function init_app() {
 
             # Validate config, reload when validated.
             if nginx -t 2>/dev/null > /dev/null; then
-                run service nginx reload -s
+                run systemctl reload nginx reload
                 echo "NGiNX HTTP server reloaded with new configuration."
             else
-                warning "Something went wrong with NGiNX configuration."
+                info "Something went wrong with NGiNX configuration."
             fi
 
             if [[ -f "/etc/nginx/sites-enabled/${SERVERNAME}.conf" && -e /var/run/nginx.pid ]]; then
@@ -1471,12 +1525,12 @@ function init_app() {
                 # WordPress MS notice.
                 if [ "${FRAMEWORK}" = "wordpress-ms" ]; then
                     echo >&2
-                    warning "Note: You're installing Wordpress Multisite."
-                    warning "You should activate NGiNX Helper plugin to work properly."
+                    info "Note: You're installing Wordpress Multisite."
+                    info "You should activate NGiNX Helper plugin to work properly."
                 fi
             else
                 if "${DRYRUN}"; then
-                    warning "Your ${SERVERNAME} successfully added in dryrun mode."
+                    info "Your ${SERVERNAME} successfully added in dryrun mode."
                 else
                     fail "An error occurred when adding ${SERVERNAME} to NGiNX virtual host."
                 fi

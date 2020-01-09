@@ -34,7 +34,6 @@ YELLOW=93
 ##
 # Helper Functions
 #
-
 function begin_color() {
     color="${1}"
     echo -e -n "\e[${color}m"
@@ -47,39 +46,46 @@ function end_color() {
 function echo_color() {
     color="${1}"
     shift
-    begin_color "$color"
+    begin_color "${color}"
     echo "$@"
     end_color
 }
 
 function error() {
-    #local error_message="$@"
-    echo_color "$RED" -n "Error: " >&2
+    echo_color "${RED}" -n "Error: " >&2
     echo "$@" >&2
 }
 
 # Prints an error message and exits with an error code.
 function fail() {
     error "$@"
-
-    # Normally I'd use $0 in "usage" here, but since most people will be running
-    # this via curl, that wouldn't actually give something useful.
     echo >&2
     echo "For usage information, run this script with --help" >&2
     exit 1
 }
 
 function status() {
-    echo_color "$GREEN" "$@"
+    echo_color "${GREEN}" "$@"
 }
 
 function warning() {
-    echo_color "$YELLOW" "$@"
+    echo_color "${YELLOW}" "$@"
 }
 
+function success() {
+    echo_color "${GREEN}" -n "Success: " >&2
+    echo "$@" >&2
+}
+
+function info() {
+    echo_color "${YELLOW}" -n "Info: " >&2
+    echo "$@" >&2
+}
+
+# Run command
 function run() {
-    if "${DRYRUN}"; then
-        echo_color "$YELLOW" -n "would run "
+    if "$DRYRUN"; then
+        echo_color "${YELLOW}" -n "would run "
         echo "$@"
     else
         if ! "$@"; then
@@ -360,7 +366,7 @@ _EOF_
                 run mysql -u root -p"${MYSQL_ROOT_PASS}" -e "CREATE USER '${DBUSER}'@'${DBHOST}' IDENTIFIED BY '${DBPASS}';"
 
                 if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
-                    status -n "Success: "; echo "A new database's account has been created."
+                    success "A new database's account has been created."
                     echo -e "Below the account details:\nUsername: ${DBUSER}\nPassword: ${DBPASS}\nHost: ${DBHOST}"
                 fi
             fi
@@ -394,13 +400,13 @@ _EOF_
 
             if ! ${DRYRUN}; then
                 if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "${SQL_QUERY}"; then
-                    status -n "Success: "; echo "The database's account '${DBUSER}'@'${DBHOST}' has been deleted."
+                    success "The database's account '${DBUSER}'@'${DBHOST}' has been deleted."
                 else
                     error "Unable to delete database account '${DBUSER}'@'${DBHOST}'."
                     exit 1
                 fi
             else
-                warning -n "would run "; echo "SQL query: \"${SQL_QUERY}\""
+                info "SQL query: \"${SQL_QUERY}\""
             fi
         fi
     }
@@ -423,13 +429,12 @@ _EOF_
 
         if ! ${DRYRUN}; then
             if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "${SQL_QUERY}"; then
-                status -n "Success: "
-                echo "Password for account '${DBUSER}'@'${DBHOST}' has been updated to '${DBPASS2}'."
+                success "Password for account '${DBUSER}'@'${DBHOST}' has been updated to '${DBPASS2}'."
             else
                 error "Unable to update password for '${DBUSER}'@'${DBHOST}'."
             fi
         else
-            warning -n "would run "; echo "SQL query: \"${SQL_QUERY}\""
+            info "SQL query: \"${SQL_QUERY}\""
         fi
     }
 
@@ -453,8 +458,7 @@ _EOF_
             error "You are not allowed to rename this account."
         else
             if mysql -u root -p"${DBROOT_PASS}" -e "RENAME USER '${DBUSER}'@'${DBHOST}' TO '${DBUSER2}'@'${DBHOST2}';"; then
-                status -n "Success: "
-                echo "Database account '${DBUSER}'@'${DBHOST}' has been renamed to '${DBUSER2}'@'${DBHOST2}'."
+                success "Database account '${DBUSER}'@'${DBHOST}' has been renamed to '${DBUSER2}'@'${DBHOST2}'."
             else
                 error "Unable to rename database account '${DBUSER}'@'${DBHOST}'."
                 exit 1
@@ -646,7 +650,7 @@ function db_ops() {
                 run mysql -u root -p"${DBPASS}" -e "${SQL_QUERY}"
 
                 if mysql -u root -p"${DBPASS}" -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -qwE "${DBNAME}"; then
-                    status -n "Success: "; echo "A new database '${DBNAME}' has been created."
+                    success "A new database '${DBNAME}' has been created."
                 else
                     error "Failed creating database '${DBNAME}'."
                     exit 1
@@ -711,7 +715,7 @@ function db_ops() {
                     run mysql -u "${DBUSER}" -p"${DBPASS}" -e "DROP DATABASE ${DBNAME};"
 
                     if ! mysql -u root -p"${DBPASS}" -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -qwE "${DBNAME}"; then
-                        status -n "Success: "; echo "Database '${DBNAME}' has been dropped."
+                        success "Database '${DBNAME}' has been dropped."
                     else
                         error "Failed deleting database '${DBNAME}'."
                         exit 1
@@ -738,7 +742,7 @@ function db_ops() {
                 if [[ -n $(command -v mysqldump) ]]; then
                     if mysql -u "${DBUSER}" -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
                         run mysqldump -u "${DBUSER}" -p"${DBPASS}" --databases "${DBNAME}" > "${DBFILE}"
-                        [ -f "${DBFILE}" ] && status -n "Success: "; echo "database ${DBNAME} exported to ${DBFILE}."
+                        [ -f "${DBFILE}" ] && success "database ${DBNAME} exported to ${DBFILE}."
                     else
                         error "Specified database '${DBNAME}' does not exist."
                         exit 1
