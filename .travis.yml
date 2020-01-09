@@ -5,7 +5,7 @@ sudo: required
 
 before_install:
   - sudo apt-get update -y -qq
-  - sudo apt-get install -y -qq shellcheck
+  - sudo apt install -qq -y shellcheck
 
 before_script:
   - "sudo curl -s -o /usr/local/bin/shunit2 https://raw.githubusercontent.com/kward/shunit2/master/shunit2"
@@ -22,10 +22,14 @@ matrix:
         # Copy dotenv file.
         - cp .env.dist .env
         - sed -i "s/ENVIRONMENT=\"production\"/ENVIRONMENT=\"development\"/g" .env
-        - sed -i "s/SERVER_IP=\"\"/SERVER_IP=\"127.0.0.1\"/g" .env
+        #- sed -i "s/SERVER_IP=\"\"/SERVER_IP=\"127.0.0.1\"/g" .env
         - sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/g" .env
         - sed -i "s/AUTO_REMOVE=false/AUTO_REMOVE=true/g" .env
         - sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
+        #- sed -i "s/NGINX_INSTALLER=\"repo\"/NGINX_INSTALLER=\"source\"/g" .env
+        #- sed -i "s/NGX_PAGESPEED=false/NGX_PAGESPEED=true/g" .env
+        - sed -i "s/INSTALL_MAILER=false/INSTALL_MAILER=true/g" .env
+        - sed -i "s/INSTALL_SPFDKIM=false/INSTALL_SPFDKIM=true/g" .env
         # Run the source through ShellCheck (http://www.shellcheck.net).
         - shellcheck -s bash -x lemper.sh
         - shellcheck -s bash -x bin/lemper-cli.sh
