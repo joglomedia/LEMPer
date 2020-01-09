@@ -176,7 +176,7 @@ case "${1}" in
         if "${FORCE_REMOVE}"; then
             # Cleaning up all build dependencies hanging around on production server?
             echo -e "\nClean up installation process..."
-            run apt-get -qq autoremove -y
+            run apt autoremove -qq -y
 
             # Cleanup build dir
             echo "Clean up build directory..."
@@ -334,7 +334,7 @@ Now, you can reboot your server and enjoy it!"
 
         # Remove unnecessary packages.
         echo -e "\nCleaning up unnecessary packages..."
-        run apt-get -qq autoremove -y
+        run apt autoremove -qq -y
 
         status -e "\nLEMP stack has been removed completely."
         warning -e "\nDid you know? that we're so sad to see you leave :'(
