@@ -34,7 +34,6 @@ YELLOW=93
 ##
 # Helper Functions
 #
-
 function begin_color() {
     color="${1}"
     echo -e -n "\e[${color}m"
@@ -47,39 +46,46 @@ function end_color() {
 function echo_color() {
     color="${1}"
     shift
-    begin_color "$color"
+    begin_color "${color}"
     echo "$@"
     end_color
 }
 
 function error() {
-    #local error_message="$@"
-    echo_color "$RED" -n "Error: " >&2
+    echo_color "${RED}" -n "Error: " >&2
     echo "$@" >&2
 }
 
 # Prints an error message and exits with an error code.
 function fail() {
     error "$@"
-
-    # Normally I'd use $0 in "usage" here, but since most people will be running
-    # this via curl, that wouldn't actually give something useful.
     echo >&2
     echo "For usage information, run this script with --help" >&2
     exit 1
 }
 
 function status() {
-    echo_color "$GREEN" "$@"
+    echo_color "${GREEN}" "$@"
 }
 
 function warning() {
-    echo_color "$YELLOW" "$@"
+    echo_color "${YELLOW}" "$@"
 }
 
+function success() {
+    echo_color "${GREEN}" -n "Success: " >&2
+    echo "$@" >&2
+}
+
+function info() {
+    echo_color "${YELLOW}" -n "Info: " >&2
+    echo "$@" >&2
+}
+
+# Run command
 function run() {
-    if "${DRYRUN}"; then
-        echo_color "$YELLOW" -n "would run "
+    if "$DRYRUN"; then
+        echo_color "${YELLOW}" -n "would run "
         echo "$@"
     else
         if ! "$@"; then
@@ -236,7 +242,7 @@ function remove_vhost() {
             run rm -fr "${WEBROOT}"
             status "Virtual host root directory removed."
         else
-            warning "Sorry, directory couldn't be found. Skipped..."
+            info "Sorry, directory couldn't be found. Skipped..."
         fi
     fi
 
@@ -279,7 +285,7 @@ function remove_vhost() {
             run mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "DROP DATABASE ${DBNAME}"
             status "Database '${DBNAME}' dropped."
         else
-            warning "Sorry, database ${DBNAME} not found. Skipped..."
+            info "Sorry, database ${DBNAME} not found. Skipped..."
         fi
     fi
 
@@ -307,7 +313,7 @@ function enable_fastcgi_cache() {
         run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
     else
-        warning "FastCGI cache is not enabled. There is no cached configuration."
+        info "FastCGI cache is not enabled. There is no cached configuration."
         exit 1
     fi
 
@@ -333,7 +339,7 @@ function disable_fastcgi_cache() {
         run sed -i "s|^\        include\ /etc/nginx/includes/fastcgi_cache.conf|\        #include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
     else
-        warning "FastCGI cache is not enabled. There is no cached configuration."
+        info "FastCGI cache is not enabled. There is no cached configuration."
         exit 1
     fi
 
@@ -368,7 +374,7 @@ function enable_mod_pagespeed() {
         #        "/etc/nginx/sites-available/${1}.conf"
         #fi
     else
-        warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
+        info "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
     fi
 
@@ -402,7 +408,7 @@ function disable_mod_pagespeed() {
         #        "/etc/nginx/sites-available/${1}.conf"
         #fi
     else
-        warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
+        info "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
     fi
 
@@ -453,7 +459,7 @@ function enable_ssl() {
 
     # Update vhost config.
     if "${DRYRUN}"; then
-        warning "Updating HTTPS config in dryrun mode."
+        info "Updating HTTPS config in dryrun mode."
     else
         # Ensure there is no HTTPS enabled server block.
         if ! grep -qwE "^\    listen\ 443 ssl http2" "/etc/nginx/sites-available/${1}.conf"; then
@@ -519,7 +525,7 @@ function disable_ssl() {
 
     # Update vhost config.
     if "${DRYRUN}"; then
-        warning "Disabling HTTPS config in dryrun mode."
+        info "Disabling HTTPS config in dryrun mode."
     else
         echo "Disabling HTTPS configuration..."
 
@@ -552,7 +558,7 @@ function remove_ssl() {
 
     # Update vhost config.
     if "${DRYRUN}"; then
-        warning "Disabling HTTPS and removing SSL certificate in dryrun mode."
+        info "Disabling HTTPS and removing SSL certificate in dryrun mode."
     else
         # Disable HTTPS first.
         disable_ssl "${1}"
@@ -582,7 +588,7 @@ function renew_ssl() {
 
     # Update vhost config.
     if "${DRYRUN}"; then
-        warning "Renew SSL certificate in dryrun mode."
+        info "Renew SSL certificate in dryrun mode."
     else
         echo "Renew SSL certificate..."
 
@@ -608,7 +614,7 @@ function renew_ssl() {
                 fail "Certbot executable binary not found. Install it first!"
             fi
         else
-            warning "Certificate file not found. May be your SSL is not activated yet."
+            info "Certificate file not found. May be your SSL is not activated yet."
         fi
     fi
     exit 0
@@ -635,7 +641,7 @@ function enable_brotli() {
             run sed -i "s|#include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_brotli;|g" \
                 /etc/nginx/nginx.conf
         else
-            warning "Sorry, we couldn't find any compression module section."
+            info "Sorry, we couldn't find any compression module section."
             echo "We recommend you to enable Brotli module manually."
             exit 1
         fi
@@ -670,7 +676,7 @@ function enable_gzip() {
             run sed -i "s|#include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_gzip;|g" \
                 /etc/nginx/nginx.conf
         else
-            warning "Sorry, we couldn't find any compression module section."
+            info "Sorry, we couldn't find any compression module section."
             echo "We recommend you to enable Gzip module manually."
             exit 1
         fi
@@ -729,7 +735,7 @@ function reload_nginx() {
                 exit 1
             fi
         else
-            warning "Something went wrong with your LEMP stack installation."
+            info "Something went wrong with your LEMP stack installation."
             exit 1
         fi
     fi
