@@ -6,8 +6,8 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 
 ## Features
 
-* Nginx from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/nginx)
-* Nginx build from [source](https://github.com/nginx/nginx) with [Mod PageSpeed](https://github.com/apache/incubator-pagespeed-ngx) module.
+* Nginx from [Ondrej's](https://launchpad.net/~ondrej/+archive/ubuntu/nginx) repository.
+* Nginx build from [source](https://github.com/nginx/nginx) with [Mod PageSpeed](https://github.com/apache/incubator-pagespeed-ngx) module (enable from the configuration file).
 * Nginx with FastCGI cache enable & disable feature (via LEMPer CLI).
 * Nginx pre-configured optimization for low-end VPS/cloud server. Need reliable VPS/cloud server? Get one  [here](https://eslabs.id/upcloud/) or [here](https://eslabs.id/digitalocean/).
 * Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework.
