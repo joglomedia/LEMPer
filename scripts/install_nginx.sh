@@ -1094,6 +1094,13 @@ function init_nginx_install() {
         # Adjust worker connections.
         run sed -i "s/worker_connections\ 4096/worker_connections\ ${NGX_CONNECTIONS}/g" /etc/nginx/nginx.conf
 
+        # Enable more headers setting.
+        if [[ "${NGX_HTTP_HEADERS_MORE}" && \
+            -f /etc/nginx/modules-enabled/50-mod-http-headers-more-filter.conf ]]; then
+            run sed -i "s|#more_set_headers|more_set_headers|g" \
+                /etc/nginx/nginx.conf
+        fi
+
         # Enable PageSpeed config.
         if [[ "${NGX_PAGESPEED}" && \
             -f /etc/nginx/modules-enabled/60-mod-pagespeed.conf ]]; then
