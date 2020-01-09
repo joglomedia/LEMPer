@@ -1,6 +1,6 @@
 # [L]inux [E]ngine-X [M]ariaDB [P]HP Install[ER]
 
-LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Debian-based/Ubuntu LEMP stack. LEMPer is _ServerPilot_, _CloudWays_, _RunCloud_, _WordOps_, and _EasyEngine_ alternative crafted to support wide-range PHP framework (not only WordPress).
+LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Debian-based/Ubuntu LEMP stack. LEMPer is _CloudWays_, _Ploi_, _RunCloud_, and _ServerPilot_ free alternative crafted to support wide-range PHP framework (not only WordPress).
 
 [![Build Status](https://travis-ci.org/joglomedia/LEMPer.svg?branch=1.3.0)](https://travis-ci.org/joglomedia/LEMPer)
 
@@ -11,32 +11,42 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * Nginx with FastCGI cache enable & disable feature (via LEMPer CLI).
 * Nginx pre-configured optimization for low-end VPS/cloud server. Need reliable VPS/cloud server? Get one  [here](https://eslabs.id/upcloud/) or [here](https://eslabs.id/digitalocean/).
 * Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework.
-* Supported PHP Framework and CMS: default (vanilla PHP), framework (codeigniter, laravel, lumen, phalcon, symfony), CMS (drupal, mautic, roundcube, sendy, wordpress, wordpress-ms), and more coming soon.
-* Multiple PHP version 5.6 [EOL], 7.0 [EOL], 7.1, 7.2, 7.3, 7.4 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
-* PHP sets as user running the PHP script (via FPM's pool). Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
+* Free Let's Encrypt SSL certificates for your sites.
+* Support natively HTTP/2 for your secure sites.
+* Get an A+ grade on Qualys (SSL Labs) Test.
+* Multiple PHP versions 5.6 [EOL], 7.0 [EOL], 7.1, 7.2, 7.3, 7.4 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
+* Run PHP as user who own the file (Multi-user isolation via FPM pool). Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
+* Supported PHP Framework and CMS:
+  * Vanilla PHP: default,
+  * Framework: codeigniter, laravel, lumen, phalcon, symfony,
+  * CMS: drupal, mautic, roundcube, sendy, wordpress, wordpress-ms), and
+  * more coming soon.
 * PHP Zend OPcache.
 * PHP Loader (ionCube & SourceGuardian).
 * SQL database with MariaDB 10 (MySQL drop-in replacement).
+* NoSQL database with MongoDB *NEW*.
 * In-memory database with Redis.
 * Memory cache with Memcached.
-* NoSQL database with MongoDB *NEW*.
-* [Adminer](https://www.adminer.org/) web-based MySQL database administration (PhpMyAdmin replacement).
+* [Adminer](https://www.adminer.org/) web-based SQL & MongoDB database manager (PhpMyAdmin replacement).
+* [phpRedisAdmin](https://github.com/erikdubbelboer/phpRedisAdmin) web-based Redis database manager.
+* [phpMemcachedAdmin](https://github.com/elijaa/phpmemcachedadmin) web-based Memcached manager.
 * [TinyFileManager](https://github.com/prasathmani/tinyfilemanager) alternative web-based filemanager (Experimental).
 
 ## Setting Up
 
 * Ensure that you have git installed.
-* Make a copy of .env.dist to .env in the LEMPer base directory and replace the values.
+* Clone LEMPer Git repositroy, ```git clone https://github.com/joglomedia/LEMPer.git```.
 * Enter LEMPer directory.
+* Make a copy of .env.dist to .env ```cp .env.dist .env``` and replace the values.
 * Execute lemper.sh file, ```sudo ./lemper.sh --install```.
 
-### Installing LEMP stack
+### Install LEMPer stack
 
 ```bash
 sudo apt-get install git && git clone -q https://github.com/joglomedia/LEMPer.git && cd LEMPer && cp -f .env.dist .env && sudo ./lemper.sh --install
 ```
 
-### Removing LEMP stack
+### Remove LEMPer stack
 
 ```bash
 sudo ./lemper.sh --remove
@@ -46,21 +56,31 @@ sudo ./lemper.sh --remove
 
 LEMPer comes with friendly command line tool which will make your LEMP stack administration much easier. These command line tool called Lemper CLI (lemper-cli) for creating new virtual host and managing existing LEMP stack.
 
-### lemper-cli Usage
+### LEMPer CLI Usage
 
-Add/create new virtual host
+Here are some examples of using LEMPer CLI.
+
+#### LEMPer CLI add new vhost / website
 
 ```bash
 sudo lemper-cli create -u username -d example.app -f default -w /home/username/Webs/example.app
 ```
 
-Manage/update existing virtual host
+#### LEMPer CLI manage vhost / website
+
+Example, enable SSL
+
+```bash
+sudo lemper-cli manage --enable-ssl example.app
+```
+
+Example, enable FastCGI cache
 
 ```bash
 sudo lemper-cli manage --enable-fastcgi-cache example.app
 ```
 
-for more help
+#### for more help
 
 ```bash
 sudo lemper-cli --help
@@ -94,7 +114,7 @@ http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
 * ~~Add [Let's Encrypt SSL](https://letsencrypt.org/)~~
 * ~~Add network security (iptable rules, firewall configurator, else?)~~
 * Add enhanced security (AppArmor, cgroups, jailkit (chrooted/jail users), fail2ban, else?)
-* Add file backup tool (Borg, Restic, Rclone, Rsnapshot, else?)
+* Add file backup tool (Borg, Duplicati, Rclone, Restic, Rsnapshot, else?)
 * ~~Add database backup tool (Mariabackup, Percona Xtrabackup, else?)~~
 * Add server monitoring (Amplify, Monit, Nagios, else?)
 * Add user account & hosting package management.
