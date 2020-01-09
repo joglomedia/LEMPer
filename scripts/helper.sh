@@ -522,11 +522,11 @@ function enable_swap() {
     if free | awk '/^Swap:/ {exit !$2}'; then
         local SWAP_SIZE && \
         SWAP_SIZE=$(free -m | awk '/^Swap:/ { print $2 }')
-        status "Swap size ${SWAP_SIZE}MiB."
+        info "Swap size ${SWAP_SIZE}MiB."
     else
         info "No swap detected."
         create_swap
-        status "Swap created and enabled."
+        success "Swap created and enabled."
     fi
 }
 
@@ -579,7 +579,7 @@ function create_account() {
             # Save data to log file.
             save_log -e "Your default system account information:\nUsername: ${USERNAME}\nPassword: ${PASSWORD}"
 
-            status "Username ${USERNAME} created."
+            success "Username ${USERNAME} created."
         fi
     else
         info "Unable to create account, username ${USERNAME} already exists."
@@ -600,7 +600,7 @@ function delete_account() {
                 run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
             fi
 
-            status "Account ${USERNAME} deleted."
+            success "Account ${USERNAME} deleted."
         fi
     else
         info "Account ${USERNAME} not found."

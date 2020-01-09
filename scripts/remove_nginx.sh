@@ -124,7 +124,7 @@ function init_nginx_removal() {
         info "Nginx HTTP server removed in dryrun mode."
     else
         if [[ -z $(command -v nginx) ]]; then
-            status "Nginx HTTP server removed succesfully."
+            success "Nginx HTTP server removed succesfully."
         else
             info "Unable to remove Nginx HTTP server."
         fi

@@ -163,7 +163,7 @@ function init_mariadb_install() {
             fi
 
             if [[ $(pgrep -c mysql) -gt 0 ]]; then
-                status "MariaDB (MySQL) installed successfully."
+                success "MariaDB (MySQL) installed successfully."
 
                 enable_mariabackup
             else
@@ -218,7 +218,7 @@ open_files_limit=65535
 
         systemctl restart mariadb
 
-        status "Mariaback user '${MARIABACKUP_USER}' added successfully."
+        success "Mariaback user '${MARIABACKUP_USER}' added successfully."
 
         # Save config.
         save_config -e "MYSQL_ROOT_PASS=${MYSQL_ROOT_PASS}\nMARIABACKUP_USERNAME=${MARIABACKUP_USER}\nMARIABACKUP_PASSWORD=${MARIABACKUP_PASS}"

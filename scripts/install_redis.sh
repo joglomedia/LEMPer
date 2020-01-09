@@ -245,7 +245,7 @@ EOL
             info "Redis server installed in dryrun mode."
         else
             if [[ $(pgrep -c redis-server) -gt 0 ]]; then
-                status "Redis server started successfully."
+                success "Redis server started successfully."
             else
                 info "Something wrong with Redis installation."
             fi

@@ -97,7 +97,7 @@ function install_phalcon() {
     run cd ../
 
     if [ -f "${PHPLIB_DIR}/psr.so" ]; then
-        status "PSR extension sucessfully installed."
+        success "PSR extension sucessfully installed."
         run chmod 0644 "${PHPLIB_DIR}/psr.so"
     else
         error "PSR extension installation failed."
@@ -145,7 +145,7 @@ function install_phalcon() {
     fi
 
     if [ -f "${PHPLIB_DIR}/phalcon.so" ]; then
-        status "Phalcon extension sucessfully installed."
+        success "Phalcon extension sucessfully installed."
         run chmod 0644 "${PHPLIB_DIR}/phalcon.so"
 
         # Install Phalcon Devtools
@@ -224,12 +224,12 @@ function enable_phalcon() {
             # Reload PHP-FPM service.
             if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
                 run systemctl reload "php${PHPv}-fpm"
-                status "PHP${PHPv}-FPM restarted successfully."
+                success "PHP${PHPv}-FPM restarted successfully."
             elif [[ -n $(command -v "php${PHPv}") ]]; then
                 run systemctl start "php${PHPv}-fpm"
 
                 if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-                    status "PHP${PHPv}-FPM started successfully."
+                    success "PHP${PHPv}-FPM started successfully."
                 else
                     error "Something wrong with PHP${PHPv} & FPM installation."
                 fi

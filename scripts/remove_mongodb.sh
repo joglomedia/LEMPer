@@ -63,7 +63,7 @@ function init_mongodb_removal() {
         info "MongoDB server removed in dryrun mode."
     else
         if [[ -z $(command -v mongod) ]]; then
-            status "MongoDB server removed succesfully."
+            success "MongoDB server removed succesfully."
         else
             info "Unable to remove MongoDB server."
         fi

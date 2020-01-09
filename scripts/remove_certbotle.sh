@@ -59,7 +59,7 @@ function init_certbotle_removal() {
         info "Certbot Let's Encrypt client removed in dryrun mode."
     else
         if [[ -z $(command -v certbot) ]]; then
-            status "Certbot Let's Encrypt client removed succesfully."
+            success "Certbot Let's Encrypt client removed succesfully."
         else
             info "Unable to remove Certbot Let's Encrypt client."
         fi

@@ -521,7 +521,7 @@ function init_nginx_install() {
                             echo "Add ngx-http-geoip2 module..."
 
                             # install libmaxminddb
-                            status "Installing MaxMind GeoIP library..."
+                            success "Installing MaxMind GeoIP library..."
 
                             run git clone -q https://github.com/maxmind/libmaxminddb.git
                             run cd libmaxminddb
@@ -547,7 +547,7 @@ function init_nginx_install() {
                             run cd "${BUILD_DIR}"
 
                             if [[ -f /opt/geoip/GeoLite2-City.mmdb && -f /opt/geoip/GeoLite2-Country.mmdb ]]; then
-                                status "MaxMind GeoIP database successfully downloaded."
+                                success "MaxMind GeoIP database successfully downloaded."
                             fi
 
                             run git clone -q https://github.com/leev/ngx_http_geoip2_module.git
@@ -654,7 +654,7 @@ function init_nginx_install() {
                             echo "Download tengine-patches patch for nginx-upstream-fair module..."
                             run git clone -q https://github.com/alibaba/tengine-patches.git
 
-                            status "Patching nginx-upstream-fair module..."
+                            success "Patching nginx-upstream-fair module..."
                             run cd nginx-upstream-fair
                             run patch -p1 < "${EXTRA_MODULE_DIR}/tengine-patches/nginx-upstream-fair/upstream-fair-upstream-check.patch"
                             run cd "${EXTRA_MODULE_DIR}"
@@ -1133,7 +1133,7 @@ function init_nginx_install() {
             if [[ $(pgrep -c nginx) -gt 0 ]]; then
                 if nginx -t 2>/dev/null > /dev/null; then
                     run systemctl reload nginx
-                    status "NGiNX HTTP server restarted successfully."
+                    success "NGiNX HTTP server restarted successfully."
                 else
                     error "Nginx configuration test failed. Please correct the error below:"
                     run nginx -t
@@ -1143,7 +1143,7 @@ function init_nginx_install() {
                     run systemctl start nginx
 
                     if [[ $(pgrep -c nginx) -gt 0 ]]; then
-                        status "NGiNX HTTP server started successfully."
+                        success "NGiNX HTTP server started successfully."
                     else
                         info "Something wrong with NGiNX installation."
                     fi

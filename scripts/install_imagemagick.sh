@@ -77,9 +77,9 @@ function init_imagemagick_install() {
             info "ImageMagick installed in dryrun mode."
         else
             if [[ -n $(command -v magick) ]]; then
-                status "ImageMagick version $(magick -version | grep ^Version | cut -d' ' -f3) has been installed."
+                success "ImageMagick version $(magick -version | grep ^Version | cut -d' ' -f3) has been installed."
             elif [[ -n $(command -v identify) ]]; then
-                status "ImageMagick version $(identify -version | grep ^Version | cut -d' ' -f3) has been installed."
+                success "ImageMagick version $(identify -version | grep ^Version | cut -d' ' -f3) has been installed."
             fi
         fi
     else

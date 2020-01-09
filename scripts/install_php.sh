@@ -87,7 +87,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
             fi
 
             if [[ -n $(command -v "php${PHPv}") ]]; then
-                status "PHP${PHPv} & FPM packages installed."
+                success "PHP${PHPv} & FPM packages installed."
             fi
 
             # Install php geoip?
@@ -281,7 +281,7 @@ function remove_ioncube() {
 
     if [ -d /usr/lib/php/loaders/ioncube ]; then
         run rm -fr /usr/lib/php/loaders/ioncube
-        status "ionCube PHP${PHPv} loader has been removed."
+        success "ionCube PHP${PHPv} loader has been removed."
     else
         info "ionCube PHP${PHPv} loader couldn't be found."
     fi
@@ -394,7 +394,7 @@ function remove_sourceguardian() {
 
     if [ -d /usr/lib/php/loaders/sourceguardian ]; then
         run rm -fr /usr/lib/php/loaders/sourceguardian
-        status "SourceGuardian PHP${PHPv} loader has been removed."
+        success "SourceGuardian PHP${PHPv} loader has been removed."
     else
         info "SourceGuardian PHP${PHPv} loader couldn't be found."
     fi
@@ -619,12 +619,12 @@ EOL
     else
         if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
             run systemctl reload "php${PHPv}-fpm"
-            status "PHP${PHPv}-FPM reloaded successfully."
+            success "PHP${PHPv}-FPM reloaded successfully."
         elif [[ -n $(command -v "php${PHPv}") ]]; then
             run systemctl start "php${PHPv}-fpm"
 
             if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-                status "PHP${PHPv}-FPM started successfully."
+                success "PHP${PHPv}-FPM started successfully."
             else
                 error "Something goes wrong with PHP${PHPv} & FPM installation."
             fi

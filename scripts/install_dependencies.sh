@@ -53,4 +53,4 @@ else
     fail "Unable to install LEMPer, this GNU/Linux distribution is not supported."
 fi
 
-status "Required packages installation completed..."
+success "Required packages installation completed..."

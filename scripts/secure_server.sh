@@ -67,7 +67,7 @@ Never share your private key.
                 cat >> "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" <<EOL
 ${RSA_PUB_KEY}
 EOL
-                status "RSA public key added to the authorized_keys."
+                success "RSA public key added to the authorized_keys."
             fi
 
             # Fix authorized_keys file ownership and permission.
@@ -130,7 +130,7 @@ EOL
         # Save log.
         save_log "Default SSH port updated to ${SSH_PORT}."
 
-        status "SSH port updated to ${SSH_PORT}."
+        success "SSH port updated to ${SSH_PORT}."
     else
         info "Unable to update SSH port."
     fi
@@ -210,7 +210,7 @@ function install_ufw() {
             info "UFW firewall installed in dryrun mode."
         else
             if systemctl restart ufw; then
-                status "UFW firewall installed successfully."
+                success "UFW firewall installed successfully."
             else
                 info "Something wrong with UFW installation."
             fi
@@ -304,13 +304,13 @@ function install_csf() {
     else
         if [[ -n $(command -v csf) && -n $(command -v lfd) ]]; then
             if systemctl restart csf; then
-                status "CSF firewall installed successfully. Starting now..."
+                success "CSF firewall installed successfully. Starting now..."
             else
                 info "Something wrong with CSF installation."
             fi
 
             if systemctl restart lfd; then
-                status "LFD firewall installed successfully. Starting now..."
+                success "LFD firewall installed successfully. Starting now..."
             else
                 info "Something wrong with LFD installation."
             fi
@@ -378,7 +378,7 @@ function install_apf() {
     else
         if [[ -n $(command -v apf) ]]; then
             if systemctl restart apf; then
-                status "APF firewall installed successfully. Starting now..."
+                success "APF firewall installed successfully. Starting now..."
             else
                 info "Something wrong with APF installation."
             fi

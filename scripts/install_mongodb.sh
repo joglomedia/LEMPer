@@ -177,7 +177,7 @@ function install_php_mongodb() {
 
     PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
     if [ -f "${PHPLIB_DIR}/mongodb.so" ]; then
-        status "MongoDB module sucessfully installed at ${PHPLIB_DIR}/mongodb.so."
+        success "MongoDB module sucessfully installed at ${PHPLIB_DIR}/mongodb.so."
         run chmod 0644 "${PHPLIB_DIR}/mongodb.so"
     fi
 

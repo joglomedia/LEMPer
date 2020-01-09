@@ -95,7 +95,7 @@ function init_mariadb_removal() {
         info "MariaDB (MySQL) server removed in dryrun mode."
     else
         if [[ -z $(command -v mysqld) ]]; then
-            status "MariaDB (MySQL) server removed."
+            success "MariaDB (MySQL) server removed."
         else
             info "MariaDB (MySQL) server not removed."
         fi

@@ -184,7 +184,7 @@ EOL
     run chown -hR www-data:www-data /usr/share/nginx/html
 
     if [[ -x /usr/local/bin/lemper-cli && -d /usr/share/nginx/html/lcp ]]; then
-        status "Web administration tools successfully installed."
+        success "Web administration tools successfully installed."
     fi
 }
 

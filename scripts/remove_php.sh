@@ -99,7 +99,7 @@ function remove_php_fpm() {
         fi
 
         if [[ -z $(command -v "php${PHPv}") ]]; then
-            status "PHP${PHPv} & FPM installation removed."
+            success "PHP${PHPv} & FPM installation removed."
         else
             info "Unable to remove PHP${PHPv} & FPM installation."
         fi
@@ -171,7 +171,7 @@ function init_php_fpm_removal() {
             [ -d /usr/share/php ] && run rm -fr /usr/share/php
             [ -d /var/lib/php ] && run rm -fr /var/lib/php
 
-            status "All PHP modules installation completely removed."
+            success "All PHP modules installation completely removed."
         fi
     fi
 }

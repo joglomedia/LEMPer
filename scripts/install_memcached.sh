@@ -231,7 +231,7 @@ EOL
                 run /usr/share/memcached/scripts/start-memcached \
                     /etc/memcached_www-data.conf /var/run/memcached_www-data.pid
 
-                status "Memcached server restarted successfully."
+                success "Memcached server restarted successfully."
             elif [[ -n $(command -v memcached) ]]; then
                 #run service memcached@memcache start
                 #run service memcached@www-data start
@@ -241,7 +241,7 @@ EOL
                     /etc/memcached_www-data.conf /var/run/memcached_www-data.pid
 
                 if [[ $(pgrep -c memcached) -gt 0 ]]; then
-                    status "Memcached server started successfully."
+                    success "Memcached server started successfully."
                 else
                     info "Something wrong with Memcached installation."
                 fi
@@ -316,12 +316,12 @@ EOL
             # Reload PHP-FPM service.
             if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
                 run systemctl reload "php${PHPv}-fpm"
-                status "PHP${PHPv}-FPM restarted successfully."
+                success "PHP${PHPv}-FPM restarted successfully."
             elif [[ -n $(command -v "php${PHPv}") ]]; then
                 run systemctl start "php${PHPv}-fpm"
 
                 if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-                    status "PHP${PHPv}-FPM started successfully."
+                    success "PHP${PHPv}-FPM started successfully."
                 else
                     info "Something wrong with PHP${PHPv} & FPM installation."
                 fi

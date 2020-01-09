@@ -65,7 +65,7 @@ function init_redis_removal() {
         info "Redis server removed in dryrun mode."
     else
         if [[ -z $(command -v redis-server) ]]; then
-            status "Redis server removed succesfully."
+            success "Redis server removed succesfully."
         else
             info "Unable to remove Redis server."
         fi

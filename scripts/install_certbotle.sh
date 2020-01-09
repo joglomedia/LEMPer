@@ -96,7 +96,7 @@ EOL
             info "Certbot installed in dryrun mode."
         else
             if certbot --version | grep -q "certbot"; then
-                status "Certbot installed successfully."
+                success "Certbot successfully installed."
             else
                 info "Something wrong with Certbot installation."
             fi

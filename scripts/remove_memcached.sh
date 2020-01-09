@@ -106,7 +106,7 @@ function init_memcached_removal() {
         info "Memcached server removed in dryrun mode."
     else
         if [[ -z $(command -v memcached) ]]; then
-            status "Memcached server removed succesfully."
+            success "Memcached server removed succesfully."
         else
             info "Unable to remove Memcached server."
         fi

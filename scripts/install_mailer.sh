@@ -118,12 +118,12 @@ ${SENDER_DOMAIN}    DOMAIN
         else
             if [[ $(pgrep -c postfix) -gt 0 ]]; then
                 run systemctl reload postfix
-                status "Postfix reloaded successfully."
+                success "Postfix reloaded successfully."
             elif [[ -n $(command -v postfix) ]]; then
                 run systemctl start postfix
 
                 if [[ $(pgrep -c postfix) -gt 0 ]]; then
-                    status "Postfix started successfully."
+                    success "Postfix started successfully."
                 else
                     error "Something goes wrong with Postfix installation."
                 fi
@@ -230,12 +230,12 @@ function install_dovecot() {
         else
             if [[ $(pgrep -c dovecot) -gt 0 ]]; then
                 run systemctl reload dovecot
-                status "Dovecot reloaded successfully."
+                success "Dovecot reloaded successfully."
             elif [[ -n $(command -v dovecot) ]]; then
                 run systemctl start dovecot
 
                 if [[ $(pgrep -c dovecot) -gt 0 ]]; then
-                    status "Dovecot started successfully."
+                    success "Dovecot started successfully."
                 else
                     error "Something goes wrong with Dovecot installation."
                 fi
