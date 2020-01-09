@@ -784,7 +784,7 @@ function install_wordpress() {
     if [ "${CLONE_SKELETON}" == true ]; then
         # Check WordPress install directory.
         if [ ! -f "${WEBROOT}/wp-includes/class-wp.php" ]; then
-            status "Downloading WordPress skeleton files..."
+            echo "Downloading WordPress skeleton files..."
 
             if wget -q -t 10 -O "${TMPDIR}/wordpress.zip" https://wordpress.org/latest.zip; then
                 run unzip -q "${TMPDIR}/wordpress.zip" -d "${TMPDIR}" && \
@@ -800,7 +800,7 @@ function install_wordpress() {
     else
         # Create default index file.
         if ! "${DRYRUN}"; then
-            status "Creating default WordPress index file..."
+            echo "Creating default WordPress index file..."
 
             if [ ! -e "${WEBROOT}/index.html" ]; then
                 create_index_file > "${WEBROOT}/index.html"
@@ -813,7 +813,7 @@ function install_wordpress() {
 
     # Pre-install nginx helper plugin.
     if [[ -d "${WEBROOT}/wp-content/plugins" && ! -d "${WEBROOT}/wp-content/plugins/nginx-helper" ]]; then
-        status "Add NGiNX Helper plugin into WordPress skeleton..."
+        echo "Add NGiNX Helper plugin into WordPress skeleton..."
 
         if wget -q -O "${TMPDIR}/nginx-helper.zip" \
             https://downloads.wordpress.org/plugin/nginx-helper.zip; then
@@ -881,7 +881,7 @@ function validate_ipv6() {
 #
 function init_app() {
     OPTS=$(getopt -o u:d:f:4:6:w:p:scPSWDhv \
-      -l username:,domain-name:,framework:,ipv4:,ipv6:,webroot:,php:,clone-skeleton \
+      -l username:,domain-name:,framework:,ipv4:,ipv6:,webroot:,php-version:,clone-skeleton \
       -l enable-fastcgi-cache,enable-pagespeed,enable-https,wildcard-domain,dryrun,help,version \
       -n "${APP_NAME}" -- "$@")
 
@@ -939,7 +939,7 @@ function init_app() {
                 WEBROOT=$(echo "${1}" | sed 's:/*$::')
                 shift
             ;;
-            -p | --php) shift
+            -p | --php-version) shift
                 PHP_VERSION="${1}"
                 shift
             ;;
@@ -1037,14 +1037,14 @@ function init_app() {
                     run mkdir -p "/home/${USERNAME}/.lemper/php/opcache"
                     run mkdir -p "/home/${USERNAME}/.lemper/php/sessions"
                     run mkdir -p "/home/${USERNAME}/cgi-bin"
-                    run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
+                    run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.lemper/" "/home/${USERNAME}/cgi-bin/"
 
                     # Restart PHP FPM.
                     echo "Restart php${PHP_VERSION}-fpm configuration..."
 
                     run systemctl restart "php${PHP_VERSION}-fpm"
 
-                    status "New PHP-FPM pool [${USERNAME}] has been created."
+                    success "New php${PHP_VERSION}-fpm pool [${USERNAME}] has been created."
                 fi
             else
                 fail "Oops, PHP${PHP_VERSION} & FPM not found. Please install it first! Aborting..."
@@ -1082,7 +1082,7 @@ function init_app() {
                     if [ ${CLONE_SKELETON} == true ]; then
                         # Check Drupal install directory.
                         if [ ! -d "${WEBROOT}/core/lib/Drupal" ]; then
-                            status "Downloading Drupal latest skeleton files..."
+                            echo "Downloading Drupal latest skeleton files..."
 
                             if curl -sL --head https://www.drupal.org/download-latest/zip | grep -q "HTTP/[.12]* [2].."; then
                                 run wget -q -O "${TMPDIR}/drupal.zip" https://www.drupal.org/download-latest/zip && \
@@ -1099,7 +1099,7 @@ function init_app() {
                     else
                         # Create default index file.
                         if [ ! -e "${WEBROOT}/index.php" ]; then
-                            status "Creating default index file..."
+                            echo "Creating default index file..."
                             create_index_file > "${WEBROOT}/index.html"
                         fi
                     fi
@@ -1123,7 +1123,7 @@ function init_app() {
                     if [ ${CLONE_SKELETON} == true ]; then
                         # Check Laravel install.
                         if [ ! -f "${WEBROOT}/artisan" ]; then
-                            status "Downloading ${FRAMEWORK^} skeleton files..."
+                            echo "Downloading ${FRAMEWORK^} skeleton files..."
 
                             if [[ -n "${PHP_COMPOSER_BIN}" ]]; then
                                 run "${PHP_BIN}" "${PHP_COMPOSER_BIN}" create-project --prefer-dist "laravel/${FRAMEWORK}" "${WEBROOT}"
@@ -1138,7 +1138,7 @@ function init_app() {
                     else
                         # Create default index file.
                         if [ ! -e "${WEBROOT}/public/index.php" ]; then
-                            status "Creating default index file..."
+                            echo "Creating default index file..."
                             run mkdir -p "${WEBROOT}/public"
                             create_index_file > "${WEBROOT}/public/index.html"
                         fi
@@ -1170,7 +1170,7 @@ function init_app() {
                     if [ ${CLONE_SKELETON} == true ]; then
                         # Check Phalcon skeleton install.
                         if [ ! -f "${WEBROOT}/app/config/config.php" ]; then
-                            status "Downloading ${FRAMEWORK^} skeleton files..."
+                            echo "Downloading ${FRAMEWORK^} skeleton files..."
 
                             PHP_PHALCON_BIN=$(command -v phalcon)
 
@@ -1203,7 +1203,7 @@ function init_app() {
                     else
                         # Create default index file.
                         if [ ! -e "${WEBROOT}/public/index.php" ]; then
-                            status "Creating default index file..."
+                            echo "Creating default index file..."
                             run mkdir -p "${WEBROOT}/public"
                             create_index_file > "${WEBROOT}/public/index.html"
                         fi
@@ -1235,7 +1235,7 @@ function init_app() {
                     if [ ${CLONE_SKELETON} == true ]; then
                         # Check Symfony install.
                         if [ ! -f "${WEBROOT}/src/Kernel.php" ]; then
-                            status "Downloading Symfony skeleton files..."
+                            echo "Downloading Symfony skeleton files..."
 
                             if [[ -n "${PHP_COMPOSER_BIN}" ]]; then
                                 run "${PHP_BIN}" "${PHP_COMPOSER_BIN}" create-project --prefer-dist symfony/website-skeleton "${WEBROOT}"
@@ -1255,7 +1255,7 @@ function init_app() {
                     else
                         # Create default index file.
                         if [ ! -e "${WEBROOT}/index.php" ]; then
-                            status "Creating default index file..."
+                            echo "Creating default index file..."
                             create_index_file > "${WEBROOT}/index.html"
                         fi
                     fi
@@ -1286,7 +1286,7 @@ function init_app() {
                     if [[ "${FRAMEWORK}" == "woocommerce" ]]; then
                         if [[ -d "${WEBROOT}/wp-content/plugins" && \
                             ! -d "${WEBROOT}/wp-content/plugins/woocommerce" ]]; then
-                            status "Add WooCommerce plugin into WordPress skeleton..."
+                            echo "Add WooCommerce plugin into WordPress skeleton..."
 
                             if wget -q -O "${TMPDIR}/woocommerce.zip" \
                                 https://downloads.wordpress.org/plugin/woocommerce.zip; then
@@ -1406,11 +1406,11 @@ function init_app() {
             esac
 
             if "${DRYRUN}"; then
-                info "New domain ${SERVERNAME} has been added in dry run mode."
+                info "New domain ${SERVERNAME} added in dry run mode."
             else
                 # Confirm virtual host.
                 if grep -qwE "server_name ${SERVERNAME}" "${VHOST_FILE}"; then
-                    status "New domain ${SERVERNAME} has been added to virtual host."
+                    success "New domain ${SERVERNAME} successfuly added to virtual host."
                 fi
 
                 # Creates Well-Known URIs: RFC 8615.
@@ -1505,14 +1505,14 @@ function init_app() {
 
             # Validate config, reload when validated.
             if nginx -t 2>/dev/null > /dev/null; then
-                run systemctl reload nginx reload
+                run systemctl reload nginx
                 echo "NGiNX HTTP server reloaded with new configuration."
             else
                 info "Something went wrong with NGiNX configuration."
             fi
 
             if [[ -f "/etc/nginx/sites-enabled/${SERVERNAME}.conf" && -e /var/run/nginx.pid ]]; then
-                status "Your ${SERVERNAME} successfully added to NGiNX virtual host."
+                success "Your ${SERVERNAME} successfully added to NGiNX virtual host."
 
                 # Enable HTTPS.
                 if [ ${ENABLE_HTTPS} == true ]; then
