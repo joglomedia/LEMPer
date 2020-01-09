@@ -31,17 +31,17 @@ function add_php_repo() {
             if [ ! -f "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" ]; then
                 run touch "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb https://packages.sury.org/php/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
-                run bash -c "wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg"
-                run apt-get -qq update -y
+                run wget -qO /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
+                run apt update -qq -y
             else
-                warning "PHP repository already exists."
+                info "PHP repository already exists."
             fi
         ;;
         ubuntu)
-            # Fix for NO_PUBKEY key servers error.
-            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
+            #run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
+            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
             run add-apt-repository -y ppa:ondrej/php
-            run apt-get -qq update -y
+            run apt update -qq -y
         ;;
         *)
             fail "Unable to install PHP, this GNU/Linux distribution is not supported."
@@ -64,26 +64,26 @@ function install_php_fpm() {
     # Checking if php already installed.
     if [[ -n $(command -v "php${PHPv}") ]]; then
         PHP_IS_INSTALLED="yes"
-        warning "PHP${PHPv} & FPM package already installed..."
+        info "PHP${PHPv} & FPM package already installed..."
     else
         # Add repo first
         add_php_repo
 
         echo "Installing PHP${PHPv} & FPM..."
 
-        if hash apt-get 2>/dev/null; then
-            PHP_PKGS=("php${PHPv} php${PHPv}-bcmath php${PHPv}-cli php${PHPv}-common \
-php${PHPv}-curl php${PHPv}-dev php${PHPv}-fpm php${PHPv}-mysql php${PHPv}-gd \
-php${PHPv}-gmp php${PHPv}-imap php${PHPv}-intl php${PHPv}-json \
-php${PHPv}-mbstring php${PHPv}-opcache php${PHPv}-pspell php${PHPv}-readline \
-php${PHPv}-ldap php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
-php${PHPv}-tidy php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
+        if hash apt 2>/dev/null; then
+            PHP_PKGS=("php${PHPv} php${PHPv}-bcmath php${PHPv}-bz2 php${PHPv}-calendar php${PHPv}-cli \
+php${PHPv}-common php${PHPv}-curl php${PHPv}-dev php${PHPv}-exif php${PHPv}-fpm php${PHPv}-gd \
+php${PHPv}-gettext php${PHPv}-gmp php${PHPv}-gnupg php${PHPv}-iconv php${PHPv}-imap php${PHPv}-intl \
+php${PHPv}-json php${PHPv}-mbstring php${PHPv}-mysql php${PHPv}-opcache php${PHPv}-pdo php${PHPv}-posix \
+php${PHPv}-pspell php${PHPv}-readline php${PHPv}-ldap php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
+php${PHPv}-tidy php${PHPv}-tokenizer php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
 php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
 
             if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
                 echo "Installing PHP${PHPv} & FPM packages..."
                 # shellcheck disable=SC2068
-                run apt-get -qq install -y ${PHP_PKGS[@]}
+                run apt install -qq -y ${PHP_PKGS[@]}
             fi
 
             if [[ -n $(command -v "php${PHPv}") ]]; then
@@ -104,7 +104,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
 
                 if [ "${PHPv//.}" -lt "70" ]; then
                     #run mkdir -p /usr/lib/php/php-helper
-                    run apt-get -qq install -y php-geoip
+                    run apt install -qq -y php-geoip
                 else
                     run pecl install geoip-1.1.1
 
@@ -140,14 +140,13 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                 echo "Installing PHP Mcrypt module..."
 
                 if [ "${PHPv//.}" -lt "72" ]; then
-                    run apt-get -qq install -y "php${PHPv}-mcrypt"
+                    run apt install -qq -y "php${PHPv}-mcrypt"
                 elif [ "${PHPv}" == "7.2" ]; then
-                    run apt-get -qq install -y gcc make autoconf libc-dev pkg-config \
-                        libmcrypt-dev libreadline-dev && \
+                    run apt install -qq -y libmcrypt-dev libreadline-dev && \
                     run pecl install mcrypt-1.0.1
 
                     # Enable Mcrypt module.
-                    echo "Updating PHP ini file with Mcrypt module..."
+                    echo "Updating PHP${PHPv} ini file with Mcrypt module..."
 
                     [ ! -f "/etc/php/${PHPv}/mods-available/mcrypt.ini" ] && \
                     run touch "/etc/php/${PHPv}/mods-available/mcrypt.ini"
@@ -163,23 +162,14 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                             "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
                     fi
                 else
-                    run apt-get -qq install -y dh-php
+                    run apt install -qq -y dh-php
 
                     # Use libsodium instead.
-                    warning -n "Info: "
-                    echo "Mcrypt module is deprecated for PHP ${PHPv} or greater, use Libsodium or OpenSSL for encryption."
+                    info "Mcrypt module is deprecated for PHP${PHPv} or greater, use Libsodium or OpenSSL for encryption."
                 fi
             fi
-        elif hash yum 2>/dev/null; then
-            if [ "${VERSION_ID}" == "5" ]; then
-                yum -y update
-                #yum -y localinstall ${PHP_PKGS[@]} --nogpgcheck
-            else
-                yum -y update
-                #yum -y localinstall ${PHP_PKGS[@]}
-            fi
         else
-            fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
+            fail "Unable to install PHP${PHPv}, this GNU/Linux distribution is not supported."
         fi
 
         # Create PHP log dir.
@@ -233,7 +223,7 @@ function enable_ioncube() {
     echo "Enabling ionCube PHP${PHPv} loader"
 
     if "${DRYRUN}"; then
-        warning "ionCube PHP${PHPv} enabled in dryrun mode."
+        info "ionCube PHP${PHPv} enabled in dryrun mode."
     else
         if [ -f "/usr/lib/php/loaders/ioncube/ioncube_loader_lin_${PHPv}.so" ]; then
             cat > "/etc/php/${PHPv}/mods-available/ioncube.ini" <<EOL
@@ -251,7 +241,7 @@ EOL
                     "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini"
             fi
         else
-            warning "Sorry, no ionCube loader found for PHP${PHPv}"
+            info "Sorry, no ionCube loader found for PHP${PHPv}"
         fi
     fi
 }
@@ -293,7 +283,7 @@ function remove_ioncube() {
         run rm -fr /usr/lib/php/loaders/ioncube
         status "ionCube PHP${PHPv} loader has been removed."
     else
-        warning "ionCube PHP${PHPv} loader couldn't be found."
+        info "ionCube PHP${PHPv} loader couldn't be found."
     fi
 }
 
@@ -346,7 +336,7 @@ function enable_sourceguardian() {
     echo "Enabling SourceGuardian PHP${PHPv} loader..."
 
     if "${DRYRUN}"; then
-        warning "SourceGuardian PHP${PHPv} enabled in dryrun mode."
+        info "SourceGuardian PHP${PHPv} enabled in dryrun mode."
     else
         if [ -f "/usr/lib/php/loaders/sourceguardian/ixed.${PHPv}.lin" ]; then
             cat > "/etc/php/${PHPv}/mods-available/sourceguardian.ini" <<EOL
@@ -364,7 +354,7 @@ EOL
                     "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini"
             fi
         else
-            warning "Sorry, no SourceGuardian loader found for PHP ${PHPv}"
+            info "Sorry, no SourceGuardian loader found for PHP ${PHPv}"
         fi
     fi
 }
@@ -406,7 +396,7 @@ function remove_sourceguardian() {
         run rm -fr /usr/lib/php/loaders/sourceguardian
         status "SourceGuardian PHP${PHPv} loader has been removed."
     else
-        warning "SourceGuardian PHP${PHPv} loader couldn't be found."
+        info "SourceGuardian PHP${PHPv} loader couldn't be found."
     fi
 }
 
@@ -451,7 +441,7 @@ opcache.save_comments=1
 opcache.error_log="/var/log/php/php${PHPv}-opcache_error.log"
 EOL
         else
-            warning "PHP configuration optimized in dry run mode."
+            info "PHP configuration optimized in dry run mode."
         fi
     fi
 
@@ -539,7 +529,7 @@ php_admin_value[upload_max_filesize] = 20M
 php_admin_value[post_max_size] = 20M
 EOL
         else
-            warning "Default FPM pool optimized in dry run mode."
+            info "Default FPM pool optimized in dry run mode."
         fi
     fi
 
@@ -611,7 +601,7 @@ php_admin_value[upload_max_filesize] = 20M
 php_admin_value[post_max_size] = 20M
 EOL
         else
-            warning "Custom FPM pool ${POOLNAME} created & optimized in dry run mode."
+            info "Custom FPM pool ${POOLNAME} created & optimized in dry run mode."
         fi
     fi
 
@@ -625,13 +615,13 @@ EOL
 
     # Restart PHP-fpm server.
     if "${DRYRUN}"; then
-        warning "PHP${PHPv}-FPM reloaded in dry run mode."
+        info "PHP${PHPv}-FPM reloaded in dry run mode."
     else
         if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-            run service "php${PHPv}-fpm" reload
+            run systemctl reload "php${PHPv}-fpm"
             status "PHP${PHPv}-FPM reloaded successfully."
         elif [[ -n $(command -v "php${PHPv}") ]]; then
-            run service "php${PHPv}-fpm" start
+            run systemctl start "php${PHPv}-fpm"
 
             if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
                 status "PHP${PHPv}-FPM started successfully."
@@ -646,6 +636,12 @@ EOL
 # Install PHP Composer.
 #
 function install_php_composer() {
+    # PHP version.
+    local PHPv="${1}"
+    if [ -z "${PHPv}" ]; then
+        PHPv=${PHP_VERSION:-"7.3"}
+    fi
+
     if "${AUTO_INSTALL}"; then
         DO_INSTALL_COMPOSER="y"
     else
@@ -660,18 +656,24 @@ function install_php_composer() {
         local CURRENT_DIR && CURRENT_DIR=$(pwd)
         run cd "${BUILD_DIR}"
 
-        PHPBIN=$(command -v php)
+        PHP_BIN=$(command -v php)
         EXPECTED_SIGNATURE="$(wget -q -O - https://composer.github.io/installer.sig)"
-        run "${PHPBIN}" -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
-        ACTUAL_SIGNATURE="$(${PHPBIN} -r "echo hash_file('sha384', 'composer-setup.php');")"
+        run "${PHP_BIN}" -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+        ACTUAL_SIGNATURE="$(${PHP_BIN} -r "echo hash_file('sha384', 'composer-setup.php');")"
 
-        if [[ "$EXPECTED_SIGNATURE" == "$ACTUAL_SIGNATURE" ]]; then
-            run "${PHPBIN}" composer-setup.php --filename=composer --install-dir=/usr/local/bin --quiet
+        if [[ "${EXPECTED_SIGNATURE}" == "${ACTUAL_SIGNATURE}" ]]; then
+            local LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
+
+            run "${PHP_BIN}" composer-setup.php --filename=composer --install-dir=/usr/local/bin --quiet
 
             # Fix chmod permission to executable.
             [ -f /usr/local/bin/composer ] && run chmod ugo+x /usr/local/bin/composer
+
+            run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bashrc"
+            run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bash_profile"
+            run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.profile"
         else
-            error 'Invalid PHP Composer installer signature.'
+            error "Invalid PHP Composer installer signature."
         fi
 
         #run rm composer-setup.php
@@ -874,14 +876,14 @@ function init_php_fpm_install() {
                 ;;
 
                 *)
-                    warning "Your selected PHP loader ${SELECTED_PHPLOADER} is not supported yet."
+                    info "Your selected PHP loader ${SELECTED_PHPLOADER} is not supported yet."
                 ;;
             esac
         fi
 
         # Final optimization.
         #if "${DRYRUN}"; then
-        #    warning "PHP${PHPv} & FPM installed and optimized in dryrun mode."
+        #    info "PHP${PHPv} & FPM installed and optimized in dryrun mode."
         #else
             if [ "${PHPv}" != "all" ]; then
                 optimize_php_fpm "${PHPv}"
@@ -903,7 +905,7 @@ function init_php_fpm_install() {
     fi
 
     # Install PHP composer.
-    install_php_composer
+    install_php_composer "${PHPv}"
 }
 
 echo "[PHP & FPM Packages Installation]"
@@ -916,7 +918,7 @@ if [[ -n $(command -v php5.6) && \
     -n $(command -v php7.2) && \
     -n $(command -v php7.3) && \
     -n $(command -v php7.4) ]]; then
-    warning "All available PHP version already exists. Installation skipped..."
+    info "All available PHP version already exists. Installation skipped..."
 else
     init_php_fpm_install "$@"
 fi
