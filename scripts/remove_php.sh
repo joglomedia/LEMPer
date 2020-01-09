@@ -26,7 +26,7 @@ function remove_php_fpm() {
 
     # Stop default PHP FPM process.
     if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-        run service "php${PHPv}-fpm" stop
+        run systemctl stop "php${PHPv}-fpm"
     fi
 
     if dpkg-query -l | awk '/php/ { print $2 }' | grep -qwE "^php${PHPv}"; then
@@ -74,12 +74,12 @@ function remove_php_fpm() {
             fi
         else
             # Use libsodium? remove separately.
-            warning "If you're installing Libsodium extension, then remove it separately."
+            info "If you're installing Libsodium extension, then remove it separately."
         fi
 
         # Remove PHP packages.
         # shellcheck disable=SC2046
-        run apt-get -qq --purge remove -y $(dpkg-query -l | awk '/php/ { print $2 }' | grep -wE "^php${PHPv}")
+        run apt remove --purge -qq -y $(dpkg-query -l | awk '/php/ { print $2 }' | grep -wE "^php${PHPv}")
 
         # Remove PHP & FPM config files.
         warning "!! This action is not reversible !!"
@@ -101,10 +101,10 @@ function remove_php_fpm() {
         if [[ -z $(command -v "php${PHPv}") ]]; then
             status "PHP${PHPv} & FPM installation removed."
         else
-            warning "Unable to remove PHP${PHPv} & FPM installation."
+            info "Unable to remove PHP${PHPv} & FPM installation."
         fi
     else
-        warning "PHP${PHPv} & FPM installation not found."
+        info "PHP${PHPv} & FPM installation not found."
     fi   
 }
 
@@ -151,7 +151,7 @@ function init_php_fpm_removal() {
 
     # Final clean up (executed only if no PHP version installed).
     if "${DRYRUN}"; then
-        warning "PHP${PHPv} & FPM removed in dryrun mode."
+        info "PHP${PHPv} & FPM removed in dryrun mode."
     else
         if [[ -z $(command -v php5.6) && \
             -z $(command -v php7.0) && \
@@ -161,7 +161,7 @@ function init_php_fpm_removal() {
             -z $(command -v php7.4) ]]; then
 
             echo "Removing additional unused PHP modules..."
-            run apt-get -qq --purge remove -y php-common php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap
+            run apt remove --purge -qq -y php-common php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap
 
             # Remove PHP repository.
             run add-apt-repository -y --remove ppa:ondrej/php
@@ -198,5 +198,5 @@ if [[ -n $(command -v php5.6) || \
         echo "Found PHP & FPM, but not removed."
     fi
 else
-    warning "Oops, PHP & FPM installation not found."
+    info "Oops, PHP & FPM installation not found."
 fi

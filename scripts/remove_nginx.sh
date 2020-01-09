@@ -21,25 +21,26 @@ requires_root
 function init_nginx_removal() {
     # Stop nginx HTTP server process.
     if [[ $(pgrep -c nginx) -gt 0 ]]; then
-        run service nginx stop
+        #run service nginx stop
+        run systemctl stop nginx
     fi
 
     # Remove nginx installation.
     if dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-stable"; then
         echo "Nginx-common package found. Removing..."
-        run apt-get -qq --purge remove -y nginx-stable
+        run apt remove --purge -qq -y nginx-stable
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:nginx/stable
         fi
     elif dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-custom"; then
         echo "Nginx-custom package found. Removing..."
-        run apt-get -qq --purge remove -y nginx-custom
+        run apt remove --purge -qq -y nginx-custom
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:rtcamp/nginx
         fi
     elif dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-extras"; then
         echo "Nginx-stable package found. Removing..."
-        run apt-get -qq --purge remove -y nginx-extras
+        run apt remove --purge -qq -y nginx-extras
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:ondrej/nginx
         fi
@@ -120,12 +121,12 @@ function init_nginx_removal() {
     
     # Final test.
     if "${DRYRUN}"; then
-        warning "Nginx HTTP server removed in dryrun mode."
+        info "Nginx HTTP server removed in dryrun mode."
     else
         if [[ -z $(command -v nginx) ]]; then
             status "Nginx HTTP server removed succesfully."
         else
-            warning "Unable to remove Nginx HTTP server."
+            info "Unable to remove Nginx HTTP server."
         fi
     fi
 }
@@ -147,5 +148,5 @@ if [[ -n $(command -v nginx) || -x /usr/sbin/nginx ]]; then
         echo "Found NGiNX HTTP server, but not removed."
     fi
 else
-    warning "Oops, NGiNX installation not found."
+    info "Oops, NGiNX installation not found."
 fi

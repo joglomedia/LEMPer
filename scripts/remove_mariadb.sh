@@ -46,19 +46,19 @@ function init_mariadb_removal() {
 
     # Stop MariaDB mysql server process.
     if [[ $(pgrep -c mysqld) -gt 0 ]]; then
-        run service mysql stop
+        run systemctl stop mysql
     fi
 
     if dpkg-query -l | awk '/mariadb/ { print $2 }' | grep -qwE "^mariadb-server-${MYSQL_VERSION}"; then
         echo "Found MariaDB package installation. Removing..."
 
         # Remove MariaDB server.
-        run apt-get -qq --purge remove -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
+        run apt remove --purge -qq -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
             "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
             "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
 
         # shellcheck disable=SC2046
-        #run apt-get -qq --purge remove -y $(dpkg-query -l | awk '/mariadb/ { print $2 }')
+        #run apt remove --purge -qq -y $(dpkg-query -l | awk '/mariadb/ { print $2 }')
 
         # Remove config.
         mariadb_remove_conf
@@ -72,10 +72,10 @@ function init_mariadb_removal() {
         echo "Found MySQL package installation. Removing..."
 
         # Remove MySQL server.
-        run apt-get -qq --purge remove -y mysql-client mysql-common mysql-server
+        run apt remove --purge -qq -y mysql-client mysql-common mysql-server
         
         # shellcheck disable=SC2046
-        #run apt-get -qq --purge remove -y $(dpkg-query -l | awk '/mysql/ { print $2 }' | grep -wE "^mysql")
+        #run apt remove --purge -qq -y $(dpkg-query -l | awk '/mysql/ { print $2 }' | grep -wE "^mysql")
 
         # Remove config.
         mariadb_remove_conf
@@ -92,12 +92,12 @@ function init_mariadb_removal() {
 
     # Final test.
     if "${DRYRUN}"; then
-        warning "MariaDB (MySQL) server removed in dryrun mode."
+        info "MariaDB (MySQL) server removed in dryrun mode."
     else
         if [[ -z $(command -v mysqld) ]]; then
             status "MariaDB (MySQL) server removed."
         else
-            warning "MariaDB (MySQL) server not removed."
+            info "MariaDB (MySQL) server not removed."
         fi
     fi
 }
@@ -118,5 +118,5 @@ if [[ -n $(command -v mysql) || -n $(command -v mysqld) ]]; then
         echo "Found MariaDB (MySQL), but not removed."
     fi
 else
-    warning "Oops, MariaDB (MySQL) installation not found."
+    info "Oops, MariaDB (MySQL) installation not found."
 fi

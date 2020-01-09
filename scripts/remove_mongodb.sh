@@ -20,7 +20,7 @@ requires_root
 function init_mongodb_removal() {
     # Stop MongoDB server process.
     if [[ $(pgrep -c mongod) -gt 0 ]]; then
-        run service mongod stop
+        run systemctl stop mongod
     fi
 
     if dpkg-query -l | awk '/mongodb/ { print $2 }' | grep -qwE "^mongodb"; then
@@ -28,9 +28,9 @@ function init_mongodb_removal() {
 
         # Remove MongoDB server.
         #shellcheck disable=SC2046
-        run apt-get -qq --purge remove -y $(dpkg-query -l | awk '/mongodb/ { print $2 }' | grep -wE "^mongodb")
+        run apt remove --purge -qq -y $(dpkg-query -l | awk '/mongodb/ { print $2 }' | grep -wE "^mongodb")
         run rm -f /etc/apt/sources.list.d/mongodb-org-*
-        run apt-get -qq autoremove -y
+        run apt autoremove -qq -y
 
         # Remove MongoDB config files.
         warning "!! This action is not reversible !!"
@@ -60,12 +60,12 @@ function init_mongodb_removal() {
 
     # Final test.
     if "${DRYRUN}"; then
-        warning "MongoDB server removed in dryrun mode."
+        info "MongoDB server removed in dryrun mode."
     else
         if [[ -z $(command -v mongod) ]]; then
             status "MongoDB server removed succesfully."
         else
-            warning "Unable to remove MongoDB server."
+            info "Unable to remove MongoDB server."
         fi
     fi
 }
@@ -86,5 +86,5 @@ if [[ -n $(command -v mongod) ]]; then
         echo "Found MongoDB server, but not removed."
     fi
 else
-    warning "Oops, MongoDB installation not found."
+    info "Oops, MongoDB installation not found."
 fi

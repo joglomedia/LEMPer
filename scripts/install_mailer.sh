@@ -32,18 +32,10 @@ function install_postfix() {
     if [[ ${DO_INSTALL_POSTFIX} == y* && "${INSTALL_MAILER}" == true ]]; then
         echo "Installing Postfix Mail Transfer Agent..."
 
-        if hash apt-get 2>/dev/null; then
-            run apt-get -qq install -y mailutils postfix
-        elif hash yum 2>/dev/null; then
-            if [ "${VERSION_ID}" == "5" ]; then
-                yum -y update
-                #yum -y localinstall postfix --nogpgcheck
-            else
-                yum -y update
-                #yum -y localinstall postfix
-            fi
+        if hash apt 2>/dev/null; then
+            run apt install -qq -y mailutils postfix
         else
-            fail "Unable to install NGiNX, this GNU/Linux distribution is not dpkg/yum enabled."
+            fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
         fi
 
         # Configure Postfix.
@@ -122,13 +114,13 @@ ${SENDER_DOMAIN}    DOMAIN
 
         # Installation status.
         if "${DRYRUN}"; then
-            warning "Postfix reloaded in dry run mode."
+            info "Postfix reloaded in dry run mode."
         else
             if [[ $(pgrep -c postfix) -gt 0 ]]; then
-                run service postfix reload
+                run systemctl reload postfix
                 status "Postfix reloaded successfully."
             elif [[ -n $(command -v postfix) ]]; then
-                run service postfix start
+                run systemctl start postfix
 
                 if [[ $(pgrep -c postfix) -gt 0 ]]; then
                     status "Postfix started successfully."
@@ -156,18 +148,10 @@ function install_dovecot() {
     if [[ ${DO_INSTALL_DOVECOT} == y* && "${INSTALL_MAILER}" == true ]]; then
         echo "Installing Dovecot IMAP and POP3 email server..."
 
-        if hash apt-get 2>/dev/null; then
-            run apt-get -qq install -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
-        elif hash yum 2>/dev/null; then
-            if [ "${VERSION_ID}" == "5" ]; then
-                yum -y update
-                #yum -y localinstall postfix --nogpgcheck
-            else
-                yum -y update
-                #yum -y localinstall postfix
-            fi
+        if hash apt 2>/dev/null; then
+            run apt install -qq -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
         else
-            fail "Unable to install NGiNX, this GNU/Linux distribution is not dpkg/yum enabled."
+            fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
         fi
 
         # Configure Dovecot.
@@ -242,12 +226,19 @@ function install_dovecot() {
 
         # Installation status.
         if "${DRYRUN}"; then
-            warning "Dovecot installed in dryrun mode."
+            info "Dovecot installed in dryrun mode."
         else
             if [[ $(pgrep -c dovecot) -gt 0 ]]; then
-                status "Dovecot installed successfully."
-            else
-                warning "Something wrong with Dovecot installation."
+                run systemctl reload dovecot
+                status "Dovecot reloaded successfully."
+            elif [[ -n $(command -v dovecot) ]]; then
+                run systemctl start dovecot
+
+                if [[ $(pgrep -c dovecot) -gt 0 ]]; then
+                    status "Dovecot started successfully."
+                else
+                    error "Something goes wrong with Dovecot installation."
+                fi
             fi
         fi
     fi
@@ -274,18 +265,10 @@ function install_spf_dkim() {
         echo "Installing Dovecot IMAP and POP3 email server..."
 
         # Installing SPF Policy Agent & OpenDKIM.
-        if hash apt-get 2>/dev/null; then
-            run apt install postfix-policyd-spf-python opendkim opendkim-tools
-        elif hash yum 2>/dev/null; then
-            if [ "${VERSION_ID}" == "5" ]; then
-                yum -y update
-                #yum -y localinstall postfix --nogpgcheck
-            else
-                yum -y update
-                #yum -y localinstall postfix
-            fi
+        if hash apt 2>/dev/null; then
+            run apt install -qq -y postfix-policyd-spf-python opendkim opendkim-tools
         else
-            fail "Unable to install NGiNX, this GNU/Linux distribution is not dpkg/yum enabled."
+            fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
         fi
 
         # Update postfix master conf.
@@ -417,13 +400,13 @@ echo "[Mail Server Installation]"
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v postfix) ]]; then
-    warning "Postfix already exists. Installation skipped..."
+    info "Postfix already exists. Installation skipped..."
 else
     install_postfix "$@"
 fi
 
 if [[ -n $(command -v dovecot) ]]; then
-    warning "Dovecot already exists. Installation skipped..."
+    info "Dovecot already exists. Installation skipped..."
 else
     install_dovecot "$@"
 fi

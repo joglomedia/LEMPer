@@ -54,14 +54,14 @@ function init_certbotle_install() {
             ;;
             ubuntu)
                 run add-apt-repository -y ppa:certbot/certbot
-                run apt-get -qq update -y
-                run apt-get -qq install -y certbot
+                run apt update -qq -y
+                run apt install -qq -y certbot
             ;;
         esac
 
         # Add Certbot auto renew command to cronjob.
         if "${DRYRUN}"; then
-            warning "Certbot auto-renew command added to cronjob in dryrun mode."
+            info "Certbot auto-renew command added to cronjob in dryrun mode."
         else
             export EDITOR=nano
             CRONCMD='15 3 * * * root /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
@@ -93,12 +93,12 @@ EOL
         fi
 
         if "${DRYRUN}"; then
-            warning "Certbot installed in dryrun mode."
+            info "Certbot installed in dryrun mode."
         else
             if certbot --version | grep -q "certbot"; then
                 status "Certbot installed successfully."
             else
-                warning "Something wrong with Certbot installation."
+                info "Something wrong with Certbot installation."
             fi
         fi
     fi
@@ -109,7 +109,7 @@ echo "[Certbot Let's Encrypt Installation]"
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v certbot) ]]; then
-    warning "Certbot Let's Encrypt already exists. Installation skipped..."
+    info "Certbot Let's Encrypt already exists. Installation skipped..."
 else
     init_certbotle_install "$@"
 fi

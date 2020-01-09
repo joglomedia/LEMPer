@@ -25,17 +25,18 @@ function add_mariadb_repo() {
     MYSQL_SERVER=${MYSQL_SERVER:-"mariadb"}
     MYSQL_VERSION=${MYSQL_VERSION:-"10.4"}
 
-    # Add MariaDB source list from MariaDB repo configuration tool.
-    if "${DRYRUN}"; then
-        status "MariaDB (MySQL) repository added in dryrun mode."
-    else
-        # Add MariaDB official repo.
-        # Ref: https://mariadb.com/kb/en/library/mariadb-package-repository-setup-and-usage/
-        run curl -sS -o "${BUILD_DIR}/mariadb_repo_setup" https://downloads.mariadb.com/MariaDB/mariadb_repo_setup && \
+    # Add MariaDB official repo.
+    # Ref: https://mariadb.com/kb/en/library/mariadb-package-repository-setup-and-usage/
+
+    MARIADB_REPO_SETUP_URL="https://downloads.mariadb.com/MariaDB/mariadb_repo_setup"
+
+    if curl -sL --head "${MARIADB_REPO_SETUP_URL}" | grep -q "HTTP/[.12]* [2].."; then
+        run curl -sS -o "${BUILD_DIR}/mariadb_repo_setup" "${MARIADB_REPO_SETUP_URL}" && \
         run bash "${BUILD_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
-            --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}"
-        #run rm -f "${BUILD_DIR}/mariadb_repo_setup"
-        run apt-get -qq update -y
+            --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}" && \
+        run apt update -qq -y
+    else
+        error "MariaDB repo installer not found."
     fi
 }
 
@@ -58,32 +59,17 @@ function init_mariadb_install() {
         echo "Installing MariaDB (MySQL drop-in replacement) server..."
 
         # Install MariaDB
-        if hash apt-get 2>/dev/null; then
-            run apt-get -qq install -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
+        if hash apt 2>/dev/null; then
+            run apt install -qq -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
                 "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
                 "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
-        elif hash yum 2>/dev/null; then
-            if [ "${VERSION_ID}" == "5" ]; then
-                yum -y update
-                #yum -y localinstall mariadb-common mariadb-server --nogpgcheck
-            else
-                yum -y update
-            	#yum -y localinstall mariadb-common mariadb-server
-            fi
         else
             fail "Unable to install MariaDB, this GNU/Linux distribution is not supported."
         fi
 
-        # Fix MySQL error?
-        # Ref: https://serverfault.com/questions/104014/innodb-error-log-file-ib-logfile0-is-of-different-size
-        #service mysql stop
-        #mv /var/lib/mysql/ib_logfile0 /var/lib/mysql/ib_logfile0.bak
-        #mv /var/lib/mysql/ib_logfile1 /var/lib/mysql/ib_logfile1.bak
-        #service mysql start
-
         # Configure MySQL installation.
         if "${DRYRUN}"; then
-            warning "MariaDB (MySQL) installed in dryrun mode."
+            info "MariaDB (MySQL) installed in dryrun mode."
         else
             if [[ -n $(command -v mysql) ]]; then
                 if [ ! -f /etc/mysql/my.cnf ]; then
@@ -126,15 +112,15 @@ function init_mariadb_install() {
                 # Trying to reload daemon.
                 run systemctl daemon-reload
 
+                # Unmask systemd service (?)
+                run systemctl unmask mariadb.service
+
                 # Enable MariaDB on startup.
                 run systemctl enable mariadb.service
 
-                # Unmask systemd service (?)
-                #run systemctl unmask mariadb.service
-
                 # Restart MariaDB service daemon.
-                #run systemctl start mariadb.service
-                run service mysql start
+                run systemctl start mariadb
+                #run service mysql start
 
                 # MySQL Secure Install.
                 if "${AUTO_INSTALL}"; then
@@ -166,8 +152,7 @@ function init_mariadb_install() {
 
                     # Root password is blank for newly installed MariaDB (MySQL).
                     if mysql --user=root --password="" -e "${SQL_QUERY}"; then
-                        status -n "Success: "
-                        echo "Securing MariaDB (MySQL) installation has been done."
+                        success "Securing MariaDB (MySQL) installation has been done."
                     else
                         error "Unable to secure MariaDB (MySQL) installation."
                     fi
@@ -182,7 +167,7 @@ function init_mariadb_install() {
 
                 enable_mariabackup
             else
-                warning "Something went wrong with MariaDB (MySQL) installation."
+                info "Something went wrong with MariaDB (MySQL) installation."
             fi
         fi
     fi
@@ -231,7 +216,7 @@ open_files_limit=65535
             echo "${MARIABACKUP_CNF}" >> /etc/mysql/my.cnf
         fi
 
-        systemctl restart mariadb.service
+        systemctl restart mariadb
 
         status "Mariaback user '${MARIABACKUP_USER}' added successfully."
 
@@ -241,7 +226,7 @@ open_files_limit=65535
         # Save log.
         save_log -e "MariaDB (MySQL) credentials.\nMySQL Root Password: ${MYSQL_ROOT_PASS}, MariaBackup DB Username: ${MARIABACKUP_USER}, MariaBackup DB Password: ${MARIABACKUP_PASS}\nSave this credential and use it to authenticate your MySQL database connection."
     else
-        warning "It seems that user '${MARIABACKUP_USER}' already exists. \
+        info "It seems that user '${MARIABACKUP_USER}' already exists. \
 Or try to add mariabackup user manually! "
     fi
 }
@@ -251,7 +236,7 @@ echo "[MariaDB (MySQL drop-in replacement) Installation]"
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v mysql) && -n $(command -v mysqld) ]]; then
-    warning "MariaDB (MySQL) web server already exists. Installation skipped..."
+    info "MariaDB (MySQL) web server already exists. Installation skipped..."
 else
     init_mariadb_install "$@"
 fi

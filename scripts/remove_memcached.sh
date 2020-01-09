@@ -29,7 +29,7 @@ function init_memcached_removal() {
         echo "Found Memcached package installation. Removing..."
 
         # Remove Memcached server.
-        run apt-get -qq --purge remove -y libmemcached11 memcached php-igbinary \
+        run apt remove --purge -qq -y libmemcached11 memcached php-igbinary \
             php-memcache php-memcached php-msgpack
     else
         echo "Memcached package not found, possibly installed from source."
@@ -103,12 +103,12 @@ function init_memcached_removal() {
 
     # Final test.
     if "${DRYRUN}"; then
-        warning "Memcached server removed in dryrun mode."
+        info "Memcached server removed in dryrun mode."
     else
         if [[ -z $(command -v memcached) ]]; then
             status "Memcached server removed succesfully."
         else
-            warning "Unable to remove Memcached server."
+            info "Unable to remove Memcached server."
         fi
     fi
 }
@@ -129,5 +129,5 @@ if [[ -n $(command -v memcached) ]]; then
         echo "Found Memcached server, but not removed."
     fi
 else
-    warning "Oops, Memcached installation not found."
+    info "Oops, Memcached installation not found."
 fi

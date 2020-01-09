@@ -52,16 +52,8 @@ function init_fail2ban_install() {
             1|"repo")
                 echo "Installing Fail2ban from repository..."
 
-                if hash apt-get 2>/dev/null; then
-                    run apt-get -qq install -y fail2ban sendmail
-                elif hash yum 2>/dev/null; then
-                    if [ "${VERSION_ID}" == "5" ]; then
-                        yum -y update
-                        #yum -y localinstall "${NGX_PACKAGE}" --nogpgcheck
-                    else
-                        yum -y update
-                        #yum -y localinstall "${NGX_PACKAGE}"
-                    fi
+                if hash apt 2>/dev/null; then
+                    run apt install -qq -y fail2ban sendmail
                 else
                     fail "Unable to install Fail2ban, this GNU/Linux distribution is not supported."
                 fi
@@ -76,7 +68,7 @@ function init_fail2ban_install() {
                 # https://github.com/fail2ban/fail2ban
                 fail2ban_download_link="https://github.com/fail2ban/fail2ban/archive/${FAIL2BAN_VERSION}.tar.gz"
 
-                if curl -sL --head "${fail2ban_download_link}" | grep -q "HTTP/[12].[01] [23].."; then
+                if curl -sL --head "${fail2ban_download_link}" | grep -q "HTTP/[.12]* [2].."; then
                     run wget -O fail2ban.tar.gz "${fail2ban_download_link}" && \
                     run tar -zxf fail2ban.tar.gz && \
                     run cd fail2ban-*/ && \
@@ -91,7 +83,7 @@ function init_fail2ban_install() {
     fi
 
     if "${DRYRUN}"; then
-        warning "Fail2ban installed in dryrun mode."
+        info "Fail2ban installed in dryrun mode."
     else
         SSH_PORT=${SSH_PORT:-22}
 
@@ -126,16 +118,15 @@ maxretry = 5
 _EOL_
     fi
 
-    service fail2ban start
+    run systemctl start fail2ban
 }
-
 
 echo "[Fail2ban Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v fail2ban-server) ]]; then
-    warning "Fail2ban already exists. Installation skipped..."
+    info "Fail2ban already exists. Installation skipped..."
 else
     init_fail2ban_install "$@"
 fi

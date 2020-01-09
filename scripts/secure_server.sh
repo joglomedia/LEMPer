@@ -132,7 +132,7 @@ EOL
 
         status "SSH port updated to ${SSH_PORT}."
     else
-        warning "Unable to update SSH port."
+        info "Unable to update SSH port."
     fi
 
     # Restart SSH service after LEMPer installation completed.
@@ -158,7 +158,7 @@ function install_ufw() {
     fi
 
     # Install UFW
-    run apt-get install -y ufw
+    run apt install -qq -y ufw
 
     if [[ -n $(command -v ufw) ]]; then
         echo "Configuring UFW firewall rules..."
@@ -200,19 +200,19 @@ function install_ufw() {
         run ufw allow 53
 
         # Open ntp port : to sync the clock of your machine.
-        run ufw allow 123/udp
+        #run ufw allow 123/udp
 
         # Turn on firewall.
         run ufw --force enable
 
         # Restart
         if "${DRYRUN}"; then
-            warning "UFW firewall installed in dryrun mode."
+            info "UFW firewall installed in dryrun mode."
         else
-            if service ufw restart; then
+            if systemctl restart ufw; then
                 status "UFW firewall installed successfully."
             else
-                warning "Something wrong with UFW installation."
+                info "Something wrong with UFW installation."
             fi
         fi
     fi
@@ -242,7 +242,7 @@ function install_csf() {
     if [[ -n $(command -v cpan) ]]; then
         run cpan -i "LWP LWP::Protocol::https GD::Graph IO::Socket::INET6"
     else
-        run apt-get -y install libwww-perl liblwp-protocol-https-perl \
+        run apt install -qq -y libwww-perl liblwp-protocol-https-perl \
             libgd-graph-perl libio-socket-inet6-perl
     fi
 
@@ -251,7 +251,7 @@ function install_csf() {
     run cd "${BUILD_DIR}"
 
     echo "Installing CSF+LFD firewall..."
-    if curl -sL --head https://download.configserver.com/csf.tgz | grep -q "HTTP/[12].[01] [23].."; then
+    if curl -sL --head https://download.configserver.com/csf.tgz | grep -q "HTTP/[.12]* [2].."; then
         run wget -q https://download.configserver.com/csf.tgz && \
         run tar -xzf csf.tgz && \
         run cd csf/ && \
@@ -290,7 +290,7 @@ function install_csf() {
                 # Allowed outgoing TCP ports for IPv6.
                 run sed -i "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT}\"/g" /etc/csf/csf.conf
             else
-                warning "ip6tables version greater than 1.4.3 required for IPv6 support."
+                info "ip6tables version greater than 1.4.3 required for IPv6 support."
             fi
         fi
     fi
@@ -300,22 +300,22 @@ function install_csf() {
     run cd "${CURRENT_DIR}"
 
     if "${DRYRUN}"; then
-        warning "CSF+LFD firewall installed in dryrun mode."
+        info "CSF+LFD firewall installed in dryrun mode."
     else
         if [[ -n $(command -v csf) && -n $(command -v lfd) ]]; then
-            if service csf restart; then
+            if systemctl restart csf; then
                 status "CSF firewall installed successfully. Starting now..."
             else
-                warning "Something wrong with CSF installation."
+                info "Something wrong with CSF installation."
             fi
 
-            if service lfd restart; then
+            if systemctl restart lfd; then
                 status "LFD firewall installed successfully. Starting now..."
             else
-                warning "Something wrong with LFD installation."
+                info "Something wrong with LFD installation."
             fi
         else
-            warning "Something wrong with CSF+LFD installation."
+            info "Something wrong with CSF+LFD installation."
         fi
     fi
 }
@@ -345,7 +345,7 @@ function install_apf() {
 
     echo "Installing APF+BFD firewall..."
     if curl -sL --head "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
-    | grep -q "HTTP/[12].[01] [23].."; then
+    | grep -q "HTTP/[.12]* [2].."; then
         run wget -q "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" && \
         run tar -xf "${APF_VERSION}.tar.gz" && \
         run cd advanced-policy-firewall-*/ && \
@@ -374,16 +374,16 @@ function install_apf() {
     run cd "${CURRENT_DIR}"
 
     if "${DRYRUN}"; then
-        warning "APF+BFD firewall installed in dryrun mode."
+        info "APF+BFD firewall installed in dryrun mode."
     else
         if [[ -n $(command -v apf) ]]; then
-            if service apf restart; then
+            if systemctl restart apf; then
                 status "APF firewall installed successfully. Starting now..."
             else
-                warning "Something wrong with APF installation."
+                info "Something wrong with APF installation."
             fi
         else
-            warning "Something wrong with APF installation."
+            info "Something wrong with APF installation."
         fi
     fi
 }
@@ -395,12 +395,13 @@ function remove_ufw() {
     if [[ -n $(command -v ufw) ]]; then
         echo "Found UFW iptables firewall, trying to remove it..."
 
-        run service ufw stop
+        #run service ufw stop
         run ufw disable
+        run systemctl stop ufw
 
         echo "Removing UFW iptables firewall..."
 
-        run apt-get -y remove ufw
+        run apt remove -qq -y ufw
     fi
 }
 
@@ -412,7 +413,7 @@ function remove_csf() {
         echo "Found CSF+LFD iptables firewall, trying to remove it..."
 
         if [[ -f /etc/csf/uninstall.sh ]]; then
-            run sh /etc/csf/uninstall.sh
+            run bash /etc/csf/uninstall.sh
         fi
     fi
 }
@@ -424,8 +425,8 @@ function remove_apf() {
     if [[ -n $(command -v apf) && -f /etc/apf/conf.apf ]]; then
         echo "Found APF+BFD iptables firewall, trying to remove it..."
 
-        run service apf stop
-        run service iptables stop
+        #run service apf stop
+        run systemctl stop apf
 
         echo "Removing APF+BFD iptables firewall..."
 
@@ -443,7 +444,7 @@ function remove_apf() {
 function install_firewall() {
     echo ""
     echo "IPtables-based Firewall Installation"
-    warning "You should not run any other iptables firewall configuration script.
+    info "You should not run any other iptables firewall configuration script.
 Any other iptables based firewall will be removed otherwise they will conflict."
     echo ""
     
@@ -481,7 +482,7 @@ Any other iptables based firewall will be removed otherwise they will conflict."
         # Ensure that iptables installed.
         if [[ -z $(command -v iptables) ]]; then
             echo "Iptables is required, trying to install it first..."
-            run apt-get install -y iptables bash sh
+            run apt install -qq -y iptables
         fi
 
         case "${SELECTED_FW}" in
@@ -498,7 +499,7 @@ Any other iptables based firewall will be removed otherwise they will conflict."
             ;;
         esac
     else
-        warning "Firewall installation skipped..."
+        info "Firewall installation skipped..."
     fi
 }
 

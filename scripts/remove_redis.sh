@@ -20,16 +20,16 @@ requires_root
 function init_redis_removal() {
     # Stop Redis server process.
     if [[ $(pgrep -c redis-server) -gt 0 ]]; then
-        run service redis-server stop
+        run systemctl stop redis-server
     fi
 
     if dpkg-query -l | awk '/redis/ { print $2 }' | grep -qwE "^redis-server"; then
         echo "Found Redis package installation. Removing..."
 
         # Remove Redis server.
-        run apt-get -qq --purge remove -y redis-server redis-tools php-redis
+        run apt remove --purge -qq -y redis-server redis-tools php-redis
         run add-apt-repository -y --remove ppa:chris-lea/redis-server
-        run apt-get -qq autoremove -y
+        run apt autoremove -qq -y
     else
         echo "Redis package not found, possibly installed from source."
         echo "Remove it manually!!"
@@ -62,12 +62,12 @@ function init_redis_removal() {
 
     # Final test.
     if "${DRYRUN}"; then
-        warning "Redis server removed in dryrun mode."
+        info "Redis server removed in dryrun mode."
     else
         if [[ -z $(command -v redis-server) ]]; then
             status "Redis server removed succesfully."
         else
-            warning "Unable to remove Redis server."
+            info "Unable to remove Redis server."
         fi
     fi
 }
@@ -88,5 +88,5 @@ if [[ -n $(command -v redis-server) ]]; then
         echo "Found Redis server, but not removed."
     fi
 else
-    warning "Oops, Redis installation not found."
+    info "Oops, Redis installation not found."
 fi
