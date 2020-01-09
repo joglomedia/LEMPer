@@ -33,7 +33,7 @@ GREEN=32
 YELLOW=33
 
 function begin_color() {
-    color="$1"
+    color="${1}"
     echo -e -n "\e[${color}m"
 }
 
@@ -42,45 +42,48 @@ function end_color() {
 }
 
 function echo_color() {
-    color="$1"
+    color="${1}"
     shift
-    begin_color "$color"
+    begin_color "${color}"
     echo "$@"
     end_color
 }
 
 function error() {
-    echo_color "$RED" -n "Error: " >&2
+    echo_color "${RED}" -n "Error: " >&2
     echo "$@" >&2
 }
 
 # Prints an error message and exits with an error code.
 function fail() {
     error "$@"
-
-    # Normally I'd use $0 in "usage" here, but since most people will be running
-    # this via curl, that wouldn't actually give something useful.
     echo >&2
     echo "For usage information, run this script with --help" >&2
     exit 1
 }
 
 function status() {
-    echo_color "$GREEN" "$@"
+    echo_color "${GREEN}" "$@"
 }
 
 function warning() {
-    echo_color "$YELLOW" "$@"
+    echo_color "${YELLOW}" "$@"
 }
 
-# If we set -e or -u then users of this script will see it silently exit on
-# failure.  Instead we need to check the exit status of each command manually.
-# The run function handles exit-status checking for system-changing commands.
-# Additionally, this allows us to easily have a dryrun mode where we don't
-# actually make any changes.
+function success() {
+    echo_color "${GREEN}" -n "Success: " >&2
+    echo "$@" >&2
+}
+
+function info() {
+    echo_color "${YELLOW}" -n "Info: " >&2
+    echo "$@" >&2
+}
+
+# Run command
 function run() {
     if "$DRYRUN"; then
-        echo_color "$YELLOW" -n "would run "
+        echo_color "${YELLOW}" -n "would run "
         echo "$@"
     else
         if ! "$@"; then
@@ -92,13 +95,13 @@ function run() {
 }
 
 function redhat_is_installed() {
-    local package_name="$1"
-    rpm -qa "$package_name" | grep -q .
+    local package_name="${1}"
+    rpm -qa "${package_name}" | grep -q .
 }
 
 function debian_is_installed() {
-    local package_name="$1"
-    dpkg -l "$package_name" | grep ^ii | grep -q .
+    local package_name="${1}"
+    dpkg -l "${package_name}" | grep ^ii | grep -q .
 }
 
 # Usage:
@@ -109,45 +112,45 @@ function debian_is_installed() {
 # already installed
 # each dependency is a package name
 function install_dependencies() {
-    local install_pkg_cmd="$1"
+    local install_pkg_cmd="${1}"
     local is_pkg_installed_cmd="$2"
     shift 2
 
     local missing_dependencies=""
 
     for package_name in "$@"; do
-        if ! "$is_pkg_installed_cmd" "$package_name"; then
-            missing_dependencies+="$package_name "
+        if ! "${is_pkg_installed_cmd}" "${package_name}"; then
+            missing_dependencies+="${package_name} "
         fi
     done
-    if [ -n "$missing_dependencies" ]; then
+    if [ -n "${missing_dependencies}" ]; then
         status "Detected that we're missing the following depencencies:"
-        echo " $missing_dependencies"
+        echo " ${missing_dependencies}"
         status "Installing them:"
-        run sudo "$install_pkg_cmd" "$missing_dependencies"
+        run sudo "${install_pkg_cmd}" "${missing_dependencies}"
     fi
 }
 
 function gcc_too_old() {
     # We need gcc >= 4.8
     local gcc_major_version && \
-    gcc_major_version=$(gcc -dumpversion | awk -F. '{print $1}')
-    if [ "$gcc_major_version" -lt 4 ]; then
+    gcc_major_version=$(gcc -dumpversion | awk -F. '{print ${1}}')
+    if [ "${gcc_major_version}" -lt 4 ]; then
         return 0 # too old
-    elif [ "$gcc_major_version" -gt 4 ]; then
+    elif [ "${gcc_major_version}" -gt 4 ]; then
         return 1 # plenty new
     fi
     # It's gcc 4.x, check if x >= 8:
     local gcc_minor_version && \
     gcc_minor_version=$(gcc -dumpversion | awk -F. '{print $2}')
-    test "$gcc_minor_version" -lt 8
+    test "${gcc_minor_version}" -lt 8
 }
 
 function continue_or_exit() {
-    local prompt="$1"
-    echo_color "$YELLOW" -n "$prompt"
+    local prompt="${1}"
+    echo_color "${YELLOW}" -n "${prompt}"
     read -rp " [y/n] " yn
-    if [[ "$yn" == N* || "$yn" == n* ]]; then
+    if [[ "${yn}" == N* || "${yn}" == n* ]]; then
         echo "Cancelled."
         exit 0
     fi
@@ -166,15 +169,15 @@ function escape_for_quotes() {
 function quote_arguments() {
     local argument_str=""
     for argument in "$@"; do
-        if [ -n "$argument_str" ]; then
+        if [ -n "${argument_str}" ]; then
             argument_str+=" "
         fi
-        if needs_quoting "$argument"; then
-            argument="'$(escape_for_quotes "$argument")'"
+        if needs_quoting "${argument}"; then
+            argument="'$(escape_for_quotes "${argument}")'"
         fi
-        argument_str+="$argument"
+        argument_str+="${argument}"
     done
-    echo "$argument_str"
+    echo "${argument_str}"
 }
 
 function version_sort() {
@@ -189,10 +192,10 @@ function version_sort() {
 function version_older_than() {
     local test_version && \
     test_version=$(echo "$@" | tr ' ' '\n' | version_sort | head -n 1)
-    local compare_to="$2"
+    local compare_to="${2}"
     local older_version="${test_version}"
 
-    test "$older_version" != "$compare_to"
+    test "${older_version}" != "${compare_to}"
 }
 
 function nginx_download_report_error() {
@@ -204,19 +207,19 @@ function get_nginx_versions_available() {
     nginx_download_url="https://nginx.org/en/download.html"
 
     local nginx_download_page
-    nginx_download_page=$(curl -sS --fail "$nginx_download_url") || \
+    nginx_download_page=$(curl -sS --fail "${nginx_download_url}") || \
         nginx_download_report_error "download"
 
     local download_refs
-    download_refs=$(echo "$nginx_download_page" | \
+    download_refs=$(echo "${nginx_download_page}" | \
         grep -owE '"/download/nginx-[0-9.]*\.tar\.gz"') || \
         nginx_download_report_error "parse"
 
-    versions_available=$(echo "$download_refs" | \
+    versions_available=$(echo "${download_refs}" | \
         sed -e 's~^"/download/nginx-~~' -e 's~\.tar\.gz"$~~') || \
         nginx_download_report_error "extract versions from"
 
-    echo "$versions_available"
+    echo "${versions_available}"
 }
 
 # Try to find the most recent nginx version (mainline).
@@ -225,15 +228,15 @@ function determine_latest_nginx_version() {
     local latest_version
 
     versions_available=$(get_nginx_versions_available)
-    latest_version=$(echo "$versions_available" | version_sort | tail -n 1) || \
+    latest_version=$(echo "${versions_available}" | version_sort | tail -n 1) || \
         report_error "determine latest (mainline) version from"
 
-    if version_older_than "$latest_version" "1.14.2"; then
+    if version_older_than "${latest_version}" "1.14.2"; then
         fail "Expected the latest version of nginx to be at least 1.14.2 but found
-$latest_version on $nginx_download_url"
+${latest_version} on ${nginx_download_url}"
     fi
 
-    echo "$latest_version"
+    echo "${latest_version}"
 }
 
 # Try to find the stable nginx version (mainline).
@@ -242,15 +245,15 @@ function determine_stable_nginx_version() {
     local stable_version
 
     versions_available=$(get_nginx_versions_available)
-    stable_version=$(echo "$versions_available" | version_sort | tail -n 2 | sort -r | tail -n 1) || \
+    stable_version=$(echo "${versions_available}" | version_sort | tail -n 2 | sort -r | tail -n 1) || \
         report_error "determine stable (LTS) version from"
 
-    if version_older_than "1.14.2" "$latest_version"; then
+    if version_older_than "1.14.2" "${latest_version}"; then
         fail "Expected the latest version of nginx to be at least 1.14.2 but found
-$latest_version on $nginx_download_url"
+${latest_version} on ${nginx_download_url}"
     fi
 
-    echo "$stable_version"
+    echo "${stable_version}"
 }
 
 # Validate Nginx configuration.
@@ -273,9 +276,21 @@ function validate_fqdn() {
     fi
 }
 
-##
+function delete_if_already_exists() {
+     if "$DRYRUN"; then return; fi
+
+    local directory="${1}"
+    if [ -d "$directory" ]; then
+        if [ ${#directory} -lt 8 ]; then
+            fail "Not deleting $directory; name is suspiciously short. Something is wrong."
+        fi
+
+        continue_or_exit "OK to delete $directory?"
+        run rm -rf "$directory"
+    fi
+}
+
 # Make sure only root can run LEMPer script.
-#
 function requires_root() {
     if [ "$(id -u)" -ne 0 ]; then
         error "This command can only be used by root."
@@ -283,9 +298,7 @@ function requires_root() {
     fi
 }
 
-##
-# Make sure only supported distribution can run this installer script.
-#
+# Make sure only supported distribution can run LEMPer script.
 function system_check() {
     export DISTRIB_NAME && DISTRIB_NAME=$(get_distrib_name)
     export RELEASE_NAME && RELEASE_NAME=$(get_release_name)
@@ -336,20 +349,6 @@ function system_check() {
     fi
 }
 
-function delete_if_already_exists() {
-     if "$DRYRUN"; then return; fi
-
-    local directory="$1"
-    if [ -d "$directory" ]; then
-        if [ ${#directory} -lt 8 ]; then
-            fail "Not deleting $directory; name is suspiciously short. Something is wrong."
-        fi
-
-        continue_or_exit "OK to delete $directory?"
-        run rm -rf "$directory"
-    fi
-}
-
 # Get general distribution name.
 function get_distrib_name() {
     if [ -f "/etc/os-release" ]; then
@@ -393,7 +392,7 @@ function get_release_name() {
             ubuntu)
                 # Hack for Linux Mint release number.
                 DISTRO_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE}"}
-                MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print $1}')
+                MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print ${1}}')
                 [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]] && \
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
 
@@ -512,7 +511,7 @@ function remove_swap() {
 
         echo "Swap file removed."
     else
-        warning "Unable to remove swap."
+        info "Unable to remove swap."
     fi
 }
 
@@ -525,7 +524,7 @@ function enable_swap() {
         SWAP_SIZE=$(free -m | awk '/^Swap:/ { print $2 }')
         status "Swap size ${SWAP_SIZE}MiB."
     else
-        warning "No swap detected."
+        info "No swap detected."
         create_swap
         status "Swap created and enabled."
     fi
@@ -583,7 +582,7 @@ function create_account() {
             status "Username ${USERNAME} created."
         fi
     else
-        warning "Unable to create account, username ${USERNAME} already exists."
+        info "Unable to create account, username ${USERNAME} already exists."
     fi
 }
 
@@ -604,7 +603,7 @@ function delete_account() {
             status "Account ${USERNAME} deleted."
         fi
     else
-        warning "Account ${USERNAME} not found."
+        info "Account ${USERNAME} not found."
     fi
 }
 
