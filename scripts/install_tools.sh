@@ -77,7 +77,9 @@ function init_webadmin_install() {
         local CUR_DIR && \
         CUR_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/filemanager/
-        run git pull -q
+        #run git pull -q
+        run wget -q https://raw.githubusercontent.com/PHPlayground/tinyfilemanager/lemperfm_1.3.0/index.php \
+            -O /usr/share/nginx/html/lcp/filemanager/index.php
         run cd "${CUR_DIR}"
     fi
 
@@ -170,7 +172,8 @@ EOL
             if "${REDIS_REQUIREPASS}"; then
                 run sed -i "s|//'auth'\ =>\ 'redispasswordhere'|'auth'\ =>\ '${REDIS_PASSWORD}'|g" includes/config.inc.php
             fi
-        else 
+        else
+            run cd redisadmin
             run "${COMPOSERBIN}" -q update
         fi
 
