@@ -177,7 +177,7 @@ function enable_vhost() {
     if [[ ! -f "/etc/nginx/sites-enabled/${1}.conf" && -f "/etc/nginx/sites-available/${1}.conf" ]]; then
         run ln -s "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-enabled/${1}.conf"
 
-        status "Your virtual host ${1} has been enabled..."
+        success "Your virtual host ${1} has been enabled..."
 
         reload_nginx
     else
@@ -199,7 +199,7 @@ function disable_vhost() {
     if [ -f "/etc/nginx/sites-enabled/${1}.conf" ]; then
         run unlink "/etc/nginx/sites-enabled/${1}.conf"
 
-        status "Your virtual host ${1} has been disabled..."
+        success "Your virtual host ${1} has been disabled..."
 
         reload_nginx
     else
@@ -229,7 +229,7 @@ function remove_vhost() {
     fi
     run rm -f "/etc/nginx/sites-available/${1}.conf"
 
-    status "Virtual host configuration file removed."
+    success "Virtual host configuration file removed."
 
     # Remove vhost root directory.
     read -rp "Do you want to delete website root directory? [y/n]: " -e DELETE_DIR
@@ -240,7 +240,7 @@ function remove_vhost() {
 
         if [ -d "${WEBROOT}" ]; then
             run rm -fr "${WEBROOT}"
-            status "Virtual host root directory removed."
+            success "Virtual host root directory removed."
         else
             info "Sorry, directory couldn't be found. Skipped..."
         fi
@@ -283,7 +283,7 @@ function remove_vhost() {
         if [ -d "/var/lib/mysql/${DBNAME}" ]; then
             echo "Deleting database ${DBNAME}..."
             run mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "DROP DATABASE ${DBNAME}"
-            status "Database '${DBNAME}' dropped."
+            success "Database '${DBNAME}' dropped."
         else
             info "Sorry, database ${DBNAME} not found. Skipped..."
         fi
@@ -628,7 +628,7 @@ function enable_brotli() {
         echo "Enable NGiNX Brotli compression..."
 
         if grep -qwE "^\    include\ /etc/nginx/comp_brotli" /etc/nginx/nginx.conf; then
-            status "Brotli compression module already enabled."
+            info "Brotli compression module already enabled."
             exit 0
         elif grep -qwE "^\    include\ /etc/nginx/comp_gzip" /etc/nginx/nginx.conf; then
             echo "Found Gzip compression enabled, updating to Brotli..."
@@ -641,7 +641,7 @@ function enable_brotli() {
             run sed -i "s|#include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_brotli;|g" \
                 /etc/nginx/nginx.conf
         else
-            info "Sorry, we couldn't find any compression module section."
+            error "Sorry, we couldn't find any compression module section."
             echo "We recommend you to enable Brotli module manually."
             exit 1
         fi
@@ -663,7 +663,7 @@ function enable_gzip() {
         echo "Enable NGiNX Gzip compression..."
 
         if grep -qwE "^\    include\ /etc/nginx/comp_gzip" /etc/nginx/nginx.conf; then
-            status "Gzip compression module already enabled."
+            info "Gzip compression module already enabled."
             exit 0
         elif grep -qwE "^\    include\ /etc/nginx/comp_brotli" /etc/nginx/nginx.conf; then
             echo "Found Brotli compression enabled, updating to Gzip..."
@@ -676,7 +676,7 @@ function enable_gzip() {
             run sed -i "s|#include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_gzip;|g" \
                 /etc/nginx/nginx.conf
         else
-            info "Sorry, we couldn't find any compression module section."
+            error "Sorry, we couldn't find any compression module section."
             echo "We recommend you to enable Gzip module manually."
             exit 1
         fi
@@ -741,7 +741,7 @@ function reload_nginx() {
     fi
 
     if [[ $(pgrep -c nginx) -gt 0 ]]; then
-        status "Your change has been successfully applied."
+        success "Your change has been successfully applied."
         exit 0
     else
         fail "An error occurred when updating configuration.";
