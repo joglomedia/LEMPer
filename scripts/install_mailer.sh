@@ -196,10 +196,10 @@ function install_dovecot() {
         if [ -f /etc/dovecot/conf.d/10-mail.conf ]; then
             # Maildir.
             if grep -qwE "^mail_location\ =\ [^[:digit:]]*$" /etc/dovecot/conf.d/10-mail.conf; then
-                run sed -i "s/^mail_location\ =\ [^[:digit:]]*$/mail_location\ =\ maildir:~/Maildir/g" \
+                run sed -i "s/^mail_location\ =\ [^[:digit:]]*$/mail_location\ =\ maildir:~\/Maildir/g" \
                     /etc/dovecot/conf.d/10-mail.conf
             else
-                run sed -iE "/^#mail_location\ =\ [^[:digit:]]*$/a mail_location\ =\ maildir:~/Maildir" \
+                run sed -iE "/^#mail_location\ =\ [^[:digit:]]*$/a mail_location\ =\ maildir:~\/Maildir" \
                     /etc/dovecot/conf.d/10-mail.conf
             fi
         fi
