@@ -48,7 +48,7 @@ function init_imagemagick_install() {
         case ${SELECTED_INSTALLER} in
             1|"repo")
                 echo "Installing ImageMagick library from repository..."
-                run apt-get -qq install -y imagemagick
+                run apt install -qq -y imagemagick
             ;;
             2|"source")
                 echo "Installing ImageMagick library from source..."
@@ -73,11 +73,8 @@ function init_imagemagick_install() {
             ;;
         esac
 
-        echo "Installing PHP Imagick extensions..."
-        run apt-get -qq install -y php-imagick
-
         if "${DRYRUN}"; then
-            warning "ImageMagick installed in dryrun mode."
+            info "ImageMagick installed in dryrun mode."
         else
             if [[ -n $(command -v magick) ]]; then
                 status "ImageMagick version $(magick -version | grep ^Version | cut -d' ' -f3) has been installed."
@@ -86,16 +83,35 @@ function init_imagemagick_install() {
             fi
         fi
     else
-        warning "ImageMagick installation skipped..."
+        info "ImageMagick installation skipped..."
     fi
 }
+
+# Install PHP Imagick extension.
+function install_php_imagick() {
+    # PHP version.
+    local PHPv="${1}"
+    if [ -z "${PHPv}" ]; then
+        PHPv=${PHP_VERSION:-"7.3"}
+    fi
+
+    echo "Installing PHP${PHPv} Imagick extensions..."
+
+    if hash apt 2>/dev/null; then
+        run apt install -qq -y "php${PHPv}-imagick"
+    else
+        fail "Unable to install PHP${PHPv} Imagick, this GNU/Linux distribution is not supported."
+    fi
+}
+
 
 echo "[ImageMagick Packages Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v magick) || -n $(command -v identify) ]]; then
-    warning "ImageMagick already exists. Installation skipped..."
+    info "ImageMagick already exists. Installation skipped..."
 else
     init_imagemagick_install "$@"
+    install_php_imagick "$@"
 fi
