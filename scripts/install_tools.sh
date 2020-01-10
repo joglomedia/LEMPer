@@ -23,7 +23,8 @@ requires_root
 function init_webadmin_install() {
     # Install Lemper CLI tool.
     echo "Installing Lemper CLI tool..."
-    run cp -f bin/lemper-cli.sh /usr/local/bin/lemper-cli
+    #run cp -f bin/lemper-cli.sh /usr/local/bin/lemper-cli
+    run cp -f bin/lemper-cli /usr/local/bin/ && \
     run chmod ugo+x /usr/local/bin/lemper-cli
 
     if [ ! -d /usr/local/lib/lemper ]; then
