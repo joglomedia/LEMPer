@@ -420,7 +420,7 @@ _EOF_
         fi
 
         if [ -z "${DBPASS2}" ]; then
-            error "Please specify the new username to replace using --extra-args parameter."
+            error "Please specify the new password using --extra-args parameter (dbpass2)."
             echo "An example for passing extra arguments: --extra-args=\"dbuser2=newuser,dbhost2=127.0.0.1\""
             exit 1
         fi
@@ -449,7 +449,7 @@ _EOF_
         fi
 
         if [ -z "${DBUSER2}" ]; then
-            error "Please specify the new username to replace using --extra-args parameter."
+            error "Please specify the new username using --extra-args parameter (dbuser2)."
             echo "An example for passing extra arguments: --extra-args=\"dbuser2=newuser,dbhost2=127.0.0.1\""
             exit 1
         fi
@@ -818,7 +818,7 @@ function init_db_app() {
                 "cmd_${SUBCMD}" "$@"
             else
                 echo "${CMD_PARENT} ${CMD_NAME}: unrecognized command '${SUBCMD}'" >&2
-                echo "Run '${APP_NAME} --help' for a list of known commands." >&2
+                echo "Run '${CMD_PARENT} ${CMD_NAME} --help' for a list of known commands." >&2
                 exit 1
             fi
         ;;
