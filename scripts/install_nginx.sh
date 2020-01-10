@@ -305,7 +305,37 @@ function init_nginx_install() {
                         -n "${NGX_VERSION}" --dynamic-module --extra-modules -y --dryrun
                 else
                     # Additional configure arguments.
-                    NGX_CONFIGURE_ARGS=""
+                    NGX_CONFIGURE_ARGS="--prefix=/usr/share/nginx 
+--sbin-path=/usr/sbin/nginx 
+--modules-path=/usr/lib/nginx/modules 
+--conf-path=/etc/nginx/nginx.conf 
+--error-log-path=/var/log/nginx/error.log 
+--http-log-path=/var/log/nginx/access.log 
+--pid-path=/run/nginx.pid 
+--lock-path=/var/lock/nginx.lock 
+--user=www-data 
+--group=www-data 
+--with-compat 
+--with-file-aio 
+--with-http_addition_module 
+--with-http_auth_request_module 
+--with-http_flv_module 
+--with-http_gunzip_module 
+--with-http_gzip_static_module 
+--with-http_mp4_module 
+--with-http_random_index_module 
+--with-http_realip_module 
+--with-http_secure_link_module 
+--with-http_slice_module 
+--with-http_ssl_module 
+--with-http_stub_status_module 
+--with-http_sub_module 
+--with-http_v2_module 
+--with-mail_ssl_module 
+--with-stream_realip_module 
+--with-stream_ssl_module 
+--with-stream_ssl_preread_module 
+--with-threads"
 
                     # Custom build name.
                     NGX_CONFIGURE_ARGS="--build=LEMPer ${NGX_CONFIGURE_ARGS}"
@@ -761,7 +791,7 @@ function init_nginx_install() {
 
                 # Create NGiNX directories.
                 if [ ! -d /etc/nginx/modules-available ]; then
-                    run mkdir /etc/nginx/modules-available
+                    run mkdir -p /etc/nginx/modules-available
                     run chmod 755 /etc/nginx/modules-available
                 fi
 
