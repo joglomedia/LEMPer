@@ -4,7 +4,7 @@ dist: bionic
 sudo: required
 
 before_install:
-  - sudo apt-get update -y -qq
+  - sudo apt update -y -qq
   - sudo apt install -qq -y shellcheck
 
 before_script:
@@ -26,10 +26,11 @@ matrix:
         - sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/g" .env
         - sed -i "s/AUTO_REMOVE=false/AUTO_REMOVE=true/g" .env
         - sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
-        #- sed -i "s/NGINX_INSTALLER=\"repo\"/NGINX_INSTALLER=\"source\"/g" .env
-        #- sed -i "s/NGX_PAGESPEED=false/NGX_PAGESPEED=true/g" .env
+        - sed -i "s/NGINX_INSTALLER=\"repo\"/NGINX_INSTALLER=\"source\"/g" .env
+        - sed -i "s/NGX_PAGESPEED=false/NGX_PAGESPEED=true/g" .env
         - sed -i "s/INSTALL_MAILER=false/INSTALL_MAILER=true/g" .env
         - sed -i "s/INSTALL_SPFDKIM=false/INSTALL_SPFDKIM=true/g" .env
+        - sed -i "s/SENDER_DOMAIN=\"example.com\"/SENDER_DOMAIN=\"eslabs.id\"/g" .env
         # Run the source through ShellCheck (http://www.shellcheck.net).
         - shellcheck -s bash -x lemper.sh
         - shellcheck -s bash -x bin/lemper-cli.sh
