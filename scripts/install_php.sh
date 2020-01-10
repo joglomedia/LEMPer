@@ -92,7 +92,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
 
             # Install php geoip?
             if "${AUTO_INSTALL}"; then
-                local INSTALL_PHPGEOIP="y"
+                local INSTALL_PHPGEOIP="n"
             else
                 while [[ "${INSTALL_PHPGEOIP}" != "y" && "${INSTALL_PHPGEOIP}" != "n" ]]; do
                     read -rp "Do you want to install PHP GeoIP for geolocation? [y/n]: " \
@@ -463,6 +463,12 @@ function install_php_composer() {
 
             #run rm composer-setup.php
             run cd "${CURRENT_DIR}"
+        fi
+
+        if [[ $(command -v composer) -gt 0 ]]; then
+            success "PHP Composer successfully installed."
+        else
+            error "Something wrong with PHP Composer installation."
         fi
     fi
 }
