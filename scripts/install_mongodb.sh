@@ -43,7 +43,16 @@ function add_mongodb_repo() {
 
     case ${DISTRIB_NAME} in
         debian)
-            [[ ${RELEASE_NAME} == "buster" ]] && local RELEASE_NAME="stretch"
+            case ${RELEASE_NAME} in
+                "buster")
+                    MONGODB_VERSION="4.2" # Only v4.2 supported for Buster
+                ;;
+                "jessie")
+                    if version_older_than "4.1" "${MONGODB_VERSION}"; then
+                        MONGODB_VERSION="4.1"
+                    fi
+                ;;
+            esac
 
             if [ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" ]; then
                 run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
