@@ -33,7 +33,7 @@ matrix:
         - sed -i "s/SENDER_DOMAIN=\"example.com\"/SENDER_DOMAIN=\"eslabs.id\"/g" .env
         # Run the source through ShellCheck (http://www.shellcheck.net).
         - shellcheck -s bash -x lemper.sh
-        - shellcheck -s bash -x bin/lemper-cli.sh
+        #- shellcheck -s bash -x bin/lemper-cli.sh
         - shellcheck -s bash -x lib/lemper-*.sh
         - shellcheck -s bash -x scripts/cleanup_server.sh
         - shellcheck -s bash -x scripts/helper.sh
