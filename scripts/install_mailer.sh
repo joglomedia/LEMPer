@@ -390,7 +390,7 @@ EOL
             # Test DKIM Key.
             #run opendkim-testkey -d "${SENDER_DOMAIN}" -s lemper -vvv
             echo -e "\nAfter then run this command to check your DNS record"
-            echo "opendkim-testkey -d "${SENDER_DOMAIN}" -s lemper -vvv"
+            echo "opendkim-testkey -d ${SENDER_DOMAIN} -s lemper -vvv"
         fi
     fi
 }
