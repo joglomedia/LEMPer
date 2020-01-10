@@ -59,7 +59,7 @@ function init_fail2ban_install() {
                 fi
             ;;
             2|"source")
-
+                FAIL2BAN_VERSION=${FAIL2BAN_VERSION:-"0.10.5"}
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
                 run cd "${BUILD_DIR}"
