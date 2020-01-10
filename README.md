@@ -138,4 +138,4 @@ Be the first one!
 
 ## Copyright
 
-(c) 2014-2019
+(c) 2014-2020 | [ESLabs](https://eslabs.id/) | eslabs[dot]id[at]gmail[dot]com
