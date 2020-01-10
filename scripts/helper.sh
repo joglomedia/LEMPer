@@ -384,8 +384,8 @@ function get_release_name() {
 
         case ${DISTRIB_NAME} in
             debian)
-                #RELEASE_NAME=${VERSION_CODENAME:-"unsupported"}
-                RELEASE_NAME="unsupported"
+                RELEASE_NAME=${VERSION_CODENAME:-"unsupported"}
+                #RELEASE_NAME="unsupported"
 
                 # TODO for Debian install
             ;;
@@ -405,9 +405,10 @@ function get_release_name() {
                         # Ubuntu release 18.04, LinuxMint 19
                         RELEASE_NAME=${UBUNTU_CODENAME:-"bionic"}
                     ;;
-                    "19.04")
-                        # Ubuntu release 19.04
-                        RELEASE_NAME=${UBUNTU_CODENAME:-"disco"}
+                    "20.04")
+                        # Ubuntu release 20.04
+                        #RELEASE_NAME=${UBUNTU_CODENAME:-"disco"}
+                        RELEASE_NAME="unsupported"
                     ;;
                     *)
                         RELEASE_NAME="unsupported"
@@ -656,6 +657,16 @@ function save_config() {
     if ! ${DRYRUN}; then
         [ -f /etc/lemper/lemper.conf ] && \
         echo "$@" >> /etc/lemper/lemper.conf
+    fi
+}
+
+# Encrypt configuration.
+function secure_config() {
+    if ! ${DRYRUN}; then
+        if [ -f /etc/lemper/lemper.conf ]; then
+            run openssl aes-256-gcm -a -salt -md sha256 -k "${PASSWORD}" \
+                -in /etc/lemper/lemper.conf -out /etc/lemper/lemper.cnf
+        fi
     fi
 }
 
