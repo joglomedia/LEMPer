@@ -180,227 +180,6 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
 }
 
 ##
-# Install ionCube Loader.
-#
-function install_ioncube() {
-    echo "Installing ionCube PHP loader..."
-
-    # Delete old loaders file.
-    if [ -d /usr/lib/php/loaders/ioncube ]; then
-        echo "Removing old/existing ionCube PHP loader..."
-        run rm -fr /usr/lib/php/loaders/ioncube
-    fi
-
-    local CURRENT_DIR && CURRENT_DIR=$(pwd)
-    run cd "${BUILD_DIR}"
-
-    ARCH=${ARCH:-$(uname -p)}
-    if [[ "${ARCH}" == "x86_64" ]]; then
-        run wget -q "http://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz"
-        run tar -xzf ioncube_loaders_lin_x86-64.tar.gz
-        run rm -f ioncube_loaders_lin_x86-64.tar.gz
-    else
-        run wget -q "http://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86.tar.gz"
-        run tar -xzf ioncube_loaders_lin_x86.tar.gz
-        run rm -f ioncube_loaders_lin_x86.tar.gz
-    fi
-
-    echo "Installing latest ionCube PHP loader..."
-    run mv -f ioncube /usr/lib/php/loaders/
-    run cd "${CURRENT_DIR}"
-}
-
-##
-# Enable ionCube Loader.
-#
-function enable_ioncube() {
-    # PHP version.
-    local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
-    fi
-
-    echo "Enabling ionCube PHP${PHPv} loader"
-
-    if "${DRYRUN}"; then
-        info "ionCube PHP${PHPv} enabled in dryrun mode."
-    else
-        if [ -f "/usr/lib/php/loaders/ioncube/ioncube_loader_lin_${PHPv}.so" ]; then
-            cat > "/etc/php/${PHPv}/mods-available/ioncube.ini" <<EOL
-[ioncube]
-zend_extension=/usr/lib/php/loaders/ioncube/ioncube_loader_lin_${PHPv}.so
-EOL
-
-            if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini" ]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/ioncube.ini" \
-                    "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini"
-            fi
-
-            if [ ! -f "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini" ]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/ioncube.ini" \
-                    "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini"
-            fi
-        else
-            info "Sorry, no ionCube loader found for PHP${PHPv}"
-        fi
-    fi
-}
-
-##
-# Disable ionCube Loader.
-#
-function disable_ioncube() {
-    # PHP version.
-    local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
-    fi
-
-    echo "Disabling ionCube PHP${PHPv} loader"
-
-    run unlink "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini"
-    run unlink "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini"
-}
-
-##
-# Remove ionCube Loader.
-#
-function remove_ioncube() {
-    # PHP version.
-    local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
-    fi
-
-    echo "Uninstalling ionCube PHP${PHPv} loader..."
-
-    if [[ -f "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini" || \
-        -f "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini" ]]; then
-        disable_ioncube "${PHPv}"
-    fi
-
-    if [ -d /usr/lib/php/loaders/ioncube ]; then
-        run rm -fr /usr/lib/php/loaders/ioncube
-        success "ionCube PHP${PHPv} loader has been removed."
-    else
-        info "ionCube PHP${PHPv} loader couldn't be found."
-    fi
-}
-
-##
-# Install SourceGuardian Loader.
-#
-function install_sourceguardian() {
-    echo "Installing SourceGuardian PHP loader..."
-
-    # Delete old loaders file.
-    if [ -d /usr/lib/php/loaders/sourceguardian ]; then
-        echo "Removing old/existing loader..."
-        run rm -fr /usr/lib/php/loaders/sourceguardian
-    fi
-
-    if [ ! -d "${BUILD_DIR}/sourceguardian" ]; then
-        run mkdir -p "${BUILD_DIR}/sourceguardian"
-    fi
-
-    local CURRENT_DIR && CURRENT_DIR=$(pwd)
-    run cd "${BUILD_DIR}/sourceguardian"
-
-    ARCH=${ARCH:-$(uname -p)}
-    if [[ "${ARCH}" == "x86_64" ]]; then
-        run wget -q "http://www.sourceguardian.com/loaders/download/loaders.linux-x86_64.tar.gz"
-        run tar -xzf loaders.linux-x86_64.tar.gz
-        run rm -f loaders.linux-x86_64.tar.gz
-    else
-        run wget -q "http://www.sourceguardian.com/loaders/download/loaders.linux-x86.tar.gz"
-        run tar -xzf loaders.linux-x86.tar.gz
-        run rm -f loaders.linux-x86.tar.gz
-    fi
-
-    run cd "${CURRENT_DIR}"
-
-    echo "Installing latest SourceGuardian PHP loader..."
-    run mv -f "${BUILD_DIR}/sourceguardian" /usr/lib/php/loaders/
-}
-
-##
-# Enable SourceGuardian Loader.
-#
-function enable_sourceguardian() {
-    # PHP version.
-    local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
-    fi
-
-    echo "Enabling SourceGuardian PHP${PHPv} loader..."
-
-    if "${DRYRUN}"; then
-        info "SourceGuardian PHP${PHPv} enabled in dryrun mode."
-    else
-        if [ -f "/usr/lib/php/loaders/sourceguardian/ixed.${PHPv}.lin" ]; then
-            cat > "/etc/php/${PHPv}/mods-available/sourceguardian.ini" <<EOL
-[sourceguardian]
-zend_extension=/usr/lib/php/loaders/sourceguardian/ixed.${PHPv}.lin
-EOL
-
-            if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini" ]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/sourceguardian.ini" \
-                    "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini"
-            fi
-
-            if [ ! -f "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini" ]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/sourceguardian.ini" \
-                    "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini"
-            fi
-        else
-            info "Sorry, no SourceGuardian loader found for PHP ${PHPv}"
-        fi
-    fi
-}
-
-##
-# Disable SourceGuardian Loader.
-#
-function disable_sourceguardian() {
-    # PHP version.
-    local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
-    fi
-
-    echo "Disabling SourceGuardian PHP${PHPv} loader"
-
-    run unlink "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini"
-    run unlink "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini"
-}
-
-##
-# Remove SourceGuardian Loader.
-#
-function remove_sourceguardian() {
-    # PHP version.
-    local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
-    fi
-
-    echo "Uninstalling SourceGuardian PHP${PHPv} loader..."
-
-    if [[ -f "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini" || \
-        -f "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini" ]]; then
-        disable_sourceguardian "${PHPv}"
-    fi
-
-    if [ -d /usr/lib/php/loaders/sourceguardian ]; then
-        run rm -fr /usr/lib/php/loaders/sourceguardian
-        success "SourceGuardian PHP${PHPv} loader has been removed."
-    else
-        info "SourceGuardian PHP${PHPv} loader couldn't be found."
-    fi
-}
-
-##
 # PHP & FPM Optimization.
 #
 function optimize_php_fpm() {
@@ -642,42 +421,45 @@ function install_php_composer() {
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
-    if "${AUTO_INSTALL}"; then
-        DO_INSTALL_COMPOSER="y"
-    else
-        while [[ "${DO_INSTALL_COMPOSER}" != "y" && "${DO_INSTALL_COMPOSER}" != "n" ]]; do
-            read -rp "Do you want to install PHP Composer? [y/n]: " -i n -e DO_INSTALL_COMPOSER
-        done
-    fi
-
-    if [[ ${DO_INSTALL_COMPOSER} == y* && ${INSTALL_PHPCOMPOSER} == true ]]; then
-        echo "Installing PHP Composer..."
-
-        local CURRENT_DIR && CURRENT_DIR=$(pwd)
-        run cd "${BUILD_DIR}"
-
-        PHP_BIN=$(command -v php)
-        EXPECTED_SIGNATURE="$(wget -q -O - https://composer.github.io/installer.sig)"
-        run "${PHP_BIN}" -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
-        ACTUAL_SIGNATURE="$(${PHP_BIN} -r "echo hash_file('sha384', 'composer-setup.php');")"
-
-        if [[ "${EXPECTED_SIGNATURE}" == "${ACTUAL_SIGNATURE}" ]]; then
-            local LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
-
-            run "${PHP_BIN}" composer-setup.php --filename=composer --install-dir=/usr/local/bin --quiet
-
-            # Fix chmod permission to executable.
-            [ -f /usr/local/bin/composer ] && run chmod ugo+x /usr/local/bin/composer
-
-            run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bashrc"
-            run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bash_profile"
-            run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.profile"
+    # Checking if php composer already installed.
+    if [[ -z $(command -v composer) ]]; then
+        if "${AUTO_INSTALL}"; then
+            DO_INSTALL_COMPOSER="y"
         else
-            error "Invalid PHP Composer installer signature."
+            while [[ "${DO_INSTALL_COMPOSER}" != "y" && "${DO_INSTALL_COMPOSER}" != "n" ]]; do
+                read -rp "Do you want to install PHP Composer? [y/n]: " -i n -e DO_INSTALL_COMPOSER
+            done
         fi
 
-        #run rm composer-setup.php
-        run cd "${CURRENT_DIR}"
+        if [[ ${DO_INSTALL_COMPOSER} == y* && ${INSTALL_PHPCOMPOSER} == true ]]; then
+            echo "Installing PHP Composer..."
+
+            local CURRENT_DIR && CURRENT_DIR=$(pwd)
+            run cd "${BUILD_DIR}"
+
+            PHP_BIN=$(command -v php)
+            EXPECTED_SIGNATURE="$(wget -q -O - https://composer.github.io/installer.sig)"
+            run "${PHP_BIN}" -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+            ACTUAL_SIGNATURE="$(${PHP_BIN} -r "echo hash_file('sha384', 'composer-setup.php');")"
+
+            if [[ "${EXPECTED_SIGNATURE}" == "${ACTUAL_SIGNATURE}" ]]; then
+                local LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
+
+                run "${PHP_BIN}" composer-setup.php --filename=composer --install-dir=/usr/local/bin --quiet
+
+                # Fix chmod permission to executable.
+                [ -f /usr/local/bin/composer ] && run chmod ugo+x /usr/local/bin/composer
+
+                run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bashrc"
+                run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bash_profile"
+                run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.profile"
+            else
+                error "Invalid PHP Composer installer signature."
+            fi
+
+            #run rm composer-setup.php
+            run cd "${CURRENT_DIR}"
+        fi
     fi
 }
 
@@ -686,7 +468,31 @@ function install_php_composer() {
 #
 function init_php_fpm_install() {
     if "${AUTO_INSTALL}"; then
-        local SELECTED_PHP="${1}"
+        local SELECTED_PHP=""
+
+        OPTS=$(getopt -o p: \
+        -l php-version:: \
+        -n "install_php" -- "$@")
+
+        eval set -- "${OPTS}"
+
+        while true
+        do
+            case "${1}" in
+                -p|--php-version) shift
+                    SELECTED_PHP="${1}"
+                    shift
+                ;;
+                --) shift
+                    break
+                ;;
+                *)
+                    fail "Invalid argument: ${1}"
+                    exit 1
+                ;;
+            esac
+        done
+
         if [ -z "${SELECTED_PHP}" ]; then
             SELECTED_PHP=${PHP_VERSION:-"7.3"}
         fi
@@ -767,121 +573,8 @@ function init_php_fpm_install() {
         install_php_fpm "7.3"
     fi
 
-    # Install PHP loader.
+    # Final optimization.
     if [[ "${PHPv}" != "unsupported" && "${PHP_IS_INSTALLED}" != "yes" ]]; then
-        if "${AUTO_INSTALL}"; then
-            if [[ -z "${PHP_LOADER}" || "${PHP_LOADER}" == "none" ]]; then
-                INSTALL_PHPLOADER="n"
-            else
-                INSTALL_PHPLOADER="y"
-                SELECTED_PHPLOADER=${PHP_LOADER}
-            fi
-        else
-            while [[ "${INSTALL_PHPLOADER}" != "y" && "${INSTALL_PHPLOADER}" != "n" ]]; do
-                read -rp "Do you want to install PHP Loaders? [y/n]: " -i n -e INSTALL_PHPLOADER
-            done
-        fi
-
-        if [[ ${INSTALL_PHPLOADER} == Y* || ${INSTALL_PHPLOADER} == y* ]]; then
-            echo ""
-            echo "Available PHP Loaders:"
-            echo "  1). ionCube Loader (latest stable)"
-            echo "  2). SourceGuardian (latest stable)"
-            echo "  3). All loaders (ionCube, SourceGuardian)"
-            echo "--------------------------------------------"
-
-            while [[ ${SELECTED_PHPLOADER} != "1" && ${SELECTED_PHPLOADER} != "2" && \
-                    ${SELECTED_PHPLOADER} != "3" && ${SELECTED_PHPLOADER} != "ioncube" && \
-                    ${SELECTED_PHPLOADER} != "sourceguardian" && ${SELECTED_PHPLOADER} != "all" ]]; do
-                read -rp "Select an option [1-3]: " -i "${PHP_LOADER}" -e SELECTED_PHPLOADER
-            done
-
-            # Create loaders directory
-            if [ ! -d /usr/lib/php/loaders ]; then
-                run mkdir -p /usr/lib/php/loaders
-            fi
-
-            case ${SELECTED_PHPLOADER} in
-                1|"ioncube")
-                    install_ioncube
-
-                    if [ "${PHPv}" != "all" ]; then
-                        enable_ioncube "${PHPv}"
-
-                        # Required for LEMPer default PHP.
-                        if [[ "${PHPv}" != "7.3" && -n $(command -v php7.3) ]]; then
-                            enable_ioncube "7.3"
-                        fi
-                    else
-                        # Install all PHP version (except EOL & Beta).
-                        enable_ioncube "5.6"
-                        enable_ioncube "7.0"
-                        enable_ioncube "7.1"
-                        enable_ioncube "7.2"
-                        enable_ioncube "7.3"
-                        #enable_ioncube "7.4"
-                    fi
-                ;;
-
-                2|"sourceguardian")
-                    install_sourceguardian
-
-                    if [ "${PHPv}" != "all" ]; then
-                        enable_sourceguardian "${PHPv}"
-
-                        # Required for LEMPer default PHP.
-                        if [[ "${PHPv}" != "7.3" && -n $(command -v php7.3) ]]; then
-                            enable_sourceguardian "7.3"
-                        fi
-                    else
-                        # Install all PHP version (except EOL & Beta).
-                        enable_sourceguardian "5.6"
-                        enable_sourceguardian "7.0"
-                        enable_sourceguardian "7.1"
-                        enable_sourceguardian "7.2"
-                        enable_sourceguardian "7.3"
-                        #enable_sourceguardian "7.4"
-                    fi
-                ;;
-
-                "all")
-                    install_ioncube
-                    install_sourceguardian
-
-                    if [ "${PHPv}" != "all" ]; then
-                        enable_ioncube "${PHPv}"
-                        enable_sourceguardian "${PHPv}"
-
-                        # Required for LEMPer default PHP
-                        if [[ "${PHPv}" != "7.3" && -n $(command -v php7.3) ]]; then
-                            enable_ioncube "7.3"
-                            enable_sourceguardian "7.3"
-                        fi
-                    else
-                        # Install all PHP version (except EOL & Beta).
-                        enable_ioncube "5.6"
-                        enable_ioncube "7.0"
-                        enable_ioncube "7.1"
-                        enable_ioncube "7.2"
-                        enable_ioncube "7.3"
-                        #enable_ioncube "7.4"
-
-                        enable_sourceguardian "5.6"
-                        enable_sourceguardian "7.0"
-                        enable_sourceguardian "7.1"
-                        enable_sourceguardian "7.2"
-                        enable_sourceguardian "7.3"
-                        #enable_sourceguardian "7.4"
-                    fi
-                ;;
-
-                *)
-                    info "Your selected PHP loader ${SELECTED_PHPLOADER} is not supported yet."
-                ;;
-            esac
-        fi
-
-        # Final optimization.
         #if "${DRYRUN}"; then
         #    info "PHP${PHPv} & FPM installed and optimized in dryrun mode."
         #else
