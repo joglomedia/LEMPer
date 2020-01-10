@@ -94,8 +94,7 @@ root@${HOSTNAME}  ${LEMPER_USERNAME}
 wordpress@${HOSTNAME}  ${LEMPER_USERNAME}' > /etc/postfix/virtual/addresses"
 
         if [[ $(validate_fqdn "${SENDER_DOMAIN}") = true && "${SENDER_DOMAIN}" != "example.com" ]]; then
-            run bash -c "
-${SENDER_DOMAIN}    DOMAIN
+            run bash -c "echo '${SENDER_DOMAIN}    DOMAIN
 @${SENDER_DOMAIN}    ${LEMPER_USERNAME}' > /etc/postfix/virtual/addresses"
         fi
 
