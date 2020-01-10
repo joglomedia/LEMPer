@@ -392,7 +392,7 @@ function get_release_name() {
             ubuntu)
                 # Hack for Linux Mint release number.
                 DISTRO_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE}"}
-                MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print ${1}}')
+                MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print $1}')
                 [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]] && \
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
 
