@@ -129,7 +129,11 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
 
             # Install php mcrypt?
             if "${AUTO_INSTALL}"; then
-                local INSTALL_PHPMCRYPT="y"
+                if version_older_than "7.2" "${PHPv}"; then
+                    local INSTALL_PHPMCRYPT="y"
+                else
+                    local INSTALL_PHPMCRYPT="n"
+                fi
             else
                 while [[ "${INSTALL_PHPMCRYPT}" != "y" && "${INSTALL_PHPMCRYPT}" != "n" ]]; do
                     read -rp "Do you want to install PHP Mcrypt for encryption/decryption? [y/n]: " \
