@@ -261,7 +261,7 @@ function install_spf_dkim() {
     fi
 
     if [[ ${DO_INSTALL_SPFDKIM} == y* && "${INSTALL_SPFDKIM}" == true ]]; then
-        echo "Installing Dovecot IMAP and POP3 email server..."
+        echo "Installing SPF + DKIM email server..."
 
         # Installing SPF Policy Agent & OpenDKIM.
         if hash apt 2>/dev/null; then
@@ -385,10 +385,12 @@ EOL
             # Publish Your Public Key in DNS Records.
             DKIM_KEY=$(cat "/etc/opendkim/keys/${SENDER_DOMAIN}/lemper.txt")
 
-            echo -e "Add this DKIM key to your DNS text record!\nDKIM Key: ${DKIM_KEY}"
+            echo -e "Add this DKIM key to your DNS TXT record!\nDKIM Key: ${DKIM_KEY}"
 
             # Test DKIM Key.
-            run opendkim-testkey -d "${SENDER_DOMAIN}" -s lemper -vvv
+            #run opendkim-testkey -d "${SENDER_DOMAIN}" -s lemper -vvv
+            echo -e "\nAfter then run this command to check your DNS record"
+            echo "opendkim-testkey -d "${SENDER_DOMAIN}" -s lemper -vvv"
         fi
     fi
 }
