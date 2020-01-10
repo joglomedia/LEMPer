@@ -112,6 +112,18 @@ case "${1}" in
             . ./scripts/install_php.sh
         fi
 
+        ### Phalcon PHP installation ###
+        if [ -f scripts/install_phalcon.sh ]; then
+            echo ""
+            . ./scripts/install_phalcon.sh
+        fi
+
+        ### Phalcon PHP installation ###
+        if [ -f scripts/install_phploader.sh ]; then
+            echo ""
+            . ./scripts/install_phploader.sh
+        fi
+
         ### Imagick installation ###
         if [ -f scripts/install_imagemagick.sh ]; then
             echo ""
@@ -122,12 +134,6 @@ case "${1}" in
         if [ -f scripts/install_memcached.sh ]; then
             echo ""
             . ./scripts/install_memcached.sh
-        fi
-
-        ### Phalcon PHP installation ###
-        if [ -f scripts/install_phalcon.sh ]; then
-            echo ""
-            . ./scripts/install_phalcon.sh
         fi
 
         ### MySQL database installation ###
@@ -193,14 +199,16 @@ case "${1}" in
             ### Recap ###
             if [[ -n "${PASSWORD}" ]]; then
                 CREDENTIALS="
-Here is your default system account information:
+Here is your default system information:
     Hostname : ${HOSTNAME}
     Server IP: ${SERVER_IP}
     SSH Port : ${SSH_PORT}
+
+LEMPer stack admin account:
     Username : ${USERNAME}
     Password : ${PASSWORD}
 
-Access to your Database administration (Adminer):
+Database administration (Adminer):
     http://${SERVER_IP}:8082/lcp/dbadmin/
 
     Database root password: ${MYSQL_ROOT_PASS}
@@ -209,22 +217,31 @@ Access to your Database administration (Adminer):
     DB Username: ${MARIABACKUP_USER}
     DB Password: ${MARIABACKUP_PASS}
 
-Access to your File manager (TinyFileManager):
+File manager (TinyFileManager):
     http://${SERVER_IP}:8082/lcp/filemanager/
 
-Please Save & Keep It Private!
+    Use your LEMPer stack admin account for login.
+
+
+Please Save the above Credentials & Keep it Secure!
 ~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~"
 
                 status "${CREDENTIALS}"
 
                 # Save it to log file
-                save_log "${CREDENTIALS}"
+                #save_log "${CREDENTIALS}"
             fi
         fi
 
         echo "
 See the log file (lemper.log) for more information.
-Now, you can reboot your server and enjoy it!"
+Now, you can reboot your server and enjoy it!
+"
+        info "SECURITY PRECAUTION! Due to the log file contains some credential data,
+You SHOULD delete it after your stack completely installed."
+
+        # Securing LEMPer stack credentials.
+        secure_config
     ;;
 
     "--remove"|"--uninstall")
