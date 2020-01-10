@@ -103,8 +103,6 @@ function init_nginx_install() {
             SELECTED_INSTALLER="source"
         fi
 
-        echo ""
-
         case "${SELECTED_INSTALLER}" in
             1|"repo")
                 add_nginx_repo
