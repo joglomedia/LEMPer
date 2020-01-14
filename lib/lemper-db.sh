@@ -662,7 +662,7 @@ function db_ops() {
                 local DATABASES
 
                 #[[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
-                if [[ -z "${DBPASS}" || ${USEROOT} = true ]]; then
+                if [[ -z "${DBPASS}" || ${USEROOT} == true ]]; then
                     [[ -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
                     DATABASES=$(mysql -u root -p"${DBPASS}" -h "${DBHOST}" -P "${DBPORT}" -e "SELECT Db,Host FROM mysql.db WHERE User='${DBUSER}' AND Grant_priv='Y';")
                 else

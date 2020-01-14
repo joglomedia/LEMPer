@@ -37,13 +37,13 @@ function init_certbotle_install() {
             debian)
                 case "${RELEASE_NAME}" in
                     jessie)
-                        run apt-get install certbot -t jessie-backports
+                        run apt install -qq -y certbot -t jessie-backports
                     ;;
                     stretch)
-                        run apt-get install certbot -t stretch-backports
+                        run apt install -qq -y certbot -t stretch-backports
                     ;;
                     buster)
-                        run apt-get install certbot
+                        run apt install -qq -y certbot
                     ;;
                     *)
                         error "Unable to add Certbot, unsupported distribution release: ${DISTRIB_NAME^} ${RELEASE_NAME^}."

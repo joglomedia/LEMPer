@@ -4,7 +4,7 @@ dist: bionic
 sudo: required
 
 before_install:
-  - sudo apt update -y -qq
+  - sudo apt update -qq -y
   - sudo apt install -qq -y shellcheck
 
 before_script:

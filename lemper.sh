@@ -29,13 +29,13 @@
 # | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
 # +-------------------------------------------------------------------------+
 
-# Work even if somebody does "sh lemper.sh".
+# Work even if somebody does "bash lemper.sh".
 set -e
 
-# Try to export global path.
-if [ -z "${PATH}" ] ; then
+# Try to re-export global path.
+#if [ -z "${PATH}" ] ; then
     export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-fi
+#fi
 
 # Get installer base directory.
 export BASEDIR && \
@@ -50,7 +50,7 @@ fi
 requires_root
 
 # Make sure only supported distribution can run this installer script.
-system_check
+preflight_system_check
 
 
 ##
@@ -74,16 +74,16 @@ case "${1}" in
         # Init config.
         run init_config
 
-        ### Clean-up server ###
-        echo ""
-        if [ -f scripts/cleanup_server.sh ]; then
-            . ./scripts/cleanup_server.sh
-        fi
-
         ### Install dependencies packages ###
         echo ""
         if [ -f scripts/install_dependencies.sh ]; then
             . ./scripts/install_dependencies.sh
+        fi
+
+        ### Clean-up server ###
+        echo ""
+        if [ -f scripts/cleanup_server.sh ]; then
+            . ./scripts/cleanup_server.sh
         fi
 
         ### Check and enable swap ###
@@ -244,7 +244,7 @@ You SHOULD delete it after your stack completely installed."
         secure_config
     ;;
 
-    "--remove"|"--uninstall")
+    "--remove")
         header_msg
 
         echo "Are you sure to remove LEMP stack installation?"

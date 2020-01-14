@@ -102,7 +102,7 @@ fi
 # Check pre-requisite packages.
 if [[ ! -f $(command -v unzip) || ! -f $(command -v git) || ! -f $(command -v rsync) ]]; then
     error "${APP_NAME^} requires git, rsync, unzip, wget, please install it first!"
-    echo "help: sudo apt-get install git rsync unzip wget"
+    echo "help: sudo apt install git rsync unzip wget"
     exit 1
 fi
 
@@ -1084,7 +1084,7 @@ function init_app() {
                         if [ ! -d "${WEBROOT}/core/lib/Drupal" ]; then
                             echo "Downloading Drupal latest skeleton files..."
 
-                            if curl -sL --head https://www.drupal.org/download-latest/zip | grep -q "HTTP/[.12]* [2].."; then
+                            if curl -sLI https://www.drupal.org/download-latest/zip | grep -q "HTTP/[.12]* [2].."; then
                                 run wget -q -O "${TMPDIR}/drupal.zip" https://www.drupal.org/download-latest/zip && \
                                 run unzip -q "${TMPDIR}/drupal.zip" -d "${TMPDIR}" && \
                                 run rsync -rq ${TMPDIR}/drupal-*/ "${WEBROOT}" && \
@@ -1424,7 +1424,7 @@ function init_app() {
                 run touch "${WEBROOT}/error_log"
 
                 # Assign IPv4 to server vhost.
-                if [[ $(validate_ipv4 "${IPv4}") = true ]]; then
+                if [[ $(validate_ipv4 "${IPv4}") == true ]]; then
                     echo "Assigning IPv4 ${IPv4} to ${SERVERNAME}..."
 
                     if grep -qwE "listen\ 80" "${VHOST_FILE}"; then
@@ -1433,7 +1433,7 @@ function init_app() {
                 fi
 
                 # Assign IPv6 to server vhost.
-                if [[ $(validate_ipv6 "${IPv6}") = true ]]; then
+                if [[ $(validate_ipv6 "${IPv6}") == true ]]; then
                     echo "Assigning IPv6 ${IPv6} to ${SERVERNAME}..."
 
                     if grep -qwE "listen\ \[::\]:80" "${VHOST_FILE}"; then

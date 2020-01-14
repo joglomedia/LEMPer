@@ -142,10 +142,18 @@ _EOF_
                 # Save log.
                 save_log -e "MongoDB default admin user is enabled, here is your admin credentials:\nAdmin username: ${MONGODB_ADMIN_USER} | Admin password: ${MONGODB_ADMIN_PASS}\nSave this credentials and use it to authenticate your MongoDB connection."
             fi
-
         fi
+
+        # PHP version.
+        local PHPv="${1}"
+        if [[ -z "${PHPv}" || -n $(grep "\-\-" <<<"${PHPv}") ]]; then
+            PHPv=${PHP_VERSION:-"7.3"}
+        fi
+
+        # Install PHP MongoDB extension.
+        install_php_mongodb "${PHPv}"
     else
-        info "MongoDB installation skipped..."
+        info "MongoDB server installation skipped."
     fi
 }
 
@@ -153,11 +161,11 @@ _EOF_
 function install_php_mongodb() {
     # PHP version.
     local PHPv="${1}"
-    if [[ -z "${PHPv}" ]]; then
+    if [ -z "${PHPv}" ]; then
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
-    echo "Installing PHP${PHPv} MongoDB extension..."
+    echo -e "\nInstalling PHP ${PHPv} MongoDB extension..."
 
     local CURRENT_DIR && \
     CURRENT_DIR=$(pwd)
@@ -166,7 +174,7 @@ function install_php_mongodb() {
     if hash apt 2>/dev/null; then
         run apt install -qq -y "php${PHPv}-mongodb"
     else
-        fail "Unable to install PHP${PHPv} MongoDB, this GNU/Linux distribution is not supported."
+        fail "Unable to install PHP ${PHPv} MongoDB, this GNU/Linux distribution is not supported."
     fi
 
     run git clone --depth=1 -q https://github.com/mongodb/mongo-php-driver.git && \
@@ -205,5 +213,4 @@ if [[ -n $(command -v mongod) ]]; then
     info "MongoDB server already exists. Installation skipped..."
 else
     init_mongodb_install "$@"
-    install_php_mongodb "$@"
 fi

@@ -82,8 +82,17 @@ function init_imagemagick_install() {
                 success "ImageMagick version $(identify -version | grep ^Version | cut -d' ' -f3) has been installed."
             fi
         fi
+
+        # PHP version.
+        local PHPv="${1}"
+        if [[ -z "${PHPv}" || -n $(grep "\-\-" <<<"${PHPv}") ]]; then
+            PHPv=${PHP_VERSION:-"7.3"}
+        fi
+
+        # Install PHP Imagick extension.
+        install_php_imagick "$@"
     else
-        info "ImageMagick installation skipped..."
+        info "ImageMagick installation skipped."
     fi
 }
 
@@ -95,12 +104,12 @@ function install_php_imagick() {
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
-    echo "Installing PHP${PHPv} Imagick extensions..."
+    echo -e "\nInstalling PHP ${PHPv} Imagick extensions..."
 
     if hash apt 2>/dev/null; then
         run apt install -qq -y "php${PHPv}-imagick"
     else
-        fail "Unable to install PHP${PHPv} Imagick, this GNU/Linux distribution is not supported."
+        fail "Unable to install PHP ${PHPv} Imagick, this GNU/Linux distribution is not supported."
     fi
 }
 
@@ -113,5 +122,4 @@ if [[ -n $(command -v magick) || -n $(command -v identify) ]]; then
     info "ImageMagick already exists. Installation skipped..."
 else
     init_imagemagick_install "$@"
-    install_php_imagick "$@"
 fi

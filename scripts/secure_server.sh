@@ -43,7 +43,7 @@ Never share your private key.
 
         echo "Open your public key (id_rsa.pub) file, copy paste the key here..."
 
-        RSA_PUB_KEY=${RSA_PUB_KEY:-n}
+        RSA_PUB_KEY=${RSA_PUB_KEY:-""}
         while ! [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; do
             read -rp ": " -e RSA_PUB_KEY
         done
@@ -112,7 +112,7 @@ EOL
 
     # Securing the SSH server.
     echo "Securing your SSH server with custom port..."
-    SSH_PORT=${SSH_PORT:-n}
+    SSH_PORT=${SSH_PORT:-""}
     while ! [[ ${SSH_PORT} =~ ^[0-9]+$ ]]; do
         read -rp "Custom SSH port (default SSH port is 22): " -e SSH_PORT
     done
@@ -251,7 +251,7 @@ function install_csf() {
     run cd "${BUILD_DIR}"
 
     echo "Installing CSF+LFD firewall..."
-    if curl -sL --head https://download.configserver.com/csf.tgz | grep -q "HTTP/[.12]* [2].."; then
+    if curl -sLI https://download.configserver.com/csf.tgz | grep -q "HTTP/[.12]* [2].."; then
         run wget -q https://download.configserver.com/csf.tgz && \
         run tar -xzf csf.tgz && \
         run cd csf/ && \
@@ -344,7 +344,7 @@ function install_apf() {
     run cd "${BUILD_DIR}"
 
     echo "Installing APF+BFD firewall..."
-    if curl -sL --head "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
+    if curl -sLI "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
     | grep -q "HTTP/[.12]* [2].."; then
         run wget -q "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" && \
         run tar -xf "${APF_VERSION}.tar.gz" && \
@@ -499,7 +499,7 @@ Any other iptables based firewall will be removed otherwise they will conflict."
             ;;
         esac
     else
-        info "Firewall installation skipped..."
+        info "Firewall installation skipped."
     fi
 }
 

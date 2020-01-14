@@ -20,15 +20,16 @@ requires_root
 if hash apt 2>/dev/null; then
     # Update repositories.
     echo "Updating repository..."
-
-    run apt update -qq -y
+    run apt update -qq -y && \
+    run apt upgrade -qq -y
 
     # Install dependencies.
-    echo "Installing pre-requisite packages..."
-    run apt install -qq -y apt-transport-https autoconf automake bash build-essential ca-certificates cmake cron \
+    echo -e "\nInstalling pre-requisites/dependencies package..."
+    install_dependencies "apt install -qq -y" debian_is_installed \
+        apt-transport-https autoconf automake bash build-essential ca-certificates cmake cron \
         curl dnsutils gcc geoip-bin geoip-database git gnupg2 htop iptables libc-dev libcurl4-openssl-dev libgd-dev libgeoip-dev \
-        libssl-dev libxml2-dev libpcre3-dev libxslt1-dev lsb-release make ntpdate openssh-server openssl pkg-config re2c rsync \
-        software-properties-common sasl2-bin snmp sudo sysstat tar tzdata unzip wget whois zlib1g-dev
+        libssl-dev libxml2-dev libpcre3-dev libtool libxslt1-dev lsb-release make ntp ntpdate openssh-server openssl pkg-config \
+        re2c rsync software-properties-common sasl2-bin snmp sudo sysstat tar tzdata unzip wget whois zlib1g-dev
 
     # Configure server clock.
     echo -e "\nReconfigure server clock..."
@@ -39,18 +40,22 @@ if hash apt 2>/dev/null; then
         run rm -f /etc/localtime
         run dpkg-reconfigure -f noninteractive tzdata
 
+        # Update local time.
+        # Masked (?).
+        #run systemctl unmask ntp.service
+        #run systemctl stop ntp
+        #run /usr/sbin/ntpdate -s cn.pool.ntp.org
+        #run systemctl start ntp
+
         # Save config.
         save_config "TIMEZONE=${TIMEZONE}"
     fi
 
-    # Update local time.
-    # Masked (?).
-    run systemctl unmask ntp.service
-    run systemctl stop ntp
-    run ntpdate -s cn.pool.ntp.org
-    run systemctl start ntp
+    # Verify system pre-requisites.
+    verify_prerequisites
 else
     fail "Unable to install LEMPer, this GNU/Linux distribution is not supported."
 fi
 
+echo ""
 success "Required packages installation completed..."

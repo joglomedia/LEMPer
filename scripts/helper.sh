@@ -94,11 +94,13 @@ function run() {
     fi
 }
 
+# Check if RedHat package (.rpm) is installed.
 function redhat_is_installed() {
     local package_name="${1}"
     rpm -qa "${package_name}" | grep -q .
 }
 
+# Check if Debian package (.deb) is installed.
 function debian_is_installed() {
     local package_name="${1}"
     dpkg -l "${package_name}" | grep ^ii | grep -q .
@@ -107,13 +109,13 @@ function debian_is_installed() {
 # Usage:
 # install_dependencies install_pkg_cmd is_pkg_installed_cmd dep1 dep2 ...
 #
-# install_pkg_cmd is a command to install a dependency
-# is_pkg_installed_cmd is a command that returns true if the dependency is
+# install_pkg_cmd is a command to install a dependency, e.g. apt install (Debian)
+# is_pkg_installed_cmd is a command that returns true if the dependency is, e.g. debian_is_installed
 # already installed
 # each dependency is a package name
 function install_dependencies() {
     local install_pkg_cmd="${1}"
-    local is_pkg_installed_cmd="$2"
+    local is_pkg_installed_cmd="${2}"
     shift 2
 
     local missing_dependencies=""
@@ -124,10 +126,10 @@ function install_dependencies() {
         fi
     done
     if [ -n "${missing_dependencies}" ]; then
-        status "Detected that we're missing the following depencencies:"
+        info "Detected that we're missing the following depencencies:"
         echo " ${missing_dependencies}"
-        status "Installing them:"
-        run sudo "${install_pkg_cmd}" "${missing_dependencies}"
+        info "Installing them:"
+        run "${install_pkg_cmd}" "${missing_dependencies}"
     fi
 }
 
@@ -144,16 +146,6 @@ function gcc_too_old() {
     local gcc_minor_version && \
     gcc_minor_version=$(gcc -dumpversion | awk -F. '{print $2}')
     test "${gcc_minor_version}" -lt 8
-}
-
-function continue_or_exit() {
-    local prompt="${1}"
-    echo_color "${YELLOW}" -n "${prompt}"
-    read -rp " [y/n] " yn
-    if [[ "${yn}" == N* || "${yn}" == n* ]]; then
-        echo "Cancelled."
-        exit 0
-    fi
 }
 
 # If a string is very simple we don't need to quote it.    But we should quote
@@ -178,6 +170,32 @@ function quote_arguments() {
         argument_str+="${argument}"
     done
     echo "${argument_str}"
+}
+
+# Delete if directory exists.
+function delete_if_already_exists() {
+    if "${DRYRUN}"; then return; fi
+
+    local directory="${1}"
+    if [ -d "${directory}" ]; then
+        if [ ${#directory} -lt 8 ]; then
+            fail "Not deleting ${directory}; name is suspiciously short. Something is wrong."
+        fi
+
+        if "${FORCE_REMOVE}"; then
+            yn="y"
+        else
+            echo_color "${YELLOW}" -n "${directory} already exists, OK to delete?"
+            read -rp " [y/n] " yn
+        fi
+
+        if [[ "${yn}" == Y* || "${yn}" == y* ]]; then
+            run rm -rf "${directory}" && \
+            success "${directory} deleted."
+        else
+            info "Deletion cancelled."
+        fi
+    fi
 }
 
 function version_sort() {
@@ -259,9 +277,9 @@ ${latest_version} on ${nginx_download_url}"
 # Validate Nginx configuration.
 function validate_nginx_config() {
     if nginx -t 2>/dev/null > /dev/null; then
-        echo "true" # success
+        echo true # success
     else
-        echo "false" # error
+        echo false # error
     fi
 }
 
@@ -276,76 +294,11 @@ function validate_fqdn() {
     fi
 }
 
-function delete_if_already_exists() {
-     if "$DRYRUN"; then return; fi
-
-    local directory="${1}"
-    if [ -d "$directory" ]; then
-        if [ ${#directory} -lt 8 ]; then
-            fail "Not deleting $directory; name is suspiciously short. Something is wrong."
-        fi
-
-        continue_or_exit "OK to delete $directory?"
-        run rm -rf "$directory"
-    fi
-}
-
 # Make sure only root can run LEMPer script.
 function requires_root() {
     if [ "$(id -u)" -ne 0 ]; then
         error "This command can only be used by root."
         exit 1
-    fi
-}
-
-# Make sure only supported distribution can run LEMPer script.
-function system_check() {
-    export DISTRIB_NAME && DISTRIB_NAME=$(get_distrib_name)
-    export RELEASE_NAME && RELEASE_NAME=$(get_release_name)
-
-    if [[ "${RELEASE_NAME}" == "unsupported" ]]; then
-        fail "This Linux distribution isn't supported yet. If you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
-    else
-        # Set system architecture.
-        export ARCH && \
-        ARCH=$(uname -p)
-
-        # Set default timezone.
-        export TIMEZONE
-        if [[ -z "${TIMEZONE}" || "${TIMEZONE}" = "none" ]]; then
-            [ -f /etc/timezone ] && TIMEZONE=$(cat /etc/timezone) || TIMEZONE="UTC"
-        fi
-
-        # Set ethernet interface.
-        export IFACE && \
-        IFACE=$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)
-
-        # Set server IP.
-        export SERVER_IP && \
-        SERVER_IP=${SERVER_IP:-$(get_ip_addr)}
-
-        # Set server hostname.
-        if [ -z "${HOSTNAME}" ]; then
-            export HOSTNAME && \
-            HOSTNAME=$(hostname)
-        fi
-
-        # Validate server's hostname for production stack.
-        if [[ "${ENVIRONMENT}" = "production" ]]; then
-            # Check if the hostname is valid.
-            if [[ $(validate_fqdn "${HOSTNAME}") != true ]]; then
-                error "Your server's hostname is not fully qualified domain name (FQDN)."
-                echo -e "Please update your hostname to qualify the FQDN format and\nthen points your hostname to this server ip ${SERVER_IP} !"
-                exit 1
-            fi
-
-            # Check if the hostname is pointed to server IP address.
-            if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" ]]; then
-                error "It seems that your server's hostname is not yet pointed to your server's IP address."
-                echo -e "Please update your DNS record by adding an A record and point it to your server IP ${SERVER_IP} !"
-                exit 1
-            fi
-        fi
     fi
 }
 
@@ -439,6 +392,71 @@ function get_release_name() {
     fi
 
     echo "${RELEASE_NAME}"
+}
+
+# Make sure only supported distribution can run LEMPer script.
+function preflight_system_check() {
+    export DISTRIB_NAME && DISTRIB_NAME=$(get_distrib_name)
+    export RELEASE_NAME && RELEASE_NAME=$(get_release_name)
+
+    # Check supported distribution and release version.
+    if [[ "${DISTRIB_NAME}" == "unsupported" || "${RELEASE_NAME}" == "unsupported" ]]; then
+        fail "This Linux distribution isn't supported yet. If you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
+    fi
+}
+
+# Verify system pre-requisites configuration.
+function verify_prerequisites() {
+    # Set system architecture.
+    export ARCH && \
+    ARCH=$(uname -p)
+
+    # Set default timezone.
+    export TIMEZONE
+    if [[ -z "${TIMEZONE}" || "${TIMEZONE}" = "none" ]]; then
+        [ -f /etc/timezone ] && TIMEZONE=$(cat /etc/timezone) || TIMEZONE="UTC"
+    fi
+
+    # Set ethernet interface.
+    export IFACE && \
+    IFACE=$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)
+
+    # Set server IP.
+    export SERVER_IP && \
+    SERVER_IP=${SERVER_IP:-$(get_ip_addr)}
+
+    # Set server hostname.
+    if [ -n "${SERVER_HOSTNAME}" ]; then
+        run hostname "${SERVER_HOSTNAME}" && \
+        run bash -c "echo '${SERVER_HOSTNAME}' > /etc/hostname"
+
+        if grep -q "${SERVER_HOSTNAME}" /etc/hosts; then
+            run sed -i".bak" "/${SERVER_HOSTNAME}/d" /etc/hosts
+        else
+            run bash -c "echo -e '\n#LEMPer local hosts\n${SERVER_IP}\t${SERVER_HOSTNAME}' >> /etc/hosts"
+        fi
+
+        export HOSTNAME && \
+        HOSTNAME=${SERVER_HOSTNAME:-$(hostname)}
+    fi
+
+    # Validate server's hostname for production stack.
+    if [[ "${ENVIRONMENT}" = "production" ]]; then
+        # Check if the hostname is valid.
+        if [[ $(validate_fqdn "${HOSTNAME}") != true ]]; then
+            error "Your server's hostname is not fully qualified domain name (FQDN)."
+            echo -e "In production environment you should use hostname that qualify FQDN format."
+            echo -n "Update your hostname and points it to this server IP address "; status -n "${SERVER_IP}"; echo " !"
+            exit 1
+        fi
+
+        # Check if the hostname is pointed to server IP address.
+        #if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" ]]; then
+        #    error "It seems that your server's hostname is not yet pointed to your server's IP address."
+        #    echo -n "In production environment you should add an DNS A record, points it to this server IP address "; status -n "${SERVER_IP}"; echo " !"
+        #    exit 1
+        #fi
+    fi
 }
 
 # Get physical RAM size.
@@ -706,7 +724,7 @@ function footer_msg() {
 _EOF_
 }
 
-# Define build directory.
+# Define LEMPer build directory.
 BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
 if [ ! -d "${BUILD_DIR}" ]; then
     run mkdir -p "${BUILD_DIR}"

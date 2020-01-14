@@ -30,7 +30,7 @@ function add_mariadb_repo() {
 
     MARIADB_REPO_SETUP_URL="https://downloads.mariadb.com/MariaDB/mariadb_repo_setup"
 
-    if curl -sL --head "${MARIADB_REPO_SETUP_URL}" | grep -q "HTTP/[.12]* [2].."; then
+    if curl -sLI "${MARIADB_REPO_SETUP_URL}" | grep -q "HTTP/[.12]* [2].."; then
         run curl -sS -o "${BUILD_DIR}/mariadb_repo_setup" "${MARIADB_REPO_SETUP_URL}" && \
         run bash "${BUILD_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
             --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}" && \

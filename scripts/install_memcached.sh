@@ -70,7 +70,7 @@ function init_memcached_install() {
 
                 # Install Libevent from source.
                 #LIBEVENT_DOWNLOAD_URL="https://github.com/libevent/libevent/releases/download/release-2.1.11-stable/libevent-2.1.11-stable.tar.gz"
-                #if curl -sL --head "${LIBEVENT_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
+                #if curl -sLI "${LIBEVENT_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
                 #    run wget -q -O libevent.tar.gz "${LIBEVENT_DOWNLOAD_URL}"
                 #    run tar -zxf libevent.tar.gz
                 #    run cd libevent-*
@@ -87,7 +87,7 @@ function init_memcached_install() {
                     MEMCACHED_DOWNLOAD_URL="https://memcached.org/files/memcached-${MEMCACHED_VERSION}.tar.gz"
                 fi
 
-                if curl -sL --head "${MEMCACHED_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
+                if curl -sLI "${MEMCACHED_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
                     run wget -q -O memcached.tar.gz "${MEMCACHED_DOWNLOAD_URL}" && \
                     run tar -zxf memcached.tar.gz && \
                     run cd memcached-* && \
@@ -247,6 +247,17 @@ EOL
                 fi
             fi
         fi
+
+        # PHP version.
+        local PHPv="${1}"
+        if [[ -z "${PHPv}" || $(grep -q "\-\-" <<<"${PHPv}") ]]; then
+            PHPv=${PHP_VERSION:-"7.3"}
+        fi
+
+        # Install PHP Memcached extension.
+        install_php_memcached "${PHPv}"
+    else
+        info "Memcached server installation skipped."
     fi
 }
 
@@ -257,33 +268,27 @@ function install_php_memcached() {
     if [ -z "${PHPv}" ]; then
         PHPv=${PHP_VERSION:-"7.3"}
     fi
+    [ "${PHPv}" == 'all' ] && PHPv="5.6,7.0,7.1,7.2,7.3,7.4"
 
     # Install PHP memcached module.
-    echo "Installing PHP${PHPv} memcached module..."
+    echo "Installing PHP ${PHPv} memcached module..."
 
     if hash apt 2>/dev/null; then
-        run apt install -qq -y "php${PHPv}-igbinary" "php${PHPv}-memcache" "php${PHPv}-memcached" "php${PHPv}-msgpack"
-    else
-        fail "Unable to install Memcached, this GNU/Linux distribution is not supported."
-    fi
+        VARS=$(sed "s/,/ /g" <<<"${PHPv}")
+        for xPHPv in ${VARS}; do
+            install_dependencies "apt install -qq -y" debian_is_installed \
+                "php${xPHPv}-igbinary" "php${xPHPv}-memcache" "php${xPHPv}-memcached" "php${xPHPv}-msgpack"
+            run enable_php_memcached "${xPHPv}"
+        done
 
-    # Enable PHP module
-    echo "Enabling PHP${PHPv} memcached module..."
-
-    if [ "${PHPv}" != "all" ]; then
-        run enable_php_memcached "${PHPv}"
-
-        # Default PHP Required for LEMPer
+        # Default required PHP for LEMPer.
         if [ "${PHPv}" != "7.3" ]; then
+            install_dependencies "apt install -qq -y" debian_is_installed \
+                "php7.3-igbinary" "php7.3-memcache" "php7.3-memcached" "php7.3-msgpack"
             run enable_php_memcached "7.3"
         fi
     else
-        run enable_php_memcached "5.6"
-        run enable_php_memcached "7.0"
-        run enable_php_memcached "7.1"
-        run enable_php_memcached "7.2"
-        run enable_php_memcached "7.3"
-        run enable_php_memcached "7.4"
+        fail "Unable to install PHP Memcached, this GNU/Linux distribution is not supported."
     fi
 }
 
@@ -291,8 +296,10 @@ function enable_php_memcached() {
     # PHP version.
     local PHPv="${1}"
 
+    echo "Enabling PHP ${PHPv} memcached module..."
+
     if "${DRYRUN}"; then
-        echo "Enabling PHP Memcache module in dryrun mode."
+        echo "PHP ${PHPv} Memcache module enabled in dryrun mode."
     else
         # Optimize PHP memcache module.
         if [ -d "/etc/php/${PHPv}/mods-available/" ]; then
@@ -311,24 +318,28 @@ memcache.maxratio=0
 session.bak_handler="memcache"
 session.bak_path="tcp://127.0.0.1:11211"
 EOL
+
+                success "PHP ${PHPv} Memcache module enabled."
             fi
 
             # Reload PHP-FPM service.
+            echo "Restarting php${PHPv}-fpm to apply Memcached module."
+
             if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
                 run systemctl reload "php${PHPv}-fpm"
-                success "PHP${PHPv}-FPM restarted successfully."
+                success "php${PHPv}-fpm restarted successfully."
             elif [[ -n $(command -v "php${PHPv}") ]]; then
                 run systemctl start "php${PHPv}-fpm"
 
                 if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-                    success "PHP${PHPv}-FPM started successfully."
+                    success "php${PHPv}-fpm started successfully."
                 else
-                    info "Something wrong with PHP${PHPv} & FPM installation."
+                    info "Something wrong with php${PHPv}-fpm installation."
                 fi
             fi
 
         else
-            info "It seems that PHP${PHPv} not yet installed. Please install it before!"
+            info "It seems that PHP ${PHPv} not yet installed. Please install it before!"
         fi
     fi
 }
@@ -338,9 +349,8 @@ echo "[Memcached Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(command -v memcached) ]]; then
-    info "Memcached server already exists. Installation skipped..."
+if [[ -n $(command -v memcachedx) ]]; then
+    info "Memcached server already exists, installation skipped..."
 else
     init_memcached_install "$@"
-    install_php_memcached "$@"
 fi

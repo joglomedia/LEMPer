@@ -61,7 +61,7 @@ function install_postfix() {
         # Getting Let's Encrypt certificates.
         local CERTPATH=""
 
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") = true \
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true \
         && $(dig "${SENDER_DOMAIN}" +short) = "${SERVER_IP}" ]]; then
             run certbot certonly --standalone --agree-tos --preferred-challenges http -d "${SENDER_DOMAIN}"
             CERTPATH="/etc/letsencrypt/live/${SENDER_DOMAIN}"
@@ -93,7 +93,7 @@ postmaster@${HOSTNAME}    ${LEMPER_USERNAME}
 root@${HOSTNAME}  ${LEMPER_USERNAME}
 wordpress@${HOSTNAME}  ${LEMPER_USERNAME}' > /etc/postfix/virtual/addresses"
 
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") = true && "${SENDER_DOMAIN}" != "example.com" ]]; then
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && "${SENDER_DOMAIN}" != "example.com" ]]; then
             run bash -c "echo '${SENDER_DOMAIN}    DOMAIN
 @${SENDER_DOMAIN}    ${LEMPER_USERNAME}' > /etc/postfix/virtual/addresses"
         fi
@@ -105,7 +105,7 @@ wordpress@${HOSTNAME}  ${LEMPER_USERNAME}' > /etc/postfix/virtual/addresses"
         [ ! -f /etc/postfix/virtual/domains ] && touch /etc/postfix/virtual/domains
         run bash -c "echo '${HOSTNAME}' > /etc/postfix/virtual/domains"
 
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") = true && "${SENDER_DOMAIN}" != "example.com" ]]; then
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && "${SENDER_DOMAIN}" != "example.com" ]]; then
             run bash -c "echo '${SENDER_DOMAIN}' >> /etc/postfix/virtual/domains"
         fi
 
@@ -345,7 +345,7 @@ EOL
         [ ! -f /etc/opendkim/signing.table ] && run touch /etc/opendkim/signing.table
 
         #DOMAIN_SIGNING="*@your-domain.com    default._domainkey.your-domain.com"
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") = true && "${SENDER_DOMAIN}" != "example.com" ]]; then
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && "${SENDER_DOMAIN}" != "example.com" ]]; then
             DOMAIN_SIGNING="*@${SENDER_DOMAIN}    lemper._domainkey.${SENDER_DOMAIN}"
             run bash -c "echo '${DOMAIN_SIGNING}' > /etc/opendkim/signing.table"
         fi
@@ -354,7 +354,7 @@ EOL
         [ ! -f /etc/opendkim/key.table ] && run touch /etc/opendkim/key.table
 
         #DOMAIN_KEY="default._domainkey.your-domain.com     your-domain.com:default:/etc/opendkim/keys/your-domain.com/default.private"
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") = true && "${SENDER_DOMAIN}" != "example.com" ]]; then
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && "${SENDER_DOMAIN}" != "example.com" ]]; then
             DOMAIN_KEY="lemper._domainkey.${SENDER_DOMAIN}    ${SENDER_DOMAIN}:lemper:/etc/opendkim/keys/${SENDER_DOMAIN}/lemper.private"
             run bash -c "echo '${DOMAIN_KEY}' > /etc/opendkim/key.table"
         fi
@@ -363,13 +363,13 @@ EOL
         [ ! -f /etc/opendkim/trusted.hosts ] && run touch /etc/opendkim/trusted.hosts
         run bash -c "echo -e '127.0.0.1\nlocalhost' > /etc/opendkim/trusted.hosts"
 
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") = true && "${SENDER_DOMAIN}" != "example.com" ]]; then
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && "${SENDER_DOMAIN}" != "example.com" ]]; then
             run bash -c "echo -e '\n*.${SENDER_DOMAIN}' >> /etc/opendkim/trusted.hosts"
         fi
 
         # Generate Private/Public Keypair for sender domain.
 
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") = true && "${SENDER_DOMAIN}" != "example.com" ]]; then
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && "${SENDER_DOMAIN}" != "example.com" ]]; then
             # Create a separate folder for the domain.
             run mkdir -p "/etc/opendkim/keys/${SENDER_DOMAIN}"
 

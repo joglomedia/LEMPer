@@ -87,7 +87,7 @@ function install_phalcon() {
         run cd php-psr
     else
         run cd php-psr && \
-        run git pull
+        run git pull -q
     fi
     run "${PHPIZE_BIN}" && \
     run ./configure --with-php-config="${PHPCONFIG_BIN}" && \
@@ -104,20 +104,20 @@ function install_phalcon() {
     fi
 
     # Download cPhalcon source.
-    echo -e "\nInstalling cPhalcon extension."
+    echo "Installing cPhalcon extension."
 
     if [[ "${PHALCON_VERSION}" == "latest" ]]; then
         PHALCON_VERSION="master"
     fi
 
-    CPHALCON_DOWNLOAD_URL="https://github.com/phalcon/cphalcon/archive/v${PHALCON_VERSION}.tar.gz"
+    CPHALCON_SOURCE="https://github.com/phalcon/cphalcon/archive/v${PHALCON_VERSION}.tar.gz"
 
-    if curl -sL --head "${CPHALCON_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-        run wget -q -O "cphalcon-${PHALCON_VERSION}.tar.gz" "${CPHALCON_DOWNLOAD_URL}" && \
+    if curl -sLI "${CPHALCON_SOURCE}" | grep -q "HTTP/[.12]* [2].."; then
+        run wget -q -O "cphalcon-${PHALCON_VERSION}.tar.gz" "${CPHALCON_SOURCE}" && \
         run tar -zxf "cphalcon-${PHALCON_VERSION}.tar.gz" && \
         #run rm -f "cphalcon-${PHALCON_VERSION}.tar.gz" && \
         run cd "cphalcon-${PHALCON_VERSION}/build"
-    elif curl -s --head "https://raw.githubusercontent.com/phalcon/cphalcon/${PHALCON_VERSION}/README.md" \
+    elif curl -sLI "https://raw.githubusercontent.com/phalcon/cphalcon/${PHALCON_VERSION}/README.md" \
         | grep -q "HTTP/[.12]* [2].."; then
 
         # Clone repository.
@@ -138,7 +138,7 @@ function install_phalcon() {
     # Install cPhalcon.
     if [ -f install ]; then
         if [[ -n "${PHPv}" ]]; then
-            run ./install --phpize "${PHPIZE_BIN}" --php-config "${PHPCONFIG_BIN}"
+            run ./install --phpize="${PHPIZE_BIN}" --php-config="${PHPCONFIG_BIN}"
         else
             run ./install
         fi
@@ -152,7 +152,7 @@ function install_phalcon() {
         PHALCON_DIR="/home/${LEMPER_USERNAME}/.phalcon"
         run mkdir -p "${PHALCON_DIR}"
 
-        if version_older_than "${PHALCON_VERSION}" "3.9.9"; then
+        if version_older_than "${PHALCON_VERSION}" "3.4.9"; then
             [ ! -d "${PHALCON_DIR}/devtools-3.x" ] && \
             run "${PHP_BIN}" "${PHPCOMPOSER_BIN}" create-project --prefer-dist phalcon/devtools:~3.4 "${PHALCON_DIR}/devtools-3.x"
             local PDEVTOOLSPATH="${PHALCON_DIR}/devtools-3.x"
@@ -176,9 +176,7 @@ EOL
         error "Phalcon framework installation failed."
     fi
 
-    #run service "php${PHPv}-fpm" restart
-    run systemctl restart "php${PHPv}-fpm"
-
+    # Back to the install dir.
     run cd "${CURRENT_DIR}"
 }
 
@@ -188,7 +186,7 @@ function enable_phalcon() {
     local PHPv=${1}
 
     if "${DRYRUN}"; then
-        echo "Enabling Phalcon PHP${PHPv} extension in dryrun mode."
+        echo "Enabling Phalcon PHP ${PHPv} extension in dryrun mode."
     else
         # Optimize Phalcon PHP extension.
         if [ -d "/etc/php/${PHPv}/mods-available/" ]; then
@@ -196,7 +194,7 @@ function enable_phalcon() {
             local PHPLIB_DIR && \
                 PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
             if [[ -f "${PHPLIB_DIR}/phalcon.so" && ! -f "/etc/php/${PHPv}/mods-available/phalcon.ini" ]]; then
-                echo "Enabling Phalcon extension for PHP${PHPv}..."
+                echo "Enabling Phalcon extension for PHP ${PHPv}..."
 
                 # Phalcon requires PSR extension, enable first.
                 run bash -c "echo 'extension=psr.so' > /etc/php/${PHPv}/mods-available/psr.ini"
@@ -224,19 +222,19 @@ function enable_phalcon() {
             # Reload PHP-FPM service.
             if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
                 run systemctl reload "php${PHPv}-fpm"
-                success "PHP${PHPv}-FPM restarted successfully."
+                success "php${PHPv}-fpm restarted successfully."
             elif [[ -n $(command -v "php${PHPv}") ]]; then
                 run systemctl start "php${PHPv}-fpm"
 
                 if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-                    success "PHP${PHPv}-FPM started successfully."
+                    success "php${PHPv}-fpm started successfully."
                 else
-                    error "Something wrong with PHP${PHPv} & FPM installation."
+                    error "Something wrong with php${PHPv}-fpm installation."
                 fi
             fi
 
         else
-            info "It seems that PHP${PHPv} not yet installed. Please install it before!"
+            info "It seems that PHP ${PHPv} not yet installed. Please install it before!"
         fi
     fi
 }
@@ -245,10 +243,11 @@ function enable_phalcon() {
 function init_phalcon_install() {
     local PHPv=""
     local PHALCON_VERSION=""
+    local PHALCON_INSTALLER=""
 
-    OPTS=$(getopt -o p:v: \
-      -l php-version:,version: \
-      -n "install_phalcon" -- "$@")
+    OPTS=$(getopt -o p:I:P:ir \
+      -l php-version:,phalcon-installer:,phalcon-version:,install,remove \
+      -n "init_phalcon_install" -- "$@")
 
     eval set -- "${OPTS}"
 
@@ -256,12 +255,22 @@ function init_phalcon_install() {
     do
         case "${1}" in
             -p|--php-version) shift
-                PHPv="${1}"
+                OPT_PHP_VERSION="${1}"
                 shift
             ;;
-            -v|--version) shift
-                PHALCON_VERSION="${1}"
+            -P|--phalcon-version) shift
+                OPT_PHALCON_VERSION="${1}"
                 shift
+            ;;
+            -I|--phalcon-installer) shift
+                OPT_PHALCON_INSTALLER="${1}"
+                shift
+            ;;
+            -i|--install) shift
+                #ACTION="install"
+            ;;
+            -r|--remove) shift
+                #ACTION="remove"
             ;;
             --) shift
                 break
@@ -273,17 +282,27 @@ function init_phalcon_install() {
         esac
     done
 
-    # PHP version.
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
+    # Phalcon installer.
+    if [ -n "${OPT_PHALCON_INSTALLER}" ]; then
+        PHP_PHALCON_INSTALLER=${OPT_PHALCON_INSTALLER}
+    else
+        PHP_PHALCON_INSTALLER=${PHP_PHALCON_INSTALLER:-"source"}
     fi
 
     # Phalcon version.
-    if [ -z "${PHALCON_VERSION}" ]; then
-        PHALCON_VERSION=${PHP_PHALCON_VERSION:-"3.4.5"}
+    if [ -n "${OPT_PHALCON_VERSION}" ]; then
+        PHP_PHALCON_VERSION=${OPT_PHALCON_VERSION}
+    else
+        PHP_PHALCON_VERSION=${PHP_PHALCON_VERSION:-"4.0.2"}
     fi
 
-    local SELECTED_INSTALLER=""
+    # PHP version.
+    if [ -n "${OPT_PHP_VERSION}" ]; then
+        PHP_VERSION=${OPT_PHP_VERSION}
+    else
+        PHP_VERSION=${PHP_VERSION:-"7.3"}
+    fi
+
 
     if "${AUTO_INSTALL}"; then
         if [[ -z "${PHP_PHALCON_INSTALLER}" || "${PHP_PHALCON_INSTALLER}" == "none" ]]; then
@@ -296,64 +315,225 @@ function init_phalcon_install() {
         while [[ "${INSTALL_PHALCON}" != "y" && "${INSTALL_PHALCON}" != "n" ]]; do
             read -rp "Do you want to install Phalcon PHP framework? [y/n]: " -e INSTALL_PHALCON
         done
-        echo ""
     fi
 
     # Check PHP.
     if [[ -z $(command -v "php${PHPv}") ]]; then
-        error "PHP${PHPv} & FPM could not be found."
+        error "PHP ${PHPv} & FPM could not be found."
         INSTALL_PHALCON="n"
     fi
 
     if [[ ${INSTALL_PHALCON} == Y* || ${INSTALL_PHALCON} == y* ]]; then
-        echo "Available Phalcon installation method:"
-        echo "  1). Install from Repository (repo)"
-        echo "  2). Compile from Source (source)"
-        echo "--------------------------------------------"
+        # Select installer.
+        if "${AUTO_INSTALL}"; then
+            if [ -z "${PHALCON_INSTALLER}" ]; then
+                SELECTED_INSTALLER=${PHP_PHALCON_INSTALLER}
+            fi
+        else
+            echo ""
+            echo "Available Phalcon installation method:"
+            echo "  1). Install from Repository (repo)"
+            echo "  2). Compile from Source (source)"
+            echo "------------------------------------------------"
+            [ -n "${PHP_PHALCON_INSTALLER}" ] && \
+            info "Pre-defined selected installer is: ${PHP_PHALCON_INSTALLER}"
 
-        while [[ ${SELECTED_INSTALLER} != "1" && ${SELECTED_INSTALLER} != "2" && ${SELECTED_INSTALLER} != "none" && \
-            ${SELECTED_INSTALLER} != "repo" && ${SELECTED_INSTALLER} != "source" ]]; do
-            read -rp "Select an option [1-2]: " -e SELECTED_INSTALLER
-        done
+            while [[ ${SELECTED_INSTALLER} != "1" && ${SELECTED_INSTALLER} != "2" && ${SELECTED_INSTALLER} != "none" && \
+                ${SELECTED_INSTALLER} != "repo" && ${SELECTED_INSTALLER} != "source" ]]; do
+                read -rp "Select [source, repo] or an option [1-2]: " -e SELECTED_INSTALLER
+            done
+        fi
 
-        PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
-        if [ ! -f "${PHPLIB_DIR}/phalcon.so" ]; then
+        # Select Phalcon version.
+        #if [[ ${SELECTED_INSTALLER} == "source" || ${SELECTED_INSTALLER} == "2" ]]; then
+            if "${AUTO_INSTALL}"; then
+                if [ -z "${SELECTED_PHALCON}" ]; then
+                    SELECTED_PHALCON=${PHP_PHALCON_VERSION}
+                fi
+            else
+                echo ""
+                echo "Which version of cPhalcon to be installed?"
+                echo "Supported cPhalcon versions:"
+                echo "  1). cPhalcon 3.4.x (Supported PHP versions: 5.6, 7.0, 7.1) [EOL]"
+                echo "  2). cPhalcon 4.0.x (Supported PHP versions: 7.2, 7.3, 7.4) [Latest]"
+                echo "Check the cPhalcon available version from their Github release page!"
+                echo "-----------------------------------------------------------------------"
+                [ -n "${PHP_PHALCON_VERSION}" ] && \
+                info "Pre-defined selected cPhalcon version is: ${PHP_PHALCON_VERSION}"
+
+                while [[ ${SELECTED_PHALCON} != "1" && ${SELECTED_PHALCON} != "2" && \
+                    ${SELECTED_PHALCON} != "3.4.x" && ${SELECTED_PHALCON} != "4.0.x" && \
+                    $(curl -sLI "https://github.com/phalcon/cphalcon/archive/v${SELECTED_PHALCON}.tar.gz" | grep "HTTP/[.12]* [2]..") == "" && \
+                    $(curl -sLI "https://raw.githubusercontent.com/phalcon/cphalcon/${SELECTED_PHALCON}/README.md" | grep "HTTP/[.12]* [2]..") == ""
+                ]]; do
+                    read -rp "Select a cPhalcon version [3.4.x, 4.0.x] or an option [1-2]: " -e SELECTED_PHALCON
+                done
+            fi
+
+            case "${SELECTED_PHALCON}" in
+                1|"3.4.x")
+                    PHALCON_VERSION="3.4.5" # The latest version from Phalcon 3 branch.
+                ;;
+                2|"4.0.x")
+                    PHALCON_VERSION="4.0.2" # The latest version from Phalcon 4 branch.
+                ;;
+                *)
+                    PHALCON_VERSION=${SELECTED_PHALCON}
+                ;;
+            esac
+        #else
+        #    PHALCON_VERSION=${PHP_PHALCON_VERSION}
+        #fi
+
+        # Select PHP version.
+        if "${AUTO_INSTALL}"; then
+            if [ -z "${SELECTED_PHP}" ]; then
+                SELECTED_PHP=${PHP_VERSION}
+            fi
+        else
+            echo ""
+            echo "Which version of PHP to install Phalcon?"
+            echo "Supported PHP versions:"
+            echo "  1). PHP 5.6 (EOL)"
+            echo "  2). PHP 7.0 (EOL)"
+            echo "  3). PHP 7.1 (SFO)"
+            echo "  4). PHP 7.2 (Stable)"
+            echo "  5). PHP 7.3 (Stable)"
+            echo "  6). PHP 7.4 (Latest stable)"
+            echo "  7). All available versions"
+            echo "--------------------------------------------"
+            [ -n "${PHP_VERSION}" ] && \
+            info "Pre-defined selected version is: ${PHP_VERSION}"
+
+            while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
+                    ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
+                    ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && \
+                    ${SELECTED_PHP} != "7.1" && ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && \
+                    ${SELECTED_PHP} != "7.4" && ${SELECTED_PHP} != "all" ]]; do
+                read -rp "Select a PHP version or an option [1-7]: " -e SELECTED_PHP
+            done
+        fi
+
+        case ${SELECTED_PHP} in
+            1|"5.6")
+                PHPv="5.6"
+            ;;
+            2|"7.0")
+                PHPv="7.0"
+            ;;
+            3|"7.1")
+                PHPv="7.1"
+            ;;
+            4|"7.2")
+                PHPv="7.2"
+            ;;
+            5|"7.3")
+                PHPv="7.3"
+            ;;
+            6|"7.4")
+                PHPv="7.4"
+            ;;
+            7|"all")
+                PHPv="5.6 7.0 7.1 7.2 7.3 7.4"
+            ;;
+            *)
+                PHPv="unsupported"
+            ;;
+        esac
+
+        local SUPPORTED_PHP=""
+        if version_older_than "${PHALCON_VERSION}" "3.4.6"; then
+            SUPPORTED_PHP="5.6 7.0 7.1"
+        elif version_older_than "3.99.99" "${PHALCON_VERSION}"; then
+            SUPPORTED_PHP="7.2 7.3 7.4"
+        else
+            SUPPORTED_PHP=""
+        fi
+
+        # Begin install Phalcon.
+        if [[ ${PHPv} != "unsupported" && -n "${SUPPORTED_PHP}" ]]; then
             case ${SELECTED_INSTALLER} in
                 1|"repo")
                     echo "Installing Phalcon framework from repository..."
 
                     if hash apt 2>/dev/null; then
-                        run apt install -qq -y "php${PHPv}-psr" "php${PHPv}-phalcon"
+                        if [[ "${SELECTED_PHP}" != "all" && "${SELECTED_PHP}" != "7" ]]; then
+                            if [[ -n $(command -v "php${PHPv}") ]]; then
+                                PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+                                if [[ ! -f "${PHPLIB_DIR}/phalcon.so" ]]; then
+                                    run apt install -qq -y "php${PHPv}-psr" "php${PHPv}-phalcon"
+                                    enable_phalcon "${PHPv}"
+                                else
+                                    error "PHP ${PHPv} Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so."
+                                fi
+                            else
+                                error "PHP ${PHPv} not found, Phalcon installation cancelled."
+                            fi
+                        else
+                            # Install Phalcon on all supported PHP.
+                            for PHPv in ${SUPPORTED_PHP}; do
+                                if [[ -n $(command -v "php${PHPv}") ]]; then
+                                    PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+                                    if [[ ! -f "${PHPLIB_DIR}/phalcon.so" ]]; then
+                                        run apt install -qq -y "php${PHPv}-psr" "php${PHPv}-phalcon"
+                                        enable_phalcon "${PHPv}"
+                                    else
+                                        error "PHP ${PHPv} Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so."
+                                    fi
+                                else
+                                    error "PHP ${PHPv} not found, Phalcon installation cancelled."
+                                fi
+                            done
+                        fi
                     else
                         fail "Unable to install Phalcon extension, this GNU/Linux distribution is not supported."
                     fi
                 ;;
+
                 2|"source")
                     echo "Installing Phalcon framework from source..."
-                    install_phalcon "${PHALCON_VERSION}" "${PHPv}"
+    
+                    # Install & enable Phalcon extension.
+                    if [[ "${SELECTED_PHP}" != "all" && "${SELECTED_PHP}" != "7" ]]; then
+                        if [[ -n $(command -v "php${PHPv}") ]]; then
+                            PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+                            if [[ ! -f "${PHPLIB_DIR}/phalcon.so" ]]; then
+                                install_phalcon "${PHALCON_VERSION}" "${PHPv}"
+                                enable_phalcon "${PHPv}"
+                            else
+                                error "PHP ${PHPv} Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so."
+                            fi
+                        else
+                            error "PHP ${PHPv} not found, Phalcon installation cancelled."
+                        fi
+                    else
+                        # Install Phalcon on all supported PHP.
+                        for PHPv in ${SUPPORTED_PHP}; do
+                            if [[ -n $(command -v "php${PHPv}") ]]; then
+                                PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+                                if [[ ! -f "${PHPLIB_DIR}/phalcon.so" ]]; then
+                                    install_phalcon "${PHALCON_VERSION}" "${PHPv}"
+                                    enable_phalcon "${PHPv}"
+                                else
+                                    error "PHP ${PHPv} Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so."
+                                fi
+                            else
+                                error "PHP ${PHPv} not found, Phalcon installation cancelled."
+                            fi
+                        done
+                    fi
                 ;;
+
                 *)
                     # Skip installation.
-                    error "Installer method not supported. Phalcon installation skipped."
+                    error "Installer method not supported, Phalcon installation skipped."
                 ;;
             esac
-
-            # Enable Phalcon extension.
-            if [ "${PHPv}" != "all" ]; then
-                enable_phalcon "${PHPv}"
-            else
-                enable_phalcon "5.6"
-                enable_phalcon "7.0"
-                enable_phalcon "7.1"
-                enable_phalcon "7.2"
-                enable_phalcon "7.3"
-                enable_phalcon "7.4"
-            fi
         else
-            info "Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so. Installation skipped..."
+            error "Your selected Phalcon ${PHALCON_VERSION} for PHP ${PHPv} is not supported."
         fi
     else
-        info "Phalcon PHP framework installation skipped..."
+        info "Phalcon PHP framework installation skipped."
     fi
 }
 

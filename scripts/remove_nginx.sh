@@ -25,24 +25,36 @@ function init_nginx_removal() {
         run systemctl stop nginx
     fi
 
+    if [[ ${NGX_VERSION} == "mainline" || ${NGX_VERSION} == "latest" ]]; then
+        local NGINX_REPO="nginx-mainline"
+    else
+        local NGINX_REPO="nginx"
+    fi
+
     # Remove nginx installation.
     if dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-stable"; then
-        echo "Nginx-common package found. Removing..."
-        run apt remove --purge -qq -y nginx-stable
+        echo "Nginx-stable package found. Removing..."
+
+        # shellcheck disable=SC2046
+        run apt remove --purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:nginx/stable
         fi
     elif dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-custom"; then
         echo "Nginx-custom package found. Removing..."
-        run apt remove --purge -qq -y nginx-custom
+
+        # shellcheck disable=SC2046
+        run apt remove --purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:rtcamp/nginx
         fi
-    elif dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-extras"; then
-        echo "Nginx-stable package found. Removing..."
-        run apt remove --purge -qq -y nginx-extras
+    elif dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx"; then
+        echo "Nginx package found. Removing..."
+
+        # shellcheck disable=SC2046
+        run apt remove --purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx") $(dpkg-query -l | awk '/libnginx/ { print $2 }' | grep -wE "^libnginx")
         if "${FORCE_REMOVE}"; then
-            run add-apt-repository -y --remove ppa:ondrej/nginx
+            run add-apt-repository -y --remove "ppa:ondrej/${NGINX_REPO}"
         fi
     else
         echo "Nginx package not found. Possibly installed from source."
@@ -55,7 +67,7 @@ function init_nginx_removal() {
             # Disable systemctl.
             if [ -f /etc/systemd/system/multi-user.target.wants/nginx.service ]; then
                 echo "Disable Nginx service..."
-                run systemctl disable nginx.service
+                run systemctl disable nginx
             fi
 
             if [ -f /etc/systemd/system/multi-user.target.wants/nginx.service ]; then

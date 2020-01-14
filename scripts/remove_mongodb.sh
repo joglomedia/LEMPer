@@ -28,9 +28,10 @@ function init_mongodb_removal() {
 
         # Remove MongoDB server.
         #shellcheck disable=SC2046
-        run apt remove --purge -qq -y $(dpkg-query -l | awk '/mongodb/ { print $2 }' | grep -wE "^mongodb")
-        run rm -f /etc/apt/sources.list.d/mongodb-org-*
-        run apt autoremove -qq -y
+        run apt remove --purge -qq -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
+        if "${FORCE_REMOVE}"; then
+            run rm -f /etc/apt/sources.list.d/mongodb-org-*
+        fi
 
         # Remove MongoDB config files.
         warning "!! This action is not reversible !!"

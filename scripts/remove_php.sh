@@ -30,7 +30,7 @@ function remove_php_fpm() {
     fi
 
     if dpkg-query -l | awk '/php/ { print $2 }' | grep -qwE "^php${PHPv}"; then
-        echo "Found PHP${PHPv} packages installation. Removing..."
+        echo "Found PHP ${PHPv} packages installation. Removing..."
 
         # Remove geoip module.
         if "php${PHPv}" -m | grep -qw geoip; then
@@ -88,7 +88,7 @@ function remove_php_fpm() {
             REMOVE_PHPCONFIG="y"
         else
             while [[ "${REMOVE_PHPCONFIG}" != "y" && "${REMOVE_PHPCONFIG}" != "n" ]]; do
-                read -rp "Remove PHP${PHPv} & FPM configuration files? [y/n]: " -e REMOVE_PHPCONFIG
+                read -rp "Remove PHP ${PHPv} & FPM configuration files? [y/n]: " -e REMOVE_PHPCONFIG
             done
         fi
 
@@ -99,12 +99,12 @@ function remove_php_fpm() {
         fi
 
         if [[ -z $(command -v "php${PHPv}") ]]; then
-            success "PHP${PHPv} & FPM installation removed."
+            success "PHP ${PHPv} & FPM installation removed."
         else
-            info "Unable to remove PHP${PHPv} & FPM installation."
+            info "Unable to remove PHP ${PHPv} & FPM installation."
         fi
     else
-        info "PHP${PHPv} & FPM installation not found."
+        info "PHP ${PHPv} & FPM installation not found."
     fi   
 }
 
@@ -151,7 +151,7 @@ function init_php_fpm_removal() {
 
     # Final clean up (executed only if no PHP version installed).
     if "${DRYRUN}"; then
-        info "PHP${PHPv} & FPM removed in dryrun mode."
+        info "PHP ${PHPv} & FPM removed in dryrun mode."
     else
         if [[ -z $(command -v php5.6) && \
             -z $(command -v php7.0) && \
@@ -160,7 +160,7 @@ function init_php_fpm_removal() {
             -z $(command -v php7.3) && \
             -z $(command -v php7.4) ]]; then
 
-            echo "Removing additional unused PHP modules..."
+            echo -e "\nRemoving additional unused PHP modules..."
             run apt remove --purge -qq -y php-common php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap
 
             # Remove PHP repository.

@@ -100,7 +100,7 @@ function init_redis_install {
                     REDIS_DOWNLOAD_URL="http://download.redis.io/releases/redis-${REDIS_VERSION}.tar.gz"
                 fi
 
-                if curl -sL --head "${REDIS_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
+                if curl -sLI "${REDIS_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
                     run wget -q -O "redis.tar.gz" "${REDIS_DOWNLOAD_URL}" && \
                     run tar -zxf "redis.tar.gz" && \
                     run cd redis-* && \
@@ -250,8 +250,17 @@ EOL
                 info "Something wrong with Redis installation."
             fi
         fi
+
+        # PHP version.
+        local PHPv="${1}"
+        if [[ -z "${PHPv}" || -n $(grep "\-\-" <<<"${PHPv}") ]]; then
+            PHPv=${PHP_VERSION:-"7.3"}
+        fi
+
+        # Install PHP Redis extension.
+        install_php_redis "$@"
     else
-        echo "Skipping Redis server installation..."
+        echo "Redis server installation skipped."
     fi
 }
 
@@ -263,14 +272,15 @@ function install_php_redis() {
         PHPv=${PHP_VERSION:-"7.3"}
     fi
 
-    echo "Installing PHP${PHPv} Redis extensions..."
+    echo "Installing PHP ${PHPv} Redis extensions..."
 
     if hash apt 2>/dev/null; then
         run apt install -qq -y "php${PHPv}-redis"
     else
-        fail "Unable to install PHP${PHPv} Redis, this GNU/Linux distribution is not supported."
+        fail "Unable to install PHP ${PHPv} Redis, this GNU/Linux distribution is not supported."
     fi
 }
+
 
 echo "[Redis (Key-value) Server Installation]"
 
@@ -280,5 +290,4 @@ if [[ -n $(command -v redis-server) ]]; then
     info "Redis key-value store server already exists. Installation skipped..."
 else
     init_redis_install "$@"
-    install_php_memcached "$@"
 fi
