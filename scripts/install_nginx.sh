@@ -110,7 +110,7 @@ function init_nginx_install() {
                 echo "Installing NGiNX from package repository..."
 
                 if hash apt 2>/dev/null; then
-                    if [[ -n "${NGX_PACKAGE}" ]]; then
+                    if [[ -n "${NGINX_PKG}" ]]; then
                         local EXTRA_MODULE_PKGS=()
 
                         if "${NGINX_EXTRA_MODULES}"; then
@@ -496,6 +496,12 @@ function init_nginx_install() {
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
                                     --add-module=${EXTRA_MODULE_DIR}/ngx_http_auth_pam_module"
                             fi
+
+                            # Requires libpam-dev
+                            echo "Building Auth PAM module requires libpam-dev package, install now..."
+                            if hash apt 2>/dev/null; then
+                                run apt install -qq -y libpam-dev
+                            fi
                         fi
 
                         # Brotli compression module.
@@ -593,8 +599,18 @@ function init_nginx_install() {
                         if "${NGX_HTTP_GEOIP2}"; then
                             echo "Add ngx-http-geoip2 module..."
 
+                            run git clone -q https://github.com/leev/ngx_http_geoip2_module.git
+
+                            if "${NGINX_DYNAMIC_MODULE}"; then
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_http_geoip2_module"
+                            else
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --add-module=${EXTRA_MODULE_DIR}/ngx_http_geoip2_module"
+                            fi
+
                             # install libmaxminddb
-                            echo "Installing MaxMind GeoIP library..."
+                            echo "GeoIP2 module requires MaxMind GeoIP2 library, install now..."
 
                             run cd "${BUILD_DIR}"
 
@@ -655,16 +671,6 @@ function init_nginx_install() {
                                 success "MaxMind GeoIP2-GeoLite2 database successfully installed."
                             else
                                 error "Failed installing MaxMind GeoIP2-GeoLite2 database."
-                            fi
-
-                            run git clone -q https://github.com/leev/ngx_http_geoip2_module.git
-
-                            if "${NGINX_DYNAMIC_MODULE}"; then
-                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                                    --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_http_geoip2_module"
-                            else
-                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                                    --add-module=${EXTRA_MODULE_DIR}/ngx_http_geoip2_module"
                             fi
                         fi
 
@@ -1158,11 +1164,11 @@ function init_nginx_install() {
         echo "Creating NGiNX configuration..."
 
         if [ ! -d /etc/nginx/sites-available ]; then
-            run mkdir /etc/nginx/sites-available
+            run mkdir -p /etc/nginx/sites-available
         fi
 
         if [ ! -d /etc/nginx/sites-enabled ]; then
-            run mkdir /etc/nginx/sites-enabled
+            run mkdir -p /etc/nginx/sites-enabled
         fi
 
         # Copy custom NGiNX Config.
@@ -1299,7 +1305,7 @@ function init_nginx_install() {
                     if [[ $(pgrep -c nginx) -gt 0 ]]; then
                         success "NGiNX HTTP server started successfully."
                     else
-                        info "Something wrong with NGiNX installation."
+                        info "Something went wrong with NGiNX installation."
                     fi
                 else
                     error "Nginx configuration test failed. Please correct the error below:"

@@ -1,8 +1,8 @@
 # [L]inux [E]ngine-X [M]ariaDB [P]HP Install[ER]
 
-LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage Debian-based/Ubuntu LEMP stack. LEMPer is _CloudWays_, _Ploi_, _RunCloud_, and _ServerPilot_ free alternative crafted to support wide-range PHP framework (not only WordPress).
+LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage LEMP stack on Debian/Ubuntu. LEMPer is _CloudWays_, _Ploi_, _RunCloud_, and _ServerPilot_ free alternative crafted to support wide-range PHP framework (not only WordPress).
 
-[![Build Status](https://travis-ci.org/joglomedia/LEMPer.svg?branch=1.3.0)](https://travis-ci.org/joglomedia/LEMPer)
+[![Build Status](https://travis-ci.org/joglomedia/LEMPer.svg?branch=2.0.x)](https://travis-ci.org/joglomedia/LEMPer)
 
 ## Features
 
@@ -120,17 +120,22 @@ http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
 * Add user account & hosting package management.
 * Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new).
 
-## Contribution
+## Contributing
 
-Please send your PR on the Github repository to help improve this script.
+* Fork it ([https://github.com/joglomedia/LEMPer/fork](https://github.com/joglomedia/LEMPer/fork))
+* Create your feature branch (git checkout -b my-new-feature) or fix issue (git checkout -b fix-some-issue)
+* Commit your changes (git commit -am 'Add some feature') or (git commit -am 'Fix some issue')
+* Push to the branch (git push origin my-new-feature) or (git push origin fix-some-issue)
+* Create a new Pull Request
+* Travis unit tests will be run to make sure that your changes does not have errors or warning
 
 ## TL;DR
 
-If you're looking for mature, feature rich, advanced, and 24/7 premium service, please don't use this script.
+If you're looking for mature, feature rich, advanced services with 24/7 premium support, please don't use this script.
 
 ## DONATION
 
-**[Buy Me a Bottle of Milk](https://paypal.me/masedi) !!**
+**[Buy Me a Bottle of Milk or a Cup of Coffee](https://paypal.me/masedi) !!**
 
 ## SPONSORSHIP
 
@@ -138,4 +143,4 @@ Be the first one!
 
 ## Copyright
 
-(c) 2014-2020 | [ESLabs](https://eslabs.id/) | eslabs[dot]id[at]gmail[dot]com
+(c) 2014-2020 | [ESLabs](https://eslabs.id/) | Radenmas Edi

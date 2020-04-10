@@ -98,7 +98,7 @@ EOL
             if certbot --version | grep -q "certbot"; then
                 success "Certbot successfully installed."
             else
-                info "Something wrong with Certbot installation."
+                info "Something went wrong with Certbot installation."
             fi
         fi
     fi

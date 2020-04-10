@@ -26,9 +26,9 @@ if hash apt 2>/dev/null; then
     # Install dependencies.
     echo -e "\nInstalling pre-requisites/dependencies package..."
     install_dependencies "apt install -qq -y" debian_is_installed \
-        apt-transport-https autoconf automake bash build-essential ca-certificates cmake cron \
+        apt-transport-https apt-utils autoconf automake bash build-essential ca-certificates cmake cron \
         curl dnsutils gcc geoip-bin geoip-database git gnupg2 htop iptables libc-dev libcurl4-openssl-dev libgd-dev libgeoip-dev \
-        libssl-dev libxml2-dev libpcre3-dev libtool libxslt1-dev lsb-release make ntp ntpdate openssh-server openssl pkg-config \
+        libssl-dev libxml2-dev libpcre3-dev libtool libxslt1-dev lsb-release make ntp ntpstat openssh-server openssl pkg-config \
         re2c rsync software-properties-common sasl2-bin snmp sudo sysstat tar tzdata unzip wget whois zlib1g-dev
 
     # Configure server clock.
@@ -40,12 +40,10 @@ if hash apt 2>/dev/null; then
         run rm -f /etc/localtime
         run dpkg-reconfigure -f noninteractive tzdata
 
-        # Update local time.
-        # Masked (?).
-        #run systemctl unmask ntp.service
-        #run systemctl stop ntp
-        #run /usr/sbin/ntpdate -s cn.pool.ntp.org
-        #run systemctl start ntp
+        # Sync and update local time with ntpd.
+        # Masked? unmask first.
+        run systemctl unmask ntp.service
+        run systemctl start ntp
 
         # Save config.
         save_config "TIMEZONE=${TIMEZONE}"

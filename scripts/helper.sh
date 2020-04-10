@@ -122,14 +122,15 @@ function install_dependencies() {
 
     for package_name in "$@"; do
         if ! "${is_pkg_installed_cmd}" "${package_name}"; then
-            missing_dependencies+="${package_name} "
+            missing_dependencies="${missing_dependencies} ${package_name}"
         fi
     done
     if [ -n "${missing_dependencies}" ]; then
         info "Detected that we're missing the following depencencies:"
-        echo " ${missing_dependencies}"
+        echo "     ${missing_dependencies}"
         info "Installing them:"
-        run "${install_pkg_cmd}" "${missing_dependencies}"
+        # shellcheck disable=SC2086
+        run ${install_pkg_cmd} ${missing_dependencies}
     fi
 }
 

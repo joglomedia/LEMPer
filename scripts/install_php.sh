@@ -144,7 +144,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                 echo "Installing PHP Mcrypt module..."
 
                 if [ "${PHPv//.}" -lt "72" ]; then
-                    run apt install -qq -y "php${PHPv}-mcrypt"
+                    run apt install -qq -y "php${PHPv}-mcrypt" "php${PHPv}-recode"
                 elif [ "${PHPv}" == "7.2" ]; then
                     run apt install -qq -y libmcrypt-dev libreadline-dev && \
                     run pecl install mcrypt-1.0.1
@@ -472,7 +472,7 @@ function install_php_composer() {
         if [[ -n $(command -v composer) ]]; then
             success "PHP Composer successfully installed."
         else
-            error "Something wrong with PHP Composer installation."
+            error "Something went wrong with PHP Composer installation."
         fi
     fi
 }

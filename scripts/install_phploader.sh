@@ -283,7 +283,7 @@ function init_phploader_install() {
     local SELECTED_PHPLOADER=""
 
     OPTS=$(getopt -o p:l:ir \
-      -l php-version:,loader:,install,remove \
+      -l php-version:,php-loader:,install,remove \
       -n "init_phploader_install" -- "$@")
 
     eval set -- "${OPTS}"
@@ -295,7 +295,7 @@ function init_phploader_install() {
                 OPT_PHP_VERSION="${1}"
                 shift
             ;;
-            -l|--loader) shift
+            -l|--php-loader) shift
                 OPT_PHP_LOADER="${1}"
                 shift
             ;;
@@ -382,7 +382,7 @@ function init_phploader_install() {
                     ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && \
                     ${SELECTED_PHP} != "7.1" && ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && \
                     ${SELECTED_PHP} != "7.4" && ${SELECTED_PHP} != "all" ]]; do
-                read -rp "Select a PHP version or an option [1-7]: " -i 5 -e SELECTED_PHP
+                read -rp "Select a PHP version or an option [1-7]: " -i "${PHP_VERSION}" -e SELECTED_PHP
             done
         fi
 

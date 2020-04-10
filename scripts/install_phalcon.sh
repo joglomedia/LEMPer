@@ -229,7 +229,7 @@ function enable_phalcon() {
                 if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
                     success "php${PHPv}-fpm started successfully."
                 else
-                    error "Something wrong with php${PHPv}-fpm installation."
+                    error "Something went wrong with php${PHPv}-fpm installation."
                 fi
             fi
 

@@ -247,7 +247,7 @@ EOL
             if [[ $(pgrep -c redis-server) -gt 0 ]]; then
                 success "Redis server started successfully."
             else
-                info "Something wrong with Redis installation."
+                info "Something went wrong with Redis installation."
             fi
         fi
 

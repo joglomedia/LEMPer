@@ -50,7 +50,7 @@ function init_mariadb_removal() {
     fi
 
     if dpkg-query -l | awk '/mariadb/ { print $2 }' | grep -qwE "^mariadb-server-${MYSQL_VERSION}"; then
-        echo "Found MariaDB package installation. Removing..."
+        echo "Found MariaDB package installation, removing..."
 
         # Remove MariaDB server.
         run apt remove --purge -qq -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
@@ -69,7 +69,7 @@ function init_mariadb_removal() {
             run rm -f /etc/apt/sources.list.d/mariadb.list
         fi
     elif dpkg-query -l | awk '/mysql/ { print $2 }' | grep -qwE "^mysql"; then
-        echo "Found MySQL package installation. Removing..."
+        echo "Found MySQL package installation, removing..."
 
         # Remove MySQL server.
         run apt remove --purge -qq -y mysql-client mysql-common mysql-server
@@ -80,7 +80,7 @@ function init_mariadb_removal() {
         # Remove config.
         mariadb_remove_conf
     else
-        echo "Mariadb package not found, possibly installed from source."
+        echo "No installed Mariadb package found, possibly installed from source."
         echo "Remove it manually!!"
 
         MYSQL_BIN=$(command -v mysql)

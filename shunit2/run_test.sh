@@ -11,18 +11,13 @@ nginx_latest_version="1.17.7"
 # Source the helper functions.
 if [ -f scripts/helper.sh ]; then
     source scripts/helper.sh
-    system_check
+    preflight_system_check
     init_log
     init_config
 else
     echo "Helper function (scripts/helper.sh) not found."
     exit 1
 fi
-
-testEquality()
-{
-    assertEquals 1 1
-}
 
 testEqualityGetDistribName()
 {

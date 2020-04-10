@@ -76,6 +76,7 @@ EOL
             run chmod 600 "/home/${LEMPER_USERNAME}/.ssh/authorized_keys"
 
             echo -e "\nEnable SSH password-less login..."
+            run bash -c "echo -e '\n\n#LEMPer custom config' >> /etc/ssh/sshd_config"
 
             # Restrict root login directly, use sudo user instead.
             SSH_ROOT_LOGIN=${SSH_ROOT_LOGIN:-false}
@@ -85,27 +86,46 @@ EOL
                 if grep -qwE "^PermitRootLogin\ [a-z]*" /etc/ssh/sshd_config; then
                     run sed -i "s/^PermitRootLogin\ [a-z]*/PermitRootLogin\ no/g" /etc/ssh/sshd_config
                 else
-                    run sed -i "/^#PermitRootLogin/a PermitRootLogin\ no" /etc/ssh/sshd_config
+                    #run sed -i "/^#PermitRootLogin/a PermitRootLogin\ no" /etc/ssh/sshd_config
+                    run bash -c "echo 'PermitRootLogin no' >> /etc/ssh/sshd_config"
                 fi
+            fi
+
+            # Enable key authentication.
+            if grep -qwE "^RSAAuthentication\ no" /etc/ssh/sshd_config; then
+                run sed -i "s/^RSAAuthentication\ no/RSAAuthentication\ yes/g" /etc/ssh/sshd_config
+            else
+                #run sed -i "/^#RSAAuthentication/a RSAAuthentication\ yes" /etc/ssh/sshd_config
+                run bash -c "echo 'RSAAuthentication yes' >> /etc/ssh/sshd_config"
+            fi
+
+            if grep -qwE "^PubkeyAuthentication\ no" /etc/ssh/sshd_config; then
+                run sed -i "s/^PubkeyAuthentication\ no/PubkeyAuthentication\ yes/g" /etc/ssh/sshd_config
+            else
+                #run sed -i "/^#PubkeyAuthentication/a PubkeyAuthentication\ yes" /etc/ssh/sshd_config
+                run bash -c "echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config"
             fi
 
             # Disable password authentication for password-less login using key.
             if grep -qwE "^PasswordAuthentication\ [a-z]*" /etc/ssh/sshd_config; then
                 run sed -i "s/^PasswordAuthentication\ [a-z]*/PasswordAuthentication\ no/g" /etc/ssh/sshd_config
             else
-                run sed -i "/^#PasswordAuthentication/a PasswordAuthentication\ no" /etc/ssh/sshd_config
+                #run sed -i "/^#PasswordAuthentication/a PasswordAuthentication\ no" /etc/ssh/sshd_config
+                run bash -c "echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config"
             fi
 
             if grep -qwE "^ClientAliveInterval\ [0-9]*" /etc/ssh/sshd_config; then
                 run sed -i "s/^ClientAliveInterval\ [0-9]*/ClientAliveInterval\ 600/g" /etc/ssh/sshd_config
             else
-                run sed -i "/^#ClientAliveInterval/a ClientAliveInterval\ 600" /etc/ssh/sshd_config
+                #run sed -i "/^#ClientAliveInterval/a ClientAliveInterval\ 600" /etc/ssh/sshd_config
+                run bash -c "echo 'ClientAliveInterval 600' >> /etc/ssh/sshd_config"
             fi
 
             if grep -qwE "^ClientAliveCountMax\ [0-9]*" /etc/ssh/sshd_config; then
                 run sed -i "s/^ClientAliveCountMax\ [0-9]*/ClientAliveCountMax\ 3/g" /etc/ssh/sshd_config
             else
-                run sed -i "/^#ClientAliveCountMax/a ClientAliveCountMax\ 3" /etc/ssh/sshd_config
+                #run sed -i "/^#ClientAliveCountMax/a ClientAliveCountMax\ 3" /etc/ssh/sshd_config
+                run bash -c "echo 'ClientAliveCountMax 3' >> /etc/ssh/sshd_config"
             fi
         fi
     fi
@@ -181,6 +201,7 @@ function install_ufw() {
         run ufw allow 8083 #LEMPer port
 
         # Open MySQL port.
+        [[ "${MYSQL_ALLOW_REMOTE}" == true ]] && \
         run ufw allow 3306
 
         # Open SMTPs port.
@@ -212,7 +233,7 @@ function install_ufw() {
             if systemctl restart ufw; then
                 success "UFW firewall installed successfully."
             else
-                info "Something wrong with UFW installation."
+                info "Something went wrong with UFW installation."
             fi
         fi
     fi
@@ -269,11 +290,18 @@ function install_csf() {
         # Enable CSF.
         run sed -i 's/^TESTING\ =\ "1"/TESTING\ =\ "0"/g' /etc/csf/csf.conf
 
+        # Open MySQL port for remote client access.
+        if [[ "${MYSQL_ALLOW_REMOTE}" == true ]]; then
+            ALLOW_MYSQL_PORT=3306
+        else
+            ALLOW_MYSQL_PORT=""
+        fi
+
         # Allowed incoming TCP ports.
-        run sed -i "s/^TCP_IN\ =\ \"[0-9_,]*\"/TCP_IN\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT}\"/g" /etc/csf/csf.conf
+        run sed -i "s/^TCP_IN\ =\ \"[0-9_,]*\"/TCP_IN\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT},${ALLOW_MYSQL_PORT}\"/g" /etc/csf/csf.conf
 
         # Allowed outgoing TCP ports.
-        run sed -i "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT}\"/g" /etc/csf/csf.conf
+        run sed -i "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT},${ALLOW_MYSQL_PORT}\"/g" /etc/csf/csf.conf
 
         # IPv6 support (requires ip6tables).
         if [[ -n $(command -v ip6tables) ]]; then
@@ -285,10 +313,10 @@ function install_csf() {
                 run sed -i 's/^IPV6\ =\ "0"/IPV6\ =\ "1"/g' /etc/csf/csf.conf
 
                 # Allowed incoming TCP ports for IPv6.
-                run sed -i "s/^TCP6_IN\ =\ \"[0-9_,]*\"/TCP6_IN\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT}\"/g" /etc/csf/csf.conf
+                run sed -i "s/^TCP6_IN\ =\ \"[0-9_,]*\"/TCP6_IN\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT},${ALLOW_MYSQL_PORT}\"/g" /etc/csf/csf.conf
 
                 # Allowed outgoing TCP ports for IPv6.
-                run sed -i "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT}\"/g" /etc/csf/csf.conf
+                run sed -i "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT},${ALLOW_MYSQL_PORT}\"/g" /etc/csf/csf.conf
             else
                 info "ip6tables version greater than 1.4.3 required for IPv6 support."
             fi
@@ -306,16 +334,16 @@ function install_csf() {
             if systemctl restart csf; then
                 success "CSF firewall installed successfully. Starting now..."
             else
-                info "Something wrong with CSF installation."
+                info "Something went wrong with CSF installation."
             fi
 
             if systemctl restart lfd; then
                 success "LFD firewall installed successfully. Starting now..."
             else
-                info "Something wrong with LFD installation."
+                info "Something went wrong with LFD installation."
             fi
         else
-            info "Something wrong with CSF+LFD installation."
+            info "Something went wrong with CSF+LFD installation."
         fi
     fi
 }
@@ -380,10 +408,10 @@ function install_apf() {
             if systemctl restart apf; then
                 success "APF firewall installed successfully. Starting now..."
             else
-                info "Something wrong with APF installation."
+                info "Something went wrong with APF installation."
             fi
         else
-            info "Something wrong with APF installation."
+            info "Something went wrong with APF installation."
         fi
     fi
 }
@@ -527,12 +555,12 @@ echo "[LEMPer Basic Server Security]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ "${1}" == "--install" ]]; then
+if [[ "${1}" == "install" ]]; then
     init_secure_server "$@"
-elif [[ "${1}" == "--remove" || "${1}" == "--uninstall" ]]; then
+elif [[ "${1}" == "remove" || "${1}" == "uninstall" ]]; then
     remove_apf
     remove_csf
     remove_ufw
 else
-    error "'--' command is required." >&2
+    error "command is required." >&2
 fi

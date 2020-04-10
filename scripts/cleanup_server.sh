@@ -28,7 +28,7 @@ echo "Cleaning up server..."
 
 # Fix broken install, first?
 run dpkg --configure -a
-run apt install -qq --fix-broken
+run apt install -qq -y --fix-broken
 
 # Remove Apache2 service if exists.
 if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
@@ -75,18 +75,14 @@ if [[ -n $(command -v nginx) ]]; then
 fi
 
 # Remove PHP & FPM service if exists.
-if [[ -n $(command -v php5.6) || \
-    -n $(command -v php7.0) || \
-    -n $(command -v php7.1) || \
-    -n $(command -v php7.2) || \
-    -n $(command -v php7.3) ]]; then
-
+PHPv=${PHP_VERSION:-"7.3"}
+if [[ -n $(command -v "php${PHPv}") ]]; then
     warning -e "\nPHP & FPM already installed. Should we remove it?"
     echo "Backup your config and data before continue!"
 
     # shellchechk source=scripts/remove_php.sh
     # shellcheck disable=SC1090
-    "${SCRIPTS_DIR}/remove_php.sh"
+    "${SCRIPTS_DIR}/remove_php.sh" "${PHPv}"
 fi
 
 # Remove Mysql service if exists.

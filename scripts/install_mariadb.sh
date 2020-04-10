@@ -44,7 +44,11 @@ function init_mariadb_install() {
     MYSQL_VERSION=${MYSQL_VERSION:-"10.4"}
 
     if "${AUTO_INSTALL}"; then
-        DO_INSTALL_MYSQL="y"
+        if "${INSTALL_MYSQL}"; then
+            DO_INSTALL_MYSQL="y"
+        else
+            DO_INSTALL_MYSQL="n"
+        fi
     else
         while [[ "${DO_INSTALL_MYSQL}" != "y" && "${DO_INSTALL_MYSQL}" != "n" ]]; do
             read -rp "Do you want to install MariaDB (MySQL) database server? [y/n]: " \
@@ -52,7 +56,8 @@ function init_mariadb_install() {
         done
     fi
 
-    if [[ ${DO_INSTALL_MYSQL} == y* && ${INSTALL_MYSQL} == true ]]; then
+    # Do MariaDB (MySQL) installation here...
+    if [[ ${DO_INSTALL_MYSQL} == y* ]]; then
         # Add repository.
         add_mariadb_repo
 
@@ -122,50 +127,79 @@ function init_mariadb_install() {
                 run systemctl start mariadb
                 #run service mysql start
 
-                # MySQL Secure Install.
+                ##
+                # MariaDB (MySQL) secure installation
+                # Ref: https://mariadb.com/kb/en/library/security-of-mariadb-root-account/
+                #
                 if "${AUTO_INSTALL}"; then
-                    echo "Securing MariaDB (MySQL) Installation..."
+                    if "${MYSQL_SECURE_INSTALL}"; then
+                        echo "Securing MariaDB (MySQL) Installation..."
 
-                    # Ref: https://bertvv.github.io/notes-to-self/2015/11/16/automating-mysql_secure_installation/
-                    MYSQL_ROOT_PASS=${MYSQL_ROOT_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
-                    local SQL_QUERY=""
+                        # Ref: https://bertvv.github.io/notes-to-self/2015/11/16/automating-mysql_secure_installation/
+                        MYSQL_ROOT_PASS=${MYSQL_ROOT_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+                        local SQL_QUERY=""
 
-                    # Setting the database root password.
-                    SQL_QUERY="ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASS}';"
+                        # Setting the database root password.
+                        SQL_QUERY="ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASS}';"
 
-                    # Delete anonymous users.
-                    SQL_QUERY="${SQL_QUERY}
-                            DELETE FROM mysql.user WHERE User='';"
-                    
-                    # Ensure the root user can not log in remotely.
-                    SQL_QUERY="${SQL_QUERY}
-                            DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
+                        # Delete anonymous users.
+                        SQL_QUERY="${SQL_QUERY}
+                                DELETE FROM mysql.user WHERE User='';"
+                        
+                        # Ensure the root user can not log in remotely.
+                        SQL_QUERY="${SQL_QUERY}
+                                DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');"
 
-                    # Remove the test database.
-                    SQL_QUERY="${SQL_QUERY}
-                            DROP DATABASE IF EXISTS test;
-                            DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%';"
+                        # Remove the test database.
+                        SQL_QUERY="${SQL_QUERY}
+                                DROP DATABASE IF EXISTS test;
+                                DELETE FROM mysql.db WHERE Db='test' OR Db='test\_%';"
 
-                    # Flush the privileges tables.
-                    SQL_QUERY="${SQL_QUERY}
-                            FLUSH PRIVILEGES;"
+                        # Flush the privileges tables.
+                        SQL_QUERY="${SQL_QUERY}
+                                FLUSH PRIVILEGES;"
 
-                    # Root password is blank for newly installed MariaDB (MySQL).
-                    if mysql --user=root --password="" -e "${SQL_QUERY}"; then
-                        success "Securing MariaDB (MySQL) installation has been done."
-                    else
-                        error "Unable to secure MariaDB (MySQL) installation."
+                        # Root password is blank for newly installed MariaDB (MySQL).
+                        if mysql --user=root --password="" -e "${SQL_QUERY}"; then
+                            success "Securing MariaDB (MySQL) installation has been done."
+                        else
+                            error "Unable to secure MariaDB (MySQL) installation."
+                        fi
                     fi
                 else
-                    # Ref: https://mariadb.com/kb/en/library/security-of-mariadb-root-account/
-                    run mysql_secure_installation
+                    while [[ "${DO_MYSQL_SECURE_INSTALL}" != "y" && "${DO_MYSQL_SECURE_INSTALL}" != "n" ]]; do
+                        read -rp "Do you want to secure MySQL installation? [y/n]: " -e DO_MYSQL_SECURE_INSTALL
+                    done
+
+                    if [[ ${DO_MYSQL_SECURE_INSTALL} == y* && ${MYSQL_SECURE_INSTALL} == true ]]; then
+                        run mysql_secure_installation
+                    fi
                 fi
             fi
 
-            if [[ $(pgrep -c mysql) -gt 0 ]]; then
+            if [[ $(pgrep -c mysql) -gt 0 || -n $(command -v mysql) ]]; then
                 success "MariaDB (MySQL) installed successfully."
 
+                # Allow remote client access
+                allow_remote_client_access
+
+                # Enable Mariabackup
                 enable_mariabackup
+
+                # Restart MariaDB (MySQL)
+                systemctl restart mariadb
+
+                if [[ $(pgrep -c mysql) -gt 0 ]]; then
+                    success "MariaDB (MySQL) configured successfully."
+                elif [[ -n $(command -v mysql) ]]; then
+                    # Server died? try to start it.
+                    systemctl start mariadb
+                    if [[ $(pgrep -c mysql) -gt 0 ]]; then
+                        success "MariaDB (MySQL) configured successfully."
+                    else
+                        info "Something went wrong with MariaDB (MySQL) installation."
+                    fi
+                fi
             else
                 info "Something went wrong with MariaDB (MySQL) installation."
             fi
@@ -176,7 +210,7 @@ function init_mariadb_install() {
 function enable_mariabackup() {
     echo ""
     echo "Mariabackup will be installed and enabled by default."
-    echo "It is useful to backup and restore MariaDB database."
+    echo "It is useful to backup and restore MySQL database."
     echo ""
     sleep 1
 
@@ -184,7 +218,7 @@ function enable_mariabackup() {
     MARIABACKUP_PASS=${MARIABACKUP_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
     export MARIABACKUP_PASS
 
-    echo "Please enter your current MySQL root password to process!"
+    #echo "Please enter your current MySQL root password to process!"
     until [[ "${MYSQL_ROOT_PASS}" != "" ]]; do
         echo -n "MySQL root password: "; stty -echo; read -r MYSQL_ROOT_PASS; stty echo; echo
     done
@@ -194,14 +228,14 @@ function enable_mariabackup() {
     if ! mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT User FROM mysql.user;" | grep -q "${MARIABACKUP_USER}"; then
         # Create mariabackup user.
         SQL_QUERY="CREATE USER '${MARIABACKUP_USER}'@'localhost' IDENTIFIED BY '${MARIABACKUP_PASS}';
-GRANT RELOAD, PROCESS, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${MARIABACKUP_USER}'@'localhost';"
+                GRANT RELOAD, PROCESS, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${MARIABACKUP_USER}'@'localhost';"
 
         mysql -u "root" -p"${MYSQL_ROOT_PASS}" -e "${SQL_QUERY}"
 
         # Update my.cnf
-        MARIABACKUP_CNF="
-###################################
+        MARIABACKUP_CNF="###################################
 # Custom optimization for LEMPer
+# Mariabackup credential
 #
 [mariabackup]
 user=${MARIABACKUP_USER}
@@ -210,15 +244,25 @@ open_files_limit=65535
 "
 
         if [ -d /etc/mysql/mariadb.conf.d ]; then
-            touch /etc/mysql/mariadb.conf.d/50-mariabackup.cnf
-            echo "${MARIABACKUP_CNF}" >> /etc/mysql/mariadb.conf.d/50-mariabackup.cnf
+            run touch /etc/mysql/mariadb.conf.d/50-mariabackup.cnf
+            run bash -c "echo '${MARIABACKUP_CNF}' > /etc/mysql/mariadb.conf.d/50-mariabackup.cnf"
         else
-            echo "${MARIABACKUP_CNF}" >> /etc/mysql/my.cnf
+            run bash -c "echo -e '\n${MARIABACKUP_CNF}' >> /etc/mysql/my.cnf"
         fi
 
-        systemctl restart mariadb
+        # Restart to take effect.
+        #systemctl restart mariadb
 
-        success "Mariaback user '${MARIABACKUP_USER}' added successfully."
+        #if [[ $(pgrep -c mysql) -gt 0 ]]; then
+        #    success "Mariaback user '${MARIABACKUP_USER}' added successfully."
+        #elif [[ -n $(command -v mysql) ]]; then
+        #    systemctl start mariadb
+        #    if [[ $(pgrep -c mysql) -gt 0 ]]; then
+        #        success "Mariaback user '${MARIABACKUP_USER}' added successfully."
+        #    else
+        #        info "Something went wrong with MariaDB (MySQL) installation."
+        #    fi
+        #fi
 
         # Save config.
         save_config -e "MYSQL_ROOT_PASS=${MYSQL_ROOT_PASS}\nMARIABACKUP_USERNAME=${MARIABACKUP_USER}\nMARIABACKUP_PASSWORD=${MARIABACKUP_PASS}"
@@ -226,8 +270,61 @@ open_files_limit=65535
         # Save log.
         save_log -e "MariaDB (MySQL) credentials.\nMySQL Root Password: ${MYSQL_ROOT_PASS}, MariaBackup DB Username: ${MARIABACKUP_USER}, MariaBackup DB Password: ${MARIABACKUP_PASS}\nSave this credential and use it to authenticate your MySQL database connection."
     else
-        info "It seems that user '${MARIABACKUP_USER}' already exists. \
-Or try to add mariabackup user manually! "
+        info "It seems that user '${MARIABACKUP_USER}' already exists. You can add mariabackup user manually!"
+    fi
+}
+
+##
+# Allow remote client access
+# You need to add the following query to the client account
+#CREATE USER 'username'@'ip_address' IDENTIFIED BY 'secret';
+#GRANT ALL PRIVILEGES ON *.* TO 'username'@'ip_address' WITH GRANT OPTION;
+#CREATE USER 'username'@'%' IDENTIFIED BY 'secret';
+#GRANT ALL PRIVILEGES ON *.* TO 'usernemae'@'%' WITH GRANT OPTION;
+#FLUSH PRIVILEGES;
+#
+function allow_remote_client_access() {
+    if "${AUTO_INSTALL}"; then
+        if "${MYSQL_ALLOW_REMOTE}"; then
+            ENABLE_REMOTE_ACCESS="y"
+        else
+            ENABLE_REMOTE_ACCESS="n"
+        fi
+    else
+        while [[ "${ENABLE_REMOTE_ACCESS}" != "y" && "${ENABLE_REMOTE_ACCESS}" != "n" ]]; do
+            read -rp "Do you want to allow MySQL remote client access? [y/n]: " -e ENABLE_REMOTE_ACCESS
+        done
+    fi
+
+    if [[ ${ENABLE_REMOTE_ACCESS} == y* ]]; then
+        REMOTE_CLIENT_CNF="###################################
+# Custom optimization for LEMPer
+# Allow remote client access
+#
+[mysqld]
+skip-networking=0
+skip-bind-address"
+
+        if [ -d /etc/mysql/mariadb.conf.d ]; then
+            run touch /etc/mysql/mariadb.conf.d/20-allow-remote-client-access.cnf
+            run bash -c "echo '${REMOTE_CLIENT_CNF}' > /etc/mysql/mariadb.conf.d/20-allow-remote-client-access.cnf"
+        else
+            run bash -c "echo -e '\n${REMOTE_CLIENT_CNF}' >> /etc/mysql/my.cnf"
+        fi
+
+        # Restart to take effect.
+        #systemctl restart mariadb
+
+        #if [[ $(pgrep -c mysql) -gt 0 ]]; then
+        #    success "MySQL remote client access successfully enabled."
+        #elif [[ -n $(command -v mysql) ]]; then
+        #    systemctl start mariadb
+        #    if [[ $(pgrep -c mysql) -gt 0 ]]; then
+        #        success "MySQL remote client access successfully enabled."
+        #    else
+        #        info "Something went wrong with MariaDB (MySQL) installation."
+        #    fi
+        #fi
     fi
 }
 
