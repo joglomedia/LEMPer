@@ -260,7 +260,7 @@ EOL
         # Install PHP Redis extension.
         install_php_redis "$@"
     else
-        echo "Redis server installation skipped."
+        info "Redis server installation skipped."
     fi
 }
 

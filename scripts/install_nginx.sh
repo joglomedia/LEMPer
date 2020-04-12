@@ -83,7 +83,7 @@ function init_nginx_install() {
             read -rp "Do you want to install NGiNX HTTP (web) server? [y/n]: " \
             -i y -e DO_INSTALL_NGINX
         done
-        echo ""
+        #echo ""
     fi
 
     # Install NGiNX custom.
@@ -414,7 +414,7 @@ function init_nginx_install() {
 
                             if curl -sLI "${BORINGSSL_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
                                 run wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${BORINGSSL_DOWNLOAD_URL}" && \
-                                run mkdir "${NGINX_CUSTOMSSL_VERSION}" && \
+                                run mkdir -p "${NGINX_CUSTOMSSL_VERSION}" && \
                                 run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz" -C "${NGINX_CUSTOMSSL_VERSION}" && \
                                 #run rm -f "${NGINX_CUSTOMSSL_VERSION}.tar.gz" && \
                                 run cd "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}"
@@ -617,7 +617,7 @@ function init_nginx_install() {
                             DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
 
                             if [[ "${DISTRIB_NAME}" == "ubuntu" ]]; then
-                                run add-apt-repository ppa:maxmind/ppa
+                                run add-apt-repository -y ppa:maxmind/ppa
                                 run apt update -qq -y && \
                                 run apt install -qq -y libmaxminddb0 libmaxminddb-dev mmdb-bin
                             else
@@ -640,7 +640,7 @@ function init_nginx_install() {
 
                             echo "Download MaxMind GeoIP2-GeoLite2 database..."
 
-                            run mkdir geoip-db && \
+                            run mkdir -p geoip-db && \
                             run cd geoip-db || exit 1
                             run mkdir -p /opt/geoip
 
@@ -648,7 +648,7 @@ function init_nginx_install() {
                             GEOLITE2_COUNTRY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
                             if curl -sLI "${GEOLITE2_COUNTRY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
                                 #run wget -q https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.tar.gz && \
-                                run wget -q "${GEOLITE2_COUNTRY_SRC}"
+                                run wget -q "${GEOLITE2_COUNTRY_SRC}" -O GeoLite2-Country.tar.gz && \
                                 run tar -xf GeoLite2-Country.tar.gz && \
                                 run cd GeoLite2-Country_*/ && \
                                 run mv GeoLite2-Country.mmdb /opt/geoip/ && \
@@ -658,7 +658,7 @@ function init_nginx_install() {
                             GEOLITE2_CITY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
                             if curl -sLI "${GEOLITE2_CITY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
                                 #run wget -q https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz && \
-                                run wget -q "${GEOLITE2_CITY_SRC}" && \
+                                run wget -q "${GEOLITE2_CITY_SRC}" -O GeoLite2-City.tar.gz && \
                                 run tar -xf GeoLite2-City.tar.gz && \
                                 run cd GeoLite2-City_*/ && \
                                 run mv GeoLite2-City.mmdb /opt/geoip/
@@ -926,7 +926,7 @@ function init_nginx_install() {
                 fi
 
                 if [ ! -d /etc/nginx/modules-enabled ]; then
-                    run mkdir /etc/nginx/modules-enabled
+                    run mkdir -p /etc/nginx/modules-enabled
                     run chmod 755 /etc/nginx/modules-enabled
                 fi
 

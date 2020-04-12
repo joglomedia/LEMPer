@@ -69,7 +69,7 @@ function install_php_fpm() {
         # Add repo first
         add_php_repo
 
-        echo "Installing PHP ${PHPv} & FPM..."
+        echo "Installing PHP ${PHPv} & FPM packages..."
 
         if hash apt 2>/dev/null; then
             PHP_PKGS=("php${PHPv} php${PHPv}-bcmath php${PHPv}-bz2 php${PHPv}-calendar php${PHPv}-cli \
@@ -81,7 +81,6 @@ php${PHPv}-tidy php${PHPv}-tokenizer php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}
 php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
 
             if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
-                echo "Installing PHP ${PHPv} & FPM packages..."
                 # shellcheck disable=SC2068
                 run apt install -qq -y ${PHP_PKGS[@]}
             fi
@@ -99,6 +98,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                         -i n -e INSTALL_PHPGEOIP
                 done
             fi
+
             if [[ ${INSTALL_PHPGEOIP} == Y* || ${INSTALL_PHPGEOIP} == y* ]]; then
                 echo "Installing PHP GeoIP module..."
 
@@ -140,6 +140,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                         -i n -e INSTALL_PHPMCRYPT
                 done
             fi
+
             if [[ ${INSTALL_PHPMCRYPT} == Y* || ${INSTALL_PHPMCRYPT} == y* ]]; then
                 echo "Installing PHP Mcrypt module..."
 

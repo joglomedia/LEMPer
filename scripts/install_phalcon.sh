@@ -123,8 +123,9 @@ function install_phalcon() {
         # Clone repository.
         if [ ! -d cphalcon ]; then
             run git clone -q https://github.com/phalcon/cphalcon.git && \
+            run cd cphalcon && \
             run git checkout "${PHALCON_VERSION}" && \
-            run cd cphalcon/build
+            run cd build
         else
             run cd cphalcon && \
             run git checkout "${PHALCON_VERSION}" && \
@@ -138,7 +139,7 @@ function install_phalcon() {
     # Install cPhalcon.
     if [ -f install ]; then
         if [[ -n "${PHPv}" ]]; then
-            run ./install --phpize="${PHPIZE_BIN}" --php-config="${PHPCONFIG_BIN}"
+            run ./install --phpize "${PHPIZE_BIN}" --php-config "${PHPCONFIG_BIN}"
         else
             run ./install
         fi
@@ -441,13 +442,17 @@ function init_phalcon_install() {
             ;;
         esac
 
-        local SUPPORTED_PHP=""
+        local SUPPORTED_PHP
+        local PHP_PHALCON_PKG
         if version_older_than "${PHALCON_VERSION}" "3.4.6"; then
             SUPPORTED_PHP="5.6 7.0 7.1"
+            PHP_PHALCON_PKG="php-phalcon3"
         elif version_older_than "3.99.99" "${PHALCON_VERSION}"; then
             SUPPORTED_PHP="7.2 7.3 7.4"
+            PHP_PHALCON_PKG="php-phalcon4"
         else
             SUPPORTED_PHP=""
+            PHP_PHALCON_PKG=""
         fi
 
         # Begin install Phalcon.
@@ -461,7 +466,7 @@ function init_phalcon_install() {
                             if [[ -n $(command -v "php${PHPv}") ]]; then
                                 PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
                                 if [[ ! -f "${PHPLIB_DIR}/phalcon.so" ]]; then
-                                    run apt install -qq -y "php${PHPv}-psr" "php${PHPv}-phalcon"
+                                    run apt install -qq -y "php-psr" "${PHP_PHALCON_PKG}"
                                     enable_phalcon "${PHPv}"
                                 else
                                     error "PHP ${PHPv} Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so."

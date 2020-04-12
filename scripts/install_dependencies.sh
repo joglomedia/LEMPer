@@ -19,7 +19,7 @@ requires_root
 
 if hash apt 2>/dev/null; then
     # Update repositories.
-    echo "Updating repository..."
+    echo "Updating repository, please wait..."
     run apt update -qq -y && \
     run apt upgrade -qq -y
 
@@ -27,9 +27,9 @@ if hash apt 2>/dev/null; then
     echo -e "\nInstalling pre-requisites/dependencies package..."
     install_dependencies "apt install -qq -y" debian_is_installed \
         apt-transport-https apt-utils autoconf automake bash build-essential ca-certificates cmake cron \
-        curl dnsutils gcc geoip-bin geoip-database git gnupg2 htop iptables libc-dev libcurl4-openssl-dev libgd-dev libgeoip-dev \
+        curl dnsutils gcc geoip-bin geoip-database git gnupg2 htop iptables libc6-dev libcurl4-openssl-dev libgd-dev libgeoip-dev \
         libssl-dev libxml2-dev libpcre3-dev libtool libxslt1-dev lsb-release make ntp ntpstat openssh-server openssl pkg-config \
-        re2c rsync software-properties-common sasl2-bin snmp sudo sysstat tar tzdata unzip wget whois zlib1g-dev
+        python python3 re2c rsync software-properties-common sasl2-bin snmp sudo sysstat tar tzdata unzip wget whois zlib1g-dev
 
     # Configure server clock.
     echo -e "\nReconfigure server clock..."
@@ -55,5 +55,4 @@ else
     fail "Unable to install LEMPer, this GNU/Linux distribution is not supported."
 fi
 
-echo ""
 success "Required packages installation completed..."

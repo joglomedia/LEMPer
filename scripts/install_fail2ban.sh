@@ -24,7 +24,7 @@ function init_fail2ban_install() {
     local SELECTED_INSTALLER=""
 
     if "${AUTO_INSTALL}"; then
-        if [[ -n "${FAIL2BAN_INSTALLER}" || "${FAIL2BAN_INSTALLER}" != "none" ]]; then
+        if [[ -z "${FAIL2BAN_INSTALLER}" || "${FAIL2BAN_INSTALLER}" == "none" ]]; then
             DO_INSTALL_FAIL2BAN="n"
         else
             DO_INSTALL_FAIL2BAN="y"
@@ -105,6 +105,12 @@ enabled = true
 port    = http,https,8082,8083
 maxretry = 5
 
+_EOL_
+    fi
+
+    if "${INSTALL_MAILER}"; then
+        # Enable jail for Postfix & Dovecot
+        cat >> /etc/fail2ban/jail.local <<_EOL_
 [postfix]
 enabled = true
 logpath = /var/log/mail.log
@@ -115,6 +121,7 @@ enabled = true
 port     = smtp,465,587,submission,imap,imaps,pop3,pop3s
 logpath = /var/log/mail.log
 maxretry = 5
+
 _EOL_
     fi
 

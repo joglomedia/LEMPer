@@ -270,8 +270,8 @@ function install_php_memcached() {
     echo "Installing PHP ${SELECTED_PHP} memcached module..."
 
     if hash apt 2>/dev/null; then
-        #VARS=$(sed "s/,/ /g" <<<"${PHPv}")
-        for PHPv in sed "s/,/ /g" <<<"${SELECTED_PHP}"; do
+        PHPVERS=$(sed "s/,/ /g" <<<"${PHPv}")
+        for PHPv in ${PHPVERS}; do
             install_dependencies "apt install -qq -y" debian_is_installed \
                 "php${PHPv}-igbinary" "php${PHPv}-memcache" "php${PHPv}-memcached" "php${PHPv}-msgpack"
             enable_php_memcached "${PHPv}"

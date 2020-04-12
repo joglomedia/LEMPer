@@ -652,7 +652,7 @@ function init_log() {
 
 # Save log.
 function save_log() {
-    if ! ${DRYRUN}; then
+    if ! "${DRYRUN}"; then
         {
             date '+%d-%m-%Y %T %Z'
             echo "$@"
@@ -673,7 +673,7 @@ function init_config() {
 
 # Save configuration.
 function save_config() {
-    if ! ${DRYRUN}; then
+    if ! "${DRYRUN}"; then
         [ -f /etc/lemper/lemper.conf ] && \
         echo "$@" >> /etc/lemper/lemper.conf
     fi
@@ -681,7 +681,7 @@ function save_config() {
 
 # Encrypt configuration.
 function secure_config() {
-    if ! ${DRYRUN}; then
+    if ! "${DRYRUN}"; then
         if [ -f /etc/lemper/lemper.conf ]; then
             run openssl aes-256-gcm -a -salt -md sha256 -k "${PASSWORD}" \
                 -in /etc/lemper/lemper.conf -out /etc/lemper/lemper.cnf

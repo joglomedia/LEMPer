@@ -61,6 +61,9 @@ function install_postfix() {
         # Getting Let's Encrypt certificates.
         local CERTPATH=""
 
+        # Stop webserver first
+        run systemctl stop nginx
+
         if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true \
         && $(dig "${SENDER_DOMAIN}" +short) = "${SERVER_IP}" ]]; then
             run certbot certonly --standalone --agree-tos --preferred-challenges http -d "${SENDER_DOMAIN}"
@@ -69,6 +72,9 @@ function install_postfix() {
             run certbot certonly --standalone --agree-tos --preferred-challenges http --webroot-path=/usr/share/nginx/html -d "${HOSTNAME}"
             CERTPATH="/etc/letsencrypt/live/${HOSTNAME}"
         fi
+
+        # Re-start webserver
+        run systemctl start nginx
 
         # Enable Postfix secure.
         if [ -n "${CERTPATH}" ]; then
