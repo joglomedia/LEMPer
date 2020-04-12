@@ -162,7 +162,7 @@ fi
 ### Basic server security ###
 if [ -f scripts/secure_server.sh ]; then
     echo ""
-    . ./scripts/secure_server.sh "--install"
+    . ./scripts/secure_server.sh
 fi
 
 ### FINAL STEP ###
@@ -219,7 +219,7 @@ Please Save the above Credentials & Keep it Secure!
         #save_log "${CREDENTIALS}"
 
         # Securing LEMPer stack credentials.
-        secure_config
+        #secure_config
     fi
 fi
 
