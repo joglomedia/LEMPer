@@ -555,12 +555,10 @@ echo "[LEMPer Basic Server Security]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ "${1}" == "install" ]]; then
-    init_secure_server "$@"
-elif [[ "${1}" == "remove" || "${1}" == "uninstall" ]]; then
+if [[ "${1}" == "remove" || "${1}" == "uninstall" ]]; then
     remove_apf
     remove_csf
     remove_ufw
 else
-    error "command is required." >&2
+    init_secure_server "$@"
 fi
