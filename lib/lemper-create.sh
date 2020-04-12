@@ -140,9 +140,9 @@ Options:
       lumen, phalcon, symfony), CMS (drupal, mautic, roundcube, sendy, wordpress, wordpress-ms).
       Another framework and cms will be added soon.
   -p, --php-version
-      PHP version for selected framework. Latest recommended PHP version is "7.3".
+      PHP version for selected framework. Latest recommended PHP version is "7.4".
   -u, --username <virtual-host username>
-      Use username added from adduser/useradd. Do not use root user!!
+      Use username added from adduser/useradd. Default user set as lemper. Do not use root user!!
   -w, --webroot <web root>
       Web root is an absolute path to the website root directory, i.e. /home/lemper/webapps/example.test.
 
@@ -809,7 +809,7 @@ function install_wordpress() {
     fi
 
     # Get default favicon.
-    run wget -q -O "${WEBROOT}/favicon.ico" https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+    #run wget -q -O "${WEBROOT}/favicon.ico" https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
 
     # Pre-install nginx helper plugin.
     if [[ -d "${WEBROOT}/wp-content/plugins" && ! -d "${WEBROOT}/wp-content/plugins/nginx-helper" ]]; then
@@ -1012,8 +1012,8 @@ function init_app() {
 
             # Check for username.
             if [[ -z "${USERNAME}" ]]; then
-                info "Username option is empty. Attempt to use default \"lemper\" account."
-                USERNAME="lemper"
+                info "Username option is empty. Attempt to use default \"${LEMPER_USERNAME}\" account."
+                USERNAME=${LEMPER_USERNAME:-"lemper"}
             fi
 
             # Additional Check - are user account exist?

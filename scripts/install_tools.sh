@@ -23,8 +23,8 @@ requires_root
 function init_webadmin_install() {
     # Install Lemper CLI tool.
     echo "Installing Lemper CLI tool..."
-    #run cp -f bin/lemper-cli.sh /usr/local/bin/lemper-cli
-    run cp -f bin/lemper-cli /usr/local/bin/ && \
+    run cp -f bin/lemper-cli.sh /usr/local/bin/lemper-cli
+    #run cp -f bin/lemper-cli /usr/local/bin/ && \
     run chmod ugo+x /usr/local/bin/lemper-cli
 
     if [ ! -d /usr/local/lib/lemper ]; then
@@ -63,9 +63,9 @@ function init_webadmin_install() {
     fi
 
     # Overwrite existing.
-    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.5/adminer-4.7.5.php \
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.6/adminer-4.7.6.php \
         -O /usr/share/nginx/html/lcp/dbadmin/index.php
-    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.5/editor-4.7.5.php \
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.6/editor-4.7.6.php \
         -O /usr/share/nginx/html/lcp/dbadmin/editor.php
 
     # Install File Manager.
