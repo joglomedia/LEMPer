@@ -1501,7 +1501,7 @@ logpath = ${WEBROOT}/access_log
 maxretry = 3
 _EOL_
                     else
-                        info "Fail2ban is not installed. Please install it first."
+                        info "Fail2ban or filter is not installed. Please install it first."
                     fi
                 fi
 
