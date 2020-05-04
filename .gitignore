@@ -5,5 +5,8 @@ scripts/install_ffmpeg.sh
 scripts/createssl.sh
 scripts/mysqltuner.pl
 #bin/lemper-cli.sh
+bin/lemper-cli.sh.x.c
+bin/lemper-cli-enc
+bin/lemper-cli-enc.sh
 #lib/lemper-create.sh
 #lib/lemper-manage.sh
