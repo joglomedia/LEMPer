@@ -150,6 +150,8 @@ Options:
       Enable FastCGI cache module.
   -D, --dryrun
       Dry run mode, only for testing.
+  -F, --enable-fail2ban
+      Enable fail2ban filter. 
   -s, --clone-skeleton
       Clone default skeleton for selected framework.
   -S, --enable-https
@@ -900,6 +902,7 @@ function init_app() {
     ENABLE_PAGESPEED=false
     ENABLE_HTTPS=false
     ENABLE_WILDCARD_DOMAIN=false
+    ENABLE_FAIL2BAN=false
     TMPDIR="/tmp/lemper"
 
     # Test mode
@@ -948,6 +951,9 @@ function init_app() {
                 ENABLE_FASTCGI_CACHE=true
             ;;
             -D | --dryrun) shift
+                DRYRUN=true
+            ;;
+            -F | --enable-fail2ban) shift
                 DRYRUN=true
             ;;
             -h | --help) shift
@@ -1477,6 +1483,25 @@ function init_app() {
                         run sed -i "s|#pagespeed\ Domain|pagespeed\ Domain|g" "${VHOST_FILE}"
                     else
                         info "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
+                    fi
+                fi
+
+                # Enable fail2ban filter
+                if [[ ${ENABLE_FAIL2BAN} == true ]]; then
+                    echo "Enable fail2ban's ${FRAMEWORK} filter for ${SERVERNAME}..."
+
+                    if [[ -n $(command -v fail2ban-client) && -f "/etc/fail2ban/filter.d/${FRAMEWORK}" ]]; then
+                        cat > "/etc/fail2ban/jail.d/${SERVERNAME}.conf" <<_EOL_
+[${FRAMEWORK}]
+enabled = true
+port = http,https
+filter = ${FRAMEWORK}
+action = iptables-multiport[name=webapps, port="http,https", protocol=tcp]
+logpath = ${WEBROOT}/access_log
+maxretry = 3
+_EOL_
+                    else
+                        info "Fail2ban is not installed. Please install it first."
                     fi
                 fi
 
