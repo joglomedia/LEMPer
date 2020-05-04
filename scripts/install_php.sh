@@ -394,7 +394,9 @@ EOL
 
     # Create default directories.
     run mkdir -p "/home/${POOLNAME}/.lemper/tmp"
-    run mkdir -p "/home/${POOLNAME}/.lemper/opcache"
+    run mkdir -p "/home/${POOLNAME}/.lemper/php/opcache"
+    run mkdir -p "/home/${POOLNAME}/.lemper/php/sessions"
+    run mkdir -p "/home/${POOLNAME}/cgi-bin"
     run chown -hR "${POOLNAME}:${POOLNAME}" "/home/${POOLNAME}"
 
     # Fix cgi.fix_pathinfo (for PHP older than 5.3).
