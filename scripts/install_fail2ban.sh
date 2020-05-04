@@ -97,13 +97,13 @@ bantime = 2592000
 enabled = true
 port = ssh,${SSH_PORT}
 filter = sshd
-#logpath = /var/log/auth.log
-maxretry = 5
+logpath = /var/log/auth.log
+maxretry = 3
 
 [nginx-http-auth]
 enabled = true
 port    = http,https,8082,8083
-maxretry = 5
+maxretry = 3
 
 _EOL_
     fi
@@ -114,13 +114,13 @@ _EOL_
 [postfix]
 enabled = true
 logpath = /var/log/mail.log
-maxretry = 5
+maxretry = 3
 
 [postfix-sasl]
 enabled = true
 port     = smtp,465,587,submission,imap,imaps,pop3,pop3s
 logpath = /var/log/mail.log
-maxretry = 5
+maxretry = 3
 
 _EOL_
     fi
