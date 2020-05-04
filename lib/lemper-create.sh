@@ -882,9 +882,9 @@ function validate_ipv6() {
 # Main App
 #
 function init_app() {
-    OPTS=$(getopt -o u:d:f:4:6:w:p:scPSWDhv \
+    OPTS=$(getopt -o u:d:f:4:6:w:p:scPSFWDhv \
       -l username:,domain-name:,framework:,ipv4:,ipv6:,webroot:,php-version:,clone-skeleton \
-      -l enable-fastcgi-cache,enable-pagespeed,enable-https,wildcard-domain,dryrun,help,version \
+      -l enable-fastcgi-cache,enable-pagespeed,enable-https,enable-fail2ban,wildcard-domain,dryrun,help,version \
       -n "${APP_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
@@ -954,7 +954,7 @@ function init_app() {
                 DRYRUN=true
             ;;
             -F | --enable-fail2ban) shift
-                DRYRUN=true
+                ENABLE_FAIL2BAN=true
             ;;
             -h | --help) shift
                 show_usage
@@ -1490,7 +1490,7 @@ function init_app() {
                 if [[ ${ENABLE_FAIL2BAN} == true ]]; then
                     echo "Enable fail2ban's ${FRAMEWORK} filter for ${SERVERNAME}..."
 
-                    if [[ -n $(command -v fail2ban-client) && -f "/etc/fail2ban/filter.d/${FRAMEWORK}" ]]; then
+                    if [[ $(command -v fail2ban-client) && -f "/etc/fail2ban/filter.d/${FRAMEWORK}.conf" ]]; then
                         cat > "/etc/fail2ban/jail.d/${SERVERNAME}.conf" <<_EOL_
 [${FRAMEWORK}]
 enabled = true
