@@ -666,6 +666,7 @@ function init_config() {
     if [ ! -f /etc/lemper/lemper.conf ]; then
         run mkdir -p /etc/lemper/
         run touch /etc/lemper/lemper.conf
+        run chmod 0600 /etc/lemper/lemper.conf
     fi
 
     save_log -e "# LEMPer configuration.\n# Edit here if you change your password manually, but do NOT delete!"
