@@ -1268,6 +1268,9 @@ function init_nginx_install() {
                 /etc/nginx/nginx.conf
         fi
 
+        # Allow server IP to fastCGI cache purge rule.
+        run sed -i "s/#allow\ SERVER_IP/allow\ ${SERVER_IP}/g" /etc/nginx/includes/rules_fastcgi_cache.conf
+
         # Generate Diffie-Hellman parameters.
         local DH_LENGTH=${HASH_LENGTH:-2048}
         if [ ! -f "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" ]; then
