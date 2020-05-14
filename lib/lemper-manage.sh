@@ -134,6 +134,10 @@ Options:
       Disable virtual host.
   -e, --enable <vhost domain name>
       Enable virtual host.
+  -F, --enable-fail2ban <vhost domain name>
+      Enable fail2ban jail.
+  --disable-fail2ban <vhost domain name>
+      Disable fail2ban jail.
   -g, --enable-gzip
       Enable Gzip compression.
   -p, --enable-pagespeed <vhost domain name>
@@ -293,6 +297,40 @@ function remove_vhost() {
 
     # Reload Nginx.
     reload_nginx
+}
+
+
+function enable_fail2ban() {
+    # Verify user input hostname (domain name)
+    verify_vhost "${1}"
+
+    echo "Enabling Fail2ban ${FRAMEWORK^} filter for ${1}..."
+
+    # Get web root path from vhost config, first.
+    #shellcheck disable=SC2154
+    local WEBROOT && \
+    WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${1}.conf" | awk '{print $3}' | cut -d'"' -f2)
+
+    if [[ ! -d ${WEBROOT} ]]; then
+        read -rp "Enter real path to website root directory containing your access_log file: " -i "${WEBROOT}" -e WEBROOT
+    fi
+
+    if [[ $(command -v fail2ban-client) && -f "/etc/fail2ban/filter.d/${FRAMEWORK}.conf" ]]; then
+        cat > "/etc/fail2ban/jail.d/${1}.conf" <<_EOL_
+[${1}]
+enabled = true
+port = http,https
+filter = ${FRAMEWORK}
+action = iptables-multiport[name=webapps, port="http,https", protocol=tcp]
+logpath = ${WEBROOT}/access_log
+maxretry = 3
+_EOL_
+
+        # Reload fail2ban
+        run service fail2ban reload
+    else
+        info "Fail2ban or filter is not installed. Please install it first."
+    fi
 }
 
 ##

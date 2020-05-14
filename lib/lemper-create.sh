@@ -1488,11 +1488,11 @@ function init_app() {
 
                 # Enable fail2ban filter
                 if [[ ${ENABLE_FAIL2BAN} == true ]]; then
-                    echo "Enable fail2ban's ${FRAMEWORK} filter for ${SERVERNAME}..."
+                    echo "Enable Fail2ban ${FRAMEWORK^} filter for ${SERVERNAME}..."
 
                     if [[ $(command -v fail2ban-client) && -f "/etc/fail2ban/filter.d/${FRAMEWORK}.conf" ]]; then
                         cat > "/etc/fail2ban/jail.d/${SERVERNAME}.conf" <<_EOL_
-[${FRAMEWORK}]
+[${SERVERNAME}]
 enabled = true
 port = http,https
 filter = ${FRAMEWORK}
@@ -1500,6 +1500,9 @@ action = iptables-multiport[name=webapps, port="http,https", protocol=tcp]
 logpath = ${WEBROOT}/access_log
 maxretry = 3
 _EOL_
+
+                        # Reload fail2ban
+                        run service fail2ban reload
                     else
                         info "Fail2ban or filter is not installed. Please install it first."
                     fi

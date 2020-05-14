@@ -87,11 +87,17 @@ function init_fail2ban_install() {
     else
         SSH_PORT=${SSH_PORT:-22}
 
+        # Add Wordpress custom filter.
+        run cp -f etc/fail2ban/filter.d/wordpress.conf /etc/fail2ban/filter.d/
+
         # Enable jail
         cat > /etc/fail2ban/jail.local <<_EOL_
 [DEFAULT]
 # banned for 30 days
-bantime = 2592000
+bantime = 30d
+
+# ignored ip (googlebot) - https://ipinfo.io/AS15169
+ignoreip = 66.249.64.0/19 66.249.64.0/20 66.249.80.0/22 66.249.84.0/23 66.249.88.0/24
 
 [sshd]
 enabled = true
