@@ -32,7 +32,8 @@ matrix:
         - sed -i "s/INSTALL_SPFDKIM=false/INSTALL_SPFDKIM=true/g" .env
         - sed -i "s/SENDER_DOMAIN=\"example.com\"/SENDER_DOMAIN=\"eslabs.id\"/g" .env
         # Run the source through ShellCheck (http://www.shellcheck.net).
-        - shellcheck -s bash -x lemper.sh
+        - shellcheck -s bash -x install.sh
+        - shellcheck -s bash -x remove.sh
         #- shellcheck -s bash -x bin/lemper-cli.sh
         - shellcheck -s bash -x lib/lemper-*.sh
         - shellcheck -s bash -x scripts/cleanup_server.sh
