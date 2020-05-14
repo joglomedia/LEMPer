@@ -21,6 +21,12 @@ set -e
 APP_NAME=$(basename "$0")
 APP_VERSION="1.3.0"
 
+# May need to run this as sudo!
+if [ "$(id -u)" -ne 0 ]; then
+    error "This command can only be used by root."
+    exit 1
+fi
+
 # Export LEMPer stack configuration.
 if [ -f "/etc/lemper/lemper.conf" ]; then
     # Clean environemnt first.
