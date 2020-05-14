@@ -291,7 +291,7 @@ EOL
         
         # Enable chdir.
         run sed -i "/^;chdir\ =.*/a chdir\ =\ \/usr\/share\/nginx\/html" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
-    
+
         # Add custom php extension (ex .php70, .php71)
         PHPExt=".php${PHPv//.}"
         run sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/g" \
@@ -458,12 +458,12 @@ function install_php_composer() {
                 run "${PHP_BIN}" composer-setup.php --filename=composer --install-dir=/usr/local/bin --quiet
 
                 # Fix chmod permission to executable.
-                [ -f /usr/local/bin/composer ] && \
-                run chmod ugo+x /usr/local/bin/composer
-
-                run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bashrc"
-                run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bash_profile"
-                run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.profile"
+                if [ -f /usr/local/bin/composer ]; then
+                    run chmod ugo+x /usr/local/bin/composer
+                    run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bashrc"
+                    run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bash_profile"
+                    run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.profile"
+                fi
             else
                 error "Invalid PHP Composer installer signature."
             fi
