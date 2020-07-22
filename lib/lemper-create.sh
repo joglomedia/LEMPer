@@ -154,7 +154,7 @@ Options:
       Enable fail2ban filter. 
   -i, --install-app
       Auto install application for selected framework.
-  -s, --enable-https
+  -s, --enable-ssl
       Enable HTTPS with Let's Encrypt free SSL certificate.
   -P, --enable-pagespeed
       Enable Nginx mod_pagespeed.
@@ -885,7 +885,7 @@ function init_app() {
 
     OPTS=$(getopt -o u:d:e:f:4:6:w:p:icPsFWDhv \
       -l username:,domain-name:,admin-email:,framework:,ipv4:,ipv6:,webroot:,php-version:,install-app \
-      -l enable-fastcgi-cache,enable-pagespeed,enable-https,enable-fail2ban,wildcard-domain,dryrun,help,version \
+      -l enable-fastcgi-cache,enable-pagespeed,enable-ssl,enable-fail2ban,wildcard-domain,dryrun,help,version \
       -n "${APP_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
@@ -901,7 +901,7 @@ function init_app() {
     INSTALL_APP=false
     ENABLE_FASTCGI_CACHE=false
     ENABLE_PAGESPEED=false
-    ENABLE_HTTPS=false
+    ENABLE_SSL=false
     ENABLE_WILDCARD_DOMAIN=false
     ENABLE_FAIL2BAN=false
     TMPDIR="/tmp/lemper"
@@ -971,8 +971,8 @@ function init_app() {
             -P | --enable-pagespeed) shift
                 ENABLE_PAGESPEED=true
             ;;
-            -s | --enable-https) shift
-                ENABLE_HTTPS=true
+            -s | --enable-ssl) shift
+                ENABLE_SSL=true
             ;;
             -v | --version) shift
                 echo "${APP_NAME^} version ${APP_VERSION}"
@@ -1593,10 +1593,10 @@ _EOL_
                 success "Your ${SERVERNAME} successfully added to Nginx virtual host."
 
                 # Enable HTTPS.
-                if [[ ${ENABLE_HTTPS} == true ]]; then
+                if [[ ${ENABLE_SSL} == true ]]; then
                     echo ""
                     echo "You can enable HTTPS from lemper-cli after this setup!"
-                    echo "command: lemper-cli manage --enable-https ${SERVERNAME}"
+                    echo "command: lemper-cli manage --enable-ssl ${SERVERNAME}"
                     echo ""
                 fi
 
