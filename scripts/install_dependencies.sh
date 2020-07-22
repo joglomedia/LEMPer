@@ -18,6 +18,10 @@ fi
 requires_root
 
 if hash apt 2>/dev/null; then
+    # Update locale
+    run locale-gen en_US.UTF-8 && \
+    run dpkg-reconfigure locales
+
     # Update repositories.
     echo "Updating repository, please wait..."
     run apt update -qq -y && \
