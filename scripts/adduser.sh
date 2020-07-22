@@ -63,13 +63,13 @@ do
     #user_exists=$(grep -c '^${namauser}:' /etc/passwd)
 
     if [[ -z $(getent passwd "${namauser}") ]]; then
-        useradd $sethomedir $setexpiredate $setgroup $setusershell $namauser
+        useradd ${sethomedir} ${setexpiredate} ${setgroup} ${setusershell} ${namauser}
         echo "${namauser}:${katasandi}" | chpasswd
 
         echo -n "Add user ${namauser} to sudoers? [y/n]: "
         read setsudoers
         if [[ "${setsudoers}" == y* ]]; then
-        	usermod -aG sudo $namauser
+        	usermod -aG sudo ${namauser}
         fi
     else
         echo -e "\nUser '${namauser}' already exits."
