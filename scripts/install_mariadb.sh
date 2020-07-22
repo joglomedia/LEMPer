@@ -187,13 +187,14 @@ function init_mariadb_install() {
                 enable_mariabackup
 
                 # Restart MariaDB (MySQL)
-                systemctl restart mariadb
+                run systemctl restart mariadb
 
                 if [[ $(pgrep -c mysql) -gt 0 ]]; then
                     success "MariaDB (MySQL) configured successfully."
                 elif [[ -n $(command -v mysql) ]]; then
                     # Server died? try to start it.
-                    systemctl start mariadb
+                    run systemctl start mariadb
+
                     if [[ $(pgrep -c mysql) -gt 0 ]]; then
                         success "MariaDB (MySQL) configured successfully."
                     else
