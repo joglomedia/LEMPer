@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# NGiNX Installer
+# Nginx Installer
 # Min. Requirement  : GNU/Linux Ubuntu 14.04
 # Last Build        : 02/11/2019
 # Author            : ESLabs.ID (eslabs.id@gmail.com)
@@ -25,7 +25,7 @@ fi
 requires_root
 
 function add_nginx_repo() {
-    echo "Add NGiNX repository..."
+    echo "Add Nginx repository..."
 
     # Nginx version.
     local NGINX_VERSION=${NGINX_VERSION:-"stable"}
@@ -54,7 +54,7 @@ function add_nginx_repo() {
             NGINX_PKG="nginx-extras"
         ;;
         ubuntu)
-            # NGiNX custom with ngx cache purge from Ondrej repo.
+            # Nginx custom with ngx cache purge from Ondrej repo.
             #run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
             run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}"
@@ -80,15 +80,15 @@ function init_nginx_install() {
         fi
     else
         while [[ ${DO_INSTALL_NGINX} != "y" && ${DO_INSTALL_NGINX} != "n" ]]; do
-            read -rp "Do you want to install NGiNX HTTP (web) server? [y/n]: " \
+            read -rp "Do you want to install Nginx HTTP (web) server? [y/n]: " \
             -i y -e DO_INSTALL_NGINX
         done
         #echo ""
     fi
 
-    # Install NGiNX custom.
+    # Install Nginx custom.
     if [[ ${DO_INSTALL_NGINX} == y* && ${INSTALL_NGINX} == true ]]; then
-        echo "Available NGiNX installation method:"
+        echo "Available Nginx installation method:"
         echo "  1). Install from Repository (repo)"
         echo "  2). Compile from Source (source)"
         echo "-------------------------------------"
@@ -107,14 +107,14 @@ function init_nginx_install() {
             1|"repo")
                 add_nginx_repo
 
-                echo "Installing NGiNX from package repository..."
+                echo "Installing Nginx from package repository..."
 
                 if hash apt 2>/dev/null; then
                     if [[ -n "${NGINX_PKG}" ]]; then
                         local EXTRA_MODULE_PKGS=()
 
                         if "${NGINX_EXTRA_MODULES}"; then
-                            echo "Install NGiNX with extra modules..."
+                            echo "Install Nginx with extra modules..."
 
                             # Auth PAM
                             if "${NGX_HTTP_AUTH_PAM}"; then
@@ -259,12 +259,12 @@ function init_nginx_install() {
                         run apt install -qq -y "${NGINX_PKG}" ${EXTRA_MODULE_PKGS[@]}
                     fi
                 else
-                    fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
+                    fail "Unable to install Nginx, this GNU/Linux distribution is not supported."
                 fi
             ;;
 
             2|"source")
-                echo "Installing NGiNX from source..."
+                echo "Installing Nginx from source..."
 
                 # CPU core numbers, for building faster.
                 local NB_PROC && \
@@ -470,7 +470,7 @@ function init_nginx_install() {
                     fi
 
                     if "${NGINX_EXTRA_MODULES}"; then
-                        echo "Build NGiNX with extra modules..."
+                        echo "Build Nginx with extra modules..."
 
                         local EXTRA_MODULE_DIR="${BUILD_DIR}/nginx_modules"
 
@@ -589,9 +589,11 @@ function init_nginx_install() {
                             echo "Add ngx-http-geoip module..."
 
                             if "${NGINX_DYNAMIC_MODULE}"; then
-                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} --with-http_geoip_module=dynamic"
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --with-http_geoip_module=dynamic"
                             else
-                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} --with-http_geoip_module"
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --with-http_geoip_module"
                             fi
                         fi
 
@@ -693,9 +695,11 @@ function init_nginx_install() {
                             echo "Add ngx-http-image-filter module..."
 
                             if "${NGINX_DYNAMIC_MODULE}"; then
-                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} --with-http_image_filter_module=dynamic"
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --with-http_image_filter_module=dynamic"
                             else
-                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} --with-http_image_filter_module"
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --with-http_image_filter_module"
                             fi
                         fi
 
@@ -714,7 +718,7 @@ function init_nginx_install() {
                             fi
                         fi
 
-                        # NAXSI is an open-source, high performance, low rules maintenance WAF for NGiNX.
+                        # NAXSI is an open-source, high performance, low rules maintenance WAF for Nginx.
                         if "${NGX_HTTP_NAXSI}"; then
                             echo "Add ngx-http-naxsi (Web Application Firewall) module..."
 
@@ -898,17 +902,12 @@ function init_nginx_install() {
                     run cd "${CURRENT_DIR}"
 
                     # Build nginx from source installer.
-                    echo -e "\nBuilding NGiNX from source..."
+                    echo -e "\nBuilding Nginx from source..."
 
-                    NGX_BUILD_URL="https://raw.githubusercontent.com/pagespeed/ngx_pagespeed/master/scripts/build_ngx_pagespeed.sh"
+                    #NGX_BUILD_URL="https://raw.githubusercontent.com/pagespeed/ngx_pagespeed/master/scripts/build_ngx_pagespeed.sh"
+                    NGX_BUILD_URL="https://raw.githubusercontent.com/apache/incubator-pagespeed-ngx/master/scripts/build_ngx_pagespeed.sh"
 
                     if curl -sLI "${NGX_BUILD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                    #if [ -f "${SCRIPTS_DIR}/build_nginx.sh" ]; then
-                        #run "${SCRIPTS_DIR}/build_nginx.sh" -v latest-stable -n "${NGINX_RELEASE_VER}" --dynamic-module \
-                        #    --extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
-                    #elif [ -f ".${SCRIPTS_DIR}/build_nginx.sh" ]; then
-                        #run ".${SCRIPTS_DIR}/build_nginx.sh" -v latest-stable -n "${NGINX_RELEASE_VER}" --dynamic-module \
-                        #    --extra-modules -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
                         run curl -sS -o "${BUILD_DIR}/build_nginx" "${NGX_BUILD_URL}" && \
                         run bash "${BUILD_DIR}/build_nginx" -v latest-stable -n "${NGINX_RELEASE_VER}" --dynamic-module \
                             -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
@@ -917,9 +916,9 @@ function init_nginx_install() {
                     fi
                 fi
 
-                echo "Configuring NGiNX extra modules..."
+                echo "Configuring Nginx extra modules..."
 
-                # Create NGiNX directories.
+                # Create Nginx directories.
                 if [ ! -d /etc/nginx/modules-available ]; then
                     run mkdir -p /etc/nginx/modules-available
                     run chmod 755 /etc/nginx/modules-available
@@ -930,7 +929,13 @@ function init_nginx_install() {
                     run chmod 755 /etc/nginx/modules-enabled
                 fi
 
-                # Custom NGiNX dynamic modules configuration.
+                # Custom Nginx dynamic modules configuration.
+                if [[ -f /usr/lib/nginx/modules/ngx_http_auth_pam_module.so && \
+                    ! -f /etc/nginx/modules-available/mod-http-auth-pam.conf ]]; then
+                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_auth_pam_module.so\";' \
+                        > /etc/nginx/modules-available/mod-http-auth-pam.conf"
+                fi
+
                 if [[ -f /usr/lib/nginx/modules/ngx_http_brotli_filter_module.so && \
                     ! -f /etc/nginx/modules-available/mod-http-brotli-filter.conf ]]; then
                     run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_brotli_filter_module.so\";' \
@@ -949,6 +954,18 @@ function init_nginx_install() {
                         > /etc/nginx/modules-available/mod-http-cache-purge.conf"
                 fi
 
+                if [[ -f /usr/lib/nginx/modules/ngx_http_dav_ext_module.so && \
+                    ! -f /etc/nginx/modules-available/mod-http-dav-ext.conf ]]; then
+                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_dav_ext_module.so\";' \
+                        > /etc/nginx/modules-available/mod-http-dav-ext.conf"
+                fi
+
+                if [[ -f /usr/lib/nginx/modules/ngx_http_echo_module.so && \
+                    ! -f /etc/nginx/modules-available/mod-http-echo.conf ]]; then
+                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_echo_module.so\";' \
+                        > /etc/nginx/modules-available/mod-http-echo.conf"
+                fi
+
                 if [[ -f /usr/lib/nginx/modules/ngx_http_fancyindex_module.so && \
                     ! -f /etc/nginx/modules-available/mod-http-fancyindex.conf ]]; then
                     run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_fancyindex_module.so\";' \
@@ -959,6 +976,12 @@ function init_nginx_install() {
                     ! -f /etc/nginx/modules-available/mod-http-geoip.conf ]]; then
                     run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_geoip_module.so\";' \
                         > /etc/nginx/modules-available/mod-http-geoip.conf"
+                fi
+
+                if [[ -f /usr/lib/nginx/modules/ngx_http_geoip2_module.so && \
+                    ! -f /etc/nginx/modules-available/mod-http-geoip2.conf ]]; then
+                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_geoip2_module.so\";' \
+                        > /etc/nginx/modules-available/mod-http-geoip2.conf"
                 fi
 
                 if [[ -f /usr/lib/nginx/modules/ngx_http_headers_more_filter_module.so && \
@@ -997,10 +1020,22 @@ function init_nginx_install() {
                         > /etc/nginx/modules-available/mod-http-redis2.conf"
                 fi
 
+                if [[ -f /usr/lib/nginx/modules/ngx_http_subs_filter_module.so && \
+                    ! -f /etc/nginx/modules-available/mod-http-subs-filter.conf ]]; then
+                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_subs_filter_module.so\";' \
+                        > /etc/nginx/modules-available/mod-http-subs-filter.conf"
+                fi
+
+                if [[ -f /usr/lib/nginx/modules/ngx_http_upstream_fair_module.so && \
+                    ! -f /etc/nginx/modules-available/mod-http-upstream-fair.conf ]]; then
+                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_upstream_fair_module.so\";' \
+                        > /etc/nginx/modules-available/mod-http-upstream-fair.conf"
+                fi
+
                 if [[ -f /usr/lib/nginx/modules/ngx_http_vhost_traffic_status_module.so && \
-                    ! -f /etc/nginx/modules-available/mod-http-vts.conf ]]; then
+                    ! -f /etc/nginx/modules-available/mod-http-vhost-traffic-status.conf ]]; then
                     run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_vhost_traffic_status_module.so\";' \
-                        > /etc/nginx/modules-available/mod-http-vts.conf"
+                        > /etc/nginx/modules-available/mod-http-vhost-traffic-status.conf"
                 fi
 
                 if [[ -f /usr/lib/nginx/modules/ngx_http_xslt_filter_module.so && \
@@ -1033,34 +1068,52 @@ function init_nginx_install() {
                         > /etc/nginx/modules-available/mod-rtmp.conf"
                 fi
 
+                if [[ -f /usr/lib/nginx/modules/ngx_stream_geoip2_module.so && \
+                    ! -f /etc/nginx/modules-available/mod-stream-geoip2.conf ]]; then
+                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_stream_geoip2_module.so\";' \
+                        > /etc/nginx/modules-available/mod-stream-geoip2.conf"
+                fi
+
+                if [[ -f /usr/lib/nginx/modules/ngx_stream_geoip_module.so && \
+                    ! -f /etc/nginx/modules-available/mod-stream-geoip.conf ]]; then
+                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_stream_geoip_module.so\";' \
+                        > /etc/nginx/modules-available/mod-stream-geoip.conf"
+                fi
+
                 if [[ -f /usr/lib/nginx/modules/ngx_stream_module.so && \
                     ! -f /etc/nginx/modules-available/mod-stream.conf ]]; then
                     run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_stream_module.so\";' \
                         > /etc/nginx/modules-available/mod-stream.conf"
                 fi
 
-                # Enable NGiNX Dynamic Module.
+                # Enable Nginx Dynamic Module.
                 if "${NGINX_DYNAMIC_MODULE}"; then
                     ENABLE_NGXDM=y
                 else
                     echo ""
                     while [[ "${ENABLE_NGXDM}" != "y" && "${ENABLE_NGXDM}" != "n" ]]; do
-                        read -rp "Enable NGiNX dynamic modules? [y/n]: " -i y -e ENABLE_NGXDM
+                        read -rp "Enable Nginx dynamic modules? [y/n]: " -i y -e ENABLE_NGXDM
                     done
                 fi
 
                 # Enable Dynamic modules.
                 if [[ "${ENABLE_NGXDM}" == Y* || "${ENABLE_NGXDM}" == y* ]]; then
+                    if [[ "${NGX_HTTP_AUTH_PAM}" && \
+                        -f /etc/nginx/modules-available/mod-http-auth-pam.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-http-auth-pam.conf \
+                            /etc/nginx/modules-enabled/60-mod-http-auth-pam.conf
+                    fi
+
                     if [[ "${NGX_HTTP_BROTLI}" && \
                         -f /etc/nginx/modules-available/mod-http-brotli-filter.conf ]]; then
                         run ln -fs /etc/nginx/modules-available/mod-http-brotli-filter.conf \
-                            /etc/nginx/modules-enabled/50-mod-http-brotli-filter.conf
+                            /etc/nginx/modules-enabled/20-mod-http-brotli-filter.conf
                     fi
 
                     if [[ "${NGX_HTTP_BROTLI}" && \
                         -f /etc/nginx/modules-available/mod-http-brotli-static.conf ]]; then
                         run ln -fs /etc/nginx/modules-available/mod-http-brotli-static.conf \
-                            /etc/nginx/modules-enabled/50-mod-http-brotli-static.conf
+                            /etc/nginx/modules-enabled/20-mod-http-brotli-static.conf
                     fi
 
                     if [[ "${NGX_HTTP_CACHE_PURGE}" && \
@@ -1069,22 +1122,46 @@ function init_nginx_install() {
                             /etc/nginx/modules-enabled/50-mod-http-cache-purge.conf
                     fi
 
+                    if [[ "${NGX_HTTP_DAV_EXT}" && \
+                        -f /etc/nginx/modules-available/mod-http-dav-ext.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-http-dav-ext.conf \
+                            /etc/nginx/modules-enabled/60-mod-http-dav-ext.conf
+                    fi
+
+                    if [[ "${NGX_HTTP_ECHO}" && \
+                        -f /etc/nginx/modules-available/mod-http-echo.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-http-echo.conf \
+                            /etc/nginx/modules-enabled/60-mod-http-echo.conf
+                    fi
+
                     if [[ "${NGX_HTTP_FANCYINDEX}" && \
                         -f /etc/nginx/modules-available/mod-http-fancyindex.conf ]]; then
                         run ln -fs /etc/nginx/modules-available/mod-http-fancyindex.conf \
-                            /etc/nginx/modules-enabled/50-mod-http-fancyindex.conf
+                            /etc/nginx/modules-enabled/40-mod-http-fancyindex.conf
+                    fi
+
+                    if [[ "${NGX_HTTP_GEOIP2}" && \
+                        -f /etc/nginx/modules-available/mod-http-geoip2.conf ]]; then
+                        run ln -s /etc/nginx/modules-available/mod-http-geoip2.conf \
+                            /etc/nginx/modules-enabled/50-mod-http-geoip2.conf
+                    fi
+
+                    if [[ "${NGX_HTTP_GEOIP}" && \
+                        -f /etc/nginx/modules-available/mod-http-geoip.conf ]]; then
+                        run ln -s /etc/nginx/modules-available/mod-http-geoip.conf \
+                            /etc/nginx/modules-enabled/50-mod-http-geoip.conf
                     fi
 
                     if [[ "${NGX_HTTP_HEADERS_MORE}" && \
                         -f /etc/nginx/modules-available/mod-http-headers-more-filter.conf ]]; then
                         run ln -fs /etc/nginx/modules-available/mod-http-headers-more-filter.conf \
-                            /etc/nginx/modules-enabled/50-mod-http-headers-more-filter.conf
+                            /etc/nginx/modules-enabled/40-mod-http-headers-more-filter.conf
                     fi
 
-                    if [[ "${NGX_HTTP_GEOIP2}" && \
-                        -f /etc/nginx/modules-available/mod-http-geoip.conf ]]; then
-                        run ln -s /etc/nginx/modules-available/mod-http-geoip.conf \
-                            /etc/nginx/modules-enabled/50-mod-http-geoip.conf
+                    if [[ "${NGX_HTTP_IMAGE_FILTER}" && \
+                        -f /etc/nginx/modules-available/mod-http-image-filter.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-http-image-filter.conf \
+                            /etc/nginx/modules-enabled/50-mod-http-image-filter.conf
                     fi
 
                     if [[ "${NGX_HTTP_MEMCACHED}" && \
@@ -1111,10 +1188,40 @@ function init_nginx_install() {
                             /etc/nginx/modules-enabled/50-mod-http-redis2.conf
                     fi
 
+                    if [[ "${NGX_HTTP_SUBS_FILTER}" && \
+                        -f /etc/nginx/modules-available/mod-http-subs-filter.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-http-subs-filter.conf \
+                            /etc/nginx/modules-enabled/40-mod-http-subs-filter.conf
+                    fi
+
+                    if [[ "${NGX_HTTP_UPSTREAM_FAIR}" && \
+                        -f /etc/nginx/modules-available/mod-http-upstream-fair.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-http-upstream-fair.conf \
+                            /etc/nginx/modules-enabled/40-mod-http-upstream-fair.conf
+                    fi
+
+                    if [[ "${NGX_HTTP_VTS}" && \
+                        -f /etc/nginx/modules-available/mod-http-vhost-traffic-status.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-http-vhost-traffic-status.conf \
+                            /etc/nginx/modules-enabled/40-mod-http-vhost-traffic-status.conf
+                    fi
+
+                    if [[ "${NGX_HTTP_XSLT_FILTER}" && \
+                        -f /etc/nginx/modules-available/mod-http-xslt-filter.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-http-xslt-filter.conf \
+                            /etc/nginx/modules-enabled/50-mod-http-xslt-filter.conf
+                    fi
+
                     if [[ "${NGX_MAIL}" && \
                         -f /etc/nginx/modules-available/mod-mail.conf ]]; then
                         run ln -fs /etc/nginx/modules-available/mod-mail.conf \
                             /etc/nginx/modules-enabled/60-mod-mail.conf
+                    fi
+
+                    if [[ "${NGX_NCHAN}" && \
+                        -f /etc/nginx/modules-available/mod-nchan.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-nchan.conf \
+                            /etc/nginx/modules-enabled/50-mod-nchan.conf
                     fi
 
                     if [[ "${NGX_PAGESPEED}" && \
@@ -1127,16 +1234,26 @@ function init_nginx_install() {
                         -f /etc/nginx/modules-available/mod-stream.conf ]]; then
                         run ln -fs /etc/nginx/modules-available/mod-stream.conf \
                             /etc/nginx/modules-enabled/60-mod-stream.conf
+                        
+                        if [[ "${NGX_HTTP_GEOIP2}" && \
+                            -f /etc/nginx/modules-available/mod-stream-geoip2.conf ]]; then
+                            run ln -fs /etc/nginx/modules-available/mod-stream-geoip2.conf \
+                                /etc/nginx/modules-enabled/60-mod-stream-geoip2.conf
+                        elif [[ "${NGX_HTTP_GEOIP}" && \
+                            -f /etc/nginx/modules-available/mod-stream-geoip.conf ]]; then
+                            run ln -fs /etc/nginx/modules-available/mod-stream-geoip.conf \
+                                /etc/nginx/modules-enabled/60-mod-stream-geoip.conf
+                        fi
                     fi
                 fi
 
-                # NGiNX init script.
+                # Nginx init script.
                 if [ ! -f /etc/init.d/nginx ]; then
                     run cp etc/init.d/nginx /etc/init.d/
                     run chmod ugo+x /etc/init.d/nginx
                 fi
 
-                # NGiNX systemd script.
+                # Nginx systemd script.
                 if [ ! -f /lib/systemd/system/nginx.service ]; then
                     run cp etc/systemd/nginx.service /lib/systemd/system/
                 fi
@@ -1157,11 +1274,11 @@ function init_nginx_install() {
             ;;
             *)
                 # Skip installation.
-                error "Installer method not supported. NGiNX installation skipped."
+                error "Installer method not supported. Nginx installation skipped."
             ;;
         esac
 
-        echo "Creating NGiNX configuration..."
+        echo "Creating Nginx configuration..."
 
         if [ ! -d /etc/nginx/sites-available ]; then
             run mkdir -p /etc/nginx/sites-available
@@ -1171,7 +1288,7 @@ function init_nginx_install() {
             run mkdir -p /etc/nginx/sites-enabled
         fi
 
-        # Copy custom NGiNX Config.
+        # Copy custom Nginx Config.
         if [ -f /etc/nginx/nginx.conf ]; then
             run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf~
         fi
@@ -1218,7 +1335,7 @@ function init_nginx_install() {
             run chown -hR www-data:www-data /usr/share/nginx/html
         fi
 
-        # NGiNX cache directory.
+        # Nginx cache directory.
         if [ ! -d /var/cache/nginx/fastcgi_cache ]; then
             run mkdir -p /var/cache/nginx/fastcgi_cache
         fi
@@ -1230,7 +1347,7 @@ function init_nginx_install() {
         run chown -hR www-data:www-data /var/cache/nginx
 
         # Adjust nginx to meet hardware resources.
-        echo "Adjusting NGiNX configuration..."
+        echo "Adjusting Nginx configuration..."
 
         local CPU_CORES && \
         CPU_CORES=$(grep -c processor /proc/cpuinfo)
@@ -1282,7 +1399,7 @@ function init_nginx_install() {
 
         # Final test.
         if "${DRYRUN}"; then
-            info "NGiNX HTTP server installed in dryrun mode."
+            info "Nginx HTTP server installed in dryrun mode."
         else
             # Make default server accessible from hostname or IP address.
             if [[ $(dig "${HOSTNAME}" +short) = "${SERVER_IP}" ]]; then
@@ -1291,12 +1408,12 @@ function init_nginx_install() {
                 run sed -i "s/localhost.localdomain/${SERVER_IP}/g" /etc/nginx/sites-available/default
             fi
 
-            # Restart NGiNX server
-            echo "Starting NGiNX HTTP server..."
+            # Restart Nginx server
+            echo "Starting Nginx HTTP server..."
             if [[ $(pgrep -c nginx) -gt 0 ]]; then
                 if nginx -t 2>/dev/null > /dev/null; then
                     run systemctl reload nginx
-                    success "NGiNX HTTP server restarted successfully."
+                    success "Nginx HTTP server restarted successfully."
                 else
                     error "Nginx configuration test failed. Please correct the error below:"
                     run nginx -t
@@ -1306,9 +1423,9 @@ function init_nginx_install() {
                     run systemctl start nginx
 
                     if [[ $(pgrep -c nginx) -gt 0 ]]; then
-                        success "NGiNX HTTP server started successfully."
+                        success "Nginx HTTP server started successfully."
                     else
-                        info "Something went wrong with NGiNX installation."
+                        info "Something went wrong with Nginx installation."
                     fi
                 else
                     error "Nginx configuration test failed. Please correct the error below:"
@@ -1317,11 +1434,11 @@ function init_nginx_install() {
             fi
         fi
     else
-        info "NGiNX HTTP (web) server installation skipped."
+        info "Nginx HTTP (web) server installation skipped."
     fi
 }
 
-echo "[NGiNX HTTP (Web) Server Installation]"
+echo "[Nginx HTTP (Web) Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
