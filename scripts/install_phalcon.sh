@@ -346,45 +346,41 @@ function init_phalcon_install() {
         fi
 
         # Select Phalcon version.
-        #if [[ ${SELECTED_INSTALLER} == "source" || ${SELECTED_INSTALLER} == "2" ]]; then
-            if "${AUTO_INSTALL}"; then
-                if [ -z "${SELECTED_PHALCON}" ]; then
-                    SELECTED_PHALCON=${PHP_PHALCON_VERSION}
-                fi
-            else
-                echo ""
-                echo "Which version of cPhalcon to be installed?"
-                echo "Supported cPhalcon versions:"
-                echo "  1). cPhalcon 3.4.x (Supported PHP versions: 5.6, 7.0, 7.1) [EOL]"
-                echo "  2). cPhalcon 4.0.x (Supported PHP versions: 7.2, 7.3, 7.4) [Latest]"
-                echo "Check the cPhalcon available version from their Github release page!"
-                echo "-----------------------------------------------------------------------"
-                [ -n "${PHP_PHALCON_VERSION}" ] && \
-                info "Pre-defined selected cPhalcon version is: ${PHP_PHALCON_VERSION}"
-
-                while [[ ${SELECTED_PHALCON} != "1" && ${SELECTED_PHALCON} != "2" && \
-                    ${SELECTED_PHALCON} != "3.4.x" && ${SELECTED_PHALCON} != "4.0.x" && \
-                    $(curl -sLI "https://github.com/phalcon/cphalcon/archive/v${SELECTED_PHALCON}.tar.gz" | grep "HTTP/[.12]* [2]..") == "" && \
-                    $(curl -sLI "https://raw.githubusercontent.com/phalcon/cphalcon/${SELECTED_PHALCON}/README.md" | grep "HTTP/[.12]* [2]..") == ""
-                ]]; do
-                    read -rp "Select a cPhalcon version [3.4.x, 4.0.x] or an option [1-2]: " -e SELECTED_PHALCON
-                done
+        if "${AUTO_INSTALL}"; then
+            if [ -z "${SELECTED_PHALCON}" ]; then
+                SELECTED_PHALCON=${PHP_PHALCON_VERSION}
             fi
+        else
+            echo ""
+            echo "Which version of cPhalcon to be installed?"
+            echo "Supported cPhalcon versions:"
+            echo "  1). cPhalcon 3.4.x (Supported PHP versions: 5.6, 7.0, 7.1) [EOL]"
+            echo "  2). cPhalcon 4.0.x (Supported PHP versions: 7.2, 7.3, 7.4) [Latest]"
+            echo "Check the cPhalcon available version from their Github release page!"
+            echo "-----------------------------------------------------------------------"
+            [ -n "${PHP_PHALCON_VERSION}" ] && \
+            info "Pre-defined selected cPhalcon version is: ${PHP_PHALCON_VERSION}"
 
-            case "${SELECTED_PHALCON}" in
-                1|"3.4.x")
-                    PHALCON_VERSION="3.4.5" # The latest version from Phalcon 3 branch.
-                ;;
-                2|"4.0.x")
-                    PHALCON_VERSION="4.0.2" # The latest version from Phalcon 4 branch.
-                ;;
-                *)
-                    PHALCON_VERSION=${SELECTED_PHALCON}
-                ;;
-            esac
-        #else
-        #    PHALCON_VERSION=${PHP_PHALCON_VERSION}
-        #fi
+            while [[ ${SELECTED_PHALCON} != "1" && ${SELECTED_PHALCON} != "2" && \
+                ${SELECTED_PHALCON} != "3.4.x" && ${SELECTED_PHALCON} != "4.0.x" && \
+                $(curl -sLI "https://github.com/phalcon/cphalcon/archive/v${SELECTED_PHALCON}.tar.gz" | grep "HTTP/[.12]* [2]..") == "" && \
+                $(curl -sLI "https://raw.githubusercontent.com/phalcon/cphalcon/${SELECTED_PHALCON}/README.md" | grep "HTTP/[.12]* [2]..") == ""
+            ]]; do
+                read -rp "Select a cPhalcon version [3.4.x, 4.0.x] or an option [1-2]: " -e SELECTED_PHALCON
+            done
+        fi
+
+        case "${SELECTED_PHALCON}" in
+            1|"3.4.x")
+                PHALCON_VERSION="3.4.5" # The latest version from Phalcon 3 branch.
+            ;;
+            2|"4.0.x")
+                PHALCON_VERSION="4.0.6" # The latest version from Phalcon 4 branch.
+            ;;
+            *)
+                PHALCON_VERSION=${SELECTED_PHALCON}
+            ;;
+        esac
 
         # Select PHP version.
         if "${AUTO_INSTALL}"; then
