@@ -778,8 +778,6 @@ _EOF_
 # Installing WordPress skeleton.
 #
 function install_wordpress() {
-    #WPCLI_BIN=$(command -v wp-cli)
-
     if ! "${DRYRUN}"; then
         # Clone new WordPress skeleton files
         if [[ ${INSTALL_APP} == true ]]; then
@@ -793,7 +791,7 @@ function install_wordpress() {
                 fi
 
                 # Download WordPress skeleton files.
-                run sudo -u "${USERNAME}" -i -- "${WPCLI_BIN}" core download --path="${WEBROOT}"
+                run sudo -u "${USERNAME}" -i -- wp-cli core download --path="${WEBROOT}"
 
                 echo "Creating WordPress database..."
                 APP_UNIQUE="wp$(openssl rand -base64 32 | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)"
@@ -805,7 +803,7 @@ function install_wordpress() {
 
                 run /usr/local/bin/lemper-cli db account create --dbuser="${APP_DB_USER}" --dbpass="${APP_DB_PASS}" && \
                 run /usr/local/bin/lemper-cli db create --dbname="${APP_DB_NAME}" --dbuser="${APP_DB_USER}" && \
-                run sudo -u "${USERNAME}" -i -- "${WPCLI_BIN}" config create --dbname="${APP_DB_NAME}" \
+                run sudo -u "${USERNAME}" -i -- wp-cli config create --dbname="${APP_DB_NAME}" \
                     --dbuser="${APP_DB_USER}" --dbpass="${APP_DB_PASS}" --dbprefix=lp_ --path="${WEBROOT}"
             else
                 info "It seems that WordPress files already exists."
@@ -1300,12 +1298,10 @@ function init_app() {
                     # Install WordPress skeleton.
                     install_wordpress
 
-                    WPCLI_BIN=$(command -v wp-cli)
-
-                    if [ -n "${WPCLI_BIN}" ]; then
-                        run sudo -u "${USERNAME}" -i -- "${WPCLI_BIN}" core install --url="${SERVERNAME}" --title="WordPress Site Powered by LEMPer.sh" \
+                    if ! command -v wp-cli &> /dev/null; then
+                        run sudo -u "${USERNAME}" -i -- wp-cli core install --url="${SERVERNAME}" --title="WordPress Site Powered by LEMPer.sh" \
                             --admin_user="${APP_ADMIN_USER}" --admin_password="${APP_ADMIN_PASS}" --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
-                        run sudo -u "${USERNAME}" -i -- "${WPCLI_BIN}" plugin install akismet nginx-helper --activate --path="${WEBROOT}"
+                        run sudo -u "${USERNAME}" -i -- wp-cli plugin install akismet nginx-helper --activate --path="${WEBROOT}"
                     fi
 
                     # Install WooCommerce.
@@ -1314,8 +1310,8 @@ function init_app() {
                             ! -d "${WEBROOT}/wp-content/plugins/woocommerce" ]]; then
                             echo "Add WooCommerce plugin into WordPress skeleton..."
 
-                            if [ -n "${WPCLI_BIN}" ]; then
-                                run sudo -u "${USERNAME}" -i -- "${WPCLI_BIN}" plugin install woocommerce --activate --path="${WEBROOT}"
+                            if ! command -v wp-cli &> /dev/null; then
+                                run sudo -u "${USERNAME}" -i -- wp-cli plugin install woocommerce --activate --path="${WEBROOT}"
                             else
                                 if wget -q -O "${TMPDIR}/woocommerce.zip" \
                                     https://downloads.wordpress.org/plugin/woocommerce.zip; then
@@ -1342,13 +1338,11 @@ function init_app() {
                     # Install WordPress.
                     install_wordpress
 
-                    WPCLI_BIN=$(command -v wp-cli)
-
-                    if [ -n "${WPCLI_BIN}" ]; then
-                        run sudo -u "${USERNAME}" -i -- "${WPCLI_BIN}" core multisite-install --subdomains --url="${SERVERNAME}" \
+                    if ! command -v wp-cli &> /dev/null; then
+                        run sudo -u "${USERNAME}" -i -- wp-cli core multisite-install --subdomains --url="${SERVERNAME}" \
                             --title="WordPress Multi-site Powered by LEMPer.sh" --admin_user="${APP_ADMIN_USER}" \
                             --admin_password="${APP_ADMIN_PASS}" --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
-                        run sudo -u "${USERNAME}" -i -- "${WPCLI_BIN}" plugin install akismet nginx-helper --activate-network --path="${WEBROOT}"
+                        run sudo -u "${USERNAME}" -i -- wp-cli plugin install akismet nginx-helper --activate-network --path="${WEBROOT}"
                     fi
 
                     # Mercator domain mapping.
@@ -1461,7 +1455,8 @@ _EOL_
                 info "New domain ${SERVERNAME} added in dry run mode."
             else
                 if [[ ${INSTALL_APP} == true ]]; then
-                    echo "Your application login; user: ${APP_ADMIN_USER}, pass: ${APP_ADMIN_PASS}, email: ${APP_ADMIN_EMAIL}"
+                    echo -e "Your application login details: Admin user: ${APP_ADMIN_USER}\nAdmin pass: ${APP_ADMIN_PASS}\nAdmin email: ${APP_ADMIN_EMAIL}"
+                    echo -e "Database user: ${APP_DB_USER}\nDatabase pass: ${APP_DB_PASS}\nDatabase name: ${APP_DB_NAME}"
                 fi
 
                 # Confirm virtual host.
