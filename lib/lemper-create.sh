@@ -778,14 +778,14 @@ _EOF_
 # Installing WordPress skeleton.
 #
 function install_wordpress() {
-    WPCLI_BIN=$(command -v wp-cli)
+    #WPCLI_BIN=$(command -v wp-cli)
 
     if ! "${DRYRUN}"; then
         # Clone new WordPress skeleton files
         if [[ ${INSTALL_APP} == true ]]; then
             # Check WordPress install directory.
             if [ ! -f "${WEBROOT}/wp-includes/class-wp.php" ]; then
-                if [ -z "${WPCLI_BIN}" ]; then
+                if ! command -v wp-cli &> /dev/null; then
                     info "WP CLI command not found, trying to install it first."
                     run wget -q https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
                          -O /usr/local/bin/wp-cli && \
