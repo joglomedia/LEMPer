@@ -1299,7 +1299,7 @@ function init_app() {
                     install_wordpress
 
                     if command -v wp-cli &> /dev/null; then
-                        run sudo -u "${USERNAME}" -i -- wp-cli core install --url="${SERVERNAME}" --title="WordPress Site Powered by LEMPer.sh" \
+                        run sudo -u "${USERNAME}" -i -- wp-cli core install --url="${SERVERNAME}" --title="WordPress Site Managed by LEMPer.sh" \
                             --admin_user="${APP_ADMIN_USER}" --admin_password="${APP_ADMIN_PASS}" --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
                         run sudo -u "${USERNAME}" -i -- wp-cli plugin install akismet nginx-helper --activate --path="${WEBROOT}"
                     fi
@@ -1340,7 +1340,7 @@ function init_app() {
 
                     if command -v wp-cli &> /dev/null; then
                         run sudo -u "${USERNAME}" -i -- wp-cli core multisite-install --subdomains --url="${SERVERNAME}" \
-                            --title="WordPress Multi-site Powered by LEMPer.sh" --admin_user="${APP_ADMIN_USER}" \
+                            --title="WordPress Multi-site Managed by LEMPer.sh" --admin_user="${APP_ADMIN_USER}" \
                             --admin_password="${APP_ADMIN_PASS}" --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
                         run sudo -u "${USERNAME}" -i -- wp-cli plugin install akismet nginx-helper --activate-network --path="${WEBROOT}"
                     fi
