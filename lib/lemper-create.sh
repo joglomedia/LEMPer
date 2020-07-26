@@ -1298,7 +1298,7 @@ function init_app() {
                     echo "Setting up WordPress virtual host..."
 
                     # Install WordPress skeleton.
-                    install_wordpress ${INSTALL_APP}
+                    install_wordpress
 
                     WPCLI_BIN=$(command -v wp-cli)
 
@@ -1340,7 +1340,7 @@ function init_app() {
                     echo "Setting up WordPress Multi-site virtual host..."
 
                     # Install WordPress.
-                    install_wordpress ${INSTALL_APP}
+                    install_wordpress
 
                     WPCLI_BIN=$(command -v wp-cli)
 
