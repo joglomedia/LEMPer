@@ -1454,11 +1454,6 @@ _EOL_
             if "${DRYRUN}"; then
                 info "New domain ${SERVERNAME} added in dry run mode."
             else
-                if [[ ${INSTALL_APP} == true ]]; then
-                    echo -e "Your application login details: Admin user: ${APP_ADMIN_USER}\nAdmin pass: ${APP_ADMIN_PASS}\nAdmin email: ${APP_ADMIN_EMAIL}"
-                    echo -e "Database user: ${APP_DB_USER}\nDatabase pass: ${APP_DB_PASS}\nDatabase name: ${APP_DB_NAME}"
-                fi
-
                 # Confirm virtual host.
                 if grep -qwE "server_name ${SERVERNAME}" "${VHOST_FILE}"; then
                     success "New domain ${SERVERNAME} successfuly added to virtual host."
@@ -1600,6 +1595,12 @@ _EOL_
                     echo >&2
                     info "Note: You're installing Wordpress Multisite."
                     info "You should activate Nginx Helper plugin to work properly."
+                fi
+
+                # App install details
+                if [[ ${INSTALL_APP} == true ]]; then
+                    echo -e "\nYour application login details:\nAdmin user: ${APP_ADMIN_USER}\nAdmin pass: ${APP_ADMIN_PASS}\nAdmin email: ${APP_ADMIN_EMAIL}"
+                    echo -e "Database user: ${APP_DB_USER}\nDatabase pass: ${APP_DB_PASS}\nDatabase name: ${APP_DB_NAME}"
                 fi
             else
                 if "${DRYRUN}"; then
