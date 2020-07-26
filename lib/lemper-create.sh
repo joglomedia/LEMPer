@@ -783,7 +783,7 @@ function install_wordpress() {
         if [[ ${INSTALL_APP} == true ]]; then
             # Check WordPress install directory.
             if [ ! -f "${WEBROOT}/wp-includes/class-wp.php" ]; then
-                if ! command -v wp-cli &> /dev/null; then
+                if ! command -v wp-cli 2>/dev/null; then
                     info "WP CLI command not found, trying to install it first."
                     run wget -q https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
                          -O /usr/local/bin/wp-cli && \
@@ -1298,7 +1298,7 @@ function init_app() {
                     # Install WordPress skeleton.
                     install_wordpress
 
-                    if ! command -v wp-cli &> /dev/null; then
+                    if command -v wp-cli 2>/dev/null; then
                         run sudo -u "${USERNAME}" -i -- wp-cli core install --url="${SERVERNAME}" --title="WordPress Site Powered by LEMPer.sh" \
                             --admin_user="${APP_ADMIN_USER}" --admin_password="${APP_ADMIN_PASS}" --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
                         run sudo -u "${USERNAME}" -i -- wp-cli plugin install akismet nginx-helper --activate --path="${WEBROOT}"
@@ -1310,7 +1310,7 @@ function init_app() {
                             ! -d "${WEBROOT}/wp-content/plugins/woocommerce" ]]; then
                             echo "Add WooCommerce plugin into WordPress skeleton..."
 
-                            if ! command -v wp-cli &> /dev/null; then
+                            if command -v wp-cli 2>/dev/null; then
                                 run sudo -u "${USERNAME}" -i -- wp-cli plugin install woocommerce --activate --path="${WEBROOT}"
                             else
                                 if wget -q -O "${TMPDIR}/woocommerce.zip" \
@@ -1338,7 +1338,7 @@ function init_app() {
                     # Install WordPress.
                     install_wordpress
 
-                    if ! command -v wp-cli &> /dev/null; then
+                    if command -v wp-cli 2>/dev/null; then
                         run sudo -u "${USERNAME}" -i -- wp-cli core multisite-install --subdomains --url="${SERVERNAME}" \
                             --title="WordPress Multi-site Powered by LEMPer.sh" --admin_user="${APP_ADMIN_USER}" \
                             --admin_password="${APP_ADMIN_PASS}" --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
