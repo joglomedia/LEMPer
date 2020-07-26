@@ -1312,6 +1312,7 @@ function init_app() {
 
                             if command -v wp-cli &> /dev/null; then
                                 run sudo -u "${USERNAME}" -i -- wp-cli plugin install woocommerce --activate --path="${WEBROOT}"
+                                run sudo -u "${USERNAME}" -i -- wp-cli theme install storefront --activate --path="${WEBROOT}"
                             else
                                 if wget -q -O "${TMPDIR}/woocommerce.zip" \
                                     https://downloads.wordpress.org/plugin/woocommerce.zip; then
