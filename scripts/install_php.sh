@@ -56,7 +56,7 @@ function install_php_fpm() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
+        PHPv=${PHP_VERSION:-"7.4"}
     fi
     local PHP_PKGS=()
     export PHP_IS_INSTALLED="no"
@@ -194,7 +194,7 @@ function optimize_php_fpm() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
+        PHPv=${PHP_VERSION:-"7.4"}
     fi
 
     echo "Optimizing PHP ${PHPv} & FPM configuration..."
@@ -304,7 +304,7 @@ php_flag[display_errors] = On
 ;php_admin_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_flag[log_errors] = On
-php_admin_value[error_log] = /var/log/php/php7.3-fpm.\$pool.log
+php_admin_value[error_log] = /var/log/php/php7.4-fpm.\$pool.log
 php_admin_value[date.timezone] = UTC
 php_admin_value[memory_limit] = 128M
 php_admin_value[opcache.file_cache] = /usr/share/nginx/html/.lemper/php/opcache
@@ -428,7 +428,7 @@ function install_php_composer() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
+        PHPv=${PHP_VERSION:-"7.4"}
     fi
 
     # Checking if php composer already installed.
@@ -520,7 +520,7 @@ function init_php_fpm_install() {
     if [ -n "${OPT_PHP_VERSION}" ]; then
         PHP_VERSION=${OPT_PHP_VERSION}
     else
-        PHP_VERSION=${PHP_VERSION:-"7.3"}
+        PHP_VERSION=${PHP_VERSION:-"7.4"}
     fi
 
     if "${AUTO_INSTALL}"; then
@@ -532,62 +532,69 @@ function init_php_fpm_install() {
         echo "Supported PHP versions:"
         echo "  1). PHP 5.6 (EOL)"
         echo "  2). PHP 7.0 (EOL)"
-        echo "  3). PHP 7.1 (SFO)"
-        echo "  4). PHP 7.2 (Stable)"
-        echo "  5). PHP 7.3 (Stable)"
-        echo "  6). PHP 7.4 (Latest stable)"
-        echo "  7). All available versions"
+        echo "  3). PHP 7.1 (EOL)"
+        echo "  4). PHP 7.2 (EOL)"
+        echo "  5). PHP 7.3 (SFO)"
+        echo "  6). PHP 7.4 (Stable)"
+        echo "  7). PHP 8.0 (Latest Stable)"
+        echo "  8). All available versions"
         echo "--------------------------------------------"
         [ -n "${PHP_VERSION}" ] && \
         info "Pre-defined selected version is: ${PHP_VERSION}"
 
         while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                 ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
-                ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && \
-                ${SELECTED_PHP} != "7.1" && ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && \
-                ${SELECTED_PHP} != "7.4" && ${SELECTED_PHP} != "all" ]]; do
-            read -rp "Select a PHP version or an option [1-7]: " -e SELECTED_PHP
+                ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && \
+                ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && ${SELECTED_PHP} != "7.1" && \
+                ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
+                ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "all" ]]; do
+            read -rp "Enter a PHP version from an option above [7.4]: " -e SELECTED_PHP
         done
     fi
 
-    local PHPv
+    #local PHPv
     case ${SELECTED_PHP} in
         1|"5.6")
-            PHPv="5.6"
-            install_php_fpm "${PHPv}"
+            #PHPv="5.6"
+            install_php_fpm "5.6"
         ;;
         2|"7.0")
-            PHPv="7.0"
-            install_php_fpm "${PHPv}"
+            #PHPv="7.0"
+            install_php_fpm "7.0"
         ;;
         3|"7.1")
-            PHPv="7.1"
-            install_php_fpm "${PHPv}"
+            #PHPv="7.1"
+            install_php_fpm "7.1"
         ;;
         4|"7.2")
-            PHPv="7.2"
-            install_php_fpm "${PHPv}"
+            #PHPv="7.2"
+            install_php_fpm "7.2"
         ;;
         5|"7.3")
-            PHPv="7.3"
-            install_php_fpm "${PHPv}"
+            #PHPv="7.3"
+            install_php_fpm "7.3"
         ;;
         6|"7.4")
-            PHPv="7.4"
-            install_php_fpm "${PHPv}"
+            #PHPv="7.4"
+            install_php_fpm "7.4"
         ;;
-        7|"all")
+        7|"8.0")
+            #PHPv="8.0"
+            install_php_fpm "8.0"
+        ;;
+        8|"all")
             # Install all PHP version (except EOL & Beta).
-            PHPv="all"
+            #PHPv="all"
             install_php_fpm "5.6"
             install_php_fpm "7.0"
             install_php_fpm "7.1"
             install_php_fpm "7.2"
             install_php_fpm "7.3"
             install_php_fpm "7.4"
+            install_php_fpm "8.0"
         ;;
         *)
-            PHPv="unsupported"
+            #PHPv="unsupported"
             error "Your selected PHP version ${SELECTED_PHP} is not supported yet."
         ;;
     esac
@@ -596,11 +603,11 @@ function init_php_fpm_install() {
     if [[ -z $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
         info -e "\nLEMPer requires PHP ${DEFAULT_PHP_VERSION} as default to run its administration tools."
         echo "PHP ${DEFAULT_PHP_VERSION} now being installed..."
-        install_php_fpm "7.3"
+        install_php_fpm "7.4"
     fi
 
     # Install PHP composer.
-    install_php_composer "7.3"
+    install_php_composer "7.4"
 }
 
 
@@ -613,7 +620,8 @@ if [[ -n $(command -v php5.6) && \
     -n $(command -v php7.1) && \
     -n $(command -v php7.2) && \
     -n $(command -v php7.3) && \
-    -n $(command -v php7.4) ]]; then
+    -n $(command -v php7.4) && \
+    -n $(command -v php8.0) ]]; then
     info "All available PHP version already exists, installation skipped."
 else
     init_php_fpm_install "$@"
