@@ -114,83 +114,83 @@ function init_nginx_install() {
                         local EXTRA_MODULE_PKGS=()
 
                         if "${NGINX_EXTRA_MODULES}"; then
-                            echo "Install Nginx with extra modules..."
+                            echo "Installing Nginx with extra modules..."
 
                             # Auth PAM
                             if "${NGX_HTTP_AUTH_PAM}"; then
-                                echo "Add ngx-http-auth-pam module..."
+                                echo "Adding ngx-http-auth-pam module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-auth-pam")
                             fi
 
                             # Brotli compression
                             if "${NGX_HTTP_BROTLI}"; then
-                                echo "Add ngx-http-brotli module..."
+                                echo "Adding ngx-http-brotli module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libbrotli1" "libbrotli-dev")
                             fi
 
                             # Cache Purge
                             if "${NGX_HTTP_CACHE_PURGE}"; then
-                                echo "Add ngx-http-cache-purge module..."
+                                echo "Adding ngx-http-cache-purge module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-cache-purge")
                             fi
 
                             # Fancy indexes module for the Nginx web server
                             if "${NGX_HTTP_DAV_EXT}"; then
-                                echo "Add ngx-http-dav-ext module..."
+                                echo "Adding ngx-http-dav-ext module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-dav-ext")
                             fi
 
                             # Echo Nginx
                             if "${NGX_HTTP_ECHO}"; then
-                                echo "Add ngx-http-echo module..."
+                                echo "Adding ngx-http-echo module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-echo")
                             fi
 
                             # Fancy indexes module for the Nginx web server
                             if "${NGX_HTTP_FANCYINDEX}"; then
-                                echo "Add ngx-http-fancyindex module..."
+                                echo "Adding ngx-http-fancyindex module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-fancyindex")
                             fi
 
                             # HTTP Geoip module.
                             if "${NGX_HTTP_GEOIP}"; then
-                                echo "Add ngx-http-geoip module..."
+                                echo "Adding ngx-http-geoip module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libmaxminddb" "libnginx-mod-http-geoip")
                             fi
 
                             # GeoIP2
                             if "${NGX_HTTP_GEOIP2}"; then
-                                echo "Add ngx-http-geoip2 module..."
+                                echo "Adding ngx-http-geoip2 module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libmaxminddb" "libnginx-mod-http-geoip2")
                             fi
 
                             # Headers more module.
                             if "${NGX_HTTP_HEADERS_MORE}"; then
-                                echo "Add ngx-http-headers-more-filter module..."
+                                echo "Adding ngx-http-headers-more-filter module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-headers-more-filter")
                             fi
 
                             # HTTP Image Filter module.
                             if "${NGX_HTTP_IMAGE_FILTER}"; then
-                                echo "Add ngx-http-image-filter module..."
+                                echo "Adding ngx-http-image-filter module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-image-filter")
                             fi
 
                             # Nginx Memc - An extended version of the standard memcached module.
                             if "${NGX_HTTP_MEMCACHED}"; then
-                                echo "Add ngx-http-memcached module..."
+                                echo "Adding ngx-http-memcached module..."
                                 #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-memcached")
                             fi
 
                             # NGX_HTTP_NAXSI is an open-source, high performance, low rules maintenance WAF for NGINX
                             if "${NGX_HTTP_NAXSI}"; then
-                                echo "Add ngx-http-naxsi (Web Application Firewall) module..."
+                                echo "Adding ngx-http-naxsi (Web Application Firewall) module..."
                                 #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-naxsi")
                             fi
 
                             # Nginx mod HTTP Passenger.
                             if "${NGX_HTTP_PASSENGER}"; then
-                                echo "Add ngx-http-passenger module..."
+                                echo "Adding ngx-http-passenger module..."
 
                                 if [[ -n $(command -v passenger-config) ]]; then
                                     echo "Passenger found..."
@@ -202,55 +202,55 @@ function init_nginx_install() {
 
                             # Nginx upstream module for the Redis 2.0 protocol.
                             if "${NGX_HTTP_REDIS2}"; then
-                                echo "Add ngx-http-redis module..."
+                                echo "Adding ngx-http-redis module..."
                                 #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-redis2")
                             fi
 
                             # A filter module which can do both regular expression and fixed string substitutions for nginx
                             if "${NGX_HTTP_SUBS_FILTER}"; then
-                                echo "Add ngx-http-subs-filter module..."
+                                echo "Adding ngx-http-subs-filter module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-subs-filter")
                             fi
 
                             # Upstream Fair
                             if "${NGX_HTTP_UPSTREAM_FAIR}"; then
-                                echo "Add ngx-http-nginx-upstream-fair module..."
+                                echo "Adding ngx-http-nginx-upstream-fair module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-upstream-fair")
                             fi
 
                             # Nginx virtual host traffic status module
                             if "${NGX_HTTP_VTS}"; then
-                                echo "Add ngx-http-module-vts (VHost traffic status) module..."
+                                echo "Adding ngx-http-module-vts (VHost traffic status) module..."
                                 #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-vts")
                             fi
 
                             # HTTP XSLT module.
                             if "${NGX_HTTP_XSLT_FILTER}"; then
-                                echo "Add ngx-http-xslt-filter module..."
+                                echo "Adding ngx-http-xslt-filter module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-xslt-filter")
                             fi
 
                             # Mail module.
                             if "${NGX_MAIL}"; then
-                                echo "Add ngx-mail module..."
+                                echo "Adding ngx-mail module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-mail")
                             fi
 
                             # Nchan, pub/sub queuing server
                             if "${NGX_NCHAN}"; then
-                                echo "Add ngx-nchan (Pub/Sub) module..."
+                                echo "Adding ngx-nchan (Pub/Sub) module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-nchan")
                             fi
 
                             # NGINX-based Media Streaming Server.
                             if "${NGX_RTMP}"; then
-                                echo "Add ngx-rtmp (Media Streaming Server) module..."
+                                echo "Adding ngx-rtmp (Media Streaming Server) module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-rtmp")
                             fi
 
                             # Stream module.
                             if "${NGX_STREAM}"; then
-                                echo "Add ngx-stream module..."
+                                echo "Adding ngx-stream module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-stream")
                             fi
                         fi
@@ -264,7 +264,7 @@ function init_nginx_install() {
             ;;
 
             2|"source")
-                echo "Installing Nginx from source..."
+                echo "Installing Nginx from source, please wait..."
 
                 # CPU core numbers, for building faster.
                 local NB_PROC && \
@@ -274,13 +274,13 @@ function init_nginx_install() {
                 # Nginx version.
                 local NGINX_VERSION=${NGINX_VERSION:-"stable"}
                 if [[ ${NGINX_VERSION} == "mainline" || ${NGINX_VERSION} == "latest" ]]; then
-                    #NGINX_RELEASE_VER="1.17.7"
+                    # Nginx mainline version.
                     NGINX_RELEASE_VER=$(determine_latest_nginx_version)
                 elif [[ ${NGINX_VERSION} == "stable" || ${NGINX_VERSION} == "lts" ]]; then
-                    #NGINX_RELEASE_VER="1.16.1"
+                    # Nginx stable version.
                     NGINX_RELEASE_VER=$(determine_stable_nginx_version)
                 else
-                    #NGINX_RELEASE_VER="1.16.1"
+                    # Fallback to default stable version.
                     NGINX_RELEASE_VER="${NGINX_VERSION}"
                 fi
 
@@ -422,7 +422,7 @@ function init_nginx_install() {
                                 # Make an .openssl directory for nginx and then symlink BoringSSL's include directory tree.
                                 run mkdir -p build .openssl/lib .openssl/include && \
                                 run ln -sf "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/include/openssl" .openssl/include/openssl && \
-                                
+
                                 # Fix "Error 127" during build.
                                 run touch "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/include/openssl/ssl.h" && \
 
@@ -485,7 +485,7 @@ function init_nginx_install() {
 
                         # Auth PAM module.
                         if "${NGX_HTTP_AUTH_PAM}"; then
-                            echo "Add ngx-http-auth-pam module..."
+                            echo "Adding ngx-http-auth-pam module..."
 
                             run git clone -q https://github.com/sto/ngx_http_auth_pam_module.git
 
@@ -506,7 +506,7 @@ function init_nginx_install() {
 
                         # Brotli compression module.
                         if "${NGX_HTTP_BROTLI}"; then
-                            echo "Add ngx-http-brotli module..."
+                            echo "Adding ngx-http-brotli module..."
 
                             run git clone -q https://github.com/google/ngx_brotli.git && \
                             run cd ngx_brotli && \
@@ -525,7 +525,7 @@ function init_nginx_install() {
 
                         # Cache purge module.
                         if "${NGX_HTTP_CACHE_PURGE}"; then
-                            echo "Add ngx-http-cache-purge module..."
+                            echo "Adding ngx-http-cache-purge module..."
 
                             run git clone -q https://github.com/nginx-modules/ngx_cache_purge.git
                             #run git clone -q https://github.com/eslabsid/ngx_cache_purge.git
@@ -541,7 +541,7 @@ function init_nginx_install() {
 
                         # Web DAV module.
                         if "${NGX_HTTP_DAV_EXT}"; then
-                            echo "Add ngx-http-dav-ext module..."
+                            echo "Adding ngx-http-dav-ext module..."
 
                             run git clone -q https://github.com/arut/nginx-dav-ext-module.git
 
@@ -556,7 +556,7 @@ function init_nginx_install() {
 
                         # Openresty Echo module.
                         if "${NGX_HTTP_ECHO}"; then
-                            echo "Add ngx-http-echo module..."
+                            echo "Adding ngx-http-echo module..."
 
                             run git clone -q https://github.com/openresty/echo-nginx-module.git
 
@@ -571,7 +571,7 @@ function init_nginx_install() {
 
                         # Fancy indexes module for the Nginx web server.
                         if "${NGX_HTTP_FANCYINDEX}"; then
-                            echo "Add ngx-http-fancyindex module..."
+                            echo "Adding ngx-http-fancyindex module..."
 
                             run git clone -q https://github.com/aperezdc/ngx-fancyindex.git
 
@@ -586,7 +586,7 @@ function init_nginx_install() {
 
                         # GeoIP module.
                         if "${NGX_HTTP_GEOIP}"; then
-                            echo "Add ngx-http-geoip module..."
+                            echo "Adding ngx-http-geoip module..."
 
                             if "${NGINX_DYNAMIC_MODULE}"; then
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
@@ -599,7 +599,7 @@ function init_nginx_install() {
 
                         # GeoIP2 module.
                         if "${NGX_HTTP_GEOIP2}"; then
-                            echo "Add ngx-http-geoip2 module..."
+                            echo "Adding ngx-http-geoip2 module..."
 
                             run git clone -q https://github.com/leev/ngx_http_geoip2_module.git
 
@@ -640,7 +640,7 @@ function init_nginx_install() {
                                 run cd ../
                             fi
 
-                            echo "Download MaxMind GeoIP2-GeoLite2 database..."
+                            echo "Downloading MaxMind GeoIP2-GeoLite2 database..."
 
                             run mkdir -p geoip-db && \
                             run cd geoip-db || exit 1
@@ -678,7 +678,7 @@ function init_nginx_install() {
 
                         # Headers more module.
                         if "${NGX_HTTP_HEADERS_MORE}"; then
-                            echo "Add ngx-http-headers-more-filter module..."
+                            echo "Adding ngx-http-headers-more-filter module..."
                             run git clone -q https://github.com/openresty/headers-more-nginx-module.git
 
                             if "${NGINX_DYNAMIC_MODULE}"; then
@@ -692,7 +692,7 @@ function init_nginx_install() {
 
                         # HTTP Image Filter module.
                         if "${NGX_HTTP_IMAGE_FILTER}"; then
-                            echo "Add ngx-http-image-filter module..."
+                            echo "Adding ngx-http-image-filter module..."
 
                             if "${NGINX_DYNAMIC_MODULE}"; then
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
@@ -705,8 +705,8 @@ function init_nginx_install() {
 
                         # Openresty Memc - An extended version of the standard memcached module.
                         if "${NGX_HTTP_MEMCACHED}"; then
-                            echo "Add ngx-http-memcached module..."
-    
+                            echo "Adding ngx-http-memcached module..."
+
                             run git clone -q https://github.com/openresty/memc-nginx-module.git
 
                             if "${NGINX_DYNAMIC_MODULE}"; then
@@ -720,7 +720,7 @@ function init_nginx_install() {
 
                         # NAXSI is an open-source, high performance, low rules maintenance WAF for Nginx.
                         if "${NGX_HTTP_NAXSI}"; then
-                            echo "Add ngx-http-naxsi (Web Application Firewall) module..."
+                            echo "Adding ngx-http-naxsi (Web Application Firewall) module..."
 
                             run git clone -q https://github.com/nbs-system/naxsi.git
 
@@ -735,7 +735,7 @@ function init_nginx_install() {
 
                         # Nginx mod HTTP Passenger.
                         if "${NGX_HTTP_PASSENGER}"; then
-                            echo "Add ngx-http-passenger module..."
+                            echo "Adding ngx-http-passenger module..."
 
                             if [[ -n $(command -v passenger-config) ]]; then
                                 if "${NGINX_DYNAMIC_MODULE}"; then
@@ -752,7 +752,7 @@ function init_nginx_install() {
 
                         # Openresty Redis 2.0 protocol.
                         if "${NGX_HTTP_REDIS2}"; then
-                            echo "Add ngx-http-redis2 module..."
+                            echo "Adding ngx-http-redis2 module..."
 
                             run git clone -q https://github.com/openresty/redis2-nginx-module.git
 
@@ -767,7 +767,7 @@ function init_nginx_install() {
 
                         # A filter module which can do both regular expression and fixed string substitutions for nginx.
                         if "${NGX_HTTP_SUBS_FILTER}"; then
-                            echo "Add ngx-http-subs-filter module..."
+                            echo "Adding ngx-http-subs-filter module..."
 
                             run git clone -q https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git
 
@@ -782,7 +782,7 @@ function init_nginx_install() {
 
                         # Upstream Fair module enhances the standard round-robin load balancer provided with Nginx.
                         if "${NGX_HTTP_UPSTREAM_FAIR}"; then
-                            echo "Add ngx-http-nginx-upstream-fair module..."
+                            echo "Adding ngx-http-nginx-upstream-fair module..."
 
                             #run git clone -q https://github.com/gnosek/nginx-upstream-fair.git
                             run git clone --branch="lemper" -q https://github.com/eslabsid/nginx-upstream-fair
@@ -821,7 +821,7 @@ function init_nginx_install() {
 
                         # HTTP XSLT module.
                         if "${NGX_HTTP_XSLT_FILTER}"; then
-                            echo "Add ngx-http-xslt-filter module..."
+                            echo "Adding ngx-http-xslt-filter module..."
 
                             if "${NGINX_DYNAMIC_MODULE}"; then
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
@@ -834,7 +834,7 @@ function init_nginx_install() {
 
                         # Mail module.
                         if "${NGX_MAIL}"; then
-                            echo "Add ngx-mail module..."
+                            echo "Adding ngx-mail module..."
 
                             if "${NGINX_DYNAMIC_MODULE}"; then
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
@@ -849,7 +849,7 @@ function init_nginx_install() {
 
                         # Nchan pub/sub queuing server.
                         if "${NGX_NCHAN}"; then
-                            echo "Add ngx-nchan (Pub/Sub) module..."
+                            echo "Adding ngx-nchan (Pub/Sub) module..."
 
                             run git clone -q https://github.com/slact/nchan.git
 
@@ -864,7 +864,7 @@ function init_nginx_install() {
 
                         # RTMP media streaming server.
                         if "${NGX_RTMP}"; then
-                            echo "Add ngx-rtmp (Media Streaming Server) module..."
+                            echo "Adding ngx-rtmp (Media Streaming Server) module..."
 
                             run git clone -q https://github.com/sergey-dryabzhinsky/nginx-rtmp-module.git
 
@@ -879,7 +879,7 @@ function init_nginx_install() {
 
                         # Stream module.
                         if "${NGX_STREAM}"; then
-                            echo "Add ngx-stream module..."
+                            echo "Adding ngx-stream module..."
 
                             if "${NGINX_DYNAMIC_MODULE}"; then
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
@@ -1215,7 +1215,7 @@ function init_nginx_install() {
                     if [[ "${NGX_MAIL}" && \
                         -f /etc/nginx/modules-available/mod-mail.conf ]]; then
                         run ln -fs /etc/nginx/modules-available/mod-mail.conf \
-                            /etc/nginx/modules-enabled/60-mod-mail.conf
+                            /etc/nginx/modules-enabled/50-mod-mail.conf
                     fi
 
                     if [[ "${NGX_NCHAN}" && \
@@ -1227,19 +1227,21 @@ function init_nginx_install() {
                     if [[ "${NGX_PAGESPEED}" && \
                         -f /etc/nginx/modules-available/mod-pagespeed.conf ]]; then
                         run ln -fs /etc/nginx/modules-available/mod-pagespeed.conf \
-                            /etc/nginx/modules-enabled/60-mod-pagespeed.conf
+                            /etc/nginx/modules-enabled/50-mod-pagespeed.conf
                     fi
 
                     if [[ "${NGX_STREAM}" && \
                         -f /etc/nginx/modules-available/mod-stream.conf ]]; then
                         run ln -fs /etc/nginx/modules-available/mod-stream.conf \
-                            /etc/nginx/modules-enabled/60-mod-stream.conf
-                        
+                            /etc/nginx/modules-enabled/50-mod-stream.conf
+
                         if [[ "${NGX_HTTP_GEOIP2}" && \
                             -f /etc/nginx/modules-available/mod-stream-geoip2.conf ]]; then
                             run ln -fs /etc/nginx/modules-available/mod-stream-geoip2.conf \
                                 /etc/nginx/modules-enabled/60-mod-stream-geoip2.conf
-                        elif [[ "${NGX_HTTP_GEOIP}" && \
+                        fi
+
+                        if [[ "${NGX_HTTP_GEOIP}" && \
                             -f /etc/nginx/modules-available/mod-stream-geoip.conf ]]; then
                             run ln -fs /etc/nginx/modules-available/mod-stream-geoip.conf \
                                 /etc/nginx/modules-enabled/60-mod-stream-geoip.conf
@@ -1391,7 +1393,7 @@ function init_nginx_install() {
         # Generate Diffie-Hellman parameters.
         local DH_LENGTH=${HASH_LENGTH:-2048}
         if [ ! -f "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" ]; then
-            echo "Enhance HTTPS/SSL security with DH key."
+            echo "Enhancing HTTPS/SSL security with DH key."
 
             [ ! -d /etc/nginx/ssl ] && mkdir -p /etc/nginx/ssl
             run openssl dhparam -out "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" "${DH_LENGTH}"
