@@ -17,6 +17,7 @@ fi
 # Make sure only root can run this installer script.
 requires_root
 
+# Make sure only apt-based Linux distribution can run this installer script.
 if hash apt 2>/dev/null; then
     # Update locale
     run locale-gen en_US.UTF-8 && \
