@@ -1,6 +1,6 @@
 language: bash
 os: linux
-dist: bionic
+dist: focal
 sudo: required
 
 before_install:
