@@ -13,7 +13,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework.
 * Free Let's Encrypt SSL certificates for your sites.
 * Support natively HTTP/2 for your secure sites.
-* Get an A+ grade on Qualys (SSL Labs) Test.
+* Get an A+ grade on Qualys (SSL Labs) test.
 * Multiple PHP versions 5.6 [EOL], 7.0 [EOL], 7.1 [EOL], 7.2 [EOL], 7.3 [SFO], 7.4, 8.0 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
 * Run PHP as user who own the file (Multi-user isolation via FPM pool). Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
 * Supported PHP Framework and CMS:
