@@ -64,7 +64,7 @@ function init_certbotle_install() {
             info "Certbot auto-renew command added to cronjob in dryrun mode."
         else
             export EDITOR=nano
-            CRONCMD='15 3 * * * root /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
+            CRONCMD='15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
             touch lemper.cron
             crontab -u root lemper.cron
             crontab -l > lemper.cron
