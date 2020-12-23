@@ -359,10 +359,9 @@ function get_release_name() {
                         # Ubuntu release 18.04, LinuxMint 19
                         RELEASE_NAME=${UBUNTU_CODENAME:-"bionic"}
                     ;;
-                    "20.04")
-                        # Ubuntu release 20.04
-                        #RELEASE_NAME=${UBUNTU_CODENAME:-"disco"}
-                        RELEASE_NAME="unsupported"
+                    "20.04"|"LM20")
+                        # Ubuntu release 20.04, LinuxMint 20
+                        RELEASE_NAME=${UBUNTU_CODENAME:-"focal"}
                     ;;
                     *)
                         RELEASE_NAME="unsupported"
