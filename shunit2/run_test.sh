@@ -6,7 +6,7 @@ script_under_test=$(basename "$0")
 
 # Nginx versions.
 nginx_stable_version="1.18.0"
-nginx_latest_version="1.17.10"
+nginx_latest_version="1.19.6"
 
 # Source the helper functions.
 if [ -f scripts/helper.sh ]; then
