@@ -14,19 +14,19 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * Free Let's Encrypt SSL certificates for your sites.
 * Support natively HTTP/2 for your secure sites.
 * Get an A+ grade on Qualys (SSL Labs) Test.
-* Multiple PHP versions 5.6 [EOL], 7.0 [EOL], 7.1, 7.2, 7.3, 7.4 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
+* Multiple PHP versions 5.6 [EOL], 7.0 [EOL], 7.1 [EOL], 7.2 [EOL], 7.3 [SFO], 7.4, 8.0 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
 * Run PHP as user who own the file (Multi-user isolation via FPM pool). Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
 * Supported PHP Framework and CMS:
   * Vanilla PHP: default,
   * Framework: codeigniter, laravel, lumen, phalcon, symfony,
-  * CMS: drupal, mautic, roundcube, sendy, wordpress, wordpress-ms), and
+  * CMS: drupal, mautic, roundcube, sendy, wordpress, wordpress-ms (multi-site), and
   * more coming soon.
 * PHP Zend OPcache.
-* PHP Loader, ionCube & SourceGuardian (enable it from the configuration file).
-* SQL database with MariaDB 10, MySQL drop-in replacement (enable it from the configuration file).
-* NoSQL database with MongoDB *NEW* (enable it from the configuration file).
-* In-memory database with Redis (enable it from the configuration file).
-* Memory cache with Memcached (enable it from the configuration file).
+* PHP Loader, ionCube & SourceGuardian.
+* SQL database with MariaDB 10, MySQL drop-in replacement.
+* NoSQL database with MongoDB *NEW*.
+* In-memory database with Redis.
+* Memory cache with Memcached.
 * [Adminer](https://www.adminer.org/) web-based SQL & MongoDB database manager (PhpMyAdmin replacement).
 * [phpRedisAdmin](https://github.com/erikdubbelboer/phpRedisAdmin) web-based Redis database manager.
 * [phpMemcachedAdmin](https://github.com/elijaa/phpmemcachedadmin) web-based Memcached manager.
@@ -143,4 +143,4 @@ Be the first one!
 
 ## Copyright
 
-(c) 2014-2020 | [ESLabs](https://eslabs.id/) | Radenmas Edi
+(c) 2014-2020 | [MasEDI.Net](https://masedi.net/)
