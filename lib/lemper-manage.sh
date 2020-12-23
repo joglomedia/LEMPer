@@ -231,7 +231,8 @@ function remove_vhost() {
     if [ -f "/etc/nginx/sites-enabled/${1}.conf" ]; then
         run unlink "/etc/nginx/sites-enabled/${1}.conf"
     fi
-    run rm -f "/etc/nginx/sites-available/${1}.conf"
+
+    run rm -f "/etc/nginx/sites-available/${1}.*"
 
     success "Virtual host configuration file removed."
 
