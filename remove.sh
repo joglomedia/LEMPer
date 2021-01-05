@@ -5,7 +5,7 @@
 # |-------------------------------------------------------------------------+
 # | Min requirement   : GNU/Linux Debian 8, Ubuntu 16.04 or Linux Mint 17   |
 # | Last Update       : 14/01/2020                                          |
-# | Author            : ESLabs.ID (eslabs.id@gmail.com)                     |
+# | Author            : MasEDI.Net (me@masedi.net)                     |
 # | Version           : 1.0.0                                               |
 # +-------------------------------------------------------------------------+
 # | Copyright (c) 2014-2020 ESLabs (https://eslabs.id/lemper)               |
