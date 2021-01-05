@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # PHP Loader Installer
-# Min. Requirement  : GNU/Linux Ubuntu 14.04 & 16.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04 & 16.04
 # Last Build        : 10/01/2020
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.3.0
 
 # Include helper functions.

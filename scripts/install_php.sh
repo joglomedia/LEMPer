@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # PHP Installer
-# Min. Requirement  : GNU/Linux Ubuntu 14.04 & 16.04
-# Last Build        : 05/11/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Min. Requirement  : GNU/Linux Ubuntu 16.04 & 16.04
+# Last Build        : 23/12/2020
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # ImageMagick Installer
-# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
 # Last Build        : 02/11/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.

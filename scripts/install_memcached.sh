@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Memcached Installer
-# Min. Requirement  : GNU/Linux Ubuntu 14.04 & 16.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04 & 16.04
 # Last Build        : 31/08/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
@@ -270,18 +270,19 @@ function install_php_memcached() {
     echo "Installing PHP ${SELECTED_PHP} memcached module..."
 
     if hash apt 2>/dev/null; then
-        PHPVERS=$(sed "s/,/ /g" <<<"${PHPv}")
-        for PHPv in ${PHPVERS}; do
+        #PHPVERS=$(sed "s/,/ /g" <<<"${SELECTED_PHP}")
+        for PHPv in ${SELECTED_PHP//,/ } 
+        do
             install_dependencies "apt install -qq -y" debian_is_installed \
                 "php${PHPv}-igbinary" "php${PHPv}-memcache" "php${PHPv}-memcached" "php${PHPv}-msgpack"
             enable_php_memcached "${PHPv}"
         done
 
-        # Default required PHP 7.3 for LEMPer.
-        if [ "${PHPv}" != "7.3" ]; then
+        # Default PHP 7.4 for LEMPer.
+        if [ "${PHPv}" != "7.4" ]; then
             install_dependencies "apt install -qq -y" debian_is_installed \
-                "php7.3-igbinary" "php7.3-memcache" "php7.3-memcached" "php7.3-msgpack"
-            enable_php_memcached "7.3"
+                "php7.4-igbinary" "php7.4-memcache" "php7.4-memcached" "php7.4-msgpack"
+            enable_php_memcached "7.4"
         fi
     else
         fail "Unable to install PHP Memcached, this GNU/Linux distribution is not supported."
@@ -344,10 +345,11 @@ function init_memcached_install() {
     install_memcached "${MEMC_VERSION}" "${MEMC_INSTALLER}"
 
     if [[ -z "${SELECTED_PHP}" ]]; then
-        SELECTED_PHP=${PHP_VERSION:-"7.3"}
+        SELECTED_PHP=${PHP_VERSION:-"7.4"}
     elif [[ "${SELECTED_PHP}" == "all" ]]; then
-        SELECTED_PHP="5.6 7.0 7.1 7.2 7.3 7.4"
+        SELECTED_PHP="5.6,7.0,7.1,7.2,7.3,7.4,8.0"
     fi
+
     install_php_memcached "${PHP_VERSION}"
 }
 

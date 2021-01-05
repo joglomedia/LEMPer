@@ -2,9 +2,9 @@
 
 # MongoDB installer
 # Ref : https://www.linode.com/docs/databases/mongodb/install-mongodb-on-ubuntu-16-04
-# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
 # Last Build        : 01/08/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
@@ -146,8 +146,8 @@ _EOF_
 
         # PHP version.
         local PHPv="${1}"
-        if [[ -z "${PHPv}" || -n $(grep "\-\-" <<<"${PHPv}") ]]; then
-            PHPv=${PHP_VERSION:-"7.3"}
+        if [ -z "${PHPv}" ]; then
+            PHPv=${PHP_VERSION:-"7.4"}
         fi
 
         # Install PHP MongoDB extension.
@@ -162,7 +162,7 @@ function install_php_mongodb() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
+        PHPv=${PHP_VERSION:-"7.4"}
     fi
 
     echo -e "\nInstalling PHP ${PHPv} MongoDB extension..."

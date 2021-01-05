@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Nginx Installer
-# Min. Requirement  : GNU/Linux Ubuntu 14.04
-# Last Build        : 02/11/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
+# Last Build        : 23/12/2020
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
@@ -1411,7 +1411,7 @@ function init_nginx_install() {
             fi
 
             # Restart Nginx server
-            echo "Starting Nginx HTTP server..."
+            echo "Starting Nginx HTTP server for ${HOSTNAME} (${SERVER_IP})..."
             if [[ $(pgrep -c nginx) -gt 0 ]]; then
                 if nginx -t 2>/dev/null > /dev/null; then
                     run systemctl reload nginx
