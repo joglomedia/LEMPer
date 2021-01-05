@@ -228,11 +228,17 @@ function remove_vhost() {
     WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${1}.conf" | awk '{print $3}' | cut -d'"' -f2)
 
     # Remove Nginx's vhost config.
-    if [ -f "/etc/nginx/sites-enabled/${1}.conf" ]; then
+    [ -f "/etc/nginx/sites-enabled/${1}.conf" ] && 
         run unlink "/etc/nginx/sites-enabled/${1}.conf"
-    fi
 
-    run rm -f "/etc/nginx/sites-available/${1}.*"
+    [ -f "/etc/nginx/sites-available/${1}.conf" ] && 
+        run rm -f "/etc/nginx/sites-available/${1}.conf"
+
+    [ -f "/etc/nginx/sites-available/${1}.nonssl-conf" ] && 
+        run rm -f "/etc/nginx/sites-available/${1}.nonssl-conf"
+
+    [ -f "/etc/nginx/sites-available/${1}.ssl-conf" ] && 
+        run rm -f "/etc/nginx/sites-available/${1}.ssl-conf"
 
     success "Virtual host configuration file removed."
 
@@ -324,6 +330,8 @@ port = http,https
 filter = ${FRAMEWORK}
 action = iptables-multiport[name=webapps, port="http,https", protocol=tcp]
 logpath = ${WEBROOT}/access_log
+bantime = 30d
+findtime = 5m
 maxretry = 3
 _EOL_
 

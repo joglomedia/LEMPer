@@ -1539,6 +1539,8 @@ port = http,https
 filter = ${FRAMEWORK}
 action = iptables-multiport[name=webapps, port="http,https", protocol=tcp]
 logpath = ${WEBROOT}/access_log
+bantime = 30d
+findtime = 5m
 maxretry = 3
 _EOL_
 
