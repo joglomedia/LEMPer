@@ -22,7 +22,8 @@ matrix:
         # Copy dotenv file.
         - cp .env.dist .env
         - sed -i "s/ENVIRONMENT=\"production\"/ENVIRONMENT=\"development\"/g" .env
-        #- sed -i "s/SERVER_IP=\"\"/SERVER_IP=\"127.0.0.1\"/g" .env
+        - sed -i "s/SERVER_HOSTNAME=\"\"/SERVER_HOSTNAME=\"travis-ci.masedi.net\"/g" .env
+        - sed -i "s/SERVER_IP=\"\"/SERVER_IP=\"127.0.0.1\"/g" .env
         - sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/g" .env
         - sed -i "s/AUTO_REMOVE=false/AUTO_REMOVE=true/g" .env
         - sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
@@ -31,7 +32,7 @@ matrix:
         - sed -i "s/PHP_VERSION=\"7.4\"/PHP_VERSION=\"8.0\"/g" .env
         - sed -i "s/INSTALL_MAILER=false/INSTALL_MAILER=true/g" .env
         - sed -i "s/INSTALL_SPFDKIM=false/INSTALL_SPFDKIM=true/g" .env
-        - sed -i "s/SENDER_DOMAIN=\"example.com\"/SENDER_DOMAIN=\"eslabs.id\"/g" .env
+        - sed -i "s/SENDER_DOMAIN=\"example.com\"/SENDER_DOMAIN=\"masedi.net\"/g" .env
         # Run the source through ShellCheck (http://www.shellcheck.net).
         - shellcheck -s bash -x install.sh
         - shellcheck -s bash -x remove.sh
