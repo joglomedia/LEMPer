@@ -1393,7 +1393,7 @@ function init_nginx_install() {
         # Generate Diffie-Hellman parameters.
         local DH_LENGTH=${HASH_LENGTH:-2048}
         if [ ! -f "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" ]; then
-            echo "Enhancing HTTPS/SSL security with DH key."
+            echo "Enhancing HTTPS/SSL security with DH key..."
 
             [ ! -d /etc/nginx/ssl ] && mkdir -p /etc/nginx/ssl
             run openssl dhparam -out "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" "${DH_LENGTH}"
@@ -1412,6 +1412,7 @@ function init_nginx_install() {
 
             # Restart Nginx server
             echo "Starting Nginx HTTP server for ${HOSTNAME} (${SERVER_IP})..."
+
             if [[ $(pgrep -c nginx) -gt 0 ]]; then
                 if nginx -t 2>/dev/null > /dev/null; then
                     run systemctl reload nginx
