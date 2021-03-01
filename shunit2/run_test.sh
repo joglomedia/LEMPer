@@ -53,6 +53,7 @@ testEqualityGetNginxLatestVersion()
 
 testEqualityInstallNginx()
 {
+    . scripts/install_certbotle.sh
     . scripts/install_nginx.sh
 
     nginx_bin=$(command -v nginx)
