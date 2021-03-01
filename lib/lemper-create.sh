@@ -1301,7 +1301,7 @@ function init_app() {
                     if command -v wp-cli &> /dev/null; then
                         run sudo -u "${USERNAME}" -i -- wp-cli core install --url="${SERVERNAME}" --title="WordPress Site Managed by LEMPer.sh" \
                             --admin_user="${APP_ADMIN_USER}" --admin_password="${APP_ADMIN_PASS}" --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
-                        run sudo -u "${USERNAME}" -i -- wp-cli plugin install akismet nginx-helper --activate --path="${WEBROOT}"
+                        run sudo -u "${USERNAME}" -i -- wp-cli plugin install akismet nginx-helper seo-by-rank-math --activate --path="${WEBROOT}"
                     fi
 
                     # Install WooCommerce.
