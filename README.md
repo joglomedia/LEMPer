@@ -7,11 +7,11 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 ## Features
 
 * Nginx from [Ondrej's](https://launchpad.net/~ondrej/+archive/ubuntu/nginx) repository.
-* Nginx build from [source](https://github.com/nginx/nginx) with [Mod PageSpeed](https://github.com/apache/incubator-pagespeed-ngx) module (enable it from the configuration file).
+* Nginx build from [source](https://github.com/nginx/nginx) with [Mod PageSpeed](https://github.com/apache/incubator-pagespeed-ngx) module.
 * Nginx with FastCGI cache enable & disable feature (via LEMPer CLI).
 * Nginx pre-configured optimization for low-end VPS/cloud server. Need reliable VPS/cloud server? Get one from [UpCloud](https://masedi.net/upcloud/) or [DigitalOcean](https://masedi.net/digitalocean/).
-* Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Framework.
-* Support HTTP/2 natively for your secure sites.
+* Nginx virtual host (vhost) configuration optimized for WordPress, and several PHP Frameworks.
+* Support HTTP/2 natively for your secure website.
 * Free SSL certificates from [Let's Encrypt](https://letsencrypt.org/).
 * Get an A+ grade on several SSL Security Test ([Qualys SSL Labs](https://www.ssllabs.com/ssltest/analyze.html?d=masedi.net), [ImmuniWeb](https://www.immuniweb.com/ssl/?id=bVrykFnK), and Wormly).
 * Multiple PHP versions 5.6 [EOL], 7.0 [EOL], 7.1 [EOL], 7.2 [EOL], 7.3 [SFO], 7.4, 8.0 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
