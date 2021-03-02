@@ -27,6 +27,7 @@ matrix:
         - sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/g" .env
         - sed -i "s/AUTO_REMOVE=false/AUTO_REMOVE=true/g" .env
         - sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
+        - sed -i "s/ADMIN_EMAIL=\"mail@example.com\"/ADMIN_EMAIL=\"me@masedi.net\"/g" .env
         #- sed -i "s/NGINX_INSTALLER=\"repo\"/NGINX_INSTALLER=\"source\"/g" .env
         #- sed -i "s/NGX_PAGESPEED=false/NGX_PAGESPEED=true/g" .env
         #- sed -i "s/PHP_VERSION=\"7.4\"/PHP_VERSION=\"8.0\"/g" .env
