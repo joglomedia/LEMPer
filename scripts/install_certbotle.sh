@@ -84,7 +84,8 @@ EOL
             fi
 
             # Register a new account.
-            LE_EMAIL=${ADMIN_EMAIL:-"cert@lemper.sh"}
+            local LE_EMAIL=${ADMIN_EMAIL:-"cert@lemper.sh"}
+
             if [ -d /etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory ]; then
                 run certbot update_account --email "${LE_EMAIL}" --no-eff-email --agree-tos
             else
