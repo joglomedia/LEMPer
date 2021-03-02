@@ -39,6 +39,14 @@ testEqualityCreateAccount()
     assertEquals "success" "${create_account_status}"
 }
 
+testEqualityInstallCertbot()
+{
+    . scripts/install_certbotle.sh
+
+    certbot_bin=$(command -v certbot)
+    assertEquals "/usr/bin/certbot" "${certbot_bin}"
+}
+
 testEqualityGetNginxStableVersion()
 {
     ngx_stable_version=$(determine_stable_nginx_version)
@@ -53,7 +61,6 @@ testEqualityGetNginxLatestVersion()
 
 testEqualityInstallNginx()
 {
-    . scripts/install_certbotle.sh
     . scripts/install_nginx.sh
 
     nginx_bin=$(command -v nginx)
