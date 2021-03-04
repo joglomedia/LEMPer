@@ -58,23 +58,25 @@ function install_postfix() {
         run postconf -e "smtpd_sasl_auth_enable = yes"
         run postconf -e "smtpd_recipient_restrictions = permit_sasl_authenticated,permit_mynetworks,reject_unauth_destination,reject_invalid_hostname,reject_non_fqdn_hostname,reject_non_fqdn_sender,reject_non_fqdn_recipient,reject_unknown_sender_domain,reject_rbl_client sbl.spamhaus.org,reject_rbl_client cbl.abuseat.org"
 
-        # Getting Let's Encrypt certificates.
+        # Generating Let's Encrypt certificates.
         local CERTPATH=""
 
-        # Stop webserver first
-        run systemctl stop nginx
+        if [[ "${ENVIRONMENT}" == "production" ]]; then
+            # Stop webserver first
+            run systemctl stop nginx
 
-        if [[ "${SENDER_DOMAIN}" != "example.com" && $(validate_fqdn "${SENDER_DOMAIN}") == true \
-        && $(dig "${SENDER_DOMAIN}" +short) = "${SERVER_IP}" ]]; then
-            run certbot certonly --standalone --agree-tos --preferred-challenges http -d "${SENDER_DOMAIN}"
-            CERTPATH="/etc/letsencrypt/live/${SENDER_DOMAIN}"
-        elif [[ $(dig "${HOSTNAME}" +short) = "${SERVER_IP}" ]]; then
-            run certbot certonly --standalone --agree-tos --preferred-challenges http --webroot-path=/usr/share/nginx/html -d "${HOSTNAME}"
-            CERTPATH="/etc/letsencrypt/live/${HOSTNAME}"
+            if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true \
+            && $(dig "${SENDER_DOMAIN}" +short) = "${SERVER_IP}" ]]; then
+                run certbot certonly --standalone --agree-tos --preferred-challenges http -d "${SENDER_DOMAIN}"
+                CERTPATH="/etc/letsencrypt/live/${SENDER_DOMAIN}"
+            elif [[ $(dig "${HOSTNAME}" +short) = "${SERVER_IP}" ]]; then
+                run certbot certonly --standalone --agree-tos --preferred-challenges http --webroot-path=/usr/share/nginx/html -d "${HOSTNAME}"
+                CERTPATH="/etc/letsencrypt/live/${HOSTNAME}"
+            fi
+
+            # Re-start webserver
+            run systemctl start nginx
         fi
-
-        # Re-start webserver
-        run systemctl start nginx
 
         # Enable Postfix secure.
         if [ -n "${CERTPATH}" ]; then
