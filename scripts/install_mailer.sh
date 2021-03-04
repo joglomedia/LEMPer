@@ -64,7 +64,7 @@ function install_postfix() {
         # Stop webserver first
         run systemctl stop nginx
 
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true \
+        if [[ "${SENDER_DOMAIN}" != "example.com" && $(validate_fqdn "${SENDER_DOMAIN}") == true \
         && $(dig "${SENDER_DOMAIN}" +short) = "${SERVER_IP}" ]]; then
             run certbot certonly --standalone --agree-tos --preferred-challenges http -d "${SENDER_DOMAIN}"
             CERTPATH="/etc/letsencrypt/live/${SENDER_DOMAIN}"
