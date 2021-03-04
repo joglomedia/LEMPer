@@ -617,7 +617,8 @@ function init_php_fpm_install() {
             #install_php_fpm "7.4"
             #install_php_fpm "8.0"
 
-            for PHPver in "5.6 7.0 7.1 7.2 7.3 7.4 8.0"; do
+            Versions="5.6 7.0 7.1 7.2 7.3 7.4 8.0"
+            for PHPver in ${Versions}; do
                 install_php_fpm "${PHPver}"
             done
         ;;

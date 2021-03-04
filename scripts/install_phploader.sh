@@ -504,7 +504,8 @@ function init_phploader_install() {
                         #enable_sourceguardian "7.3"
                         #enable_sourceguardian "7.4"
 
-                        for PHPver in "5.6 7.0 7.1 7.2 7.3 7.4 8.0"; do
+                        Versions="5.6 7.0 7.1 7.2 7.3 7.4 8.0"
+                        for PHPver in ${Versions}; do
                             enable_sourceguardian "${PHPver}"
                         done
                     fi
@@ -540,7 +541,8 @@ function init_phploader_install() {
                         #enable_sourceguardian "7.4"
                         #enable_sourceguardian "8.0"
 
-                        for PHPver in "5.6 7.0 7.1 7.2 7.3 7.4 8.0"; do
+                        Versions="5.6 7.0 7.1 7.2 7.3 7.4 8.0"
+                        for PHPver in ${Versions}; do
                             enable_ioncube "${PHPver}"
                             enable_sourceguardian "${PHPver}"
                         done
