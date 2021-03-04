@@ -75,6 +75,25 @@ testEqualityInstallPhp()
     assertEquals "/usr/bin/php" "${php_bin}"
 }
 
+testEqualityInstallPhpLoader()
+{
+    . scripts/install_phploader.sh
+
+    ic=$(php -v | grep -c ionCube)
+    assertTrue "[ ${ic} -gt 0 ]"
+
+    sg=$(php -v | grep -c SourceGuardian)
+    assertTrue "[ ${sg} -gt 0 ]"
+}
+
+testEqualityInstallPhpImageMagick()
+{
+    . scripts/install_imagemagick.sh
+
+    imagick_bin=$(command -v identify)
+    assertEquals "/usr/bin/identify" "${php_bin}"
+}
+
 testEqualityInstallMySQL()
 {
     . scripts/install_mariadb.sh
