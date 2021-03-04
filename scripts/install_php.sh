@@ -74,7 +74,7 @@ function install_php_fpm() {
         if hash apt 2>/dev/null; then
             PHP_PKGS=("php${PHPv} php${PHPv}-bcmath php${PHPv}-bz2 php${PHPv}-calendar php${PHPv}-cli \
 php${PHPv}-common php${PHPv}-curl php${PHPv}-dev php${PHPv}-exif php${PHPv}-fpm php${PHPv}-gd \
-php${PHPv}-gettext php${PHPv}-gmp php${PHPv}-gnupg php${PHPv}-iconv php${PHPv}-imap php${PHPv}-intl \
+php${PHPv}-gettext php${PHPv}-gmp php${PHPv}-iconv php${PHPv}-imap php${PHPv}-intl \
 php${PHPv}-json php${PHPv}-mbstring php${PHPv}-mysql php${PHPv}-opcache php${PHPv}-pdo php${PHPv}-posix \
 php${PHPv}-pspell php${PHPv}-readline php${PHPv}-ldap php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
 php${PHPv}-tidy php${PHPv}-tokenizer php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
@@ -89,7 +89,31 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                 success "PHP ${PHPv} & FPM packages installed."
             fi
 
-            # Install php geoip?
+            # Install PHP GnuPG?
+            if "${AUTO_INSTALL}"; then
+                if version_older_than "8.0" "${PHPv}"; then
+                    local INSTALL_PHPGNUPG="y"
+                else
+                    local INSTALL_PHPGNUPG="n"
+                fi
+            else
+                while [[ "${INSTALL_PHPGNUPG}" != "y" && "${INSTALL_PHPGNUPG}" != "n" ]]; do
+                    read -rp "Do you want to install PHP Mcrypt for encryption/decryption? [y/n]: " \
+                        -i n -e INSTALL_PHPGNUPG
+                done
+            fi
+
+            if [[ ${INSTALL_PHPMCRYPT} == Y* || ${INSTALL_PHPMCRYPT} == y* ]]; then
+                echo "Installing PHP GnuPG module..."
+
+                if [ "${PHPv//.}" -lt "80" ]; then
+                    run apt install -qq -y "php${PHPv}-gnupg"
+                else
+                    info "GnuPG module is not yet available for PHP ${PHPv} or greater."
+                fi
+            fi
+
+            # Install PHP GeoIP?
             if "${AUTO_INSTALL}"; then
                 local INSTALL_PHPGEOIP="n"
             else
@@ -127,7 +151,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                 fi
             fi
 
-            # Install php mcrypt?
+            # Install PHP Mcrypt?
             if "${AUTO_INSTALL}"; then
                 if version_older_than "7.2" "${PHPv}"; then
                     local INSTALL_PHPMCRYPT="y"
@@ -170,7 +194,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                     run apt install -qq -y dh-php
 
                     # Use libsodium instead.
-                    info "Mcrypt module is deprecated for PHP ${PHPv} or greater, use Libsodium or OpenSSL for encryption."
+                    info "Mcrypt module is deprecated for PHP ${PHPv} or greater, for encryption use Libsodium or OpenSSL instead."
                 fi
             fi
 
@@ -585,13 +609,17 @@ function init_php_fpm_install() {
         8|"all")
             # Install all PHP version (except EOL & Beta).
             #PHPv="all"
-            install_php_fpm "5.6"
-            install_php_fpm "7.0"
-            install_php_fpm "7.1"
-            install_php_fpm "7.2"
-            install_php_fpm "7.3"
-            install_php_fpm "7.4"
-            install_php_fpm "8.0"
+            #install_php_fpm "5.6"
+            #install_php_fpm "7.0"
+            #install_php_fpm "7.1"
+            #install_php_fpm "7.2"
+            #install_php_fpm "7.3"
+            #install_php_fpm "7.4"
+            #install_php_fpm "8.0"
+
+            for PHPver in "5.6 7.0 7.1 7.2 7.3 7.4 8.0"; do
+                install_php_fpm "${PHPver}"
+            done
         ;;
         *)
             #PHPv="unsupported"

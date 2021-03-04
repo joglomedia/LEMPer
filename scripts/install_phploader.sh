@@ -2,7 +2,7 @@
 
 # PHP Loader Installer
 # Min. Requirement  : GNU/Linux Ubuntu 16.04 & 16.04
-# Last Build        : 10/01/2020
+# Last Build        : 03/04/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.3.0
 
@@ -56,7 +56,7 @@ function enable_ioncube() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
+        PHPv=${PHP_VERSION:-"7.4"}
     fi
 
     echo "Enable ionCube PHP ${PHPv} loader"
@@ -109,7 +109,7 @@ function disable_ioncube() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
+        PHPv=${PHP_VERSION:-"7.4"}
     fi
 
     echo "Disabling ionCube PHP ${PHPv} loader"
@@ -125,7 +125,7 @@ function remove_ioncube() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
+        PHPv=${PHP_VERSION:-"7.4"}
     fi
 
     echo "Uninstalling ionCube PHP ${PHPv} loader..."
@@ -186,7 +186,7 @@ function enable_sourceguardian() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
+        PHPv=${PHP_VERSION:-"7.4"}
     fi
 
     echo "Enable SourceGuardian PHP ${PHPv} loader..."
@@ -240,7 +240,7 @@ function disable_sourceguardian() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
+        PHPv=${PHP_VERSION:-"7.4"}
     fi
 
     echo "Disabling SourceGuardian PHP ${PHPv} loader"
@@ -256,7 +256,7 @@ function remove_sourceguardian() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
+        PHPv=${PHP_VERSION:-"7.4"}
     fi
 
     echo "Uninstalling SourceGuardian PHP ${PHPv} loader..."
@@ -318,7 +318,7 @@ function init_phploader_install() {
     if [ -n "${OPT_PHP_VERSION}" ]; then
         PHP_VERSION=${OPT_PHP_VERSION}
     else
-        PHP_VERSION=${PHP_VERSION:-"7.3"}
+        PHP_VERSION=${PHP_VERSION:-"7.4"}
     fi
 
     if [ -n "${OPT_PHP_LOADER}" ]; then
@@ -468,17 +468,21 @@ function init_phploader_install() {
                         enable_ioncube "${PHPv}"
 
                         # Required for LEMPer default PHP.
-                        if [[ "${PHPv}" != "7.3" && -n $(command -v php7.3) ]]; then
-                            enable_ioncube "7.3"
+                        if [[ "${PHPv}" != "7.4" && -n $(command -v php7.4) ]]; then
+                            enable_ioncube "7.4"
                         fi
                     else
                         # Install all PHP version (except EOL & Beta).
-                        enable_ioncube "5.6"
-                        enable_ioncube "7.0"
-                        enable_ioncube "7.1"
-                        enable_ioncube "7.2"
-                        enable_ioncube "7.3"
-                        enable_ioncube "7.4"
+                        #enable_ioncube "5.6"
+                        #enable_ioncube "7.0"
+                        #enable_ioncube "7.1"
+                        #enable_ioncube "7.2"
+                        #enable_ioncube "7.3"
+                        #enable_ioncube "7.4"
+
+                        for PHPver in "5.6 7.0 7.1 7.2 7.3 7.4 8.0"; do
+                            enable_ioncube "${PHPver}"
+                        done
                     fi
                 ;;
                 2|"sg"|"sourceguardian")
@@ -488,17 +492,21 @@ function init_phploader_install() {
                         enable_sourceguardian "${PHPv}"
 
                         # Required for LEMPer default PHP.
-                        if [[ "${PHPv}" != "7.3" && -n $(command -v php7.3) ]]; then
-                            enable_sourceguardian "7.3"
+                        if [[ "${PHPv}" != "7.4" && -n $(command -v php7.4) ]]; then
+                            enable_sourceguardian "7.4"
                         fi
                     else
                         # Install all PHP version (except EOL & Beta).
-                        enable_sourceguardian "5.6"
-                        enable_sourceguardian "7.0"
-                        enable_sourceguardian "7.1"
-                        enable_sourceguardian "7.2"
-                        enable_sourceguardian "7.3"
-                        enable_sourceguardian "7.4"
+                        #enable_sourceguardian "5.6"
+                        #enable_sourceguardian "7.0"
+                        #enable_sourceguardian "7.1"
+                        #enable_sourceguardian "7.2"
+                        #enable_sourceguardian "7.3"
+                        #enable_sourceguardian "7.4"
+
+                        for PHPver in "5.6 7.0 7.1 7.2 7.3 7.4 8.0"; do
+                            enable_sourceguardian "${PHPver}"
+                        done
                     fi
                 ;;
                 "all")
@@ -510,25 +518,32 @@ function init_phploader_install() {
                         enable_sourceguardian "${PHPv}"
 
                         # Required for LEMPer default PHP
-                        if [[ "${PHPv}" != "7.3" && -n $(command -v php7.3) ]]; then
-                            enable_ioncube "7.3"
-                            enable_sourceguardian "7.3"
+                        if [[ "${PHPv}" != "7.4" && -n $(command -v php7.4) ]]; then
+                            enable_ioncube "7.4"
+                            enable_sourceguardian "7.4"
                         fi
                     else
                         # Install all PHP version (except EOL & Beta).
-                        enable_ioncube "5.6"
-                        enable_ioncube "7.0"
-                        enable_ioncube "7.1"
-                        enable_ioncube "7.2"
-                        enable_ioncube "7.3"
-                        enable_ioncube "7.4"
+                        #enable_ioncube "5.6"
+                        #enable_ioncube "7.0"
+                        #enable_ioncube "7.1"
+                        #enable_ioncube "7.2"
+                        #enable_ioncube "7.3"
+                        #enable_ioncube "7.4"
+                        #enable_ioncube "8.0"
 
-                        enable_sourceguardian "5.6"
-                        enable_sourceguardian "7.0"
-                        enable_sourceguardian "7.1"
-                        enable_sourceguardian "7.2"
-                        enable_sourceguardian "7.3"
-                        enable_sourceguardian "7.4"
+                        #enable_sourceguardian "5.6"
+                        #enable_sourceguardian "7.0"
+                        #enable_sourceguardian "7.1"
+                        #enable_sourceguardian "7.2"
+                        #enable_sourceguardian "7.3"
+                        #enable_sourceguardian "7.4"
+                        #enable_sourceguardian "8.0"
+
+                        for PHPver in "5.6 7.0 7.1 7.2 7.3 7.4 8.0"; do
+                            enable_ioncube "${PHPver}"
+                            enable_sourceguardian "${PHPver}"
+                        done
                     fi
                 ;;
                 *)

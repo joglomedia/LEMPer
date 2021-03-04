@@ -126,11 +126,8 @@ function init_imagemagick_install() {
                 run make
                 run make install
                 run ldconfig /usr/local/lib
-                #run cd ../
-                #run rm -fr ImageMagick-*
                 run cd "${CURRENT_DIR}"
             ;;
-
             *)
                 # Skip installation.
                 error "Installer method not supported. ImageMagick installation skipped."
