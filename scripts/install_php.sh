@@ -89,28 +89,11 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                 success "PHP ${PHPv} & FPM packages installed."
             fi
 
-            # Install PHP GnuPG?
-            if "${AUTO_INSTALL}"; then
-                if version_older_than "8.0" "${PHPv}"; then
-                    local INSTALL_PHPGNUPG="y"
-                else
-                    local INSTALL_PHPGNUPG="n"
-                fi
+            # Install PHP GnuPG & Json
+            if [ "${PHPv//.}" -lt "80" ]; then
+                run apt install -qq -y "php${PHPv}-gnupg" "php${PHPv}-json"
             else
-                while [[ "${INSTALL_PHPGNUPG}" != "y" && "${INSTALL_PHPGNUPG}" != "n" ]]; do
-                    read -rp "Do you want to install PHP Mcrypt for encryption/decryption? [y/n]: " \
-                        -i n -e INSTALL_PHPGNUPG
-                done
-            fi
-
-            if [[ ${INSTALL_PHPMCRYPT} == Y* || ${INSTALL_PHPMCRYPT} == y* ]]; then
-                echo "Installing PHP GnuPG module..."
-
-                if [ "${PHPv//.}" -lt "80" ]; then
-                    run apt install -qq -y "php${PHPv}-gnupg"
-                else
-                    info "GnuPG module is not yet available for PHP ${PHPv} or greater."
-                fi
+                info "GnuPG &Json module is not yet available for PHP ${PHPv} or greater."
             fi
 
             # Install PHP GeoIP?
