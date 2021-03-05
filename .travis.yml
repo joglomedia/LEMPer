@@ -29,7 +29,7 @@ matrix:
         - sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
         - sed -i "s/ADMIN_EMAIL=\"mail@example.com\"/ADMIN_EMAIL=\"me@masedi.net\"/g" .env
         #- sed -i "s/NGINX_INSTALLER=\"repo\"/NGINX_INSTALLER=\"source\"/g" .env
-        - sed -i "s/PHP_VERSION=\"7.4\"/PHP_VERSION=\"all\"/g" .env
+        - sed -i "s/PHP_VERSION=\"7.4\"/PHP_VERSION=\"7.4\"/g" .env
         - sed -i "s/PHP_LOADER=\"none\"/PHP_LOADER=\"all\"/g" .env
         - sed -i "s/PHP_IMAGEMAGICK_INSTALLER=\"repo\"/PHP_IMAGEMAGICK_INSTALLER=\"source\"/g" .env
         - sed -i "s/INSTALL_MAILER=false/INSTALL_MAILER=true/g" .env
