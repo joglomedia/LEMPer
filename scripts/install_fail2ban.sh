@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Install Fail2ban
-# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
 # Last Build        : 25/12/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.3.0
 
 # Include helper functions.
@@ -24,7 +24,7 @@ function init_fail2ban_install() {
     local SELECTED_INSTALLER=""
 
     if "${AUTO_INSTALL}"; then
-        if [[ -n "${FAIL2BAN_INSTALLER}" || "${FAIL2BAN_INSTALLER}" != "none" ]]; then
+        if [[ -z "${FAIL2BAN_INSTALLER}" || "${FAIL2BAN_INSTALLER}" == "none" ]]; then
             DO_INSTALL_FAIL2BAN="n"
         else
             DO_INSTALL_FAIL2BAN="y"
@@ -52,22 +52,14 @@ function init_fail2ban_install() {
             1|"repo")
                 echo "Installing Fail2ban from repository..."
 
-                if hash apt-get 2>/dev/null; then
-                    run apt-get -qq install -y fail2ban sendmail
-                elif hash yum 2>/dev/null; then
-                    if [ "${VERSION_ID}" == "5" ]; then
-                        yum -y update
-                        #yum -y localinstall "${NGX_PACKAGE}" --nogpgcheck
-                    else
-                        yum -y update
-                        #yum -y localinstall "${NGX_PACKAGE}"
-                    fi
+                if hash apt 2>/dev/null; then
+                    run apt install -qq -y fail2ban sendmail
                 else
                     fail "Unable to install Fail2ban, this GNU/Linux distribution is not supported."
                 fi
             ;;
             2|"source")
-
+                FAIL2BAN_VERSION=${FAIL2BAN_VERSION:-"0.10.5"}
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
                 run cd "${BUILD_DIR}"
@@ -76,7 +68,7 @@ function init_fail2ban_install() {
                 # https://github.com/fail2ban/fail2ban
                 fail2ban_download_link="https://github.com/fail2ban/fail2ban/archive/${FAIL2BAN_VERSION}.tar.gz"
 
-                if curl -sL --head "${fail2ban_download_link}" | grep -q "HTTP/[12].[01] [23].."; then
+                if curl -sLI "${fail2ban_download_link}" | grep -q "HTTP/[.12]* [2].."; then
                     run wget -O fail2ban.tar.gz "${fail2ban_download_link}" && \
                     run tar -zxf fail2ban.tar.gz && \
                     run cd fail2ban-*/ && \
@@ -91,51 +83,63 @@ function init_fail2ban_install() {
     fi
 
     if "${DRYRUN}"; then
-        warning "Fail2ban installed in dryrun mode."
+        info "Fail2ban installed in dryrun mode."
     else
         SSH_PORT=${SSH_PORT:-22}
+
+        # Add Wordpress custom filter.
+        run cp -f etc/fail2ban/filter.d/wordpress.conf /etc/fail2ban/filter.d/
 
         # Enable jail
         cat > /etc/fail2ban/jail.local <<_EOL_
 [DEFAULT]
 # banned for 30 days
-bantime = 2592000
+bantime = 30d
+
+# ignored ip (googlebot) - https://ipinfo.io/AS15169
+ignoreip = 66.249.64.0/19 66.249.64.0/20 66.249.80.0/22 66.249.84.0/23 66.249.88.0/24
 
 [sshd]
 enabled = true
 port = ssh,${SSH_PORT}
 filter = sshd
-#logpath = /var/log/auth.log
-maxretry = 5
+logpath = /var/log/auth.log
+maxretry = 3
 
 [nginx-http-auth]
 enabled = true
 port    = http,https,8082,8083
-maxretry = 5
+maxretry = 3
 
+_EOL_
+    fi
+
+    if "${INSTALL_MAILER}"; then
+        # Enable jail for Postfix & Dovecot
+        cat >> /etc/fail2ban/jail.local <<_EOL_
 [postfix]
 enabled = true
 logpath = /var/log/mail.log
-maxretry = 5
+maxretry = 3
 
 [postfix-sasl]
 enabled = true
 port     = smtp,465,587,submission,imap,imaps,pop3,pop3s
 logpath = /var/log/mail.log
-maxretry = 5
+maxretry = 3
+
 _EOL_
     fi
 
-    service fail2ban start
+    run systemctl start fail2ban
 }
-
 
 echo "[Fail2ban Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v fail2ban-server) ]]; then
-    warning "Fail2ban already exists. Installation skipped..."
+    info "Fail2ban already exists. Installation skipped..."
 else
     init_fail2ban_install "$@"
 fi

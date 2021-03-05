@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Basic Server Security Hardening
-# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
 # Last Build        : 01/07/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
@@ -43,7 +43,7 @@ Never share your private key.
 
         echo "Open your public key (id_rsa.pub) file, copy paste the key here..."
 
-        RSA_PUB_KEY=${RSA_PUB_KEY:-n}
+        RSA_PUB_KEY=${RSA_PUB_KEY:-""}
         while ! [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; do
             read -rp ": " -e RSA_PUB_KEY
         done
@@ -67,7 +67,7 @@ Never share your private key.
                 cat >> "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" <<EOL
 ${RSA_PUB_KEY}
 EOL
-                status "RSA public key added to the authorized_keys."
+                success "RSA public key added to the authorized_keys."
             fi
 
             # Fix authorized_keys file ownership and permission.
@@ -76,6 +76,7 @@ EOL
             run chmod 600 "/home/${LEMPER_USERNAME}/.ssh/authorized_keys"
 
             echo -e "\nEnable SSH password-less login..."
+            run bash -c "echo -e '\n\n#LEMPer custom config' >> /etc/ssh/sshd_config"
 
             # Restrict root login directly, use sudo user instead.
             SSH_ROOT_LOGIN=${SSH_ROOT_LOGIN:-false}
@@ -85,34 +86,53 @@ EOL
                 if grep -qwE "^PermitRootLogin\ [a-z]*" /etc/ssh/sshd_config; then
                     run sed -i "s/^PermitRootLogin\ [a-z]*/PermitRootLogin\ no/g" /etc/ssh/sshd_config
                 else
-                    run sed -i "/^#PermitRootLogin/a PermitRootLogin\ no" /etc/ssh/sshd_config
+                    #run sed -i "/^#PermitRootLogin/a PermitRootLogin\ no" /etc/ssh/sshd_config
+                    run bash -c "echo 'PermitRootLogin no' >> /etc/ssh/sshd_config"
                 fi
+            fi
+
+            # Enable key authentication.
+            if grep -qwE "^RSAAuthentication\ no" /etc/ssh/sshd_config; then
+                run sed -i "s/^RSAAuthentication\ no/RSAAuthentication\ yes/g" /etc/ssh/sshd_config
+            else
+                #run sed -i "/^#RSAAuthentication/a RSAAuthentication\ yes" /etc/ssh/sshd_config
+                run bash -c "echo 'RSAAuthentication yes' >> /etc/ssh/sshd_config"
+            fi
+
+            if grep -qwE "^PubkeyAuthentication\ no" /etc/ssh/sshd_config; then
+                run sed -i "s/^PubkeyAuthentication\ no/PubkeyAuthentication\ yes/g" /etc/ssh/sshd_config
+            else
+                #run sed -i "/^#PubkeyAuthentication/a PubkeyAuthentication\ yes" /etc/ssh/sshd_config
+                run bash -c "echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config"
             fi
 
             # Disable password authentication for password-less login using key.
             if grep -qwE "^PasswordAuthentication\ [a-z]*" /etc/ssh/sshd_config; then
                 run sed -i "s/^PasswordAuthentication\ [a-z]*/PasswordAuthentication\ no/g" /etc/ssh/sshd_config
             else
-                run sed -i "/^#PasswordAuthentication/a PasswordAuthentication\ no" /etc/ssh/sshd_config
+                #run sed -i "/^#PasswordAuthentication/a PasswordAuthentication\ no" /etc/ssh/sshd_config
+                run bash -c "echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config"
             fi
 
             if grep -qwE "^ClientAliveInterval\ [0-9]*" /etc/ssh/sshd_config; then
                 run sed -i "s/^ClientAliveInterval\ [0-9]*/ClientAliveInterval\ 600/g" /etc/ssh/sshd_config
             else
-                run sed -i "/^#ClientAliveInterval/a ClientAliveInterval\ 600" /etc/ssh/sshd_config
+                #run sed -i "/^#ClientAliveInterval/a ClientAliveInterval\ 600" /etc/ssh/sshd_config
+                run bash -c "echo 'ClientAliveInterval 600' >> /etc/ssh/sshd_config"
             fi
 
             if grep -qwE "^ClientAliveCountMax\ [0-9]*" /etc/ssh/sshd_config; then
                 run sed -i "s/^ClientAliveCountMax\ [0-9]*/ClientAliveCountMax\ 3/g" /etc/ssh/sshd_config
             else
-                run sed -i "/^#ClientAliveCountMax/a ClientAliveCountMax\ 3" /etc/ssh/sshd_config
+                #run sed -i "/^#ClientAliveCountMax/a ClientAliveCountMax\ 3" /etc/ssh/sshd_config
+                run bash -c "echo 'ClientAliveCountMax 3' >> /etc/ssh/sshd_config"
             fi
         fi
     fi
 
     # Securing the SSH server.
     echo "Securing your SSH server with custom port..."
-    SSH_PORT=${SSH_PORT:-n}
+    SSH_PORT=${SSH_PORT:-""}
     while ! [[ ${SSH_PORT} =~ ^[0-9]+$ ]]; do
         read -rp "Custom SSH port (default SSH port is 22): " -e SSH_PORT
     done
@@ -130,9 +150,9 @@ EOL
         # Save log.
         save_log "Default SSH port updated to ${SSH_PORT}."
 
-        status "SSH port updated to ${SSH_PORT}."
+        success "SSH port updated to ${SSH_PORT}."
     else
-        warning "Unable to update SSH port."
+        info "Unable to update SSH port."
     fi
 
     # Restart SSH service after LEMPer installation completed.
@@ -158,7 +178,7 @@ function install_ufw() {
     fi
 
     # Install UFW
-    run apt-get install -y ufw
+    run apt install -qq -y ufw
 
     if [[ -n $(command -v ufw) ]]; then
         echo "Configuring UFW firewall rules..."
@@ -181,6 +201,7 @@ function install_ufw() {
         run ufw allow 8083 #LEMPer port
 
         # Open MySQL port.
+        [[ "${MYSQL_ALLOW_REMOTE}" == true ]] && \
         run ufw allow 3306
 
         # Open SMTPs port.
@@ -200,19 +221,19 @@ function install_ufw() {
         run ufw allow 53
 
         # Open ntp port : to sync the clock of your machine.
-        run ufw allow 123/udp
+        #run ufw allow 123/udp
 
         # Turn on firewall.
         run ufw --force enable
 
         # Restart
         if "${DRYRUN}"; then
-            warning "UFW firewall installed in dryrun mode."
+            info "UFW firewall installed in dryrun mode."
         else
-            if service ufw restart; then
-                status "UFW firewall installed successfully."
+            if systemctl restart ufw; then
+                success "UFW firewall installed successfully."
             else
-                warning "Something wrong with UFW installation."
+                info "Something went wrong with UFW installation."
             fi
         fi
     fi
@@ -242,7 +263,7 @@ function install_csf() {
     if [[ -n $(command -v cpan) ]]; then
         run cpan -i "LWP LWP::Protocol::https GD::Graph IO::Socket::INET6"
     else
-        run apt-get -y install libwww-perl liblwp-protocol-https-perl \
+        run apt install -qq -y libwww-perl liblwp-protocol-https-perl \
             libgd-graph-perl libio-socket-inet6-perl
     fi
 
@@ -251,7 +272,7 @@ function install_csf() {
     run cd "${BUILD_DIR}"
 
     echo "Installing CSF+LFD firewall..."
-    if curl -sL --head https://download.configserver.com/csf.tgz | grep -q "HTTP/[12].[01] [23].."; then
+    if curl -sLI https://download.configserver.com/csf.tgz | grep -q "HTTP/[.12]* [2].."; then
         run wget -q https://download.configserver.com/csf.tgz && \
         run tar -xzf csf.tgz && \
         run cd csf/ && \
@@ -269,11 +290,18 @@ function install_csf() {
         # Enable CSF.
         run sed -i 's/^TESTING\ =\ "1"/TESTING\ =\ "0"/g' /etc/csf/csf.conf
 
+        # Open MySQL port for remote client access.
+        if [[ "${MYSQL_ALLOW_REMOTE}" == true ]]; then
+            ALLOW_MYSQL_PORT=3306
+        else
+            ALLOW_MYSQL_PORT=""
+        fi
+
         # Allowed incoming TCP ports.
-        run sed -i "s/^TCP_IN\ =\ \"[0-9_,]*\"/TCP_IN\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT}\"/g" /etc/csf/csf.conf
+        run sed -i "s/^TCP_IN\ =\ \"[0-9_,]*\"/TCP_IN\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT},${ALLOW_MYSQL_PORT}\"/g" /etc/csf/csf.conf
 
         # Allowed outgoing TCP ports.
-        run sed -i "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT}\"/g" /etc/csf/csf.conf
+        run sed -i "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT},${ALLOW_MYSQL_PORT}\"/g" /etc/csf/csf.conf
 
         # IPv6 support (requires ip6tables).
         if [[ -n $(command -v ip6tables) ]]; then
@@ -285,12 +313,12 @@ function install_csf() {
                 run sed -i 's/^IPV6\ =\ "0"/IPV6\ =\ "1"/g' /etc/csf/csf.conf
 
                 # Allowed incoming TCP ports for IPv6.
-                run sed -i "s/^TCP6_IN\ =\ \"[0-9_,]*\"/TCP6_IN\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT}\"/g" /etc/csf/csf.conf
+                run sed -i "s/^TCP6_IN\ =\ \"[0-9_,]*\"/TCP6_IN\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT},${ALLOW_MYSQL_PORT}\"/g" /etc/csf/csf.conf
 
                 # Allowed outgoing TCP ports for IPv6.
-                run sed -i "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT}\"/g" /etc/csf/csf.conf
+                run sed -i "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT},${ALLOW_MYSQL_PORT}\"/g" /etc/csf/csf.conf
             else
-                warning "ip6tables version greater than 1.4.3 required for IPv6 support."
+                info "ip6tables version greater than 1.4.3 required for IPv6 support."
             fi
         fi
     fi
@@ -300,22 +328,22 @@ function install_csf() {
     run cd "${CURRENT_DIR}"
 
     if "${DRYRUN}"; then
-        warning "CSF+LFD firewall installed in dryrun mode."
+        info "CSF+LFD firewall installed in dryrun mode."
     else
         if [[ -n $(command -v csf) && -n $(command -v lfd) ]]; then
-            if service csf restart; then
-                status "CSF firewall installed successfully. Starting now..."
+            if systemctl restart csf; then
+                success "CSF firewall installed successfully. Starting now..."
             else
-                warning "Something wrong with CSF installation."
+                info "Something went wrong with CSF installation."
             fi
 
-            if service lfd restart; then
-                status "LFD firewall installed successfully. Starting now..."
+            if systemctl restart lfd; then
+                success "LFD firewall installed successfully. Starting now..."
             else
-                warning "Something wrong with LFD installation."
+                info "Something went wrong with LFD installation."
             fi
         else
-            warning "Something wrong with CSF+LFD installation."
+            info "Something went wrong with CSF+LFD installation."
         fi
     fi
 }
@@ -344,8 +372,8 @@ function install_apf() {
     run cd "${BUILD_DIR}"
 
     echo "Installing APF+BFD firewall..."
-    if curl -sL --head "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
-    | grep -q "HTTP/[12].[01] [23].."; then
+    if curl -sLI "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
+    | grep -q "HTTP/[.12]* [2].."; then
         run wget -q "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" && \
         run tar -xf "${APF_VERSION}.tar.gz" && \
         run cd advanced-policy-firewall-*/ && \
@@ -374,16 +402,16 @@ function install_apf() {
     run cd "${CURRENT_DIR}"
 
     if "${DRYRUN}"; then
-        warning "APF+BFD firewall installed in dryrun mode."
+        info "APF+BFD firewall installed in dryrun mode."
     else
         if [[ -n $(command -v apf) ]]; then
-            if service apf restart; then
-                status "APF firewall installed successfully. Starting now..."
+            if systemctl restart apf; then
+                success "APF firewall installed successfully. Starting now..."
             else
-                warning "Something wrong with APF installation."
+                info "Something went wrong with APF installation."
             fi
         else
-            warning "Something wrong with APF installation."
+            info "Something went wrong with APF installation."
         fi
     fi
 }
@@ -395,12 +423,13 @@ function remove_ufw() {
     if [[ -n $(command -v ufw) ]]; then
         echo "Found UFW iptables firewall, trying to remove it..."
 
-        run service ufw stop
+        #run service ufw stop
         run ufw disable
+        run systemctl stop ufw
 
         echo "Removing UFW iptables firewall..."
 
-        run apt-get -y remove ufw
+        run apt remove -qq -y ufw
     fi
 }
 
@@ -412,7 +441,7 @@ function remove_csf() {
         echo "Found CSF+LFD iptables firewall, trying to remove it..."
 
         if [[ -f /etc/csf/uninstall.sh ]]; then
-            run sh /etc/csf/uninstall.sh
+            run bash /etc/csf/uninstall.sh
         fi
     fi
 }
@@ -424,8 +453,8 @@ function remove_apf() {
     if [[ -n $(command -v apf) && -f /etc/apf/conf.apf ]]; then
         echo "Found APF+BFD iptables firewall, trying to remove it..."
 
-        run service apf stop
-        run service iptables stop
+        #run service apf stop
+        run systemctl stop apf
 
         echo "Removing APF+BFD iptables firewall..."
 
@@ -443,7 +472,7 @@ function remove_apf() {
 function install_firewall() {
     echo ""
     echo "IPtables-based Firewall Installation"
-    warning "You should not run any other iptables firewall configuration script.
+    info "You should not run any other iptables firewall configuration script.
 Any other iptables based firewall will be removed otherwise they will conflict."
     echo ""
     
@@ -481,7 +510,7 @@ Any other iptables based firewall will be removed otherwise they will conflict."
         # Ensure that iptables installed.
         if [[ -z $(command -v iptables) ]]; then
             echo "Iptables is required, trying to install it first..."
-            run apt-get install -y iptables bash sh
+            run apt install -qq -y iptables
         fi
 
         case "${SELECTED_FW}" in
@@ -498,7 +527,7 @@ Any other iptables based firewall will be removed otherwise they will conflict."
             ;;
         esac
     else
-        warning "Firewall installation skipped..."
+        info "Firewall installation skipped."
     fi
 }
 
@@ -526,12 +555,10 @@ echo "[LEMPer Basic Server Security]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ "${1}" == "--install" ]]; then
-    init_secure_server "$@"
-elif [[ "${1}" == "--remove" || "${1}" == "--uninstall" ]]; then
+if [[ "${1}" == "remove" || "${1}" == "uninstall" ]]; then
     remove_apf
     remove_csf
     remove_ufw
 else
-    error "'--' command is required." >&2
+    init_secure_server "$@"
 fi

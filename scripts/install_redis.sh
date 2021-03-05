@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Redis server installer
-# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
 # Last Build        : 23/10/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
@@ -29,14 +29,14 @@ function add_redis_repo() {
                 run touch /etc/apt/sources.list.d/dotdeb-stable.list
                 run bash -c "echo -e 'deb http://ftp.utexas.edu/dotdeb/ stable all\ndeb-src http://ftp.utexas.edu/dotdeb/ stable all' > /etc/apt/sources.list.d/dotdeb-stable.list"
                 run bash -c "wget -qO - 'https://www.dotdeb.org/dotdeb.gpg' | apt-key add -"
-                run apt-get -qq update -y
+                run apt update -qq -y
             else
-                warning "Dotdeb repository already exists."
+                info "Dotdeb repository already exists."
             fi
         ;;
         ubuntu)
             run add-apt-repository -y ppa:chris-lea/redis-server && \
-            run apt-get -qq update -y
+            run apt update -qq -y
         ;;
         *)
             fail "Unable to add Redis, this GNU/Linux distribution is not supported."
@@ -81,16 +81,8 @@ function init_redis_install {
                 echo "Installing Redis server from repository..."
 
                 # Install Redis.
-                if hash apt-get 2>/dev/null; then
-                    run apt-get -qq install -y redis-server redis-tools php-redis
-                elif hash yum 2>/dev/null; then
-                    if [ "${VERSION_ID}" == "5" ]; then
-                        yum -y update
-                        #yum -y localinstall redis-server
-                    else
-                        yum -y update
-                        #yum -y localinstall redis-server
-                    fi
+                if hash apt 2>/dev/null; then
+                    run apt install -qq -y redis-server redis-tools
                 else
                     fail "Unable to install Redis, this GNU/Linux distribution is not supported."
                 fi
@@ -108,7 +100,7 @@ function init_redis_install {
                     REDIS_DOWNLOAD_URL="http://download.redis.io/releases/redis-${REDIS_VERSION}.tar.gz"
                 fi
 
-                if curl -sL --head "${REDIS_DOWNLOAD_URL}" | grep -q "HTTP/[12].[01] [23].."; then
+                if curl -sLI "${REDIS_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
                     run wget -q -O "redis.tar.gz" "${REDIS_DOWNLOAD_URL}" && \
                     run tar -zxf "redis.tar.gz" && \
                     run cd redis-* && \
@@ -133,21 +125,6 @@ function init_redis_install {
                         run chown redis:redis /run/redis
                         run chmod 770 /run/redis
                     fi
-
-                    # Install PHP Redis.
-                    if hash apt-get 2>/dev/null; then
-                        run apt-get -qq install -y php-redis
-                    elif hash yum 2>/dev/null; then
-                        if [ "${VERSION_ID}" == "5" ]; then
-                            yum -y update
-                            #yum -y localinstall redis-server
-                        else
-                            yum -y update
-                            #yum -y localinstall redis-server
-                        fi
-                    else
-                        fail "Unable to install PHP Redis, this GNU/Linux distribution is not supported."
-                    fi
                 else
                     error "An error occured while downloading Redis source."
                 fi
@@ -162,7 +139,7 @@ function init_redis_install {
 
         # Configure Redis.
         if "${DRYRUN}"; then
-            warning "Configuring Redis in dryrun mode."
+            info "Configuring Redis in dryrun mode."
         else
             if [ ! -f /etc/redis/redis.conf ]; then
                 run cp -f etc/redis/redis.conf /etc/redis/
@@ -261,29 +238,56 @@ EOL
             # Enable Redis on system boot.
             run systemctl enable redis-server.service
         else
-            run service redis-server restart
+            run systemctl restart redis-server
         fi
 
         if "${DRYRUN}"; then
-            warning "Redis server installed in dryrun mode."
+            info "Redis server installed in dryrun mode."
         else
             if [[ $(pgrep -c redis-server) -gt 0 ]]; then
-                status "Redis server started successfully."
+                success "Redis server started successfully."
             else
-                warning "Something wrong with Redis installation."
+                info "Something went wrong with Redis installation."
             fi
         fi
+
+        # PHP version.
+        local PHPv="${1}"
+        if [ -z "${PHPv}" ]; then
+            PHPv=${PHP_VERSION:-"7.4"}
+        fi
+
+        # Install PHP Redis extension.
+        install_php_redis "$@"
     else
-        echo "Skipping Redis server installation..."
+        info "Redis server installation skipped."
     fi
 }
+
+# Install PHP Redis extension.
+function install_php_redis() {
+    # PHP version.
+    local PHPv="${1}"
+    if [ -z "${PHPv}" ]; then
+        PHPv=${PHP_VERSION:-"7.4"}
+    fi
+
+    echo "Installing PHP ${PHPv} Redis extensions..."
+
+    if hash apt 2>/dev/null; then
+        run apt install -qq -y "php${PHPv}-redis"
+    else
+        fail "Unable to install PHP ${PHPv} Redis, this GNU/Linux distribution is not supported."
+    fi
+}
+
 
 echo "[Redis (Key-value) Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v redis-server) ]]; then
-    warning "Redis key-value store server already exists. Installation skipped..."
+    info "Redis key-value store server already exists. Installation skipped..."
 else
     init_redis_install "$@"
 fi

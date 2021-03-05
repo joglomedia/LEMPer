@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Certbot Let's Encrypt Installer
-# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
 # Last Build        : 12/07/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
@@ -37,13 +37,13 @@ function init_certbotle_install() {
             debian)
                 case "${RELEASE_NAME}" in
                     jessie)
-                        run apt-get install certbot -t jessie-backports
+                        run apt install -qq -y certbot -t jessie-backports
                     ;;
                     stretch)
-                        run apt-get install certbot -t stretch-backports
+                        run apt install -qq -y certbot -t stretch-backports
                     ;;
                     buster)
-                        run apt-get install certbot
+                        run apt install -qq -y certbot
                     ;;
                     *)
                         error "Unable to add Certbot, unsupported distribution release: ${DISTRIB_NAME^} ${RELEASE_NAME^}."
@@ -54,17 +54,17 @@ function init_certbotle_install() {
             ;;
             ubuntu)
                 run add-apt-repository -y ppa:certbot/certbot
-                run apt-get -qq update -y
-                run apt-get -qq install -y certbot
+                run apt update -qq -y
+                run apt install -qq -y certbot
             ;;
         esac
 
         # Add Certbot auto renew command to cronjob.
         if "${DRYRUN}"; then
-            warning "Certbot auto-renew command added to cronjob in dryrun mode."
+            info "Certbot auto-renew command added to cronjob in dryrun mode."
         else
             export EDITOR=nano
-            CRONCMD='15 3 * * * root /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
+            CRONCMD='15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
             touch lemper.cron
             crontab -u root lemper.cron
             crontab -l > lemper.cron
@@ -84,7 +84,8 @@ EOL
             fi
 
             # Register a new account.
-            LE_EMAIL=${ADMIN_EMAIL:-"cert@lemper.sh"}
+            local LE_EMAIL=${ADMIN_EMAIL:-"cert@lemper.sh"}
+
             if [ -d /etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory ]; then
                 run certbot update_account --email "${LE_EMAIL}" --no-eff-email --agree-tos
             else
@@ -93,12 +94,12 @@ EOL
         fi
 
         if "${DRYRUN}"; then
-            warning "Certbot installed in dryrun mode."
+            info "Certbot installed in dryrun mode."
         else
             if certbot --version | grep -q "certbot"; then
-                status "Certbot installed successfully."
+                success "Certbot successfully installed."
             else
-                warning "Something wrong with Certbot installation."
+                info "Something went wrong with Certbot installation."
             fi
         fi
     fi
@@ -109,7 +110,7 @@ echo "[Certbot Let's Encrypt Installation]"
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v certbot) ]]; then
-    warning "Certbot Let's Encrypt already exists. Installation skipped..."
+    info "Certbot Let's Encrypt already exists. Installation skipped..."
 else
     init_certbotle_install "$@"
 fi

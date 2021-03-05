@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Memcached Uninstaller
-# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
 # Last Build        : 31/07/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
@@ -22,14 +22,15 @@ function init_memcached_removal() {
     if [[ $(pgrep -c memcached) -gt 0 ]]; then
         #run service memcached@memcache stop
         #run service memcached@www-data stop
-        run kill -9 "$(pidof memcached)"
+        # shellcheck disable=SC2046
+        run kill -9 $(pidof memcached)
     fi
 
     if dpkg-query -l | awk '/memcached/ { print $2 }' | grep -qwE "^memcached$"; then
         echo "Found Memcached package installation. Removing..."
 
         # Remove Memcached server.
-        run apt-get -qq --purge remove -y libmemcached11 memcached php-igbinary \
+        run apt remove --purge -qq -y libmemcached11 memcached php-igbinary \
             php-memcache php-memcached php-msgpack
     else
         echo "Memcached package not found, possibly installed from source."
@@ -103,12 +104,12 @@ function init_memcached_removal() {
 
     # Final test.
     if "${DRYRUN}"; then
-        warning "Memcached server removed in dryrun mode."
+        info "Memcached server removed in dryrun mode."
     else
         if [[ -z $(command -v memcached) ]]; then
-            status "Memcached server removed succesfully."
+            success "Memcached server removed succesfully."
         else
-            warning "Unable to remove Memcached server."
+            info "Unable to remove Memcached server."
         fi
     fi
 }
@@ -129,5 +130,5 @@ if [[ -n $(command -v memcached) ]]; then
         echo "Found Memcached server, but not removed."
     fi
 else
-    warning "Oops, Memcached installation not found."
+    info "Oops, Memcached installation not found."
 fi

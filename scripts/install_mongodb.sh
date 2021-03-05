@@ -2,9 +2,9 @@
 
 # MongoDB installer
 # Ref : https://www.linode.com/docs/databases/mongodb/install-mongodb-on-ubuntu-16-04
-# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
 # Last Build        : 01/08/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
@@ -43,15 +43,24 @@ function add_mongodb_repo() {
 
     case ${DISTRIB_NAME} in
         debian)
-            [[ ${RELEASE_NAME} == "buster" ]] && local RELEASE_NAME="stretch"
+            #case ${RELEASE_NAME} in
+            #    "buster")
+            #        MONGODB_VERSION="4.2" # Only v4.2 supported for Buster
+            #    ;;
+            #    "jessie")
+            #        if version_older_than "4.1" "${MONGODB_VERSION}"; then
+            #            MONGODB_VERSION="4.1"
+            #        fi
+            #    ;;
+            #esac
 
             if [ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" ]; then
                 run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/debian ${RELEASE_NAME}/mongodb-org/${MONGODB_VERSION} main' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
                 run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -"
-                run apt-get -qq update -y
+                run apt update -qq -y
             else
-                warning "MongoDB ${MONGODB_VERSION} repository already exists."
+                info "MongoDB ${MONGODB_VERSION} repository already exists."
             fi
         ;;
         ubuntu)
@@ -59,9 +68,9 @@ function add_mongodb_repo() {
                 run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/ubuntu ${RELEASE_NAME}/mongodb-org/${MONGODB_VERSION} multiverse' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
                 run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -"
-                run apt-get -qq update -y
+                run apt update -qq -y
             else
-                warning "MongoDB ${MONGODB_VERSION} repository already exists."
+                info "MongoDB ${MONGODB_VERSION} repository already exists."
             fi
         ;;
         *)
@@ -87,20 +96,9 @@ function init_mongodb_install() {
 
         echo "Installing MongoDB server and MongoDB PHP module..."
 
-        if hash apt-get 2>/dev/null; then
-            run apt-get -qq install -y libbson-1.0 libmongoc-1.0-0 mongodb-org mongodb-org-server \
-                mongodb-org-shell mongodb-org-tools php-mongodb
-            
-            # Install PHP-MongoDB
-            #install_php_mongodb
-        elif hash yum 2>/dev/null; then
-            if [ "${VERSION_ID}" == "5" ]; then
-                yum -y update
-                #yum -y localinstall mongodb-org mongodb-org-server --nogpgcheck
-            else
-                yum -y update
-            	#yum -y localinstall mongodb-org mongodb-org-server
-            fi
+        if hash apt 2>/dev/null; then
+            run apt install -qq -y libbson-1.0 libmongoc-1.0-0 mongodb-org mongodb-org-server \
+                mongodb-org-shell mongodb-org-tools
         else
             fail "Unable to install MongoDB, this GNU/Linux distribution is not supported."
         fi
@@ -110,7 +108,7 @@ function init_mongodb_install() {
         run systemctl restart mongod
 
         if "${DRYRUN}"; then
-            warning "MongoDB server installed in dryrun mode."
+            info "MongoDB server installed in dryrun mode."
         else
             echo "MongoDB installation completed."
             echo "After installation finished, you can add a MongoDB administrative user. Example command lines below:";
@@ -144,47 +142,75 @@ _EOF_
                 # Save log.
                 save_log -e "MongoDB default admin user is enabled, here is your admin credentials:\nAdmin username: ${MONGODB_ADMIN_USER} | Admin password: ${MONGODB_ADMIN_PASS}\nSave this credentials and use it to authenticate your MongoDB connection."
             fi
-
-            sleep 2
         fi
+
+        # PHP version.
+        local PHPv="${1}"
+        if [ -z "${PHPv}" ]; then
+            PHPv=${PHP_VERSION:-"7.4"}
+        fi
+
+        # Install PHP MongoDB extension.
+        install_php_mongodb "${PHPv}"
     else
-        warning "MongoDB installation skipped..."
+        info "MongoDB server installation skipped."
     fi
 }
 
-# Install PHP MongoDB module.
+# Install PHP MongoDB extension.
 function install_php_mongodb() {
-    echo "Installing PHP MongoDB module..."
+    # PHP version.
+    local PHPv="${1}"
+    if [ -z "${PHPv}" ]; then
+        PHPv=${PHP_VERSION:-"7.4"}
+    fi
+
+    echo -e "\nInstalling PHP ${PHPv} MongoDB extension..."
 
     local CURRENT_DIR && \
     CURRENT_DIR=$(pwd)
     run cd "${BUILD_DIR}"
 
+    if hash apt 2>/dev/null; then
+        run apt install -qq -y "php${PHPv}-mongodb"
+    else
+        fail "Unable to install PHP ${PHPv} MongoDB, this GNU/Linux distribution is not supported."
+    fi
+
     run git clone --depth=1 -q https://github.com/mongodb/mongo-php-driver.git && \
     run cd mongo-php-driver && \
     run git submodule update --init
 
-    if [[ -n "${PHP_VERSION}" ]]; then
-        run "/usr/bin/phpize${PHP_VERSION}" && \
-        run ./configure --with-php-config="/usr/bin/php-config${PHP_VERSION}"
+    if [[ -n $(command -v "php${PHPv}") ]]; then
+        run "/usr/bin/phpize${PHPv}" && \
+        run ./configure --with-php-config="/usr/bin/php-config${PHPv}"
     else
         run /usr/bin/phpize && \
         run ./configure
     fi
 
     run make all && \
-    run make install && \
-    run service "php${PHP_VERSION}-fpm" restart
+    run make install
+
+    PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+    if [ -f "${PHPLIB_DIR}/mongodb.so" ]; then
+        success "MongoDB module sucessfully installed at ${PHPLIB_DIR}/mongodb.so."
+        run chmod 0644 "${PHPLIB_DIR}/mongodb.so"
+    fi
+
+    #run service "php${PHPv}-fpm" restart
+    run systemctl restart "php${PHPv}-fpm"
 
     run cd "${CURRENT_DIR}"
 }
+
 
 echo "[MongoDB Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v mongod) ]]; then
-    warning "MongoDB server already exists. Installation skipped..."
+    info "MongoDB server already exists. Installation skipped..."
 else
     init_mongodb_install "$@"
 fi

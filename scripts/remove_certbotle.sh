@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Certbot Let's Encrypt Uninstaller
-# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
 # Last Build        : 17/08/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
@@ -22,7 +22,7 @@ function init_certbotle_removal() {
         echo "Found Certbot package installation. Removing..."
 
         # Remove Certbot.
-        run apt-get -qq --purge remove -y certbot
+        run apt remove --purge -qq -y certbot
 
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:certbot/certbot
@@ -56,12 +56,12 @@ function init_certbotle_removal() {
 
     # Final test.
     if "${DRYRUN}"; then
-        warning "Certbot Let's Encrypt client removed in dryrun mode."
+        info "Certbot Let's Encrypt client removed in dryrun mode."
     else
         if [[ -z $(command -v certbot) ]]; then
-            status "Certbot Let's Encrypt client removed succesfully."
+            success "Certbot Let's Encrypt client removed succesfully."
         else
-            warning "Unable to remove Certbot Let's Encrypt client."
+            info "Unable to remove Certbot Let's Encrypt client."
         fi
     fi
 }
@@ -82,5 +82,5 @@ if [[ -n $(command -v certbot) ]]; then
         echo "Found Certbot Let's Encrypt, but not removed."
     fi
 else
-    warning "Oops, Certbot Let's Encrypt installation not found."
+    info "Oops, Certbot Let's Encrypt installation not found."
 fi

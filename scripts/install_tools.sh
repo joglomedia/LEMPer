@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # LEMPer administration installer
-# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
 # Last Build        : 04/10/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
@@ -24,6 +24,7 @@ function init_webadmin_install() {
     # Install Lemper CLI tool.
     echo "Installing Lemper CLI tool..."
     run cp -f bin/lemper-cli.sh /usr/local/bin/lemper-cli
+    #run cp -f bin/lemper-cli /usr/local/bin/ && \
     run chmod ugo+x /usr/local/bin/lemper-cli
 
     if [ ! -d /usr/local/lib/lemper ]; then
@@ -62,9 +63,9 @@ function init_webadmin_install() {
     fi
 
     # Overwrite existing.
-    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.5/adminer-4.7.5.php \
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.7/adminer-4.7.7.php \
         -O /usr/share/nginx/html/lcp/dbadmin/index.php
-    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.5/editor-4.7.5.php \
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.7/editor-4.7.7.php \
         -O /usr/share/nginx/html/lcp/dbadmin/editor.php
 
     # Install File Manager.
@@ -77,7 +78,9 @@ function init_webadmin_install() {
         local CUR_DIR && \
         CUR_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/filemanager/
-        run git pull -q
+        #run git pull -q
+        run wget -q https://raw.githubusercontent.com/PHPlayground/tinyfilemanager/lemperfm_1.3.0/index.php \
+            -O /usr/share/nginx/html/lcp/filemanager/index.php
         run cd "${CUR_DIR}"
     fi
 
@@ -170,7 +173,8 @@ EOL
             if "${REDIS_REQUIREPASS}"; then
                 run sed -i "s|//'auth'\ =>\ 'redispasswordhere'|'auth'\ =>\ '${REDIS_PASSWORD}'|g" includes/config.inc.php
             fi
-        else 
+        else
+            run cd redisadmin
             run "${COMPOSERBIN}" -q update
         fi
 
@@ -181,7 +185,7 @@ EOL
     run chown -hR www-data:www-data /usr/share/nginx/html
 
     if [[ -x /usr/local/bin/lemper-cli && -d /usr/share/nginx/html/lcp ]]; then
-        status "Web administration tools successfully installed."
+        success "Web administration tools successfully installed."
     fi
 }
 

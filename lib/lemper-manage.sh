@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | Lemper manage - Simple LEMP Virtual Host Manager                        |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/lemper)               |
+# | Copyright (c) 2014-2020 ESLabs (https://eslabs.id/lemper)               |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -34,7 +34,6 @@ YELLOW=93
 ##
 # Helper Functions
 #
-
 function begin_color() {
     color="${1}"
     echo -e -n "\e[${color}m"
@@ -47,39 +46,46 @@ function end_color() {
 function echo_color() {
     color="${1}"
     shift
-    begin_color "$color"
+    begin_color "${color}"
     echo "$@"
     end_color
 }
 
 function error() {
-    #local error_message="$@"
-    echo_color "$RED" -n "Error: " >&2
+    echo_color "${RED}" -n "Error: " >&2
     echo "$@" >&2
 }
 
 # Prints an error message and exits with an error code.
 function fail() {
     error "$@"
-
-    # Normally I'd use $0 in "usage" here, but since most people will be running
-    # this via curl, that wouldn't actually give something useful.
     echo >&2
     echo "For usage information, run this script with --help" >&2
     exit 1
 }
 
 function status() {
-    echo_color "$GREEN" "$@"
+    echo_color "${GREEN}" "$@"
 }
 
 function warning() {
-    echo_color "$YELLOW" "$@"
+    echo_color "${YELLOW}" "$@"
 }
 
+function success() {
+    echo_color "${GREEN}" -n "Success: " >&2
+    echo "$@" >&2
+}
+
+function info() {
+    echo_color "${YELLOW}" -n "Info: " >&2
+    echo "$@" >&2
+}
+
+# Run command
 function run() {
-    if "${DRYRUN}"; then
-        echo_color "$YELLOW" -n "would run "
+    if "$DRYRUN"; then
+        echo_color "${YELLOW}" -n "would run "
         echo "$@"
     else
         if ! "$@"; then
@@ -128,6 +134,10 @@ Options:
       Disable virtual host.
   -e, --enable <vhost domain name>
       Enable virtual host.
+  -F, --enable-fail2ban <vhost domain name>
+      Enable fail2ban jail.
+  --disable-fail2ban <vhost domain name>
+      Disable fail2ban jail.
   -g, --enable-gzip
       Enable Gzip compression.
   -p, --enable-pagespeed <vhost domain name>
@@ -171,7 +181,7 @@ function enable_vhost() {
     if [[ ! -f "/etc/nginx/sites-enabled/${1}.conf" && -f "/etc/nginx/sites-available/${1}.conf" ]]; then
         run ln -s "/etc/nginx/sites-available/${1}.conf" "/etc/nginx/sites-enabled/${1}.conf"
 
-        status "Your virtual host ${1} has been enabled..."
+        success "Your virtual host ${1} has been enabled..."
 
         reload_nginx
     else
@@ -193,7 +203,7 @@ function disable_vhost() {
     if [ -f "/etc/nginx/sites-enabled/${1}.conf" ]; then
         run unlink "/etc/nginx/sites-enabled/${1}.conf"
 
-        status "Your virtual host ${1} has been disabled..."
+        success "Your virtual host ${1} has been disabled..."
 
         reload_nginx
     else
@@ -218,12 +228,19 @@ function remove_vhost() {
     WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${1}.conf" | awk '{print $3}' | cut -d'"' -f2)
 
     # Remove Nginx's vhost config.
-    if [ -f "/etc/nginx/sites-enabled/${1}.conf" ]; then
+    [ -f "/etc/nginx/sites-enabled/${1}.conf" ] && 
         run unlink "/etc/nginx/sites-enabled/${1}.conf"
-    fi
-    run rm -f "/etc/nginx/sites-available/${1}.conf"
 
-    status "Virtual host configuration file removed."
+    [ -f "/etc/nginx/sites-available/${1}.conf" ] && 
+        run rm -f "/etc/nginx/sites-available/${1}.conf"
+
+    [ -f "/etc/nginx/sites-available/${1}.nonssl-conf" ] && 
+        run rm -f "/etc/nginx/sites-available/${1}.nonssl-conf"
+
+    [ -f "/etc/nginx/sites-available/${1}.ssl-conf" ] && 
+        run rm -f "/etc/nginx/sites-available/${1}.ssl-conf"
+
+    success "Virtual host configuration file removed."
 
     # Remove vhost root directory.
     read -rp "Do you want to delete website root directory? [y/n]: " -e DELETE_DIR
@@ -234,9 +251,9 @@ function remove_vhost() {
 
         if [ -d "${WEBROOT}" ]; then
             run rm -fr "${WEBROOT}"
-            status "Virtual host root directory removed."
+            success "Virtual host root directory removed."
         else
-            warning "Sorry, directory couldn't be found. Skipped..."
+            info "Sorry, directory couldn't be found. Skipped..."
         fi
     fi
 
@@ -277,9 +294,9 @@ function remove_vhost() {
         if [ -d "/var/lib/mysql/${DBNAME}" ]; then
             echo "Deleting database ${DBNAME}..."
             run mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "DROP DATABASE ${DBNAME}"
-            status "Database '${DBNAME}' dropped."
+            success "Database '${DBNAME}' dropped."
         else
-            warning "Sorry, database ${DBNAME} not found. Skipped..."
+            info "Sorry, database ${DBNAME} not found. Skipped..."
         fi
     fi
 
@@ -287,6 +304,42 @@ function remove_vhost() {
 
     # Reload Nginx.
     reload_nginx
+}
+
+
+function enable_fail2ban() {
+    # Verify user input hostname (domain name)
+    verify_vhost "${1}"
+
+    echo "Enabling Fail2ban ${FRAMEWORK^} filter for ${1}..."
+
+    # Get web root path from vhost config, first.
+    #shellcheck disable=SC2154
+    local WEBROOT && \
+    WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${1}.conf" | awk '{print $3}' | cut -d'"' -f2)
+
+    if [[ ! -d ${WEBROOT} ]]; then
+        read -rp "Enter real path to website root directory containing your access_log file: " -i "${WEBROOT}" -e WEBROOT
+    fi
+
+    if [[ $(command -v fail2ban-client) && -f "/etc/fail2ban/filter.d/${FRAMEWORK}.conf" ]]; then
+        cat > "/etc/fail2ban/jail.d/${1}.conf" <<_EOL_
+[${1}]
+enabled = true
+port = http,https
+filter = ${FRAMEWORK}
+action = iptables-multiport[name=webapps, port="http,https", protocol=tcp]
+logpath = ${WEBROOT}/access_log
+bantime = 30d
+findtime = 5m
+maxretry = 3
+_EOL_
+
+        # Reload fail2ban
+        run service fail2ban reload
+    else
+        info "Fail2ban or filter is not installed. Please install it first."
+    fi
 }
 
 ##
@@ -307,7 +360,7 @@ function enable_fastcgi_cache() {
         run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
     else
-        warning "FastCGI cache is not enabled. There is no cached configuration."
+        info "FastCGI cache is not enabled. There is no cached configuration."
         exit 1
     fi
 
@@ -333,7 +386,7 @@ function disable_fastcgi_cache() {
         run sed -i "s|^\        include\ /etc/nginx/includes/fastcgi_cache.conf|\        #include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${1}.conf"
     else
-        warning "FastCGI cache is not enabled. There is no cached configuration."
+        info "FastCGI cache is not enabled. There is no cached configuration."
         exit 1
     fi
 
@@ -368,7 +421,7 @@ function enable_mod_pagespeed() {
         #        "/etc/nginx/sites-available/${1}.conf"
         #fi
     else
-        warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
+        info "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
     fi
 
@@ -402,7 +455,7 @@ function disable_mod_pagespeed() {
         #        "/etc/nginx/sites-available/${1}.conf"
         #fi
     else
-        warning "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
+        info "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
     fi
 
@@ -453,7 +506,7 @@ function enable_ssl() {
 
     # Update vhost config.
     if "${DRYRUN}"; then
-        warning "Updating HTTPS config in dryrun mode."
+        info "Updating HTTPS config in dryrun mode."
     else
         # Ensure there is no HTTPS enabled server block.
         if ! grep -qwE "^\    listen\ 443 ssl http2" "/etc/nginx/sites-available/${1}.conf"; then
@@ -519,7 +572,7 @@ function disable_ssl() {
 
     # Update vhost config.
     if "${DRYRUN}"; then
-        warning "Disabling HTTPS config in dryrun mode."
+        info "Disabling HTTPS config in dryrun mode."
     else
         echo "Disabling HTTPS configuration..."
 
@@ -552,7 +605,7 @@ function remove_ssl() {
 
     # Update vhost config.
     if "${DRYRUN}"; then
-        warning "Disabling HTTPS and removing SSL certificate in dryrun mode."
+        info "Disabling HTTPS and removing SSL certificate in dryrun mode."
     else
         # Disable HTTPS first.
         disable_ssl "${1}"
@@ -582,7 +635,7 @@ function renew_ssl() {
 
     # Update vhost config.
     if "${DRYRUN}"; then
-        warning "Renew SSL certificate in dryrun mode."
+        info "Renew SSL certificate in dryrun mode."
     else
         echo "Renew SSL certificate..."
 
@@ -608,7 +661,7 @@ function renew_ssl() {
                 fail "Certbot executable binary not found. Install it first!"
             fi
         else
-            warning "Certificate file not found. May be your SSL is not activated yet."
+            info "Certificate file not found. May be your SSL is not activated yet."
         fi
     fi
     exit 0
@@ -622,7 +675,7 @@ function enable_brotli() {
         echo "Enable NGiNX Brotli compression..."
 
         if grep -qwE "^\    include\ /etc/nginx/comp_brotli" /etc/nginx/nginx.conf; then
-            status "Brotli compression module already enabled."
+            info "Brotli compression module already enabled."
             exit 0
         elif grep -qwE "^\    include\ /etc/nginx/comp_gzip" /etc/nginx/nginx.conf; then
             echo "Found Gzip compression enabled, updating to Brotli..."
@@ -635,7 +688,7 @@ function enable_brotli() {
             run sed -i "s|#include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_brotli;|g" \
                 /etc/nginx/nginx.conf
         else
-            warning "Sorry, we couldn't find any compression module section."
+            error "Sorry, we couldn't find any compression module section."
             echo "We recommend you to enable Brotli module manually."
             exit 1
         fi
@@ -657,7 +710,7 @@ function enable_gzip() {
         echo "Enable NGiNX Gzip compression..."
 
         if grep -qwE "^\    include\ /etc/nginx/comp_gzip" /etc/nginx/nginx.conf; then
-            status "Gzip compression module already enabled."
+            info "Gzip compression module already enabled."
             exit 0
         elif grep -qwE "^\    include\ /etc/nginx/comp_brotli" /etc/nginx/nginx.conf; then
             echo "Found Brotli compression enabled, updating to Gzip..."
@@ -670,7 +723,7 @@ function enable_gzip() {
             run sed -i "s|#include\ /etc/nginx/comp_[a-z]*;|include\ /etc/nginx/comp_gzip;|g" \
                 /etc/nginx/nginx.conf
         else
-            warning "Sorry, we couldn't find any compression module section."
+            error "Sorry, we couldn't find any compression module section."
             echo "We recommend you to enable Gzip module manually."
             exit 1
         fi
@@ -729,13 +782,13 @@ function reload_nginx() {
                 exit 1
             fi
         else
-            warning "Something went wrong with your LEMP stack installation."
+            info "Something went wrong with your LEMP stack installation."
             exit 1
         fi
     fi
 
     if [[ $(pgrep -c nginx) -gt 0 ]]; then
-        status "Your change has been successfully applied."
+        success "Your change has been successfully applied."
         exit 0
     else
         fail "An error occurred when updating configuration.";

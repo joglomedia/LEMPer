@@ -535,7 +535,7 @@ add support for dynamic modules in a way compatible with ngx_pagespeed until 1.9
         if [ -f /etc/debian_version ]; then
             status "Detected debian-based distro."
 
-            install_dependencies "apt-get install ${INSTALL_FLAGS}" debian_is_installed \
+            install_dependencies "apt install ${INSTALL_FLAGS}" debian_is_installed \
                 build-essential zlib1g-dev libpcre3 libpcre3-dev unzip wget uuid-dev
 
             if gcc_too_old; then
@@ -543,7 +543,7 @@ add support for dynamic modules in a way compatible with ngx_pagespeed until 1.9
                     status "Detected that gcc is older than 4.8. Installing gcc-mozilla"
                     status "which installs gcc-4.8 into /usr/lib/gcc-mozilla/ and doesn't"
                     status "affect your global gcc installation."
-                    run sudo apt-get install ${INSTALL_FLAGS} gcc-mozilla
+                    run sudo apt install ${INSTALL_FLAGS} gcc-mozilla
                 fi
 
                 extra_flags=("--with-cc=/usr/lib/gcc-mozilla/bin/gcc" \

@@ -1,9 +1,13 @@
 .env
 .env.save
 lemper.log
+lemper.sh
 scripts/install_ffmpeg.sh
 scripts/createssl.sh
 scripts/mysqltuner.pl
-#bin/lemper-cli.sh
+bin/lemper-cli-enc
+bin/lemper-cli-enc.sh
+bin/lemper-cli-enc.sh.x.c
+bin/lemperography.php
 #lib/lemper-create.sh
 #lib/lemper-manage.sh

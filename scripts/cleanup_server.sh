@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Cleanup server
-# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
 # Last Build        : 01/08/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
@@ -28,7 +28,7 @@ echo "Cleaning up server..."
 
 # Fix broken install, first?
 run dpkg --configure -a
-run apt-get -qq --fix-broken install
+run apt install -qq -y --fix-broken
 
 # Remove Apache2 service if exists.
 if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
@@ -52,10 +52,11 @@ if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
         if "${DRYRUN}"; then
             echo "Removing Apache2 installation in dryrun mode."
         else
-            run service apache2 stop
+            #run service apache2 stop
+            run systemctl stop apache2
 
             # shellcheck disable=SC2046
-            run apt-get -qq --purge remove -y $(dpkg-query -l | awk '/apache2/ { print $2 }') \
+            run apt remove --purge -qq -y $(dpkg-query -l | awk '/apache2/ { print $2 }') \
                 $(dpkg-query -l | awk '/httpd/ { print $2 }')
         fi
     else
@@ -74,18 +75,14 @@ if [[ -n $(command -v nginx) ]]; then
 fi
 
 # Remove PHP & FPM service if exists.
-if [[ -n $(command -v php5.6) || \
-    -n $(command -v php7.0) || \
-    -n $(command -v php7.1) || \
-    -n $(command -v php7.2) || \
-    -n $(command -v php7.3) ]]; then
-
+PHPv=${PHP_VERSION:-"7.3"}
+if [[ -n $(command -v "php${PHPv}") ]]; then
     warning -e "\nPHP & FPM already installed. Should we remove it?"
     echo "Backup your config and data before continue!"
 
     # shellchechk source=scripts/remove_php.sh
     # shellcheck disable=SC1090
-    "${SCRIPTS_DIR}/remove_php.sh"
+    "${SCRIPTS_DIR}/remove_php.sh" "${PHPv}"
 fi
 
 # Remove Mysql service if exists.
@@ -124,7 +121,7 @@ fi
 
 # Autoremove unused packages.
 echo -e "\nCleaning up unused packages..."
-run apt-get -qq autoremove -y
+run apt autoremove -qq -y
 
 if [[ -z $(command -v apache2) && -z $(command -v nginx) && -z $(command -v mysql) ]]; then
     status -e "\nYour server cleaned up."

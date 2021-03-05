@@ -21,6 +21,12 @@ set -e
 APP_NAME=$(basename "$0")
 APP_VERSION="1.3.0"
 
+# May need to run this as sudo!
+if [ "$(id -u)" -ne 0 ]; then
+    echo "This command can only be used by root."
+    exit 1
+fi
+
 # Export LEMPer stack configuration.
 if [ -f "/etc/lemper/lemper.conf" ]; then
     # Clean environemnt first.
@@ -56,15 +62,16 @@ function cmd_help() {
 ${APP_NAME^} ${APP_VERSION}
 Command line management tool for LEMPer stack.
 
-Usage: $APP_NAME [--version] [--help]
+Usage: ${APP_NAME} [--version] [--help]
        <command> [<options>]
 
-These are common $APP_NAME commands used in various situations:
+These are common ${APP_NAME} commands used in various situations:
   create  Create new virtual host
+  db      Wrapper for managing SQL database
   manage  Enable, disable, delete existing virtual host
 
 For help with each command run:
-$APP_NAME <command> -h|--help
+${APP_NAME} <command> -h|--help
 _EOF_
 
     exit 0
@@ -74,7 +81,7 @@ _EOF_
 # Show version.
 #
 function cmd_version() {
-    echo "$APP_NAME version $APP_VERSION"
+    echo "${APP_NAME} version $APP_VERSION"
     exit 0
 }
 
@@ -91,12 +98,12 @@ function cmd_create() {
 }
 
 # Aliases to create.
-function cmd_vhost() {
+function cmd_app() {
     cmd_create "$@"
 }
 
 # Aliases to create.
-function cmd_site() {
+function cmd_vhost() {
     cmd_create "$@"
 }
 
@@ -156,7 +163,7 @@ case ${SUBCOMMAND} in
             "cmd_${SUBCOMMAND}" "$@"
         else
             echo "Error: '${SUBCOMMAND}' is not a known command." >&2
-            echo "Run '${APP_NAME} --help' for a list of known commands." >&2
+            echo "Run '${APP_NAME} help' for a list of known commands." >&2
             exit 1
         fi
     ;;

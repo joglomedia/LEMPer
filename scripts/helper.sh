@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # Helper Functions
-# Min. Requirement  : GNU/Linux Ubuntu 14.04 & 16.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04 & 16.04
 # Last Build        : 17/07/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Export environment variables.
@@ -33,7 +33,7 @@ GREEN=32
 YELLOW=33
 
 function begin_color() {
-    color="$1"
+    color="${1}"
     echo -e -n "\e[${color}m"
 }
 
@@ -42,45 +42,48 @@ function end_color() {
 }
 
 function echo_color() {
-    color="$1"
+    color="${1}"
     shift
-    begin_color "$color"
+    begin_color "${color}"
     echo "$@"
     end_color
 }
 
 function error() {
-    echo_color "$RED" -n "Error: " >&2
+    echo_color "${RED}" -n "Error: " >&2
     echo "$@" >&2
 }
 
 # Prints an error message and exits with an error code.
 function fail() {
     error "$@"
-
-    # Normally I'd use $0 in "usage" here, but since most people will be running
-    # this via curl, that wouldn't actually give something useful.
     echo >&2
     echo "For usage information, run this script with --help" >&2
     exit 1
 }
 
 function status() {
-    echo_color "$GREEN" "$@"
+    echo_color "${GREEN}" "$@"
 }
 
 function warning() {
-    echo_color "$YELLOW" "$@"
+    echo_color "${YELLOW}" "$@"
 }
 
-# If we set -e or -u then users of this script will see it silently exit on
-# failure.  Instead we need to check the exit status of each command manually.
-# The run function handles exit-status checking for system-changing commands.
-# Additionally, this allows us to easily have a dryrun mode where we don't
-# actually make any changes.
+function success() {
+    echo_color "${GREEN}" -n "Success: " >&2
+    echo "$@" >&2
+}
+
+function info() {
+    echo_color "${YELLOW}" -n "Info: " >&2
+    echo "$@" >&2
+}
+
+# Run command
 function run() {
     if "$DRYRUN"; then
-        echo_color "$YELLOW" -n "would run "
+        echo_color "${YELLOW}" -n "would run "
         echo "$@"
     else
         if ! "$@"; then
@@ -91,66 +94,59 @@ function run() {
     fi
 }
 
+# Check if RedHat package (.rpm) is installed.
 function redhat_is_installed() {
-    local package_name="$1"
-    rpm -qa "$package_name" | grep -q .
+    local package_name="${1}"
+    rpm -qa "${package_name}" | grep -q .
 }
 
+# Check if Debian package (.deb) is installed.
 function debian_is_installed() {
-    local package_name="$1"
-    dpkg -l "$package_name" | grep ^ii | grep -q .
+    local package_name="${1}"
+    dpkg -l "${package_name}" | grep ^ii | grep -q .
 }
 
 # Usage:
 # install_dependencies install_pkg_cmd is_pkg_installed_cmd dep1 dep2 ...
 #
-# install_pkg_cmd is a command to install a dependency
-# is_pkg_installed_cmd is a command that returns true if the dependency is
+# install_pkg_cmd is a command to install a dependency, e.g. apt install (Debian)
+# is_pkg_installed_cmd is a command that returns true if the dependency is, e.g. debian_is_installed
 # already installed
 # each dependency is a package name
 function install_dependencies() {
-    local install_pkg_cmd="$1"
-    local is_pkg_installed_cmd="$2"
+    local install_pkg_cmd="${1}"
+    local is_pkg_installed_cmd="${2}"
     shift 2
 
     local missing_dependencies=""
 
     for package_name in "$@"; do
-        if ! "$is_pkg_installed_cmd" "$package_name"; then
-            missing_dependencies+="$package_name "
+        if ! "${is_pkg_installed_cmd}" "${package_name}"; then
+            missing_dependencies="${missing_dependencies} ${package_name}"
         fi
     done
-    if [ -n "$missing_dependencies" ]; then
-        status "Detected that we're missing the following depencencies:"
-        echo " $missing_dependencies"
-        status "Installing them:"
-        run sudo "$install_pkg_cmd" "$missing_dependencies"
+    if [ -n "${missing_dependencies}" ]; then
+        info "Detected that we're missing the following depencencies:"
+        echo "     ${missing_dependencies}"
+        info "Installing them:"
+        # shellcheck disable=SC2086
+        run ${install_pkg_cmd} ${missing_dependencies}
     fi
 }
 
 function gcc_too_old() {
     # We need gcc >= 4.8
     local gcc_major_version && \
-    gcc_major_version=$(gcc -dumpversion | awk -F. '{print $1}')
-    if [ "$gcc_major_version" -lt 4 ]; then
+    gcc_major_version=$(gcc -dumpversion | awk -F. '{print ${1}}')
+    if [ "${gcc_major_version}" -lt 4 ]; then
         return 0 # too old
-    elif [ "$gcc_major_version" -gt 4 ]; then
+    elif [ "${gcc_major_version}" -gt 4 ]; then
         return 1 # plenty new
     fi
     # It's gcc 4.x, check if x >= 8:
     local gcc_minor_version && \
     gcc_minor_version=$(gcc -dumpversion | awk -F. '{print $2}')
-    test "$gcc_minor_version" -lt 8
-}
-
-function continue_or_exit() {
-    local prompt="$1"
-    echo_color "$YELLOW" -n "$prompt"
-    read -rp " [y/n] " yn
-    if [[ "$yn" == N* || "$yn" == n* ]]; then
-        echo "Cancelled."
-        exit 0
-    fi
+    test "${gcc_minor_version}" -lt 8
 }
 
 # If a string is very simple we don't need to quote it.    But we should quote
@@ -166,15 +162,41 @@ function escape_for_quotes() {
 function quote_arguments() {
     local argument_str=""
     for argument in "$@"; do
-        if [ -n "$argument_str" ]; then
+        if [ -n "${argument_str}" ]; then
             argument_str+=" "
         fi
-        if needs_quoting "$argument"; then
-            argument="'$(escape_for_quotes "$argument")'"
+        if needs_quoting "${argument}"; then
+            argument="'$(escape_for_quotes "${argument}")'"
         fi
-        argument_str+="$argument"
+        argument_str+="${argument}"
     done
-    echo "$argument_str"
+    echo "${argument_str}"
+}
+
+# Delete if directory exists.
+function delete_if_already_exists() {
+    if "${DRYRUN}"; then return; fi
+
+    local directory="${1}"
+    if [ -d "${directory}" ]; then
+        if [ ${#directory} -lt 8 ]; then
+            fail "Not deleting ${directory}; name is suspiciously short. Something is wrong."
+        fi
+
+        if "${FORCE_REMOVE}"; then
+            yn="y"
+        else
+            echo_color "${YELLOW}" -n "${directory} already exists, OK to delete?"
+            read -rp " [y/n] " yn
+        fi
+
+        if [[ "${yn}" == Y* || "${yn}" == y* ]]; then
+            run rm -rf "${directory}" && \
+            success "${directory} deleted."
+        else
+            info "Deletion cancelled."
+        fi
+    fi
 }
 
 function version_sort() {
@@ -189,10 +211,10 @@ function version_sort() {
 function version_older_than() {
     local test_version && \
     test_version=$(echo "$@" | tr ' ' '\n' | version_sort | head -n 1)
-    local compare_to="$2"
+    local compare_to="${2}"
     local older_version="${test_version}"
 
-    test "$older_version" != "$compare_to"
+    test "${older_version}" != "${compare_to}"
 }
 
 function nginx_download_report_error() {
@@ -204,19 +226,19 @@ function get_nginx_versions_available() {
     nginx_download_url="https://nginx.org/en/download.html"
 
     local nginx_download_page
-    nginx_download_page=$(curl -sS --fail "$nginx_download_url") || \
+    nginx_download_page=$(curl -sS --fail "${nginx_download_url}") || \
         nginx_download_report_error "download"
 
     local download_refs
-    download_refs=$(echo "$nginx_download_page" | \
+    download_refs=$(echo "${nginx_download_page}" | \
         grep -owE '"/download/nginx-[0-9.]*\.tar\.gz"') || \
         nginx_download_report_error "parse"
 
-    versions_available=$(echo "$download_refs" | \
+    versions_available=$(echo "${download_refs}" | \
         sed -e 's~^"/download/nginx-~~' -e 's~\.tar\.gz"$~~') || \
         nginx_download_report_error "extract versions from"
 
-    echo "$versions_available"
+    echo "${versions_available}"
 }
 
 # Try to find the most recent nginx version (mainline).
@@ -225,15 +247,15 @@ function determine_latest_nginx_version() {
     local latest_version
 
     versions_available=$(get_nginx_versions_available)
-    latest_version=$(echo "$versions_available" | version_sort | tail -n 1) || \
+    latest_version=$(echo "${versions_available}" | version_sort | tail -n 1) || \
         report_error "determine latest (mainline) version from"
 
-    if version_older_than "$latest_version" "1.14.2"; then
+    if version_older_than "${latest_version}" "1.14.2"; then
         fail "Expected the latest version of nginx to be at least 1.14.2 but found
-$latest_version on $nginx_download_url"
+${latest_version} on ${nginx_download_url}"
     fi
 
-    echo "$latest_version"
+    echo "${latest_version}"
 }
 
 # Try to find the stable nginx version (mainline).
@@ -242,23 +264,23 @@ function determine_stable_nginx_version() {
     local stable_version
 
     versions_available=$(get_nginx_versions_available)
-    stable_version=$(echo "$versions_available" | version_sort | tail -n 2 | sort -r | tail -n 1) || \
+    stable_version=$(echo "${versions_available}" | version_sort | tail -n 2 | sort -r | tail -n 1) || \
         report_error "determine stable (LTS) version from"
 
-    if version_older_than "1.14.2" "$latest_version"; then
+    if version_older_than "1.14.2" "${latest_version}"; then
         fail "Expected the latest version of nginx to be at least 1.14.2 but found
-$latest_version on $nginx_download_url"
+${latest_version} on ${nginx_download_url}"
     fi
 
-    echo "$stable_version"
+    echo "${stable_version}"
 }
 
 # Validate Nginx configuration.
 function validate_nginx_config() {
     if nginx -t 2>/dev/null > /dev/null; then
-        echo "true" # success
+        echo true # success
     else
-        echo "false" # error
+        echo false # error
     fi
 }
 
@@ -273,80 +295,11 @@ function validate_fqdn() {
     fi
 }
 
-##
 # Make sure only root can run LEMPer script.
-#
 function requires_root() {
     if [ "$(id -u)" -ne 0 ]; then
         error "This command can only be used by root."
         exit 1
-    fi
-}
-
-##
-# Make sure only supported distribution can run this installer script.
-#
-function system_check() {
-    export DISTRIB_NAME && DISTRIB_NAME=$(get_distrib_name)
-    export RELEASE_NAME && RELEASE_NAME=$(get_release_name)
-
-    if [[ "${RELEASE_NAME}" == "unsupported" ]]; then
-        fail "This Linux distribution isn't supported yet. If you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
-    else
-        # Set system architecture.
-        export ARCH && \
-        ARCH=$(uname -p)
-
-        # Set default timezone.
-        export TIMEZONE
-        if [[ -z "${TIMEZONE}" || "${TIMEZONE}" = "none" ]]; then
-            [ -f /etc/timezone ] && TIMEZONE=$(cat /etc/timezone) || TIMEZONE="UTC"
-        fi
-
-        # Set ethernet interface.
-        export IFACE && \
-        IFACE=$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)
-
-        # Set server IP.
-        export SERVER_IP && \
-        SERVER_IP=${SERVER_IP:-$(get_ip_addr)}
-
-        # Set server hostname.
-        if [ -z "${HOSTNAME}" ]; then
-            export HOSTNAME && \
-            HOSTNAME=$(hostname)
-        fi
-
-        # Validate server's hostname for production stack.
-        if [[ "${ENVIRONMENT}" = "production" ]]; then
-            # Check if the hostname is valid.
-            if [[ $(validate_fqdn "${HOSTNAME}") != true ]]; then
-                error "Your server's hostname is not fully qualified domain name (FQDN)."
-                echo -e "Please update your hostname to qualify the FQDN format and\nthen points your hostname to this server ip ${SERVER_IP} !"
-                exit 1
-            fi
-
-            # Check if the hostname is pointed to server IP address.
-            if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" ]]; then
-                error "It seems that your server's hostname is not yet pointed to your server's IP address."
-                echo -e "Please update your DNS record by adding an A record and point it to your server IP ${SERVER_IP} !"
-                exit 1
-            fi
-        fi
-    fi
-}
-
-function delete_if_already_exists() {
-     if "$DRYRUN"; then return; fi
-
-    local directory="$1"
-    if [ -d "$directory" ]; then
-        if [ ${#directory} -lt 8 ]; then
-            fail "Not deleting $directory; name is suspiciously short. Something is wrong."
-        fi
-
-        continue_or_exit "OK to delete $directory?"
-        run rm -rf "$directory"
     fi
 }
 
@@ -385,8 +338,8 @@ function get_release_name() {
 
         case ${DISTRIB_NAME} in
             debian)
-                #RELEASE_NAME=${VERSION_CODENAME:-"unsupported"}
-                RELEASE_NAME="unsupported"
+                RELEASE_NAME=${VERSION_CODENAME:-"unsupported"}
+                #RELEASE_NAME="unsupported"
 
                 # TODO for Debian install
             ;;
@@ -406,9 +359,9 @@ function get_release_name() {
                         # Ubuntu release 18.04, LinuxMint 19
                         RELEASE_NAME=${UBUNTU_CODENAME:-"bionic"}
                     ;;
-                    "19.04")
-                        # Ubuntu release 19.04
-                        RELEASE_NAME=${UBUNTU_CODENAME:-"disco"}
+                    "20.04"|"LM20")
+                        # Ubuntu release 20.04, LinuxMint 20
+                        RELEASE_NAME=${UBUNTU_CODENAME:-"focal"}
                     ;;
                     *)
                         RELEASE_NAME="unsupported"
@@ -439,6 +392,71 @@ function get_release_name() {
     fi
 
     echo "${RELEASE_NAME}"
+}
+
+# Make sure only supported distribution can run LEMPer script.
+function preflight_system_check() {
+    export DISTRIB_NAME && DISTRIB_NAME=$(get_distrib_name)
+    export RELEASE_NAME && RELEASE_NAME=$(get_release_name)
+
+    # Check supported distribution and release version.
+    if [[ "${DISTRIB_NAME}" == "unsupported" || "${RELEASE_NAME}" == "unsupported" ]]; then
+        fail "This Linux distribution isn't supported yet. If you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
+    fi
+}
+
+# Verify system pre-requisites configuration.
+function verify_prerequisites() {
+    # Set system architecture.
+    export ARCH && \
+    ARCH=$(uname -p)
+
+    # Set default timezone.
+    export TIMEZONE
+    if [[ -z "${TIMEZONE}" || "${TIMEZONE}" = "none" ]]; then
+        [ -f /etc/timezone ] && TIMEZONE=$(cat /etc/timezone) || TIMEZONE="UTC"
+    fi
+
+    # Set ethernet interface.
+    export IFACE && \
+    IFACE=$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)
+
+    # Set server IP.
+    export SERVER_IP && \
+    SERVER_IP=${SERVER_IP:-$(get_ip_addr)}
+
+    # Set server hostname.
+    if [ -n "${SERVER_HOSTNAME}" ]; then
+        run hostname "${SERVER_HOSTNAME}" && \
+        run bash -c "echo '${SERVER_HOSTNAME}' > /etc/hostname"
+
+        if grep -q "${SERVER_HOSTNAME}" /etc/hosts; then
+            run sed -i".bak" "/${SERVER_HOSTNAME}/d" /etc/hosts
+        else
+            run bash -c "echo -e '\n#LEMPer local hosts\n${SERVER_IP}\t${SERVER_HOSTNAME}' >> /etc/hosts"
+        fi
+
+        export HOSTNAME && \
+        HOSTNAME=${SERVER_HOSTNAME:-$(hostname)}
+    fi
+
+    # Validate server's hostname for production stack.
+    if [[ "${ENVIRONMENT}" = "production" ]]; then
+        # Check if the hostname is valid.
+        if [[ $(validate_fqdn "${HOSTNAME}") != true ]]; then
+            error "Your server's hostname is not fully qualified domain name (FQDN)."
+            echo -e "In production environment you should use hostname that qualify FQDN format."
+            echo -n "Update your hostname and points it to this server IP address "; status -n "${SERVER_IP}"; echo " !"
+            exit 1
+        fi
+
+        # Check if the hostname is pointed to server IP address.
+        #if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" ]]; then
+        #    error "It seems that your server's hostname is not yet pointed to your server's IP address."
+        #    echo -n "In production environment you should add an DNS A record, points it to this server IP address "; status -n "${SERVER_IP}"; echo " !"
+        #    exit 1
+        #fi
+    fi
 }
 
 # Get physical RAM size.
@@ -512,7 +530,7 @@ function remove_swap() {
 
         echo "Swap file removed."
     else
-        warning "Unable to remove swap."
+        info "Unable to remove swap."
     fi
 }
 
@@ -523,11 +541,11 @@ function enable_swap() {
     if free | awk '/^Swap:/ {exit !$2}'; then
         local SWAP_SIZE && \
         SWAP_SIZE=$(free -m | awk '/^Swap:/ { print $2 }')
-        status "Swap size ${SWAP_SIZE}MiB."
+        info "Swap size ${SWAP_SIZE}MiB."
     else
-        warning "No swap detected."
+        info "No swap detected."
         create_swap
-        status "Swap created and enabled."
+        success "Swap created and enabled."
     fi
 }
 
@@ -580,10 +598,10 @@ function create_account() {
             # Save data to log file.
             save_log -e "Your default system account information:\nUsername: ${USERNAME}\nPassword: ${PASSWORD}"
 
-            status "Username ${USERNAME} created."
+            success "Username ${USERNAME} created."
         fi
     else
-        warning "Unable to create account, username ${USERNAME} already exists."
+        info "Unable to create account, username ${USERNAME} already exists."
     fi
 }
 
@@ -601,10 +619,10 @@ function delete_account() {
                 run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
             fi
 
-            status "Account ${USERNAME} deleted."
+            success "Account ${USERNAME} deleted."
         fi
     else
-        warning "Account ${USERNAME} not found."
+        info "Account ${USERNAME} not found."
     fi
 }
 
@@ -633,7 +651,7 @@ function init_log() {
 
 # Save log.
 function save_log() {
-    if ! ${DRYRUN}; then
+    if ! "${DRYRUN}"; then
         {
             date '+%d-%m-%Y %T %Z'
             echo "$@"
@@ -647,6 +665,7 @@ function init_config() {
     if [ ! -f /etc/lemper/lemper.conf ]; then
         run mkdir -p /etc/lemper/
         run touch /etc/lemper/lemper.conf
+        run chmod 0600 /etc/lemper/lemper.conf
     fi
 
     save_log -e "# LEMPer configuration.\n# Edit here if you change your password manually, but do NOT delete!"
@@ -654,9 +673,19 @@ function init_config() {
 
 # Save configuration.
 function save_config() {
-    if ! ${DRYRUN}; then
+    if ! "${DRYRUN}"; then
         [ -f /etc/lemper/lemper.conf ] && \
         echo "$@" >> /etc/lemper/lemper.conf
+    fi
+}
+
+# Encrypt configuration.
+function secure_config() {
+    if ! "${DRYRUN}"; then
+        if [ -f /etc/lemper/lemper.conf ]; then
+            run openssl aes-256-gcm -a -salt -md sha256 -k "${PASSWORD}" \
+                -in /etc/lemper/lemper.conf -out /etc/lemper/lemper.cnf
+        fi
     fi
 }
 
@@ -696,7 +725,7 @@ function footer_msg() {
 _EOF_
 }
 
-# Define build directory.
+# Define LEMPer build directory.
 BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
 if [ ! -d "${BUILD_DIR}" ]; then
     run mkdir -p "${BUILD_DIR}"

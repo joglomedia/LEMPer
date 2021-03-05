@@ -5,24 +5,19 @@
 script_under_test=$(basename "$0")
 
 # Nginx versions.
-nginx_stable_version="1.16.1"
-nginx_latest_version="1.17.7"
+nginx_stable_version="1.18.0"
+nginx_latest_version="1.19.7"
 
 # Source the helper functions.
 if [ -f scripts/helper.sh ]; then
     source scripts/helper.sh
-    system_check
+    preflight_system_check
     init_log
     init_config
 else
     echo "Helper function (scripts/helper.sh) not found."
     exit 1
 fi
-
-testEquality()
-{
-    assertEquals 1 1
-}
 
 testEqualityGetDistribName()
 {
@@ -42,6 +37,14 @@ testEqualityCreateAccount()
     create_account lemper
     [[ -n $(getent passwd "${USERNAME}") ]] && create_account_status="success"
     assertEquals "success" "${create_account_status}"
+}
+
+testEqualityInstallCertbot()
+{
+    . scripts/install_certbotle.sh
+
+    certbot_bin=$(command -v certbot)
+    assertEquals "/usr/bin/certbot" "${certbot_bin}"
 }
 
 testEqualityGetNginxStableVersion()
@@ -72,6 +75,25 @@ testEqualityInstallPhp()
     assertEquals "/usr/bin/php" "${php_bin}"
 }
 
+testTrueInstallPhpLoader()
+{
+    . scripts/install_phploader.sh
+
+    ic=$(php7.4 -v | grep -c ionCube)
+    assertTrue "[ ${ic} -gt 0 ]"
+
+    sg=$(php7.4 -v | grep -c SourceGuardian)
+    assertTrue "[ ${sg} -gt 0 ]"
+}
+
+testEqualityInstallPhpImageMagick()
+{
+    . scripts/install_imagemagick.sh
+
+    imagick_bin=$(command -v identify)
+    assertEquals "/usr/bin/identify" "${imagick_bin}"
+}
+
 testEqualityInstallMySQL()
 {
     . scripts/install_mariadb.sh
@@ -81,6 +103,17 @@ testEqualityInstallMySQL()
 
     mysqld_bin=$(command -v mysqld)
     assertEquals "/usr/sbin/mysqld" "${mysqld_bin}"
+}
+
+testEqualityInstallMailer()
+{
+    . scripts/install_mailer.sh
+
+    postfix_bin=$(command -v postfix)
+    assertEquals "/usr/sbin/postfix" "${postfix_bin}"
+
+    dovecot_bin=$(command -v dovecot)
+    assertEquals "/usr/sbin/dovecot" "${dovecot_bin}"
 }
 
 # load shunit2

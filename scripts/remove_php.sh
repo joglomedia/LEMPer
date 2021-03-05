@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # PHP & FPM Uninstaller
-# Min. Requirement  : GNU/Linux Ubuntu 14.04
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
 # Last Build        : 12/07/2019
-# Author            : ESLabs.ID (eslabs.id@gmail.com)
+# Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
@@ -26,11 +26,11 @@ function remove_php_fpm() {
 
     # Stop default PHP FPM process.
     if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-        run service "php${PHPv}-fpm" stop
+        run systemctl stop "php${PHPv}-fpm"
     fi
 
     if dpkg-query -l | awk '/php/ { print $2 }' | grep -qwE "^php${PHPv}"; then
-        echo "Found PHP${PHPv} packages installation. Removing..."
+        echo "Removing PHP ${PHPv} packages installation..."
 
         # Remove geoip module.
         if "php${PHPv}" -m | grep -qw geoip; then
@@ -38,13 +38,11 @@ function remove_php_fpm() {
             #run pecl uninstall geoip-1.1.1
 
             # Unlink enabled module.
-            if [ -f "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini" ]; then
-                run unlink "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini"
-            fi
+            [ -f "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini" ] && \
+            run unlink "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini"
 
-            if [ -f "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini" ]; then
-                run unlink "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini"
-            fi
+            [ -f "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini" ] && \
+            run unlink "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini"
 
             # Remove module.
             run rm -f "/etc/php/${PHPv}/mods-available/geoip.ini"
@@ -61,25 +59,23 @@ function remove_php_fpm() {
                 #run pecl uninstall mcrypt-1.0.1
 
                 # Unlink enabled module.
-                if [ -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ]; then
-                    run unlink "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini"
-                fi
+                [ -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ] && \
+                run unlink "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini"
 
-                if [ -f "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini" ]; then
-                    run unlink "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
-                fi
+                [ -f "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini" ] && \
+                run unlink "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
 
                 # Remove module.
                 run rm -f "/etc/php/${PHPv}/mods-available/mcrypt.ini"
             fi
         else
             # Use libsodium? remove separately.
-            warning "If you're installing Libsodium extension, then remove it separately."
+            info "If you're installing Libsodium extension, then remove it separately."
         fi
 
         # Remove PHP packages.
         # shellcheck disable=SC2046
-        run apt-get -qq --purge remove -y $(dpkg-query -l | awk '/php/ { print $2 }' | grep -wE "^php${PHPv}")
+        run apt remove --purge -qq -y $(dpkg-query -l | awk '/php/ { print $2 }' | grep -wE "^php${PHPv}")
 
         # Remove PHP & FPM config files.
         warning "!! This action is not reversible !!"
@@ -88,7 +84,7 @@ function remove_php_fpm() {
             REMOVE_PHPCONFIG="y"
         else
             while [[ "${REMOVE_PHPCONFIG}" != "y" && "${REMOVE_PHPCONFIG}" != "n" ]]; do
-                read -rp "Remove PHP${PHPv} & FPM configuration files? [y/n]: " -e REMOVE_PHPCONFIG
+                read -rp "Remove PHP ${PHPv} & FPM configuration files? [y/n]: " -e REMOVE_PHPCONFIG
             done
         fi
 
@@ -99,69 +95,82 @@ function remove_php_fpm() {
         fi
 
         if [[ -z $(command -v "php${PHPv}") ]]; then
-            status "PHP${PHPv} & FPM installation removed."
+            success "PHP ${PHPv} & FPM installation removed."
         else
-            warning "Unable to remove PHP${PHPv} & FPM installation."
+            info "Unable to remove PHP ${PHPv} & FPM installation."
         fi
     else
-        warning "PHP${PHPv} & FPM installation not found."
+        info "PHP ${PHPv} & FPM installation not found."
     fi   
 }
 
 # Remove PHP & FPM.
 function init_php_fpm_removal() {
     # PHP version.
-    local PHPv="${1}"
-    if [[ -z "${PHPv}" || "${PHPv}" == *install || "${PHPv}" == *remove ]]; then
-        PHPv=${PHP_VERSION:-"7.3"}
-    fi
+    local INSTALLED_PHP="${1}"
+    [[ -z "${INSTALLED_PHP}" || "${INSTALLED_PHP}" == *install || "${INSTALLED_PHP}" == *remove ]] && \
+    INSTALLED_PHP=${PHP_VERSION:-"7.3"}
 
-    case "${PHPv}" in
-        "5.6")
-            remove_php_fpm "5.6"
-        ;;
-        "7.0")
-            remove_php_fpm "7.0"
-        ;;
-        "7.1")
-            remove_php_fpm "7.1"
-        ;;
-        "7.2")
-            remove_php_fpm "7.2"
-        ;;
-        "7.3")
-            remove_php_fpm "7.3"
-        ;;
-        "7.4")
-            remove_php_fpm "7.4"
-        ;;
-        "all")
-            remove_php_fpm "5.6"
-            remove_php_fpm "7.0"
-            remove_php_fpm "7.1"
-            remove_php_fpm "7.2"
-            remove_php_fpm "7.3"
-            remove_php_fpm "7.4"
-        ;;
-        *)
-            fail "Invalid argument: ${PHPv}"
-            exit 1
-        ;;
-    esac
+    [[ "${INSTALLED_PHP}" == "all" ]] && INSTALLED_PHP="5.6 7.0 7.1 7.2 7.3 7.4"
+
+    # New logic for multiple PHP removal in batch.
+    for PHPv in ${INSTALLED_PHP}; do
+        remove_php_fpm "${PHPv}"
+    done
+
+    # case "${PHPv}" in
+    #     "5.6")
+    #         remove_php_fpm "5.6"
+    #     ;;
+    #     "7.0")
+    #         remove_php_fpm "7.0"
+    #     ;;
+    #     "7.1")
+    #         remove_php_fpm "7.1"
+    #     ;;
+    #     "7.2")
+    #         remove_php_fpm "7.2"
+    #     ;;
+    #     "7.3")
+    #         remove_php_fpm "7.3"
+    #     ;;
+    #     "7.4")
+    #         remove_php_fpm "7.4"
+    #     ;;
+    #     "all")
+    #         remove_php_fpm "5.6"
+    #         remove_php_fpm "7.0"
+    #         remove_php_fpm "7.1"
+    #         remove_php_fpm "7.2"
+    #         remove_php_fpm "7.3"
+    #         remove_php_fpm "7.4"
+    #     ;;
+    #     *)
+    #         fail "Invalid argument: ${PHPv}"
+    #         exit 1
+    #     ;;
+    #esac
 
     # Final clean up (executed only if no PHP version installed).
     if "${DRYRUN}"; then
-        warning "PHP${PHPv} & FPM removed in dryrun mode."
+        info "PHP ${INSTALLED_PHP} & FPM removed in dryrun mode."
     else
-        if [[ -z $(command -v php5.6) && \
-            -z $(command -v php7.0) && \
-            -z $(command -v php7.1) && \
-            -z $(command -v php7.2) && \
-            -z $(command -v php7.3) && \
-            -z $(command -v php7.4) ]]; then
+        # New logic for multiple PHP removal in batch.
+        PHP_IS_EXISTS=false
+        for PHPv in ${INSTALLED_PHP}; do
+            [[ -n $(command -v "${PHPv}") ]] && PHP_IS_EXISTS=true
+        done
 
-            echo "Removing additional unused PHP modules..."
-            run apt-get -qq --purge remove -y php-common php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap
+        if [[ "${PHP_IS_EXISTS}" == true ]]; then
+        # if [[ -z $(command -v php5.6) && \
+        #     -z $(command -v php7.0) && \
+        #     -z $(command -v php7.1) && \
+        #     -z $(command -v php7.2) && \
+        #     -z $(command -v php7.3) && \
+        #     -z $(command -v php7.4) ]]; then
+
+            echo "Removing additional unused PHP packages..."
+            run apt remove --purge -qq -y php-common php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap
 
             # Remove PHP repository.
             run add-apt-repository -y --remove ppa:ondrej/php
@@ -171,7 +180,7 @@ function init_php_fpm_removal() {
             [ -d /usr/share/php ] && run rm -fr /usr/share/php
             [ -d /var/lib/php ] && run rm -fr /var/lib/php
 
-            status "All PHP modules installation completely removed."
+            success "All PHP packages installation completely removed."
         fi
     fi
 }
@@ -198,5 +207,5 @@ if [[ -n $(command -v php5.6) || \
         echo "Found PHP & FPM, but not removed."
     fi
 else
-    warning "Oops, PHP & FPM installation not found."
+    info "Oops, PHP & FPM installation not found."
 fi
