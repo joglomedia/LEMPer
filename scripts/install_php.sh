@@ -75,7 +75,7 @@ function install_php_fpm() {
             PHP_PKGS=("php${PHPv} php${PHPv}-bcmath php${PHPv}-bz2 php${PHPv}-calendar php${PHPv}-cli \
 php${PHPv}-common php${PHPv}-curl php${PHPv}-dev php${PHPv}-exif php${PHPv}-fpm php${PHPv}-gd \
 php${PHPv}-gettext php${PHPv}-gmp php${PHPv}-iconv php${PHPv}-imap php${PHPv}-intl \
-php${PHPv}-json php${PHPv}-mbstring php${PHPv}-mysql php${PHPv}-opcache php${PHPv}-pdo php${PHPv}-posix \
+php${PHPv}-mbstring php${PHPv}-mysql php${PHPv}-opcache php${PHPv}-pdo php${PHPv}-posix \
 php${PHPv}-pspell php${PHPv}-readline php${PHPv}-ldap php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
 php${PHPv}-tidy php${PHPv}-tokenizer php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
 php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
@@ -93,7 +93,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
             if [ "${PHPv//.}" -lt "80" ]; then
                 run apt install -qq -y "php${PHPv}-gnupg" "php${PHPv}-json"
             else
-                info "GnuPG &Json module is not yet available for PHP ${PHPv} or greater."
+                info "GnuPG & Json module is not yet available for PHP ${PHPv} or greater."
             fi
 
             # Install PHP GeoIP?
