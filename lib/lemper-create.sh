@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | Lemper Create - Simple LEMP Virtual Host Generator                      |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2020 ESLabs (https://eslabs.id/lemper)               |
+# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper           |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -142,7 +142,7 @@ Options:
   -p, --php-version
       PHP version for selected framework. Latest recommended PHP version is "7.4".
   -u, --username <virtual-host username>
-      Use username added from adduser/useradd. Default user set as lemper. Do not use root user!!
+      Use username added from adduseruseradd. Default user set as lemper. Do not use root user!!
   -w, --webroot <web root>
       Web root is an absolute path to the website root directory, i.e. /home/lemper/webapps/example.test.
 
