@@ -528,7 +528,7 @@ function init_nginx_install() {
                             echo "Adding ngx-http-cache-purge module..."
 
                             run git clone -q https://github.com/nginx-modules/ngx_cache_purge.git
-                            #run git clone -q https://github.com/eslabsid/ngx_cache_purge.git
+                            #run git clone -q https://github.com/joglomedia/ngx_cache_purge.git
 
                             if "${NGINX_DYNAMIC_MODULE}"; then
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
@@ -785,7 +785,7 @@ function init_nginx_install() {
                             echo "Adding ngx-http-nginx-upstream-fair module..."
 
                             #run git clone -q https://github.com/gnosek/nginx-upstream-fair.git
-                            run git clone --branch="lemper" -q https://github.com/eslabsid/nginx-upstream-fair
+                            run git clone --branch="lemper" -q https://github.com/joglomedia/nginx-upstream-fair
 
                             echo "Patch nginx-upstream-fair module with tengine-patches..."
                             run git clone -q https://github.com/alibaba/tengine-patches.git
