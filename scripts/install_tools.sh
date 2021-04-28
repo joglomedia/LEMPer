@@ -63,9 +63,9 @@ function init_webadmin_install() {
     fi
 
     # Overwrite existing.
-    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.7/adminer-4.7.7.php \
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.8.0/adminer-4.8.0.php \
         -O /usr/share/nginx/html/lcp/dbadmin/index.php
-    run wget -q https://github.com/vrana/adminer/releases/download/v4.7.7/editor-4.7.7.php \
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.8.0/editor-4.8.0.php \
         -O /usr/share/nginx/html/lcp/dbadmin/editor.php
 
     # Install File Manager.
