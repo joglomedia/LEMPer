@@ -153,7 +153,7 @@ if [ -f scripts/install_tools.sh ]; then
     . ./scripts/install_tools.sh
 fi
 
-### Fail2ban, intrusion prevention software framework that protects computer servers from brute-force attacks. ###
+### Fail2ban, intrusion prevention software framework. ###
 if [ -f scripts/install_fail2ban.sh ]; then
     echo ""
     . ./scripts/install_fail2ban.sh

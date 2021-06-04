@@ -102,6 +102,12 @@ if [ -f scripts/remove_certbotle.sh ]; then
     . ./scripts/remove_certbotle.sh
 fi
 
+### Remove Fail2ban ###
+if [ -f scripts/remove_fail2ban.sh ]; then
+    echo ""
+    . ./scripts/remove_fail2ban.sh
+fi
+
 ### Remove server security ###
 if [ -f scripts/secure_server.sh ]; then
     echo ""
