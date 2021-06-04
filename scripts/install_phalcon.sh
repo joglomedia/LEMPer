@@ -104,7 +104,7 @@ function install_phalcon() {
     fi
 
     # Download cPhalcon source.
-    echo "Installing cPhalcon extension."
+    echo "Installing cPhalcon extension. Wait, this may take a while."
 
     if [[ "${PHALCON_VERSION}" == "latest" ]]; then
         PHALCON_VERSION="master"
@@ -153,13 +153,13 @@ function install_phalcon() {
         PHALCON_DIR="/home/${LEMPER_USERNAME}/.phalcon"
         run mkdir -p "${PHALCON_DIR}"
 
-        if version_older_than "${PHALCON_VERSION}" "3.4.9"; then
+        if ! version_older_than "${PHALCON_VERSION}" "3.4.9"; then
             [ ! -d "${PHALCON_DIR}/devtools-3.x" ] && \
             run "${PHP_BIN}" "${PHPCOMPOSER_BIN}" create-project --prefer-dist phalcon/devtools:~3.4 "${PHALCON_DIR}/devtools-3.x"
             local PDEVTOOLSPATH="${PHALCON_DIR}/devtools-3.x"
         else
             [ ! -d "${PHALCON_DIR}/devtools-4.x" ] && \
-            run "${PHP_BIN}" "${PHPCOMPOSER_BIN}" create-project --prefer-dist phalcon/devtools:~4.0 "${PHALCON_DIR}/devtools-4.x"
+            run "${PHP_BIN}" "${PHPCOMPOSER_BIN}" create-project --prefer-dist phalcon/devtools:~4.1 "${PHALCON_DIR}/devtools-4.x"
             local PDEVTOOLSPATH="${PHALCON_DIR}/devtools-4.x"
         fi
 
@@ -341,7 +341,7 @@ function init_phalcon_install() {
 
             while [[ ${SELECTED_INSTALLER} != "1" && ${SELECTED_INSTALLER} != "2" && ${SELECTED_INSTALLER} != "none" && \
                 ${SELECTED_INSTALLER} != "repo" && ${SELECTED_INSTALLER} != "source" ]]; do
-                read -rp "Select [source, repo] or an option [1-2]: " -e SELECTED_INSTALLER
+                read -rp "Select [source, repo] or an option [1-2]: " -i "${PHP_PHALCON_INSTALLER}" -e SELECTED_INSTALLER
             done
         fi
 
@@ -354,28 +354,32 @@ function init_phalcon_install() {
             echo ""
             echo "Which version of cPhalcon to be installed?"
             echo "Supported cPhalcon versions:"
-            echo "  1). cPhalcon 3.4.x (Supported PHP versions: 5.6, 7.0, 7.1) [EOL]"
-            echo "  2). cPhalcon 4.0.x (Supported PHP versions: 7.2, 7.3, 7.4) [Latest]"
+            echo "  1). cPhalcon 3.x (Supported PHP versions: 5.6, 7.0, 7.1) [EOL]"
+            echo "  2). cPhalcon 4.x (Supported PHP versions: 7.3, 7.4) [Latest]"
+            echo "  3). cPhalcon 5.x (Supported PHP versions: 7.4, 8.0) [Alpha]"
             echo "Check the cPhalcon available version from their Github release page!"
             echo "-----------------------------------------------------------------------"
             [ -n "${PHP_PHALCON_VERSION}" ] && \
             info "Pre-defined selected cPhalcon version is: ${PHP_PHALCON_VERSION}"
 
-            while [[ ${SELECTED_PHALCON} != "1" && ${SELECTED_PHALCON} != "2" && \
-                ${SELECTED_PHALCON} != "3.4.x" && ${SELECTED_PHALCON} != "4.0.x" && \
+            while [[ ${SELECTED_PHALCON} != "1" && ${SELECTED_PHALCON} != "2" && ${SELECTED_PHALCON} != "3" && \
+                ${SELECTED_PHALCON} != "3.x" && ${SELECTED_PHALCON} != "4.x" && ${SELECTED_PHALCON} != "5.x" && \
                 $(curl -sLI "https://github.com/phalcon/cphalcon/archive/v${SELECTED_PHALCON}.tar.gz" | grep "HTTP/[.12]* [2]..") == "" && \
                 $(curl -sLI "https://raw.githubusercontent.com/phalcon/cphalcon/${SELECTED_PHALCON}/README.md" | grep "HTTP/[.12]* [2]..") == ""
             ]]; do
-                read -rp "Select a cPhalcon version [3.4.x, 4.0.x] or an option [1-2]: " -e SELECTED_PHALCON
+                read -rp "Select an option [1-3] or a cPhalcon version number: " -i "${PHP_PHALCON_VERSION}" -e SELECTED_PHALCON
             done
         fi
 
         case "${SELECTED_PHALCON}" in
-            1|"3.4.x")
+            1|"3.x")
                 PHALCON_VERSION="3.4.5" # The latest version from Phalcon 3 branch.
             ;;
-            2|"4.0.x")
-                PHALCON_VERSION="4.0.6" # The latest version from Phalcon 4 branch.
+            2|"4.x")
+                PHALCON_VERSION="4.1.2" # The latest version from Phalcon 4 branch.
+            ;;
+            3|"5.x")
+                PHALCON_VERSION="v5.0.0-alpha.2" # The latest version from Phalcon 4 branch.
             ;;
             *)
                 PHALCON_VERSION=${SELECTED_PHALCON}
@@ -393,21 +397,23 @@ function init_phalcon_install() {
             echo "Supported PHP versions:"
             echo "  1). PHP 5.6 (EOL)"
             echo "  2). PHP 7.0 (EOL)"
-            echo "  3). PHP 7.1 (SFO)"
-            echo "  4). PHP 7.2 (Stable)"
-            echo "  5). PHP 7.3 (Stable)"
-            echo "  6). PHP 7.4 (Latest stable)"
-            echo "  7). All available versions"
+            echo "  3). PHP 7.1 (EOL)"
+            echo "  4). PHP 7.2 (EOL)"
+            echo "  5). PHP 7.3 (SFO)"
+            echo "  6). PHP 7.4 (stable)"
+            echo "  7). PHP 8.0 (Latest stable)"
+            echo "  8). All available versions"
             echo "--------------------------------------------"
             [ -n "${PHP_VERSION}" ] && \
             info "Pre-defined selected version is: ${PHP_VERSION}"
 
             while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                     ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
-                    ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && \
-                    ${SELECTED_PHP} != "7.1" && ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && \
-                    ${SELECTED_PHP} != "7.4" && ${SELECTED_PHP} != "all" ]]; do
-                read -rp "Select a PHP version or an option [1-7]: " -e SELECTED_PHP
+                    ${SELECTED_PHP} != "7" &&  ${SELECTED_PHP} != "8" && ${SELECTED_PHP} != "5.6" && \
+                    ${SELECTED_PHP} != "7.0" && ${SELECTED_PHP} != "7.1" && ${SELECTED_PHP} != "7.2" && \
+                    ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
+                    ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "all" ]]; do
+                read -rp "Select a PHP version or an option [1-8]: " -i "${PHP_VERSION}" -e SELECTED_PHP
             done
         fi
 
@@ -430,8 +436,11 @@ function init_phalcon_install() {
             6|"7.4")
                 PHPv="7.4"
             ;;
-            7|"all")
-                PHPv="5.6 7.0 7.1 7.2 7.3 7.4"
+            7|"8.0")
+                PHPv="8.0"
+            ;;
+            8|"all")
+                PHPv="5.6 7.0 7.1 7.2 7.3 7.4 8.0"
             ;;
             *)
                 PHPv="unsupported"
@@ -444,7 +453,10 @@ function init_phalcon_install() {
             SUPPORTED_PHP="5.6 7.0 7.1"
             PHP_PHALCON_PKG="php-phalcon3"
         elif version_older_than "3.99.99" "${PHALCON_VERSION}"; then
-            SUPPORTED_PHP="7.2 7.3 7.4"
+            SUPPORTED_PHP="7.3 7.4"
+            PHP_PHALCON_PKG="php-phalcon4"
+        elif version_older_than "4.99.99" "${PHALCON_VERSION}"; then
+            SUPPORTED_PHP="8.0"
             PHP_PHALCON_PKG="php-phalcon4"
         else
             SUPPORTED_PHP=""
