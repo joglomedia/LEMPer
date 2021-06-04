@@ -107,16 +107,16 @@ testEqualityInstallMySQL()
     assertEquals "/usr/sbin/mysqld" "${mysqld_bin}"
 }
 
-testEqualityInstallMailer()
-{
-    . scripts/install_mailer.sh
+#testEqualityInstallMailer()
+#{
+#    . scripts/install_mailer.sh
 
-    postfix_bin=$(command -v postfix)
-    assertEquals "/usr/sbin/postfix" "${postfix_bin}"
+#    postfix_bin=$(command -v postfix)
+#    assertEquals "/usr/sbin/postfix" "${postfix_bin}"
 
-    dovecot_bin=$(command -v dovecot)
-    assertEquals "/usr/sbin/dovecot" "${dovecot_bin}"
-}
+#    dovecot_bin=$(command -v dovecot)
+#    assertEquals "/usr/sbin/dovecot" "${dovecot_bin}"
+#}
 
 # load shunit2
 . /usr/local/bin/shunit2
