@@ -23,8 +23,8 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
   * more coming soon.
 * PHP Zend OPcache.
 * PHP Loader, ionCube & SourceGuardian.
-* SQL database with MariaDB 10, MySQL drop-in replacement.
-* NoSQL database with MongoDB *NEW*.
+* SQL database with MariaDB 10 (MySQL drop-in replacement).
+* NoSQL database with MongoDB.
 * In-memory database with Redis.
 * Memory cache with Memcached.
 * [Adminer](https://www.adminer.org/) web-based SQL & MongoDB database manager (PhpMyAdmin replacement).
@@ -38,7 +38,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * Clone LEMPer Git repositroy, ```git clone https://github.com/joglomedia/LEMPer.git```.
 * Enter LEMPer directory.
 * Make a copy of .env.dist to .env ```cp .env.dist .env``` and replace the values.
-* Execute lemper.sh file, ```sudo ./lemper.sh --install```.
+* Execute install.sh file, ```sudo ./install.sh```.
 
 ### Install LEMPer stack
 
@@ -143,4 +143,4 @@ Be the first one!
 
 ## Copyright
 
-(c) 2014-2020 | [MasEDI.Net](https://masedi.net/)
+(c) 2014-2021 | [MasEDI.Net](https://masedi.net/)

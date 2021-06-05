@@ -8,7 +8,7 @@
 # | Author            : MasEDI.Net (me@masedi.net)                     |
 # | Version           : 1.0.0                                               |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2020 ESLabs (https://eslabs.id/lemper)               |
+# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper           |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -153,7 +153,7 @@ if [ -f scripts/install_tools.sh ]; then
     . ./scripts/install_tools.sh
 fi
 
-### Fail2ban, intrusion prevention software framework that protects computer servers from brute-force attacks. ###
+### Fail2ban, intrusion prevention software framework. ###
 if [ -f scripts/install_fail2ban.sh ]; then
     echo ""
     . ./scripts/install_fail2ban.sh

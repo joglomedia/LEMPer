@@ -2,7 +2,7 @@
 
 # Install Fail2ban
 # Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 25/12/2019
+# Last Build        : 05/06/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.3.0
 
@@ -24,28 +24,25 @@ function init_fail2ban_install() {
     local SELECTED_INSTALLER=""
 
     if "${AUTO_INSTALL}"; then
-        if [[ -z "${FAIL2BAN_INSTALLER}" || "${FAIL2BAN_INSTALLER}" == "none" ]]; then
-            DO_INSTALL_FAIL2BAN="n"
-        else
-            DO_INSTALL_FAIL2BAN="y"
-            SELECTED_INSTALLER=${FAIL2BAN_INSTALLER:-"repo"}
-        fi
+        DO_INSTALL_FAIL2BAN="y"
+        SELECTED_INSTALLER=${FAIL2BAN_INSTALLER:-"repo"}
     else
-        while [[ "${DO_INSTALL_FAIL2BAN}" != "y" && "${DO_INSTALL_FAIL2BAN}" != "n" ]]; do
-            read -rp "Do you want to install Fail2ban server? [y/n]: " -i y -e DO_INSTALL_FAIL2BAN
+        while [[ "${DO_INSTALL_FAIL2BAN}" != "y" && "${DO_INSTALL_FAIL2BAN}" != "Y" && \
+            "${DO_INSTALL_FAIL2BAN}" != "n" && "${DO_INSTALL_FAIL2BAN}" != "N" ]]; do
+            read -rp "Do you want to install fail2ban server? [y/n]: " -e DO_INSTALL_FAIL2BAN
         done
     fi
 
-    if [[ ${DO_INSTALL_FAIL2BAN} == y* && ${INSTALL_FAIL2BAN} == true ]]; then
+    if [[ ${DO_INSTALL_FAIL2BAN} == y* || ${DO_INSTALL_FAIL2BAN} == Y* ]]; then
         # Install menu.
         echo "Available Fail2ban installation method:"
         echo "  1). Install from Repository (repo)"
         echo "  2). Compile from Source (source)"
         echo "-------------------------------------"
 
-        while [[ ${SELECTED_INSTALLER} != "1" && ${SELECTED_INSTALLER} != "2" && ${SELECTED_INSTALLER} != "none" && \
-            ${SELECTED_INSTALLER} != "repo" && ${SELECTED_INSTALLER} != "source" ]]; do
-            read -rp "Select an option [1-2]: " -e SELECTED_INSTALLER
+        while [[ "${SELECTED_INSTALLER}" != "1" && "${SELECTED_INSTALLER}" != "2" && \
+            "${SELECTED_INSTALLER}" != "repo" && "${SELECTED_INSTALLER}" != "source" ]]; do
+            read -rp "Select an option [1-2]: " -i "${FAIL2BAN_INSTALLER}" -e SELECTED_INSTALLER
         done
 
         case "${SELECTED_INSTALLER}" in
@@ -80,18 +77,18 @@ function init_fail2ban_install() {
                 run cd "${CURRENT_DIR}"
             ;;
         esac
-    fi
 
-    if "${DRYRUN}"; then
-        info "Fail2ban installed in dryrun mode."
-    else
-        SSH_PORT=${SSH_PORT:-22}
+        # Configure Fal2ban.
+        if "${DRYRUN}"; then
+            info "Configuring Fail2ban in dryrun mode."
+        else
+            SSH_PORT=${SSH_PORT:-22}
 
-        # Add Wordpress custom filter.
-        run cp -f etc/fail2ban/filter.d/wordpress.conf /etc/fail2ban/filter.d/
+            # Add Wordpress custom filter.
+            run cp -f etc/fail2ban/filter.d/wordpress.conf /etc/fail2ban/filter.d/
 
-        # Enable jail
-        cat > /etc/fail2ban/jail.local <<_EOL_
+            # Enable jail
+            cat > /etc/fail2ban/jail.local <<_EOL_
 [DEFAULT]
 # banned for 30 days
 bantime = 30d
@@ -112,11 +109,11 @@ port    = http,https,8082,8083
 maxretry = 3
 
 _EOL_
-    fi
+        fi
 
-    if "${INSTALL_MAILER}"; then
         # Enable jail for Postfix & Dovecot
-        cat >> /etc/fail2ban/jail.local <<_EOL_
+        if "${INSTALL_MAILER}"; then
+            cat >> /etc/fail2ban/jail.local <<_EOL_
 [postfix]
 enabled = true
 logpath = /var/log/mail.log
@@ -129,9 +126,24 @@ logpath = /var/log/mail.log
 maxretry = 3
 
 _EOL_
-    fi
+        fi
 
-    run systemctl start fail2ban
+        # Restart Redis daemon.
+        echo "Starting Fail2ban server..."
+        run systemctl start fail2ban
+
+        if "${DRYRUN}"; then
+            info "Fail2ban installed in dryrun mode."
+        else
+            if [[ $(pgrep -c fail2ban-server) -gt 0 ]]; then
+                success "Fail2ban server started successfully."
+            else
+                info "Something went wrong with Fail2ban installation."
+            fi
+        fi
+    else
+        info "Fail2ban installation skipped."
+    fi
 }
 
 echo "[Fail2ban Installation]"
@@ -139,7 +151,11 @@ echo "[Fail2ban Installation]"
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v fail2ban-server) ]]; then
-    info "Fail2ban already exists. Installation skipped..."
+    info "Fail2ban already exists, installation skipped."
 else
-    init_fail2ban_install "$@"
+    if [[ ${INSTALL_FAIL2BAN} == true ]]; then
+        init_fail2ban_install "$@"
+    else
+        info "Fail2ban installation skipped."
+    fi
 fi

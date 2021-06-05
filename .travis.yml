@@ -30,11 +30,12 @@ matrix:
         - sed -i "s/ADMIN_EMAIL=\"mail@example.com\"/ADMIN_EMAIL=\"me@masedi.net\"/g" .env
         #- sed -i "s/NGINX_INSTALLER=\"repo\"/NGINX_INSTALLER=\"source\"/g" .env
         - sed -i "s/PHP_VERSION=\"7.4\"/PHP_VERSION=\"7.4\"/g" .env
-        - sed -i "s/PHP_LOADER=\"none\"/PHP_LOADER=\"all\"/g" .env
+        - sed -i "s/PHP_LOADER=\"none\"/PHP_LOADER=\"ioncube\"/g" .env
         - sed -i "s/PHP_IMAGEMAGICK_INSTALLER=\"repo\"/PHP_IMAGEMAGICK_INSTALLER=\"source\"/g" .env
-        - sed -i "s/INSTALL_MAILER=false/INSTALL_MAILER=true/g" .env
-        - sed -i "s/INSTALL_SPFDKIM=false/INSTALL_SPFDKIM=true/g" .env
-        - sed -i "s/SENDER_DOMAIN=\"example.com\"/SENDER_DOMAIN=\"travis-ci.masedi.net\"/g" .env
+        #- sed -i "s/INSTALL_MAILER=false/INSTALL_MAILER=true/g" .env
+        #- sed -i "s/INSTALL_SPFDKIM=false/INSTALL_SPFDKIM=true/g" .env
+        - sed -i "s/SENDER_DOMAIN=\"example.com\"/SENDER_DOMAIN=\"localhost.localhost\"/g" .env
+        - sed -i "s/INSTALL_FAIL2BAN=false/INSTALL_FAIL2BAN=true/g" .env
         # Run the source through ShellCheck (http://www.shellcheck.net).
         - shellcheck -s bash -x install.sh
         - shellcheck -s bash -x remove.sh

@@ -5,8 +5,8 @@
 script_under_test=$(basename "$0")
 
 # Nginx versions.
-nginx_stable_version="1.18.0"
-nginx_latest_version="1.19.7"
+nginx_stable_version="1.21.0"
+nginx_latest_version="1.20.1"
 
 # Source the helper functions.
 if [ -f scripts/helper.sh ]; then
@@ -47,17 +47,19 @@ testEqualityInstallCertbot()
     assertEquals "/usr/bin/certbot" "${certbot_bin}"
 }
 
-testEqualityGetNginxStableVersion()
-{
-    ngx_stable_version=$(determine_stable_nginx_version)
-    assertEquals "${nginx_stable_version}" "${ngx_stable_version}"
-}
+#
+#testEqualityGetNginxStableVersion()
+#{
+#    ngx_stable_version=$(determine_stable_nginx_version)
+#    assertEquals "${nginx_stable_version}" "${ngx_stable_version}"
+#}
 
-testEqualityGetNginxLatestVersion()
-{
-    ngx_latest_version=$(determine_latest_nginx_version)
-    assertEquals "${nginx_latest_version}" "${ngx_latest_version}"
-}
+#testEqualityGetNginxLatestVersion()
+#{
+#    ngx_latest_version=$(determine_latest_nginx_version)
+#    assertEquals "${nginx_latest_version}" "${ngx_latest_version}"
+#}
+#
 
 testEqualityInstallNginx()
 {
@@ -82,8 +84,8 @@ testTrueInstallPhpLoader()
     ic=$(php7.4 -v | grep -c ionCube)
     assertTrue "[ ${ic} -gt 0 ]"
 
-    sg=$(php7.4 -v | grep -c SourceGuardian)
-    assertTrue "[ ${sg} -gt 0 ]"
+    #g=$(php7.4 -v | grep -c SourceGuardian)
+    #assertTrue "[ ${sg} -gt 0 ]"
 }
 
 testEqualityInstallPhpImageMagick()
@@ -105,15 +107,23 @@ testEqualityInstallMySQL()
     assertEquals "/usr/sbin/mysqld" "${mysqld_bin}"
 }
 
-testEqualityInstallMailer()
+#testEqualityInstallMailer()
+#{
+#    . scripts/install_mailer.sh
+
+#    postfix_bin=$(command -v postfix)
+#    assertEquals "/usr/sbin/postfix" "${postfix_bin}"
+
+#    dovecot_bin=$(command -v dovecot)
+#    assertEquals "/usr/sbin/dovecot" "${dovecot_bin}"
+#}
+
+testEqualityInstallFail2ban()
 {
-    . scripts/install_mailer.sh
+    . scripts/install_fail2ban.sh
 
-    postfix_bin=$(command -v postfix)
-    assertEquals "/usr/sbin/postfix" "${postfix_bin}"
-
-    dovecot_bin=$(command -v dovecot)
-    assertEquals "/usr/sbin/dovecot" "${dovecot_bin}"
+    fail2ban_bin=$(command -v fail2ban-server)
+    assertEquals "/usr/local/bin/fail2ban-server" "${fail2ban_bin}"
 }
 
 # load shunit2

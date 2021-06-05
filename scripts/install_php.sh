@@ -495,7 +495,7 @@ function init_php_fpm_install() {
     local OPT_PHP_VERSION=""
 
     OPTS=$(getopt -o p:ir \
-        -l php-version:,install,remove \
+        -l php-version: \
         -n "init_php_fpm_install" -- "$@")
 
     eval set -- "${OPTS}"
@@ -507,12 +507,6 @@ function init_php_fpm_install() {
                 #SELECTED_PHP="${1}"
                 OPT_PHP_VERSION="${1}"
                 shift
-            ;;
-            -i|--install) shift
-                #ACTION="install"
-            ;;
-            -r|--remove) shift
-                #ACTION="remove"
             ;;
             --) shift
                 break

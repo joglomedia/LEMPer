@@ -8,7 +8,7 @@
 # | Author            : MasEDI.Net (me@masedi.net)                     |
 # | Version           : 1.0.0                                               |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2020 ESLabs (https://eslabs.id/lemper)               |
+# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper           |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -100,6 +100,12 @@ fi
 if [ -f scripts/remove_certbotle.sh ]; then
     echo ""
     . ./scripts/remove_certbotle.sh
+fi
+
+### Remove Fail2ban ###
+if [ -f scripts/remove_fail2ban.sh ]; then
+    echo ""
+    . ./scripts/remove_fail2ban.sh
 fi
 
 ### Remove server security ###
