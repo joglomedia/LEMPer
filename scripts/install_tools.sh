@@ -63,23 +63,23 @@ function init_webadmin_install() {
     fi
 
     # Overwrite existing.
-    run wget -q https://github.com/vrana/adminer/releases/download/v4.8.0/adminer-4.8.0.php \
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.8.1/adminer-4.8.1.php \
         -O /usr/share/nginx/html/lcp/dbadmin/index.php
-    run wget -q https://github.com/vrana/adminer/releases/download/v4.8.0/editor-4.8.0.php \
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.8.1/editor-4.8.1.php \
         -O /usr/share/nginx/html/lcp/dbadmin/editor.php
 
     # Install File Manager.
-    # Experimental: Tinyfilemanager https://github.com/PHPlayground/tinyfilemanager
+    # Experimental: Tinyfilemanager https://github.com/joglomedia/tinyfilemanager
     # Clone custom TinyFileManager.
     if [ ! -d /usr/share/nginx/html/lcp/filemanager/config ]; then
-        run git clone -q --depth=1 --branch=lemperfm_1.3.0 https://github.com/PHPlayground/tinyfilemanager.git \
+        run git clone -q --depth=1 --branch=lemperfm_1.3.0 https://github.com/joglomedia/tinyfilemanager.git \
             /usr/share/nginx/html/lcp/filemanager
     else
         local CUR_DIR && \
         CUR_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/filemanager/
         #run git pull -q
-        run wget -q https://raw.githubusercontent.com/PHPlayground/tinyfilemanager/lemperfm_1.3.0/index.php \
+        run wget -q https://raw.githubusercontent.com/joglomedia/tinyfilemanager/lemperfm_1.3.0/index.php \
             -O /usr/share/nginx/html/lcp/filemanager/index.php
         run cd "${CUR_DIR}"
     fi
