@@ -38,7 +38,7 @@ function install_memcached() {
         done
     fi
 
-    if [[ ${DO_INSTALL_MEMCACHED} == y* ]]; then
+    if [[ ${DO_INSTALL_MEMCACHED} == y* || ${DO_INSTALL_MEMCACHED} == Y* ]]; then
         # Install menu.
         if ! "${AUTO_INSTALL}"; then
             echo "Available Memcached installation method:"
