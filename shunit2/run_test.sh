@@ -118,5 +118,13 @@ testEqualityInstallMySQL()
 #    assertEquals "/usr/sbin/dovecot" "${dovecot_bin}"
 #}
 
+testEqualityInstallFail2ban()
+{
+    . scripts/install_fail2ban.sh
+
+    fail2ban_bin=$(command -v fail2ban-server)
+    assertEquals "/usr/local/bin/fail2ban-server" "${fail2ban_bin}"
+}
+
 # load shunit2
 . /usr/local/bin/shunit2
