@@ -84,8 +84,8 @@ testTrueInstallPhpLoader()
     ic=$(php7.4 -v | grep -c ionCube)
     assertTrue "[ ${ic} -gt 0 ]"
 
-    sg=$(php7.4 -v | grep -c SourceGuardian)
-    assertTrue "[ ${sg} -gt 0 ]"
+    #g=$(php7.4 -v | grep -c SourceGuardian)
+    #assertTrue "[ ${sg} -gt 0 ]"
 }
 
 testEqualityInstallPhpImageMagick()
