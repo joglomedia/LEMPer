@@ -30,7 +30,7 @@ if hash apt 2>/dev/null; then
 
     # Install dependencies.
     echo -e "\nInstalling pre-requisites/dependencies package..."
-    install_dependencies "apt install -qq -y" debian_is_installed \
+    run apt install -qq -y \
         apt-transport-https apt-utils apache2-utils autoconf automake bash build-essential \
         ca-certificates cmake cron curl dmidecode dnsutils gcc geoip-bin geoip-database git \
         gnupg2 htop iptables libc6-dev libcurl4-openssl-dev libgd-dev libgeoip-dev libssl-dev \
