@@ -73,9 +73,11 @@ if [ -f scripts/cleanup_server.sh ]; then
     . ./scripts/cleanup_server.sh
 fi
 
-### Check and enable swap ###
-echo ""
-enable_swap
+### Create and enable swap ###
+if "${ENABLE_SWAP}"; then
+    echo ""
+    enable_swap
+fi
 
 ### Create default account ###
 echo ""
