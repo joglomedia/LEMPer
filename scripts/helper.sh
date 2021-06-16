@@ -463,7 +463,7 @@ function verify_prerequisites() {
 function get_ram_size() {
     local RAM_SIZE
 
-    # RAM size in MB
+    # Calculate RAM size in MB.
     RAM_SIZE=$(dmidecode -t 17 | awk '( /Size/ && $2 ~ /^[0-9]+$/ ) { x+=$2 } END{ print x}')
 
     echo "${RAM_SIZE}"
@@ -478,12 +478,12 @@ function create_swap() {
     if [[ ${RAM_SIZE} -le 2048 ]]; then
         # If machine RAM less than / equal 2GiB, set swap to 2x of RAM size.
         local SWAP_SIZE=$((RAM_SIZE * 2))
-    elif [[ ${RAM_SIZE} -gt 2048 && ${RAM_SIZE} -le 8192 ]]; then
-        # If machine RAM less than / equal 8GiB and greater than 2GiB, set swap equal to RAM size.
-        local SWAP_SIZE="${RAM_SIZE}"
+    elif [[ ${RAM_SIZE} -gt 2048 && ${RAM_SIZE} -le 32768 ]]; then
+        # If machine RAM less than / equal 8GiB and greater than 2GiB, set swap equal to RAM size + 1x.
+        local SWAP_SIZE=$((4096 + (RAM_SIZE - 2048)))
     else
-        # Otherwise, set swap to max of 8GiB.
-        local SWAP_SIZE=8192
+        # Otherwise, set swap to max of the physical / allocated memory.
+        local SWAP_SIZE="${RAM_SIZE}"
     fi
 
     echo "Creating ${SWAP_SIZE}MiB swap..."
