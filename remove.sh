@@ -138,7 +138,7 @@ if "${AUTO_REMOVE}"; then
     REMOVE_SWAP="y"
 else
     while [[ "${REMOVE_SWAP}" != "y" && "${REMOVE_SWAP}" != "n" ]]; do
-read -rp "Remove created Swap? [y/n]: " -i y -e REMOVE_SWAP
+read -rp "Remove created Swap? [y/n]: " -e REMOVE_SWAP
     done
 fi
 if [[ "${REMOVE_SWAP}" == Y* || "${REMOVE_SWAP}" == y* || "${FORCE_REMOVE}" == true ]]; then

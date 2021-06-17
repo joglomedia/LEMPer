@@ -164,7 +164,7 @@ function init_php_fpm_removal() {
                 ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && ${SELECTED_PHP} != "7.1" && \
                 ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
                 ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "all" ]]; do
-            read -rp "Enter a PHP version from an option above [7.4]: " -e SELECTED_PHP
+            read -rp "Enter a PHP version from an option above [1-8]: " -i "${PHP_VERSION}" -e SELECTED_PHP
         done
     fi
 
