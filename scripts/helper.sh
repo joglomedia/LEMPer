@@ -720,7 +720,7 @@ function footer_msg() {
 #       If useful, don't forget to buy me a cup of coffee or milk :D       #
 #   My PayPal is always open for donation, here https://paypal.me/masedi   #
 #                                                                          #
-#           (c) 2014-2019 / ESLabs.ID / https://eslabs.id/lemper           #
+#          (c) 2014-2021 / MasEDI.Net / https://masedi.net/lemper          #
 #==========================================================================#
 _EOF_
 }
