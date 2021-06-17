@@ -82,7 +82,7 @@ function info() {
 
 # Run command
 function run() {
-    if "$DRYRUN"; then
+    if "${DRYRUN}"; then
         echo_color "${YELLOW}" -n "would run "
         echo "$@"
     else
@@ -579,7 +579,7 @@ function create_account() {
             run chmod 0600 /srv/.htpasswd
             run chown www-data:www-data /srv/.htpasswd
 
-            # Generate passhword hash.
+            # Generate password hash.
             if [[ -n $(command -v mkpasswd) ]]; then
                 PASSWORD_HASH=$(mkpasswd --method=sha-256 "${PASSWORD}")
                 run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
