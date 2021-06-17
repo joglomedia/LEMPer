@@ -69,6 +69,7 @@ fi
 ### Remove PHP & FPM ###
 if [ -f scripts/remove_php.sh ]; then
     echo ""
+    DEFAULT_PHP_VERSION="7.4"
     . ./scripts/remove_php.sh
 fi
 

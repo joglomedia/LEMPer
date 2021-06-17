@@ -455,24 +455,27 @@ function install_php_composer() {
             run cd "${BUILD_DIR}"
 
             PHP_BIN=$(command -v "php${PHPv}")
-            EXPECTED_SIGNATURE="$(wget -q -O - https://composer.github.io/installer.sig)"
-            run "${PHP_BIN}" -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
-            ACTUAL_SIGNATURE="$(${PHP_BIN} -r "echo hash_file('sha384', 'composer-setup.php');")"
 
-            if [[ "${EXPECTED_SIGNATURE}" == "${ACTUAL_SIGNATURE}" ]]; then
-                local LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
+            if [[ -n "${PHP_BIN}" ]]; then
+                EXPECTED_SIGNATURE="$(wget -q -O - https://composer.github.io/installer.sig)"
+                run "${PHP_BIN}" -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+                ACTUAL_SIGNATURE="$(${PHP_BIN} -r "echo hash_file('sha384', 'composer-setup.php');")"
 
-                run "${PHP_BIN}" composer-setup.php --filename=composer --install-dir=/usr/local/bin --quiet
+                if [[ "${EXPECTED_SIGNATURE}" == "${ACTUAL_SIGNATURE}" ]]; then
+                    local LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
 
-                # Fix chmod permission to executable.
-                if [ -f /usr/local/bin/composer ]; then
-                    run chmod ugo+x /usr/local/bin/composer
-                    run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bashrc"
-                    run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bash_profile"
-                    run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.profile"
+                    run "${PHP_BIN}" composer-setup.php --filename=composer --install-dir=/usr/local/bin --quiet
+
+                    # Fix chmod permission to executable.
+                    if [ -f /usr/local/bin/composer ]; then
+                        run chmod ugo+x /usr/local/bin/composer
+                        run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bashrc"
+                        run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bash_profile"
+                        run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.profile"
+                    fi
+                else
+                    error "Invalid PHP Composer installer signature."
                 fi
-            else
-                error "Invalid PHP Composer installer signature."
             fi
 
             #run rm composer-setup.php
@@ -609,11 +612,11 @@ function init_php_fpm_install() {
     if [[ -z $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
         info -e "\nLEMPer requires PHP ${DEFAULT_PHP_VERSION} as default to run its administration tools."
         echo "PHP ${DEFAULT_PHP_VERSION} now being installed..."
-        install_php_fpm "7.4"
+        install_php_fpm "${DEFAULT_PHP_VERSION}"
     fi
 
     # Install PHP composer.
-    install_php_composer "7.4"
+    install_php_composer "${DEFAULT_PHP_VERSION}"
 }
 
 
