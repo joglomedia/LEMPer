@@ -370,8 +370,8 @@ ping.path = /ping
 slowlog = /var/log/php/php${PHPv}-fpm_slow.\$pool.log
 request_slowlog_timeout = 10s
 
-;chroot = /home/lemper
-chdir = /home/lemper
+;chroot = /home/${POOLNAME}
+chdir = /home/${POOLNAME}
 
 ;catch_workers_output = yes
 ;decorate_workers_output = no
@@ -448,7 +448,7 @@ function install_php_composer() {
             done
         fi
 
-        if [[ ${DO_INSTALL_COMPOSER} == y* && ${INSTALL_PHPCOMPOSER} == true ]]; then
+        if [[ ${DO_INSTALL_COMPOSER} == y* && ${INSTALL_PHP_COMPOSER} == true ]]; then
             echo "Installing PHP Composer..."
 
             local CURRENT_DIR && CURRENT_DIR=$(pwd)
