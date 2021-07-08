@@ -34,18 +34,18 @@ function install_phalcon() {
 
     # Install Zephir from source.
     if "${AUTO_INSTALL}"; then
-        if [[ ${PHP_ZEPHIR_INSTALL} == y* || ${PHP_ZEPHIR_INSTALL} == true ]]; then
-            INSTALL_ZEPHIR="y"
+        if [[ ${INSTALL_PHP_ZEPHIR} == y* || ${INSTALL_PHP_ZEPHIR} == true ]]; then
+            DO_INSTALL_ZEPHIR="y"
         else
-            INSTALL_ZEPHIR="n"
+            DO_INSTALL_ZEPHIR="n"
         fi
     else
         while [[ ${INSTALL_ZEPHIR} != "y" && ${INSTALL_ZEPHIR} != "n" ]]; do
-            read -rp "Install Zephir interpreter? [y/n]: " -i n -e INSTALL_ZEPHIR
+            read -rp "Install Zephir interpreter? [y/n]: " -i n -e DO_INSTALL_ZEPHIR
         done
     fi
 
-    if [[ "${INSTALL_ZEPHIR}" == Y* || "${INSTALL_ZEPHIR}" == y* ]]; then
+    if [[ ${DO_INSTALL_ZEPHIR} == y* && ${INSTALL_PHP_ZEPHIR} == true ]]; then
         # Install Zephir parser.
         echo "Installing Zephir parser..."
 
@@ -307,24 +307,24 @@ function init_phalcon_install() {
 
     if "${AUTO_INSTALL}"; then
         if [[ -z "${PHP_PHALCON_INSTALLER}" || "${PHP_PHALCON_INSTALLER}" == "none" ]]; then
-            INSTALL_PHALCON="n"
+            DO_INSTALL_PHALCON="n"
         else
-            INSTALL_PHALCON="y"
+            DO_INSTALL_PHALCON="y"
             SELECTED_INSTALLER=${PHP_PHALCON_INSTALLER}
         fi
     else
-        while [[ "${INSTALL_PHALCON}" != "y" && "${INSTALL_PHALCON}" != "n" ]]; do
-            read -rp "Do you want to install Phalcon PHP framework? [y/n]: " -e INSTALL_PHALCON
+        while [[ "${DO_INSTALL_PHALCON}" != "y" && "${DO_INSTALL_PHALCON}" != "n" ]]; do
+            read -rp "Do you want to install Phalcon PHP framework? [y/n]: " -e DO_INSTALL_PHALCON
         done
     fi
 
     # Check PHP.
     if [[ -z $(command -v "php${PHPv}") ]]; then
-        error "PHP ${PHPv} & FPM could not be found."
-        INSTALL_PHALCON="n"
+        error "PHP ${PHPv} could not be found. Phalcon installation skipped."
+        DO_INSTALL_PHALCON="n"
     fi
 
-    if [[ ${INSTALL_PHALCON} == Y* || ${INSTALL_PHALCON} == y* ]]; then
+    if [[ ${DO_INSTALL_PHALCON} == y* && ${INSTALL_PHP_PHALCON} == true ]]; then
         # Select installer.
         if "${AUTO_INSTALL}"; then
             if [ -z "${PHALCON_INSTALLER}" ]; then
