@@ -24,7 +24,7 @@ if hash apt 2>/dev/null; then
     run dpkg-reconfigure locales
 
     # Update repositories.
-    echo "Updating repository, please wait..."
+    echo -e "\nUpdating repository, please wait..."
     run apt update -qq -y && \
     run apt upgrade -qq -y
 
