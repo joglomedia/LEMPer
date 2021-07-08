@@ -171,7 +171,7 @@ maxmemory-policy allkeys-lru
 EOL
 
             # Is Redis password protected enable?
-            if "${REDIS_REQUIREPASS}"; then
+            if "${REDIS_REQUIRE_PASS}"; then
                 echo "Redis Requirepass is enabled..."
 
                 REDIS_PASSWORD=${REDIS_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
