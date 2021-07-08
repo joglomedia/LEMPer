@@ -220,6 +220,10 @@ function init_php_fpm_removal() {
         ;;
     esac
 
+    # Also remove default LEMPer PHP.
+    DEFAULT_PHP_VERSION=${DEFAULT_PHP_VERSION:-"7.4"}
+    remove_php_fpm "${DEFAULT_PHP_VERSION}"
+
     # Final clean up (executed only if no PHP version installed).
     if "${DRYRUN}"; then
         info "PHP ${SELECTED_PHP} & FPM removed in dryrun mode."
@@ -230,7 +234,7 @@ function init_php_fpm_removal() {
             [[ -n $(command -v "${PHPv}") ]] && PHP_IS_EXISTS=true
         done
 
-        if [[ "${PHP_IS_EXISTS}" == true ]]; then
+        if [[ "${PHP_IS_EXISTS}" == false ]]; then
             echo "Removing additional unused PHP packages..."
             run apt remove --purge -qq -y php-common php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap
 
