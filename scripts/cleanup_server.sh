@@ -27,8 +27,14 @@ requires_root
 echo "Cleaning up server..."
 
 # Fix broken install, first?
-run dpkg --configure -a
-run apt install -qq -y --fix-broken
+if "${FIX_BROKEN}"; then
+    echo "Trying to fix broken packages"
+    [ -f /var/lib/dpkg/lock ] && run rm /var/lib/dpkg/lock
+    [ -f /var/lib/dpkg/lock-frontend ] && run rm /var/lib/dpkg/lock-frontend
+    [ -f /var/cache/apt/archives/lock ] && run rm /var/cache/apt/archives/lock
+    run dpkg --configure -a
+    run apt install -qq -y --fix-broken
+fi
 
 # Remove Apache2 service if exists.
 if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
