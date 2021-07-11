@@ -80,10 +80,8 @@ function init_nginx_install() {
         fi
     else
         while [[ ${DO_INSTALL_NGINX} != "y" && ${DO_INSTALL_NGINX} != "n" ]]; do
-            read -rp "Do you want to install Nginx HTTP (web) server? [y/n]: " \
-            -i y -e DO_INSTALL_NGINX
+            read -rp "Do you want to install Nginx HTTP server? [y/n]: " -i y -e DO_INSTALL_NGINX
         done
-        #echo ""
     fi
 
     # Install Nginx custom.
@@ -101,6 +99,7 @@ function init_nginx_install() {
         # NgxPageSpeed module currently available from source install.
         if [[ ${NGX_PAGESPEED} == true ]]; then
             SELECTED_INSTALLER="source"
+            info "NGX_PAGESPEED module requires Nginx to be installed from source."
         fi
 
         case "${SELECTED_INSTALLER}" in
@@ -125,7 +124,7 @@ function init_nginx_install() {
                             # Brotli compression
                             if "${NGX_HTTP_BROTLI}"; then
                                 echo "Adding ngx-http-brotli module..."
-                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libbrotli1" "libbrotli-dev")
+                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-brotli")
                             fi
 
                             # Cache Purge
@@ -155,13 +154,13 @@ function init_nginx_install() {
                             # HTTP Geoip module.
                             if "${NGX_HTTP_GEOIP}"; then
                                 echo "Adding ngx-http-geoip module..."
-                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libmaxminddb" "libnginx-mod-http-geoip")
+                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libmaxminddb" "libnginx-mod-http-geoip" "libnginx-mod-stream-geoip")
                             fi
 
                             # GeoIP2
                             if "${NGX_HTTP_GEOIP2}"; then
                                 echo "Adding ngx-http-geoip2 module..."
-                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libmaxminddb" "libnginx-mod-http-geoip2")
+                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libmaxminddb" "libnginx-mod-http-geoip2" "libnginx-mod-stream-geoip2")
                             fi
 
                             # Headers more module.
@@ -176,16 +175,34 @@ function init_nginx_install() {
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-image-filter")
                             fi
 
+                            # Embed the power of Lua into Nginx HTTP Servers.
+                            if "${NGX_HTTP_LUA}"; then
+                                echo "Adding ngx-http-lua module..."
+                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-lua")
+                            fi
+
                             # Nginx Memc - An extended version of the standard memcached module.
                             if "${NGX_HTTP_MEMCACHED}"; then
                                 echo "Adding ngx-http-memcached module..."
                                 #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-memcached")
                             fi
 
-                            # NGX_HTTP_NAXSI is an open-source, high performance, low rules maintenance WAF for NGINX
+                            # NGX_HTTP_NAXSI is an open-source, high performance, low rules maintenance WAF for NGINX.
                             if "${NGX_HTTP_NAXSI}"; then
                                 echo "Adding ngx-http-naxsi (Web Application Firewall) module..."
                                 #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-naxsi")
+                            fi
+
+                            # NDK adds additional generic tools that module developers can use in their own modules.
+                            if "${NGX_HTTP_NDK}"; then
+                                echo "Adding ngx-http-ndk Nginx Devel Kit module..."
+                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-ndk")
+                            fi
+
+                            # NGX_HTTP_NJS is a subset of the JavaScript language that allows extending nginx functionality.
+                            if "${NGX_HTTP_NJS}"; then
+                                echo "Adding ngx-http-js module..."
+                                #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-js")
                             fi
 
                             # Nginx mod HTTP Passenger.
@@ -439,8 +456,8 @@ function init_nginx_install() {
 
                                 #NGX_CONFIGURE_ARGS="--with-openssl=${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION} ${NGX_CONFIGURE_ARGS}"
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                                    --with-cc-opt=-I${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/include \
-                                    --with-ld-opt=-L${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/lib"
+                                    --with-cc-opt=\"-I${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/include\" \
+                                    --with-ld-opt=\"-L${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/lib\""
                             else
                                 info "Unable to determine BoringSSL source page."
                             fi
@@ -679,6 +696,7 @@ function init_nginx_install() {
                         # Headers more module.
                         if "${NGX_HTTP_HEADERS_MORE}"; then
                             echo "Adding ngx-http-headers-more-filter module..."
+
                             run git clone -q https://github.com/openresty/headers-more-nginx-module.git
 
                             if "${NGINX_DYNAMIC_MODULE}"; then
@@ -703,12 +721,51 @@ function init_nginx_install() {
                             fi
                         fi
 
+                        # Embed the power of Lua into Nginx HTTP Servers.
+                        if "${NGX_HTTP_LUA}"; then
+                            echo "Adding ngx-http-lua module..."
+
+                            # Requires ngx-devel-kit enabled
+                            NGX_HTTP_NDK=true
+
+                            # Requires luajit lib
+                            echo "Lua module requires LuaJIT 2.1 library, installing now..."
+
+                            run cd "${BUILD_DIR}"
+
+                            if [ ! -d luajit2 ]; then
+                                run git clone -q https://github.com/openresty/luajit2.git && \
+                                run cd luajit2
+                            else
+                                run cd luajit2 && \
+                                run git pull -q
+                            fi
+
+                            run make -j"${NB_PROC}" && \
+                            run make install
+                            run cd "${EXTRA_MODULE_DIR}"
+
+                            echo "Configuring Lua Nginx Module..."
+
+                            export LUAJIT_LIB=/usr/local/lib
+                            export LUAJIT_INC=/usr/local/include/luajit-2.1
+                            NGX_CONFIGURE_ARGS="--with-ld-opt=\"-Wl,-rpath,/usr/local/lib\""
+
+                            run git clone -q https://github.com/openresty/lua-nginx-module.git
+
+                            if "${NGINX_DYNAMIC_MODULE}"; then
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --add-dynamic-module=${EXTRA_MODULE_DIR}/lua-nginx-module"
+                            else
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --add-module=${EXTRA_MODULE_DIR}/lua-nginx-module"
+                            fi
+                        fi
+
                         # Openresty Memc - An extended version of the standard memcached module.
                         if "${NGX_HTTP_MEMCACHED}"; then
                             echo "Adding ngx-http-memcached module..."
-
                             run git clone -q https://github.com/openresty/memc-nginx-module.git
-
                             if "${NGINX_DYNAMIC_MODULE}"; then
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
                                     --add-dynamic-module=${EXTRA_MODULE_DIR}/memc-nginx-module"
@@ -721,15 +778,39 @@ function init_nginx_install() {
                         # NAXSI is an open-source, high performance, low rules maintenance WAF for Nginx.
                         if "${NGX_HTTP_NAXSI}"; then
                             echo "Adding ngx-http-naxsi (Web Application Firewall) module..."
-
                             run git clone -q https://github.com/nbs-system/naxsi.git
-
                             if "${NGINX_DYNAMIC_MODULE}"; then
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
                                     --add-dynamic-module=${EXTRA_MODULE_DIR}/naxsi/naxsi_src"
                             else
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
                                     --add-module=${EXTRA_MODULE_DIR}/naxsi/naxsi_src"
+                            fi
+                        fi
+
+                        # NDK adds additional generic tools that module developers can use in their own modules.
+                        if "${NGX_HTTP_NDK}"; then
+                            echo "Adding ngx-http-ndk Nginx Devel Kit module..."
+                            run git clone https://github.com/vision5/ngx_devel_kit.git
+                            if "${NGINX_DYNAMIC_MODULE}"; then
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_devel_kit"
+                            else
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --add-module=${EXTRA_MODULE_DIR}/ngx_devel_kit"
+                            fi
+                        fi
+
+                        # NGX_HTTP_NJS is a subset of the JavaScript language that allows extending nginx functionality.
+                        if "${NGX_HTTP_NJS}"; then
+                            echo "Adding ngx-http-js module..."
+                            run git clone https://github.com/nginx/njs.git
+                            if "${NGINX_DYNAMIC_MODULE}"; then
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --add-dynamic-module=${EXTRA_MODULE_DIR}/njs/nginx"
+                            else
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --add-module=${EXTRA_MODULE_DIR}/njs/nginx"
                             fi
                         fi
 
@@ -930,6 +1011,13 @@ function init_nginx_install() {
                 fi
 
                 # Custom Nginx dynamic modules configuration.
+
+                if [[ -f /usr/lib/nginx/modules/ndk_http_module.so && \
+                    ! -f /etc/nginx/modules-available/mod-ndk-http.conf ]]; then
+                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ndk_http_module.so\";' \
+                        > /etc/nginx/modules-available/mod-ndk-http.conf"
+                fi
+
                 if [[ -f /usr/lib/nginx/modules/ngx_http_auth_pam_module.so && \
                     ! -f /etc/nginx/modules-available/mod-http-auth-pam.conf ]]; then
                     run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_auth_pam_module.so\";' \
@@ -1434,6 +1522,9 @@ function init_nginx_install() {
                     error "Nginx configuration test failed. Please correct the error below:"
                     run nginx -t
                 fi
+            else
+                error "Nginx configuration test failed. Please correct the error below:"
+                run nginx -t
             fi
         fi
     else

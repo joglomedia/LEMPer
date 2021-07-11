@@ -53,9 +53,16 @@ function init_certbotle_install() {
                 esac
             ;;
             ubuntu)
-                run add-apt-repository -y ppa:certbot/certbot
-                run apt update -qq -y
-                run apt install -qq -y certbot
+                case "${RELEASE_NAME}" in
+                    focal)
+                        run apt install -qq -y certbot
+                    ;;
+                    *)
+                        run add-apt-repository -y ppa:certbot/certbot
+                        run apt update -qq -y
+                        run apt install -qq -y certbot
+                    ;;
+                esac
             ;;
         esac
 

@@ -86,19 +86,19 @@ function init_imagemagick_install() {
 
     if "${AUTO_INSTALL}"; then
         if [[ -z "${PHP_IMAGEMAGICK_INSTALLER}" || "${PHP_IMAGEMAGICK_INSTALLER}" == "none" ]]; then
-            INSTALL_IMAGEMAGICK="n"
+            DO_INSTALL_IMAGEMAGICK="n"
         else
-            INSTALL_IMAGEMAGICK="y"
+            DO_INSTALL_IMAGEMAGICK="y"
             SELECTED_INSTALLER=${PHP_IMAGEMAGICK_INSTALLER}
         fi
     else
-        while [[ "${INSTALL_IMAGEMAGICK}" != "y" && "${INSTALL_IMAGEMAGICK}" != "n" ]]; do
-            read -rp "Do you want to install ImageMagick library? [y/n]: " -i y -e INSTALL_IMAGEMAGICK
+        while [[ "${DO_INSTALL_IMAGEMAGICK}" != "y" && "${DO_INSTALL_IMAGEMAGICK}" != "n" ]]; do
+            read -rp "Do you want to install ImageMagick library? [y/n]: " -i y -e DO_INSTALL_IMAGEMAGICK
         done
         echo ""
     fi
 
-    if [[ "${INSTALL_IMAGEMAGICK}" == Y* || "${INSTALL_IMAGEMAGICK}" == y* ]]; then
+    if [[ ${DO_INSTALL_IMAGEMAGICK} == y* && ${INSTALL_PHP_IMAGEMAGICK} == true ]]; then
         echo "Available ImageMagick installation method:"
         echo "  1). Install from Repository (repo)"
         echo "  2). Compile from Source (source)"

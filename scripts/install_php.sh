@@ -370,8 +370,8 @@ ping.path = /ping
 slowlog = /var/log/php/php${PHPv}-fpm_slow.\$pool.log
 request_slowlog_timeout = 10s
 
-;chroot = /home/lemper
-chdir = /home/lemper
+;chroot = /home/${POOLNAME}
+chdir = /home/${POOLNAME}
 
 ;catch_workers_output = yes
 ;decorate_workers_output = no
@@ -448,31 +448,34 @@ function install_php_composer() {
             done
         fi
 
-        if [[ ${DO_INSTALL_COMPOSER} == y* && ${INSTALL_PHPCOMPOSER} == true ]]; then
+        if [[ ${DO_INSTALL_COMPOSER} == y* && ${INSTALL_PHP_COMPOSER} == true ]]; then
             echo "Installing PHP Composer..."
 
             local CURRENT_DIR && CURRENT_DIR=$(pwd)
             run cd "${BUILD_DIR}"
 
             PHP_BIN=$(command -v "php${PHPv}")
-            EXPECTED_SIGNATURE="$(wget -q -O - https://composer.github.io/installer.sig)"
-            run "${PHP_BIN}" -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
-            ACTUAL_SIGNATURE="$(${PHP_BIN} -r "echo hash_file('sha384', 'composer-setup.php');")"
 
-            if [[ "${EXPECTED_SIGNATURE}" == "${ACTUAL_SIGNATURE}" ]]; then
-                local LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
+            if [[ -n "${PHP_BIN}" ]]; then
+                EXPECTED_SIGNATURE="$(wget -q -O - https://composer.github.io/installer.sig)"
+                run "${PHP_BIN}" -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+                ACTUAL_SIGNATURE="$(${PHP_BIN} -r "echo hash_file('sha384', 'composer-setup.php');")"
 
-                run "${PHP_BIN}" composer-setup.php --filename=composer --install-dir=/usr/local/bin --quiet
+                if [[ "${EXPECTED_SIGNATURE}" == "${ACTUAL_SIGNATURE}" ]]; then
+                    local LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
 
-                # Fix chmod permission to executable.
-                if [ -f /usr/local/bin/composer ]; then
-                    run chmod ugo+x /usr/local/bin/composer
-                    run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bashrc"
-                    run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bash_profile"
-                    run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.profile"
+                    run "${PHP_BIN}" composer-setup.php --filename=composer --install-dir=/usr/local/bin --quiet
+
+                    # Fix chmod permission to executable.
+                    if [ -f /usr/local/bin/composer ]; then
+                        run chmod ugo+x /usr/local/bin/composer
+                        run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bashrc"
+                        run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bash_profile"
+                        run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.profile"
+                    fi
+                else
+                    error "Invalid PHP Composer installer signature."
                 fi
-            else
-                error "Invalid PHP Composer installer signature."
             fi
 
             #run rm composer-setup.php
@@ -549,7 +552,7 @@ function init_php_fpm_install() {
                 ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && ${SELECTED_PHP} != "7.1" && \
                 ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
                 ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "all" ]]; do
-            read -rp "Enter a PHP version from an option above [7.4]: " -e SELECTED_PHP
+            read -rp "Enter a PHP version from an option above [1-8]: " -i "${PHP_VERSION}" -e SELECTED_PHP
         done
     fi
 
@@ -609,11 +612,11 @@ function init_php_fpm_install() {
     if [[ -z $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
         info -e "\nLEMPer requires PHP ${DEFAULT_PHP_VERSION} as default to run its administration tools."
         echo "PHP ${DEFAULT_PHP_VERSION} now being installed..."
-        install_php_fpm "7.4"
+        install_php_fpm "${DEFAULT_PHP_VERSION}"
     fi
 
     # Install PHP composer.
-    install_php_composer "7.4"
+    install_php_composer "${DEFAULT_PHP_VERSION}"
 }
 
 

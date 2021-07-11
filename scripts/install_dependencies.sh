@@ -24,17 +24,19 @@ if hash apt 2>/dev/null; then
     run dpkg-reconfigure locales
 
     # Update repositories.
-    echo "Updating repository, please wait..."
+    echo -e "\nUpdating repository, please wait..."
     run apt update -qq -y && \
     run apt upgrade -qq -y
 
     # Install dependencies.
     echo -e "\nInstalling pre-requisites/dependencies package..."
-    install_dependencies "apt install -qq -y" debian_is_installed \
-        apt-transport-https apt-utils apache2-utils autoconf automake bash build-essential ca-certificates cmake cron \
-        curl dnsutils gcc geoip-bin geoip-database git gnupg2 htop iptables libc6-dev libcurl4-openssl-dev libgd-dev libgeoip-dev \
-        libssl-dev libxml2-dev libpcre3-dev libtool libxslt1-dev lsb-release make openssh-server openssl pkg-config \
-        python python3 re2c rsync software-properties-common sasl2-bin snmp sudo sysstat tar tzdata unzip wget whois zlib1g-dev
+    run apt install -qq -y \
+        apt-transport-https apt-utils apache2-utils autoconf automake bash build-essential \
+        ca-certificates cmake cron curl dmidecode dnsutils gcc geoip-bin geoip-database git \
+        gnupg2 htop iptables libc6-dev libcurl4-openssl-dev libgd-dev libgeoip-dev libssl-dev \
+        libxml2-dev libpcre3-dev libtool libxslt1-dev lsb-release make openssh-server openssl \
+        pkg-config python python3 re2c rsync software-properties-common sasl2-bin snmp sudo \
+        sysstat tar tzdata unzip wget whois zlib1g-dev
 
     # Configure server clock.
     echo -e "\nReconfigure server clock..."

@@ -69,6 +69,7 @@ fi
 ### Remove PHP & FPM ###
 if [ -f scripts/remove_php.sh ]; then
     echo ""
+    DEFAULT_PHP_VERSION="7.4"
     . ./scripts/remove_php.sh
 fi
 
@@ -126,7 +127,7 @@ read -rp "Remove default LEMPer account? [y/n]: " -i y -e REMOVE_ACCOUNT
 fi
 if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* || "${FORCE_REMOVE}" == true ]]; then
     if [ "$(type -t delete_account)" == "function" ]; then
-delete_account "lemper"
+        delete_account "${LEMPER_USERNAME}"
     fi
 fi
 
@@ -137,12 +138,12 @@ if "${AUTO_REMOVE}"; then
     REMOVE_SWAP="y"
 else
     while [[ "${REMOVE_SWAP}" != "y" && "${REMOVE_SWAP}" != "n" ]]; do
-read -rp "Remove created Swap? [y/n]: " -i y -e REMOVE_SWAP
+read -rp "Remove created Swap? [y/n]: " -e REMOVE_SWAP
     done
 fi
 if [[ "${REMOVE_SWAP}" == Y* || "${REMOVE_SWAP}" == y* || "${FORCE_REMOVE}" == true ]]; then
     if [ "$(type -t remove_swap)" == "function" ]; then
-remove_swap
+        remove_swap
     fi
 fi
 

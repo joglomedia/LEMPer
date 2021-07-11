@@ -57,7 +57,7 @@ function install_memcached() {
                 echo "Installing Memcached server from repository..."
 
                 if hash apt 2>/dev/null; then
-                    install_dependencies "apt install -qq -y" debian_is_installed \
+                    run apt install -qq -y \
                         libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2 memcached
                 else
                     fail "Unable to install Memcached, this GNU/Linux distribution is not supported."
@@ -67,7 +67,7 @@ function install_memcached() {
                 echo "Installing Memcached server from source..."
 
                 if hash apt 2>/dev/null; then
-                    install_dependencies "apt install -qq -y" debian_is_installed \
+                    run apt install -qq -y \
                         libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2
                 else
                     fail "Unable to install Memcached, this GNU/Linux distribution is not supported."
@@ -273,14 +273,14 @@ function install_php_memcached() {
         #PHPVERS=$(sed "s/,/ /g" <<<"${SELECTED_PHP}")
         for PHPv in ${SELECTED_PHP//,/ } 
         do
-            install_dependencies "apt install -qq -y" debian_is_installed \
+            run apt install -qq -y \
                 "php${PHPv}-igbinary" "php${PHPv}-memcache" "php${PHPv}-memcached" "php${PHPv}-msgpack"
             enable_php_memcached "${PHPv}"
         done
 
         # Default PHP 7.4 for LEMPer.
         if [ "${PHPv}" != "7.4" ]; then
-            install_dependencies "apt install -qq -y" debian_is_installed \
+            run apt install -qq -y \
                 "php7.4-igbinary" "php7.4-memcache" "php7.4-memcached" "php7.4-msgpack"
             enable_php_memcached "7.4"
         fi

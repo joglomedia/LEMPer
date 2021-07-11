@@ -341,7 +341,7 @@ function init_phploader_install() {
         done
     fi
 
-    if [[ ${DO_INSTALL_PHPLOADER} == y* || ${INSTALL_PHPLOADER} == true ]]; then
+    if [[ ${DO_INSTALL_PHPLOADER} == y* && ${INSTALL_PHP_LOADER} == true ]]; then
         # Select loader.
         if ! "${AUTO_INSTALL}"; then
             echo ""
