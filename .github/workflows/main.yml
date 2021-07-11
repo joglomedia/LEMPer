@@ -54,8 +54,6 @@ jobs:
         run: |
           sudo apt-get update -qq -y
           sudo apt-get install -qq -y bash shellcheck
-          sudo bash scripts/cleanup_server.sh
-          sudo bash scripts/install_dependencies.sh
       
       # Shellcheck
       - name: Run shellcheck testing
@@ -75,5 +73,7 @@ jobs:
       - name: Run unit testing
         env:
           TERM: xterm-256color
-        run:
+        run: |
+          sudo bash scripts/cleanup_server.sh
+          sudo bash scripts/install_dependencies.sh
           sudo bash shunit2/run_test.sh
