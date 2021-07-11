@@ -199,8 +199,8 @@ function init_nginx_install() {
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-ndk")
                             fi
 
-                            # NGX_HTTP_NJS is a subset of the JavaScript language that allows extending nginx functionality.
-                            if "${NGX_HTTP_NJS}"; then
+                            # NJS is a subset of the JavaScript language that allows extending nginx functionality.
+                            if "${NGX_HTTP_JS}"; then
                                 echo "Adding ngx-http-js module..."
                                 #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-js")
                             fi
@@ -801,8 +801,8 @@ function init_nginx_install() {
                             fi
                         fi
 
-                        # NGX_HTTP_NJS is a subset of the JavaScript language that allows extending nginx functionality.
-                        if "${NGX_HTTP_NJS}"; then
+                        # NJS is a subset of the JavaScript language that allows extending nginx functionality.
+                        if "${NGX_HTTP_JS}"; then
                             echo "Adding ngx-http-js module..."
                             run git clone https://github.com/nginx/njs.git
                             if "${NGINX_DYNAMIC_MODULE}"; then
