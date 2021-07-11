@@ -53,8 +53,10 @@ jobs:
       - name: Run install testing dependencies
         run: |
           sudo apt-get update -qq -y
-          sudo apt-get install -qq -y bash shellcheck
-      
+          sudo apt-get install -qq -y bash curl shellcheck
+          sudo curl -s -o /usr/local/bin/shunit2 https://raw.githubusercontent.com/kward/shunit2/master/shunit2
+          sudo chmod a+x /usr/local/bin/shunit2
+
       # Shellcheck
       - name: Run shellcheck testing
         env:
