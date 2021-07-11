@@ -1,0 +1,81 @@
+# This is a basic workflow to help you get started with Actions
+
+name: lemper-stack
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches:
+      - '*'         # matches every branch that doesn't contain a '/'
+      - '*/*'       # matches every branch containing a single '/'
+      - '**'        # matches every branch
+#      - '!master'   # excludes master
+  pull_request:
+    branches: 
+      - master
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - uses: php-actions/composer@v5
+
+      # Prepare your
+      - name: Prepare testing env variables
+        run: |
+          cp .env.dist .env
+          sed -i "s/ENVIRONMENT=\"production\"/ENVIRONMENT=\"development\"/g" .env
+          sed -i "s/SERVER_HOSTNAME=\"\"/SERVER_HOSTNAME=\"travis-ci.masedi.net\"/g" .env
+          sed -i "s/SERVER_IP=\"\"/SERVER_IP=\"127.0.0.1\"/g" .env
+          sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/g" .env
+          sed -i "s/AUTO_REMOVE=false/AUTO_REMOVE=true/g" .env
+          sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
+          sed -i "s/ADMIN_EMAIL=\"mail@example.com\"/ADMIN_EMAIL=\"me@masedi.net\"/g" .env
+          sed -i "s/PHP_VERSION=\"7.4\"/PHP_VERSION=\"7.4\"/g" .env
+          sed -i "s/PHP_LOADER=\"none\"/PHP_LOADER=\"ioncube\"/g" .env
+          sed -i "s/PHP_IMAGEMAGICK_INSTALLER=\"repo\"/PHP_IMAGEMAGICK_INSTALLER=\"source\"/g" .env
+          sed -i "s/INSTALL_MAILER=true/INSTALL_MAILER=false/g" .env
+          sed -i "s/INSTALL_SPFDKIM=true/INSTALL_SPFDKIM=false/g" .env
+          sed -i "s/SENDER_DOMAIN=\"example.com\"/SENDER_DOMAIN=\"localhost.localhost\"/g" .env
+          sed -i "s/INSTALL_FAIL2BAN=false/INSTALL_FAIL2BAN=true/g" .env
+
+      # Install LEMPer dependencies
+      - name: Run install testing dependencies
+        run: |
+          sudo apt-get update -qq -y
+          sudo apt-get install -qq -y bash shellcheck
+          sudo bash scripts/cleanup_server.sh
+          sudo bash scripts/install_dependencies.sh
+      
+      # Shellcheck
+      - name: Run shellcheck testing
+        env:
+          TERM: xterm-256color
+        run: |
+          shellcheck -s bash -x install.sh
+          shellcheck -s bash -x remove.sh
+          shellcheck -s bash -x lib/lemper-*.sh
+          shellcheck -s bash -x scripts/cleanup_server.sh
+          shellcheck -s bash -x scripts/helper.sh
+          shellcheck -s bash -x scripts/install_*.sh
+          shellcheck -s bash -x scripts/remove_*.sh
+          shellcheck -s bash -x scripts/secure_server.sh
+
+      # Simple unit testing
+      - name: Run unit testing
+        env:
+          TERM: xterm-256color
+        run:
+          sudo bash shunit2/run_test.sh
