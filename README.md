@@ -1,14 +1,7 @@
 # [L]inux [E]ngine-X [M]ariaDB [P]HP Install[ER]
 
 <p align="center">
-<pre>
-Served by
- _     _____ __  __ ____           
-| |   | ____|  \/  |  _ \ ___ _ __ 
-| |   |  _| | |\/| | |_) / _ \ '__|
-| |___| |___| |  | |  __/  __/ |   
-|_____|_____|_|  |_|_|   \___|_|      
-</pre>
+  <img src="/.github/assets/lemper-logo.png?raw=true" alt="Serverd by LEMPer Stack © @joglomedia"/>
 </p>
 
 <p align="center">
@@ -17,11 +10,11 @@ Served by
 <a href="https://github.com/joglomedia/LEMPer/network"><img src="https://img.shields.io/github/forks/joglomedia/LEMPer.svg" alt="GitHub forks"></a>
 <a href="https://github.com/joglomedia/LEMPer/issues"><img src="https://img.shields.io/github/issues/joglomedia/LEMPer.svg" alt="GitHub issues"></a>
 <a href="https://github.com/joglomedia/LEMPer/actions/workflows/main.yml"><img src="https://github.com/joglomedia/LEMPer/actions/workflows/main.yml/badge.svg" alt="GitHub CI"></a>
-<a href="https://raw.githubusercontent.com/joglomedia/LEMPer/master/LICENSE.md"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="GitHub license"></a>
+<a href="https://raw.githubusercontent.com/joglomedia/LEMPer/master/LICENSE.md"><img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="GitHub license"></a>
 </p>
 
 <p align="center">
-LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage LEMP stack on Debian/Ubuntu. LEMPer is CloudWays, Ploi, RunCloud, and ServerPilot free alternative crafted to support wide-range PHP framework & CMS.
+LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small toolset (a bunch collection of scripts) that usually I use to deploy and manage LEMP stack on Debian/Ubuntu server. LEMPer is crafted to support wide-range PHP framework & CMS. It is available as <em>Free Alternative</em> to control panel such as cPanel, Plesk, CloudWays, Ploi, RunCloud, ServerPilot, etc.
 </p>
 
 ## Features
@@ -142,7 +135,7 @@ http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
 
 ## Security Vulnerabilities and Bugs
 
-If you discover any security vulnerability or any bug within _EasyDock Linux_, please open an issue.
+If you discover any security vulnerability or any bug within _LEMPer Stack_, please open an issue.
 
 ## Contributing
 
