@@ -1,7 +1,7 @@
 # [L]inux [E]ngine-X [M]ariaDB [P]HP Install[ER]
 
 <p align="center">
-  <img src="/.github/assets/lemper-logo.png?raw=true" alt="Serverd by LEMPer Stack © @joglomedia"/>
+  <img src="/.github/assets/lemper-logo.svg?raw=true" alt="Serverd by LEMPer Stack © @joglomedia"/>
 </p>
 
 <p align="center">
