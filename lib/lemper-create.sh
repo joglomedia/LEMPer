@@ -118,7 +118,7 @@ fi
 function show_usage {
     cat <<- _EOF_
 ${APP_NAME^} ${APP_VERSION}
-Creates Nginx virtual host (vHost) configuration file.
+Creates NGINX virtual host (vHost) configuration file.
 
 Requirements:
   * LEMP stack setup uses [LEMPer](https://github.com/joglomedia/LEMPer)
@@ -157,7 +157,7 @@ Options:
   -s, --enable-ssl
       Enable HTTPS with Let's Encrypt free SSL certificate.
   -P, --enable-pagespeed
-      Enable Nginx mod_pagespeed.
+      Enable NGINX mod_pagespeed.
   -W, --wildcard-domain
       Enable wildcard (*) domain.
 
@@ -203,7 +203,11 @@ server {
     root \$root_path;
     index index.php index.html index.htm;
 
-    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
+    # Enable Compression.
+    # gzip (default) or brotli (requires NGINX installed with brotli module).
+    #include /etc/nginx/includes/compression_gzip.conf;
+
+    ## Uncomment to enable Mod PageSpeed (NGINX must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
 
     # Authorizing domain.
@@ -318,7 +322,11 @@ server {
     root \$root_path;
     index index.php index.html index.htm;
 
-    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
+    # Enable Compression.
+    # gzip (default) or brotli (requires NGINX installed with brotli module).
+    #include /etc/nginx/includes/compression_gzip.conf;
+
+    ## Uncomment to enable Mod PageSpeed (NGINX must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
 
     # Authorizing domain.
@@ -352,7 +360,7 @@ server {
 
     ## Default vhost directives configuration.
     #include /etc/nginx/includes/rules_fastcgi_cache.conf;
-    include /etc/nginx/vhost/site_${FRAMEWORK}.conf;
+    include /etc/nginx/vhost/site_drupal.conf;
 
     ## Add your custom site directives here.
 
@@ -427,7 +435,11 @@ server {
     root \$root_path;
     index index.php index.html index.htm;
 
-    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
+    # Enable Compression.
+    # gzip (default) or brotli (requires NGINX installed with brotli module).
+    #include /etc/nginx/includes/compression_gzip.conf;
+
+    ## Uncomment to enable Mod PageSpeed (NGINX must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
 
     # Authorizing domain.
@@ -462,7 +474,7 @@ server {
 
     ## Default vhost directives configuration.
     #include /etc/nginx/includes/rules_fastcgi_cache.conf;
-    include /etc/nginx/vhost/site_${FRAMEWORK}.conf;
+    include /etc/nginx/vhost/site_laravel.conf;
 
     ## Add your custom site directives here.
 
@@ -537,7 +549,11 @@ server {
     root \$root_path;
     index index.php index.html index.htm;
 
-    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
+    # Enable Compression.
+    # gzip (default) or brotli (requires NGINX installed with brotli module).
+    #include /etc/nginx/includes/compression_gzip.conf;
+
+    ## Uncomment to enable Mod PageSpeed (NGINX must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
 
     # Authorizing domain.
@@ -572,7 +588,7 @@ server {
 
     ## Default vhost directives configuration.
     #include /etc/nginx/includes/rules_fastcgi_cache.conf;
-    include /etc/nginx/vhost/site_${FRAMEWORK}.conf;
+    include /etc/nginx/vhost/site_phalcon.conf;
 
     ## Add your custom site directives here.
 
@@ -627,7 +643,7 @@ _EOF_
 #
 function prepare_vhost_wpms() {
     cat <<- _EOF_
-# Wordpress Multisite Mapping for Nginx (Requires Nginx Helper plugin).
+# Wordpress Multisite Mapping for NGINX (Requires NGINX Helper plugin).
 map \$http_host \$blogid {
     default 0;
     include ${WEBROOT}/wp-content/uploads/nginx-helper/[map].conf;
@@ -756,7 +772,7 @@ security.limit_extensions = .php .php${PHP_VERSION//./}
 
 ; Custom PHP ini settings.
 php_flag[display_errors] = On
-;php_admin_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
+;php_admin_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT & ~E_WARNING & ~E_NOTICE
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_flag[log_errors] = On
 php_admin_value[error_log] = /var/log/php/php${PHP_VERSION}-fpm.\$pool.log
@@ -819,7 +835,7 @@ function install_wordpress() {
     fi
 
     # Get default favicon.
-    #run wget -q -O "${WEBROOT}/favicon.ico" https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+    #run wget -q -O "${WEBROOT}/favicon.ico" https://github.com/joglomedia/LEMPer/raw/master/.github/assets/favicon.ico
 
     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 }
@@ -992,7 +1008,7 @@ function init_app() {
     if [ ${MAIN_ARGS} -ge 1 ]; then
         # Additional Check - ensure that Nginx's configuration meets the requirements.
         if [[ ! -d /etc/nginx/sites-available && ! -d /etc/nginx/vhost ]]; then
-            fail "It seems that your Nginx installation doesn't meet LEMPer requirements. Aborting..."
+            fail "It seems that your NGINX installation doesn't meet LEMPer requirements. Aborting..."
         fi
 
         # Check domain parameter.
@@ -1060,7 +1076,7 @@ function init_app() {
                     success "New php${PHP_VERSION}-fpm pool [${USERNAME}] has been created."
                 fi
             else
-                fail "Oops, PHP ${PHP_VERSION} & FPM not found. Please install it first! Aborting..."
+                fail "Oops, PHP ${PHP_VERSION} runtime not found. Please install it first! Aborting..."
             fi
 
             # Check web root parameter.
@@ -1088,12 +1104,57 @@ function init_app() {
 
             # Ugly hacks for custom framework-specific configs + Skeleton auto installer.
             case "${FRAMEWORK}" in
+                codeigniter)
+                    echo "Setting up CodeIgniter framework virtual host..."
+
+                    # Clone CodeIgniter skeleton files.
+                    if [[ ${INSTALL_APP} == true ]]; then
+                        # Checking CodeIgniter installation.
+                        if [ ! -f "${WEBROOT}/spark" ]; then
+                            echo "Downloading CodeIgniter v4 skeleton files..."
+
+                            if [[ -n "${PHP_COMPOSER_BIN}" ]]; then
+                                run "${PHP_BIN}" "${PHP_COMPOSER_BIN}" create-project --prefer-source codeigniter4/appstarter "${WEBROOT}"
+                            else
+                                run git clone -q --depth=1 --branch=master \
+                                    "https://github.com/codeigniter4/appstarter.git" "${WEBROOT}" || \
+                                    error "Something went wrong while downloading CodeIgniter v4 files."
+                            fi
+                        else
+                            info "It seems that CodeIgniter v4 skeleton files already exists."
+                        fi
+                    else
+                        # Create default index file.
+                        if [ ! -e "${WEBROOT}/public/index.php" ]; then
+                            echo "Creating default index file..."
+                            run mkdir -p "${WEBROOT}/public"
+                            create_index_file > "${WEBROOT}/public/index.html"
+                        fi
+                    fi
+
+                    # Well-Known URIs: RFC 8615.
+                    if [ ! -d "${WEBROOT}/public/.well-known" ]; then
+                        run mkdir -p "${WEBROOT}/public/.well-known"
+                    fi
+
+                    #run wget -q -O "${WEBROOT}/public/favicon.ico" \
+                    #    https://github.com/joglomedia/LEMPer/raw/master/.github/assets/favicon.ico
+
+                    # Fix ownership.
+                    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
+
+                    # Create vhost.
+                    echo "Creating virtual host file: ${VHOST_FILE}..."
+
+                    create_vhost_laravel > "${VHOST_FILE}"
+                ;;
+
                 drupal)
                     echo "Setting up Drupal virtual host..."
 
-                    # Clone new Drupal skeleton files.
+                    # Clone Drupal skeleton files.
                     if [[ ${INSTALL_APP} == true ]]; then
-                        # Check Drupal install directory.
+                        # Checking Drupal installation.
                         if [ ! -d "${WEBROOT}/core/lib/Drupal" ]; then
                             echo "Downloading Drupal latest skeleton files..."
 
@@ -1118,7 +1179,7 @@ function init_app() {
                     fi
 
                     #run wget -q -O "${WEBROOT}/favicon.ico" \
-                    #    https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    #    https://github.com/joglomedia/LEMPer/raw/master/.github/assets/favicon.ico
 
                     # Fix ownership.
                     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
@@ -1129,12 +1190,11 @@ function init_app() {
                 ;;
 
                 laravel|lumen)
-                    echo "Setting up Laravel framework virtual host..."
+                    echo "Setting up ${FRAMEWORK^} framework virtual host..."
 
-                    # Install Laravel framework skeleton
-                    # clone new Laravel files.
+                    # Clone Laravel/Lumen skeleton files.
                     if [[ ${INSTALL_APP} == true ]]; then
-                        # Check Laravel install.
+                        # Checking Laravel installation.
                         if [ ! -f "${WEBROOT}/artisan" ]; then
                             echo "Downloading ${FRAMEWORK^} skeleton files..."
 
@@ -1163,7 +1223,7 @@ function init_app() {
                     fi
 
                     #run wget -q -O "${WEBROOT}/public/favicon.ico" \
-                    #    https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    #    https://github.com/joglomedia/LEMPer/raw/master/.github/assets/favicon.ico
 
                     # Fix ownership.
                     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
@@ -1177,13 +1237,13 @@ function init_app() {
                 ;;
 
                 phalcon|phalcon-cli|phalcon-micro|phalcon-modules)
-                    echo "Setting up ${FRAMEWORK^} framework virtual host..."
+                    echo "Setting up Phalcon framework virtual host..."
 
-                    # Auto install Phalcon PHP framework skeleton.
+                    # Clone Phalcon skeleton files.
                     if [[ ${INSTALL_APP} == true ]]; then
-                        # Check Phalcon skeleton install.
+                        # Checking Phalcon installation.
                         if [ ! -f "${WEBROOT}/app/config/config.php" ]; then
-                            echo "Downloading ${FRAMEWORK^} skeleton files..."
+                            echo "Downloading ${FRAMEWORK} skeleton files..."
 
                             # Switch Phalcon framework type.
                             case "${FRAMEWORK}" in
@@ -1208,10 +1268,10 @@ function init_app() {
                             else
                                 run git clone -q --depth=1 --branch=master \
                                     "https://github.com/joglomedia/${FRAMEWORK}-skeleton.git" "${WEBROOT}" || \
-                                    error "Something went wrong while downloading ${FRAMEWORK^} files."
+                                    error "Something went wrong while downloading ${FRAMEWORK} files."
                             fi
                         else
-                            info "It seems that ${FRAMEWORK^} skeleton files already exists."
+                            info "It seems that ${FRAMEWORK} skeleton files already exists."
                         fi
                     else
                         # Create default index file.
@@ -1228,7 +1288,7 @@ function init_app() {
                     fi
 
                     #run wget -q -O "${WEBROOT}/public/favicon.ico" \
-                    #    https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    #    https://github.com/joglomedia/LEMPer/raw/master/.github/assets/favicon.ico
 
                     # Fix ownership.
                     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
@@ -1244,9 +1304,9 @@ function init_app() {
                 symfony)
                     echo "Setting up Symfony framework virtual host..."
 
-                    # Auto install Symfony PHP framework skeleton.
+                    # Clone Symfony skeleton files.
                     if [[ ${INSTALL_APP} == true ]]; then
-                        # Check Symfony install.
+                        # Checking Symfony installation.
                         if [ ! -f "${WEBROOT}/src/Kernel.php" ]; then
                             echo "Downloading Symfony skeleton files..."
 
@@ -1282,7 +1342,7 @@ function init_app() {
                     fi
 
                     #run wget -q -O "${WEBROOT}/public/favicon.ico" \
-                    #    https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    #    https://github.com/joglomedia/LEMPer/raw/master/.github/assets/favicon.ico
                     
                     # Fix ownership.
                     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
@@ -1359,7 +1419,7 @@ _EOL_
                     # Enable sunrise. (insert new line before match)
                     run sed -i "/\/*\ That/i define( 'SUNRISE', true );\n" "${WEBROOT}/wp-config.php"
 
-                    # Pre-populate blog id mapping, used by Nginx vhost config.
+                    # Pre-populate blog id mapping, used by NGINX vhost config.
                     if [ ! -d "${WEBROOT}/wp-content/uploads/nginx-helper" ]; then
                         run mkdir -p "${WEBROOT}/wp-content/uploads/nginx-helper"
                     fi
@@ -1416,7 +1476,7 @@ _EOL_
                     fi
 
                     #run wget -q -O "${WEBROOT}/favicon.ico" \
-                    #    https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    #    https://github.com/joglomedia/LEMPer/raw/master/.github/assets/favicon.ico
                     
                     # Fix ownership.
                     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
@@ -1426,7 +1486,7 @@ _EOL_
                     create_vhost_default > "${VHOST_FILE}"
                 ;;
 
-                default|codeigniter|mautic|roundcube|sendy)
+                default|mautic|roundcube|sendy)
                     # TODO: Auto install framework skeleton.
 
                     # Create default index file.
@@ -1435,7 +1495,7 @@ _EOL_
                     fi
 
                     #run wget -q -O "${WEBROOT}/favicon.ico" \
-                    #    https://github.com/joglomedia/LEMPer/raw/master/favicon.ico
+                    #    https://github.com/joglomedia/LEMPer/raw/master/.github/assets/favicon.ico
                     
                     # Fix ownership.
                     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
@@ -1447,7 +1507,7 @@ _EOL_
 
                 *)
                     # Not supported framework/cms, abort.
-                    fail "Sorry, your framework/cms [${FRAMEWORK^}] is not supported yet. Aborting..."
+                    fail "Sorry, your framework/cms [${FRAMEWORK^}] is not supported yet. Please submit an issue at Github..."
                     exit 1
                 ;;
             esac
@@ -1523,7 +1583,7 @@ _EOL_
                         run sed -i "s|#pagespeed\ Disallow|pagespeed\ Disallow|g" "${VHOST_FILE}"
                         run sed -i "s|#pagespeed\ Domain|pagespeed\ Domain|g" "${VHOST_FILE}"
                     else
-                        info "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module."
+                        info "Mod PageSpeed is not enabled. NGINX must be installed with PageSpeed module."
                     fi
                 fi
 
@@ -1572,18 +1632,18 @@ _EOL_
             fi
 
             # Reload Nginx
-            echo "Reloading Nginx HTTP server configuration..."
+            echo "Reloading NGINX server configuration..."
 
             # Validate config, reload when validated.
             if nginx -t 2>/dev/null > /dev/null; then
                 run systemctl reload nginx
-                echo "Nginx HTTP server reloaded with new configuration."
+                echo "NGINX server reloaded with new configuration."
             else
-                info "Something went wrong with Nginx configuration."
+                info "Something went wrong with NGINX configuration."
             fi
 
             if [[ -f "/etc/nginx/sites-enabled/${SERVERNAME}.conf" && -e /var/run/nginx.pid ]]; then
-                success "Your ${SERVERNAME} successfully added to Nginx virtual host."
+                success "Your ${SERVERNAME} successfully added to NGINX virtual host."
 
                 # Enable HTTPS.
                 if [[ ${ENABLE_SSL} == true ]]; then
@@ -1597,7 +1657,7 @@ _EOL_
                 if [ "${FRAMEWORK}" = "wordpress-ms" ]; then
                     echo >&2
                     info "Note: You're installing Wordpress Multisite."
-                    info "You should activate Nginx Helper plugin to work properly."
+                    info "You should activate NGINX Helper plugin to work properly."
                 fi
 
                 # App install details
@@ -1609,7 +1669,7 @@ _EOL_
                 if "${DRYRUN}"; then
                     info "Your ${SERVERNAME} successfully added in dryrun mode."
                 else
-                    fail "An error occurred when adding ${SERVERNAME} to Nginx virtual host."
+                    fail "An error occurred when adding ${SERVERNAME} to NGINX virtual host."
                 fi
             fi
         else
