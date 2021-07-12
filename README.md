@@ -1,8 +1,21 @@
 # [L]inux [E]ngine-X [M]ariaDB [P]HP Install[ER]
 
-LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small tool set (a bunch collection of scripts) that usually I use to deploy and manage LEMP stack on Debian/Ubuntu. LEMPer is _CloudWays_, _Ploi_, _RunCloud_, and _ServerPilot_ free alternative crafted to support wide-range PHP framework (not only WordPress).
+<p align="center">
+  <img src="/.github/assets/lemper-logo.svg?raw=true" alt="Serverd by LEMPer Stack © @joglomedia"/>
+</p>
 
-[![Build Status](https://api.travis-ci.com/joglomedia/LEMPer.svg?branch=2.0.x)](https://travis-ci.com/github/joglomedia/LEMPer)
+<p align="center">
+<a href="https://github.com/joglomedia/LEMPer/releases"><img src="https://img.shields.io/github/v/tag/joglomedia/LEMPer?label=version" alt="LEMPer version"></a>
+<a href="https://github.com/joglomedia/LEMPer/stargazers"><img src="https://img.shields.io/github/stars/joglomedia/LEMPer.svg" alt="GitHub stars"></a>
+<a href="https://github.com/joglomedia/LEMPer/network"><img src="https://img.shields.io/github/forks/joglomedia/LEMPer.svg" alt="GitHub forks"></a>
+<a href="https://github.com/joglomedia/LEMPer/issues"><img src="https://img.shields.io/github/issues/joglomedia/LEMPer.svg" alt="GitHub issues"></a>
+<a href="https://github.com/joglomedia/LEMPer/actions/workflows/main.yml"><img src="https://github.com/joglomedia/LEMPer/actions/workflows/main.yml/badge.svg" alt="GitHub CI"></a>
+<a href="https://raw.githubusercontent.com/joglomedia/LEMPer/master/LICENSE.md"><img src="https://img.shields.io/badge/license-GPLv3-blue.svg" alt="GitHub license"></a>
+</p>
+
+<p align="center">
+LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small toolset (a bunch collection of scripts) that usually I use to deploy and manage LEMP stack on Debian/Ubuntu server. LEMPer is crafted to support wide-range PHP framework & CMS. It is available as <em>Free Alternative</em> to control panel such as cPanel, Plesk, CloudWays, Ploi, RunCloud, ServerPilot, etc.
+</p>
 
 ## Features
 
@@ -40,33 +53,33 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * Make a copy of .env.dist to .env ```cp .env.dist .env``` and replace the values.
 * Execute install.sh file, ```sudo ./install.sh```.
 
-### Install LEMPer stack
+### Install LEMPer Stack
 
 ```bash
 sudo apt install git && git clone -q https://github.com/joglomedia/LEMPer.git && cd LEMPer && cp -f .env.dist .env && sudo ./install.sh
 ```
 
-### Remove LEMPer stack
+### Remove LEMPer Stack
 
 ```bash
 sudo ./remove.sh
 ```
 
-## LEMPer Command Line Administration Tool
+### LEMPer Command Line Administration Tool
 
 LEMPer comes with friendly command line tool which will make your LEMP stack administration much easier. These command line tool called Lemper CLI (lemper-cli) for creating new virtual host and managing existing LEMP stack.
 
-### LEMPer CLI Usage
+#### LEMPer CLI Usage
 
 Here are some examples of using LEMPer CLI.
 
-#### LEMPer CLI add new vhost / website
+##### LEMPer CLI add new vhost / website
 
 ```bash
 sudo lemper-cli create -u username -d example.app -f default -w /home/username/Webs/example.app
 ```
 
-#### LEMPer CLI manage vhost / website
+##### LEMPer CLI manage vhost / website
 
 Example, enable SSL
 
@@ -80,7 +93,7 @@ Example, enable FastCGI cache
 sudo lemper-cli manage --enable-fastcgi-cache example.app
 ```
 
-#### for more help
+##### for more help
 
 ```bash
 sudo lemper-cli --help
@@ -88,7 +101,7 @@ sudo lemper-cli --help
 
 Note: Lemper CLI will automagically add a new PHP-FPM user's pool configuration if it doesn't exists. You must add the user account first.
 
-## Web-based Administration
+### Web-based Administration
 
 You can access pre-installed web-based administration tools here
 
@@ -108,7 +121,7 @@ TinyFilemanage (Web-based file managemer)
 http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
 ```
 
-## TODO
+## TODOs
 
 * ~~Custom build latest [Nginx](https://nginx.org/en/) from source~~
 * ~~Add [Let's Encrypt SSL](https://letsencrypt.org/)~~
@@ -120,6 +133,10 @@ http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
 * Add user account & hosting package management.
 * Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new).
 
+## Security Vulnerabilities and Bugs
+
+If you discover any security vulnerability or any bug within _LEMPer Stack_, please open an issue.
+
 ## Contributing
 
 * Fork it ([https://github.com/joglomedia/LEMPer/fork](https://github.com/joglomedia/LEMPer/fork))
@@ -127,20 +144,50 @@ http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
 * Commit your changes (git commit -am 'Add some feature') or (git commit -am 'Fix some issue')
 * Push to the branch (git push origin my-new-feature) or (git push origin fix-some-issue)
 * Create a new Pull Request
-* Travis unit tests will be run to make sure that your changes does not have errors or warning
+* GitHub Workflows will be run to make sure that your changes does not have errors or warning
 
-## TL;DR
+## Awesome People
 
-If you're looking for mature, feature rich, advanced services with 24/7 premium support, please don't use this script.
+**LEMPer Stack** is an open-source project licensed under the GNU GPLv3 license with its ongoing development made possible entirely by the support of all these smart and generous people, from code contributors to financial contributors. :purple_heart:
 
-## DONATION
+Thank you for considering contributing to this project!
+
+### Project Maintainers
+
+<table>
+  <tbody>
+    <tr>
+        <td align="center" valign="top">
+            <img width="125" height="125" src="https://github.com/joglomedia.png?s=150">
+            <br>
+            <strong>Edi Septriyanto</strong>
+            <br>
+            <a href="https://github.com/joglomedia">@joglomedia</a>
+        </td>
+     </tr>
+  </tbody>
+</table>
+
+### Code Contributors
+
+<a href="https://github.com/joglomedia/LEMPer/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=joglomedia/LEMPer" />
+</a>
+
+Made with [contributors-img](https://contrib.rocks).
+
+### Financial Contributors
+
+You can support us using any of the methods below:
 
 **[Buy Me a Bottle of Milk or a Cup of Coffee](https://paypal.me/masedi) !!**
 
-## SPONSORSHIP
+## Licence
 
-Be the first one!
+LEMPer stack is open-source project licensed under the GNU GPLv3 license.
 
 ## Copyright
 
 (c) 2014-2021 | [MasEDI.Net](https://masedi.net/)
+
+### Enjoy LEMPer Stack ;)

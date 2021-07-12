@@ -28,7 +28,7 @@ testEqualityGetDistribName()
 testEqualityGetReleaseName()
 {
     release_name=$(get_release_name)
-    assertEquals "bionic" "${release_name}"
+    assertEquals "focal" "${release_name}"
 }
 
 testEqualityCreateAccount()

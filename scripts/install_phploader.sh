@@ -279,8 +279,7 @@ function remove_sourceguardian() {
 # Initialize PHP Loader Installation.
 #
 function init_phploader_install() {
-    local SELECTED_PHP=""
-    local SELECTED_PHPLOADER=""
+    local SELECTED_PHP_LOADER=""
 
     OPTS=$(getopt -o p:l:ir \
       -l php-version:,php-loader:,install,remove \
@@ -327,118 +326,26 @@ function init_phploader_install() {
         PHP_LOADER=${PHP_LOADER:-""}
     fi
 
-    if "${AUTO_INSTALL}"; then
-        # PHP Loader.
-        if [[ -z "${PHP_LOADER}" || "${PHP_LOADER}" == "none" ]]; then
-            DO_INSTALL_PHPLOADER="n"
-        else
-            DO_INSTALL_PHPLOADER="y"
-            SELECTED_PHPLOADER=${PHP_LOADER}
-        fi
-    else
-        while [[ "${DO_INSTALL_PHPLOADER}" != "y" && "${DO_INSTALL_PHPLOADER}" != "n" ]]; do
-            read -rp "Do you want to install PHP Loader? [y/n]: " -e DO_INSTALL_PHPLOADER
-        done
-    fi
-
-    if [[ ${DO_INSTALL_PHPLOADER} == y* && ${INSTALL_PHP_LOADER} == true ]]; then
-        # Select loader.
-        if ! "${AUTO_INSTALL}"; then
-            echo ""
-            echo "Available PHP Loaders:"
-            echo "  1). ionCube Loader (latest stable)"
-            echo "  2). SourceGuardian (latest stable)"
-            echo "  3). All loaders (ionCube, SourceGuardian)"
-            echo "--------------------------------------------"
-
-            while [[ ${SELECTED_PHPLOADER} != "1" && ${SELECTED_PHPLOADER} != "2" && \
-                ${SELECTED_PHPLOADER} != "3" && ${SELECTED_PHPLOADER} != "ioncube" && \
-                ${SELECTED_PHPLOADER} != "sg" && ${SELECTED_PHPLOADER} != "ic" && \
-                ${SELECTED_PHPLOADER} != "sourceguardian" && ${SELECTED_PHPLOADER} != "all" ]]; do
-                    read -rp "Select PHP loader or an option [1-3]: " -i "${PHP_LOADER}" -e SELECTED_PHPLOADER
-            done
-        fi
-
-        # Select PHP version.
-        if "${AUTO_INSTALL}"; then
-            if [ -z "${SELECTED_PHP}" ]; then
-                SELECTED_PHP=${PHP_VERSION:-"7.3"}
-            fi
-        else
-            echo ""
-            echo "Which PHP to install the Loader?"
-            echo "Supported PHP versions:"
-            echo "  1). PHP 5.6 (EOL)"
-            echo "  2). PHP 7.0 (EOL)"
-            echo "  3). PHP 7.1 (SFO)"
-            echo "  4). PHP 7.2 (Stable)"
-            echo "  5). PHP 7.3 (Stable)"
-            echo "  6). PHP 7.4 (Latest stable)"
-            echo "  7). All available versions"
-            echo "+--------------------------------------+"
-
-            while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
-                    ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
-                    ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && \
-                    ${SELECTED_PHP} != "7.1" && ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && \
-                    ${SELECTED_PHP} != "7.4" && ${SELECTED_PHP} != "all" ]]; do
-                read -rp "Select a PHP version or an option [1-7]: " -i "${PHP_VERSION}" -e SELECTED_PHP
-            done
-        fi
-
-        local PHPv
-        case ${SELECTED_PHP} in
-            1|"5.6")
-                PHPv="5.6"
-            ;;
-            2|"7.0")
-                PHPv="7.0"
-            ;;
-            3|"7.1")
-                PHPv="7.1"
-            ;;
-            4|"7.2")
-                PHPv="7.2"
-            ;;
-            5|"7.3")
-                PHPv="7.3"
-            ;;
-            6|"7.4")
-                PHPv="7.4"
-            ;;
-            7|"all")
-                # Install all PHP version (except EOL & Beta).
-                PHPv="all"
-            ;;
-            *)
-                PHPv="unsupported"
-                error "Your selected PHP version ${SELECTED_PHP} is not supported."
-            ;;
-        esac
-    fi
-
-    # NOT COMPLETE
-
     # Install PHP loader.
     if [[ "${PHPv}" != "unsupported" && ! $(version_older_than "${PHPv}" "5.6") ]]; then
         if "${AUTO_INSTALL}"; then
             # PHP Loader.
-            if [ -z "${SELECTED_PHPLOADER}" ]; then
-                SELECTED_PHPLOADER=${PHP_LOADER:-""}
+            if [ -z "${SELECTED_PHP_LOADER}" ]; then
+                SELECTED_PHP_LOADER=${PHP_LOADER:-""}
             fi
 
-            if [[ -z "${SELECTED_PHPLOADER}" || "${SELECTED_PHPLOADER}" == "none" ]]; then
-                INSTALL_PHPLOADER="n"
+            if [[ -z "${SELECTED_PHP_LOADER}" || "${SELECTED_PHP_LOADER}" == "none" ]]; then
+                DO_INSTALL_PHP_LOADER="n"
             else
-                INSTALL_PHPLOADER="y"
+                DO_INSTALL_PHP_LOADER="y"
             fi
         else
-            while [[ "${INSTALL_PHPLOADER}" != "y" && "${INSTALL_PHPLOADER}" != "n" ]]; do
-                read -rp "Do you want to install PHP Loader? [y/n]: " -i n -e INSTALL_PHPLOADER
+            while [[ "${DO_INSTALL_PHP_LOADER}" != "y" && "${DO_INSTALL_PHP_LOADER}" != "n" ]]; do
+                read -rp "Do you want to install PHP Loader? [y/n]: " -i n -e DO_INSTALL_PHP_LOADER
             done
         fi
 
-        if [[ ${INSTALL_PHPLOADER} == Y* || ${INSTALL_PHPLOADER} == y* ]]; then
+        if [[ ${DO_INSTALL_PHP_LOADER} == y* && ${INSTALL_PHP_LOADER} == true ]]; then
             if ! "${AUTO_INSTALL}"; then
                 echo ""
                 echo "Available PHP Loaders:"
@@ -447,11 +354,11 @@ function init_phploader_install() {
                 echo "  3). All loaders (ionCube, SourceGuardian)"
                 echo "--------------------------------------------"
 
-                while [[ ${SELECTED_PHPLOADER} != "1" && ${SELECTED_PHPLOADER} != "2" && \
-                        ${SELECTED_PHPLOADER} != "3" && ${SELECTED_PHPLOADER} != "ioncube" && \
-                        ${SELECTED_PHPLOADER} != "sg" && ${SELECTED_PHPLOADER} != "ic" && \
-                        ${SELECTED_PHPLOADER} != "sourceguardian" && ${SELECTED_PHPLOADER} != "all" ]]; do
-                    read -rp "Select an option [1-3]: " -i "${PHP_LOADER}" -e SELECTED_PHPLOADER
+                while [[ ${SELECTED_PHP_LOADER} != "1" && ${SELECTED_PHP_LOADER} != "2" && \
+                        ${SELECTED_PHP_LOADER} != "3" && ${SELECTED_PHP_LOADER} != "ioncube" && \
+                        ${SELECTED_PHP_LOADER} != "sg" && ${SELECTED_PHP_LOADER} != "ic" && \
+                        ${SELECTED_PHP_LOADER} != "sourceguardian" && ${SELECTED_PHP_LOADER} != "all" ]]; do
+                    read -rp "Select an option [1-3]: " -i "${PHP_LOADER}" -e SELECTED_PHP_LOADER
                 done
             fi
 
@@ -460,7 +367,7 @@ function init_phploader_install() {
                 run mkdir -p /usr/lib/php/loaders
             fi
 
-            case ${SELECTED_PHPLOADER} in
+            case ${SELECTED_PHP_LOADER} in
                 1|"ic"|"ioncube")
                     install_ioncube
 
@@ -549,11 +456,11 @@ function init_phploader_install() {
                     fi
                 ;;
                 *)
-                    info "Your selected PHP loader ${SELECTED_PHPLOADER} is not supported yet."
+                    info "Your selected PHP loader ${SELECTED_PHP_LOADER} is not supported yet."
                 ;;
             esac
         else
-            info "${SELECTED_PHPLOADER^} PHP ${PHPv} loader installation skipped."
+            info "${SELECTED_PHP_LOADER^} PHP ${PHPv} loader installation skipped."
         fi
     fi
 }

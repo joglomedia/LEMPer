@@ -1,5 +1,6 @@
 .env
 .env.save
+.travis.yml
 lemper.log
 lemper.sh
 scripts/install_ffmpeg.sh

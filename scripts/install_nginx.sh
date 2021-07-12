@@ -199,8 +199,8 @@ function init_nginx_install() {
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-ndk")
                             fi
 
-                            # NGX_HTTP_NJS is a subset of the JavaScript language that allows extending nginx functionality.
-                            if "${NGX_HTTP_NJS}"; then
+                            # NJS is a subset of the JavaScript language that allows extending nginx functionality.
+                            if "${NGX_HTTP_JS}"; then
                                 echo "Adding ngx-http-js module..."
                                 #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-js")
                             fi
@@ -292,18 +292,18 @@ function init_nginx_install() {
                 local NGINX_VERSION=${NGINX_VERSION:-"stable"}
                 if [[ ${NGINX_VERSION} == "mainline" || ${NGINX_VERSION} == "latest" ]]; then
                     # Nginx mainline version.
-                    NGINX_RELEASE_VER=$(determine_latest_nginx_version)
+                    NGINX_RELEASE_VERSION=$(determine_latest_nginx_version)
                 elif [[ ${NGINX_VERSION} == "stable" || ${NGINX_VERSION} == "lts" ]]; then
                     # Nginx stable version.
-                    NGINX_RELEASE_VER=$(determine_stable_nginx_version)
+                    NGINX_RELEASE_VERSION=$(determine_stable_nginx_version)
                 else
                     # Fallback to default stable version.
-                    NGINX_RELEASE_VER="${NGINX_VERSION}"
+                    NGINX_RELEASE_VERSION="${NGINX_VERSION}"
                 fi
 
                 if "${DRYRUN}"; then
                     run "${BUILD_DIR}/build_nginx" -v latest-stable \
-                        -n "${NGINX_RELEASE_VER}" --dynamic-module --extra-modules -y --dryrun
+                        -n "${NGINX_RELEASE_VERSION}" --dynamic-module --extra-modules -y --dryrun
                 else
                     # Nginx configure arguments.
                     NGX_CONFIGURE_ARGS=""
@@ -801,8 +801,8 @@ function init_nginx_install() {
                             fi
                         fi
 
-                        # NGX_HTTP_NJS is a subset of the JavaScript language that allows extending nginx functionality.
-                        if "${NGX_HTTP_NJS}"; then
+                        # NJS is a subset of the JavaScript language that allows extending nginx functionality.
+                        if "${NGX_HTTP_JS}"; then
                             echo "Adding ngx-http-js module..."
                             run git clone https://github.com/nginx/njs.git
                             if "${NGINX_DYNAMIC_MODULE}"; then
@@ -990,7 +990,7 @@ function init_nginx_install() {
 
                     if curl -sLI "${NGX_BUILD_URL}" | grep -q "HTTP/[.12]* [2].."; then
                         run curl -sS -o "${BUILD_DIR}/build_nginx" "${NGX_BUILD_URL}" && \
-                        run bash "${BUILD_DIR}/build_nginx" -v latest-stable -n "${NGINX_RELEASE_VER}" --dynamic-module \
+                        run bash "${BUILD_DIR}/build_nginx" -v latest-stable -n "${NGINX_RELEASE_VERSION}" --dynamic-module \
                             -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
                     else
                         error "Nginx from source installer not found."
@@ -1385,7 +1385,6 @@ function init_nginx_install() {
 
         run cp -f etc/nginx/nginx.conf /etc/nginx/
         run cp -f etc/nginx/charset /etc/nginx/
-        run cp -f etc/nginx/{comp_brotli,comp_gzip} /etc/nginx/
         run cp -f etc/nginx/{fastcgi_cache,fastcgi_https_map,fastcgi_params,mod_pagespeed,proxy_cache,proxy_params} \
             /etc/nginx/
         run cp -f etc/nginx/{http_cloudflare_ips,http_proxy_ips,upstream} /etc/nginx/
