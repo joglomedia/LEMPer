@@ -688,18 +688,18 @@ function enable_brotli() {
     local DOMAIN=${1}
     verify_vhost "${DOMAIN}"
 
-    if [[ -f "/etc/nginx/sites-available/${DOMAIN}.conf" && -f /etc/nginx/modules-enabled/50-mod-http-brotli-static.conf ]]; then
+    if [[ -f "/etc/nginx/sites-available/${DOMAIN}.conf" && -f /etc/nginx/modules-enabled/20-mod-http-brotli-static.conf ]]; then
         echo "Enable NGINX Brotli compression..."
 
-        if grep -qwE "^\    include\ /etc/nginx/includes/compression_brotli.conf" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+        if grep -qwE "^\    include\ /etc/nginx/includes/compression_brotli.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             info "Brotli compression module already enabled."
             exit 0
-        elif grep -qwE "^\    include\ /etc/nginx/includes/compression_gzip.conf" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+        elif grep -qwE "^\    include\ /etc/nginx/includes/compression_gzip.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             echo "Found Gzip compression enabled, updating to Brotli..."
 
             run sed -i "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_brotli.conf;|g" \
                 "/etc/nginx/sites-available/${DOMAIN}.conf"
-        elif grep -qwE "^\    #include\ /etc/nginx/includes/compression_[a-z]*\.conf" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+        elif grep -qwE "^\    #include\ /etc/nginx/includes/compression_[a-z]*\.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             echo "Enabling Brotli compression module..."
 
             run sed -i "s|#include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_brotli.conf;|g" \
@@ -729,15 +729,15 @@ function enable_gzip() {
     if [[ -f "/etc/nginx/sites-available/${DOMAIN}.conf" && -f /etc/nginx/includes/compression_gzip.conf ]]; then
         echo "Enable NGINX Gzip compression..."
 
-        if grep -qwE "^\    include\ /etc/nginx/includes/compression_gzip.conf" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+        if grep -qwE "^\    include\ /etc/nginx/includes/compression_gzip.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             info "Gzip compression module already enabled."
             exit 0
-        elif grep -qwE "^\    include\ /etc/nginx/includes/compression_brotli.conf" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+        elif grep -qwE "^\    include\ /etc/nginx/includes/compression_brotli.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             echo "Found Brotli compression enabled, updating to Gzip..."
 
             run sed -i "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_gzip.conf;|g" \
                 "/etc/nginx/sites-available/${DOMAIN}.conf"
-        elif grep -qwE "^\    #include\ /etc/nginx/includes/compression_[a-z]*\.conf" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+        elif grep -qwE "^\    #include\ /etc/nginx/includes/compression_[a-z]*\.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             echo "Enabling Gzip compression module..."
 
             run sed -i "s|#include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_gzip.conf;|g" \
@@ -769,8 +769,7 @@ function disable_compression() {
         run sed -i "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|#include\ /etc/nginx/includes/compression_gzip.conf;|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
     else
-        error "Sorry, we couldn't find any compression module section."
-        echo "We recommend you to enable Gzip module manually."
+        error "Sorry, we couldn't find any enabled compression module."
         exit 1
     fi
 
