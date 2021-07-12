@@ -1385,7 +1385,6 @@ function init_nginx_install() {
 
         run cp -f etc/nginx/nginx.conf /etc/nginx/
         run cp -f etc/nginx/charset /etc/nginx/
-        run cp -f etc/nginx/{comp_brotli,comp_gzip} /etc/nginx/
         run cp -f etc/nginx/{fastcgi_cache,fastcgi_https_map,fastcgi_params,mod_pagespeed,proxy_cache,proxy_params} \
             /etc/nginx/
         run cp -f etc/nginx/{http_cloudflare_ips,http_proxy_ips,upstream} /etc/nginx/
