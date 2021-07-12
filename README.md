@@ -56,7 +56,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 ### Install LEMPer Stack
 
 ```bash
-sudo apt install git && git clone -q https://github.com/joglomedia/LEMPer.git && cd LEMPer && cp -f .env.dist .env && sudo ./install.sh
+sudo apt-get install git && git clone -q https://github.com/joglomedia/LEMPer.git && cd LEMPer && cp -f .env.dist .env && sudo ./install.sh
 ```
 
 ### Remove LEMPer Stack
@@ -76,7 +76,7 @@ Here are some examples of using LEMPer CLI.
 ##### LEMPer CLI add new vhost / website
 
 ```bash
-sudo lemper-cli create -u username -d example.app -f default -w /home/username/Webs/example.app
+sudo lemper-cli create -u username -d example.test -f wordpress -w /home/username/webapps/example.test
 ```
 
 ##### LEMPer CLI manage vhost / website
@@ -84,13 +84,13 @@ sudo lemper-cli create -u username -d example.app -f default -w /home/username/W
 Example, enable SSL
 
 ```bash
-sudo lemper-cli manage --enable-ssl example.app
+sudo lemper-cli manage --enable-ssl example.test
 ```
 
 Example, enable FastCGI cache
 
 ```bash
-sudo lemper-cli manage --enable-fastcgi-cache example.app
+sudo lemper-cli manage --enable-fastcgi-cache example.test
 ```
 
 ##### for more help
