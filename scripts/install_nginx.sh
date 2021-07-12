@@ -1230,13 +1230,13 @@ function init_nginx_install() {
 
                     if [[ "${NGX_HTTP_GEOIP2}" && \
                         -f /etc/nginx/modules-available/mod-http-geoip2.conf ]]; then
-                        run ln -s /etc/nginx/modules-available/mod-http-geoip2.conf \
+                        run ln -fs /etc/nginx/modules-available/mod-http-geoip2.conf \
                             /etc/nginx/modules-enabled/50-mod-http-geoip2.conf
                     fi
 
                     if [[ "${NGX_HTTP_GEOIP}" && \
                         -f /etc/nginx/modules-available/mod-http-geoip.conf ]]; then
-                        run ln -s /etc/nginx/modules-available/mod-http-geoip.conf \
+                        run ln -fs /etc/nginx/modules-available/mod-http-geoip.conf \
                             /etc/nginx/modules-enabled/50-mod-http-geoip.conf
                     fi
 
