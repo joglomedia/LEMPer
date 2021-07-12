@@ -292,18 +292,18 @@ function init_nginx_install() {
                 local NGINX_VERSION=${NGINX_VERSION:-"stable"}
                 if [[ ${NGINX_VERSION} == "mainline" || ${NGINX_VERSION} == "latest" ]]; then
                     # Nginx mainline version.
-                    NGINX_RELEASE_VER=$(determine_latest_nginx_version)
+                    NGINX_RELEASE_VERSION=$(determine_latest_nginx_version)
                 elif [[ ${NGINX_VERSION} == "stable" || ${NGINX_VERSION} == "lts" ]]; then
                     # Nginx stable version.
-                    NGINX_RELEASE_VER=$(determine_stable_nginx_version)
+                    NGINX_RELEASE_VERSION=$(determine_stable_nginx_version)
                 else
                     # Fallback to default stable version.
-                    NGINX_RELEASE_VER="${NGINX_VERSION}"
+                    NGINX_RELEASE_VERSION="${NGINX_VERSION}"
                 fi
 
                 if "${DRYRUN}"; then
                     run "${BUILD_DIR}/build_nginx" -v latest-stable \
-                        -n "${NGINX_RELEASE_VER}" --dynamic-module --extra-modules -y --dryrun
+                        -n "${NGINX_RELEASE_VERSION}" --dynamic-module --extra-modules -y --dryrun
                 else
                     # Nginx configure arguments.
                     NGX_CONFIGURE_ARGS=""
@@ -990,7 +990,7 @@ function init_nginx_install() {
 
                     if curl -sLI "${NGX_BUILD_URL}" | grep -q "HTTP/[.12]* [2].."; then
                         run curl -sS -o "${BUILD_DIR}/build_nginx" "${NGX_BUILD_URL}" && \
-                        run bash "${BUILD_DIR}/build_nginx" -v latest-stable -n "${NGINX_RELEASE_VER}" --dynamic-module \
+                        run bash "${BUILD_DIR}/build_nginx" -v latest-stable -n "${NGINX_RELEASE_VERSION}" --dynamic-module \
                             -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y
                     else
                         error "Nginx from source installer not found."
