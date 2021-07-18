@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # Helper Functions
-# Min. Requirement  : GNU/Linux Ubuntu 16.04 & 16.04
-# Last Build        : 17/07/2019
+# Min. Requirement  : GNU/Linux Ubuntu 16.04
+# Last Build        : 18/07/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -694,11 +694,11 @@ function header_msg() {
     clear
 #    cat <<- _EOF_
 #==========================================================================#
-#      Welcome to LEMPer for Ubuntu-based server, Written by ESLabs.ID     #
+#          Welcome to LEMPer Stack Manager for Debian/Ubuntu server        #
 #==========================================================================#
-#      Bash scripts to install Nginx + MariaDB (MySQL) + PHP on Linux      #
+#     Bash scripts to install LEMP (Linux, Nginx, MariaDB (MySQL), PHP)    #
 #                                                                          #
-#        For more information please visit https://eslabs.id/lemper        #
+#        For more information please visit https://masedi.net/lemper       #
 #==========================================================================#
 #_EOF_
     status "
