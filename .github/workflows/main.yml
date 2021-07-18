@@ -1,10 +1,5 @@
-# This is a basic workflow to help you get started with Actions
-
 name: lemper-stack
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
   push:
     branches:
       - '*'         # matches every branch that doesn't contain a '/'
@@ -14,24 +9,14 @@ on:
   pull_request:
     branches: 
       - master
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
     runs-on: ubuntu-20.04
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
-
-      # Prepare your
-      - name: Prepare testing env variables
+      # Prepare testing environment
+      - name: Prepare testing environment
         run: |
           cp .env.dist .env
           sed -i "s/ENVIRONMENT=\"production\"/ENVIRONMENT=\"development\"/g" .env
@@ -49,16 +34,14 @@ jobs:
           sed -i "s/INSTALL_SPFDKIM=true/INSTALL_SPFDKIM=false/g" .env
           sed -i "s/SENDER_DOMAIN=\"example.com\"/SENDER_DOMAIN=\"localhost.localhost\"/g" .env
           sed -i "s/INSTALL_FAIL2BAN=false/INSTALL_FAIL2BAN=true/g" .env
-
-      # Install LEMPer dependencies
-      - name: Run install testing dependencies
+      # Install Dependencies
+      - name: Install testing dependencies
         run: |
           sudo apt-get update -qq -y
           sudo apt-get install -qq -y bash curl shellcheck
           sudo curl -s -o /usr/local/bin/shunit2 https://raw.githubusercontent.com/kward/shunit2/master/shunit2
           sudo chmod a+x /usr/local/bin/shunit2
-
-      # Shellcheck
+      # Shellcheck Tests
       - name: Run shellcheck testing
         env:
           TERM: xterm-256color
@@ -71,8 +54,7 @@ jobs:
           shellcheck -s bash -x scripts/install_*.sh
           shellcheck -s bash -x scripts/remove_*.sh
           shellcheck -s bash -x scripts/secure_server.sh
-
-      # Simple unit testing
+      # Simple Unit Tests
       - name: Run unit testing
         env:
           TERM: xterm-256color
