@@ -2,7 +2,7 @@
 
 # Mail Installer
 # Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 12/07/2019
+# Last Build        : 18/07/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -45,7 +45,7 @@ function install_postfix() {
         run postconf -e "alias_database = hash:/etc/aliases"
         run postconf -e "home_mailbox = Maildir/"
         run postconf -e "myhostname = ${HOSTNAME}"
-        #run postconf -e "mydomain = eslabs.id"
+        #run postconf -e "mydomain = lemper.cloud"
         run postconf -e "myorigin = localhost"
         run postconf -e "mydestination = \$myhostname, localhost, localhost.localdomain"
 
