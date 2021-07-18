@@ -1,13 +1,15 @@
 #!/bin/bash
 function header_msg() {
     clear
-    echo "#=========================================================================#"
-    echo "#           Add new user for Ubuntu VPS,  Written by ESLabs.ID            #"
-    echo "#=========================================================================#"
-    echo "#             A small tool to add new user into Ubuntu system.            #"
-    echo "#                                                                         #"
-    echo "#       For more information please visit https://ngxtools.eslabs.id      #"
-    echo "#=========================================================================#"
+    cat <<- _EOF_
+#==========================================================================#
+#         Welcome to LEMPer Stack Manager for Debian/Ubuntu server         #
+#==========================================================================#
+#                 A simple tool to add new user into system.               #
+#                                                                          #
+#        For more information please visit https://masedi.net/lemper       #
+#==========================================================================#
+_EOF_
 }
 
 # Check if user is root

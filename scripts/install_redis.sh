@@ -148,10 +148,11 @@ function init_redis_install {
             # Custom Redis configuration.
             local RAM_SIZE && \
             RAM_SIZE=$(get_ram_size)
+
             if [[ ${RAM_SIZE} -le 1024 ]]; then
                 # If machine RAM less than / equal 1GiB, set Redis max mem to 1/8 of RAM size.
                 local REDISMEM_SIZE=$((RAM_SIZE / 8))
-            elif [[ ${RAM_SIZE} -gt 2048 && ${RAM_SIZE} -le 8192 ]]; then
+            elif [[ ${RAM_SIZE} -gt 1024 && ${RAM_SIZE} -le 8192 ]]; then
                 # If machine RAM less than / equal 8GiB and greater than 2GiB, 
                 # set Redis max mem to 1/4 of RAM size.
                 local REDISMEM_SIZE=$((RAM_SIZE / 4))
@@ -223,7 +224,7 @@ EOL
             run cp -f etc/systemd/redis-server.service /lib/systemd/system/
 
             if [ ! -f /etc/systemd/system/redis.service ]; then
-                run link -s /lib/systemd/system/redis-server.service /etc/systemd/system/redis.service
+                run ln -s /lib/systemd/system/redis-server.service /etc/systemd/system/redis.service
             fi
 
             # Reloading systemctl daemon.

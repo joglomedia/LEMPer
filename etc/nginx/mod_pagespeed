@@ -3,16 +3,16 @@
 # Unplugged (inactive) by default, standby, off, on.
 pagespeed unplugged;
 
+
+## Cache settings ##
+
 # Memcached
-pagespeed MemcachedServers "127.0.0.1:11212";
-# time out in micro seconds
-pagespeed MemcachedTimeoutUs 1000000;
+#pagespeed MemcachedServers "127.0.0.1:11212";
+#pagespeed MemcachedTimeoutUs 100000;
 
 # Redis
 #pagespeed RedisServer "127.0.0.1:6380";
-
-
-## Cache settings ##
+#pagespeed RedisTimeoutUs 100000;
 
 pagespeed FileCachePath "/var/cache/nginx/pagespeed_cache";
 pagespeed FileCacheSizeKb 102400;
