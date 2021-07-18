@@ -1,25 +1,25 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # +-------------------------------------------------------------------------+
 # | Lemper CLI - Simple LEMP Stack Manager                                  |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2019 ESLabs (https://eslabs.id/ngxtool)              |
+# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
 # |                                                                         |
 # | If you did not receive a copy of the license and are unable to          |
 # | obtain it through the world-wide-web, please send an email              |
-# | to license@eslabs.id so we can send you a copy immediately.             |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
 # +-------------------------------------------------------------------------+
-# | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
 set -e
 
 # Version control.
 APP_NAME=$(basename "$0")
-APP_VERSION="1.3.0"
+APP_VERSION="3.0.1"
 
 # May need to run this as sudo!
 if [ "$(id -u)" -ne 0 ]; then
