@@ -87,6 +87,12 @@ Since version 3.0.1 this workaround could be done via `lemper-cli` by passing `-
 sudo lemper-cli create -u ${USER} -d example.test -f wordpress -w ${HOME}/webapps/example.test --ipv4=127.0.10.1 --install-app
 ```
 
+For more info
+
+```bash
+sudo lemper-cli create --help
+```
+
 ##### LEMPer CLI manage vhost / website
 
 Example, enable SSL
@@ -101,10 +107,16 @@ Example, enable FastCGI cache
 sudo lemper-cli manage --enable-fastcgi-cache example.test
 ```
 
+For more info
+
+```bash
+sudo lemper-cli manage --help
+```
+
 ##### for more help
 
 ```bash
-sudo lemper-cli --help
+sudo lemper-cli help
 ```
 
 Note: Lemper CLI will automagically add a new PHP-FPM user's pool configuration if it doesn't exists. You must add the user account first.
@@ -123,7 +135,7 @@ Adminer (Web-based SQL database managemer)
 http://YOUR_DOMAIN_NAME:8082/lcp/dbadmin
 ```
 
-TinyFilemanage (Web-based file managemer)
+TinyFileManager (Web-based file managemer)
 
 ```bash
 http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
@@ -131,15 +143,16 @@ http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
 
 ## TODOs
 
-* ~~Custom build latest [Nginx](https://nginx.org/en/) from source~~
-* ~~Add [Let's Encrypt SSL](https://letsencrypt.org/)~~
-* ~~Add network security (iptable rules, firewall configurator, else?)~~
-* Add enhanced security (AppArmor, cgroups, jailkit (chrooted/jail users), fail2ban, else?)
-* Add file backup tool (Borg, Duplicati, Rclone, Restic, Rsnapshot, else?)
-* ~~Add database backup tool (Mariabackup, Percona Xtrabackup, else?)~~
-* Add server monitoring (Amplify, Monit, Nagios, else?)
-* Add user account & hosting package management.
-* Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new).
+- [x] Custom build latest [Nginx](https://nginx.org/en/) from source
+- [x] Add [Let's Encrypt SSL](https://letsencrypt.org/)
+- [x] Add network security (iptable rules, firewall configurator, else?)
+- [x] Add database backup tool (Mariabackup, Percona Xtrabackup, else?)
+- [ ] Add enhanced security (AppArmor, cgroups, jailkit (chrooted/jail users), fail2ban, else?)
+- [ ] Add file backup tool (Borg, Duplicati, Rclone, Restic, Rsnapshot, else?)
+- [ ] Add server monitoring (Amplify, Monit, Nagios, else?)
+- [ ] Add user account & hosting package management
+
+Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new)
 
 ## Security Vulnerabilities and Bugs
 
