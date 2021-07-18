@@ -76,7 +76,15 @@ Here are some examples of using LEMPer CLI.
 ##### LEMPer CLI add new vhost / website
 
 ```bash
-sudo lemper-cli create -u username -d example.test -f wordpress -w /home/username/webapps/example.test
+sudo lemper-cli create -u ${USER} -d example.test -f wordpress -w ${HOME}/webapps/example.test --install-app
+```
+
+:warning: For local/development environment, in order to make the test domain (e.g. example.test) working as expected, you need to do a small workaround by modifying the `/etc/hosts` file. By adding the local domain name to the hosts file and assign it with local/private IP address.
+
+Since version 3.0.1 this workaround could be done via `lemper-cli` by passing `--ipv4` parameter and assign it with private IP address, as below:
+
+```bash
+sudo lemper-cli create -u ${USER} -d example.test -f wordpress -w ${HOME}/webapps/example.test --ipv4=127.0.10.1 --install-app
 ```
 
 ##### LEMPer CLI manage vhost / website

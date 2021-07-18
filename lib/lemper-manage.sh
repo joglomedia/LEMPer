@@ -1,18 +1,18 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # +-------------------------------------------------------------------------+
-# | Lemper manage - Simple LEMP Virtual Host Manager                        |
+# | Lemper Manage - Simple LEMP Virtual Host Manager                        |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper           |
+# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
 # |                                                                         |
 # | If you did not receive a copy of the license and are unable to          |
 # | obtain it through the world-wide-web, please send an email              |
-# | to license@eslabs.id so we can send you a copy immediately.             |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
 # +-------------------------------------------------------------------------+
-# | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
 set -e
@@ -165,8 +165,8 @@ Options:
 Example:
   ${CMD_PARENT} ${CMD_NAME} --remove example.com
 
-For more informations visit https://eslabs.id/lemper
-Mail bug reports and suggestions to <eslabs.id@gmail.com>
+For more informations visit https://masedi.net/lemper
+Mail bug reports and suggestions to <me@masedi.net>
 _EOF_
 }
 
@@ -244,6 +244,12 @@ function remove_vhost() {
 
     [ -f "/etc/nginx/sites-available/${DOMAIN}.ssl-conf" ] && 
         run rm -f "/etc/nginx/sites-available/${DOMAIN}.ssl-conf"
+
+    # If we have local domain setup in hosts file, remove it.
+    if grep -qwE "${DOMAIN}" "/etc/hosts"; then
+        info "Domain ${DOMAIN} found in your hosts file. Removing now...";
+        run sed -i".bak" "/${DOMAIN}/d" "/etc/hosts"
+    fi
 
     success "Virtual host configuration file removed."
 

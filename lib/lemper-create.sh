@@ -1,18 +1,18 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # +-------------------------------------------------------------------------+
-# | Lemper Create - Simple LEMP Virtual Host Generator                      |
+# | Lemper Create - Simple LEMP Virtual Host Creator                        |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper           |
+# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
 # |                                                                         |
 # | If you did not receive a copy of the license and are unable to          |
 # | obtain it through the world-wide-web, please send an email              |
-# | to license@eslabs.id so we can send you a copy immediately.             |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
 # +-------------------------------------------------------------------------+
-# | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
 set -e
@@ -169,8 +169,8 @@ Options:
 Example:
   ${CMD_PARENT} ${CMD_NAME} -u lemper -d example.com -f default -w /home/lemper/webapps/example.test
 
-For more informations visit https://eslabs.id/lemper
-Mail bug reports and suggestions to <eslabs.id@gmail.com>
+For more informations visit https://masedi.net/lemper
+Mail bug reports and suggestions to <me@masedi.net>
 _EOF_
 }
 
@@ -849,7 +849,7 @@ function get_ip_addr() {
         grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | \
         grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
     local IP_EXTERNAL && \
-    IP_EXTERNAL=$(curl -s http://ipecho.net/plain)
+    IP_EXTERNAL=$(curl -s https://ipecho.net/plain)
 
     if [[ "${IP_INTERNAL}" == "${IP_EXTERNAL}" ]]; then
         echo "${IP_EXTERNAL}"
@@ -892,6 +892,30 @@ function validate_ipv6() {
 }
 
 ##
+# Workaround for local domain (e.g. example.test)
+# working on Local/Dev environment.
+#
+function add_local_domain() {
+    local DOMAIN_IP && DOMAIN_IP=${1}
+    local DOMAIN_NAME && DOMAIN_NAME=${2}
+
+    if grep -qwE "${DOMAIN_NAME}" "/etc/hosts"; then
+        LINE_EXISTS=$(grep "${DOMAIN_NAME}" /etc/hosts)
+        warning "Domain hostname already exists: ${LINE_EXISTS}"
+    else
+        info "Adding ${DOMAIN_NAME} to your '/etc/hosts'..."
+        run bash -c "echo -e '${DOMAIN_IP}\t${DOMAIN_NAME}' >> /etc/hosts"
+
+        if grep -qwE "${DOMAIN_NAME}" "/etc/hosts"; then
+            run service networking restart
+            success "${DOMAIN_NAME} was added succesfully..."
+        else
+            error "Failed to add ${DOMAIN_NAME} to your '/etc/hosts', try again!"
+        fi
+    fi
+}
+
+##
 # Main App
 #
 function init_app() {
@@ -911,7 +935,7 @@ function init_app() {
     SERVERNAME=""
     WEBROOT=""
     FRAMEWORK="default"
-    PHP_VERSION="7.3"
+    PHP_VERSION="7.4"
     INSTALL_APP=false
     ENABLE_FASTCGI_CACHE=false
     ENABLE_PAGESPEED=false
@@ -1030,7 +1054,7 @@ function init_app() {
 
         # Check if vhost not exists.
         if [ ! -f "${VHOST_FILE}" ]; then
-            echo "Add new app domain '${SERVERNAME}' to virtual host."
+            echo "Add new domain name '${SERVERNAME}' to virtual host."
 
             # Check for username.
             if [[ -z "${USERNAME}" ]]; then
@@ -1536,6 +1560,9 @@ _EOL_
 
                     if grep -qwE "listen\ 80" "${VHOST_FILE}"; then
                         run sed -i "s/^\    listen\ 80/\    listen ${IPv4}:80/g" "${VHOST_FILE}"
+
+                        # Add local domain (e.g. example.test) to hosts file.
+                        add_local_domain "${IPv4}" "${SERVERNAME}"
                     fi
                 fi
 
@@ -1545,6 +1572,9 @@ _EOL_
 
                     if grep -qwE "listen\ \[::\]:80" "${VHOST_FILE}"; then
                         run sed -i "s/^\    listen\ \[::\]:80/\    listen [${IPv6}]:80/g" "${VHOST_FILE}"
+
+                        # Add local domain (e.g. example.test) to hosts file.
+                        add_local_domain "${IPv6}" "${SERVERNAME}"
                     fi
                 fi
 
