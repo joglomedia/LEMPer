@@ -1,23 +1,23 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # +-------------------------------------------------------------------------+
-# | LEMPer.sh is a simple LEMP stack installer for Debian/Ubuntu            |
+# | LEMPer is a simple LEMP stack installer for Debian/Ubuntu Linux         |
 # |-------------------------------------------------------------------------+
 # | Min requirement   : GNU/Linux Debian 8, Ubuntu 16.04 or Linux Mint 17   |
-# | Last Update       : 14/01/2020                                          |
-# | Author            : MasEDI.Net (me@masedi.net)                     |
-# | Version           : 1.0.0                                               |
+# | Last Update       : 18/07/2021                                          |
+# | Author            : MasEDI.Net (me@masedi.net)                          |
+# | Version           : 3.0.0                                               |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper           |
+# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
 # |                                                                         |
 # | If you did not receive a copy of the license and are unable to          |
 # | obtain it through the world-wide-web, please send an email              |
-# | to license@eslabs.id so we can send you a copy immediately.             |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
 # +-------------------------------------------------------------------------+
-# | Authors: Edi Septriyanto <eslabs.id@gmail.com>                          |
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
 # Work even if somebody does "bash lemper.sh".
