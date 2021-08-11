@@ -81,7 +81,8 @@ fi
 
 ### Create default account ###
 echo ""
-create_default_account
+USERNAME=${LEMPER_USERNAME:-"lemper"}
+create_account "${USERNAME}"
 
 ### Certbot Let's Encrypt SSL installation ###
 if [ -f scripts/install_certbotle.sh ]; then

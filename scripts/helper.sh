@@ -550,8 +550,8 @@ function enable_swap() {
 }
 
 # Create default system account.
-function create_default_account() {
-    export USERNAME=${LEMPER_USERNAME:-"lemper"}
+function create_account() {
+    export USERNAME=${1:-"lemper"}
     export PASSWORD && \
     PASSWORD=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
 
