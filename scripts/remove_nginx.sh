@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -36,7 +35,7 @@ function init_nginx_removal() {
         echo "Found nginx-stable package installation, removing..."
 
         # shellcheck disable=SC2046
-        run apt remove --purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
+        run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:nginx/stable
         fi
@@ -44,7 +43,7 @@ function init_nginx_removal() {
         echo "Found nginx-custom package installation, removing..."
 
         # shellcheck disable=SC2046
-        run apt remove --purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
+        run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:rtcamp/nginx
         fi
@@ -52,7 +51,7 @@ function init_nginx_removal() {
         echo "Found nginx package installation, removing..."
 
         # shellcheck disable=SC2046
-        run apt remove --purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx") $(dpkg-query -l | awk '/libnginx/ { print $2 }' | grep -wE "^libnginx")
+        run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx") $(dpkg-query -l | awk '/libnginx/ { print $2 }' | grep -wE "^libnginx")
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove "ppa:ondrej/${NGINX_REPO}"
         fi

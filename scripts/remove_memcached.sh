@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -30,7 +29,7 @@ function init_memcached_removal() {
         echo "Found Memcached package installation. Removing..."
 
         # Remove Memcached server.
-        run apt remove --purge -qq -y libmemcached11 memcached php-igbinary \
+        run apt-get remove --purge -qq -y libmemcached11 memcached php-igbinary \
             php-memcache php-memcached php-msgpack
     else
         echo "Memcached package not found, possibly installed from source."

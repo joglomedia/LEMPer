@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -75,7 +74,7 @@ function remove_php_fpm() {
 
         # Remove PHP packages.
         # shellcheck disable=SC2046
-        run apt remove --purge -qq -y $(dpkg-query -l | awk '/php/ { print $2 }' | grep -wE "^php${PHPv}")
+        run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/php/ { print $2 }' | grep -wE "^php${PHPv}")
 
         # Remove PHP & FPM config files.
         warning "!! This action is not reversible !!"
@@ -236,7 +235,7 @@ function init_php_fpm_removal() {
 
         if [[ "${PHP_IS_EXISTS}" == false ]]; then
             echo "Removing additional unused PHP packages..."
-            run apt remove --purge -qq -y php-common php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap
+            run apt-get remove --purge -qq -y php-common php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap
 
             # Remove PHP repository.
             run add-apt-repository -y --remove ppa:ondrej/php

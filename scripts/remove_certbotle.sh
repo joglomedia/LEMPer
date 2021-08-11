@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -22,7 +21,7 @@ function init_certbotle_removal() {
         echo "Found Certbot package installation. Removing..."
 
         # Remove Certbot.
-        run apt remove --purge -qq -y certbot
+        run apt-get remove --purge -qq -y certbot
 
         if "${FORCE_REMOVE}"; then
             run add-apt-repository -y --remove ppa:certbot/certbot

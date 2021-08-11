@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -28,7 +27,7 @@ function init_mongodb_removal() {
 
         # Remove MongoDB server.
         #shellcheck disable=SC2046
-        run apt remove --purge -qq -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
+        run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
         if "${FORCE_REMOVE}"; then
             run rm -f /etc/apt/sources.list.d/mongodb-org-*
         fi
