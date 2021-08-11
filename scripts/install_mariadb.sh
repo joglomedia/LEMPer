@@ -22,7 +22,9 @@ function add_mariadb_repo() {
     DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
     RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
     MYSQL_SERVER=${MYSQL_SERVER:-"mariadb"}
-    MYSQL_VERSION=${MYSQL_VERSION:-"10.4"}
+    MYSQL_VERSION=${MYSQL_VERSION:-"10.6"}
+
+    [ "${RELEASE_NAME}" == "jessie" ] && MYSQL_VERSION="10.5"
 
     # Add MariaDB official repo.
     # Ref: https://mariadb.com/kb/en/library/mariadb-package-repository-setup-and-usage/
@@ -30,7 +32,7 @@ function add_mariadb_repo() {
     MARIADB_REPO_SETUP_URL="https://downloads.mariadb.com/MariaDB/mariadb_repo_setup"
 
     if curl -sLI "${MARIADB_REPO_SETUP_URL}" | grep -q "HTTP/[.12]* [2].."; then
-        run curl -sS -o "${BUILD_DIR}/mariadb_repo_setup" "${MARIADB_REPO_SETUP_URL}" && \
+        run curl -sSL -o "${BUILD_DIR}/mariadb_repo_setup" "${MARIADB_REPO_SETUP_URL}" && \
         run bash "${BUILD_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
             --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}" && \
         run apt-get update -qq -y
