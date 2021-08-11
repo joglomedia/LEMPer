@@ -13,7 +13,7 @@ _EOF_
 }
 
 # Check if user is root
-if [ $(id -u) != "0" ]; then
+if [ "$(id -u)" -ne 0 ]; then
     echo "Error: Please use root to add new user."
     exit 1
 fi
@@ -21,17 +21,17 @@ fi
 header_msg
 
 echo -n "Add new user? [y/n]: "
-read tambah
+read -r tambah
 
 while [[ "${tambah}" != n* ]]
 do
     echo -en "\nUsername: "
-    read namauser
+    read -r namauser
     echo -n "Password: "
-    read katasandi
+    read -r katasandi
 
     echo -n "Expire date? 'unlimited' for unlimited [yyyy-mm-dd]: "
-    read expired
+    read -r expired
     if [[ "${expired}" != "unlimited" ]]; then
     	setexpiredate="-e $expired"
     else
@@ -39,7 +39,7 @@ do
     fi
 
     echo -n "Allow shell access? [y/n]: "
-    read aksessh
+    read -r aksessh
     if [[ "${aksessh}" == y* ]]; then
     	setusershell="-s /bin/bash"
     else
@@ -47,7 +47,7 @@ do
     fi
 
     echo -n "Create home directory? [y/n]: "
-    read enablehomedir
+    read -r enablehomedir
     if [[ "${enablehomedir}" == y* ]]; then
     	sethomedir="-d /home/${namauser} -m"
     else
@@ -55,7 +55,7 @@ do
     fi
 
     echo -n "Set users group? [y/n]: "
-    read setug
+    read -r setug
     if [[ "${setug}" == y* ]]; then
     	setgroup="-g users"
     else
@@ -65,13 +65,13 @@ do
     #user_exists=$(grep -c '^${namauser}:' /etc/passwd)
 
     if [[ -z $(getent passwd "${namauser}") ]]; then
-        useradd ${sethomedir} ${setexpiredate} ${setgroup} ${setusershell} ${namauser}
+        useradd "${sethomedir}" "${setexpiredate}" "${setgroup}" "${setusershell}" "${namauser}"
         echo "${namauser}:${katasandi}" | chpasswd
 
         echo -n "Add user ${namauser} to sudoers? [y/n]: "
-        read setsudoers
+        read -r setsudoers
         if [[ "${setsudoers}" == y* ]]; then
-        	usermod -aG sudo ${namauser}
+        	usermod -aG sudo "${namauser}"
         fi
     else
         echo -e "\nUser '${namauser}' already exits."
@@ -81,5 +81,5 @@ do
     header_msg
 
     echo -en "\nAdd another user? [y/n]: "
-    read tambah
+    read -r tambah
 done
