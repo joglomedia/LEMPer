@@ -199,6 +199,7 @@ function init_nginx_install() {
                             fi
 
                             # NJS is a subset of the JavaScript language that allows extending nginx functionality.
+                            # shellcheck disable=SC2153
                             if "${NGX_HTTP_JS}"; then
                                 echo "Adding ngx-http-js module..."
                                 #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-js")
