@@ -336,24 +336,40 @@ function get_release_name() {
         # Get distribution name.
         [[ "${ID_LIKE}" == "ubuntu" ]] && DISTRIB_NAME="ubuntu" || DISTRIB_NAME=${ID:-"unsupported"}
 
+        # Get distribution release / version ID.
+        DISTRO_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE}"}
+        MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print $1}')
+
         case ${DISTRIB_NAME} in
             debian)
                 RELEASE_NAME=${VERSION_CODENAME:-"unsupported"}
-                #RELEASE_NAME="unsupported"
 
                 # TODO for Debian install
+                case ${MAJOR_RELEASE_VERSION} in
+                    8)
+                        RELEASE_NAME="jessie"
+                    ;;
+                    9)
+                        RELEASE_NAME="stretch"
+                    ;;
+                    10)
+                        RELEASE_NAME="buster"
+                    ;;
+                    *)
+                        RELEASE_NAME="unsupported"
+                    ;;
+                esac
             ;;
             ubuntu)
                 # Hack for Linux Mint release number.
-                DISTRO_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE}"}
-                MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print $1}')
                 [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]] && \
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
 
                 case ${DISTRIB_RELEASE} in
                     "16.04"|"LM18")
-                        # Ubuntu release 16.04, LinuxMint 18
-                        RELEASE_NAME=${UBUNTU_CODENAME:-"xenial"}
+                        # Ubuntu release 16.04, LinuxMint 18 <= EOL
+                        #RELEASE_NAME=${UBUNTU_CODENAME:-"xenial"}
+                        RELEASE_NAME="unsupported"
                     ;;
                     "18.04"|"LM19")
                         # Ubuntu release 18.04, LinuxMint 19
@@ -363,6 +379,9 @@ function get_release_name() {
                         # Ubuntu release 20.04, LinuxMint 20
                         RELEASE_NAME=${UBUNTU_CODENAME:-"focal"}
                     ;;
+                    "21.04")
+                        # Ubuntu release 21.04
+                        RELEASE_NAME=${UBUNTU_CODENAME:-"hirsuite"}
                     *)
                         RELEASE_NAME="unsupported"
                     ;;
