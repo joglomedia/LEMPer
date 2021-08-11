@@ -10,8 +10,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -58,7 +57,7 @@ function add_mongodb_repo() {
                 run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/debian ${RELEASE_NAME}/mongodb-org/${MONGODB_VERSION} main' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
                 run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -"
-                run apt update -qq -y
+                run apt-get update -qq -y
             else
                 info "MongoDB ${MONGODB_VERSION} repository already exists."
             fi
@@ -68,7 +67,7 @@ function add_mongodb_repo() {
                 run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/ubuntu ${RELEASE_NAME}/mongodb-org/${MONGODB_VERSION} multiverse' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
                 run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -"
-                run apt update -qq -y
+                run apt-get update -qq -y
             else
                 info "MongoDB ${MONGODB_VERSION} repository already exists."
             fi
@@ -96,8 +95,8 @@ function init_mongodb_install() {
 
         echo "Installing MongoDB server and MongoDB PHP module..."
 
-        if hash apt 2>/dev/null; then
-            run apt install -qq -y libbson-1.0 libmongoc-1.0-0 mongodb-org mongodb-org-server \
+        if hash apt-get 2>/dev/null; then
+            run apt-get install -qq -y libbson-1.0 libmongoc-1.0-0 mongodb-org mongodb-org-server \
                 mongodb-org-shell mongodb-org-tools
         else
             fail "Unable to install MongoDB, this GNU/Linux distribution is not supported."
@@ -133,14 +132,14 @@ _EOF_
             # Add MongoDB default admin user.
             if [[ -n $(command -v mongo) ]]; then
                 MONGODB_ADMIN_USER=${MONGODB_ADMIN_USER:-"lemperdb"}
-                MONGODB_ADMIN_PASS=${MONGODB_ADMIN_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
-                run mongo admin --eval "db.createUser({'user': '${MONGODB_ADMIN_USER}', 'pwd': '${MONGODB_ADMIN_PASS}', 'roles':[{'role': 'root', 'db': 'admin'}]});" >/dev/null 2>&1
+                MONGODB_ADMIN_PASSWORD=${MONGODB_ADMIN_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+                run mongo admin --eval "db.createUser({'user': '${MONGODB_ADMIN_USER}', 'pwd': '${MONGODB_ADMIN_PASSWORD}', 'roles':[{'role': 'root', 'db': 'admin'}]});" >/dev/null 2>&1
 
                 # Save config.
-                save_config -e "MONGODB_HOST=127.0.0.1\nMONGODB_PORT=27017\nMONGODB_ADMIN_USER=${MONGODB_ADMIN_USER}\nMONGODB_ADMIN_PASS=${MONGODB_ADMIN_PASS}"
+                save_config -e "MONGODB_HOST=127.0.0.1\nMONGODB_PORT=27017\nMONGODB_ADMIN_USER=${MONGODB_ADMIN_USER}\nMONGODB_ADMIN_PASS=${MONGODB_ADMIN_PASSWORD}"
 
                 # Save log.
-                save_log -e "MongoDB default admin user is enabled, here is your admin credentials:\nAdmin username: ${MONGODB_ADMIN_USER} | Admin password: ${MONGODB_ADMIN_PASS}\nSave this credentials and use it to authenticate your MongoDB connection."
+                save_log -e "MongoDB default admin user is enabled, here is your admin credentials:\nAdmin username: ${MONGODB_ADMIN_USER} | Admin password: ${MONGODB_ADMIN_PASSWORD}\nSave this credentials and use it to authenticate your MongoDB connection."
             fi
         fi
 
@@ -169,10 +168,11 @@ function install_php_mongodb() {
 
     local CURRENT_DIR && \
     CURRENT_DIR=$(pwd)
-    run cd "${BUILD_DIR}"
 
-    if hash apt 2>/dev/null; then
-        run apt install -qq -y "php${PHPv}-mongodb"
+    run cd "${BUILD_DIR}" || return 1
+
+    if hash apt-get 2>/dev/null; then
+        run apt-get install -qq -y "php${PHPv}-mongodb"
     else
         fail "Unable to install PHP ${PHPv} MongoDB, this GNU/Linux distribution is not supported."
     fi
@@ -201,7 +201,7 @@ function install_php_mongodb() {
     #run service "php${PHPv}-fpm" restart
     run systemctl restart "php${PHPv}-fpm"
 
-    run cd "${CURRENT_DIR}"
+    run cd "${CURRENT_DIR}" || return 1
 }
 
 

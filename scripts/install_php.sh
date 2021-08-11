@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -32,7 +31,7 @@ function add_php_repo() {
                 run touch "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb https://packages.sury.org/php/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
                 run wget -qO /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
-                run apt update -qq -y
+                run apt-get update -qq -y
             else
                 info "PHP repository already exists."
             fi
@@ -41,7 +40,7 @@ function add_php_repo() {
             #run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
             run add-apt-repository -y ppa:ondrej/php
-            run apt update -qq -y
+            run apt-get update -qq -y
         ;;
         *)
             fail "Unable to install PHP, this GNU/Linux distribution is not supported."
@@ -71,7 +70,7 @@ function install_php_fpm() {
 
         echo "Installing PHP ${PHPv} & FPM packages..."
 
-        if hash apt 2>/dev/null; then
+        if hash apt-get 2>/dev/null; then
             PHP_PKGS=("php${PHPv} php${PHPv}-bcmath php${PHPv}-bz2 php${PHPv}-calendar php${PHPv}-cli \
 php${PHPv}-common php${PHPv}-curl php${PHPv}-dev php${PHPv}-exif php${PHPv}-fpm php${PHPv}-gd \
 php${PHPv}-gettext php${PHPv}-gmp php${PHPv}-iconv php${PHPv}-imap php${PHPv}-intl \
@@ -82,7 +81,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
 
             if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
                 # shellcheck disable=SC2068
-                run apt install -qq -y ${PHP_PKGS[@]}
+                run apt-get install -qq -y ${PHP_PKGS[@]}
             fi
 
             if [[ -n $(command -v "php${PHPv}") ]]; then
@@ -91,7 +90,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
 
             # Install PHP GnuPG & Json
             if [ "${PHPv//.}" -lt "80" ]; then
-                run apt install -qq -y "php${PHPv}-gnupg" "php${PHPv}-json"
+                run apt-get install -qq -y "php${PHPv}-gnupg" "php${PHPv}-json"
             else
                 info "GnuPG & Json module is not yet available for PHP ${PHPv} or greater."
             fi
@@ -111,7 +110,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
 
                 if [ "${PHPv//.}" -lt "70" ]; then
                     #run mkdir -p /usr/lib/php/php-helper
-                    run apt install -qq -y php-geoip
+                    run apt-get install -qq -y php-geoip
                 else
                     run pecl install geoip-1.1.1
 
@@ -152,9 +151,9 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                 echo "Installing PHP Mcrypt module..."
 
                 if [ "${PHPv//.}" -lt "72" ]; then
-                    run apt install -qq -y "php${PHPv}-mcrypt" "php${PHPv}-recode"
+                    run apt-get install -qq -y "php${PHPv}-mcrypt" "php${PHPv}-recode"
                 elif [ "${PHPv}" == "7.2" ]; then
-                    run apt install -qq -y libmcrypt-dev libreadline-dev && \
+                    run apt-get install -qq -y libmcrypt-dev libreadline-dev && \
                     run pecl install mcrypt-1.0.1
 
                     # Enable Mcrypt module.
@@ -174,7 +173,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                             "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
                     fi
                 else
-                    run apt install -qq -y dh-php
+                    run apt-get install -qq -y dh-php
 
                     # Use libsodium instead.
                     info "Mcrypt module is deprecated for PHP ${PHPv} or greater, for encryption use Libsodium or OpenSSL instead."
@@ -452,7 +451,7 @@ function install_php_composer() {
             echo "Installing PHP Composer..."
 
             local CURRENT_DIR && CURRENT_DIR=$(pwd)
-            run cd "${BUILD_DIR}"
+            run cd "${BUILD_DIR}" || error "Cannot change directory to ${BUILD_DIR}."
 
             PHP_BIN=$(command -v "php${PHPv}")
 
@@ -479,7 +478,7 @@ function install_php_composer() {
             fi
 
             #run rm composer-setup.php
-            run cd "${CURRENT_DIR}"
+            run cd "${CURRENT_DIR}" || error "Cannot change directory to ${CURRENT_DIR}."
         fi
 
         if [[ -n $(command -v composer) ]]; then

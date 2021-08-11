@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -77,11 +76,11 @@ function init_webadmin_install() {
     else
         local CUR_DIR && \
         CUR_DIR=$(pwd)
-        run cd /usr/share/nginx/html/lcp/filemanager/
+        run cd /usr/share/nginx/html/lcp/filemanager && \
         #run git pull -q
         run wget -q https://raw.githubusercontent.com/joglomedia/tinyfilemanager/lemperfm_1.3.0/index.php \
-            -O /usr/share/nginx/html/lcp/filemanager/index.php
-        run cd "${CUR_DIR}"
+            -O /usr/share/nginx/html/lcp/filemanager/index.php && \
+        run cd "${CUR_DIR}" || return 1
     fi
 
     # Copy TinyFileManager custom account creator.
@@ -101,9 +100,9 @@ function init_webadmin_install() {
     else
         local CUR_DIR && \
         CUR_DIR=$(pwd)
-        run cd /usr/share/nginx/html/lcp/memcadmin/
-        run git pull -q
-        run cd "${CUR_DIR}"
+        run cd /usr/share/nginx/html/lcp/memcadmin && \
+        run git pull -q && \
+        run cd "${CUR_DIR}" || return 1
     fi
 
     # Configure phpMemcachedAdmin.
@@ -158,27 +157,27 @@ EOL
     if "${INSTALL_REDIS}"; then
         #echo "Installing PHP Redis Admin web panel..."
 
-        COMPOSERBIN=$(command -v composer)
+        COMPOSER_BIN=$(command -v composer)
 
         local CUR_DIR && \
         CUR_DIR=$(pwd)
-        run cd /usr/share/nginx/html/lcp
+        run cd /usr/share/nginx/html/lcp || return 1
 
         if [ ! -f redisadmin/includes/config.inc.php ]; then
-            run "${COMPOSERBIN}" -q create-project erik-dubbelboer/php-redis-admin redisadmin && \
-            run cd redisadmin
-            run "${COMPOSERBIN}" -q update
+            run "${COMPOSER_BIN}" -q create-project erik-dubbelboer/php-redis-admin redisadmin && \
+            run cd redisadmin && \
+            run "${COMPOSER_BIN}" -q update && \
             run cp includes/config.sample.inc.php includes/config.inc.php
 
             if "${REDIS_REQUIREPASS}"; then
                 run sed -i "s|//'auth'\ =>\ 'redispasswordhere'|'auth'\ =>\ '${REDIS_PASSWORD}'|g" includes/config.inc.php
             fi
         else
-            run cd redisadmin
-            run "${COMPOSERBIN}" -q update
+            run cd redisadmin && \
+            run "${COMPOSER_BIN}" -q update
         fi
 
-        run cd "${CUR_DIR}"        
+        run cd "${CUR_DIR}" || return 1
     fi
 
     # Assign ownership properly.

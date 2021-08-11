@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -29,14 +28,14 @@ function add_redis_repo() {
                 run touch /etc/apt/sources.list.d/dotdeb-stable.list
                 run bash -c "echo -e 'deb http://ftp.utexas.edu/dotdeb/ stable all\ndeb-src http://ftp.utexas.edu/dotdeb/ stable all' > /etc/apt/sources.list.d/dotdeb-stable.list"
                 run bash -c "wget -qO - 'https://www.dotdeb.org/dotdeb.gpg' | apt-key add -"
-                run apt update -qq -y
+                run apt-get update -qq -y
             else
                 info "Dotdeb repository already exists."
             fi
         ;;
         ubuntu)
             run add-apt-repository -y ppa:chris-lea/redis-server && \
-            run apt update -qq -y
+            run apt-get update -qq -y
         ;;
         *)
             fail "Unable to add Redis, this GNU/Linux distribution is not supported."
@@ -81,8 +80,8 @@ function init_redis_install {
                 echo "Installing Redis server from repository..."
 
                 # Install Redis.
-                if hash apt 2>/dev/null; then
-                    run apt install -qq -y redis-server redis-tools
+                if hash apt-get 2>/dev/null; then
+                    run apt-get install -qq -y redis-server redis-tools
                 else
                     fail "Unable to install Redis, this GNU/Linux distribution is not supported."
                 fi
@@ -92,7 +91,7 @@ function init_redis_install {
                 
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
-                run cd "${BUILD_DIR}"
+                run cd "${BUILD_DIR}" || error "Cannot change directory to ${BUILD_DIR}"
 
                 if [[ "${REDIS_VERSION}" == "latest" || "${REDIS_VERSION}" == "stable" ]]; then
                     REDIS_DOWNLOAD_URL="http://download.redis.io/redis-stable.tar.gz"
@@ -129,7 +128,7 @@ function init_redis_install {
                     error "An error occured while downloading Redis source."
                 fi
 
-                run cd "${CURRENT_DIR}"
+                run cd "${CURRENT_DIR}" || error "Cannot change directory to ${CURRENT_DIR}"
             ;;
             *)
                 # Skip installation.
@@ -172,7 +171,7 @@ maxmemory-policy allkeys-lru
 EOL
 
             # Is Redis password protected enable?
-            if "${REDIS_REQUIRE_PASS}"; then
+            if "${REDIS_REQUIRE_PASSWORD}"; then
                 echo "Redis Requirepass is enabled..."
 
                 REDIS_PASSWORD=${REDIS_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
@@ -275,8 +274,8 @@ function install_php_redis() {
 
     echo "Installing PHP ${PHPv} Redis extensions..."
 
-    if hash apt 2>/dev/null; then
-        run apt install -qq -y "php${PHPv}-redis"
+    if hash apt-get 2>/dev/null; then
+        run apt-get install -qq -y "php${PHPv}-redis"
     else
         fail "Unable to install PHP ${PHPv} Redis, this GNU/Linux distribution is not supported."
     fi

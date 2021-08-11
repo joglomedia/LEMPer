@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -30,7 +29,7 @@ function install_ioncube() {
     fi
 
     local CURRENT_DIR && CURRENT_DIR=$(pwd)
-    run cd "${BUILD_DIR}"
+    run cd "${BUILD_DIR}" || return 1
 
     echo "Download latest ionCube PHP loader..."
 
@@ -46,7 +45,7 @@ function install_ioncube() {
     fi
 
     run mv -f ioncube /usr/lib/php/loaders/
-    run cd "${CURRENT_DIR}"
+    run cd "${CURRENT_DIR}" || return 1
 }
 
 ##
@@ -160,7 +159,7 @@ function install_sourceguardian() {
     fi
 
     local CURRENT_DIR && CURRENT_DIR=$(pwd)
-    run cd "${BUILD_DIR}/sourceguardian"
+    run cd "${BUILD_DIR}/sourceguardian" || return 1
 
     echo "Download latest SourceGuardian PHP loader..."
 
@@ -175,7 +174,7 @@ function install_sourceguardian() {
         run rm -f loaders.linux-x86.tar.gz
     fi
 
-    run cd "${CURRENT_DIR}"
+    run cd "${CURRENT_DIR}" || return 1
     run mv -f "${BUILD_DIR}/sourceguardian" /usr/lib/php/loaders/
 }
 
@@ -387,7 +386,7 @@ function init_phploader_install() {
                         #enable_ioncube "7.3"
                         #enable_ioncube "7.4"
 
-                        for PHPver in "5.6 7.0 7.1 7.2 7.3 7.4 8.0"; do
+                        for PHPver in 5.6 7.0 7.1 7.2 7.3 7.4 8.0; do
                             enable_ioncube "${PHPver}"
                         done
                     fi

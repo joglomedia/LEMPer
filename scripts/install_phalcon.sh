@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -30,7 +29,8 @@ function install_phalcon() {
 
     local CURRENT_DIR && \
     CURRENT_DIR=$(pwd)
-    run cd "${BUILD_DIR}"
+
+    run cd "${BUILD_DIR}" || return 1
 
     # Install Zephir from source.
     if "${AUTO_INSTALL}"; then
@@ -51,7 +51,7 @@ function install_phalcon() {
 
         ZEPHIR_PARSER_BRANCH=$(git ls-remote https://github.com/phalcon/php-zephir-parser v1.* | sort -t/ -k3 -Vr | head -n1 | awk -F/ '{ print $NF }')
         run git clone --depth=1 --branch="${ZEPHIR_PARSER_BRANCH}" -q https://github.com/phalcon/php-zephir-parser.git && \
-        run cd php-zephir-parser
+        run cd php-zephir-parser || return 1
 
         if [ -n "${PHPv}" ]; then
             run "${PHPIZE_BIN}" && \
@@ -63,7 +63,7 @@ function install_phalcon() {
 
         run make && \
         run make install && \
-        run cd ../
+        run cd ../ || return 1
 
         # Install Zephir.
         echo "Installing Zephir lang..."
@@ -75,7 +75,7 @@ function install_phalcon() {
             run git clone --depth=1 --branch="${ZEPHIR_BRANCH}" -q https://github.com/phalcon/zephir.git && \
             run cd zephir && \
             run "${PHP_BIN}" "${PHPCOMPOSER_BIN}" install && \
-            run cd ../
+            run cd ../ || return 1
         fi
     fi
 
@@ -84,7 +84,7 @@ function install_phalcon() {
 
     if [ ! -d php-psr ]; then
         run git clone https://github.com/jbboehr/php-psr.git && \
-        run cd php-psr
+        run cd php-psr || return 1
     else
         run cd php-psr && \
         run git pull -q
@@ -92,9 +92,8 @@ function install_phalcon() {
     run "${PHPIZE_BIN}" && \
     run ./configure --with-php-config="${PHPCONFIG_BIN}" && \
     run make && \
-    #run make test && \
     run make install && \
-    run cd ../
+    run cd ../ || return 1
 
     if [ -f "${PHPLIB_DIR}/psr.so" ]; then
         success "PSR extension sucessfully installed."
@@ -115,8 +114,7 @@ function install_phalcon() {
     if curl -sLI "${CPHALCON_SOURCE}" | grep -q "HTTP/[.12]* [2].."; then
         run wget -q -O "cphalcon-${PHALCON_VERSION}.tar.gz" "${CPHALCON_SOURCE}" && \
         run tar -zxf "cphalcon-${PHALCON_VERSION}.tar.gz" && \
-        #run rm -f "cphalcon-${PHALCON_VERSION}.tar.gz" && \
-        run cd "cphalcon-${PHALCON_VERSION}/build"
+        run cd "cphalcon-${PHALCON_VERSION}/build" || return 1
     elif curl -sLI "https://raw.githubusercontent.com/phalcon/cphalcon/${PHALCON_VERSION}/README.md" \
         | grep -q "HTTP/[.12]* [2].."; then
 
@@ -125,12 +123,12 @@ function install_phalcon() {
             run git clone -q https://github.com/phalcon/cphalcon.git && \
             run cd cphalcon && \
             run git checkout "${PHALCON_VERSION}" && \
-            run cd build
+            run cd build || return 1
         else
             run cd cphalcon && \
             run git checkout "${PHALCON_VERSION}" && \
             run git pull -q && \
-            run cd build
+            run cd build || return 1
         fi
     else
         error "cPhalcon ${PHALCON_VERSION} source couldn't be downloaded."
@@ -178,7 +176,7 @@ EOL
     fi
 
     # Back to the install dir.
-    run cd "${CURRENT_DIR}"
+    run cd "${CURRENT_DIR}" || return 1
 }
 
 # Enable Phalcon extension.
@@ -469,12 +467,12 @@ function init_phalcon_install() {
                 1|"repo")
                     echo "Installing Phalcon framework from repository..."
 
-                    if hash apt 2>/dev/null; then
+                    if hash apt-get 2>/dev/null; then
                         if [[ "${SELECTED_PHP}" != "all" && "${SELECTED_PHP}" != "7" ]]; then
                             if [[ -n $(command -v "php${PHPv}") ]]; then
                                 PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
                                 if [[ ! -f "${PHPLIB_DIR}/phalcon.so" ]]; then
-                                    run apt install -qq -y "php-psr" "${PHP_PHALCON_PKG}"
+                                    run apt-get install -qq -y "php-psr" "${PHP_PHALCON_PKG}"
                                     enable_phalcon "${PHPv}"
                                 else
                                     error "PHP ${PHPv} Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so."
@@ -488,7 +486,7 @@ function init_phalcon_install() {
                                 if [[ -n $(command -v "php${PHPv}") ]]; then
                                     PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
                                     if [[ ! -f "${PHPLIB_DIR}/phalcon.so" ]]; then
-                                        run apt install -qq -y "php${PHPv}-psr" "php${PHPv}-phalcon"
+                                        run apt-get install -qq -y "php${PHPv}-psr" "php${PHPv}-phalcon"
                                         enable_phalcon "${PHPv}"
                                     else
                                         error "PHP ${PHPv} Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so."
