@@ -109,7 +109,7 @@ function debian_is_installed() {
 # Usage:
 # install_dependencies install_pkg_cmd is_pkg_installed_cmd dep1 dep2 ...
 #
-# install_pkg_cmd is a command to install a dependency, e.g. apt install (Debian)
+# install_pkg_cmd is a command to install a dependency, e.g. apt-get install (Debian)
 # is_pkg_installed_cmd is a command that returns true if the dependency is, e.g. debian_is_installed
 # already installed
 # each dependency is a package name
@@ -550,8 +550,8 @@ function enable_swap() {
 }
 
 # Create default system account.
-function create_account() {
-    export USERNAME=${1:-"lemper"}
+function create_default_account() {
+    export USERNAME=${LEMPER_USERNAME:-"lemper"}
     export PASSWORD && \
     PASSWORD=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
 
@@ -566,8 +566,12 @@ function create_account() {
             run usermod -aG sudo "${USERNAME}"
 
             # Create default directories.
-            run mkdir -p "/home/${USERNAME}/webapps"
-            run mkdir -p "/home/${USERNAME}/.lemper"
+            run mkdir -p "/home/${USERNAME}/webapps" && \
+            run mkdir -p "/home/${USERNAME}/.lemper" && \
+            run mkdir -p "/home/${USERNAME}/.ssh" && \
+            run chmod 700 "/home/${USERNAME}/.ssh" && \
+            run touch "/home/${USERNAME}/.ssh/authorized_keys" && \
+            run chmod 600 "/home/${USERNAME}/.ssh/authorized_keys" && \
             run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
 
             # Add account credentials to /srv/.htpasswd.
