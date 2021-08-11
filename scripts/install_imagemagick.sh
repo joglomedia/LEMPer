@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -33,8 +32,8 @@ function install_php_imagick() {
 
     echo -e "\nInstalling PHP ${PHPv} Imagick extension..."
 
-    if hash apt 2>/dev/null; then
-        run apt install -qq -y "php${PHPv}-imagick"
+    if hash apt-get 2>/dev/null; then
+        run apt-get install -qq -y "php${PHPv}-imagick"
     else
         fail "Unable to install PHP ${PHPv} Imagick, this GNU/Linux distribution is not supported."
     fi
@@ -112,21 +111,23 @@ function init_imagemagick_install() {
         case ${SELECTED_INSTALLER} in
             1|"repo")
                 echo "Installing ImageMagick library from repository..."
-                run apt install -qq -y imagemagick
+                run apt-get install -qq -y imagemagick
             ;;
             2|"source")
                 echo "Installing ImageMagick library from source..."
+
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
-                run cd "${BUILD_DIR}"
-                run wget -q https://www.imagemagick.org/download/ImageMagick.tar.gz
-                run tar -zxf ImageMagick.tar.gz
-                run cd ImageMagick-*
-                run ./configure
-                run make
-                run make install
-                run ldconfig /usr/local/lib
-                run cd "${CURRENT_DIR}"
+
+                run cd "${BUILD_DIR}" && \
+                run wget -q https://www.imagemagick.org/download/ImageMagick.tar.gz && \
+                run tar -zxf ImageMagick.tar.gz && \
+                run cd ImageMagick-* && \
+                run ./configure && \
+                run make && \
+                run make install && \
+                run ldconfig /usr/local/lib && \
+                run cd "${CURRENT_DIR}" || return 1
             ;;
             *)
                 # Skip installation.
