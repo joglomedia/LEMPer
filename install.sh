@@ -202,7 +202,7 @@ LEMPer stack admin account:
 Database administration (Adminer):
     http://${SERVER_IP}:8082/lcp/dbadmin/
 
-    Database root password: ${MYSQL_ROOT_PASS}
+    Database root password: ${MYSQL_ROOT_PASSWORD}
 
     Mariabackup user information:
     DB Username: ${MARIABACKUP_USER}
