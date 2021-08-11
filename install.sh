@@ -81,7 +81,7 @@ fi
 
 ### Create default account ###
 echo ""
-create_account "${LEMPER_USERNAME}"
+create_default_account
 
 ### Certbot Let's Encrypt SSL installation ###
 if [ -f scripts/install_certbotle.sh ]; then
@@ -172,7 +172,7 @@ fi
 if "${FORCE_REMOVE}"; then
     # Cleaning up all build dependencies hanging around on production server?
     echo -e "\nClean up installation process..."
-    run apt autoremove -qq -y
+    run apt-get autoremove -qq -y
 
     # Cleanup build dir
     echo "Clean up build directory..."
