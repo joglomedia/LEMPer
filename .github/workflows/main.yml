@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       # Prepare testing environment
@@ -41,11 +41,11 @@ jobs:
           sudo apt-get install -qq -y bash curl
           sudo curl -sLO https://raw.githubusercontent.com/kward/shunit2/master/shunit2
           sudo mv shunit2 /usr/local/bin/
-          sudo chmod a+x /usr/local/bin/shunit2
+          sudo chmod +x /usr/local/bin/shunit2
           sudo curl -sLO https://github.com/koalaman/shellcheck/releases/download/v0.7.2/shellcheck-v0.7.2.linux.x86_64.tar.xz
           sudo tar -xf shellcheck-v0.7.2.linux.x86_64.tar.xz
           sudo mv shellcheck-v0.7.2/shellcheck /usr/local/bin/
-          sudo chmod a+x /usr/local/bin/shellcheck
+          sudo chmod +x /usr/local/bin/shellcheck
       # Shellcheck Tests
       - name: Run shellcheck testing
         env:
