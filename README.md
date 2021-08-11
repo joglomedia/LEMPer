@@ -143,14 +143,14 @@ http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
 
 ## TODOs
 
-- [x] Custom build latest [Nginx](https://nginx.org/en/) from source
-- [x] Add [Let's Encrypt SSL](https://letsencrypt.org/)
-- [x] Add network security (iptable rules, firewall configurator, else?)
-- [x] Add database backup tool (Mariabackup, Percona Xtrabackup, else?)
-- [ ] Add enhanced security (AppArmor, cgroups, jailkit (chrooted/jail users), fail2ban, else?)
-- [ ] Add file backup tool (Borg, Duplicati, Rclone, Restic, Rsnapshot, else?)
-- [ ] Add server monitoring (Amplify, Monit, Nagios, else?)
-- [ ] Add user account & hosting package management
+* [x] Custom build latest [Nginx](https://nginx.org/en/) from source
+* [x] Add [Let's Encrypt SSL](https://letsencrypt.org/)
+* [x] Add network security (iptable rules, firewall configurator, else?)
+* [x] Add database backup tool (Mariabackup, Percona Xtrabackup, else?)
+* [x] Add enhanced security (AppArmor, cgroups, jailkit (chrooted/jail users), fail2ban, else?)
+* [ ] Add file backup tool (Borg, Duplicati, Rclone, Restic, Rsnapshot, else?)
+* [ ] Add server monitoring (Amplify, Monit, Nagios, else?)
+* [ ] Add user account & hosting package management
 
 Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new)
 
