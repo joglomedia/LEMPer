@@ -20,11 +20,13 @@ requires_root
 function add_mongodb_repo() {
     echo "Adding MongoDB ${MONGODB_VERSION} repository..."
 
-    MONGODB_VERSION=${MONGODB_VERSION:-"4.0"}
     DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
     RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
-    local DISTRIB_ARCH
+    MONGODB_VERSION=${MONGODB_VERSION:-"5.0"}
 
+    [ "${RELEASE_NAME}" == "jessie" ] && MONGODB_VERSION="4.4"
+
+    local DISTRIB_ARCH
     case ${ARCH} in
         x86_64)
             DISTRIB_ARCH="amd64"
