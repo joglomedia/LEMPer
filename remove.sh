@@ -58,7 +58,7 @@ fi
 # Fix broken install, first?
 echo ""
 run dpkg --configure -a
-run apt install -qq -y --fix-broken
+run apt-get install -qq -y --fix-broken
 
 ### Remove Nginx ###
 if [ -f scripts/remove_nginx.sh ]; then
@@ -156,7 +156,7 @@ fi
 
 ### Remove unnecessary packages ###
 echo -e "\nCleaning up unnecessary packages..."
-run apt autoremove -qq -y
+run apt-get autoremove -qq -y
 
 status -e "\nLEMP stack has been removed completely."
 warning -e "\nDid you know? that we're so sad to see you leave :'(
