@@ -51,6 +51,7 @@ jobs:
         env:
           TERM: xterm-256color
         run: |
+          set -x
           shellcheck -s bash -x install.sh
           shellcheck -s bash -x remove.sh
           shellcheck -s bash -x lib/lemper-*.sh
@@ -64,6 +65,7 @@ jobs:
         env:
           TERM: xterm-256color
         run: |
+          set -x
           sudo bash scripts/cleanup_server.sh
           sudo bash scripts/install_dependencies.sh
           sudo bash shunit2/run_test.sh
