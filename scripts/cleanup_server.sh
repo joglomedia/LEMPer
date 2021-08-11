@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -33,7 +32,7 @@ if "${FIX_BROKEN}"; then
     [ -f /var/lib/dpkg/lock-frontend ] && run rm /var/lib/dpkg/lock-frontend
     [ -f /var/cache/apt/archives/lock ] && run rm /var/cache/apt/archives/lock
     run dpkg --configure -a
-    run apt install -qq -y --fix-broken
+    run apt-get install -qq -y --fix-broken
 fi
 
 # Remove Apache2 service if exists.
@@ -62,7 +61,7 @@ if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
             run systemctl stop apache2
 
             # shellcheck disable=SC2046
-            run apt remove --purge -qq -y $(dpkg-query -l | awk '/apache2/ { print $2 }') \
+            run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/apache2/ { print $2 }') \
                 $(dpkg-query -l | awk '/httpd/ { print $2 }')
         fi
     else
@@ -127,7 +126,7 @@ fi
 
 # Autoremove unused packages.
 echo -e "\nCleaning up unused packages..."
-run apt autoremove -qq -y
+run apt-get autoremove -qq -y
 
 if [[ -z $(command -v apache2) && -z $(command -v nginx) && -z $(command -v mysql) ]]; then
     status -e "\nYour server cleaned up."
