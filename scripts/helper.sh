@@ -597,7 +597,7 @@ function create_account() {
             fi
 
             # Save config.
-            save_config -e "LEMPER_USERNAME=${USERNAME}\nLEMPER_PASSWORD=${PASSWORD}\nLEMPER_ADMIN_EMAIL=${ADMIN_EMAIL}"
+            save_config -e "LEMPER_USERNAME=${USERNAME}\nLEMPER_PASSWORD=${PASSWORD}\nLEMPER_ADMIN_EMAIL=${LEMPER_ADMIN_EMAIL}"
 
             # Save data to log file.
             save_log -e "Your default system account information:\nUsername: ${USERNAME}\nPassword: ${PASSWORD}"
@@ -649,7 +649,8 @@ function get_ip_addr() {
 
 # Init logging.
 function init_log() {
-    [ ! -f lemper.log ] && run touch lemper.log
+    export LOG_FILE=${LOG_FILE:-"./install.log"}
+    [ ! -f "${LOG_FILE}" ] && run touch "${LOG_FILE}"
     save_log "Initialize LEMPer installation log..."
 }
 
@@ -660,7 +661,7 @@ function save_log() {
             date '+%d-%m-%Y %T %Z'
             echo "$@"
             echo ""
-        } >> lemper.log
+        } >> "${LOG_FILE}"
     fi
 }
 
