@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       # Prepare testing environment
@@ -37,20 +37,21 @@ jobs:
       # Install Dependencies
       - name: Install testing dependencies
         run: |
-          sudo apt-get update -qq -y
-          sudo apt-get install -qq -y bash curl
-          sudo curl -sLO https://raw.githubusercontent.com/kward/shunit2/master/shunit2
-          sudo mv shunit2 /usr/local/bin/
-          sudo chmod a+x /usr/local/bin/shunit2
-          sudo curl -sLO https://github.com/koalaman/shellcheck/releases/download/v0.7.2/shellcheck-v0.7.2.linux.x86_64.tar.xz
+          set -x
+          sudo apt-get update -q -y
+          sudo apt-get install -q -y bash curl
+          sudo curl -sSL -o /usr/local/bin/shunit2 https://raw.githubusercontent.com/kward/shunit2/master/shunit2
+          sudo chmod +x /usr/local/bin/shunit2
+          sudo curl -sSLO https://github.com/koalaman/shellcheck/releases/download/v0.7.2/shellcheck-v0.7.2.linux.x86_64.tar.xz
           sudo tar -xf shellcheck-v0.7.2.linux.x86_64.tar.xz
           sudo mv shellcheck-v0.7.2/shellcheck /usr/local/bin/
-          sudo chmod a+x /usr/local/bin/shellcheck
+          sudo chmod +x /usr/local/bin/shellcheck
       # Shellcheck Tests
       - name: Run shellcheck testing
         env:
           TERM: xterm-256color
         run: |
+          set -x
           shellcheck -s bash -x install.sh
           shellcheck -s bash -x remove.sh
           shellcheck -s bash -x lib/lemper-*.sh
@@ -64,6 +65,7 @@ jobs:
         env:
           TERM: xterm-256color
         run: |
+          set -x
           sudo bash scripts/cleanup_server.sh
           sudo bash scripts/install_dependencies.sh
           sudo bash shunit2/run_test.sh
