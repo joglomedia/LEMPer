@@ -30,7 +30,7 @@ Before starting, let's create a pair of keys that some hosts ask for during inst
 On your local machine, open new terminal and create an SSH key pair using the ssh-keygen tool,
 use the following command:
 
-ssh-keygen -t rsa -b ${HASH_LENGTH}
+ssh-keygen -t rsa -b ${KEY_HASH_LENGTH}
 
 After this step, you will have the following files: id_rsa and id_rsa.pub (private and public keys).
 Never share your private key.
@@ -489,7 +489,7 @@ Any other iptables based firewall will be removed otherwise they will conflict."
 
         if "${AUTO_INSTALL}"; then
             # Set default Iptables-based firewall configutor engine.
-            SELECTED_FW=${FW_ENGINE:-"ufw"}
+            SELECTED_FW_CONFIGURATOR=${FW_CONFIGURATOR:-"ufw"}
         else
             # Menu Install FW
             echo ""
@@ -500,10 +500,10 @@ Any other iptables based firewall will be removed otherwise they will conflict."
             echo "  3). Advanced Policy Firewall (apf)"
             echo "------------------------------------------------"
 
-            while [[ ${SELECTED_FW} != "1" && ${SELECTED_FW} != "2" \
-                    && ${SELECTED_FW} != "3" && ${SELECTED_FW} != "ufw" \
-                    && ${SELECTED_FW} != "csf" && ${SELECTED_FW} != "apf" ]]; do
-                read -rp "Select an option [1-3]: " -i "${FW_ENGINE}" -e SELECTED_FW
+            while [[ ${SELECTED_FW_CONFIGURATOR} != "1" && ${SELECTED_FW_CONFIGURATOR} != "2" \
+                    && ${SELECTED_FW_CONFIGURATOR} != "3" && ${SELECTED_FW_CONFIGURATOR} != "ufw" \
+                    && ${SELECTED_FW_CONFIGURATOR} != "csf" && ${SELECTED_FW_CONFIGURATOR} != "apf" ]]; do
+                read -rp "Select an option [1-3]: " -i "${FW_CONFIGURATOR}" -e SELECTED_FW_CONFIGURATOR
             done
 
             echo ""
@@ -515,7 +515,7 @@ Any other iptables based firewall will be removed otherwise they will conflict."
             run apt-get install -qq -y iptables
         fi
 
-        case "${SELECTED_FW}" in
+        case "${SELECTED_FW_CONFIGURATOR}" in
             apf)
                 install_apf "${SSH_PORT}"
             ;;
