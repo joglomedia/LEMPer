@@ -20,7 +20,7 @@ function remove_php_fpm() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
     fi
 
     # Stop default PHP FPM process.
@@ -34,7 +34,7 @@ function remove_php_fpm() {
         # Remove geoip module.
         if "php${PHPv}" -m | grep -qw geoip; then
             # Uninstall geoip pecl.
-            #run pecl uninstall geoip-1.1.1
+            #run pecl uninstall geoip
 
             # Unlink enabled module.
             [ -f "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini" ] && \
@@ -55,7 +55,7 @@ function remove_php_fpm() {
         elif [[ "${PHPv}" == "7.2" ]]; then
             if "php${PHPv}" -m | grep -qw mcrypt; then
                 # Uninstall mcrypt pecl.
-                #run pecl uninstall mcrypt-1.0.1
+                #run pecl uninstall mcrypt
 
                 # Unlink enabled module.
                 [ -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ] && \
@@ -94,23 +94,23 @@ function remove_php_fpm() {
         fi
 
         if [[ -z $(command -v "php${PHPv}") ]]; then
-            success "PHP ${PHPv} & FPM installation removed."
+            success "PHP ${PHPv} package and it's extensions successfuly removed."
         else
-            info "Unable to remove PHP ${PHPv} & FPM installation."
+            info "Unable to remove PHP ${PHPv} installation."
         fi
     else
-        info "PHP ${PHPv} & FPM installation not found."
+        info "PHP ${PHPv} package and it's extensions not found."
     fi   
 }
 
 # Remove PHP & FPM.
 function init_php_fpm_removal() {
-    local SELECTED_PHP=""
-    local OPT_PHP_VERSION=""
+    local REMOVED_PHP_VERSIONS=()
+    local OPT_PHP_VERSIONS=()
 
-    OPTS=$(getopt -o p:ir \
+    OPTS=$(getopt -o p: \
         -l php-version: \
-        -n "init_php_fpm_install" -- "$@")
+        -n "init_php_fpm_removal" -- "$@")
 
     eval set -- "${OPTS}"
 
@@ -118,8 +118,7 @@ function init_php_fpm_removal() {
     do
         case "${1}" in
             -p|--php-version) shift
-                #SELECTED_PHP="${1}"
-                OPT_PHP_VERSION="${1}"
+                OPT_PHP_VERSIONS+=("${1}")
                 shift
             ;;
             --) shift
@@ -132,125 +131,120 @@ function init_php_fpm_removal() {
         esac
     done
 
-    if [ -n "${OPT_PHP_VERSION}" ]; then
-        PHP_VERSION=${OPT_PHP_VERSION}
+    if [[ "${#OPT_PHP_VERSIONS[@]}" -gt 0 ]]; then
+        REMOVED_PHP_VERSIONS+=("${OPT_PHP_VERSIONS[@]}")
     else
-        PHP_VERSION=${PHP_VERSION:-"7.4"}
-    fi
+        # Manually select PHP version in interactive mode.
+        if ! "${AUTO_INSTALL}"; then
+            echo "Which PHP version to be removed?"
+            echo "Supported PHP versions:"
+            echo "  1). PHP 5.6 (EOL)"
+            echo "  2). PHP 7.0 (EOL)"
+            echo "  3). PHP 7.1 (EOL)"
+            echo "  4). PHP 7.2 (EOL)"
+            echo "  5). PHP 7.3 (SFO)"
+            echo "  6). PHP 7.4 (Stable)"
+            echo "  7). PHP 8.0 (Latest Stable)"
+            echo "  8). All available versions"
+            echo "--------------------------------------------"
+            [ -n "${DEFAULT_PHP_VERSION}" ] && \
+            info "Default version is: ${DEFAULT_PHP_VERSION}"
 
-    if "${AUTO_REMOVE}"; then
-        if [ -z "${SELECTED_PHP}" ]; then
-            SELECTED_PHP=${PHP_VERSION}
-        fi
-    else
-        echo "Which version of PHP to be removed?"
-        echo "Supported PHP versions:"
-        echo "  1). PHP 5.6 (EOL)"
-        echo "  2). PHP 7.0 (EOL)"
-        echo "  3). PHP 7.1 (EOL)"
-        echo "  4). PHP 7.2 (EOL)"
-        echo "  5). PHP 7.3 (SFO)"
-        echo "  6). PHP 7.4 (Stable)"
-        echo "  7). PHP 8.0 (Latest Stable)"
-        echo "  8). All available versions"
-        echo "--------------------------------------------"
-        [ -n "${PHP_VERSION}" ] && \
-        info "Pre-defined selected version is: ${PHP_VERSION}"
-
-        while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
-                ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
-                ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && \
-                ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && ${SELECTED_PHP} != "7.1" && \
-                ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
-                ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "all" ]]; do
-            read -rp "Enter a PHP version from an option above [1-8]: " -i "${PHP_VERSION}" -e SELECTED_PHP
-        done
-    fi
-
-    #local PHPv
-    case ${SELECTED_PHP} in
-        1|"5.6")
-            #PHPv="5.6"
-            remove_php_fpm "5.6"
-        ;;
-        2|"7.0")
-            #PHPv="7.0"
-            remove_php_fpm "7.0"
-        ;;
-        3|"7.1")
-            #PHPv="7.1"
-            remove_php_fpm "7.1"
-        ;;
-        4|"7.2")
-            #PHPv="7.2"
-            remove_php_fpm "7.2"
-        ;;
-        5|"7.3")
-            #PHPv="7.3"
-            remove_php_fpm "7.3"
-        ;;
-        6|"7.4")
-            #PHPv="7.4"
-            remove_php_fpm "7.4"
-        ;;
-        7|"8.0")
-            #PHPv="8.0"
-            remove_php_fpm "8.0"
-        ;;
-        8|"all")
-            # Install all PHP version (except EOL & Beta).
-            #PHPv="all"
-            #remove_php_fpm "5.6"
-            #remove_php_fpm "7.0"
-            #remove_php_fpm "7.1"
-            #remove_php_fpm "7.2"
-            #remove_php_fpm "7.3"
-            #remove_php_fpm "7.4"
-            #remove_php_fpm "8.0"
-
-            Versions="5.6 7.0 7.1 7.2 7.3 8.0"
-            for PHPver in ${Versions}; do
-                remove_php_fpm "${PHPver}"
+            while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
+                    ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
+                    ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && \
+                    ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && ${SELECTED_PHP} != "7.1" && \
+                    ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
+                    ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "all" ]]; do
+                read -rp "Enter a PHP version from an option above [1-8]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
             done
-        ;;
-        *)
-            #PHPv="unsupported"
-            error "Your selected PHP version ${SELECTED_PHP} is not supported yet."
-        ;;
-    esac
 
-    # Also remove default LEMPer PHP.
-    DEFAULT_PHP_VERSION=${DEFAULT_PHP_VERSION:-"7.4"}
-    remove_php_fpm "${DEFAULT_PHP_VERSION}"
+            case ${SELECTED_PHP} in
+                1|"5.6")
+                    REMOVED_PHP_VERSIONS+=("5.6")
+                ;;
+                2|"7.0")
+                    REMOVED_PHP_VERSIONS+=("7.0")
+                ;;
+                3|"7.1")
+                    REMOVED_PHP_VERSIONS+=("7.1")
+                ;;
+                4|"7.2")
+                    REMOVED_PHP_VERSIONS+=("7.2")
+                ;;
+                5|"7.3")
+                    REMOVED_PHP_VERSIONS+=("7.3")
+                ;;
+                6|"7.4")
+                    REMOVED_PHP_VERSIONS+=("7.4")
+                ;;
+                7|"8.0")
+                    REMOVED_PHP_VERSIONS+=("8.0")
+                ;;
+                8|"all")
+                    # Select all PHP versions (except EOL & Beta).
+                    REMOVED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0")
+                ;;
+                *)
+                    error "Your selected PHP version ${SELECTED_PHP} is not supported yet."
+                ;;
+            esac
+        fi
+    fi
 
-    # Final clean up (executed only if no PHP version installed).
-    if "${DRYRUN}"; then
-        info "PHP ${SELECTED_PHP} & FPM removed in dryrun mode."
-    else
-        # New logic for multiple PHP removal in batch.
-        PHP_IS_EXISTS=false
-        for PHPv in ${SELECTED_PHP}; do
-            [[ -n $(command -v "${PHPv}") ]] && PHP_IS_EXISTS=true
+    # If FORCE_REMOVE, then remove all installed PHP versions.
+    if "${FORCE_REMOVE}"; then
+        # Include versions from config file.
+        read -r -a INSTALLED_PHP_VERSIONS <<< "${PHP_VERSIONS}"
+
+        # Also remove default LEMPer PHP.
+        DEFAULT_PHP_VERSION=${DEFAULT_PHP_VERSION:-"7.4"}
+
+        REMOVED_PHP_VERSIONS+=("${DEFAULT_PHP_VERSION}" "${INSTALLED_PHP_VERSIONS[@]}")
+    fi
+
+    # Sort PHP versions.
+    #shellcheck disable=SC2207
+    REMOVED_PHP_VERSIONS=($(printf "%s\n" "${REMOVED_PHP_VERSIONS[@]}" | sort -u | tr '\n' ' '))
+
+    # Remove all selected PHP versions.
+    if [[ "${#REMOVED_PHP_VERSIONS[@]}" -gt 0 ]]; then
+        for VERSION in "${REMOVED_PHP_VERSIONS[@]}"; do
+            remove_php_fpm "${VERSION}"
         done
 
-        if [[ "${PHP_IS_EXISTS}" == false ]]; then
-            echo "Removing additional unused PHP packages..."
-            run apt-get remove --purge -qq -y php-common php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap
+        # Final clean up (executed only if no PHP version installed).
+        if "${DRYRUN}"; then
+            info "PHP package & it's extensions removed in dryrun mode."
+        else
+            # New logic for multiple PHP removal in batch.
+            PHP_IS_EXISTS=false
+            for PHPv in "${REMOVED_PHP_VERSIONS[@]}"; do
+                [[ -n $(command -v "${PHPv}") ]] && PHP_IS_EXISTS=true
+            done
 
-            # Remove PHP repository.
-            run add-apt-repository -y --remove ppa:ondrej/php
+            if [[ "${PHP_IS_EXISTS}" == false ]]; then
+                echo "Removing additional unused PHP packages..."
+                run apt-get remove --purge -qq -y php-common php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap
 
-            # Remove all the rest of PHP lib files.
-            [ -d /usr/lib/php ] && run rm -fr /usr/lib/php
-            [ -d /usr/share/php ] && run rm -fr /usr/share/php
-            [ -d /var/lib/php ] && run rm -fr /var/lib/php
+                # Remove PHP repository.
+                run add-apt-repository -y --remove ppa:ondrej/php
 
-            success "All PHP packages installation completely removed."
+                # Remove all the rest of PHP lib files.
+                [ -d /usr/lib/php ] && run rm -fr /usr/lib/php
+                [ -d /usr/share/php ] && run rm -fr /usr/share/php
+                [ -d /var/lib/php ] && run rm -fr /var/lib/php
+
+                success "All PHP packages installation completely removed."
+            fi
         fi
+    else
+        error "Please select PHP version to be removed."
     fi
 }
 
-echo "Uninstalling PHP & FPM..."
+echo "Uninstalling PHP packages..."
+
 if [[ -n $(command -v php5.6) || \
     -n $(command -v php7.0) || \
     -n $(command -v php7.1) || \
@@ -270,8 +264,8 @@ if [[ -n $(command -v php5.6) || \
     if [[ "${REMOVE_PHP}" == Y* || "${REMOVE_PHP}" == y* ]]; then
         init_php_fpm_removal "$@"
     else
-        echo "Found PHP & FPM, but not removed."
+        echo "Found PHP package, but not removed."
     fi
 else
-    info "Oops, PHP & FPM installation not found."
+    info "Oops, PHP package installation not found."
 fi

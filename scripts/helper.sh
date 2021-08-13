@@ -343,7 +343,6 @@ function get_release_name() {
         case ${DISTRIB_NAME} in
             debian)
                 RELEASE_NAME=${VERSION_CODENAME:-"unsupported"}
-
                 # TODO for Debian install
                 case ${MAJOR_RELEASE_VERSION} in
                     8)
