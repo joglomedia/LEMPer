@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -37,13 +36,13 @@ function init_certbotle_install() {
             debian)
                 case "${RELEASE_NAME}" in
                     jessie)
-                        run apt install -qq -y certbot -t jessie-backports
+                        run apt-get install -qq -y certbot -t jessie-backports
                     ;;
                     stretch)
-                        run apt install -qq -y certbot -t stretch-backports
+                        run apt-get install -qq -y certbot -t stretch-backports
                     ;;
                     buster)
-                        run apt install -qq -y certbot
+                        run apt-get install -qq -y certbot
                     ;;
                     *)
                         error "Unable to add Certbot, unsupported distribution release: ${DISTRIB_NAME^} ${RELEASE_NAME^}."
@@ -55,12 +54,12 @@ function init_certbotle_install() {
             ubuntu)
                 case "${RELEASE_NAME}" in
                     focal)
-                        run apt install -qq -y certbot
+                        run apt-get install -qq -y certbot
                     ;;
                     *)
                         run add-apt-repository -y ppa:certbot/certbot
-                        run apt update -qq -y
-                        run apt install -qq -y certbot
+                        run apt-get update -qq -y
+                        run apt-get install -qq -y certbot
                     ;;
                 esac
             ;;
@@ -91,7 +90,7 @@ EOL
             fi
 
             # Register a new account.
-            local LE_EMAIL=${ADMIN_EMAIL:-"cert@lemper.sh"}
+            local LE_EMAIL=${LEMPER_ADMIN_EMAIL:-"cert@lemper.sh"}
 
             if [ -d /etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory ]; then
                 run certbot update_account --email "${LE_EMAIL}" --no-eff-email --agree-tos

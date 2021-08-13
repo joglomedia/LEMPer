@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -32,8 +31,8 @@ function install_postfix() {
     if [[ ${DO_INSTALL_POSTFIX} == y* && "${INSTALL_MAILER}" == true ]]; then
         echo "Installing Postfix Mail Transfer Agent..."
 
-        if hash apt 2>/dev/null; then
-            run apt install -qq -y mailutils postfix
+        if hash apt-get 2>/dev/null; then
+            run apt-get install -qq -y mailutils postfix
         else
             fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
         fi
@@ -155,8 +154,8 @@ function install_dovecot() {
     if [[ ${DO_INSTALL_DOVECOT} == y* && "${INSTALL_MAILER}" == true ]]; then
         echo "Installing Dovecot IMAP and POP3 email server..."
 
-        if hash apt 2>/dev/null; then
-            run apt install -qq -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
+        if hash apt-get 2>/dev/null; then
+            run apt-get install -qq -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
         else
             fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
         fi
@@ -272,8 +271,8 @@ function install_spf_dkim() {
         echo "Installing SPF + DKIM email server..."
 
         # Installing SPF Policy Agent & OpenDKIM.
-        if hash apt 2>/dev/null; then
-            run apt install -qq -y postfix-policyd-spf-python opendkim opendkim-tools
+        if hash apt-get 2>/dev/null; then
+            run apt-get install -qq -y postfix-policyd-spf-python opendkim opendkim-tools
         else
             fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
         fi
@@ -383,8 +382,8 @@ EOL
 
             # Generate keys using opendkim-genkey tool.
             #opendkim-genkey -b 2048 -d your-domain.com -D /etc/opendkim/keys/your-domain.com -s default -v
-            local HASH_LENGTH=${HASH_LENGTH:-2048}
-            run opendkim-genkey -b "${HASH_LENGTH}" -d "${SENDER_DOMAIN}" -D "/etc/opendkim/keys/${SENDER_DOMAIN}" -s lemper -v
+            local KEY_HASH_LENGTH=${KEY_HASH_LENGTH:-2048}
+            run opendkim-genkey -b "${KEY_HASH_LENGTH}" -d "${SENDER_DOMAIN}" -D "/etc/opendkim/keys/${SENDER_DOMAIN}" -s lemper -v
 
             # Make opendkim as the owner of the private key.
             #chown opendkim:opendkim /etc/opendkim/keys/your-domain.com/default.private

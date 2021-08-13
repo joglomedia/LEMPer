@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -56,8 +55,8 @@ function install_memcached() {
             1|"repo")
                 echo "Installing Memcached server from repository..."
 
-                if hash apt 2>/dev/null; then
-                    run apt install -qq -y \
+                if hash apt-get 2>/dev/null; then
+                    run apt-get install -qq -y \
                         libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2 memcached
                 else
                     fail "Unable to install Memcached, this GNU/Linux distribution is not supported."
@@ -66,8 +65,8 @@ function install_memcached() {
             2|"source")
                 echo "Installing Memcached server from source..."
 
-                if hash apt 2>/dev/null; then
-                    run apt install -qq -y \
+                if hash apt-get 2>/dev/null; then
+                    run apt-get install -qq -y \
                         libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2
                 else
                     fail "Unable to install Memcached, this GNU/Linux distribution is not supported."
@@ -75,7 +74,8 @@ function install_memcached() {
 
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
-                run cd "${BUILD_DIR}"
+
+                run cd "${BUILD_DIR}" && \
 
                 # Install Libevent from source.
                 #LIBEVENT_DOWNLOAD_URL="https://github.com/libevent/libevent/releases/download/release-2.1.11-stable/libevent-2.1.11-stable.tar.gz"
@@ -126,7 +126,7 @@ function install_memcached() {
                     error "An error occured while downloading Memcached source."
                 fi
 
-                run cd "${CURRENT_DIR}"
+                run cd "${CURRENT_DIR}" || return 1
             ;;
             *)
                 # Skip installation.
@@ -204,7 +204,7 @@ EOL
                     run sed -i "/#\ -vv/a -vv" /etc/memcached_memcache.conf
 
                     # Save config.
-                    save_config -e "MEMCACHED_SASL=enabled\nMEMCACHED_USERNAME=${MEMCACHED_USERNAME}\nMEMCACHED_PASSWORD=${MEMCACHED_PASSWORD}\nMEMCACHED_INSTANCE=memcache"
+                    save_config -e "MEMCACHED_SASL=${MEMCACHED_SASL}\nMEMCACHED_USERNAME=${MEMCACHED_USERNAME}\nMEMCACHED_PASSWORD=${MEMCACHED_PASSWORD}\nMEMCACHED_INSTANCE=memcache"
 
                     # Save log.
                     save_log -e "Memcached SASL auth is enabled, below is your default auth credential.\nUsername: ${MEMCACHED_USERNAME}, password: ${MEMCACHED_PASSWORD}\nSave this credential and use it to authenticate your Memcached connection."
@@ -269,18 +269,18 @@ function install_php_memcached() {
     # Install PHP memcached module.
     echo "Installing PHP ${SELECTED_PHP} memcached module..."
 
-    if hash apt 2>/dev/null; then
+    if hash apt-get 2>/dev/null; then
         #PHPVERS=$(sed "s/,/ /g" <<<"${SELECTED_PHP}")
         for PHPv in ${SELECTED_PHP//,/ } 
         do
-            run apt install -qq -y \
+            run apt-get install -qq -y \
                 "php${PHPv}-igbinary" "php${PHPv}-memcache" "php${PHPv}-memcached" "php${PHPv}-msgpack"
             enable_php_memcached "${PHPv}"
         done
 
         # Default PHP 7.4 for LEMPer.
         if [ "${PHPv}" != "7.4" ]; then
-            run apt install -qq -y \
+            run apt-get install -qq -y \
                 "php7.4-igbinary" "php7.4-memcache" "php7.4-memcached" "php7.4-msgpack"
             enable_php_memcached "7.4"
         fi

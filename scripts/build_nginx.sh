@@ -543,7 +543,7 @@ add support for dynamic modules in a way compatible with ngx_pagespeed until 1.9
                     status "Detected that gcc is older than 4.8. Installing gcc-mozilla"
                     status "which installs gcc-4.8 into /usr/lib/gcc-mozilla/ and doesn't"
                     status "affect your global gcc installation."
-                    run sudo apt install ${INSTALL_FLAGS} gcc-mozilla
+                    run sudo apt-get install ${INSTALL_FLAGS} gcc-mozilla
                 fi
 
                 extra_flags=("--with-cc=/usr/lib/gcc-mozilla/bin/gcc" \

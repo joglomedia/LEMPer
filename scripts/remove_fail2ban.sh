@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -26,7 +25,7 @@ function init_fail2ban_removal() {
     if dpkg-query -l | awk '/fail2ban/ { print $2 }' | grep -qwE "^fail2ban$"; then
         echo "Found fail2ban package installation. Removing..."
 
-        run apt remove --purge -qq -y fail2ban
+        run apt-get remove --purge -qq -y fail2ban
     else
         echo "Fail2ban package not found, possibly installed from source."
 

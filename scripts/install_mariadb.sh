@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -23,7 +22,9 @@ function add_mariadb_repo() {
     DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
     RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
     MYSQL_SERVER=${MYSQL_SERVER:-"mariadb"}
-    MYSQL_VERSION=${MYSQL_VERSION:-"10.4"}
+    MYSQL_VERSION=${MYSQL_VERSION:-"10.6"}
+
+    [ "${RELEASE_NAME}" == "jessie" ] && MYSQL_VERSION="10.5"
 
     # Add MariaDB official repo.
     # Ref: https://mariadb.com/kb/en/library/mariadb-package-repository-setup-and-usage/
@@ -31,10 +32,10 @@ function add_mariadb_repo() {
     MARIADB_REPO_SETUP_URL="https://downloads.mariadb.com/MariaDB/mariadb_repo_setup"
 
     if curl -sLI "${MARIADB_REPO_SETUP_URL}" | grep -q "HTTP/[.12]* [2].."; then
-        run curl -sS -o "${BUILD_DIR}/mariadb_repo_setup" "${MARIADB_REPO_SETUP_URL}" && \
+        run curl -sSL -o "${BUILD_DIR}/mariadb_repo_setup" "${MARIADB_REPO_SETUP_URL}" && \
         run bash "${BUILD_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
             --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}" && \
-        run apt update -qq -y
+        run apt-get update -qq -y
     else
         error "MariaDB repo installer not found."
     fi
@@ -64,8 +65,8 @@ function init_mariadb_install() {
         echo "Installing MariaDB (MySQL drop-in replacement) server..."
 
         # Install MariaDB
-        if hash apt 2>/dev/null; then
-            run apt install -qq -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
+        if hash apt-get 2>/dev/null; then
+            run apt-get install -qq -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
                 "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
                 "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
         else
@@ -136,11 +137,11 @@ function init_mariadb_install() {
                         echo "Securing MariaDB (MySQL) Installation..."
 
                         # Ref: https://bertvv.github.io/notes-to-self/2015/11/16/automating-mysql_secure_installation/
-                        MYSQL_ROOT_PASS=${MYSQL_ROOT_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+                        MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
                         local SQL_QUERY=""
 
                         # Setting the database root password.
-                        SQL_QUERY="ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASS}';"
+                        SQL_QUERY="ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';"
 
                         # Delete anonymous users.
                         SQL_QUERY="${SQL_QUERY}
@@ -220,18 +221,18 @@ function enable_mariabackup() {
     export MARIABACKUP_PASS
 
     #echo "Please enter your current MySQL root password to process!"
-    until [[ "${MYSQL_ROOT_PASS}" != "" ]]; do
-        echo -n "MySQL root password: "; stty -echo; read -r MYSQL_ROOT_PASS; stty echo; echo
+    until [[ "${MYSQL_ROOT_PASSWORD}" != "" ]]; do
+        echo -n "MySQL root password: "; stty -echo; read -r MYSQL_ROOT_PASSWORD; stty echo; echo
     done
-    export MYSQL_ROOT_PASS
+    export MYSQL_ROOT_PASSWORD
 
     # Create default LEMPer database user if not exists.
-    if ! mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT User FROM mysql.user;" | grep -q "${MARIABACKUP_USER}"; then
+    if ! mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT User FROM mysql.user;" | grep -q "${MARIABACKUP_USER}"; then
         # Create mariabackup user.
         SQL_QUERY="CREATE USER '${MARIABACKUP_USER}'@'localhost' IDENTIFIED BY '${MARIABACKUP_PASS}';
                 GRANT RELOAD, PROCESS, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${MARIABACKUP_USER}'@'localhost';"
 
-        mysql -u "root" -p"${MYSQL_ROOT_PASS}" -e "${SQL_QUERY}"
+        mysql -u "root" -p"${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"
 
         # Update my.cnf
         MARIABACKUP_CNF="###################################
@@ -266,10 +267,10 @@ open_files_limit=65535
         #fi
 
         # Save config.
-        save_config -e "MYSQL_ROOT_PASS=${MYSQL_ROOT_PASS}\nMARIABACKUP_USERNAME=${MARIABACKUP_USER}\nMARIABACKUP_PASSWORD=${MARIABACKUP_PASS}"
+        save_config -e "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}\nMARIABACKUP_USERNAME=${MARIABACKUP_USER}\nMARIABACKUP_PASSWORD=${MARIABACKUP_PASS}"
 
         # Save log.
-        save_log -e "MariaDB (MySQL) credentials.\nMySQL Root Password: ${MYSQL_ROOT_PASS}, MariaBackup DB Username: ${MARIABACKUP_USER}, MariaBackup DB Password: ${MARIABACKUP_PASS}\nSave this credential and use it to authenticate your MySQL database connection."
+        save_log -e "MariaDB (MySQL) credentials.\nMySQL Root Password: ${MYSQL_ROOT_PASSWORD}, MariaBackup DB Username: ${MARIABACKUP_USER}, MariaBackup DB Password: ${MARIABACKUP_PASS}\nSave this credential and use it to authenticate your MySQL database connection."
     else
         info "It seems that user '${MARIABACKUP_USER}' already exists. You can add mariabackup user manually!"
     fi

@@ -10,5 +10,6 @@ bin/lemper-cli-enc
 bin/lemper-cli-enc.sh
 bin/lemper-cli-enc.sh.x.c
 bin/lemperography.php
+LEMPer.wiki
 #lib/lemper-create.sh
 #lib/lemper-manage.sh

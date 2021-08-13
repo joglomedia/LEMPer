@@ -109,7 +109,7 @@ function debian_is_installed() {
 # Usage:
 # install_dependencies install_pkg_cmd is_pkg_installed_cmd dep1 dep2 ...
 #
-# install_pkg_cmd is a command to install a dependency, e.g. apt install (Debian)
+# install_pkg_cmd is a command to install a dependency, e.g. apt-get install (Debian)
 # is_pkg_installed_cmd is a command that returns true if the dependency is, e.g. debian_is_installed
 # already installed
 # each dependency is a package name
@@ -336,24 +336,43 @@ function get_release_name() {
         # Get distribution name.
         [[ "${ID_LIKE}" == "ubuntu" ]] && DISTRIB_NAME="ubuntu" || DISTRIB_NAME=${ID:-"unsupported"}
 
+        # Get distribution release / version ID.
+        DISTRO_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE}"}
+        MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print $1}')
+
         case ${DISTRIB_NAME} in
             debian)
                 RELEASE_NAME=${VERSION_CODENAME:-"unsupported"}
-                #RELEASE_NAME="unsupported"
 
                 # TODO for Debian install
+                case ${MAJOR_RELEASE_VERSION} in
+                    8)
+                        RELEASE_NAME="jessie"
+                    ;;
+                    9)
+                        RELEASE_NAME="stretch"
+                    ;;
+                    10)
+                        RELEASE_NAME="buster"
+                    ;;
+                    11)
+                        RELEASE_NAME="bullseye"
+                    ;;
+                    *)
+                        RELEASE_NAME="unsupported"
+                    ;;
+                esac
             ;;
             ubuntu)
                 # Hack for Linux Mint release number.
-                DISTRO_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE}"}
-                MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print $1}')
                 [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]] && \
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
 
                 case ${DISTRIB_RELEASE} in
                     "16.04"|"LM18")
-                        # Ubuntu release 16.04, LinuxMint 18
-                        RELEASE_NAME=${UBUNTU_CODENAME:-"xenial"}
+                        # Ubuntu release 16.04, LinuxMint 18 <= EOL
+                        #RELEASE_NAME=${UBUNTU_CODENAME:-"xenial"}
+                        RELEASE_NAME="unsupported"
                     ;;
                     "18.04"|"LM19")
                         # Ubuntu release 18.04, LinuxMint 19
@@ -362,6 +381,10 @@ function get_release_name() {
                     "20.04"|"LM20")
                         # Ubuntu release 20.04, LinuxMint 20
                         RELEASE_NAME=${UBUNTU_CODENAME:-"focal"}
+                    ;;
+                    "21.04")
+                        # Ubuntu release 21.04
+                        RELEASE_NAME=${UBUNTU_CODENAME:-"hirsuite"}
                     ;;
                     *)
                         RELEASE_NAME="unsupported"
@@ -566,8 +589,12 @@ function create_account() {
             run usermod -aG sudo "${USERNAME}"
 
             # Create default directories.
-            run mkdir -p "/home/${USERNAME}/webapps"
-            run mkdir -p "/home/${USERNAME}/.lemper"
+            run mkdir -p "/home/${USERNAME}/webapps" && \
+            run mkdir -p "/home/${USERNAME}/.lemper" && \
+            run mkdir -p "/home/${USERNAME}/.ssh" && \
+            run chmod 700 "/home/${USERNAME}/.ssh" && \
+            run touch "/home/${USERNAME}/.ssh/authorized_keys" && \
+            run chmod 600 "/home/${USERNAME}/.ssh/authorized_keys" && \
             run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
 
             # Add account credentials to /srv/.htpasswd.
@@ -593,7 +620,7 @@ function create_account() {
             fi
 
             # Save config.
-            save_config -e "LEMPER_USERNAME=${USERNAME}\nLEMPER_PASSWORD=${PASSWORD}\nLEMPER_ADMIN_EMAIL=${ADMIN_EMAIL}"
+            save_config -e "LEMPER_USERNAME=${USERNAME}\nLEMPER_PASSWORD=${PASSWORD}\nLEMPER_ADMIN_EMAIL=${LEMPER_ADMIN_EMAIL}"
 
             # Save data to log file.
             save_log -e "Your default system account information:\nUsername: ${USERNAME}\nPassword: ${PASSWORD}"
@@ -645,7 +672,8 @@ function get_ip_addr() {
 
 # Init logging.
 function init_log() {
-    [ ! -f lemper.log ] && run touch lemper.log
+    export LOG_FILE=${LOG_FILE:-"./install.log"}
+    [ ! -f "${LOG_FILE}" ] && run touch "${LOG_FILE}"
     save_log "Initialize LEMPer installation log..."
 }
 
@@ -656,7 +684,7 @@ function save_log() {
             date '+%d-%m-%Y %T %Z'
             echo "$@"
             echo ""
-        } >> lemper.log
+        } >> "${LOG_FILE}"
     fi
 }
 

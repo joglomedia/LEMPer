@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -32,16 +31,15 @@ function add_php_repo() {
                 run touch "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb https://packages.sury.org/php/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
                 run wget -qO /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
-                run apt update -qq -y
+                run apt-get update -qq -y
             else
                 info "PHP repository already exists."
             fi
         ;;
         ubuntu)
-            #run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 4F4EA0AAE5267A6C
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
             run add-apt-repository -y ppa:ondrej/php
-            run apt update -qq -y
+            run apt-get update -qq -y
         ;;
         *)
             fail "Unable to install PHP, this GNU/Linux distribution is not supported."
@@ -53,47 +51,55 @@ function add_php_repo() {
 # Install PHP & FPM package.
 #
 function install_php_fpm() {
+    export PHP_IS_INSTALLED="no"
+    local PHP_EXTS=() && \
+    read -r -a PHP_EXTS <<< "${PHP_EXTENSIONS}"
+
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
     fi
-    local PHP_PKGS=()
-    export PHP_IS_INSTALLED="no"
 
-    # Checking if php already installed.
+    # Checking if PHP already installed.
     if [[ -n $(command -v "php${PHPv}") ]]; then
         PHP_IS_INSTALLED="yes"
-        info "PHP ${PHPv} packages already exists, installation skipped."
+        info "PHP ${PHPv} and it's extensions already exists, installation skipped."
     else
-        # Add repo first
+        # Add Ondrej repository.
         add_php_repo
 
-        echo "Installing PHP ${PHPv} & FPM packages..."
+        echo "Installing PHP ${PHPv} and requred extensions..."
 
-        if hash apt 2>/dev/null; then
-            PHP_PKGS=("php${PHPv} php${PHPv}-bcmath php${PHPv}-bz2 php${PHPv}-calendar php${PHPv}-cli \
-php${PHPv}-common php${PHPv}-curl php${PHPv}-dev php${PHPv}-exif php${PHPv}-fpm php${PHPv}-gd \
-php${PHPv}-gettext php${PHPv}-gmp php${PHPv}-iconv php${PHPv}-imap php${PHPv}-intl \
-php${PHPv}-mbstring php${PHPv}-mysql php${PHPv}-opcache php${PHPv}-pdo php${PHPv}-posix \
-php${PHPv}-pspell php${PHPv}-readline php${PHPv}-ldap php${PHPv}-snmp php${PHPv}-soap php${PHPv}-sqlite3 \
-php${PHPv}-tidy php${PHPv}-tokenizer php${PHPv}-xml php${PHPv}-xmlrpc php${PHPv}-xsl php${PHPv}-zip \
-php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
+        if hash apt-get 2>/dev/null; then
+            PHP_EXTS+=("php${PHPv}" "php${PHPv}-bcmath" "php${PHPv}-bz2" "php${PHPv}-calendar" "php${PHPv}-cli" \
+"php${PHPv}-common" "php${PHPv}-curl" "php${PHPv}-dev" "php${PHPv}-exif" "php${PHPv}-fpm" "php${PHPv}-gd" \
+"php${PHPv}-gettext" "php${PHPv}-gmp" "php${PHPv}-gnupg" "php${PHPv}-iconv" "php${PHPv}-imap" "php${PHPv}-intl" \
+"php${PHPv}-mbstring" "php${PHPv}-mysql" "php${PHPv}-opcache" "php${PHPv}-pdo" "php${PHPv}-pgsql" "php${PHPv}-posix" \
+"php${PHPv}-pspell" "php${PHPv}-readline" "php${PHPv}-ldap" "php${PHPv}-snmp" "php${PHPv}-soap" "php${PHPv}-sqlite3" \
+"php${PHPv}-tidy" "php${PHPv}-tokenizer" "php${PHPv}-xml" "php${PHPv}-xmlrpc" "php${PHPv}-xsl" "php${PHPv}-zip" \
+php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi)
 
-            if [[ "${#PHP_PKGS[@]}" -gt 0 ]]; then
-                # shellcheck disable=SC2068
-                run apt install -qq -y ${PHP_PKGS[@]}
+            # Install PHP Json
+            if [ "${PHPv//.}" -lt "80" ]; then
+                PHP_EXTS+=("php${PHPv}-json")
+            else
+                PHP_EXTS+=("php-json")
+            fi
+
+            # Install PHP Swoole
+            if [ "${PHPv//.}" -gt "71" ]; then
+                PHP_EXTS+=("php${PHPv}-swoole")
+            else
+                PHP_EXTS+=("php-swoole")
+            fi
+
+            if [[ "${#PHP_EXTS[@]}" -gt 0 ]]; then
+                run apt-get install -qq -y "${PHP_EXTS[@]}"
             fi
 
             if [[ -n $(command -v "php${PHPv}") ]]; then
-                success "PHP ${PHPv} & FPM packages installed."
-            fi
-
-            # Install PHP GnuPG & Json
-            if [ "${PHPv//.}" -lt "80" ]; then
-                run apt install -qq -y "php${PHPv}-gnupg" "php${PHPv}-json"
-            else
-                info "GnuPG & Json module is not yet available for PHP ${PHPv} or greater."
+                success "PHP ${PHPv} along with ${#PHP_EXTS[@]} extensions installed."
             fi
 
             # Install PHP GeoIP?
@@ -110,10 +116,9 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                 echo "Installing PHP GeoIP module..."
 
                 if [ "${PHPv//.}" -lt "70" ]; then
-                    #run mkdir -p /usr/lib/php/php-helper
-                    run apt install -qq -y php-geoip
+                    run apt-get install -qq -y php-geoip
                 else
-                    run pecl install geoip-1.1.1
+                    run pecl install geoip
 
                     # Enable GeoIP module.
                     echo "Updating PHP ini file with GeoIP module..."
@@ -152,10 +157,10 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                 echo "Installing PHP Mcrypt module..."
 
                 if [ "${PHPv//.}" -lt "72" ]; then
-                    run apt install -qq -y "php${PHPv}-mcrypt" "php${PHPv}-recode"
+                    run apt-get install -qq -y "php${PHPv}-mcrypt" "php${PHPv}-recode"
                 elif [ "${PHPv}" == "7.2" ]; then
-                    run apt install -qq -y libmcrypt-dev libreadline-dev && \
-                    run pecl install mcrypt-1.0.1
+                    run apt-get install -qq -y libmcrypt-dev libreadline-dev && \
+                    run pecl install mcrypt
 
                     # Enable Mcrypt module.
                     echo "Updating PHP ${PHPv} ini file with Mcrypt module..."
@@ -174,7 +179,7 @@ php-pear php-xml pkg-php-tools spawn-fcgi fcgiwrap" "${PHP_PKGS[@]}")
                             "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
                     fi
                 else
-                    run apt install -qq -y dh-php
+                    run apt-get install -qq -y dh-php
 
                     # Use libsodium instead.
                     info "Mcrypt module is deprecated for PHP ${PHPv} or greater, for encryption use Libsodium or OpenSSL instead."
@@ -201,7 +206,7 @@ function optimize_php_fpm() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
     fi
 
     echo "Optimizing PHP ${PHPv} & FPM configuration..."
@@ -435,7 +440,7 @@ function install_php_composer() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
     fi
 
     # Checking if php composer already installed.
@@ -452,7 +457,7 @@ function install_php_composer() {
             echo "Installing PHP Composer..."
 
             local CURRENT_DIR && CURRENT_DIR=$(pwd)
-            run cd "${BUILD_DIR}"
+            run cd "${BUILD_DIR}" || error "Cannot change directory to ${BUILD_DIR}."
 
             PHP_BIN=$(command -v "php${PHPv}")
 
@@ -479,7 +484,7 @@ function install_php_composer() {
             fi
 
             #run rm composer-setup.php
-            run cd "${CURRENT_DIR}"
+            run cd "${CURRENT_DIR}" || error "Cannot change directory to ${CURRENT_DIR}."
         fi
 
         if [[ -n $(command -v composer) ]]; then
@@ -494,10 +499,10 @@ function install_php_composer() {
 # Initialize PHP & FPM Installation.
 #
 function init_php_fpm_install() {
-    local SELECTED_PHP=""
-    local OPT_PHP_VERSION=""
+    local SELECTED_PHP_VERSIONS=()
+    local OPT_PHP_VERSIONS=()
 
-    OPTS=$(getopt -o p:ir \
+    OPTS=$(getopt -o p: \
         -l php-version: \
         -n "init_php_fpm_install" -- "$@")
 
@@ -507,8 +512,7 @@ function init_php_fpm_install() {
     do
         case "${1}" in
             -p|--php-version) shift
-                #SELECTED_PHP="${1}"
-                OPT_PHP_VERSION="${1}"
+                OPT_PHP_VERSIONS+=("${1}")
                 shift
             ;;
             --) shift
@@ -521,92 +525,90 @@ function init_php_fpm_install() {
         esac
     done
 
-    if [ -n "${OPT_PHP_VERSION}" ]; then
-        PHP_VERSION=${OPT_PHP_VERSION}
+    # Read versions from config file.
+    read -r -a SELECTED_PHP_VERSIONS <<< "${PHP_VERSIONS}"
+
+    if [[ "${#OPT_PHP_VERSIONS[@]}" -gt 0 ]]; then
+        SELECTED_PHP_VERSIONS+=("${OPT_PHP_VERSIONS[@]}")
     else
-        PHP_VERSION=${PHP_VERSION:-"7.4"}
-    fi
+        # Manually select PHP version in interactive mode.
+        if ! "${AUTO_INSTALL}"; then
+            echo "Which PHP version to be installed?"
+            echo "Supported PHP versions:"
+            echo "  1). PHP 5.6 (EOL)"
+            echo "  2). PHP 7.0 (EOL)"
+            echo "  3). PHP 7.1 (EOL)"
+            echo "  4). PHP 7.2 (EOL)"
+            echo "  5). PHP 7.3 (SFO)"
+            echo "  6). PHP 7.4 (Stable)"
+            echo "  7). PHP 8.0 (Latest Stable)"
+            echo "  8). All available versions"
+            echo "--------------------------------------------"
+            [ -n "${DEFAULT_PHP_VERSION}" ] && \
+            info "Default version is: ${DEFAULT_PHP_VERSION}"
 
-    if "${AUTO_INSTALL}"; then
-        if [ -z "${SELECTED_PHP}" ]; then
-            SELECTED_PHP=${PHP_VERSION}
-        fi
-    else
-        echo "Which version of PHP to be installed?"
-        echo "Supported PHP versions:"
-        echo "  1). PHP 5.6 (EOL)"
-        echo "  2). PHP 7.0 (EOL)"
-        echo "  3). PHP 7.1 (EOL)"
-        echo "  4). PHP 7.2 (EOL)"
-        echo "  5). PHP 7.3 (SFO)"
-        echo "  6). PHP 7.4 (Stable)"
-        echo "  7). PHP 8.0 (Latest Stable)"
-        echo "  8). All available versions"
-        echo "--------------------------------------------"
-        [ -n "${PHP_VERSION}" ] && \
-        info "Pre-defined selected version is: ${PHP_VERSION}"
-
-        while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
-                ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
-                ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && \
-                ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && ${SELECTED_PHP} != "7.1" && \
-                ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
-                ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "all" ]]; do
-            read -rp "Enter a PHP version from an option above [1-8]: " -i "${PHP_VERSION}" -e SELECTED_PHP
-        done
-    fi
-
-    #local PHPv
-    case ${SELECTED_PHP} in
-        1|"5.6")
-            #PHPv="5.6"
-            install_php_fpm "5.6"
-        ;;
-        2|"7.0")
-            #PHPv="7.0"
-            install_php_fpm "7.0"
-        ;;
-        3|"7.1")
-            #PHPv="7.1"
-            install_php_fpm "7.1"
-        ;;
-        4|"7.2")
-            #PHPv="7.2"
-            install_php_fpm "7.2"
-        ;;
-        5|"7.3")
-            #PHPv="7.3"
-            install_php_fpm "7.3"
-        ;;
-        6|"7.4")
-            #PHPv="7.4"
-            install_php_fpm "7.4"
-        ;;
-        7|"8.0")
-            #PHPv="8.0"
-            install_php_fpm "8.0"
-        ;;
-        8|"all")
-            # Install all PHP version (except EOL & Beta).
-            #PHPv="all"
-            #install_php_fpm "5.6"
-            #install_php_fpm "7.0"
-            #install_php_fpm "7.1"
-            #install_php_fpm "7.2"
-            #install_php_fpm "7.3"
-            #install_php_fpm "7.4"
-            #install_php_fpm "8.0"
-
-            Versions="5.6 7.0 7.1 7.2 7.3 7.4 8.0"
-            for PHPver in ${Versions}; do
-                install_php_fpm "${PHPver}"
+            while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
+                    ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
+                    ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && \
+                    ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && ${SELECTED_PHP} != "7.1" && \
+                    ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
+                    ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "all" ]]; do
+                read -rp "Enter a PHP version from an option above [1-8]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
             done
-        ;;
-        *)
-            #PHPv="unsupported"
-            error "Your selected PHP version ${SELECTED_PHP} is not supported yet."
-        ;;
-    esac
+
+            case ${SELECTED_PHP} in
+                1|"5.6")
+                    #install_php_fpm "5.6"
+                    SELECTED_PHP_VERSIONS+=("5.6")
+                ;;
+                2|"7.0")
+                    #install_php_fpm "7.0"
+                    SELECTED_PHP_VERSIONS+=("7.0")
+                ;;
+                3|"7.1")
+                    #install_php_fpm "7.1"
+                    SELECTED_PHP_VERSIONS+=("7.1")
+                ;;
+                4|"7.2")
+                    #install_php_fpm "7.2"
+                    SELECTED_PHP_VERSIONS+=("7.2")
+                ;;
+                5|"7.3")
+                    #install_php_fpm "7.3"
+                    SELECTED_PHP_VERSIONS+=("7.3")
+                ;;
+                6|"7.4")
+                    #install_php_fpm "7.4"
+                    SELECTED_PHP_VERSIONS+=("7.4")
+                ;;
+                7|"8.0")
+                    #install_php_fpm "8.0"
+                    SELECTED_PHP_VERSIONS+=("8.0")
+                ;;
+                8|"all")
+                    # Select all PHP versions (except EOL & Beta).
+                    SELECTED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0")
+                ;;
+                *)
+                    error "Your selected PHP version ${SELECTED_PHP} is not supported yet."
+                ;;
+            esac
+        fi
+    fi
+
+    # Sort PHP versions.
+    #shellcheck disable=SC2207
+    SELECTED_PHP_VERSIONS=($(printf "%s\n" "${SELECTED_PHP_VERSIONS[@]}" | sort -u | tr '\n' ' '))
+
+    # Install all selected PHP versions.
+    for VERSION in "${SELECTED_PHP_VERSIONS[@]}"; do
+        IS_PKG_AVAIL=$(apt-cache search "php${VERSION}" | grep -c "${VERSION}")
+        if [[ "${IS_PKG_AVAIL}" -gt 0 ]]; then
+            install_php_fpm "${VERSION}"
+        else
+            error "PHP ${VERSION} package is not available in your system."
+        fi
+    done
 
     # Install default PHP version used by LEMPer.
     if [[ -z $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
@@ -619,8 +621,7 @@ function init_php_fpm_install() {
     install_php_composer "${DEFAULT_PHP_VERSION}"
 }
 
-
-echo -e "[PHP & FPM Packages Installation]"
+echo "[PHP & FPM Packages Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.

@@ -47,7 +47,7 @@ fi
 # Set default variables.
 LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
 LEMPER_PASSWORD=${LEMPER_PASSWORD:-""}
-MYSQL_ROOT_PASS=${MYSQL_ROOT_PASS:-""}
+MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-""}
 
 # App library directory.
 APP_LIB_DIR="/usr/local/lib/lemper"

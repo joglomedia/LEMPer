@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -31,7 +30,7 @@ Before starting, let's create a pair of keys that some hosts ask for during inst
 On your local machine, open new terminal and create an SSH key pair using the ssh-keygen tool,
 use the following command:
 
-ssh-keygen -t rsa -b ${HASH_LENGTH}
+ssh-keygen -t rsa -b ${KEY_HASH_LENGTH}
 
 After this step, you will have the following files: id_rsa and id_rsa.pub (private and public keys).
 Never share your private key.
@@ -53,11 +52,13 @@ Never share your private key.
             echo -e "\nSecuring your SSH server with public key..."
 
             if [ ! -d "/home/${LEMPER_USERNAME}/.ssh" ]; then
-                run mkdir -p "/home/${LEMPER_USERNAME}/.ssh"
+                run mkdir -p "/home/${LEMPER_USERNAME}/.ssh" && \
+                run chmod 700 "/home/${LEMPER_USERNAME}/.ssh"
             fi
 
             if [ ! -f "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" ]; then
-                run touch "/home/${LEMPER_USERNAME}/.ssh/authorized_keys"
+                run touch "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" && \
+                run chmod 600 "/home/${LEMPER_USERNAME}/.ssh/authorized_keys"
             fi
 
             # Create authorized_keys file and copy your public key here.
@@ -91,7 +92,7 @@ EOL
                 fi
             fi
 
-            # Enable key authentication.
+            # Enable RSA key authentication.
             if grep -qwE "^RSAAuthentication\ no" /etc/ssh/sshd_config; then
                 run sed -i "s/^RSAAuthentication\ no/RSAAuthentication\ yes/g" /etc/ssh/sshd_config
             else
@@ -99,6 +100,7 @@ EOL
                 run bash -c "echo 'RSAAuthentication yes' >> /etc/ssh/sshd_config"
             fi
 
+            # Enable pub key authentication.
             if grep -qwE "^PubkeyAuthentication\ no" /etc/ssh/sshd_config; then
                 run sed -i "s/^PubkeyAuthentication\ no/PubkeyAuthentication\ yes/g" /etc/ssh/sshd_config
             else
@@ -156,7 +158,7 @@ EOL
     fi
 
     # Restart SSH service after LEMPer installation completed.
-    #run service sshd restart
+    run service sshd restart
 }
 
 ##
@@ -178,7 +180,7 @@ function install_ufw() {
     fi
 
     # Install UFW
-    run apt install -qq -y ufw
+    run apt-get install -qq -y ufw
 
     if [[ -n $(command -v ufw) ]]; then
         echo "Configuring UFW firewall rules..."
@@ -263,13 +265,13 @@ function install_csf() {
     if [[ -n $(command -v cpan) ]]; then
         run cpan -i "LWP LWP::Protocol::https GD::Graph IO::Socket::INET6"
     else
-        run apt install -qq -y libwww-perl liblwp-protocol-https-perl \
+        run apt-get install -qq -y libwww-perl liblwp-protocol-https-perl \
             libgd-graph-perl libio-socket-inet6-perl
     fi
 
     local CURRENT_DIR && \
     CURRENT_DIR=$(pwd)
-    run cd "${BUILD_DIR}"
+    run cd "${BUILD_DIR}" || return 1
 
     echo "Installing CSF+LFD firewall..."
     if curl -sLI https://download.configserver.com/csf.tgz | grep -q "HTTP/[.12]* [2].."; then
@@ -277,7 +279,7 @@ function install_csf() {
         run tar -xzf csf.tgz && \
         run cd csf/ && \
         run sh install.sh && \
-        run cd ../
+        run cd ../ || return 1
 
         if [ -f /usr/local/csf/bin/csftest.pl ]; then
             run perl /usr/local/csf/bin/csftest.pl
@@ -325,7 +327,7 @@ function install_csf() {
 
     # Clean up installation files.
     run rm -fr csf/
-    run cd "${CURRENT_DIR}"
+    run cd "${CURRENT_DIR}" || return 1
 
     if "${DRYRUN}"; then
         info "CSF+LFD firewall installed in dryrun mode."
@@ -369,7 +371,7 @@ function install_apf() {
 
     local CURRENT_DIR && \
     CURRENT_DIR=$(pwd)
-    run cd "${BUILD_DIR}"
+    run cd "${BUILD_DIR}" || return 1
 
     echo "Installing APF+BFD firewall..."
     if curl -sLI "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
@@ -378,7 +380,7 @@ function install_apf() {
         run tar -xf "${APF_VERSION}.tar.gz" && \
         run cd advanced-policy-firewall-*/ && \
         run bash install.sh && \
-        run cd ../
+        run cd ../ || return 1
     fi
 
     if [ -f /etc/apf/conf.apf ]; then
@@ -399,7 +401,7 @@ function install_apf() {
 
     # Clean up installation files.
     run rm -fr advanced-policy-firewall-*/
-    run cd "${CURRENT_DIR}"
+    run cd "${CURRENT_DIR}" || return 1
 
     if "${DRYRUN}"; then
         info "APF+BFD firewall installed in dryrun mode."
@@ -429,7 +431,7 @@ function remove_ufw() {
 
         echo "Removing UFW iptables firewall..."
 
-        run apt remove -qq -y ufw
+        run apt-get remove -qq -y ufw
     fi
 }
 
@@ -487,7 +489,7 @@ Any other iptables based firewall will be removed otherwise they will conflict."
 
         if "${AUTO_INSTALL}"; then
             # Set default Iptables-based firewall configutor engine.
-            SELECTED_FW=${FW_ENGINE:-"ufw"}
+            SELECTED_FW_CONFIGURATOR=${FW_CONFIGURATOR:-"ufw"}
         else
             # Menu Install FW
             echo ""
@@ -498,10 +500,10 @@ Any other iptables based firewall will be removed otherwise they will conflict."
             echo "  3). Advanced Policy Firewall (apf)"
             echo "------------------------------------------------"
 
-            while [[ ${SELECTED_FW} != "1" && ${SELECTED_FW} != "2" \
-                    && ${SELECTED_FW} != "3" && ${SELECTED_FW} != "ufw" \
-                    && ${SELECTED_FW} != "csf" && ${SELECTED_FW} != "apf" ]]; do
-                read -rp "Select an option [1-3]: " -i "${FW_ENGINE}" -e SELECTED_FW
+            while [[ ${SELECTED_FW_CONFIGURATOR} != "1" && ${SELECTED_FW_CONFIGURATOR} != "2" \
+                    && ${SELECTED_FW_CONFIGURATOR} != "3" && ${SELECTED_FW_CONFIGURATOR} != "ufw" \
+                    && ${SELECTED_FW_CONFIGURATOR} != "csf" && ${SELECTED_FW_CONFIGURATOR} != "apf" ]]; do
+                read -rp "Select an option [1-3]: " -i "${FW_CONFIGURATOR}" -e SELECTED_FW_CONFIGURATOR
             done
 
             echo ""
@@ -510,10 +512,10 @@ Any other iptables based firewall will be removed otherwise they will conflict."
         # Ensure that iptables installed.
         if [[ -z $(command -v iptables) ]]; then
             echo "Iptables is required, trying to install it first..."
-            run apt install -qq -y iptables
+            run apt-get install -qq -y iptables
         fi
 
-        case "${SELECTED_FW}" in
+        case "${SELECTED_FW_CONFIGURATOR}" in
             apf)
                 install_apf "${SSH_PORT}"
             ;;

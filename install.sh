@@ -32,7 +32,7 @@ BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
 
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
-    . scripts/helper.sh
+    . ./scripts/helper.sh
 fi
 
 # Make sure only root can run this installer script.
@@ -81,7 +81,8 @@ fi
 
 ### Create default account ###
 echo ""
-create_account "${LEMPER_USERNAME}"
+USERNAME=${LEMPER_USERNAME:-"lemper"}
+create_account "${USERNAME}"
 
 ### Certbot Let's Encrypt SSL installation ###
 if [ -f scripts/install_certbotle.sh ]; then
@@ -172,7 +173,7 @@ fi
 if "${FORCE_REMOVE}"; then
     # Cleaning up all build dependencies hanging around on production server?
     echo -e "\nClean up installation process..."
-    run apt autoremove -qq -y
+    run apt-get autoremove -qq -y
 
     # Cleanup build dir
     echo "Clean up build directory..."
@@ -201,7 +202,7 @@ LEMPer stack admin account:
 Database administration (Adminer):
     http://${SERVER_IP}:8082/lcp/dbadmin/
 
-    Database root password: ${MYSQL_ROOT_PASS}
+    Database root password: ${MYSQL_ROOT_PASSWORD}
 
     Mariabackup user information:
     DB Username: ${MARIABACKUP_USER}

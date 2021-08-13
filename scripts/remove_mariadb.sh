@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -53,12 +52,12 @@ function init_mariadb_removal() {
         echo "Found MariaDB package installation, removing..."
 
         # Remove MariaDB server.
-        run apt remove --purge -qq -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
+        run apt-get remove --purge -qq -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
             "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
             "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
 
         # shellcheck disable=SC2046
-        #run apt remove --purge -qq -y $(dpkg-query -l | awk '/mariadb/ { print $2 }')
+        #run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/mariadb/ { print $2 }')
 
         # Remove config.
         mariadb_remove_conf
@@ -72,10 +71,10 @@ function init_mariadb_removal() {
         echo "Found MySQL package installation, removing..."
 
         # Remove MySQL server.
-        run apt remove --purge -qq -y mysql-client mysql-common mysql-server
+        run apt-get remove --purge -qq -y mysql-client mysql-common mysql-server
         
         # shellcheck disable=SC2046
-        #run apt remove --purge -qq -y $(dpkg-query -l | awk '/mysql/ { print $2 }' | grep -wE "^mysql")
+        #run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/mysql/ { print $2 }' | grep -wE "^mysql")
 
         # Remove config.
         mariadb_remove_conf

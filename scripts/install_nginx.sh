@@ -9,9 +9,8 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
-    . "${BASEDIR}/helper.sh"
+    # shellcheck disable=SC1091
+    source "${BASEDIR}/helper.sh"
 fi
 
 # Define scripts directory.
@@ -46,7 +45,7 @@ function add_nginx_repo() {
                 run touch "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb https://packages.sury.org/${NGINX_REPO}/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
-                run apt update -qq -y
+                run apt-get update -qq -y
             else
                 info "${NGINX_REPO} repository already exists."
             fi
@@ -58,7 +57,7 @@ function add_nginx_repo() {
             #run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
             run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}"
-            run apt update -qq -y
+            run apt-get update -qq -y
 
             NGINX_PKG="nginx-extras"
         ;;
@@ -108,7 +107,7 @@ function init_nginx_install() {
 
                 echo "Installing Nginx from package repository..."
 
-                if hash apt 2>/dev/null; then
+                if hash apt-get 2>/dev/null; then
                     if [[ -n "${NGINX_PKG}" ]]; then
                         local EXTRA_MODULE_PKGS=()
 
@@ -200,6 +199,7 @@ function init_nginx_install() {
                             fi
 
                             # NJS is a subset of the JavaScript language that allows extending nginx functionality.
+                            # shellcheck disable=SC2153
                             if "${NGX_HTTP_JS}"; then
                                 echo "Adding ngx-http-js module..."
                                 #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-js")
@@ -273,7 +273,7 @@ function init_nginx_install() {
                         fi
 
                         # shellcheck disable=SC2068
-                        run apt install -qq -y "${NGINX_PKG}" ${EXTRA_MODULE_PKGS[@]}
+                        run apt-get install -qq -y "${NGINX_PKG}" ${EXTRA_MODULE_PKGS[@]}
                     fi
                 else
                     fail "Unable to install Nginx, this GNU/Linux distribution is not supported."
@@ -349,7 +349,8 @@ function init_nginx_install() {
 
                     local CURRENT_DIR && \
                     CURRENT_DIR=$(pwd)
-                    run cd "${BUILD_DIR}"
+
+                    run cd "${BUILD_DIR}" && \
 
                     # Build with custom OpenSSL.
                     if "${NGINX_WITH_CUSTOMSSL}"; then
@@ -412,8 +413,8 @@ function init_nginx_install() {
                                     ;;
                                     ubuntu)
                                         run add-apt-repository -y ppa:longsleep/golang-backports && \
-                                        run apt update -qq -y && \
-                                        run apt install -qq -y golang-go
+                                        run apt-get update -qq -y && \
+                                        run apt-get install -qq -y golang-go
                                     ;;
                                     *)
                                         fail "Unsupported distribution."
@@ -433,8 +434,7 @@ function init_nginx_install() {
                                 run wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${BORINGSSL_DOWNLOAD_URL}" && \
                                 run mkdir -p "${NGINX_CUSTOMSSL_VERSION}" && \
                                 run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz" -C "${NGINX_CUSTOMSSL_VERSION}" && \
-                                #run rm -f "${NGINX_CUSTOMSSL_VERSION}.tar.gz" && \
-                                run cd "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}"
+                                run cd "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" && \
 
                                 # Make an .openssl directory for nginx and then symlink BoringSSL's include directory tree.
                                 run mkdir -p build .openssl/lib .openssl/include && \
@@ -498,7 +498,7 @@ function init_nginx_install() {
                             run mkdir -p "${EXTRA_MODULE_DIR}"
                         fi
 
-                        run cd "${EXTRA_MODULE_DIR}"
+                        run cd "${EXTRA_MODULE_DIR}" || return 1
 
                         # Auth PAM module.
                         if "${NGX_HTTP_AUTH_PAM}"; then
@@ -516,8 +516,8 @@ function init_nginx_install() {
 
                             # Requires libpam-dev
                             echo "Building Auth PAM module requires libpam-dev package, install now..."
-                            if hash apt 2>/dev/null; then
-                                run apt install -qq -y libpam-dev
+                            if hash apt-get 2>/dev/null; then
+                                run apt-get install -qq -y libpam-dev
                             fi
                         fi
 
@@ -529,7 +529,7 @@ function init_nginx_install() {
                             run cd ngx_brotli && \
                             run git checkout master -q && \
                             run git submodule update --init -q && \
-                            run cd ../
+                            run cd ../ && \
 
                             if "${NGINX_DYNAMIC_MODULE}"; then
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
@@ -631,18 +631,18 @@ function init_nginx_install() {
                             # install libmaxminddb
                             echo "GeoIP2 module requires MaxMind GeoIP2 library, install now..."
 
-                            run cd "${BUILD_DIR}"
+                            run cd "${BUILD_DIR}" && \
 
                             DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
 
                             if [[ "${DISTRIB_NAME}" == "ubuntu" ]]; then
-                                run add-apt-repository -y ppa:maxmind/ppa
-                                run apt update -qq -y && \
-                                run apt install -qq -y libmaxminddb0 libmaxminddb-dev mmdb-bin
+                                run add-apt-repository -y ppa:maxmind/ppa && \
+                                run apt-get update -qq -y && \
+                                run apt-get install -qq -y libmaxminddb0 libmaxminddb-dev mmdb-bin
                             else
                                 if [ ! -d libmaxminddb ]; then
                                     run git clone -q --recursive https://github.com/maxmind/libmaxminddb.git && \
-                                    run cd libmaxminddb
+                                    run cd libmaxminddb || return 1
                                 else
                                     run cd libmaxminddb && \
                                     run git pull -q
@@ -654,13 +654,13 @@ function init_nginx_install() {
                                 run make install && \
                                 run bash -c "echo /usr/local/lib  >> /etc/ld.so.conf.d/local.conf" && \
                                 run ldconfig && \
-                                run cd ../
+                                run cd ../ || return 1
                             fi
 
                             echo "Downloading MaxMind GeoIP2-GeoLite2 database..."
 
                             run mkdir -p geoip-db && \
-                            run cd geoip-db || exit 1
+                            run cd geoip-db && \
                             run mkdir -p /opt/geoip
 
                             # Download MaxMind GeoLite2 database.
@@ -671,7 +671,7 @@ function init_nginx_install() {
                                 run tar -xf GeoLite2-Country.tar.gz && \
                                 run cd GeoLite2-Country_*/ && \
                                 run mv GeoLite2-Country.mmdb /opt/geoip/ && \
-                                run cd ../
+                                run cd ../ || return 1
                             fi
 
                             GEOLITE2_CITY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
@@ -681,10 +681,9 @@ function init_nginx_install() {
                                 run tar -xf GeoLite2-City.tar.gz && \
                                 run cd GeoLite2-City_*/ && \
                                 run mv GeoLite2-City.mmdb /opt/geoip/
-                                run cd ../
                             fi
 
-                            run cd "${EXTRA_MODULE_DIR}"
+                            run cd "${EXTRA_MODULE_DIR}" && \
 
                             if [[ -f /opt/geoip/GeoLite2-City.mmdb && -f /opt/geoip/GeoLite2-Country.mmdb ]]; then
                                 success "MaxMind GeoIP2-GeoLite2 database successfully installed."
@@ -731,11 +730,11 @@ function init_nginx_install() {
                             # Requires luajit lib
                             echo "Lua module requires LuaJIT 2.1 library, installing now..."
 
-                            run cd "${BUILD_DIR}"
+                            run cd "${BUILD_DIR}" || return 1
 
                             if [ ! -d luajit2 ]; then
                                 run git clone -q https://github.com/openresty/luajit2.git && \
-                                run cd luajit2
+                                run cd luajit2 || return 1
                             else
                                 run cd luajit2 && \
                                 run git pull -q
@@ -743,7 +742,8 @@ function init_nginx_install() {
 
                             run make -j"${NB_PROC}" && \
                             run make install
-                            run cd "${EXTRA_MODULE_DIR}"
+
+                            run cd "${EXTRA_MODULE_DIR}" || return 1
 
                             echo "Configuring Lua Nginx Module..."
 
@@ -873,7 +873,7 @@ function init_nginx_install() {
 
                             run cd nginx-upstream-fair && \
                             run patch -p1 < "${EXTRA_MODULE_DIR}/tengine-patches/nginx-upstream-fair/upstream-fair-upstream-check.patch"
-                            run cd "${EXTRA_MODULE_DIR}"
+                            run cd "${EXTRA_MODULE_DIR}" && \
 
                             if "${NGINX_DYNAMIC_MODULE}"; then
                                 # Dynamic module not supported yet (testing lemper branch)
@@ -980,7 +980,7 @@ function init_nginx_install() {
                         fi
                     fi
 
-                    run cd "${CURRENT_DIR}"
+                    run cd "${CURRENT_DIR}" && \
 
                     # Build nginx from source installer.
                     echo -e "\nBuilding Nginx from source..."
@@ -1478,7 +1478,7 @@ function init_nginx_install() {
         run sed -i "s/#allow\ SERVER_IP/allow\ ${SERVER_IP}/g" /etc/nginx/includes/rules_fastcgi_cache.conf
 
         # Generate Diffie-Hellman parameters.
-        local DH_LENGTH=${HASH_LENGTH:-2048}
+        local DH_LENGTH=${KEY_HASH_LENGTH:-2048}
         if [ ! -f "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" ]; then
             echo "Enhancing HTTPS/SSL security with DH key..."
 

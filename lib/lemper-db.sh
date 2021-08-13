@@ -340,9 +340,9 @@ _EOF_
         fi
 
         #if [ -d "/var/lib/mysql/${DBNAME}" ]; then
-        if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+        if mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
             echo "Grants database '${DBNAME}' privileges to '${DBUSER}'@'${DBHOST}'"
-            run mysql -u root -p"${MYSQL_ROOT_PASS}" -e "GRANT ${DBPRIVILEGES} ON ${DBNAME}.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
+            run mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "GRANT ${DBPRIVILEGES} ON ${DBNAME}.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
         else
             error "Specified database '${DBNAME}' does not exist."
             exit 1
@@ -356,15 +356,15 @@ _EOF_
             DBPASS=${DBPASS:-"$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"}
 
             # Create database account.
-            if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
+            if mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
                 error "MySQL account ${DBUSER} is already exist. Please use another one!"
                 exit 1
             else
                 echo "Creating new MySQL account '${DBUSER}'@'${DBHOST}' using password ${DBPASS}..."
 
-                run mysql -u root -p"${MYSQL_ROOT_PASS}" -e "CREATE USER '${DBUSER}'@'${DBHOST}' IDENTIFIED BY '${DBPASS}';"
+                run mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "CREATE USER '${DBUSER}'@'${DBHOST}' IDENTIFIED BY '${DBPASS}';"
 
-                if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
+                if mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
                     success "MySQL account ${DBUSER} has been created."
                     [[ ${VERBOSE} == true ]] && echo -e "Below the account details:\nUsername: ${DBUSER}\nPassword: ${DBPASS}\nHost: ${DBHOST}"
                 fi
@@ -390,7 +390,7 @@ _EOF_
             local SQL_QUERY="DROP USER '${DBUSER}'@'${DBHOST}';"
 
             if ! ${DRYRUN}; then
-                if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "${SQL_QUERY}"; then
+                if mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"; then
                     success "The database's account '${DBUSER}'@'${DBHOST}' has been deleted."
                 else
                     error "Unable to delete database account '${DBUSER}'@'${DBHOST}'."
@@ -419,7 +419,7 @@ _EOF_
         local SQL_QUERY="UPDATE mysql.user SET Password=PASSWORD('${DBPASS2}') WHERE USER='${DBUSER}' AND Host='${DBHOST}';"
 
         if ! ${DRYRUN}; then
-            if mysql -u root -p"${MYSQL_ROOT_PASS}" -e "${SQL_QUERY}"; then
+            if mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"; then
                 success "Password for account '${DBUSER}'@'${DBHOST}' has been updated to '${DBPASS2}'."
             else
                 error "Unable to update password for '${DBUSER}'@'${DBHOST}'."
@@ -434,7 +434,7 @@ _EOF_
     function cmd_account_rename() {
         DBHOST2=${DBHOST2:-"${DBHOST}"}
         DBUSER2=${DBUSER2:-""}
-        DBROOT_PASS=${DBROOTPASS:-"${MYSQL_ROOT_PASS}"}
+        DBROOT_PASS=${DBROOTPASS:-"${MYSQL_ROOT_PASSWORD}"}
 
         if [ -z "${DBUSER}" ]; then
             fail "Please specify the account's username using --dbuser parameter."
@@ -469,7 +469,7 @@ _EOF_
     function cmd_account_users() {
         DBUSER=${DBUSER:-"root"}
         DBPASS=${DBPASS:-""}
-        [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
+        [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
                 
         echo "List all existing database users."
 
@@ -665,7 +665,7 @@ function db_ops() {
             "create")
                 DBUSER=${DBUSER:-"root"}
                 DBPASS=${DBPASS:-""}
-                [[ -z "${DBPASS}" || ${USEROOT} == true ]] && DBPASS="${MYSQL_ROOT_PASS}"
+                [[ -z "${DBPASS}" || ${USEROOT} == true ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
 
                 DBNAME=${DBNAME:-"${LEMPER_USERNAME}_db$(openssl rand -base64 32 | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)"}
 
@@ -695,7 +695,7 @@ function db_ops() {
                 local DATABASES
 
                 if [[ -z "${DBPASS}" || ${USEROOT} == true ]]; then
-                    [[ -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
+                    [[ -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
                     DATABASES=$(mysql -u root -p"${DBPASS}" -h "${DBHOST}" -P "${DBPORT}" -e "SELECT Db,Host FROM mysql.db WHERE User='${DBUSER}' AND Grant_priv='Y';")
                 else
                     DATABASES=$(mysql -u "${DBUSER}" -p"${DBPASS}" -h "${DBHOST}" -P "${DBPORT}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
@@ -735,7 +735,7 @@ function db_ops() {
                 fi
 
                 DBUSER=${DBUSER:-"root"}
-                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
+                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
 
                 #if [ -d "/var/lib/mysql/${DBNAME}" ]; then
                 if mysql -u root -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
@@ -761,7 +761,7 @@ function db_ops() {
                 fi
 
                 DBUSER=${DBUSER:-"root"}
-                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
+                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
 
                 DBFILE=${DBFILE:-"${DBNAME}_$(date '+%d-%m-%Y_%T').sql"}
 
@@ -787,7 +787,7 @@ function db_ops() {
                 fi
 
                 DBUSER=${DBUSER:-"root"}
-                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
+                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
 
                 # Import database tables.
                 if [[ -n "${DBFILE}" && -e "${DBFILE}" ]]; then
@@ -811,7 +811,7 @@ function db_ops() {
                 fi
 
                 DBUSER=${DBUSER:-"root"}
-                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASS}"
+                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
 
                 echo "Executes a SQL query against the database."
 

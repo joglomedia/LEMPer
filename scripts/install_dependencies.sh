@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -18,19 +17,23 @@ fi
 requires_root
 
 # Make sure only apt-based Linux distribution can run this installer script.
-if hash apt 2>/dev/null; then
+if hash apt-get 2>/dev/null; then
     # Update locale
-    run locale-gen en_US.UTF-8 && \
-    run dpkg-reconfigure locales
+    run locale-gen --purge en_US.UTF-8 id_ID.UTF-8
+
+    # Attended locales reconfiguration causing Terraform provisioning stuck.
+    if ! "${AUTO_INSTALL}"; then
+        run dpkg-reconfigure locales
+    fi
 
     # Update repositories.
     echo -e "\nUpdating repository, please wait..."
-    run apt update -qq -y && \
-    run apt upgrade -qq -y
+    run apt-get update -qq -y && \
+    run apt-get upgrade -qq -y
 
     # Install dependencies.
     echo -e "\nInstalling pre-requisites/dependencies package..."
-    run apt install -qq -y \
+    run apt-get install -qq -y \
         apt-transport-https apt-utils apache2-utils autoconf automake bash build-essential \
         ca-certificates cmake cron curl dmidecode dnsutils gcc geoip-bin geoip-database git \
         gnupg2 htop iptables libc6-dev libcurl4-openssl-dev libgd-dev libgeoip-dev libssl-dev \

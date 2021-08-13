@@ -9,8 +9,7 @@
 # Include helper functions.
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellchechk source=scripts/helper.sh
-    # shellcheck disable=SC1090
+    # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
 fi
 
@@ -49,8 +48,8 @@ function init_fail2ban_install() {
             1|"repo")
                 echo "Installing Fail2ban from repository..."
 
-                if hash apt 2>/dev/null; then
-                    run apt install -qq -y fail2ban sendmail
+                if hash apt-get 2>/dev/null; then
+                    run apt-get install -qq -y fail2ban sendmail
                 else
                     fail "Unable to install Fail2ban, this GNU/Linux distribution is not supported."
                 fi
@@ -59,7 +58,7 @@ function init_fail2ban_install() {
                 FAIL2BAN_VERSION=${FAIL2BAN_VERSION:-"0.10.5"}
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
-                run cd "${BUILD_DIR}"
+                run cd "${BUILD_DIR}" || return 1
 
                 # Install from source
                 # https://github.com/fail2ban/fail2ban
@@ -74,7 +73,7 @@ function init_fail2ban_install() {
                     run update-rc.d fail2ban defaults
                 fi
 
-                run cd "${CURRENT_DIR}"
+                run cd "${CURRENT_DIR}" || return 1
             ;;
         esac
 

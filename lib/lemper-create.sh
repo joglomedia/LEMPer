@@ -100,12 +100,18 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # Check pre-requisite packages.
-if [[ ! -f $(command -v unzip) || ! -f $(command -v git) || ! -f $(command -v rsync) ]]; then
-    error "${APP_NAME^} requires git, rsync, unzip, wget, please install it first!"
-    echo "help: sudo apt install git rsync unzip wget"
+REQUIRED_PACKAGES=("curl" "git" "rsync" "unzip" "wget")
+for CMD in "${REQUIRED_PACKAGES[@]}"; do
+    if ! [[ -x "$(command -v "${CMD}")" ]]; then
+        NO_PACKAGES+=("${CMD}")
+    fi
+done
+if [[ ${#NO_PACKAGES[@]} -gt 0 ]]; then
+    printf -v NO_PACKAGES_STR '%s, ' "${NO_PACKAGES[@]}"
+    error "${APP_NAME^} requires: ${NO_PACKAGES_STR%, }, please install it first!"
+    echo "help: run 'sudo apt-get install ${NO_PACKAGES[*]}'"
     exit 1
 fi
-
 
 ##
 # Main Functions
