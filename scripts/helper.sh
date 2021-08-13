@@ -343,6 +343,7 @@ function get_release_name() {
         case ${DISTRIB_NAME} in
             debian)
                 RELEASE_NAME=${VERSION_CODENAME:-"unsupported"}
+
                 # TODO for Debian install
                 case ${MAJOR_RELEASE_VERSION} in
                     8)
@@ -353,6 +354,9 @@ function get_release_name() {
                     ;;
                     10)
                         RELEASE_NAME="buster"
+                    ;;
+                    11)
+                        RELEASE_NAME="bullseye"
                     ;;
                     *)
                         RELEASE_NAME="unsupported"
@@ -381,6 +385,7 @@ function get_release_name() {
                     "21.04")
                         # Ubuntu release 21.04
                         RELEASE_NAME=${UBUNTU_CODENAME:-"hirsuite"}
+                    ;;
                     *)
                         RELEASE_NAME="unsupported"
                     ;;
