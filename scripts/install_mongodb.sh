@@ -24,7 +24,7 @@ function add_mongodb_repo() {
     RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
     MONGODB_VERSION=${MONGODB_VERSION:-"5.0"}
 
-    [ "${RELEASE_NAME}" == "jessie" ] && MONGODB_VERSION="4.4"
+    [[ "${RELEASE_NAME}" == "jessie" || "${RELEASE_NAME}" == "xenial" ]] && MONGODB_VERSION="4.4"
 
     local DISTRIB_ARCH
     case ${ARCH} in
@@ -44,17 +44,6 @@ function add_mongodb_repo() {
 
     case ${DISTRIB_NAME} in
         debian)
-            #case ${RELEASE_NAME} in
-            #    "buster")
-            #        MONGODB_VERSION="4.2" # Only v4.2 supported for Buster
-            #    ;;
-            #    "jessie")
-            #        if version_older_than "4.1" "${MONGODB_VERSION}"; then
-            #            MONGODB_VERSION="4.1"
-            #        fi
-            #    ;;
-            #esac
-
             if [ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" ]; then
                 run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/debian ${RELEASE_NAME}/mongodb-org/${MONGODB_VERSION} main' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
