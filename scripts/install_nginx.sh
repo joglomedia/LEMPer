@@ -10,7 +10,7 @@
 if [ "$(type -t run)" != "function" ]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    source "${BASEDIR}/helper.sh"
+    . "${BASEDIR}/helper.sh"
 fi
 
 # Define scripts directory.
@@ -38,6 +38,9 @@ function add_nginx_repo() {
 
     DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
     RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
+
+    local ALTERNATIVE_REPO=false
+    [[ "${RELEASE_NAME}" == "jessie" || "${RELEASE_NAME}" == "xenial" ]] && ALTERNATIVE_REPO=true
 
     case "${DISTRIB_NAME}" in
         debian)
@@ -272,8 +275,8 @@ function init_nginx_install() {
                             fi
                         fi
 
-                        # shellcheck disable=SC2068
-                        run apt-get install -qq -y "${NGINX_PKG}" ${EXTRA_MODULE_PKGS[@]}
+                        # Install Nginx and its modules.
+                        run apt-get install -qq -y "${NGINX_PKGS[@]}" "${EXTRA_MODULE_PKGS[@]}"
                     fi
                 else
                     fail "Unable to install Nginx, this GNU/Linux distribution is not supported."
