@@ -16,6 +16,8 @@ fi
 # Make sure only root can run this installer script.
 requires_root
 
+echo "Installing required dependencies..."
+
 # Make sure only apt-based Linux distribution can run this installer script.
 if hash apt-get 2>/dev/null; then
     # Update locale
@@ -27,12 +29,12 @@ if hash apt-get 2>/dev/null; then
     fi
 
     # Update repositories.
-    echo -e "\nUpdating repository, please wait..."
+    echo "Updating repository, please wait..."
     run apt-get update -qq -y && \
     run apt-get upgrade -qq -y
 
     # Install dependencies.
-    echo -e "\nInstalling pre-requisites/dependencies package..."
+    echo "Installing packages, be patient..."
     run apt-get install -qq -y \
         apt-transport-https apt-utils apache2-utils autoconf automake bash build-essential \
         ca-certificates cmake cron curl dmidecode dnsutils gcc geoip-bin geoip-database git \
@@ -42,7 +44,7 @@ if hash apt-get 2>/dev/null; then
         sysstat tar tzdata unzip wget whois zlib1g-dev
 
     # Configure server clock.
-    echo -e "\nReconfigure server clock..."
+    echo "Reconfigure server clock..."
 
     # Reconfigure timezone.
     if [[ -n ${TIMEZONE} && ${TIMEZONE} != "none" ]]; then
