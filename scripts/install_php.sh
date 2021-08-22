@@ -612,7 +612,7 @@ function init_php_fpm_install() {
 
     # Install default PHP version used by LEMPer.
     if [[ -z $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
-        info -e "\nLEMPer requires PHP ${DEFAULT_PHP_VERSION} as default to run its administration tools."
+        info "LEMPer requires PHP ${DEFAULT_PHP_VERSION} as default to run its administration tool."
         echo "PHP ${DEFAULT_PHP_VERSION} now being installed..."
         install_php_fpm "${DEFAULT_PHP_VERSION}"
     fi
