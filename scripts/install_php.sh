@@ -31,10 +31,11 @@ function add_php_repo() {
                 run touch "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb https://packages.sury.org/php/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
                 run wget -qO /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
-                run apt-get update -qq -y
             else
                 info "PHP repository already exists."
             fi
+
+            run apt-get update -qq -y
         ;;
         ubuntu)
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
