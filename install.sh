@@ -6,7 +6,7 @@
 # | Min requirement   : GNU/Linux Debian 8, Ubuntu 16.04 or Linux Mint 17   |
 # | Last Update       : 18/07/2021                                          |
 # | Author            : MasEDI.Net (me@masedi.net)                          |
-# | Version           : 3.0.0                                               |
+# | Version           : 2.x.x                                               |
 # +-------------------------------------------------------------------------+
 # | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
@@ -55,6 +55,8 @@ if ! "${AUTO_INSTALL}"; then
     read -t 60 -rp "Press [Enter] to continue..." </dev/tty
 fi
 
+echo ""
+
 # Init log.
 run init_log
 
@@ -62,14 +64,14 @@ run init_log
 run init_config
 
 ### Install dependencies packages ###
-echo ""
-if [ -f scripts/install_dependencies.sh ]; then
+if [ -f ./scripts/install_dependencies.sh ]; then
+    echo ""
     . ./scripts/install_dependencies.sh
 fi
 
 ### Clean-up server ###
-echo ""
-if [ -f scripts/cleanup_server.sh ]; then
+if [ -f ./scripts/cleanup_server.sh ]; then
+    echo ""
     . ./scripts/cleanup_server.sh
 fi
 
@@ -80,91 +82,90 @@ if "${ENABLE_SWAP}"; then
 fi
 
 ### Create default account ###
-echo ""
 USERNAME=${LEMPER_USERNAME:-"lemper"}
 create_account "${USERNAME}"
 
 ### Certbot Let's Encrypt SSL installation ###
-if [ -f scripts/install_certbotle.sh ]; then
+if [ -f ./scripts/install_certbotle.sh ]; then
     echo ""
     . ./scripts/install_certbotle.sh
 fi
 
 ### Nginx installation ###
-if [ -f scripts/install_nginx.sh ]; then
+if [ -f ./scripts/install_nginx.sh ]; then
     echo ""
     . ./scripts/install_nginx.sh
 fi
 
 ### PHP installation ###
-if [ -f scripts/install_php.sh ]; then
+if [ -f ./scripts/install_php.sh ]; then
     echo ""
     DEFAULT_PHP_VERSION="7.4"
     . ./scripts/install_php.sh
 fi
 
 ### Phalcon PHP installation ###
-if [ -f scripts/install_phalcon.sh ]; then
+if [ -f ./scripts/install_phalcon.sh ]; then
     echo ""
     . ./scripts/install_phalcon.sh
 fi
 
 ### Phalcon PHP installation ###
-if [ -f scripts/install_phploader.sh ]; then
+if [ -f ./scripts/install_phploader.sh ]; then
     echo ""
     . ./scripts/install_phploader.sh
 fi
 
 ### Imagick installation ###
-if [ -f scripts/install_imagemagick.sh ]; then
+if [ -f ./scripts/install_imagemagick.sh ]; then
     echo ""
     . ./scripts/install_imagemagick.sh
 fi
 
 ### Memcached installation ###
-if [ -f scripts/install_memcached.sh ]; then
+if [ -f ./scripts/install_memcached.sh ]; then
     echo ""
     . ./scripts/install_memcached.sh
 fi
 
 ### MySQL database installation ###
-if [ -f scripts/install_mariadb.sh ]; then
+if [ -f ./scripts/install_mariadb.sh ]; then
     echo ""
     . ./scripts/install_mariadb.sh
 fi
 
 ### Redis database installation ###
-if [ -f scripts/install_redis.sh ]; then
+if [ -f ./scripts/install_redis.sh ]; then
     echo ""
     . ./scripts/install_redis.sh
 fi
 
 ### MongoDB database installation ###
-if [ -f scripts/install_mongodb.sh ]; then
+if [ -f ./scripts/install_mongodb.sh ]; then
     echo ""
     . ./scripts/install_mongodb.sh
 fi
 
 ### Mail server installation ###
-if [ -f scripts/install_mailer.sh ]; then
+if [ -f ./scripts/install_mailer.sh ]; then
     echo ""
     . ./scripts/install_mailer.sh
 fi
 
 ### Addon-tools installation ###
-if [ -f scripts/install_tools.sh ]; then
+if [ -f ./scripts/install_tools.sh ]; then
     echo ""
     . ./scripts/install_tools.sh
 fi
 
 ### Fail2ban, intrusion prevention software framework. ###
-if [ -f scripts/install_fail2ban.sh ]; then
+if [ -f ./scripts/install_fail2ban.sh ]; then
     echo ""
     . ./scripts/install_fail2ban.sh
 fi
 
 ### Basic server security ###
-if [ -f scripts/secure_server.sh ]; then
+if [ -f ./scripts/secure_server.sh ]; then
     echo ""
     . ./scripts/secure_server.sh
 fi
