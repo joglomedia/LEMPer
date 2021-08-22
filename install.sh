@@ -100,7 +100,6 @@ fi
 ### PHP installation ###
 if [ -f ./scripts/install_php.sh ]; then
     echo ""
-    DEFAULT_PHP_VERSION="7.4"
     . ./scripts/install_php.sh
 fi
 
