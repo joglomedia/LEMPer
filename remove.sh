@@ -6,7 +6,7 @@
 # | Min requirement   : GNU/Linux Debian 8, Ubuntu 16.04 or Linux Mint 17   |
 # | Last Update       : 18/07/2021                                          |
 # | Author            : MasEDI.Net (me@masedi.net)                          |
-# | Version           : 3.0.0                                               |
+# | Version           : 2.x.x                                               |
 # +-------------------------------------------------------------------------+
 # | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
