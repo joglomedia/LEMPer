@@ -606,7 +606,7 @@ function init_php_fpm_install() {
         if [[ "${IS_PKG_AVAIL}" -gt 0 ]]; then
             install_php_fpm "${VERSION}"
         else
-            error "PHP ${VERSION} package is not available in your system."
+            error "PHP ${VERSION} package is not available on your operating system."
         fi
     done
 
