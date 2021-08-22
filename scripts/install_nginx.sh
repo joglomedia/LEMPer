@@ -1487,7 +1487,7 @@ function init_nginx_install() {
             echo "Enhancing HTTPS/SSL security with DH key..."
 
             [ ! -d /etc/nginx/ssl ] && mkdir -p /etc/nginx/ssl
-            run openssl dhparam -out "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" "${DH_LENGTH}"
+            run openssl dhparam -dsaparam -out "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" "${DH_LENGTH}"
         fi
 
         # Final test.
