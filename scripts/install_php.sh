@@ -67,9 +67,6 @@ function install_php_fpm() {
         PHP_IS_INSTALLED="yes"
         info "PHP ${PHPv} and it's extensions already exists, installation skipped."
     else
-        # Add Ondrej repository.
-        add_php_repo
-
         echo "Installing PHP ${PHPv} and requred extensions..."
 
         if hash apt-get 2>/dev/null; then
@@ -600,6 +597,9 @@ function init_php_fpm_install() {
     # Sort PHP versions.
     #shellcheck disable=SC2207
     SELECTED_PHP_VERSIONS=($(printf "%s\n" "${SELECTED_PHP_VERSIONS[@]}" | sort -u | tr '\n' ' '))
+
+    # Add Ondrej's PHP repository.
+    add_php_repo
 
     # Install all selected PHP versions.
     for VERSION in "${SELECTED_PHP_VERSIONS[@]}"; do
