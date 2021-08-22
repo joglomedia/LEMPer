@@ -27,7 +27,7 @@ echo "Cleaning up server..."
 
 # Fix broken install, first?
 if "${FIX_BROKEN}"; then
-    echo "Trying to fix broken packages"
+    echo "Trying to fix broken packages..."
     [ -f /var/lib/dpkg/lock ] && run rm /var/lib/dpkg/lock
     [ -f /var/lib/dpkg/lock-frontend ] && run rm /var/lib/dpkg/lock-frontend
     [ -f /var/cache/apt/archives/lock ] && run rm /var/cache/apt/archives/lock
@@ -129,7 +129,7 @@ echo -e "\nCleaning up unused packages..."
 run apt-get autoremove -qq -y
 
 if [[ -z $(command -v apache2) && -z $(command -v nginx) && -z $(command -v mysql) ]]; then
-    status -e "\nYour server cleaned up."
+    status "Your server cleaned up."
 else
-    warning -e "\nYour server cleaned up, but some installation not removed."
+    warning "Your server cleaned up, but some installation not removed."
 fi
