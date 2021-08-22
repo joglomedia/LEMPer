@@ -135,7 +135,7 @@ function init_php_fpm_removal() {
         REMOVED_PHP_VERSIONS+=("${OPT_PHP_VERSIONS[@]}")
     else
         # Manually select PHP version in interactive mode.
-        if ! "${AUTO_INSTALL}"; then
+        if ! "${AUTO_REMOVE}"; then
             echo "Which PHP version to be removed?"
             echo "Supported PHP versions:"
             echo "  1). PHP 5.6 (EOL)"
@@ -146,17 +146,18 @@ function init_php_fpm_removal() {
             echo "  6). PHP 7.4 (Stable)"
             echo "  7). PHP 8.0 (Latest Stable)"
             echo "  8). All available versions"
+            echo "  9). Do not remove!"
             echo "--------------------------------------------"
             [ -n "${DEFAULT_PHP_VERSION}" ] && \
             info "Default version is: ${DEFAULT_PHP_VERSION}"
 
             while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                     ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
-                    ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && \
+                    ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && ${SELECTED_PHP} != "9" && \
                     ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && ${SELECTED_PHP} != "7.1" && \
                     ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
-                    ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "all" ]]; do
-                read -rp "Enter a PHP version from an option above [1-8]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
+                    ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "none" && ${SELECTED_PHP} != "all" ]]; do
+                read -rp "Enter a PHP version from an option above [1-9]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
             done
 
             case ${SELECTED_PHP} in
@@ -184,6 +185,10 @@ function init_php_fpm_removal() {
                 8|"all")
                     # Select all PHP versions (except EOL & Beta).
                     REMOVED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0")
+                ;;
+                9|n*)
+                    info "No PHP version will be removed."
+                    return
                 ;;
                 *)
                     error "Your selected PHP version ${SELECTED_PHP} is not supported yet."
@@ -239,7 +244,7 @@ function init_php_fpm_removal() {
             fi
         fi
     else
-        error "Please select PHP version to be removed."
+        info "No PHP version removed."
     fi
 }
 

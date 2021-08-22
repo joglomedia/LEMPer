@@ -472,12 +472,11 @@ function remove_apf() {
 # Install IP-tables based firewall.
 #
 function install_firewall() {
-    echo ""
-    echo "IPtables-based Firewall Installation"
-    info "You should not run any other iptables firewall configuration script.
+    echo -e "\nIPtables-based Firewall Installation\n"
+    info "Do Not Run any other iptables firewall configuration script.
 Any other iptables based firewall will be removed otherwise they will conflict."
     echo ""
-    
+
     if "${AUTO_INSTALL}"; then
         DO_INSTALL_FW="y"
     fi

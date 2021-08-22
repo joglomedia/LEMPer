@@ -31,10 +31,11 @@ function add_php_repo() {
                 run touch "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb https://packages.sury.org/php/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
                 run wget -qO /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
-                run apt-get update -qq -y
             else
                 info "PHP repository already exists."
             fi
+
+            run apt-get update -qq -y
         ;;
         ubuntu)
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
@@ -66,9 +67,6 @@ function install_php_fpm() {
         PHP_IS_INSTALLED="yes"
         info "PHP ${PHPv} and it's extensions already exists, installation skipped."
     else
-        # Add Ondrej repository.
-        add_php_repo
-
         echo "Installing PHP ${PHPv} and requred extensions..."
 
         if hash apt-get 2>/dev/null; then
@@ -600,19 +598,22 @@ function init_php_fpm_install() {
     #shellcheck disable=SC2207
     SELECTED_PHP_VERSIONS=($(printf "%s\n" "${SELECTED_PHP_VERSIONS[@]}" | sort -u | tr '\n' ' '))
 
+    # Add Ondrej's PHP repository.
+    add_php_repo
+
     # Install all selected PHP versions.
     for VERSION in "${SELECTED_PHP_VERSIONS[@]}"; do
         IS_PKG_AVAIL=$(apt-cache search "php${VERSION}" | grep -c "${VERSION}")
         if [[ "${IS_PKG_AVAIL}" -gt 0 ]]; then
             install_php_fpm "${VERSION}"
         else
-            error "PHP ${VERSION} package is not available in your system."
+            error "PHP ${VERSION} package is not available on your operating system."
         fi
     done
 
     # Install default PHP version used by LEMPer.
     if [[ -z $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
-        info -e "\nLEMPer requires PHP ${DEFAULT_PHP_VERSION} as default to run its administration tools."
+        info "LEMPer requires PHP ${DEFAULT_PHP_VERSION} as default to run its administration tool."
         echo "PHP ${DEFAULT_PHP_VERSION} now being installed..."
         install_php_fpm "${DEFAULT_PHP_VERSION}"
     fi

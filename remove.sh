@@ -6,7 +6,7 @@
 # | Min requirement   : GNU/Linux Debian 8, Ubuntu 16.04 or Linux Mint 17   |
 # | Last Update       : 18/07/2021                                          |
 # | Author            : MasEDI.Net (me@masedi.net)                          |
-# | Version           : 3.0.0                                               |
+# | Version           : 2.x.x                                               |
 # +-------------------------------------------------------------------------+
 # | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
@@ -55,62 +55,65 @@ if ! "${AUTO_REMOVE}"; then
     read -rt 20 -p "Press [Enter] to continue..." </dev/tty
 fi
 
-# Fix broken install, first?
 echo ""
-run dpkg --configure -a
-run apt-get install -qq -y --fix-broken
+
+# Fix broken install, first?
+if "${FIX_BROKEN}"; then
+    run dpkg --configure -a
+    run apt-get install -qq -y --fix-broken
+fi
 
 ### Remove Nginx ###
-if [ -f scripts/remove_nginx.sh ]; then
+if [ -f ./scripts/remove_nginx.sh ]; then
     echo ""
     . ./scripts/remove_nginx.sh
 fi
 
 ### Remove PHP & FPM ###
-if [ -f scripts/remove_php.sh ]; then
+if [ -f ./scripts/remove_php.sh ]; then
     echo ""
     DEFAULT_PHP_VERSION="7.4"
     . ./scripts/remove_php.sh
 fi
 
 ### Remove MySQL ###
-if [ -f scripts/remove_mariadb.sh ]; then
+if [ -f ./scripts/remove_mariadb.sh ]; then
     echo ""
     . ./scripts/remove_mariadb.sh
 fi
 
 ### Remove PHP & FPM ###
-if [ -f scripts/remove_memcached.sh ]; then
+if [ -f ./scripts/remove_memcached.sh ]; then
     echo ""
     . ./scripts/remove_memcached.sh
 fi
 
 ### Remove Redis ###
-if [ -f scripts/remove_redis.sh ]; then
+if [ -f ./scripts/remove_redis.sh ]; then
     echo ""
     . ./scripts/remove_redis.sh
 fi
 
 ### Remove MongoDB ###
-if [ -f scripts/remove_mongodb.sh ]; then
+if [ -f ./scripts/remove_mongodb.sh ]; then
     echo ""
     . ./scripts/remove_mongodb.sh
 fi
 
 ### Remove Certbot ###
-if [ -f scripts/remove_certbotle.sh ]; then
+if [ -f ./scripts/remove_certbotle.sh ]; then
     echo ""
     . ./scripts/remove_certbotle.sh
 fi
 
 ### Remove Fail2ban ###
-if [ -f scripts/remove_fail2ban.sh ]; then
+if [ -f ./scripts/remove_fail2ban.sh ]; then
     echo ""
     . ./scripts/remove_fail2ban.sh
 fi
 
 ### Remove server security ###
-if [ -f scripts/secure_server.sh ]; then
+if [ -f ./scripts/secure_server.sh ]; then
     echo ""
     . ./scripts/secure_server.sh remove
 fi

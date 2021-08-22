@@ -302,6 +302,8 @@ function init_phalcon_install() {
         PHP_VERSION=${PHP_VERSION:-"7.3"}
     fi
 
+    # Check if PHP version DO_INSTALL_PHALCON="n".
+    DO_INSTALL_PHALCON="n"
 
     if "${AUTO_INSTALL}"; then
         if [[ -z "${PHP_PHALCON_INSTALLER}" || "${PHP_PHALCON_INSTALLER}" == "none" ]]; then
@@ -312,7 +314,7 @@ function init_phalcon_install() {
         fi
     else
         while [[ "${DO_INSTALL_PHALCON}" != "y" && "${DO_INSTALL_PHALCON}" != "n" ]]; do
-            read -rp "Do you want to install Phalcon PHP framework? [y/n]: " -e DO_INSTALL_PHALCON
+            read -rp "Do you want to install Phalcon PHP framework? [y/n]: " -i n -e DO_INSTALL_PHALCON
         done
     fi
 
