@@ -426,6 +426,12 @@ function preflight_system_check() {
     if [[ "${DISTRIB_NAME}" == "unsupported" || "${RELEASE_NAME}" == "unsupported" ]]; then
         fail "This Linux distribution isn't supported yet. If you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
     fi
+
+    # Create a temporary directory for the LEMPer installation.
+    BUILD_DIR=${BUILD_DIR:-"/tmp/lemper_build"}
+    if [ ! -d "${BUILD_DIR}" ]; then
+        run mkdir -p "${BUILD_DIR}"
+    fi
 }
 
 # Verify system pre-requisites configuration.
@@ -638,7 +644,7 @@ function delete_account() {
 
     if [[ -n $(getent passwd "${USERNAME}") ]]; then
         if pgrep -u "${USERNAME}" > /dev/null; then
-            error "User lemper is currently used by running processes."
+            error "Couldn't delete user currently used by running processes."
         else
             run userdel -r "${USERNAME}"
 
@@ -743,7 +749,7 @@ function footer_msg() {
     cat <<- _EOF_
 
 #==========================================================================#
-#         Thank's for installing LEMP stack using LEMPer Installer         #
+#            Thank's for installing LEMPer Stack using LEMPer              #
 #        Found any bugs/errors, or suggestions? please let me know         #
 #       If useful, don't forget to buy me a cup of coffee or milk :D       #
 #   My PayPal is always open for donation, here https://paypal.me/masedi   #
@@ -752,9 +758,3 @@ function footer_msg() {
 #==========================================================================#
 _EOF_
 }
-
-# Define LEMPer build directory.
-BUILD_DIR=${BUILD_DIR:-"/usr/local/src/lemper"}
-if [ ! -d "${BUILD_DIR}" ]; then
-    run mkdir -p "${BUILD_DIR}"
-fi
