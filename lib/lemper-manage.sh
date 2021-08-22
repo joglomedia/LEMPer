@@ -517,8 +517,8 @@ function enable_ssl() {
     if [ ! -f /etc/nginx/ssl/dhparam-2048.pem ]; then
         echo "Generating Diffie-Hellman parameters for enhanced HTTPS/SSL security."
 
-        run openssl dhparam -dsaparam -out /etc/nginx/ssl/dhparam-2048.pem 2048
-        #run openssl dhparam -dsaparam -out /etc/nginx/ssl/dhparam-4096.pem 4096
+        run openssl dhparam -out /etc/nginx/ssl/dhparam-2048.pem 2048
+        #run openssl dhparam -out /etc/nginx/ssl/dhparam-4096.pem 4096
     fi
 
     # Update vhost config.
