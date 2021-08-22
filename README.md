@@ -81,7 +81,7 @@ sudo lemper-cli create -u ${USER} -d example.test -f wordpress -w ${HOME}/webapp
 
 :warning: For local/development environment, in order to make the test domain (e.g. example.test) working as expected, you need to do a small workaround by modifying the `/etc/hosts` file. By adding the local domain name to the hosts file and assign it with local/private IP address.
 
-Since version 3.0.1 this workaround could be done via `lemper-cli` by passing `--ipv4` parameter and assign it with private IP address, as below:
+Since version 2.4.0 this workaround could be done via `lemper-cli` by passing `--ipv4` parameter and assign it with private IP address, as below:
 
 ```bash
 sudo lemper-cli create -u ${USER} -d example.test -f wordpress -w ${HOME}/webapps/example.test --ipv4=127.0.10.1 --install-app
