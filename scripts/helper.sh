@@ -288,7 +288,7 @@ function validate_nginx_config() {
 function validate_fqdn() {
     local FQDN=${1}
 
-    if grep -qP '(?=^.{1,254}$)(^(?>(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$)' <<< "${FQDN}"; then
+    if grep -qP "(?=^.{4,253}\.?$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)" <<< "${FQDN}"; then
         echo true # success
     else
         echo false # error
