@@ -1045,8 +1045,8 @@ function init_app() {
         if [[ -z "${SERVERNAME}" ]]; then
             fail -e "Domain name parameter shouldn't be empty.\n       -d or --domain-name parameter is required!"
         else
-            if ! grep -q -P '(?=^.{1,254}$)(^(?>(?!\d+\.)[a-zA-Z0-9_\-]{1,63}\.?)+(?:[a-zA-Z]{2,})$)' <<< "${SERVERNAME}"; then
-                fail -e "Domain name parameter must be an valid fully qualified domain name (FQDN)!"
+            if ! grep -q -P "(?=^.{4,253}\.?$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)" <<< "${SERVERNAME}"; then
+                fail -e "Domain name parameter must be a valid FQDN!"
             fi
         fi
 
