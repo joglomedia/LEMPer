@@ -2,12 +2,12 @@
 
 # LEMPer administration installer
 # Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 04/10/2019
+# Last Build        : 02/10/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
+if [[ "$(type -t run)" != "function" ]]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
@@ -15,6 +15,9 @@ fi
 
 # Make sure only root can run this installer script.
 requires_root
+
+# Make sure only supported distribution can run this installer script.
+preflight_system_check
 
 ##
 # Webadmin install.
@@ -55,6 +58,9 @@ function init_webadmin_install() {
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php71'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php72'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php73'
+    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php74'
+    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php80'
+    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php81'
 
     # Install Adminer for Web-based MySQL Administration Tool
     if [ ! -d /usr/share/nginx/html/lcp/dbadmin ]; then
@@ -74,13 +80,13 @@ function init_webadmin_install() {
         run git clone -q --depth=1 --branch=lemperfm_1.3.0 https://github.com/joglomedia/tinyfilemanager.git \
             /usr/share/nginx/html/lcp/filemanager
     else
-        local CUR_DIR && \
-        CUR_DIR=$(pwd)
+        local CURRENT_DIR && \
+        CURRENT_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/filemanager && \
         #run git pull -q
         run wget -q https://raw.githubusercontent.com/joglomedia/tinyfilemanager/lemperfm_1.3.0/index.php \
             -O /usr/share/nginx/html/lcp/filemanager/index.php && \
-        run cd "${CUR_DIR}" || return 1
+        run cd "${CURRENT_DIR}" || return 1
     fi
 
     # Copy TinyFileManager custom account creator.
@@ -98,11 +104,11 @@ function init_webadmin_install() {
         run git clone -q --depth=1 --branch=master \
             https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/lcp/memcadmin/
     else
-        local CUR_DIR && \
-        CUR_DIR=$(pwd)
+        local CURRENT_DIR && \
+        CURRENT_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/memcadmin && \
         run git pull -q && \
-        run cd "${CUR_DIR}" || return 1
+        run cd "${CURRENT_DIR}" || return 1
     fi
 
     # Configure phpMemcachedAdmin.
@@ -159,8 +165,8 @@ EOL
 
         COMPOSER_BIN=$(command -v composer)
 
-        local CUR_DIR && \
-        CUR_DIR=$(pwd)
+        local CURRENT_DIR && \
+        CURRENT_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp || return 1
 
         if [ ! -f redisadmin/includes/config.inc.php ]; then
@@ -169,7 +175,7 @@ EOL
             run "${COMPOSER_BIN}" -q update && \
             run cp includes/config.sample.inc.php includes/config.inc.php
 
-            if "${REDIS_REQUIREPASS}"; then
+            if "${REDIS_REQUIRE_PASSWORD}"; then
                 run sed -i "s|//'auth'\ =>\ 'redispasswordhere'|'auth'\ =>\ '${REDIS_PASSWORD}'|g" includes/config.inc.php
             fi
         else
@@ -177,7 +183,7 @@ EOL
             run "${COMPOSER_BIN}" -q update
         fi
 
-        run cd "${CUR_DIR}" || return 1
+        run cd "${CURRENT_DIR}" || return 1
     fi
 
     # Assign ownership properly.
