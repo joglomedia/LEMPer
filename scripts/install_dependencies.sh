@@ -2,7 +2,7 @@
 
 # Dependencies Installer
 # Min. Requirement  : GNU/Linux Ubuntu 16.04 & 16.04
-# Last Build        : 02/08/2019
+# Last Build        : 02/09/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -38,10 +38,10 @@ if hash apt-get 2>/dev/null; then
     run apt-get install -qq -y \
         apt-transport-https apt-utils apache2-utils autoconf automake bash build-essential \
         ca-certificates cmake cron curl dmidecode dnsutils gcc geoip-bin geoip-database git \
-        gnupg2 htop iptables libc6-dev libcurl4-openssl-dev libgd-dev libgeoip-dev libssl-dev \
-        libxml2-dev libpcre3-dev libtool libxslt1-dev lsb-release make openssh-server openssl \
-        pkg-config python python3 re2c rsync software-properties-common sasl2-bin snmp sudo \
-        sysstat tar tzdata unzip wget whois zlib1g-dev
+        gnupg2 htop iptables libc-bin libc6-dev libcurl4-openssl-dev libgd-dev libgeoip-dev \
+        libgpgme11-dev libssl-dev libxml2-dev libpcre3-dev libtool libxslt1-dev lsb-release \
+        make openssh-server openssl pkg-config python python3 re2c rsync software-properties-common \
+        sasl2-bin snmp sudo sysstat tar tzdata unzip wget whois zlib1g-dev
 
     # Configure server clock.
     echo "Reconfigure server clock..."
