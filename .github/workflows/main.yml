@@ -5,14 +5,14 @@ on:
       - '*'         # matches every branch that doesn't contain a '/'
       - '*/*'       # matches every branch containing a single '/'
       - '**'        # matches every branch
-#      - '!master'   # excludes master
+      #- '!master'   # excludes master
   pull_request:
     branches: 
       - master
   workflow_dispatch:
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       # Prepare testing environment
@@ -54,6 +54,7 @@ jobs:
           set -ex
           shellcheck -s bash -x install.sh
           shellcheck -s bash -x remove.sh
+          shellcheck -s bash -x bin/lemper-*.sh
           shellcheck -s bash -x lib/lemper-*.sh
           shellcheck -s bash -x scripts/cleanup_server.sh
           shellcheck -s bash -x scripts/helper.sh

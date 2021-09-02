@@ -47,20 +47,6 @@ testEqualityInstallCertbot()
     assertEquals "/usr/bin/certbot" "${certbot_bin}"
 }
 
-#
-#testEqualityGetNginxStableVersion()
-#{
-#    ngx_stable_version=$(determine_stable_nginx_version)
-#    assertEquals "${nginx_stable_version}" "${ngx_stable_version}"
-#}
-
-#testEqualityGetNginxLatestVersion()
-#{
-#    ngx_latest_version=$(determine_latest_nginx_version)
-#    assertEquals "${nginx_latest_version}" "${ngx_latest_version}"
-#}
-#
-
 testEqualityInstallNginx()
 {
     . scripts/install_nginx.sh
@@ -82,7 +68,7 @@ testTrueInstallPhpLoader()
     . scripts/install_phploader.sh
 
     ic=$(php7.4 -v | grep -c ionCube)
-    assertTrue "[ ${ic} -gt 0 ]"
+    assertTrue "[[ ${ic} -gt 0 ]]"
 
     #g=$(php7.4 -v | grep -c SourceGuardian)
     #assertTrue "[ ${sg} -gt 0 ]"
@@ -107,16 +93,27 @@ testEqualityInstallMySQL()
     assertEquals "/usr/sbin/mysqld" "${mysqld_bin}"
 }
 
-#testEqualityInstallMailer()
-#{
-#    . scripts/install_mailer.sh
+testEqualityInstallRedis()
+{
+    . scripts/install_redis.sh
 
-#    postfix_bin=$(command -v postfix)
-#    assertEquals "/usr/sbin/postfix" "${postfix_bin}"
+    rediscli_bin=$(command -v redis-cli)
+    assertEquals "/usr/bin/redis-cli" "${rediscli_bin}"
 
-#    dovecot_bin=$(command -v dovecot)
-#    assertEquals "/usr/sbin/dovecot" "${dovecot_bin}"
-#}
+    redisserver_bin=$(command -v redis-server)
+    assertEquals "/usr/bin/redis-server" "${redisserver_bin}"
+}
+
+testEqualityInstallMongoDB()
+{
+    . scripts/install_mongodb.sh
+
+    mongo_bin=$(command -v mongo)
+    assertEquals "/usr/bin/mongo" "${mongo_bin}"
+
+    mongod_bin=$(command -v mongod)
+    assertEquals "/usr/bin/mongod" "${mongod_bin}"
+}
 
 testEqualityInstallFail2ban()
 {
@@ -124,6 +121,18 @@ testEqualityInstallFail2ban()
 
     fail2ban_bin=$(command -v fail2ban-server)
     assertEquals "/usr/local/bin/fail2ban-server" "${fail2ban_bin}"
+}
+
+testEqualityInstallTools()
+{
+    . scripts/install_tools.sh
+    assertTrue "[[ -x /usr/local/bin/lemper-cli ]]"
+}
+
+testEqualityCreateNewVhost()
+{
+    sudo /usr/local/bin/lemper-cli create -d lemper.local -f wordpress -i
+    assertTrue "[[ -f /etc/nginx/sites-available/lemper.local.conf ]]"
 }
 
 # load shunit2
