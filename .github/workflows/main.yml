@@ -4,9 +4,11 @@ on:
     branches:
       - '2.x.x'
       - '3.x.x'
-      - '!master'   # excludes master
+      - 'master'
   pull_request:
     branches: 
+      - '2.x.x'
+      - '3.x.x'
       - 'master'
   workflow_dispatch:
 jobs:
