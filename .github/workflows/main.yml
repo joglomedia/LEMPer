@@ -2,13 +2,12 @@ name: lemper-stack
 on:
   push:
     branches:
-      - '*'         # matches every branch that doesn't contain a '/'
-      - '*/*'       # matches every branch containing a single '/'
-      - '**'        # matches every branch
-      #- '!master'   # excludes master
+      - '2.x.x'
+      - '3.x.x'
+      - '!master'   # excludes master
   pull_request:
     branches: 
-      - master
+      - 'master'
   workflow_dispatch:
 jobs:
   build:
