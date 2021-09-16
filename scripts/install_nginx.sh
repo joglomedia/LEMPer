@@ -7,7 +7,7 @@
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
+if [[ "$(type -t run)" != "function" ]]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
