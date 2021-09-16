@@ -97,7 +97,7 @@ function run() {
 }
 
 # May need to run this as sudo!
-if [ "$(id -u)" -ne 0 ]; then
+if [[ "$(id -u)" -ne 0 ]]; then
     error "This command can only be used by root."
     exit 1
 fi
