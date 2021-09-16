@@ -1348,14 +1348,12 @@ function init_nginx_install() {
                 fi
 
                 # Nginx systemd script.
-                if [ ! -f /lib/systemd/system/nginx.service ]; then
-                    run cp etc/systemd/nginx.service /lib/systemd/system/
-                fi
+                [ ! -f /lib/systemd/system/nginx.service ] && \
+                run cp etc/systemd/nginx.service /lib/systemd/system/
 
-                if [ ! -f /etc/systemd/system/multi-user.target.wants/nginx.service ]; then
-                    run ln -s /lib/systemd/system/nginx.service \
-                        /etc/systemd/system/multi-user.target.wants/nginx.service
-                fi
+                [ ! -f /etc/systemd/system/multi-user.target.wants/nginx.service ] && \
+                run ln -s /lib/systemd/system/nginx.service \
+                    /etc/systemd/system/multi-user.target.wants/nginx.service
 
                 # Try reloading daemon.
                 run systemctl daemon-reload
@@ -1374,73 +1372,51 @@ function init_nginx_install() {
 
         echo "Creating Nginx configuration..."
 
-        if [ ! -d /etc/nginx/sites-available ]; then
-            run mkdir -p /etc/nginx/sites-available
-        fi
+        # Create Nginx config dirs.
+        [ ! -d /etc/nginx/sites-available ] && run mkdir -p /etc/nginx/sites-available
+        [ ! -d /etc/nginx/sites-enabled ] && run mkdir -p /etc/nginx/sites-enabled
 
-        if [ ! -d /etc/nginx/sites-enabled ]; then
-            run mkdir -p /etc/nginx/sites-enabled
-        fi
-
-        # Copy custom Nginx Config.
-        if [ -f /etc/nginx/nginx.conf ]; then
-            run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf~
-        fi
-
+        # Copy custom Nginx config.
+        [ -f /etc/nginx/nginx.conf ] && run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf~
         run cp -f etc/nginx/nginx.conf /etc/nginx/
         run cp -f etc/nginx/charset /etc/nginx/
         run cp -f etc/nginx/{fastcgi_cache,fastcgi_https_map,fastcgi_params,mod_pagespeed,proxy_cache,proxy_params} \
             /etc/nginx/
         run cp -f etc/nginx/{http_cloudflare_ips,http_proxy_ips,upstream} /etc/nginx/
         run cp -fr etc/nginx/{includes,vhost} /etc/nginx/
-
-        if [ -f /etc/nginx/sites-available/default ]; then
-            run mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default~
-        fi
+        [ -f /etc/nginx/sites-available/default ] && \
+        run mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default~
         run cp -f etc/nginx/sites-available/default /etc/nginx/sites-available/
 
         # Enable default virtual host (mandatory).
-        if [ -f /etc/nginx/sites-enabled/default ]; then
-            run unlink /etc/nginx/sites-enabled/default
-        fi
-        if [ -f /etc/nginx/sites-enabled/00-default ]; then
-            run unlink /etc/nginx/sites-enabled/00-default
-        fi
+        [ -f /etc/nginx/sites-enabled/default ] && run unlink /etc/nginx/sites-enabled/default
+        [ -f /etc/nginx/sites-enabled/00-default ] && run unlink /etc/nginx/sites-enabled/00-default
         run ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/00-default
 
-        # Custom pages.
-        if [ ! -d /usr/share/nginx/html ]; then
-            run mkdir -p /usr/share/nginx/html
-        fi
+        # Custom index & error pages.
+        [ ! -d /usr/share/nginx/html ] && run mkdir -p /usr/share/nginx/html
         run cp -fr share/nginx/html/error-pages /usr/share/nginx/html/
         run cp -f share/nginx/html/index.html /usr/share/nginx/html/
 
-        # Custom tmp dir.
+        # Custom tmp, PHP opcache & sessions dir.
         run mkdir -p /usr/share/nginx/html/.lemper/tmp
-
-        # Custom PHP opcache dir.
         run mkdir -p /usr/share/nginx/html/.lemper/php/opcache
-
-        # Custom PHP sessions dir.
         run mkdir -p /usr/share/nginx/html/.lemper/php/sessions
 
-        if [ -d /usr/share/nginx/html ]; then
-            run chown -hR www-data:www-data /usr/share/nginx/html
-        fi
-
         # Nginx cache directory.
-        if [ ! -d /var/cache/nginx/fastcgi_cache ]; then
-            run mkdir -p /var/cache/nginx/fastcgi_cache
-        fi
-        if [ ! -d /var/cache/nginx/proxy_cache ]; then
-            run mkdir -p /var/cache/nginx/proxy_cache
-        fi
+        [ ! -d /var/cache/nginx/fastcgi_cache ] && run mkdir -p /var/cache/nginx/fastcgi_cache
+        [ ! -d /var/cache/nginx/proxy_cache ] && run mkdir -p /var/cache/nginx/proxy_cache
 
         # Fix ownership.
-        run chown -hR www-data:www-data /var/cache/nginx
+        [ -d /usr/share/nginx/html ] && run chown -hR www-data:www-data /usr/share/nginx/html
+        [ -d /var/cache/nginx ] && run chown -hR www-data:www-data /var/cache/nginx
+
+        # Nginx Logrotate.
+        run cp -f etc/logrotate.d/nginx /etc/logrotate.d/ && \
+        run chmod 0644 /etc/logrotate.d/nginx
 
         # Adjust nginx to meet hardware resources.
-        echo "Adjusting Nginx configuration..."
+        echo "Customize Nginx configuration..."
 
         local CPU_CORES && \
         CPU_CORES=$(grep -c processor /proc/cpuinfo)
@@ -1483,7 +1459,7 @@ function init_nginx_install() {
 
         # Generate Diffie-Hellman parameters.
         local DH_LENGTH=${KEY_HASH_LENGTH:-2048}
-        if [ ! -f "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" ]; then
+        if [[ ! -f "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" ]]; then
             echo "Enhancing HTTPS/SSL security with DH key..."
 
             [ ! -d /etc/nginx/ssl ] && mkdir -p /etc/nginx/ssl
@@ -1491,9 +1467,7 @@ function init_nginx_install() {
         fi
 
         # Final test.
-        if "${DRYRUN}"; then
-            info "Nginx HTTP server installed in dryrun mode."
-        else
+        if [[ ${DRYRUN} != true ]]; then
             # Make default server accessible from hostname or IP address.
             if [[ $(dig "${HOSTNAME}" +short) = "${SERVER_IP}" ]]; then
                 run sed -i "s/localhost.localdomain/${HOSTNAME}/g" /etc/nginx/sites-available/default
@@ -1529,6 +1503,8 @@ function init_nginx_install() {
                 error "Nginx configuration test failed. Please correct the error below:"
                 run nginx -t
             fi
+        else
+            info "Nginx HTTP server installed in dryrun mode."
         fi
     else
         info "Nginx HTTP (web) server installation skipped."
