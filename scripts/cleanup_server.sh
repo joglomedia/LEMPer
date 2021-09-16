@@ -7,7 +7,7 @@
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
+if [[ "$(type -t run)" != "function" ]]; then
     BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASEDIR}/helper.sh"
@@ -54,15 +54,15 @@ if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
     if [[ "${REMOVE_APACHE}" == Y* || "${REMOVE_APACHE}" == y* ]]; then
         echo "Uninstall existing Apache/HTTPD server..."
 
-        if "${DRYRUN}"; then
-            echo "Removing Apache2 installation in dryrun mode."
-        else
+        if [[ ${DRYRUN} != true ]]; then
             #run service apache2 stop
             run systemctl stop apache2
 
             # shellcheck disable=SC2046
             run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/apache2/ { print $2 }') \
                 $(dpkg-query -l | awk '/httpd/ { print $2 }')
+        else
+            echo "Removing Apache2 installation in dryrun mode."
         fi
     else
         echo "Found Apache/HTTPD server, but not removed."
@@ -80,7 +80,7 @@ if [[ -n $(command -v nginx) ]]; then
 fi
 
 # Remove PHP & FPM service if exists.
-PHPv=${PHP_VERSION:-"7.3"}
+PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
 if [[ -n $(command -v "php${PHPv}") ]]; then
     warning -e "\nPHP & FPM already installed. Should we remove it?"
     echo "Backup your config and data before continue!"
