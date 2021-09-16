@@ -2,7 +2,7 @@
 
 # Nginx Installer
 # Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 23/12/2020
+# Last Build        : 17/09/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
