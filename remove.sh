@@ -4,7 +4,7 @@
 # | LEMPer is a simple LEMP stack installer for Debian/Ubuntu Linux         |
 # |-------------------------------------------------------------------------+
 # | Min requirement   : GNU/Linux Debian 8, Ubuntu 16.04 or Linux Mint 17   |
-# | Last Update       : 18/07/2021                                          |
+# | Last Update       : 10/12/2021                                          |
 # | Author            : MasEDI.Net (me@masedi.net)                          |
 # | Version           : 2.x.x                                               |
 # +-------------------------------------------------------------------------+
@@ -27,12 +27,12 @@ set -e
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Get installer base directory.
-export BASEDIR && \
-BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+export BASE_DIR && \
+BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    . ./scripts/helper.sh
+if [[ "$(type -t run)" != "function" ]]; then
+    . "${BASE_DIR}/scripts/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -47,18 +47,16 @@ preflight_system_check
 #
 header_msg
 
-echo "Are you sure to remove LEMP stack installation?"
+echo "Are you sure to remove LEMPer Stack installation?"
 echo "Please ensure that you've backed up your critical data!"
+echo ""
 
-if ! "${AUTO_REMOVE}"; then
-    echo ""
+if [[ "${AUTO_REMOVE}" == false ]]; then
     read -rt 20 -p "Press [Enter] to continue..." </dev/tty
 fi
 
-echo ""
-
 # Fix broken install, first?
-if "${FIX_BROKEN}"; then
+if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
     run dpkg --configure -a
     run apt-get install -qq -y --fix-broken
 fi
@@ -72,7 +70,6 @@ fi
 ### Remove PHP & FPM ###
 if [ -f ./scripts/remove_php.sh ]; then
     echo ""
-    DEFAULT_PHP_VERSION="7.4"
     . ./scripts/remove_php.sh
 fi
 
@@ -106,30 +103,38 @@ if [ -f ./scripts/remove_certbotle.sh ]; then
     . ./scripts/remove_certbotle.sh
 fi
 
+### Remove VSFTPD ###
+if [ -f ./scripts/remove_vsftpd.sh ]; then
+    echo ""
+    . ./scripts/remove_vsftpd.sh
+fi
+
 ### Remove Fail2ban ###
 if [ -f ./scripts/remove_fail2ban.sh ]; then
     echo ""
     . ./scripts/remove_fail2ban.sh
 fi
 
-### Remove server security ###
+### Remove server security setup ###
 if [ -f ./scripts/secure_server.sh ]; then
     echo ""
-    . ./scripts/secure_server.sh remove
+    . ./scripts/secure_server.sh --remove
 fi
 
 ### Remove default user account ###
 echo ""
 echo "Removing created default account..."
-if "${AUTO_REMOVE}"; then
+
+if [[ "${AUTO_REMOVE}" == true ]]; then
     REMOVE_ACCOUNT="y"
 else
     while [[ "${REMOVE_ACCOUNT}" != "y" && "${REMOVE_ACCOUNT}" != "n" ]]; do
 read -rp "Remove default LEMPer account? [y/n]: " -i y -e REMOVE_ACCOUNT
     done
 fi
+
 if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* || "${FORCE_REMOVE}" == true ]]; then
-    if [ "$(type -t delete_account)" == "function" ]; then
+    if [[ "$(type -t delete_account)" == "function" ]]; then
         delete_account "${LEMPER_USERNAME}"
     fi
 fi
@@ -137,15 +142,17 @@ fi
 ### Remove created swap ###
 echo ""
 echo "Removing created swap..."
-if "${AUTO_REMOVE}"; then
+
+if [[ "${AUTO_REMOVE}" == true ]]; then
     REMOVE_SWAP="y"
 else
     while [[ "${REMOVE_SWAP}" != "y" && "${REMOVE_SWAP}" != "n" ]]; do
 read -rp "Remove created Swap? [y/n]: " -e REMOVE_SWAP
     done
 fi
+
 if [[ "${REMOVE_SWAP}" == Y* || "${REMOVE_SWAP}" == y* || "${FORCE_REMOVE}" == true ]]; then
-    if [ "$(type -t remove_swap)" == "function" ]; then
+    if [[ "$(type -t remove_swap)" == "function" ]]; then
         remove_swap
     fi
 fi
@@ -156,6 +163,7 @@ fi
 
 # Clean up existing lemper config.
 [ -f /etc/lemper/lemper.conf ] && run rm -f /etc/lemper/lemper.conf
+[ -d /etc/lemper/cli-plugins ] && run rm -fr /etc/lemper/cli-plugins
 
 ### Remove unnecessary packages ###
 echo -e "\nCleaning up unnecessary packages..."
