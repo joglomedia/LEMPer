@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
 # LEMPer administration installer
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 02/10/2021
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 11/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -22,31 +22,41 @@ preflight_system_check
 ##
 # Webadmin install.
 #
-function init_webadmin_install() {
+function init_tools_install() {
     # Install Lemper CLI tool.
-    echo "Installing Lemper CLI tool..."
-    run cp -f bin/lemper-cli.sh /usr/local/bin/lemper-cli
-    #run cp -f bin/lemper-cli /usr/local/bin/ && \
+    echo "Installing LEMPer Stack CLI tool..."
+
+    run cp -f bin/lemper-cli.sh /usr/local/bin/lemper-cli && \
     run chmod ugo+x /usr/local/bin/lemper-cli
 
-    if [ ! -d /usr/local/lib/lemper ]; then
-        run mkdir -p /usr/local/lib/lemper
-    fi
+    [ ! -d /etc/lemper/cli-plugins ] && run mkdir -p /etc/lemper/cli-plugins
 
-    run cp -f lib/lemper-create.sh /usr/local/lib/lemper/lemper-create && \
-    run chmod ugo+x /usr/local/lib/lemper/lemper-create
+    run cp -f lib/lemper-adduser.sh /etc/lemper/cli-plugins/lemper-adduser && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-adduser
 
-    run cp -f lib/lemper-db.sh /usr/local/lib/lemper/lemper-db && \
-    run chmod ugo+x /usr/local/lib/lemper/lemper-db
+    run cp -f lib/lemper-create.sh /etc/lemper/cli-plugins/lemper-create && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-create && \
+    [ ! -x /etc/lemper/cli-plugins/lemper-site ] && 
+        run ln -s /etc/lemper/cli-plugins/lemper-create /etc/lemper/cli-plugins/lemper-site
+    [ ! -x /etc/lemper/cli-plugins/lemper-vhost ] && 
+        run ln -s /etc/lemper/cli-plugins/lemper-create /etc/lemper/cli-plugins/lemper-vhost
 
-    run cp -f lib/lemper-manage.sh /usr/local/lib/lemper/lemper-manage && \
-    run chmod ugo+x /usr/local/lib/lemper/lemper-manage
+    run cp -f lib/lemper-db.sh /etc/lemper/cli-plugins/lemper-db && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-db
+
+    run cp -f lib/lemper-manage.sh /etc/lemper/cli-plugins/lemper-manage && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-manage
+
+    # Remove old LEMPer CLI tool.
+    [ -d /usr/local/lib/lemper ] && run rm -fr /usr/local/lib/lemper/lemper-*
+
+    # Created vhost config directory.
+    [ ! -d /etc/lemper/vhost.d ] && run mkdir -p /etc/lemper/vhost.d
 
     # Install Web Admin.
-    echo "Installing Lemper web panel..."
-    if [ ! -d /usr/share/nginx/html/lcp ]; then
-        run mkdir -p /usr/share/nginx/html/lcp
-    fi
+    echo "Installing LEMPer Stack web panel..."
+
+    [ ! -d /usr/share/nginx/html/lcp ] && run mkdir -p /usr/share/nginx/html/lcp
 
     # Copy default index file.
     run cp -f share/nginx/html/index.html /usr/share/nginx/html/
@@ -62,16 +72,14 @@ function init_webadmin_install() {
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php80'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php81'
 
-    # Install Adminer for Web-based MySQL Administration Tool
-    if [ ! -d /usr/share/nginx/html/lcp/dbadmin ]; then
-        run mkdir -p /usr/share/nginx/html/lcp/dbadmin
-    fi
+    # Install Adminer for Web-based MySQL Administration Tool.
+    [ ! -d /usr/share/nginx/html/lcp/dbadmin ] && run mkdir -p /usr/share/nginx/html/lcp/dbadmin
 
-    # Overwrite existing.
-    run wget -q https://github.com/vrana/adminer/releases/download/v4.8.1/adminer-4.8.1.php \
-        -O /usr/share/nginx/html/lcp/dbadmin/index.php
-    run wget -q https://github.com/vrana/adminer/releases/download/v4.8.1/editor-4.8.1.php \
-        -O /usr/share/nginx/html/lcp/dbadmin/editor.php
+    # Overwrite existing files.
+    run wget https://github.com/vrana/adminer/releases/download/v4.8.1/adminer-4.8.1.php \
+        -O /usr/share/nginx/html/lcp/dbadmin/index.php -q --show-progress
+    run wget https://github.com/vrana/adminer/releases/download/v4.8.1/editor-4.8.1.php \
+        -O /usr/share/nginx/html/lcp/dbadmin/editor.php -q --show-progress
 
     # Install File Manager.
     # Experimental: Tinyfilemanager https://github.com/joglomedia/tinyfilemanager
@@ -84,20 +92,20 @@ function init_webadmin_install() {
         CURRENT_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/filemanager && \
         #run git pull -q
-        run wget -q https://raw.githubusercontent.com/joglomedia/tinyfilemanager/lemperfm_1.3.0/index.php \
-            -O /usr/share/nginx/html/lcp/filemanager/index.php && \
+        run wget https://raw.githubusercontent.com/joglomedia/tinyfilemanager/lemperfm_1.3.0/index.php \
+            -O /usr/share/nginx/html/lcp/filemanager/index.php -q --show-progress && \
         run cd "${CURRENT_DIR}" || return 1
     fi
 
     # Copy TinyFileManager custom account creator.
     if [ -f /usr/share/nginx/html/lcp/filemanager/adduser-tfm.sh ]; then
-        run cp -f /usr/share/nginx/html/lcp/filemanager/adduser-tfm.sh /usr/local/lib/lemper/lemper-tfm
-        run chmod ugo+x /usr/local/lib/lemper/lemper-tfm
+        run cp -f /usr/share/nginx/html/lcp/filemanager/adduser-tfm.sh /etc/lemper/cli-plugins/lemper-tfm
+        run chmod ugo+x /etc/lemper/cli-plugins/lemper-tfm
     fi
 
     # Install Zend OpCache Web Admin.
-    run wget -q https://raw.github.com/rlerdorf/opcache-status/master/opcache.php \
-        -O /usr/share/nginx/html/lcp/opcache.php
+    run wget https://raw.github.com/rlerdorf/opcache-status/master/opcache.php \
+        -O /usr/share/nginx/html/lcp/opcache.php -q --show-progress
 
     # Install phpMemcachedAdmin Web Admin.
     if [ ! -d /usr/share/nginx/html/lcp/memcadmin/ ]; then
@@ -175,7 +183,7 @@ EOL
             run "${COMPOSER_BIN}" -q update && \
             run cp includes/config.sample.inc.php includes/config.inc.php
 
-            if "${REDIS_REQUIRE_PASSWORD}"; then
+            if [[ "${REDIS_REQUIRE_PASSWORD}" == true ]]; then
                 run sed -i "s|//'auth'\ =>\ 'redispasswordhere'|'auth'\ =>\ '${REDIS_PASSWORD}'|g" includes/config.inc.php
             fi
         else
@@ -190,12 +198,12 @@ EOL
     run chown -hR www-data:www-data /usr/share/nginx/html
 
     if [[ -x /usr/local/bin/lemper-cli && -d /usr/share/nginx/html/lcp ]]; then
-        success "Web administration tools successfully installed."
+        success "LEMPer CLI & web tools successfully installed."
     fi
 }
 
-echo "[LEMPer CLI & Panel Installation]"
+echo "[LEMPer CLI & Web Tools Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-init_webadmin_install "$@"
+init_tools_install "$@"
