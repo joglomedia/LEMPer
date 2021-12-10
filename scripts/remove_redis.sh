@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
 # Redis Uninstaller
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 31/07/2019
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 10/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -28,30 +28,36 @@ function init_redis_removal() {
 
         # shellcheck disable=SC2046
         run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/redis/ { print $2 }')
-        if "${FORCE_REMOVE}"; then
+        if [[ "${FORCE_REMOVE}" == true ]]; then
             run add-apt-repository -y --remove ppa:chris-lea/redis-server
         fi
     else
-        echo "Redis package not found, possibly installed from source."
+        info "Redis package not found, possibly installed from source."
         echo "Remove it manually!!"
 
         REDIS_BIN=$(command -v redis-server)
 
-        echo "Redis server binary executable: ${REDIS_BIN}"
+        echo "Deleting Redis binary executable: ${REDIS_BIN}"
+
+        [[ -x "${REDIS_BIN}" ]] && run rm -f "${REDIS_BIN}"
     fi
 
     # Remove Redis config files.
     warning "!! This action is not reversible !!"
 
-    if "${AUTO_REMOVE}"; then
-        REMOVE_REDISCONFIG="y"
+    if [[ "${AUTO_REMOVE}" == true ]]; then
+        if [[ "${FORCE_REMOVE}" == true ]]; then
+            REMOVE_REDIS_CONFIG="y"
+        else
+            REMOVE_REDIS_CONFIG="n"
+        fi
     else
-        while [[ "${REMOVE_REDISCONFIG}" != "y" && "${REMOVE_REDISCONFIG}" != "n" ]]; do
-            read -rp "Remove Redis database and configuration files? [y/n]: " -e REMOVE_REDISCONFIG
+        while [[ "${REMOVE_REDIS_CONFIG}" != "y" && "${REMOVE_REDIS_CONFIG}" != "n" ]]; do
+            read -rp "Remove Redis database and configuration files? [y/n]: " -e REMOVE_REDIS_CONFIG
         done
     fi
 
-    if [[ "${REMOVE_REDISCONFIG}" == Y* || "${REMOVE_REDISCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
+    if [[ "${REMOVE_REDIS_CONFIG}" == Y* || "${REMOVE_REDIS_CONFIG}" == y* ]]; then
         if [ -d /etc/redis ]; then
             run rm -fr /etc/redis
         fi
@@ -62,8 +68,8 @@ function init_redis_removal() {
     fi
 
     # Final test.
-    if "${DRYRUN}"; then
-        info "Redis server removed in dryrun mode."
+    if [[ "${DRYRUN}" == true ]]; then
+        info "Redis server removed in dry run mode."
     else
         if [[ -z $(command -v redis-server) ]]; then
             success "Redis server removed succesfully."
@@ -75,7 +81,7 @@ function init_redis_removal() {
 
 echo "Uninstalling Redis server..."
 if [[ -n $(command -v redis-server) ]]; then
-    if "${AUTO_REMOVE}"; then
+    if [[ "${AUTO_REMOVE}" == true ]]; then
         REMOVE_REDIS="y"
     else
         while [[ "${REMOVE_REDIS}" != "y" && "${REMOVE_REDIS}" != "n" ]]; do

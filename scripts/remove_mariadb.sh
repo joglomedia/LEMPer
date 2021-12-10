@@ -1,86 +1,80 @@
 #!/usr/bin/env bash
 
-# MariaDB (MySQL) Uninstaller
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 31/07/2019
+# MariaDB server Uninstaller
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 10/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
 requires_root
 
-function mariadb_remove_conf() {
-    # Remove MariaDB (MySQL) config files.
+function mariadb_remove_config() {
+    # Remove MariaDB server config files.
+    echo "Removing MariaDB (MySQL) configuration..."
     warning "!! This action is not reversible !!"
-    if "${AUTO_REMOVE}"; then
-        REMOVE_MYSQLCONFIG="y"
+
+    if [[ "${AUTO_REMOVE}" == true ]]; then
+        if [[ "${FORCE_REMOVE}" == true ]]; then
+            REMOVE_MYSQL_CONFIG="y"
+        else
+            REMOVE_MYSQL_CONFIG="n"
+        fi
     else
-        while [[ "${REMOVE_MYSQLCONFIG}" != "y" && "${REMOVE_MYSQLCONFIG}" != "n" ]]; do
-            read -rp "Remove MariaDB (MySQL) database and configuration files? [y/n]: " -e REMOVE_MYSQLCONFIG
+        while [[ "${REMOVE_MYSQL_CONFIG}" != "y" && "${REMOVE_MYSQL_CONFIG}" != "n" ]]; do
+            read -rp "Remove MariaDB database and configuration files? [y/n]: " -e REMOVE_MYSQL_CONFIG
         done
     fi
 
-    if [[ "${REMOVE_MYSQLCONFIG}" == Y* || "${REMOVE_MYSQLCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
-        if [ -d /etc/mysql ]; then
-            run rm -fr /etc/mysql
-        fi
+    if [[ "${REMOVE_MYSQL_CONFIG}" == y* || "${REMOVE_MYSQL_CONFIG}" == Y* ]]; then
+        [ -d /etc/mysql ] && run rm -fr /etc/mysql
+        [ -d /var/lib/mysql ] && run rm -fr /var/lib/mysql
 
-        if [ -d /var/lib/mysql ]; then
-            run rm -fr /var/lib/mysql
-        fi
-
-        echo "All your SQL database and configuration files deleted permanently."
+        echo "All database and configuration files deleted permanently."
     fi
 }
 
 function init_mariadb_removal() {
-    MYSQL_VERSION=${MYSQL_VERSION:-"10.4"}
+    MYSQL_VERSION=${MYSQL_VERSION:-"10.5"}
 
     # Stop MariaDB mysql server process.
-    if [[ $(pgrep -c mysqld) -gt 0 ]]; then
+    [[ $(pgrep -c mysqld) -gt 0 ]] && \
         run systemctl stop mysql
-    fi
 
     if dpkg-query -l | awk '/mariadb/ { print $2 }' | grep -qwE "^mariadb-server-${MYSQL_VERSION}"; then
-        echo "Found MariaDB package installation, removing..."
+        echo "Found MariaDB ${MYSQL_VERSION} packages installation, removing..."
 
         # Remove MariaDB server.
         run apt-get remove --purge -qq -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
             "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
             "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
 
-        # shellcheck disable=SC2046
-        #run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/mariadb/ { print $2 }')
-
         # Remove config.
-        mariadb_remove_conf
+        mariadb_remove_config
 
         # Remove repository.
-        if "${FORCE_REMOVE}"; then
+        if [[ "${FORCE_REMOVE}" == true ]]; then
             #run rm -f /etc/apt/sources.list.d/mariadb-*.list
             run rm -f /etc/apt/sources.list.d/mariadb.list
         fi
     elif dpkg-query -l | awk '/mysql/ { print $2 }' | grep -qwE "^mysql"; then
-        echo "Found MySQL package installation, removing..."
+        echo "Found MySQL packages installation, removing..."
 
         # Remove MySQL server.
         run apt-get remove --purge -qq -y mysql-client mysql-common mysql-server
-        
-        # shellcheck disable=SC2046
-        #run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/mysql/ { print $2 }' | grep -wE "^mysql")
 
         # Remove config.
-        mariadb_remove_conf
+        mariadb_remove_config
     else
-        echo "No installed Mariadb package found, possibly installed from source."
-        echo "Remove it manually!!"
+        echo "No installed MariaDB ${MYSQL_VERSION} or MySQL packages found."
+        echo "Possibly installed from source? Remove it manually!"
 
         MYSQL_BIN=$(command -v mysql)
         MYSQLD_BIN=$(command -v mysqld)
@@ -90,32 +84,33 @@ function init_mariadb_removal() {
     fi
 
     # Final test.
-    if "${DRYRUN}"; then
-        info "MariaDB (MySQL) server removed in dryrun mode."
-    else
+    if [[ "${DRYRUN}" != true ]]; then
         if [[ -z $(command -v mysqld) ]]; then
             success "MariaDB (MySQL) server removed."
         else
             info "MariaDB (MySQL) server not removed."
         fi
+    else
+        info "MariaDB (MySQL) server removed in dry run mode."
     fi
 }
 
-echo "Uninstalling MariaDB (MySQL) server..."
+echo "Uninstalling MariaDB server..."
+
 if [[ -n $(command -v mysql) || -n $(command -v mysqld) ]]; then
-    if "${AUTO_REMOVE}"; then
+    if [[ "${AUTO_REMOVE}" == true ]]; then
         REMOVE_MARIADB="y"
     else
         while [[ "${REMOVE_MARIADB}" != "y" && "${REMOVE_MARIADB}" != "n" ]]; do
-            read -rp "Are you sure to remove MariaDB (MySQL)? [y/n]: " -e REMOVE_MARIADB
+            read -rp "Are you sure to remove MariaDB server? [y/n]: " -e REMOVE_MARIADB
         done
     fi
 
-    if [[ "${REMOVE_MARIADB}" == Y* || "${REMOVE_MARIADB}" == y* ]]; then
+    if [[ "${REMOVE_MARIADB}" == y* || "${REMOVE_MARIADB}" == Y* ]]; then
         init_mariadb_removal "$@"
     else
-        echo "Found MariaDB (MySQL), but not removed."
+        echo "Found MariaDB server, but not removed."
     fi
 else
-    info "Oops, MariaDB (MySQL) installation not found."
+    info "Oops, MariaDB server installation not found."
 fi

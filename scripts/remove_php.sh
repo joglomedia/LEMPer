@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
 # PHP & FPM Uninstaller
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 12/07/2019
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 10/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -79,15 +79,19 @@ function remove_php_fpm() {
         # Remove PHP & FPM config files.
         warning "!! This action is not reversible !!"
 
-        if "${AUTO_REMOVE}"; then
-            REMOVE_PHPCONFIG="y"
+        if [[ "${AUTO_REMOVE}" == true ]]; then
+            if [[ "${FORCE_REMOVE}" == true ]]; then
+                REMOVE_PHP_CONFIG="y"
+            else
+                REMOVE_PHP_CONFIG="n"
+            fi
         else
-            while [[ "${REMOVE_PHPCONFIG}" != "y" && "${REMOVE_PHPCONFIG}" != "n" ]]; do
-                read -rp "Remove PHP ${PHPv} & FPM configuration files? [y/n]: " -e REMOVE_PHPCONFIG
+            while [[ "${REMOVE_PHP_CONFIG}" != "y" && "${REMOVE_PHP_CONFIG}" != "n" ]]; do
+                read -rp "Remove PHP ${PHPv} & FPM configuration files? [y/n]: " -e REMOVE_PHP_CONFIG
             done
         fi
 
-        if [[ ${REMOVE_PHPCONFIG} == Y* || ${REMOVE_PHPCONFIG} == y* || ${FORCE_REMOVE} == true ]]; then
+        if [[ ${REMOVE_PHP_CONFIG} == Y* || ${REMOVE_PHP_CONFIG} == y* ]]; then
             [ -d "/etc/php/${PHPv}" ] && run rm -fr "/etc/php/${PHPv}"
 
             echo "All your configuration files deleted permanently."
@@ -198,7 +202,7 @@ function init_php_fpm_removal() {
     fi
 
     # If FORCE_REMOVE, then remove all installed PHP versions.
-    if "${FORCE_REMOVE}"; then
+    if [[ "${FORCE_REMOVE}" == true ]]; then
         # Include versions from config file.
         read -r -a INSTALLED_PHP_VERSIONS <<< "${PHP_VERSIONS}"
 
@@ -219,9 +223,7 @@ function init_php_fpm_removal() {
         done
 
         # Final clean up (executed only if no PHP version installed).
-        if "${DRYRUN}"; then
-            info "PHP package & it's extensions removed in dryrun mode."
-        else
+        if [[ "${DRYRUN}" != true ]]; then
             # New logic for multiple PHP removal in batch.
             PHP_IS_EXISTS=false
             for PHPv in "${REMOVED_PHP_VERSIONS[@]}"; do
@@ -241,6 +243,8 @@ function init_php_fpm_removal() {
                 [ -d /var/lib/php ] && run rm -fr /var/lib/php
 
                 success "All PHP packages installation completely removed."
+            else
+                info "PHP package & it's extensions removed in dry run mode."
             fi
         fi
     else
@@ -258,7 +262,7 @@ if [[ -n $(command -v php5.6) || \
     -n $(command -v php7.4) || \
     -n $(command -v php8.0) ]]; then
 
-    if "${AUTO_REMOVE}"; then
+    if [[ "${AUTO_REMOVE}" == true ]]; then
         REMOVE_PHP="y"
     else
         while [[ "${REMOVE_PHP}" != "y" && "${REMOVE_PHP}" != "n" ]]; do

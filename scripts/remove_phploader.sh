@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
 # PHP Loader Uninstaller
-# Min. Requirement  : GNU/Linux Ubuntu 16.04 & 16.04
-# Last Build        : 12/01/2020
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 10/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.3.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -138,7 +138,7 @@ function init_phploader_removal() {
         esac
     done
 
-    if "${AUTO_INSTALL}"; then
+    if [[ "${AUTO_INSTALL}" == true ]]; then
         if [ -z "${SELECTED_PHP}" ]; then
             SELECTED_PHP=${PHP_VERSION:-"7.3"}
         fi
@@ -196,7 +196,7 @@ function init_phploader_removal() {
 
     # Install PHP loader.
     if [[ "${PHPv}" != "unsupported" && ! $(version_older_than "${PHPv}" "5.6") ]]; then
-        if "${AUTO_INSTALL}"; then
+        if [[ "${AUTO_INSTALL}" == true ]]; then
             # PHP Loader.
             if [ -z "${SELECTED_PHPLOADER}" ]; then
                 SELECTED_PHPLOADER=${PHP_LOADER:-""}

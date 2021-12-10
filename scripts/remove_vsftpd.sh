@@ -2,7 +2,7 @@
 
 # VSFTPD Uninstaller
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 24/10/2021
+# Last Build        : 10/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 2.5.0
 

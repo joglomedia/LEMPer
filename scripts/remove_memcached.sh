@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
 # Memcached Uninstaller
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 31/07/2019
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 10/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -76,16 +76,22 @@ function init_memcached_removal() {
     fi
 
     # Remove Memcached config files.
+    echo "Removing memcached configuration..."
     warning "!! This action is not reversible !!"
-    if "${AUTO_REMOVE}"; then
-        REMOVE_MEMCACHEDCONFIG="y"
+
+    if [[ "${AUTO_REMOVE}" == true ]]; then
+        if [[ "${FORCE_REMOVE}" == true ]]; then
+            REMOVE_MEMCACHED_CONFIG="y"
+        else
+            REMOVE_MEMCACHED_CONFIG="n"
+        fi
     else
-        while [[ "${REMOVE_MEMCACHEDCONFIG}" != "y" && "${REMOVE_MEMCACHEDCONFIG}" != "n" ]]; do
-            read -rp "Remove Memcached configuration files? [y/n]: " -e REMOVE_MEMCACHEDCONFIG
+        while [[ "${REMOVE_MEMCACHED_CONFIG}" != "y" && "${REMOVE_MEMCACHED_CONFIG}" != "n" ]]; do
+            read -rp "Remove Memcached configuration files? [y/n]: " -e REMOVE_MEMCACHED_CONFIG
         done
     fi
 
-    if [[ "${REMOVE_MEMCACHEDCONFIG}" == Y* || "${REMOVE_MEMCACHEDCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
+    if [[ "${REMOVE_MEMCACHED_CONFIG}" == Y* || "${REMOVE_MEMCACHED_CONFIG}" == y* ]]; then
         [ -f /etc/memcached.conf ] && run rm -f /etc/memcached.conf
 
         echo "All your Memcached configuration files deleted permanently."
@@ -93,29 +99,30 @@ function init_memcached_removal() {
 
     # Delete memcache user.
     if [[ -n $(getent passwd memcache) ]]; then
-        if "${DRYRUN}"; then
-            echo "Memcache user deleted in dryrun mode."
-        else
+        if [[ "${DRYRUN}" != true ]]; then
             run userdel -r memcache
             #run groupdel memcache
+        else
+            echo "Memcache user deleted in dry run mode."   
         fi
     fi
 
     # Final test.
-    if "${DRYRUN}"; then
-        info "Memcached server removed in dryrun mode."
-    else
+    if [[ "${DRYRUN}" != true ]]; then
         if [[ -z $(command -v memcached) ]]; then
             success "Memcached server removed succesfully."
         else
             info "Unable to remove Memcached server."
         fi
+    else
+        info "Memcached server removed in dry run mode."
     fi
 }
 
 echo "Uninstalling Memcached server..."
+
 if [[ -n $(command -v memcached) ]]; then
-    if "${AUTO_REMOVE}"; then
+    if [[ "${AUTO_REMOVE}" == true ]]; then
         REMOVE_MEMCACHED="y"
     else
         while [[ "${REMOVE_MEMCACHED}" != "y" && "${REMOVE_MEMCACHED}" != "n" ]]; do

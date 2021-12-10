@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
 # Certbot Let's Encrypt Uninstaller
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 17/08/2019
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 10/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -23,9 +23,8 @@ function init_certbotle_removal() {
         # Remove Certbot.
         run apt-get remove --purge -qq -y certbot
 
-        if "${FORCE_REMOVE}"; then
+        [[ "${FORCE_REMOVE}" == true ]] && \
             run add-apt-repository -y --remove ppa:certbot/certbot
-        fi
     else
         echo "Certbot package not found, possibly installed from source."
         echo "Remove it manually."
@@ -36,38 +35,43 @@ function init_certbotle_removal() {
     fi
 
     # Remove Certbot config files.
+    echo "Removing certbot configuration..."
     warning "!! This action is not reversible !!"
-    if "${AUTO_REMOVE}"; then
-        REMOVE_CERTBOTCONF="y"
+
+    if [[ "${AUTO_REMOVE}" == true ]]; then
+        if [[ ${FORCE_REMOVE} == true ]]; then
+            REMOVE_CERTBOT_CONFIG="y"
+        else
+            REMOVE_CERTBOT_CONFIG="n"
+        fi
     else
-        while [[ "${REMOVE_CERTBOTCONF}" != "y" && "${REMOVE_CERTBOTCONF}" != "n" ]]; do
-            read -rp "Remove Certbot config and Let's Encrypt certificate files? [y/n]: " -e REMOVE_CERTBOTCONF
+        while [[ "${REMOVE_CERTBOT_CONFIG}" != "y" && "${REMOVE_CERTBOT_CONFIG}" != "n" ]]; do
+            read -rp "Remove configuration and certificate files? [y/n]: " -e REMOVE_CERTBOT_CONFIG
         done
     fi
 
-    if [[ "${REMOVE_CERTBOTCONF}" == Y* || "${REMOVE_CERTBOTCONF}" == y* || "${FORCE_REMOVE}" == true ]]; then
-        if [ -d /etc/letsencrypt ]; then
-            run rm -fr /etc/letsencrypt
-        fi
+    if [[ "${REMOVE_CERTBOT_CONFIG}" == Y* || "${REMOVE_CERTBOT_CONFIG}" == y* ]]; then
+        [ -d /etc/letsencrypt ] && run rm -fr /etc/letsencrypt
 
-        echo "All your Certbot config and Let's Encrypt certificate files deleted permanently."
+        echo "All your configuration and certificate files deleted permanently."
     fi
 
     # Final test.
-    if "${DRYRUN}"; then
-        info "Certbot Let's Encrypt client removed in dryrun mode."
-    else
+    if [[ "${DRYRUN}" != true ]]; then
         if [[ -z $(command -v certbot) ]]; then
             success "Certbot Let's Encrypt client removed succesfully."
         else
             info "Unable to remove Certbot Let's Encrypt client."
         fi
+    else
+        info "Certbot Let's Encrypt client removed in dry run mode."
     fi
 }
 
 echo "Uninstalling Certbot Let's Encrypt..."
+
 if [[ -n $(command -v certbot) ]]; then
-    if "${AUTO_REMOVE}"; then
+    if [[ "${AUTO_REMOVE}" == true ]]; then
         REMOVE_CERTBOT="y"
     else
         while [[ "${REMOVE_CERTBOT}" != "y" && "${REMOVE_CERTBOT}" != "n" ]]; do
@@ -75,7 +79,7 @@ if [[ -n $(command -v certbot) ]]; then
         done
     fi
 
-    if [[ "${REMOVE_CERTBOT}" == Y* || "${REMOVE_CERTBOT}" == y* ]]; then
+    if [[ "${REMOVE_CERTBOT}" == y* || "${REMOVE_CERTBOT}" == Y* ]]; then
         init_certbotle_removal "$@"
     else
         echo "Found Certbot Let's Encrypt, but not removed."
