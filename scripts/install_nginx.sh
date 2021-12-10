@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 
 # Nginx Installer
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 17/09/2021
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 11/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Define scripts directory.
-#if grep -q "scripts" <<< "${BASEDIR}"; then
-#    SCRIPTS_DIR="${BASEDIR}"
+#if grep -q "scripts" <<< "${BASE_DIR}"; then
+#    SCRIPTS_DIR="${BASE_DIR}"
 #else
-#    SCRIPTS_DIR="${BASEDIR}/scripts"
+#    SCRIPTS_DIR="${BASE_DIR}/scripts"
 #fi
 
 # Make sure only root can run this installer script.
@@ -73,7 +73,7 @@ function add_nginx_repo() {
 function init_nginx_install() {
     local SELECTED_INSTALLER=""
 
-    if "${AUTO_INSTALL}"; then
+    if [[ "${AUTO_INSTALL}" == true ]]; then
         if [[ -z "${NGINX_INSTALLER}" || "${NGINX_INSTALLER}" == "none" ]]; then
             DO_INSTALL_NGINX="n"
         else
@@ -304,7 +304,7 @@ function init_nginx_install() {
                     NGINX_RELEASE_VERSION="${NGINX_VERSION}"
                 fi
 
-                if "${DRYRUN}"; then
+                if [[ "${DRYRUN}" == true ]]; then
                     run "${BUILD_DIR}/build_nginx" -v latest-stable \
                         -n "${NGINX_RELEASE_VERSION}" --dynamic-module --extra-modules -y --dryrun
                 else
@@ -970,9 +970,9 @@ function init_nginx_install() {
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
                                     --with-stream=dynamic \
                                     --with-stream_geoip_module=dynamic \
-                                    --with-stream_realip_module \
-                                    --with-stream_ssl_module \
-                                    --with-stream_ssl_preread_module"
+                                    --with-stream_realip_module=dynamic \
+                                    --with-stream_ssl_module=dynamic \
+                                    --with-stream_ssl_preread_module=dynamic"
                             else
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
                                     --with-stream \
@@ -1003,7 +1003,8 @@ function init_nginx_install() {
 
                 echo "Configuring Nginx extra modules..."
 
-                # Create Nginx directories.
+                # Create Nginx modules directory.
+
                 if [ ! -d /etc/nginx/modules-available ]; then
                     run mkdir -p /etc/nginx/modules-available
                     run chmod 755 /etc/nginx/modules-available
@@ -1160,6 +1161,12 @@ function init_nginx_install() {
                         > /etc/nginx/modules-available/mod-rtmp.conf"
                 fi
 
+                if [[ -f /usr/lib/nginx/modules/ngx_stream_module.so && \
+                    ! -f /etc/nginx/modules-available/mod-stream.conf ]]; then
+                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_stream_module.so\";' \
+                        > /etc/nginx/modules-available/mod-stream.conf"
+                fi
+
                 if [[ -f /usr/lib/nginx/modules/ngx_stream_geoip2_module.so && \
                     ! -f /etc/nginx/modules-available/mod-stream-geoip2.conf ]]; then
                     run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_stream_geoip2_module.so\";' \
@@ -1172,10 +1179,22 @@ function init_nginx_install() {
                         > /etc/nginx/modules-available/mod-stream-geoip.conf"
                 fi
 
-                if [[ -f /usr/lib/nginx/modules/ngx_stream_module.so && \
-                    ! -f /etc/nginx/modules-available/mod-stream.conf ]]; then
-                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_stream_module.so\";' \
-                        > /etc/nginx/modules-available/mod-stream.conf"
+                if [[ -f /usr/lib/nginx/modules/ngx_stream_realip_module.so && \
+                    ! -f /etc/nginx/modules-available/mod-stream-realip-module.conf ]]; then
+                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_stream_realip_module.so\";' \
+                        > /etc/nginx/modules-available/mod-stream-realip-module.conf"
+                fi
+
+                if [[ -f /usr/lib/nginx/modules/ngx_stream_ssl_module.so && \
+                    ! -f /etc/nginx/modules-available/mod-stream-ssl-module.conf ]]; then
+                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_stream_ssl_module.so\";' \
+                        > /etc/nginx/modules-available/mod-stream-ssl-module.conf"
+                fi
+
+                if [[ -f /usr/lib/nginx/modules/ngx_stream_ssl_preread_module.so && \
+                    ! -f /etc/nginx/modules-available/mod-stream-ssl-preread-module.conf ]]; then
+                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_stream_ssl_preread_module.so\";' \
+                        > /etc/nginx/modules-available/mod-stream-ssl-preread-module.conf"
                 fi
 
                 # Enable Nginx Dynamic Module.
@@ -1322,6 +1341,8 @@ function init_nginx_install() {
                             /etc/nginx/modules-enabled/50-mod-pagespeed.conf
                     fi
 
+                    local MOD_STREAM_ENABLED=0
+
                     if [[ "${NGX_STREAM}" && \
                         -f /etc/nginx/modules-available/mod-stream.conf ]]; then
                         run ln -fs /etc/nginx/modules-available/mod-stream.conf \
@@ -1338,6 +1359,26 @@ function init_nginx_install() {
                             run ln -fs /etc/nginx/modules-available/mod-stream-geoip.conf \
                                 /etc/nginx/modules-enabled/60-mod-stream-geoip.conf
                         fi
+
+                        if [[ "${NGX_HTTP_GEOIP}" && \
+                            -f /etc/nginx/modules-available/mod-stream-realip.conf ]]; then
+                            run ln -fs /etc/nginx/modules-available/mod-stream-realip.conf \
+                                /etc/nginx/modules-enabled/60-mod-stream-realip.conf
+                        fi
+
+                        if [[ "${NGX_HTTP_GEOIP}" && \
+                            -f /etc/nginx/modules-available/mod-stream-ssl.conf ]]; then
+                            run ln -fs /etc/nginx/modules-available/mod-stream-ssl.conf \
+                                /etc/nginx/modules-enabled/60-mod-stream-ssl.conf
+                        fi
+
+                        if [[ "${NGX_HTTP_GEOIP}" && \
+                            -f /etc/nginx/modules-available/mod-stream-ssl-preread.conf ]]; then
+                            run ln -fs /etc/nginx/modules-available/mod-stream-ssl-preread.conf \
+                                /etc/nginx/modules-enabled/60-mod-stream-ssl-preread.conf
+                        fi
+
+                        MOD_STREAM_ENABLED=1
                     fi
                 fi
 
@@ -1372,10 +1413,6 @@ function init_nginx_install() {
 
         echo "Creating Nginx configuration..."
 
-        # Create Nginx config dirs.
-        [ ! -d /etc/nginx/sites-available ] && run mkdir -p /etc/nginx/sites-available
-        [ ! -d /etc/nginx/sites-enabled ] && run mkdir -p /etc/nginx/sites-enabled
-
         # Copy custom Nginx config.
         [ -f /etc/nginx/nginx.conf ] && run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf~
         run cp -f etc/nginx/nginx.conf /etc/nginx/
@@ -1384,28 +1421,55 @@ function init_nginx_install() {
             /etc/nginx/
         run cp -f etc/nginx/{http_cloudflare_ips,http_proxy_ips,upstream} /etc/nginx/
         run cp -fr etc/nginx/{includes,vhost} /etc/nginx/
+
+        # Copy custom index & error pages.
+        [ ! -d /usr/share/nginx/html ] && run mkdir -p /usr/share/nginx/html
+        run cp -fr share/nginx/html/error-pages /usr/share/nginx/html/
+        run cp -f share/nginx/html/index.html /usr/share/nginx/html/
+
+        # Create Nginx cache directory.
+        [ ! -d /var/cache/nginx/fastcgi_cache ] && run mkdir -p /var/cache/nginx/fastcgi_cache
+        [ ! -d /var/cache/nginx/proxy_cache ] && run mkdir -p /var/cache/nginx/proxy_cache
+
+        # Create Nginx http vhost directory.
+        [ ! -d /etc/nginx/sites-available ] && run mkdir -p /etc/nginx/sites-available
+        [ ! -d /etc/nginx/sites-enabled ] && run mkdir -p /etc/nginx/sites-enabled
+
+        # Copy custom default vhost.
         [ -f /etc/nginx/sites-available/default ] && \
         run mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default~
         run cp -f etc/nginx/sites-available/default /etc/nginx/sites-available/
 
-        # Enable default virtual host (mandatory).
+        # Enable default vhost (mandatory).
         [ -f /etc/nginx/sites-enabled/default ] && run unlink /etc/nginx/sites-enabled/default
         [ -f /etc/nginx/sites-enabled/00-default ] && run unlink /etc/nginx/sites-enabled/00-default
         run ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/00-default
 
-        # Custom index & error pages.
-        [ ! -d /usr/share/nginx/html ] && run mkdir -p /usr/share/nginx/html
-        run cp -fr share/nginx/html/error-pages /usr/share/nginx/html/
-        run cp -f share/nginx/html/index.html /usr/share/nginx/html/
+        # TODO: Add stream support.
+        if [ "${MOD_STREAM_ENABLED}" ]; then
+            # Create Nginx stream vhost directory.
+            [ ! -d /etc/nginx/streams-available ] && run mkdir -p /etc/nginx/streams-available
+            [ ! -d /etc/nginx/streams-enabled ] && run mkdir -p /etc/nginx/streams-enabled
+
+            # Copy custom stream vhost.
+            cat >> /etc/nginx/nginx.conf <<EOL
+stream {
+    # Load vhost configs.
+    include /etc/nginx/streams-enabled/*;
+}
+EOL
+        fi
+
+        # Nginx rate limit config.
+        if [ "${NGINX_RATE_LIMITING}" ]; then
+            run sed -i "s|#limit_|limit_|g" /etc/nginx/nginx.conf
+            run sed -i "s|rate=10r\/s|rate=${NGINX_RATE_LIMIT_REQUESTS}r\/s|g" /etc/nginx/nginx.conf
+        fi
 
         # Custom tmp, PHP opcache & sessions dir.
         run mkdir -p /usr/share/nginx/html/.lemper/tmp
         run mkdir -p /usr/share/nginx/html/.lemper/php/opcache
         run mkdir -p /usr/share/nginx/html/.lemper/php/sessions
-
-        # Nginx cache directory.
-        [ ! -d /var/cache/nginx/fastcgi_cache ] && run mkdir -p /var/cache/nginx/fastcgi_cache
-        [ ! -d /var/cache/nginx/proxy_cache ] && run mkdir -p /var/cache/nginx/proxy_cache
 
         # Fix ownership.
         [ -d /usr/share/nginx/html ] && run chown -hR www-data:www-data /usr/share/nginx/html
@@ -1504,7 +1568,7 @@ function init_nginx_install() {
                 run nginx -t
             fi
         else
-            info "Nginx HTTP server installed in dryrun mode."
+            info "Nginx HTTP server installed in dry run mode."
         fi
     else
         info "Nginx HTTP (web) server installation skipped."
