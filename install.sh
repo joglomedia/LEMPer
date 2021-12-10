@@ -4,7 +4,7 @@
 # | LEMPer is a simple LEMP stack installer for Debian/Ubuntu Linux         |
 # |-------------------------------------------------------------------------+
 # | Min requirement   : GNU/Linux Debian 8, Ubuntu 16.04 or Linux Mint 17   |
-# | Last Update       : 18/07/2021                                          |
+# | Last Update       : 10/12/2021                                          |
 # | Author            : MasEDI.Net (me@masedi.net)                          |
 # | Version           : 2.x.x                                               |
 # +-------------------------------------------------------------------------+
@@ -27,12 +27,12 @@ set -e
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Get installer base directory.
-export BASEDIR && \
-BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+export BASE_DIR && \
+BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    . ./scripts/helper.sh
+if [[ "$(type -t run)" != "function" ]]; then
+    . "${BASE_DIR}/scripts/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -151,10 +151,10 @@ if [ -f ./scripts/install_mailer.sh ]; then
     . ./scripts/install_mailer.sh
 fi
 
-### Addon-tools installation ###
-if [ -f ./scripts/install_tools.sh ]; then
+### VSFTPD installation ###
+if [ -f ./scripts/install_vsftpd.sh ]; then
     echo ""
-    . ./scripts/install_tools.sh
+    . ./scripts/install_vsftpd.sh
 fi
 
 ### Fail2ban, intrusion prevention software framework. ###
@@ -163,14 +163,20 @@ if [ -f ./scripts/install_fail2ban.sh ]; then
     . ./scripts/install_fail2ban.sh
 fi
 
-### Basic server security ###
+### LEMPer tools installation ###
+if [ -f ./scripts/install_tools.sh ]; then
+    echo ""
+    . ./scripts/install_tools.sh
+fi
+
+### Basic server security setup ###
 if [ -f ./scripts/secure_server.sh ]; then
     echo ""
     . ./scripts/secure_server.sh
 fi
 
-### FINAL STEP ###
-if "${FORCE_REMOVE}"; then
+### FINAL SETUP ###
+if [[ "${FORCE_REMOVE}" == true ]]; then
     # Cleaning up all build dependencies hanging around on production server?
     echo -e "\nClean up installation process..."
     run apt-get autoremove -qq -y
@@ -182,9 +188,7 @@ if "${FORCE_REMOVE}"; then
     fi
 fi
 
-if "${DRYRUN}"; then
-    warning -e "\nLEMPer installation has been completed in dry-run mode."
-else
+if [[ "${DRYRUN}" != true ]]; then
     status -e "\nCongrats, your LEMP stack installation has been completed."
 
     ### Recap ###
@@ -225,6 +229,8 @@ Please Save the above Credentials & Keep it Secure!
         # Securing LEMPer stack credentials.
         #secure_config
     fi
+else
+    warning -e "\nLEMPer installation has been completed in dry-run mode."
 fi
 
 echo "
