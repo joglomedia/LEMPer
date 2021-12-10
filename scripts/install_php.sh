@@ -1,38 +1,41 @@
 #!/usr/bin/env bash
 
 # PHP Installer
-# Min. Requirement  : GNU/Linux Ubuntu 16.04 & 16.04
-# Last Build        : 23/12/2020
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 11/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
 requires_root
 
+# Make sure only supported distribution can run this installer script.
+preflight_system_check
+
 ##
 # Add PHP repository.
-#
+##
 function add_php_repo() {
     echo "Add Ondrej's PHP repository..."
 
     DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
     RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
 
-    case ${DISTRIB_NAME} in
+    case "${DISTRIB_NAME}" in
         debian)
-            if [ ! -f "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" ]; then
+            if [[ ! -f "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" ]]; then
                 run touch "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb https://packages.sury.org/php/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
                 run wget -qO /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
             else
-                info "PHP repository already exists."
+                info "PHP package repository already exists."
             fi
 
             run apt-get update -qq -y
@@ -50,15 +53,13 @@ function add_php_repo() {
 
 ##
 # Install PHP & FPM package.
-#
+##
 function install_php_fpm() {
     export PHP_IS_INSTALLED="no"
-    local PHP_EXTS=() && \
-    read -r -a PHP_EXTS <<< "${PHP_EXTENSIONS}"
 
     # PHP version.
     local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
+    if [[ -z "${PHPv}" ]]; then
         PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
     fi
 
@@ -67,158 +68,118 @@ function install_php_fpm() {
         PHP_IS_INSTALLED="yes"
         info "PHP ${PHPv} and it's extensions already exists, installation skipped."
     else
-        echo "Installing PHP ${PHPv} and requred extensions..."
+        echo "Installing PHP ${PHPv} and required extensions..."
 
-        if hash apt-get 2>/dev/null; then
-            PHP_EXTS+=("php${PHPv}" "php${PHPv}-bcmath" "php${PHPv}-bz2" "php${PHPv}-calendar" "php${PHPv}-cli" \
+        local PHP_EXTS=()
+        local PHP_PECL_EXTS=()
+        local PHP_CUST_EXTS=() && \
+        read -r -a PHP_CUST_EXTS <<< "${PHP_EXTENSIONS}" # Read additional PHP extensions from env variable.
+
+        # Check additional PHP extensions availability.
+        for EXT_NAME in "${PHP_CUST_EXTS[@]}"; do
+            echo "Checking additional PHP extension: ${EXT_NAME}..."
+            if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "${PHPv}" > /dev/null; then
+                PHP_EXTS+=("php${PHPv}-${EXT_NAME}")
+            elif apt-cache search "php-${EXT_NAME}" | grep -c "^php-${EXT_NAME}" > /dev/null; then
+                PHP_EXTS+=("php-${EXT_NAME}")
+            else
+                PHP_PECL_EXTS+=("${EXT_NAME}")
+            fi
+        done
+
+        PHP_EXTS+=("php${PHPv}" "php${PHPv}-bcmath" "php${PHPv}-bz2" "php${PHPv}-calendar" "php${PHPv}-cli" \
 "php${PHPv}-common" "php${PHPv}-curl" "php${PHPv}-dev" "php${PHPv}-exif" "php${PHPv}-fpm" "php${PHPv}-gd" \
 "php${PHPv}-gettext" "php${PHPv}-gmp" "php${PHPv}-gnupg" "php${PHPv}-iconv" "php${PHPv}-imap" "php${PHPv}-intl" \
 "php${PHPv}-mbstring" "php${PHPv}-mysql" "php${PHPv}-opcache" "php${PHPv}-pdo" "php${PHPv}-pgsql" "php${PHPv}-posix" \
-"php${PHPv}-pspell" "php${PHPv}-readline" "php${PHPv}-ldap" "php${PHPv}-snmp" "php${PHPv}-soap" "php${PHPv}-sqlite3" \
-"php${PHPv}-tidy" "php${PHPv}-tokenizer" "php${PHPv}-xml" "php${PHPv}-xmlrpc" "php${PHPv}-xsl" "php${PHPv}-zip" \
-php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi)
+"php${PHPv}-pspell" "php${PHPv}-readline" "php${PHPv}-redis" "php${PHPv}-ldap" "php${PHPv}-snmp" "php${PHPv}-soap" \
+"php${PHPv}-sqlite3" "php${PHPv}-tidy" "php${PHPv}-tokenizer" "php${PHPv}-xml" "php${PHPv}-xmlrpc" "php${PHPv}-xsl" \
+"php${PHPv}-zip" dh-php php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi)
 
-            # Install PHP Json
-            if [ "${PHPv//.}" -lt "80" ]; then
-                PHP_EXTS+=("php${PHPv}-json")
-            else
-                PHP_EXTS+=("php-json")
-            fi
-
-            # Install PHP Swoole
-            if [ "${PHPv//.}" -gt "71" ]; then
-                PHP_EXTS+=("php${PHPv}-swoole")
-            else
-                PHP_EXTS+=("php-swoole")
-            fi
-
-            if [[ "${#PHP_EXTS[@]}" -gt 0 ]]; then
-                run apt-get install -qq -y "${PHP_EXTS[@]}"
-            fi
-
-            if [[ -n $(command -v "php${PHPv}") ]]; then
-                success "PHP ${PHPv} along with ${#PHP_EXTS[@]} extensions installed."
-            fi
-
-            # Install PHP GeoIP?
-            if "${AUTO_INSTALL}"; then
-                local INSTALL_PHPGEOIP="n"
-            else
-                while [[ "${INSTALL_PHPGEOIP}" != "y" && "${INSTALL_PHPGEOIP}" != "n" ]]; do
-                    read -rp "Do you want to install PHP GeoIP for geolocation? [y/n]: " \
-                        -i n -e INSTALL_PHPGEOIP
-                done
-            fi
-
-            if [[ ${INSTALL_PHPGEOIP} == Y* || ${INSTALL_PHPGEOIP} == y* ]]; then
-                echo "Installing PHP GeoIP module..."
-
-                if [ "${PHPv//.}" -lt "70" ]; then
-                    run apt-get install -qq -y php-geoip
-                else
-                    run pecl install geoip
-
-                    # Enable GeoIP module.
-                    echo "Updating PHP ini file with GeoIP module..."
-
-                    [ ! -f "/etc/php/${PHPv}/mods-available/geoip.ini" ] && \
-                    run touch "/etc/php/${PHPv}/mods-available/geoip.ini"
-                    run bash -c "echo extension=geoip.so > /etc/php/${PHPv}/mods-available/geoip.ini"
-
-                    if [ ! -f "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini" ]; then
-                        run ln -s "/etc/php/${PHPv}/mods-available/geoip.ini" \
-                            "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini"
-                    fi
-
-                    if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini" ]; then
-                        run ln -s "/etc/php/${PHPv}/mods-available/geoip.ini" \
-                            "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini"
-                    fi
-                fi
-            fi
-
-            # Install PHP Mcrypt?
-            if "${AUTO_INSTALL}"; then
-                if version_older_than "7.2" "${PHPv}"; then
-                    local INSTALL_PHPMCRYPT="y"
-                else
-                    local INSTALL_PHPMCRYPT="n"
-                fi
-            else
-                while [[ "${INSTALL_PHPMCRYPT}" != "y" && "${INSTALL_PHPMCRYPT}" != "n" ]]; do
-                    read -rp "Do you want to install PHP Mcrypt for encryption/decryption? [y/n]: " \
-                        -i n -e INSTALL_PHPMCRYPT
-                done
-            fi
-
-            if [[ ${INSTALL_PHPMCRYPT} == Y* || ${INSTALL_PHPMCRYPT} == y* ]]; then
-                echo "Installing PHP Mcrypt module..."
-
-                if [ "${PHPv//.}" -lt "72" ]; then
-                    run apt-get install -qq -y "php${PHPv}-mcrypt" "php${PHPv}-recode"
-                elif [ "${PHPv}" == "7.2" ]; then
-                    run apt-get install -qq -y libmcrypt-dev libreadline-dev && \
-                    run pecl install mcrypt
-
-                    # Enable Mcrypt module.
-                    echo "Updating PHP ${PHPv} ini file with Mcrypt module..."
-
-                    [ ! -f "/etc/php/${PHPv}/mods-available/mcrypt.ini" ] && \
-                    run touch "/etc/php/${PHPv}/mods-available/mcrypt.ini"
-                    run bash -c "echo extension=mcrypt.so > /etc/php/${PHPv}/mods-available/mcrypt.ini"
-
-                    if [ ! -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ]; then
-                        run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
-                            "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini"
-                    fi
-
-                    if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini" ]; then
-                        run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
-                            "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
-                    fi
-                else
-                    run apt-get install -qq -y dh-php
-
-                    # Use libsodium instead.
-                    info "Mcrypt module is deprecated for PHP ${PHPv} or greater, for encryption use Libsodium or OpenSSL instead."
-                fi
-            fi
-
-            # Create PHP log dir.
-            if [ ! -d /var/log/php ]; then
-                mkdir -p /var/log/php
-            fi
-
-            # Optimize PHP configuration.
-            optimize_php_fpm "${PHPv}"
-        else
-            fail "Unable to install PHP ${PHPv}, this GNU/Linux distribution is not supported."
+        # Install PHP and PHP extensions.
+        if [[ "${#PHP_EXTS[@]}" -gt 0 ]]; then
+            run apt-get install -qq -y "${PHP_EXTS[@]}"
         fi
+
+        # Install PHP extensions from PECL.
+        if [[ "${#PHP_PECL_EXTS[@]}" -gt 0 ]]; then
+            run pecl -d "php_suffix=${PHPv}" "${PHP_PECL_EXTS[@]}"
+        fi
+
+        if [[ -n $(command -v "php${PHPv}") ]]; then
+            TOTAL_EXTS=$((${#PHP_EXTS[@]} + ${#PHP_PECL_EXTS[@]}))
+            success "PHP ${PHPv} along with ${TOTAL_EXTS} extensions installed."
+        fi
+
+        # Enable GeoIP module.
+        if [[ "${PHP_PECL_EXTS[*]}" =~ "geoip" ]]; then
+            echo "Updating PHP ini file with GeoIP extension..."
+
+            [[ ! -f "/etc/php/${PHPv}/mods-available/geoip.ini" ]] && \
+            run touch "/etc/php/${PHPv}/mods-available/geoip.ini"
+            run bash -c "echo extension=geoip.so > /etc/php/${PHPv}/mods-available/geoip.ini"
+
+            if [[ ! -f "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini" ]]; then
+                run ln -s "/etc/php/${PHPv}/mods-available/geoip.ini" \
+                    "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini"
+            fi
+
+            if [[ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini" ]]; then
+                run ln -s "/etc/php/${PHPv}/mods-available/geoip.ini" \
+                    "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini"
+            fi
+        fi
+
+        # Enable Mcrypt module.
+        if [[ "${PHP_PECL_EXTS[*]}" =~ "mcrypt" ]]; then
+            echo "Updating PHP ini file with Mcrypt extension..."
+
+            [[ ! -f "/etc/php/${PHPv}/mods-available/mcrypt.ini" ]] && \
+            run touch "/etc/php/${PHPv}/mods-available/mcrypt.ini"
+            run bash -c "echo extension=mcrypt.so > /etc/php/${PHPv}/mods-available/mcrypt.ini"
+
+            if [[ ! -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ]]; then
+                run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
+                    "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini"
+            fi
+
+            if [[ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini" ]]; then
+                run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
+                    "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
+            fi
+        fi
+
+        # Create PHP log dir.
+        if [[ ! -d /var/log/php ]]; then
+            run mkdir -p /var/log/php
+        fi
+
+        # Optimize PHP configuration.
+        optimize_php_fpm "${PHPv}"
     fi
 }
 
 ##
 # PHP & FPM Optimization.
-#
+##
 function optimize_php_fpm() {
     # PHP version.
     local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
+    if [[ -z "${PHPv}" ]]; then
         PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
     fi
 
     echo "Optimizing PHP ${PHPv} & FPM configuration..."
 
-    if [ ! -d "/etc/php/${PHPv}/fpm" ]; then
+    if [[ ! -d "/etc/php/${PHPv}/fpm" ]]; then
         run mkdir -p "/etc/php/${PHPv}/fpm"
     fi
 
     # Copy the optimized-version of php.ini
-    if [ -f "etc/php/${PHPv}/fpm/php.ini" ]; then
+    if [[ -f "etc/php/${PHPv}/fpm/php.ini" ]]; then
         run mv "/etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/php.ini~"
         run cp -f "etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/"
     else
-        if ! "${DRYRUN}"; then
+        if [[ "${DRYRUN}" != true ]]; then
             cat >> "/etc/php/${PHPv}/fpm/php.ini" <<EOL
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -238,54 +199,58 @@ opcache.save_comments=1
 opcache.error_log="/var/log/php/php${PHPv}-opcache_error.log"
 EOL
         else
-            info "PHP configuration optimized in dry run mode."
+            info "PHP opcache optimized in dry run mode."
         fi
     fi
 
     # Copy the optimized-version of php-fpm config file.
-    if [ -f "etc/php/${PHPv}/fpm/php-fpm.conf" ]; then
+    if [[ -f "etc/php/${PHPv}/fpm/php-fpm.conf" ]]; then
         run mv "/etc/php/${PHPv}/fpm/php-fpm.conf" "/etc/php/${PHPv}/fpm/php-fpm.conf~"
         run cp -f "etc/php/${PHPv}/fpm/php-fpm.conf" "/etc/php/${PHPv}/fpm/"
     else
-        if grep -qwE "^error_log\ =\ \/var\/log\/php${PHPv}-fpm.log" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
-            run sed -i "s|^error_log\ =\ /var/log/php${PHPv}-fpm.log|error_log\ =\ /var/log/php/php${PHPv}-fpm.log/g" \
-                "/etc/php/${PHPv}/fpm/php-fpm.conf"
-        else
-            run sed -i "/^;error_log/a error_log\ =\ \/var\/log\/php\/php${PHPv}-fpm.log" \
-                "/etc/php/${PHPv}/fpm/php-fpm.conf"
-        fi
+        if [[ "${DRYRUN}" != true ]]; then
+            if grep -qwE "^error_log\ =\ \/var\/log\/php${PHPv}-fpm.log" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
+                run sed -i "s|^error_log\ =\ /var/log/php${PHPv}-fpm.log|error_log\ =\ /var/log/php/php${PHPv}-fpm.log/g" \
+                    "/etc/php/${PHPv}/fpm/php-fpm.conf"
+            else
+                run sed -i "/^;error_log/a error_log\ =\ \/var\/log\/php\/php${PHPv}-fpm.log" \
+                    "/etc/php/${PHPv}/fpm/php-fpm.conf"
+            fi
 
-        if grep -qwE "^emergency_restart_threshold\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
-            run sed -i "s/^emergency_restart_threshold\ =\ [0-9]*/emergency_restart_threshold\ =\ 10/g" \
-                "/etc/php/${PHPv}/fpm/php-fpm.conf"
-        else
-            run sed -i "/^;emergency_restart_threshold/a emergency_restart_threshold\ =\ 10" \
-                "/etc/php/${PHPv}/fpm/php-fpm.conf"
-        fi
+            if grep -qwE "^emergency_restart_threshold\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
+                run sed -i "s/^emergency_restart_threshold\ =\ [0-9]*/emergency_restart_threshold\ =\ 10/g" \
+                    "/etc/php/${PHPv}/fpm/php-fpm.conf"
+            else
+                run sed -i "/^;emergency_restart_threshold/a emergency_restart_threshold\ =\ 10" \
+                    "/etc/php/${PHPv}/fpm/php-fpm.conf"
+            fi
 
-        if grep -qwE "^emergency_restart_interval\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
-            run sed -i "s/^emergency_restart_interval\ =\ [0-9]*/emergency_restart_interval\ =\ 60/g" \
-                "/etc/php/${PHPv}/fpm/php-fpm.conf"
-        else
-            run sed -i "/^;emergency_restart_interval/a emergency_restart_interval\ =\ 60" \
-                "/etc/php/${PHPv}/fpm/php-fpm.conf"
-        fi
+            if grep -qwE "^emergency_restart_interval\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
+                run sed -i "s/^emergency_restart_interval\ =\ [0-9]*/emergency_restart_interval\ =\ 60/g" \
+                    "/etc/php/${PHPv}/fpm/php-fpm.conf"
+            else
+                run sed -i "/^;emergency_restart_interval/a emergency_restart_interval\ =\ 60" \
+                    "/etc/php/${PHPv}/fpm/php-fpm.conf"
+            fi
 
-        if grep -qwE "^process_control_timeout\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
-            run sed -i "s/^process_control_timeout\ =\ [0-9]*/process_control_timeout\ =\ 10/g" \
-                "/etc/php/${PHPv}/fpm/php-fpm.conf"
+            if grep -qwE "^process_control_timeout\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
+                run sed -i "s/^process_control_timeout\ =\ [0-9]*/process_control_timeout\ =\ 10/g" \
+                    "/etc/php/${PHPv}/fpm/php-fpm.conf"
+            else
+                run sed -i "/^;process_control_timeout/a process_control_timeout\ =\ 10" \
+                    "/etc/php/${PHPv}/fpm/php-fpm.conf"
+            fi
         else
-            run sed -i "/^;process_control_timeout/a process_control_timeout\ =\ 10" \
-                "/etc/php/${PHPv}/fpm/php-fpm.conf"
+            info "PHP FPM optimized in dry run mode."
         fi
     fi
 
-    if [ ! -d "/etc/php/${PHPv}/fpm/pool.d" ]; then
+    if [[ ! -d "/etc/php/${PHPv}/fpm/pool.d" ]]; then
         run mkdir -p "/etc/php/${PHPv}/fpm/pool.d"
     fi
 
     # Copy the optimized-version of php fpm default pool.
-    if [ -f "etc/php/${PHPv}/fpm/pool.d/www.conf" ]; then
+    if [[ -f "etc/php/${PHPv}/fpm/pool.d/www.conf" ]]; then
         run mv "/etc/php/${PHPv}/fpm/pool.d/www.conf" "/etc/php/${PHPv}/fpm/pool.d/www.conf~"
         run cp -f "etc/php/${PHPv}/fpm/pool.d/www.conf" "/etc/php/${PHPv}/fpm/pool.d/"
 
@@ -308,7 +273,7 @@ EOL
             "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
         # Customize php ini settings.
-        if ! "${DRYRUN}"; then
+        if [[ "${DRYRUN}" != true ]]; then
             cat >> "/etc/php/${PHPv}/fpm/pool.d/www.conf" <<EOL
 php_flag[display_errors] = On
 ;php_admin_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
@@ -344,7 +309,7 @@ EOL
         fi
 
         # Create custom pool configuration.
-        if ! "${DRYRUN}"; then
+        if [[ "${DRYRUN}" != true ]]; then
             touch "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
             cat > "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf" <<EOL
 [${POOLNAME}]
@@ -398,7 +363,7 @@ php_admin_value[upload_max_filesize] = 20M
 php_admin_value[post_max_size] = 20M
 EOL
         else
-            info "Custom FPM pool ${POOLNAME} created & optimized in dry run mode."
+            info "Custom FPM pool '${POOLNAME}' created in dry run mode."
         fi
     fi
 
@@ -413,7 +378,7 @@ EOL
     #sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
 
     # Restart PHP-fpm server.
-    if "${DRYRUN}"; then
+    if [[ "${DRYRUN}" == true ]]; then
         info "php${PHPv}-fpm reloaded in dry run mode."
     else
         if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
@@ -433,17 +398,17 @@ EOL
 
 ##
 # Install PHP Composer.
-#
+##
 function install_php_composer() {
     # PHP version.
     local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
+    if [[ -z "${PHPv}" ]]; then
         PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
     fi
 
     # Checking if php composer already installed.
     if [[ -z $(command -v composer) ]]; then
-        if "${AUTO_INSTALL}"; then
+        if [[ ${AUTO_INSTALL} == true ]]; then
             DO_INSTALL_COMPOSER="y"
         else
             while [[ "${DO_INSTALL_COMPOSER}" != "y" && "${DO_INSTALL_COMPOSER}" != "n" ]]; do
@@ -470,7 +435,7 @@ function install_php_composer() {
                     run "${PHP_BIN}" composer-setup.php --filename=composer --install-dir=/usr/local/bin --quiet
 
                     # Fix chmod permission to executable.
-                    if [ -f /usr/local/bin/composer ]; then
+                    if [[ -f /usr/local/bin/composer ]]; then
                         run chmod ugo+x /usr/local/bin/composer
                         run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bashrc"
                         run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bash_profile"
@@ -495,12 +460,12 @@ function install_php_composer() {
 
 ##
 # Initialize PHP & FPM Installation.
-#
+##
 function init_php_fpm_install() {
     local SELECTED_PHP_VERSIONS=()
     local OPT_PHP_VERSIONS=()
 
-    OPTS=$(getopt -o p: \
+    OPTS=$(getopt -o p:l: \
         -l php-version: \
         -n "init_php_fpm_install" -- "$@")
 
@@ -539,51 +504,57 @@ function init_php_fpm_install() {
             echo "  4). PHP 7.2 (EOL)"
             echo "  5). PHP 7.3 (SFO)"
             echo "  6). PHP 7.4 (Stable)"
-            echo "  7). PHP 8.0 (Latest Stable)"
-            echo "  8). All available versions"
+            echo "  7). PHP 8.0 (Stable)"
+            echo "  8). PHP 8.1 (Latest Stable)"
+            echo "  9). All available versions"
             echo "--------------------------------------------"
-            [ -n "${DEFAULT_PHP_VERSION}" ] && \
+
+            [[ -n "${DEFAULT_PHP_VERSION}" ]] && \
             info "Default version is: ${DEFAULT_PHP_VERSION}"
 
             while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                     ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
-                    ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && \
+                    ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && ${SELECTED_PHP} != "9" && \
                     ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && ${SELECTED_PHP} != "7.1" && \
                     ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
-                    ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "all" ]]; do
-                read -rp "Enter a PHP version from an option above [1-8]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
+                    ${SELECTED_PHP} != "8.0" &&  ${SELECTED_PHP} != "8.1" && ${SELECTED_PHP} != "all" ]]; do
+                read -rp "Enter a PHP version from an option above [1-9]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
             done
 
-            case ${SELECTED_PHP} in
-                1|"5.6")
+            case "${SELECTED_PHP}" in
+                1 | "5.6")
                     #install_php_fpm "5.6"
                     SELECTED_PHP_VERSIONS+=("5.6")
                 ;;
-                2|"7.0")
+                2 | "7.0")
                     #install_php_fpm "7.0"
                     SELECTED_PHP_VERSIONS+=("7.0")
                 ;;
-                3|"7.1")
+                3 | "7.1")
                     #install_php_fpm "7.1"
                     SELECTED_PHP_VERSIONS+=("7.1")
                 ;;
-                4|"7.2")
+                4 | "7.2")
                     #install_php_fpm "7.2"
                     SELECTED_PHP_VERSIONS+=("7.2")
                 ;;
-                5|"7.3")
+                5 | "7.3")
                     #install_php_fpm "7.3"
                     SELECTED_PHP_VERSIONS+=("7.3")
                 ;;
-                6|"7.4")
+                6 | "7.4")
                     #install_php_fpm "7.4"
                     SELECTED_PHP_VERSIONS+=("7.4")
                 ;;
-                7|"8.0")
+                7 | "8.0")
                     #install_php_fpm "8.0"
                     SELECTED_PHP_VERSIONS+=("8.0")
                 ;;
-                8|"all")
+                8 | "8.1")
+                    #install_php_fpm "8.0"
+                    SELECTED_PHP_VERSIONS+=("8.0")
+                ;;
+                9 | "all")
                     # Select all PHP versions (except EOL & Beta).
                     SELECTED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0")
                 ;;
@@ -632,7 +603,8 @@ if [[ -n $(command -v php5.6) && \
     -n $(command -v php7.2) && \
     -n $(command -v php7.3) && \
     -n $(command -v php7.4) && \
-    -n $(command -v php8.0) ]]; then
+    -n $(command -v php8.0) && \
+    -n $(command -v php8.1) ]]; then
     info "All available PHP version already exists, installation skipped."
 else
     init_php_fpm_install "$@"
