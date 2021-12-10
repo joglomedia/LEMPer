@@ -13,15 +13,11 @@ if [[ "$(type -t run)" != "function" ]]; then
     . "${BASE_DIR}/helper.sh"
 fi
 
-# Define scripts directory.
-#if grep -q "scripts" <<< "${BASE_DIR}"; then
-#    SCRIPTS_DIR="${BASE_DIR}"
-#else
-#    SCRIPTS_DIR="${BASE_DIR}/scripts"
-#fi
-
 # Make sure only root can run this installer script.
 requires_root
+
+# Make sure only supported distribution can run this installer script.
+preflight_system_check
 
 function add_nginx_repo() {
     echo "Add Nginx repository..."
