@@ -18,8 +18,8 @@
 set -e
 
 # Version control.
-APP_NAME=$(basename "$0")
-APP_VERSION="1.0.0"
+PROG_NAME=$(basename "$0")
+PROG_VER="2.x.x"
 CMD_PARENT="lemper-cli"
 CMD_NAME="db"
 
@@ -59,7 +59,7 @@ function error() {
 # Prints an error message and exits with an error code.
 function fail() {
     error "$@"
-    echo >&2
+    #echo >&2
     echo "For usage information, run this script with --help" >&2
     exit 1
 }
@@ -84,7 +84,7 @@ function info() {
 
 # Run command
 function run() {
-    if "$DRYRUN"; then
+    if "${DRYRUN}"; then
         echo_color "${YELLOW}" -n "would run "
         echo "$@"
     else
@@ -98,7 +98,7 @@ function run() {
 
 # May need to run this as sudo!
 if [[ "$(id -u)" -ne 0 ]]; then
-    error "This command can only be used by root."
+    error "This command can only be run by root."
     exit 1
 fi
 
@@ -137,8 +137,8 @@ function str_to_upper() {
 # Prints help.
 #
 function cmd_help() {
-    cat <<- _EOF_
-${CMD_PARENT} ${CMD_NAME} ${APP_VERSION}
+    cat <<- EOL
+${CMD_PARENT} ${CMD_NAME} ${PROG_VER}
 Command line database management tool for LEMPer stack.
 
 Usage: ${CMD_PARENT} ${CMD_NAME} [--version] [--help]
@@ -148,7 +148,7 @@ Default options are read from the following files in the given order:
 /etc/lemper/lemper.conf
 
 These are common ${CMD_PARENT} ${CMD_NAME} subcommands used in various situations:
-  account       Creates a new user account.
+  account       Manage database account.
   create        Creates a new database.
   databases     Lists the databases.
   drop          Deletes the database.
@@ -206,13 +206,13 @@ Example:
 
 For help with each command run:
 ${CMD_PARENT} ${CMD_NAME} <command> -h|--help
-_EOF_
+EOL
 
     exit 0
 }
 
 function cmd_version() {
-    echo "${CMD_PARENT} ${CMD_NAME} version ${APP_VERSION}"
+    echo "${CMD_PARENT} ${CMD_NAME} version ${PROG_VER}"
     exit 0
 }
 
@@ -224,12 +224,24 @@ function cmd_create() {
     db_ops "--action=create" "$@"
 }
 
+function cmd_add() {
+    db_ops "--action=add" "$@"
+}
+
 function cmd_databases() {
     db_ops "--action=databases" "$@"
 }
 
+function cmd_list() {
+    db_ops "--action=list" "$@"
+}
+
 function cmd_drop() {
     db_ops "--action=drop" "$@"
+}
+
+function cmd_delete() {
+    db_ops "--action=delete" "$@"
 }
 
 function cmd_export() {
@@ -294,8 +306,8 @@ function cmd_users() {
 function sub_cmd_account() {
     # account subcommands
     function cmd_account_help() {
-        cat <<- _EOF_
-${APP_NAME^} ${APP_VERSION}
+        cat <<- EOL
+${PROG_NAME} ${PROG_VER}
 Command line database management tool for LEMPer stack.
 
 Usage: ${CMD_PARENT} ${CMD_NAME} account [--version] [--help]
@@ -315,13 +327,13 @@ These are common ${CMD_PARENT} ${CMD_NAME} account subcommands used in various s
 
 For help with each command run:
 ${CMD_PARENT} ${CMD_NAME} account <command> -h|--help
-_EOF_
+EOL
 
         exit 0
     }
 
     function cmd_account_version() {
-        echo "${CMD_PARENT} ${CMD_NAME} account version ${APP_VERSION}"
+        echo "${CMD_PARENT} ${CMD_NAME} account version ${PROG_VER}"
         exit 0
     }
 
@@ -389,7 +401,7 @@ _EOF_
         else
             local SQL_QUERY="DROP USER '${DBUSER}'@'${DBHOST}';"
 
-            if ! ${DRYRUN}; then
+            if ! "${DRYRUN}"; then
                 if mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"; then
                     success "The database's account '${DBUSER}'@'${DBHOST}' has been deleted."
                 else
@@ -418,7 +430,7 @@ _EOF_
 
         local SQL_QUERY="UPDATE mysql.user SET Password=PASSWORD('${DBPASS2}') WHERE USER='${DBUSER}' AND Host='${DBHOST}';"
 
-        if ! ${DRYRUN}; then
+        if ! "${DRYRUN}"; then
             if mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"; then
                 success "Password for account '${DBUSER}'@'${DBHOST}' has been updated to '${DBPASS2}'."
             else
@@ -448,7 +460,7 @@ _EOF_
 
         local SQL_QUERY="RENAME USER '${DBUSER}'@'${DBHOST}' TO '${DBUSER2}'@'${DBHOST2}';"
 
-        if ! ${DRYRUN}; then
+        if ! "${DRYRUN}"; then
             if [[ "${DBUSER}" = "root" || "${DBUSER}" = "lemper" ]]; then
                 error "You are not allowed to rename this account."
                 exit 1
@@ -487,35 +499,42 @@ _EOF_
     }
 
     # Aliases to users.
-    function cmd_account_lists() {
+    function cmd_account_list() {
         cmd_account_users "$@"
     }
 
     # Initialize account subcommand.
     function init_cmd_account() {
-        local SUBCOMMAND && \
-        SUBCOMMAND=$(str_trim "${1}")
+        # Check command line arguments.
+        if [[ -n "${1}" ]]; then
+            local SUBCOMMAND && \
+            SUBCOMMAND=$(str_trim "${1}")
+            shift # Pass the remaining arguments to the next function.
 
-        case "${SUBCOMMAND}" in
-            "" | "-h" | "--help" | "help")
-                cmd_account_help
-            ;;
-
-            "-v" | "--version" | "version")
-                cmd_account_version
-            ;;
-
-            *)
-                shift
-                if declare -F "cmd_account_${SUBCOMMAND}" &>/dev/null; then
-                    "cmd_account_${SUBCOMMAND}" "$@"
-                else
-                    echo "${CMD_PARENT} ${CMD_NAME} account: unrecognized command '${SUBCOMMAND}'" >&2
-                    echo "Run '${CMD_PARENT} ${CMD_NAME} account --help' for a list of known commands." >&2
-                    exit 1
-                fi
-            ;;
-        esac
+            case "${SUBCOMMAND}" in
+                help | -h | --help)
+                    cmd_account_help
+                    exit 0
+                ;;
+                version | -v | --version)
+                    cmd_account_version
+                    exit 0
+                ;;
+                *)
+                    if declare -F "cmd_account_${SUBCOMMAND}" &>/dev/null; then
+                        "cmd_account_${SUBCOMMAND}" "$@"
+                    else
+                        echo "${CMD_PARENT} ${CMD_NAME} account: unrecognized command '${SUBCOMMAND}'" >&2
+                        echo "Run '${CMD_PARENT} ${CMD_NAME} account --help' for a list of known commands." >&2
+                        exit 1
+                    fi
+                ;;
+            esac
+        else
+            echo "${CMD_PARENT} ${CMD_NAME} account: missing required arguments."
+            echo "See '${CMD_PARENT} ${CMD_NAME} account --help' for more information."
+            exit 1
+        fi
     }
 
     init_cmd_account "$@"
@@ -662,7 +681,7 @@ function db_ops() {
                 sub_cmd_account "$@" "${BYPASSED_ARGS}"
             ;;
 
-            "create")
+            "create" | "add")
                 DBUSER=${DBUSER:-"root"}
                 DBPASS=${DBPASS:-""}
                 [[ -z "${DBPASS}" || ${USEROOT} == true ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
@@ -690,7 +709,7 @@ function db_ops() {
                 fi
             ;;
 
-            "databases")
+            "databases" | "list")
                 DBUSER=${DBUSER:-"root"}
                 local DATABASES
 
@@ -729,7 +748,7 @@ function db_ops() {
                 fi
             ;;
 
-            "drop")
+            "drop" | "delete")
                 if [[ -z "${DBNAME}" ]]; then
                     fail "Please specify the name of database using --dbname parameter."
                 fi
@@ -817,7 +836,7 @@ function db_ops() {
 
                 local SQL_QUERY=${DBQUERY:-""}
 
-                if ! ${DRYRUN}; then
+                if ! "${DRYRUN}"; then
                     if mysql -u "${DBUSER}" -p"${DBPASS}" -D "${DBNAME}" -e "${SQL_QUERY}"; then
                         success "SQL query applied to ${DBNAME} as '${DBUSER}'@'${DBHOST}'."
                     else
@@ -834,36 +853,47 @@ function db_ops() {
             ;;
         esac
     else
-        echo "${CMD_PARENT} ${CMD_NAME}: missing required argument."
-        echo "Try '${CMD_PARENT} ${CMD_NAME} --help' for more information."
+        echo "${CMD_PARENT} ${CMD_NAME}: missing required arguments."
+        echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information."
+        exit 1
     fi
 }
 
 ##
-# Main App
+# Main DB CLI Wrapper
 #
-function init_db_app() {
-    local SUBCMD="${1}"
-    case ${SUBCMD} in
-        "" | "-h" | "--help" | "help")
-            cmd_help
-        ;;
-        "-v" | "--version" | "version")
-            cmd_version
-        ;;
-        *)
-            shift
-            if declare -F "cmd_${SUBCMD}" &>/dev/null; then
-                "cmd_${SUBCMD}" "$@"
-            else
-                echo "${CMD_PARENT} ${CMD_NAME}: unrecognized command '${SUBCMD}'" >&2
-                echo "Run '${CMD_PARENT} ${CMD_NAME} --help' for a list of known commands." >&2
-                exit 1
-            fi
-        ;;
-    esac
+function init_lemper_db() {
+    # Check command line arguments.
+    if [[ -n "${1}" ]]; then
+        local SUBCMD="${1}"
+        shift # Pass the remaining arguments to the next function.
+
+        case ${SUBCMD} in
+            help | -h | --help)
+                cmd_help
+                exit 0
+            ;;
+            version | -v | --version)
+                cmd_version
+                exit 0
+            ;;
+            *)
+                if declare -F "cmd_${SUBCMD}" &>/dev/null; then
+                    "cmd_${SUBCMD}" "$@"
+                else
+                    echo "${CMD_PARENT} ${CMD_NAME}: unrecognized command '${SUBCMD}'" >&2
+                    echo "Run '${CMD_PARENT} ${CMD_NAME} --help' for a list of known commands." >&2
+                    exit 1
+                fi
+            ;;
+        esac
+    else
+        echo "${CMD_PARENT} ${CMD_NAME}: missing required arguments."
+        echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information."
+        exit 1
+    fi
 }
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-init_db_app "$@"
+init_lemper_db "$@"
