@@ -18,8 +18,8 @@
 set -e
 
 # Version control.
-APP_NAME=$(basename "$0")
-APP_VERSION="1.0.1"
+PROG_NAME=$(basename "$0")
+PROG_VER="2.x.x"
 CMD_PARENT="lemper-cli"
 CMD_NAME="create"
 
@@ -95,7 +95,7 @@ function run() {
 
 # May need to run this as sudo!
 if [[ "$(id -u)" -ne 0 ]]; then
-    error "This command can only be used by root."
+    error "This command can only be run by root."
     exit 1
 fi
 
@@ -109,7 +109,7 @@ done
 
 if [[ ${#NO_PACKAGES[@]} -gt 0 ]]; then
     printf -v NO_PACKAGES_STR '%s, ' "${NO_PACKAGES[@]}"
-    error "${APP_NAME^} requires: ${NO_PACKAGES_STR%, }, please install it first!"
+    error "${PROG_NAME} requires: ${NO_PACKAGES_STR%, }, please install it first!"
     echo "help: run 'sudo apt-get install ${NO_PACKAGES[*]}'"
     exit 1
 fi
@@ -123,8 +123,8 @@ fi
 # output to STDERR.
 #
 function show_usage {
-    cat <<- _EOF_
-${APP_NAME^} ${APP_VERSION}
+    cat <<- EOL
+${CMD_PARENT} ${CMD_NAME} ${PROG_VER}
 Creates NGiNX virtual host (vHost) configuration file.
 
 Requirements:
@@ -149,7 +149,7 @@ Options:
   -p, --php-version
       PHP version for selected framework. Latest recommended PHP version is "7.4".
   -u, --username <virtual-host username>
-      Use username added from adduseruseradd. Default user set as lemper. Do not use root user!!
+      Use username added from useradd. Default user set as LEMPer's user, Do not use root user!!
   -w, --webroot <web root>
       Web root is an absolute path to the website root directory, i.e. /home/lemper/webapps/example.test.
 
@@ -178,7 +178,7 @@ Example:
 
 For more informations visit https://masedi.net/lemper
 Mail bug reports and suggestions to <me@masedi.net>
-_EOF_
+EOL
 }
 
 ##
@@ -188,7 +188,7 @@ _EOF_
 #
 function create_vhost_default() {
     if [[ ${DRYRUN} != true ]]; then
-        cat <<- _EOF_
+        cat <<- EOL
 server {
     listen 80;
     listen [::]:80;
@@ -202,8 +202,8 @@ server {
     #include /etc/nginx/includes/ssl.conf;
 
     ## Log Settings.
-    access_log ${WEBROOT}/access_log combined buffer=32k;
-    error_log ${WEBROOT}/error_log error;
+    access_log /home/${USERNAME}/logs/nginx/access_log combined buffer=32k;
+    error_log /home/${USERNAME}/logs/nginx/error_log error;
 
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}";
@@ -290,14 +290,14 @@ server {
     }
 
     ## Uncomment to enable error page directives configuration.
-    include /etc/nginx/includes/error_pages.conf;
+    #include /etc/nginx/includes/error_pages.conf;
 
     ## Uncomment to enable support cgi-bin scripts using fcgiwrap (like cgi-bin in Apache).
     #include /etc/nginx/includes/fcgiwrap.conf;
 }
-_EOF_
+EOL
     else
-        info "Vhost created in dryrun mode, no data written."
+        info "Vhost created in dry run mode, no data written."
     fi
 }
 
@@ -307,7 +307,7 @@ _EOF_
 #
 function create_vhost_drupal() {
     if [[ ${DRYRUN} != true ]]; then
-        cat <<- _EOF_
+        cat <<- EOL
 server {
     listen 80;
     listen [::]:80;
@@ -321,8 +321,8 @@ server {
     #include /etc/nginx/includes/ssl.conf;
 
     ## Log Settings.
-    access_log ${WEBROOT}/access_log combined buffer=32k;
-    error_log ${WEBROOT}/error_log error;
+    access_log /home/${USERNAME}/logs/nginx/access_log combined buffer=32k;
+    error_log /home/${USERNAME}/logs/nginx/error_log error;
 
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}";
@@ -403,14 +403,14 @@ server {
     }
 
     ## Uncomment to enable error page directives configuration.
-    include /etc/nginx/includes/error_pages.conf;
+    #include /etc/nginx/includes/error_pages.conf;
 
     ## Uncomment to enable support cgi-bin scripts using fcgiwrap (like cgi-bin in Apache).
     #include /etc/nginx/includes/fcgiwrap.conf;
 }
-_EOF_
+EOL
     else
-        info "Vhost created in dryrun mode, no data written."
+        info "Vhost created in dry run mode, no data written."
     fi
 }
 
@@ -420,7 +420,7 @@ _EOF_
 #
 function create_vhost_laravel() {
     if [[ ${DRYRUN} != true ]]; then
-        cat <<- _EOF_
+        cat <<- EOL
 server {
     listen 80;
     listen [::]:80;
@@ -434,8 +434,8 @@ server {
     #include /etc/nginx/includes/ssl.conf;
 
     ## Log Settings.
-    access_log ${WEBROOT}/access_log combined buffer=32k;
-    error_log ${WEBROOT}/error_log error;
+    access_log /home/${USERNAME}/logs/nginx/access_log combined buffer=32k;
+    error_log /home/${USERNAME}/logs/nginx/error_log error;
 
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}/public";
@@ -517,14 +517,14 @@ server {
     }
 
     ## Uncomment to enable error page directives configuration.
-    include /etc/nginx/includes/error_pages.conf;
+    #include /etc/nginx/includes/error_pages.conf;
 
     ## Uncomment to enable support cgi-bin scripts using fcgiwrap (like cgi-bin in Apache).
     #include /etc/nginx/includes/fcgiwrap.conf;
 }
-_EOF_
+EOL
     else
-        info "Vhost created in dryrun mode, no data written."
+        info "Vhost created in dry run mode, no data written."
     fi
 }
 
@@ -534,7 +534,7 @@ _EOF_
 #
 function create_vhost_phalcon() {
     if [[ ${DRYRUN} != true ]]; then
-        cat <<- _EOF_
+        cat <<- EOL
 server {
     listen 80;
     listen [::]:80;
@@ -548,8 +548,8 @@ server {
     #include /etc/nginx/includes/ssl.conf;
 
     ## Log Settings.
-    access_log ${WEBROOT}/access_log combined buffer=32k;
-    error_log ${WEBROOT}/error_log error;
+    access_log /home/${USERNAME}/logs/nginx/access_log combined buffer=32k;
+    error_log /home/${USERNAME}/logs/nginx/error_log error;
 
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}/public";
@@ -634,14 +634,14 @@ server {
     }
 
     ## Uncomment to enable error page directives configuration.
-    include /etc/nginx/includes/error_pages.conf;
+    #include /etc/nginx/includes/error_pages.conf;
 
     ## Uncomment to enable support cgi-bin scripts using fcgiwrap (like cgi-bin in Apache).
     #include /etc/nginx/includes/fcgiwrap.conf;
 }
-_EOF_
+EOL
     else
-        info "Vhost created in dryrun mode, no data written."
+        info "Vhost created in dry run mode, no data written."
     fi
 }
 
@@ -649,21 +649,21 @@ _EOF_
 # Output Wordpress Multisite vHost header.
 #
 function prepare_vhost_wpms() {
-    cat <<- _EOF_
+    cat <<- EOL
 # Wordpress Multisite Mapping for NGiNX (Requires NGiNX Helper plugin).
 map \$http_host \$blogid {
     default 0;
     include ${WEBROOT}/wp-content/uploads/nginx-helper/[map].conf;
 }
 
-_EOF_
+EOL
 }
 
 ##
 # Output server block for HTTP to HTTPS redirection.
 #
 function redirect_http_to_https() {
-    cat <<- _EOF_
+    cat <<- EOL
 
 # HTTP to HTTPS redirection
 server {
@@ -675,7 +675,7 @@ server {
     # Automatically redirect site to HTTPS protocol.
     return 301 https://\$server_name\$request_uri;
 }
-_EOF_
+EOL
 }
 
 ##
@@ -684,7 +684,7 @@ _EOF_
 #
 function create_index_file() {
     if [[ ${DRYRUN} != true ]]; then
-        cat <<- _EOF_
+        cat <<- EOL
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -731,9 +731,9 @@ div.banner{color:#009639;font-family:Montserrat,sans-serif;position:absolute;lef
 <script src="https://ajax.cloudflare.com/cdn-cgi/scripts/95c75768/cloudflare-static/rocket-loader.min.js" data-cf-settings="d841170f43ff1e03f58512ad-|49" defer=""></script>
 </body>
 </html>
-_EOF_
+EOL
     else
-        info "index file created in dryrun mode, no data written."
+        info "index file created in dry run mode, no data written."
     fi
 }
 
@@ -742,7 +742,7 @@ _EOF_
 # To be outputted into new pool file in fpm/pool.d.
 #
 function create_fpm_pool_conf() {
-    cat <<- _EOF_
+    cat <<- EOL
 [${USERNAME}]
 user = ${USERNAME}
 group = ${USERNAME}
@@ -793,7 +793,7 @@ php_admin_value[upload_tmp_dir] = /home/${USERNAME}/.lemper/tmp
 php_admin_value[upload_max_filesize] = 20M
 php_admin_value[post_max_size] = 20M
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com
-_EOF_
+EOL
 }
 
 ##
@@ -877,9 +877,9 @@ function add_local_domain() {
 #
 function create_app_db() {
     echo "Creating application database (SQL)..."
-    
+
     APP_UID="$(openssl rand -base64 32 | tr -dc 'a-z0-9' | fold -w 8 | head -n 1)"
-    APP_DB_USER=${1:-"${USERNAME}_${APP_UID}"}
+    APP_DB_USER=${1:-"db_${APP_UID}"}
     APP_DB_PASS=${2:-"$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"}
     APP_DB_NAME=${3:-"app_${APP_UID}"}
 
@@ -906,7 +906,7 @@ function install_wordpress() {
             # Download WordPress skeleton files.
             run sudo -u "${USERNAME}" -i -- wp-cli core download --path="${WEBROOT}"
 
-            # create_app_db [system_username] [app_db_username] [app_db_password] [app_db_name]
+            # create_app_db [app_db_username] [app_db_password] [app_db_name]
             create_app_db "${APP_DB_USER}" "${APP_DB_PASS}" "${APP_DB_NAME}"
 
             run sudo -u "${USERNAME}" -i -- wp-cli config create --dbname="${APP_DB_NAME}" \
@@ -931,10 +931,10 @@ function install_wordpress() {
 #
 function init_lemper_create() {
     # Command line arguments.
-    OPTS=$(getopt -o u:d:e:f:4:6:w:p:icPsFWDhv \
-      -l username:,domain-name:,admin-email:,framework:,ipv4:,ipv6:,webroot:,php-version:,install-app \
+    OPTS=$(getopt -o u:d:e:f:4:6:w:p:iScPsFWDhv \
+      -l username:,domain-name:,admin-email:,framework:,ipv4:,ipv6:,webroot:,php-version:,install-app,subdomains \
       -l enable-fastcgi-cache,enable-pagespeed,enable-ssl,enable-fail2ban,wildcard-domain,dryrun,help,version \
-      -n "${APP_NAME}" -- "$@")
+      -n "${PROG_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
 
@@ -947,20 +947,13 @@ function init_lemper_create() {
     FRAMEWORK="default"
     PHP_VERSION="7.4"
     INSTALL_APP=false
+    WPMS_SUBDOMAINS=""
     ENABLE_FASTCGI_CACHE=false
     ENABLE_PAGESPEED=false
     ENABLE_SSL=false
     ENABLE_WILDCARD_DOMAIN=false
     ENABLE_FAIL2BAN=false
     TMPDIR="/tmp/lemper"
-
-    # Default application login.
-    APP_UID="$(openssl rand -base64 32 | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)"
-    APP_DB_USER="${USERNAME}_${APP_UID}"
-    APP_DB_PASS="$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
-    APP_DB_NAME="app_${APP_UID}"
-    APP_ADMIN_USER="admin"
-    APP_ADMIN_PASS="$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 
     # Test mode
     DRYRUN=false
@@ -969,75 +962,97 @@ function init_lemper_create() {
     MAIN_ARGS=0
 
     # Parse flags
-    while true
-    do
+    while true; do
         case "${1}" in
-            -4 | --ipv4) shift
+            -4 | --ipv4)
+                shift
                 IPv4="${1}"
                 shift
             ;;
-            -6 | --ipv6) shift
+            -6 | --ipv6)
+                shift
                 IPv6="${1}"
                 shift
             ;;
-            -d | --domain-name) shift
+            -d | --domain-name)
+                shift
                 SERVERNAME="${1}"
                 MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
-            -e | --admin-email) shift
+            -e | --admin-email)
+                shift
                 APP_ADMIN_EMAIL="${1}"
                 shift
             ;;
-            -f | --framework) shift
+            -f | --framework)
+                shift
                 FRAMEWORK="${1}"
                 shift
             ;;
-            -u | --username) shift
+            -u | --username)
+                shift
                 USERNAME="${1}"
                 shift
             ;;
-            -w | --webroot) shift
+            -w | --webroot)
+                shift
                 # Remove badly and trailing slash.
                 #WEBROOT=$(echo "${1}" | sed 's:/*$::')
                 WEBROOT=$(echo "${1}" | tr -s /)
                 shift
             ;;
-            -p | --php-version) shift
+            -p | --php-version)
+                shift
                 PHP_VERSION="${1}"
                 shift
             ;;
 
-            -c | --enable-fastcgi-cache) shift
+            -c | --enable-fastcgi-cache)
+                shift
                 ENABLE_FASTCGI_CACHE=true
             ;;
-            -D | --dryrun) shift
+            -D | --dryrun)
+                shift
                 DRYRUN=true
             ;;
-            -F | --enable-fail2ban) shift
+            -F | --enable-fail2ban)
+                shift
                 ENABLE_FAIL2BAN=true
             ;;
-            -h | --help) shift
+            -h | --help)
+                shift
                 show_usage
                 exit 0
             ;;
-            -i | --install-app) shift
+            -i | --install-app)
+                shift
                 INSTALL_APP=true
             ;;
-            -P | --enable-pagespeed) shift
+            -S | --subdomains)
+                shift
+                WPMS_SUBDOMAINS="--subdomains"
+            ;;
+            -P | --enable-pagespeed)
+                shift
                 ENABLE_PAGESPEED=true
             ;;
-            -s | --enable-ssl) shift
+            -s | --enable-ssl)
+                shift
                 ENABLE_SSL=true
             ;;
-            -v | --version) shift
-                echo "${APP_NAME^} version ${APP_VERSION}"
-                exit 1
+            -v | --version)
+                shift
+                echo "${PROG_NAME} version ${PROG_VER}"
+                exit 0
             ;;
-            -W | --wildcard-domain) shift
+            -W | --wildcard-domain)
+                shift
                 ENABLE_WILDCARD_DOMAIN=true
             ;;
-            --) shift
+            --)
+                # End of all options, shift to the next (non getopt) argument as $1. 
+                shift
                 break
             ;;
             *)
@@ -1046,6 +1061,14 @@ function init_lemper_create() {
             ;;
         esac
     done
+
+    # Default application credential data.
+    APP_UID="$(openssl rand -base64 32 | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)"
+    APP_DB_USER="${USERNAME}_${APP_UID}"
+    APP_DB_PASS="$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+    APP_DB_NAME="app_${APP_UID}"
+    APP_ADMIN_USER="admin"
+    APP_ADMIN_PASS="$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
 
     if [[ "${MAIN_ARGS}" -ge 1 ]]; then
         # Additional Check - ensure that Nginx's configuration meets the requirements.
@@ -1236,7 +1259,7 @@ function init_lemper_create() {
                                 error "Something went wrong while downloading ${FRAMEWORK^} files."
                             fi
 
-                            # create_app_db [system_username] [app_db_username] [app_db_password] [app_db_name]
+                            # create_app_db [app_db_username] [app_db_password] [app_db_name]
                             create_app_db "${APP_DB_USER}" "${APP_DB_PASS}" "${APP_DB_NAME}"
                         else
                             info "It seems that ${FRAMEWORK^} skeleton files already exists."
@@ -1368,6 +1391,8 @@ function init_lemper_create() {
                     # Install WordPress skeleton.
                     install_wordpress
 
+                    APP_ADMIN_USER="wpadmin"
+
                     if command -v wp-cli &> /dev/null; then
                         run sudo -u "${USERNAME}" -i -- wp-cli core install --url="${SERVERNAME}" \
                             --title="WordPress Managed by LEMPer Stack" \
@@ -1412,22 +1437,25 @@ function init_lemper_create() {
                     # Install WordPress.
                     install_wordpress
 
+                    APP_ADMIN_USER="wpadmin"
+
                     if command -v wp-cli &> /dev/null; then
-                        run sudo -u "${USERNAME}" -i -- wp-cli core multisite-install --subdomains --url="${SERVERNAME}" \
+                        run sudo -u "${USERNAME}" -i -- wp-cli core multisite-install "${WPMS_SUBDOMAINS}" --url="${SERVERNAME}" \
                             --title="WordPress Multi-site Managed by LEMPer" --admin_user="${APP_ADMIN_USER}" \
                             --admin_password="${APP_ADMIN_PASS}" --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
-                        run sudo -u "${USERNAME}" -i -- wp-cli plugin install akismet nginx-helper --activate-network --path="${WEBROOT}"
+                        run sudo -u "${USERNAME}" -i -- wp-cli plugin install \
+                            akismet classic-editor nginx-helper redis-cache statically --activate-network --path="${WEBROOT}"
                     fi
 
                     # Mercator domain mapping.
                     run git clone --depth=1 --branch=master -q https://github.com/humanmade/Mercator.git "${WEBROOT}/wp-content/mu-plugins/mercator" && \
-                    cat > "${WEBROOT}/wp-content/sunrise.php" <<_EOL_
+                    cat > "${WEBROOT}/wp-content/sunrise.php" <<EOL
 <?php
 // Default mu-plugins directory if you haven't set it
 defined( 'WPMU_PLUGIN_DIR' ) or define( 'WPMU_PLUGIN_DIR', WP_CONTENT_DIR . '/mu-plugins' );
 
 require WPMU_PLUGIN_DIR . '/mercator/mercator.php';
-_EOL_
+EOL
 
                     # Enable sunrise. (insert new line before match)
                     run sed -i "/\/*\ That/i define( 'SUNRISE', true );\n" "${WEBROOT}/wp-config.php"
@@ -1597,11 +1625,11 @@ _EOL_
                 fi
 
                 # Enable fail2ban filter
-                if [[ ${ENABLE_FAIL2BAN} == true ]]; then
+                if [[ "${ENABLE_FAIL2BAN}" == true ]]; then
                     echo "Enable Fail2ban ${FRAMEWORK^} filter for ${SERVERNAME}..."
 
                     if [[ $(command -v fail2ban-client) && -f "/etc/fail2ban/filter.d/${FRAMEWORK}.conf" ]]; then
-                        cat > "/etc/fail2ban/jail.d/${SERVERNAME}.conf" <<_EOL_
+                        cat > "/etc/fail2ban/jail.d/${SERVERNAME}.conf" <<EOL
 [${SERVERNAME}]
 enabled = true
 port = http,https
@@ -1611,7 +1639,7 @@ logpath = ${WEBROOT}/access_log
 bantime = 30d
 findtime = 5m
 maxretry = 3
-_EOL_
+EOL
 
                         # Reload fail2ban
                         run service fail2ban reload
@@ -1666,15 +1694,14 @@ _EOL_
                 # WordPress MS notice.
                 if [[ "${FRAMEWORK}" == "wordpress-ms" ]]; then
                     echo ""
-                    info "Note: You're installing Wordpress Multisite."
-                    info "You should activate NGiNX Helper plugin to work properly."
+                    info -e "You're installing Wordpress Multisite.\nYou should activate NGiNX Helper plugin to work properly."
                 fi
 
                 # Save app installation details.
                 if [[ ${INSTALL_APP} == true ]]; then
                     echo -e "\nYour application login details:\nAdmin user: ${APP_ADMIN_USER}\nAdmin pass: ${APP_ADMIN_PASS}\nAdmin email: ${APP_ADMIN_EMAIL}"
                     echo -e "Database user: ${APP_DB_USER}\nDatabase pass: ${APP_DB_PASS}\nDatabase name: ${APP_DB_NAME}"
-                    cat > "/etc/lemper/vhost.d/${SERVERNAME}.conf" <<_EOL_
+                    cat > "/etc/lemper/vhost.d/${SERVERNAME}.conf" <<EOL
 [${SERVERNAME}]
 APP_UID="${APP_UID}"
 APP_FRAMEWORK="${FRAMEWORK}"
@@ -1685,12 +1712,12 @@ APP_ADMIN_USER="${APP_ADMIN_USER}"
 APP_ADMIN_PASS="${APP_ADMIN_PASS}"
 APP_ADMIN_EMAIL="${APP_ADMIN_EMAIL}"
 APP_WEBROOT="${WEBROOT}"
-_EOL_
+EOL
                     chmod 0600 "/etc/lemper/vhost.d/${SERVERNAME}.conf"
                 fi
             else
                 if [[ ${DRYRUN} == true ]]; then
-                    info "Your ${SERVERNAME} successfully added in dryrun mode."
+                    info "Your ${SERVERNAME} successfully added in dry run mode."
                 else
                     fail "An error occurred when adding ${SERVERNAME} to NGiNX virtual host."
                 fi
@@ -1699,8 +1726,8 @@ _EOL_
             error "Virtual host config file for ${SERVERNAME} is already exists. Aborting..."
         fi
     else
-        echo "${APP_NAME}: missing required argument."
-        echo "Try '${APP_NAME} --help' for more information."
+        echo "${PROG_NAME}: missing required arguments."
+        echo "See '${PROG_NAME} --help' for more information."
     fi
 }
 
