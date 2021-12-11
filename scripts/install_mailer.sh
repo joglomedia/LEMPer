@@ -1,43 +1,46 @@
 #!/usr/bin/env bash
 
 # Mail Installer
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
 # Last Build        : 18/07/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
 requires_root
 
 ##
-# Install Postfix mail server.
-#
+# Install Postfix Mail Transfer Agent.
+##
 function install_postfix() {
-    if "${AUTO_INSTALL}"; then
-        DO_INSTALL_POSTFIX="y"
+    if [[ "${AUTO_INSTALL}" == true ]]; then
+        if [[ "${INSTALL_MAILER}" == true ]]; then
+            DO_INSTALL_POSTFIX="y"
+            #SELECTED_INSTALLER=${POSTFIX_INSTALLER:-"repo"}
+        else
+            DO_INSTALL_POSTFIX="n"
+        fi
     else
         while [[ "${DO_INSTALL_POSTFIX}" != "y" && "${DO_INSTALL_POSTFIX}" != "n" ]]; do
             read -rp "Do you want to install Postfix Mail Transfer Agent? [y/n]: " -i y -e DO_INSTALL_POSTFIX
         done
     fi
 
-    if [[ ${DO_INSTALL_POSTFIX} == y* && "${INSTALL_MAILER}" == true ]]; then
-        echo "Installing Postfix Mail Transfer Agent..."
+    if [[ ${DO_INSTALL_POSTFIX} == y* || ${DO_INSTALL_POSTFIX} == Y* ]]; then
+        echo "Installing Postfix..."
 
-        if hash apt-get 2>/dev/null; then
-            run apt-get install -qq -y mailutils postfix
-        else
-            fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
-        fi
+        run apt-get install -qq -y mailutils postfix
 
         # Configure Postfix.
+        echo "Configuring Postfix..."
+
         run postconf -e "inet_interfaces = all"
         run postconf -e "inet_protocols = all"
         run postconf -e "alias_maps = hash:/etc/aliases"
@@ -64,11 +67,10 @@ function install_postfix() {
             # Stop webserver first
             run systemctl stop nginx
 
-            if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true \
-            && $(dig "${SENDER_DOMAIN}" +short) = "${SERVER_IP}" ]]; then
+            if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && $(dig "${SENDER_DOMAIN}" +short) == "${SERVER_IP}" ]]; then
                 run certbot certonly --standalone --agree-tos --preferred-challenges http -d "${SENDER_DOMAIN}"
                 CERTPATH="/etc/letsencrypt/live/${SENDER_DOMAIN}"
-            elif [[ $(dig "${HOSTNAME}" +short) = "${SERVER_IP}" ]]; then
+            elif [[ $(dig "${HOSTNAME}" +short) == "${SERVER_IP}" ]]; then
                 run certbot certonly --standalone --agree-tos --preferred-challenges http --webroot-path=/usr/share/nginx/html -d "${HOSTNAME}"
                 CERTPATH="/etc/letsencrypt/live/${HOSTNAME}"
             fi
@@ -77,8 +79,8 @@ function install_postfix() {
             run systemctl start nginx
         fi
 
-        # Enable Postfix secure.
-        if [ -n "${CERTPATH}" ]; then
+        # Enable secure Postfix.
+        if [[ -n "${CERTPATH}" ]]; then
             run postconf -e "smtpd_tls_cert_file = ${CERTPATH}/fullchain.pem"
             run postconf -e "smtpd_tls_key_file = ${CERTPATH}/privkey.pem"
             run postconf -e "smtp_tls_security_level = may"
@@ -88,40 +90,47 @@ function install_postfix() {
             run postconf -e "smtpd_tls_received_header = yes"
         fi
 
-        # Multiple domain, multiple user settings.
+        # TODO: Multiple domain, multiple user settings.
         # Ref: https://debian-administration.org/article/243/Handling_mail_for_multiple_virtual_domains_with_postfix
 
         # Virtual alias mapping.
         [ ! -d /etc/postfix/virtual ] && run mkdir -p /etc/postfix/virtual
         [ ! -f /etc/postfix/virtual/addresses ] && run touch /etc/postfix/virtual/addresses
-        run bash -c "echo '${HOSTNAME}   DOMAIN
-${LEMPER_USERNAME}@${HOSTNAME}    ${LEMPER_USERNAME}
-postmaster@${HOSTNAME}    ${LEMPER_USERNAME}
-root@${HOSTNAME}  ${LEMPER_USERNAME}
-wordpress@${HOSTNAME}  ${LEMPER_USERNAME}' > /etc/postfix/virtual/addresses"
 
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && "${SENDER_DOMAIN}" != "example.com" ]]; then
-            run bash -c "echo '${SENDER_DOMAIN}    DOMAIN
-@${SENDER_DOMAIN}    ${LEMPER_USERNAME}' > /etc/postfix/virtual/addresses"
+        if [[ "${DRYRUN}" != true ]]; then
+            cat > /etc/postfix/virtual/addresses <<EOL
+${HOSTNAME} DOMAIN
+${LEMPER_USERNAME}@${HOSTNAME}  ${LEMPER_USERNAME}
+postmaster@${HOSTNAME}  ${LEMPER_USERNAME}
+root@${HOSTNAME}    ${LEMPER_USERNAME}
+wordpress@${HOSTNAME}   ${LEMPER_USERNAME}
+EOL
+
+            if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true ]]; then
+                cat >> /etc/postfix/virtual/addresses <<EOL
+${SENDER_DOMAIN}    DOMAIN
+@${SENDER_DOMAIN}   ${LEMPER_USERNAME}
+EOL
+            fi
+        else
+            info "Configure Postfix virtual addresses in dry run mode."
         fi
 
-        postmap /etc/postfix/virtual/addresses
+        run postmap /etc/postfix/virtual/addresses
         run postconf -e "virtual_alias_maps = hash:/etc/postfix/virtual/addresses"
 
         # Virtual domain mapping.
         [ ! -f /etc/postfix/virtual/domains ] && touch /etc/postfix/virtual/domains
         run bash -c "echo '${HOSTNAME}' > /etc/postfix/virtual/domains"
 
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && "${SENDER_DOMAIN}" != "example.com" ]]; then
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true ]]; then
             run bash -c "echo '${SENDER_DOMAIN}' >> /etc/postfix/virtual/domains"
         fi
 
         run postconf -e "virtual_alias_domains = /etc/postfix/virtual/domains"
 
         # Installation status.
-        if "${DRYRUN}"; then
-            info "Postfix reloaded in dry run mode."
-        else
+        if [[ "${DRYRUN}" != true ]]; then
             if [[ $(pgrep -c postfix) -gt 0 ]]; then
                 run systemctl reload postfix
                 success "Postfix reloaded successfully."
@@ -134,40 +143,44 @@ wordpress@${HOSTNAME}  ${LEMPER_USERNAME}' > /etc/postfix/virtual/addresses"
                     error "Something goes wrong with Postfix installation."
                 fi
             fi
+        else
+            info "Postfix reloaded in dry run mode."
         fi
     fi
 }
 
-
 ##
 # Install Dovecot
-#
+##
 function install_dovecot() {
-    if "${AUTO_INSTALL}"; then
-        DO_INSTALL_DOVECOT="y"
+    if [[ "${AUTO_INSTALL}" == true ]]; then
+        if [[ "${INSTALL_MAILER}" == true ]]; then
+            DO_INSTALL_DOVECOT="y"
+            #SELECTED_INSTALLER=${DOVECOT_INSTALLER:-"repo"}
+        else
+            DO_INSTALL_DOVECOT="n"
+        fi
     else
         while [[ "${DO_INSTALL_DOVECOT}" != "y" && "${DO_INSTALL_DOVECOT}" != "n" ]]; do
-            read -rp "Do you want to install Dovecot IMAP and POP3 email server? [y/n]: " -i y -e DO_INSTALL_DOVECOT
+            read -rp "Do you want to install Dovecot IMAP & POP3 server? [y/n]: " -i y -e DO_INSTALL_DOVECOT
         done
     fi
 
-    if [[ ${DO_INSTALL_DOVECOT} == y* && "${INSTALL_MAILER}" == true ]]; then
-        echo "Installing Dovecot IMAP and POP3 email server..."
+    if [[ ${DO_INSTALL_DOVECOT} == y* || ${DO_INSTALL_DOVECOT} == Y* ]]; then
+        echo "Installing Dovecot..."
 
-        if hash apt-get 2>/dev/null; then
-            run apt-get install -qq -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
-        else
-            fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
-        fi
+        run apt-get install -qq -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
 
         # Configure Dovecot.
+        echo "Configuring Dovecot..."
+
         run maildirmake.dovecot /etc/skel/Maildir
         run maildirmake.dovecot /etc/skel/Maildir/.Drafts
         run maildirmake.dovecot /etc/skel/Maildir/.Sent
         run maildirmake.dovecot /etc/skel/Maildir/.Trash
         run maildirmake.dovecot /etc/skel/Maildir/.Templates
         run cp -r /etc/skel/Maildir "/home/${LEMPER_USERNAME}"
-        run chown -R lemper:lemper "/home/${LEMPER_USERNAME}/Maildir"
+        run chown -R "${LEMPER_USERNAME}:${LEMPER_USERNAME}" "/home/${LEMPER_USERNAME}/Maildir"
         run chmod -R 700 "/home/${LEMPER_USERNAME}/Maildir"
 
         # Add LEMPer default user to mail group.
@@ -178,7 +191,7 @@ function install_dovecot() {
         run bash -c "echo -e '\nexport MAIL=~/Maildir' >> /etc/profile.d/mail.sh"
 
         # User authentication (with SASL).
-        if [ -f /etc/dovecot/conf.d/10-auth.conf ]; then
+        if [[ -f /etc/dovecot/conf.d/10-auth.conf ]]; then
             # Disabling the plaintext authentication.
             if grep -qwE "^#disable_plaintext_auth\ =\ [a-zA-Z]*" /etc/dovecot/conf.d/10-auth.conf; then
                 run sed -i "/^#disable_plaintext_auth/a disable_plaintext_auth\ =\ yes" \
@@ -231,9 +244,7 @@ function install_dovecot() {
         fi
 
         # Installation status.
-        if "${DRYRUN}"; then
-            info "Dovecot installed in dryrun mode."
-        else
+        if [[ "${DRYRUN}" != true ]]; then
             if [[ $(pgrep -c dovecot) -gt 0 ]]; then
                 run systemctl reload dovecot
                 success "Dovecot reloaded successfully."
@@ -246,6 +257,8 @@ function install_dovecot() {
                     error "Something goes wrong with Dovecot installation."
                 fi
             fi
+        else
+            info "Dovecot installed in dry run mode."
         fi
     fi
 }
@@ -253,29 +266,29 @@ function install_dovecot() {
 ## TODO: Postfix and Dovecot default configuration
 # https://www.linode.com/docs/email/postfix/email-with-postfix-dovecot-and-mysql/
 
-
 ## 
 # Install SPF + DKIM
 # Ref: https://www.linuxbabe.com/mail-server/setting-up-dkim-and-spf
-#
+##
 function install_spf_dkim() {
-    if "${AUTO_INSTALL}"; then
-        DO_INSTALL_SPFDKIM="y"
+    if [[ "${AUTO_INSTALL}" == true ]]; then
+        if [[ "${INSTALL_SPFDKIM}" == true ]]; then
+            DO_INSTALL_SPFDKIM="y"
+        else
+            DO_INSTALL_SPFDKIM="n"
+        fi
     else
         while [[ "${DO_INSTALL_SPFDKIM}" != "y" && "${DO_INSTALL_SPFDKIM}" != "n" ]]; do
             read -rp "Do you want to install Postfix Policy Agent and OpenDKIM? [y/n]: " -i y -e DO_INSTALL_SPFDKIM
         done
     fi
 
-    if [[ ${DO_INSTALL_SPFDKIM} == y* && "${INSTALL_SPFDKIM}" == true ]]; then
-        echo "Installing SPF + DKIM email server..."
+    if [[ ${DO_INSTALL_SPFDKIM} == y* || ${DO_INSTALL_SPFDKIM} == Y* ]]; then
+        echo "Installing Postfix Policy Agent and OpenDKIM..."
 
-        # Installing SPF Policy Agent & OpenDKIM.
-        if hash apt-get 2>/dev/null; then
-            run apt-get install -qq -y postfix-policyd-spf-python opendkim opendkim-tools
-        else
-            fail "Unable to install NGiNX, this GNU/Linux distribution is not supported."
-        fi
+        run apt-get install -qq -y postfix-policyd-spf-python opendkim opendkim-tools
+
+        echo "Configuring SPF + DKIM..."
 
         # Update postfix master conf.
         run bash -c "echo 'policyd-spf  unix  -       n       n       -       0       spawn
@@ -296,7 +309,7 @@ user=policyd-spf argv=/usr/bin/policyd-spf' >> /etc/postfix/master.cf"
         run chown opendkim:postfix /var/spool/postfix/opendkim
 
         # Update OpenDKIM default socket configuration file.
-        if [ -f /etc/default/opendkim ]; then
+        if [[ -f /etc/default/opendkim ]]; then
             run sed -i "s/^RUNDIR=\/var\/run\/opendkim/#RUNDIR=\/var\/run\/opendkim/g" /etc/default/opendkim
             run sed -i "/^#RUNDIR=\/var\/spool\/postfix\/var\/run\/opendkim/s/^#//" /etc/default/opendkim
         fi
@@ -325,7 +338,7 @@ user=policyd-spf argv=/usr/bin/policyd-spf' >> /etc/postfix/master.cf"
         fi
 
         # Add domains keys.
-        if ! "${DRYRUN}"; then 
+        if [[ "${DRYRUN}" != true ]]; then 
             cat >> /etc/opendkim.conf <<EOL
 # Map domains in From addresses to keys used to sign messages
 KeyTable           refile:/etc/opendkim/key.table
@@ -344,15 +357,16 @@ EOL
         run mkdir -p /etc/opendkim && \
         run chown -hR opendkim:opendkim /etc/opendkim
 
-        [ ! -d /etc/opendkim/keys ] && \
-        run mkdir -p /etc/opendkim/keys && \
-        run chmod go-rw /etc/opendkim/keys
+        if [[ ! -d /etc/opendkim/keys ]]; then
+            run mkdir -p /etc/opendkim/keys && \
+            run chmod go-rw /etc/opendkim/keys
+        fi
 
         # Create the signing table.
         [ ! -f /etc/opendkim/signing.table ] && run touch /etc/opendkim/signing.table
 
         #DOMAIN_SIGNING="*@your-domain.com    default._domainkey.your-domain.com"
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && "${SENDER_DOMAIN}" != "example.com" ]]; then
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true ]]; then
             DOMAIN_SIGNING="*@${SENDER_DOMAIN}    lemper._domainkey.${SENDER_DOMAIN}"
             run bash -c "echo '${DOMAIN_SIGNING}' > /etc/opendkim/signing.table"
         fi
@@ -361,7 +375,7 @@ EOL
         [ ! -f /etc/opendkim/key.table ] && run touch /etc/opendkim/key.table
 
         #DOMAIN_KEY="default._domainkey.your-domain.com     your-domain.com:default:/etc/opendkim/keys/your-domain.com/default.private"
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && "${SENDER_DOMAIN}" != "example.com" ]]; then
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true ]]; then
             DOMAIN_KEY="lemper._domainkey.${SENDER_DOMAIN}    ${SENDER_DOMAIN}:lemper:/etc/opendkim/keys/${SENDER_DOMAIN}/lemper.private"
             run bash -c "echo '${DOMAIN_KEY}' > /etc/opendkim/key.table"
         fi
@@ -370,13 +384,12 @@ EOL
         [ ! -f /etc/opendkim/trusted.hosts ] && run touch /etc/opendkim/trusted.hosts
         run bash -c "echo -e '127.0.0.1\nlocalhost' > /etc/opendkim/trusted.hosts"
 
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && "${SENDER_DOMAIN}" != "example.com" ]]; then
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true ]]; then
             run bash -c "echo -e '\n*.${SENDER_DOMAIN}' >> /etc/opendkim/trusted.hosts"
         fi
 
         # Generate Private/Public Keypair for sender domain.
-
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && "${SENDER_DOMAIN}" != "example.com" ]]; then
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true ]]; then
             # Create a separate folder for the domain.
             run mkdir -p "/etc/opendkim/keys/${SENDER_DOMAIN}"
 
@@ -394,29 +407,42 @@ EOL
 
             echo -e "Add this DKIM key to your DNS TXT record!\nDKIM Key: ${DKIM_KEY}"
 
+            # Save log.
+            save_log -e "DKIM Key for ${SENDER_DOMAIN}:\n${DKIM_KEY}"
+
             # Test DKIM Key.
             #run opendkim-testkey -d "${SENDER_DOMAIN}" -s lemper -vvv
             echo -e "\nAfter then run this command to check your DNS record"
             echo "opendkim-testkey -d ${SENDER_DOMAIN} -s lemper -vvv"
+            sleep 3
         fi
     fi
 }
 
+##
+# Initialize the mail server installation.
+##
+function init_mailer_install() {
+    [[ -z "${SENDER_DOMAIN}" && "${SENDER_DOMAIN}" == "example.com" ]] && \
+        SENDER_DOMAIN="${SERVER_HOSTNAME}"
+
+    if [[ -n $(command -v postfix) ]]; then
+        info "Postfix already exists. Installation skipped..."
+    else
+        install_postfix "$@"
+    fi
+
+    if [[ -n $(command -v dovecot) ]]; then
+        info "Dovecot already exists. Installation skipped..."
+    else
+        install_dovecot "$@"
+    fi
+
+    install_spf_dkim
+}
 
 echo "[Mail Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(command -v postfix) ]]; then
-    info "Postfix already exists. Installation skipped..."
-else
-    install_postfix "$@"
-fi
-
-if [[ -n $(command -v dovecot) ]]; then
-    info "Dovecot already exists. Installation skipped..."
-else
-    install_dovecot "$@"
-fi
-
-install_spf_dkim
+init_mailer_install "$@"
