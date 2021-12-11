@@ -1,24 +1,27 @@
 #!/usr/bin/env bash
 
 # Certbot Let's Encrypt Installer
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
 # Last Build        : 12/07/2019
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
 requires_root
 
+# Make sure only supported distribution can run this installer script.
+preflight_system_check
+
 # Install Certbot Let's Encrypt.
 function init_certbotle_install() {
-    if "${AUTO_INSTALL}"; then
+    if [[ "${AUTO_INSTALL}" == true ]]; then
         DO_INSTALL_CERTBOT="y"
     else
         while [[ "${DO_INSTALL_CERTBOT}" != "y" && "${DO_INSTALL_CERTBOT}" != "n" ]]; do
@@ -66,11 +69,9 @@ function init_certbotle_install() {
         esac
 
         # Add Certbot auto renew command to cronjob.
-        if "${DRYRUN}"; then
-            info "Certbot auto-renew command added to cronjob in dryrun mode."
-        else
+        if [[ "${DRYRUN}" != true ]]; then
             export EDITOR=nano
-            CRONCMD='15 3 * * * /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
+            CRONCMD='0 */3 * * * /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
             touch lemper.cron
             crontab -u root lemper.cron
             crontab -l > lemper.cron
@@ -85,8 +86,11 @@ function init_certbotle_install() {
 ${CRONCMD}
 EOL
 
-                crontab lemper.cron
-                rm -f lemper.cron
+                run crontab lemper.cron
+                run rm -f lemper.cron
+                run service cron reload
+            else
+                info "Certbot auto-renew command added to cronjob in dry run mode."
             fi
 
             # Register a new account.
@@ -99,14 +103,14 @@ EOL
             fi
         fi
 
-        if "${DRYRUN}"; then
-            info "Certbot installed in dryrun mode."
-        else
+        if [[ "${DRYRUN}" != true ]]; then
             if certbot --version | grep -q "certbot"; then
                 success "Certbot successfully installed."
             else
                 info "Something went wrong with Certbot installation."
             fi
+        else
+            info "Certbot installed in dry run mode."
         fi
     fi
 }
