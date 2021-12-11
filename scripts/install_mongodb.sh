@@ -2,21 +2,27 @@
 
 # MongoDB installer
 # Ref : https://www.linode.com/docs/databases/mongodb/install-mongodb-on-ubuntu-16-04
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 01/08/2019
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 11/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
 requires_root
 
+# Make sure only supported distribution can run this installer script.
+preflight_system_check
+
+##
+# Add MongoDB repository.
+#
 function add_mongodb_repo() {
     echo "Adding MongoDB ${MONGODB_VERSION} repository..."
 
@@ -28,14 +34,17 @@ function add_mongodb_repo() {
 
     local DISTRIB_ARCH
     case ${ARCH} in
-        x86_64)
-            DISTRIB_ARCH="amd64"
-        ;;
-        i386|i486|i586|i686)
+        i386 | i486| i586 | i686)
             DISTRIB_ARCH="i386"
         ;;
-        armv8)
+        x86_64 | amd64)
+            DISTRIB_ARCH="amd64"
+        ;;
+        arm64 | aarch* | armv8*)
             DISTRIB_ARCH="arm64"
+        ;;
+        arm | armv7*)
+            DISTRIB_ARCH="arm"
         ;;
         *)
             DISTRIB_ARCH="amd64,i386"
@@ -64,23 +73,33 @@ function add_mongodb_repo() {
             fi
         ;;
         *)
-            error "Unable to add MongoDB, unsupported distribution release: ${DISTRIB_NAME^} ${RELEASE_NAME^}."
+            error "Unable to add MongoDB repo, unsupported release: ${DISTRIB_NAME^} ${RELEASE_NAME^}."
             echo "Sorry your system is not supported yet, installing from source may fix the issue."
             exit 1
         ;;
     esac
 }
 
+##
+# Initialize MongoDB Installation.
+##
 function init_mongodb_install() {
-    if "${AUTO_INSTALL}"; then
-        DO_INSTALL_MONGODB="y"
+    #local SELECTED_INSTALLER=""
+
+    if [[ "${AUTO_INSTALL}" == true ]]; then
+        if [[ "${INSTALL_MONGODB}" == true ]]; then
+            DO_INSTALL_MONGODB="y"
+            #SELECTED_INSTALLER=${MONGODB_INSTALLER:-"repo"}
+        else
+            DO_INSTALL_MONGODB="n"
+        fi
     else
         while [[ "${DO_INSTALL_MONGODB}" != "y" && "${DO_INSTALL_MONGODB}" != "n" ]]; do
-            read -rp "Do you want to install MongoDB? [y/n]: " -i n -e DO_INSTALL_MONGODB
+            read -rp "Do you want to install MongoDB server? [y/n]: " -i y -e DO_INSTALL_MONGODB
         done
     fi
 
-    if [[ ${DO_INSTALL_MONGODB} == y* && ${INSTALL_MONGODB} == true ]]; then
+    if [[ ${DO_INSTALL_MONGODB} == y* || ${DO_INSTALL_MONGODB} == Y* ]]; then
         # Add repository.
         add_mongodb_repo
 
@@ -97,12 +116,12 @@ function init_mongodb_install() {
         run systemctl enable mongod.service
         run systemctl restart mongod
 
-        if "${DRYRUN}"; then
-            info "MongoDB server installed in dryrun mode."
+        if [[ "${DRYRUN}" == true ]]; then
+            info "MongoDB server installed in dry run mode."
         else
             echo "MongoDB installation completed."
             echo "After installation finished, you can add a MongoDB administrative user. Example command lines below:";
-            cat <<- _EOF_
+            cat <<- EOL
 
 mongo
 > use admin
@@ -118,7 +137,7 @@ mongo -u admin -p --authenticationDatabase user-data
 > db.exampleCollection.find()
 > db.exampleCollection.find({"name" : "John Doe"})
 
-_EOF_
+EOL
 
             # Add MongoDB default admin user.
             if [[ -n $(command -v mongo) ]]; then
@@ -133,68 +152,10 @@ _EOF_
                 save_log -e "MongoDB default admin user is enabled, here is your admin credentials:\nAdmin username: ${MONGODB_ADMIN_USER} | Admin password: ${MONGODB_ADMIN_PASSWORD}\nSave this credentials and use it to authenticate your MongoDB connection."
             fi
         fi
-
-        # PHP version.
-        local PHPv="${1}"
-        if [ -z "${PHPv}" ]; then
-            PHPv=${PHP_VERSION:-"7.4"}
-        fi
-
-        # Install PHP MongoDB extension.
-        install_php_mongodb "${PHPv}"
     else
         info "MongoDB server installation skipped."
     fi
 }
-
-# Install PHP MongoDB extension.
-function install_php_mongodb() {
-    # PHP version.
-    local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.4"}
-    fi
-
-    echo -e "\nInstalling PHP ${PHPv} MongoDB extension..."
-
-    local CURRENT_DIR && \
-    CURRENT_DIR=$(pwd)
-
-    run cd "${BUILD_DIR}" || return 1
-
-    if hash apt-get 2>/dev/null; then
-        run apt-get install -qq -y "php${PHPv}-mongodb"
-    else
-        fail "Unable to install PHP ${PHPv} MongoDB, this GNU/Linux distribution is not supported."
-    fi
-
-    run git clone --depth=1 -q https://github.com/mongodb/mongo-php-driver.git && \
-    run cd mongo-php-driver && \
-    run git submodule update --init
-
-    if [[ -n $(command -v "php${PHPv}") ]]; then
-        run "/usr/bin/phpize${PHPv}" && \
-        run ./configure --with-php-config="/usr/bin/php-config${PHPv}"
-    else
-        run /usr/bin/phpize && \
-        run ./configure
-    fi
-
-    run make all && \
-    run make install
-
-    PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
-    if [ -f "${PHPLIB_DIR}/mongodb.so" ]; then
-        success "MongoDB module sucessfully installed at ${PHPLIB_DIR}/mongodb.so."
-        run chmod 0644 "${PHPLIB_DIR}/mongodb.so"
-    fi
-
-    #run service "php${PHPv}-fpm" restart
-    run systemctl restart "php${PHPv}-fpm"
-
-    run cd "${CURRENT_DIR}" || return 1
-}
-
 
 echo "[MongoDB Server Installation]"
 

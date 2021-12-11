@@ -1,31 +1,29 @@
 #!/usr/bin/env bash
 
 # Memcached Installer
-# Min. Requirement  : GNU/Linux Ubuntu 16.04 & 16.04
-# Last Build        : 31/08/2019
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 11/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
 requires_root
 
 ##
-# Memcached install
-#
-# Usage: install_memcached [VERSION] [INSTALLER]
-#
-function install_memcached() {
+# Initialize Memcached Installation.
+##
+function init_memcached_install() {
     local SELECTED_INSTALLER=""
 
-    if "${AUTO_INSTALL}"; then
-        if [[ ${INSTALL_MEMCACHED} == true ]]; then
+    if [[ "${AUTO_INSTALL}" == true ]]; then
+        if [[ "${INSTALL_MEMCACHED}" == true ]]; then
             DO_INSTALL_MEMCACHED="y"
             SELECTED_INSTALLER=${MEMCACHED_INSTALLER:-"repo"}
         else
@@ -52,25 +50,17 @@ function install_memcached() {
         fi
 
         case "${SELECTED_INSTALLER}" in
-            1|"repo")
+            1 | repo)
                 echo "Installing Memcached server from repository..."
 
-                if hash apt-get 2>/dev/null; then
-                    run apt-get install -qq -y \
-                        libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2 memcached
-                else
-                    fail "Unable to install Memcached, this GNU/Linux distribution is not supported."
-                fi
+                run apt-get install -qq -y \
+                    libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2 memcached
             ;;
-            2|"source")
+            2 | source)
                 echo "Installing Memcached server from source..."
 
-                if hash apt-get 2>/dev/null; then
-                    run apt-get install -qq -y \
-                        libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2
-                else
-                    fail "Unable to install Memcached, this GNU/Linux distribution is not supported."
-                fi
+                run apt-get install -qq -y \
+                    libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2
 
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
@@ -97,7 +87,7 @@ function install_memcached() {
                 fi
 
                 if curl -sLI "${MEMCACHED_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                    run wget -q -O memcached.tar.gz "${MEMCACHED_DOWNLOAD_URL}" && \
+                    run wget "${MEMCACHED_DOWNLOAD_URL}" -O memcached.tar.gz -q --show-progress && \
                     run tar -zxf memcached.tar.gz && \
                     run cd memcached-* && \
 
@@ -115,11 +105,11 @@ function install_memcached() {
                     # Create memcache user. 
                     # TODO: not realy used, due to LEMPer will run memcached as www-data for Nginx PageSpeed module.
                     if [[ -z $(getent passwd memcache) ]]; then
-                        if "${DRYRUN}"; then
-                            echo "Create memcache user in dryrun mode."
-                        else
+                        if [[ "${DRYRUN}" != true ]]; then
                             run groupadd -r memcache
                             run useradd -r -M -g memcache memcache
+                        else
+                            echo "Create memcache user in dry run mode."
                         fi
                     fi
                 else
@@ -184,9 +174,7 @@ function install_memcached() {
             if [[ ${MEMCACHED_SASL} == "enable" || ${MEMCACHED_SASL} == true ]]; then
                 echo "Memcached SASL auth option is enabled..."
 
-                if "${DRYRUN}"; then
-                    info "Memcahed SASL-auth configured in dry run mode."
-                else
+                if [[ "${DRYRUN}" != true ]]; then
                     MEMCACHED_USERNAME=${MEMCACHED_USERNAME:-"lempermc"}
                     MEMCACHED_PASSWORD=${MEMCACHED_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
 
@@ -208,6 +196,8 @@ EOL
 
                     # Save log.
                     save_log -e "Memcached SASL auth is enabled, below is your default auth credential.\nUsername: ${MEMCACHED_USERNAME}, password: ${MEMCACHED_PASSWORD}\nSave this credential and use it to authenticate your Memcached connection."
+                else
+                    info "Memcahed SASL-auth configured in dry run mode."
                 fi
             fi
 
@@ -229,9 +219,7 @@ EOL
         fi
 
         # Installation status.
-        if "${DRYRUN}"; then
-            info "Memcached server installed in dryrun mode."
-        else
+        if [[ "${DRYRUN}" != true ]]; then
             if [[ $(pgrep -c memcached) -gt 0 ]]; then
                 #run systemctl restart memcached@memcache
                 run /usr/share/memcached/scripts/start-memcached \
@@ -255,102 +243,12 @@ EOL
                     info "Something went wrong with Memcached installation."
                 fi
             fi
+        else
+            info "Memcached installed successfully."
         fi
     else
         info "Memcached server installation skipped."
     fi
-}
-
-# Install PHP Memcached extension.
-function install_php_memcached() {
-    # Selected PHP version.
-    local SELECTED_PHP="${1}"
-
-    # Install PHP memcached module.
-    echo "Installing PHP ${SELECTED_PHP} memcached module..."
-
-    if hash apt-get 2>/dev/null; then
-        #PHPVERS=$(sed "s/,/ /g" <<<"${SELECTED_PHP}")
-        for PHPv in ${SELECTED_PHP//,/ } 
-        do
-            run apt-get install -qq -y \
-                "php${PHPv}-igbinary" "php${PHPv}-memcache" "php${PHPv}-memcached" "php${PHPv}-msgpack"
-            enable_php_memcached "${PHPv}"
-        done
-
-        # Default PHP 7.4 for LEMPer.
-        if [ "${PHPv}" != "7.4" ]; then
-            run apt-get install -qq -y \
-                "php7.4-igbinary" "php7.4-memcache" "php7.4-memcached" "php7.4-msgpack"
-            enable_php_memcached "7.4"
-        fi
-    else
-        fail "Unable to install PHP Memcached, this GNU/Linux distribution is not supported."
-    fi
-}
-
-function enable_php_memcached() {
-    # PHP version.
-    local PHPv="${1}"
-
-    echo "Enabling PHP ${PHPv} memcached module..."
-
-    if "${DRYRUN}"; then
-        echo "PHP ${PHPv} Memcache module enabled in dryrun mode."
-    else
-        # Optimize PHP memcache module.
-        if [ -d "/etc/php/${PHPv}/mods-available/" ]; then
-            if [ -f "/etc/php/${PHPv}/mods-available/memcache.ini" ]; then
-                cat >> "/etc/php/${PHPv}/mods-available/memcache.ini" <<EOL
-
-; Optimized for LEMPer stack.
-memcache.dbpath="/var/lib/memcache"
-memcache.maxreclevel=0
-memcache.maxfiles=0
-memcache.archivememlim=0
-memcache.maxfilesize=0
-memcache.maxratio=0
-
-; Custom setting for WordPress + W3TC.
-session.bak_handler="memcache"
-session.bak_path="tcp://127.0.0.1:11211"
-EOL
-
-                success "PHP ${PHPv} Memcache module enabled."
-            fi
-
-            # Reload PHP-FPM service.
-            echo "Restarting php${PHPv}-fpm to apply Memcached module."
-
-            if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-                run systemctl reload "php${PHPv}-fpm"
-                success "php${PHPv}-fpm restarted successfully."
-            elif [[ -n $(command -v "php${PHPv}") ]]; then
-                run systemctl start "php${PHPv}-fpm"
-
-                if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-                    success "php${PHPv}-fpm started successfully."
-                else
-                    info "Something went wrong with php${PHPv}-fpm installation."
-                fi
-            fi
-
-        else
-            info "It seems that PHP ${PHPv} not yet installed. Please install it before!"
-        fi
-    fi
-}
-
-function init_memcached_install() {
-    install_memcached "${MEMC_VERSION}" "${MEMC_INSTALLER}"
-
-    if [[ -z "${SELECTED_PHP}" ]]; then
-        SELECTED_PHP=${PHP_VERSION:-"7.4"}
-    elif [[ "${SELECTED_PHP}" == "all" ]]; then
-        SELECTED_PHP="5.6,7.0,7.1,7.2,7.3,7.4,8.0"
-    fi
-
-    install_php_memcached "${PHP_VERSION}"
 }
 
 echo "[Memcached Server Installation]"
