@@ -966,7 +966,7 @@ function init_nginx_install() {
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
                                     --with-stream=dynamic \
                                     --with-stream_geoip_module=dynamic \
-                                    --with-stream_realip_module=dynamic \
+                                    --with-stream_realip_module \
                                     --with-stream_ssl_module=dynamic \
                                     --with-stream_ssl_preread_module=dynamic"
                             else
@@ -1356,20 +1356,17 @@ function init_nginx_install() {
                                 /etc/nginx/modules-enabled/60-mod-stream-geoip.conf
                         fi
 
-                        if [[ "${NGX_HTTP_GEOIP}" && \
-                            -f /etc/nginx/modules-available/mod-stream-realip.conf ]]; then
+                        if [[ -f /etc/nginx/modules-available/mod-stream-realip.conf ]]; then
                             run ln -fs /etc/nginx/modules-available/mod-stream-realip.conf \
                                 /etc/nginx/modules-enabled/60-mod-stream-realip.conf
                         fi
 
-                        if [[ "${NGX_HTTP_GEOIP}" && \
-                            -f /etc/nginx/modules-available/mod-stream-ssl.conf ]]; then
+                        if [[ -f /etc/nginx/modules-available/mod-stream-ssl.conf ]]; then
                             run ln -fs /etc/nginx/modules-available/mod-stream-ssl.conf \
                                 /etc/nginx/modules-enabled/60-mod-stream-ssl.conf
                         fi
 
-                        if [[ "${NGX_HTTP_GEOIP}" && \
-                            -f /etc/nginx/modules-available/mod-stream-ssl-preread.conf ]]; then
+                        if [[ -f /etc/nginx/modules-available/mod-stream-ssl-preread.conf ]]; then
                             run ln -fs /etc/nginx/modules-available/mod-stream-ssl-preread.conf \
                                 /etc/nginx/modules-enabled/60-mod-stream-ssl-preread.conf
                         fi
