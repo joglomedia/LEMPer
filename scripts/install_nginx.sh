@@ -967,8 +967,8 @@ function init_nginx_install() {
                                     --with-stream=dynamic \
                                     --with-stream_geoip_module=dynamic \
                                     --with-stream_realip_module \
-                                    --with-stream_ssl_module=dynamic \
-                                    --with-stream_ssl_preread_module=dynamic"
+                                    --with-stream_ssl_module \
+                                    --with-stream_ssl_preread_module"
                             else
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
                                     --with-stream \
