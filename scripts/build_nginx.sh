@@ -155,7 +155,7 @@ function warning() {
 # If we set -e or -u then users of this script will see it silently exit on
 # failure.    Instead we need to check the exit status of each command manually.
 # The run function handles exit-status checking for system-changing commands.
-# Additionally, this allows us to easily have a dryrun mode where we don't
+# Additionally, this allows us to easily have a dry run mode where we don't
 # actually make any changes.
 INITIAL_ENV=$(printenv | sort)
 function run() {
