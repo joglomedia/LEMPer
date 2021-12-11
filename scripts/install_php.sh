@@ -82,9 +82,9 @@ function install_php_fpm() {
         # Check additional PHP extensions availability.
         for EXT_NAME in "${PHP_REPO_EXTS[@]}"; do
             echo "Checking additional PHP extension: ${EXT_NAME}..."
-            if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "${PHPv}" > /dev/null; then
+            if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "php${PHPv}-${EXT_NAME}" > /dev/null; then
                 PHP_EXTS+=("php${PHPv}-${EXT_NAME}")
-            elif apt-cache search "php-${EXT_NAME}" | grep -c "^php-${EXT_NAME}" > /dev/null; then
+            elif apt-cache search "php-${EXT_NAME}" | grep -c "php-${EXT_NAME}" > /dev/null; then
                 PHP_EXTS+=("php-${EXT_NAME}")
             else
                 PHP_PECL_EXTS+=("${EXT_NAME}")
@@ -105,8 +105,17 @@ function install_php_fpm() {
         fi
 
         # Install PHP extensions from PECL.
+        echo "Installing PHP extensions from PECL..."
+
+        # Remove json extension from PHP greater than 7.4. It is now always available.
+        if [[ $(bc -l <<< "${PHPv} > 7.4") == 1 ]]; then
+            PHP_PECL_EXTS=("${PHP_PECL_EXTS[@]/json/}")
+        fi
+
+        run pecl channel-update pear.php.net
+
         if [[ "${#PHP_PECL_EXTS[@]}" -gt 0 ]]; then
-            run pecl -d "php_suffix=${PHPv}" "${PHP_PECL_EXTS[@]}"
+            run pecl -d "php_suffix=${PHPv}" install "${PHP_PECL_EXTS[@]}"
         fi
 
         # Install additional PHP extensions.
@@ -480,28 +489,28 @@ function install_php_mongodb() {
 
     run apt-get install -qq -y "php${PHPv}-mongodb"
 
-    local CURRENT_DIR && \
-    CURRENT_DIR=$(pwd)
+    #local CURRENT_DIR && \
+    #CURRENT_DIR=$(pwd)
 
-    run cd "${BUILD_DIR}" || return 1
+    #run cd "${BUILD_DIR}" || return 1
 
-    if [[ ! -d "${BUILD_DIR}/php-${PHPv}-mongodb" ]]; then
-        run git clone --depth=1 -q https://github.com/mongodb/mongo-php-driver.git
-    fi
+    #if [[ ! -d "${BUILD_DIR}/php-${PHPv}-mongodb" ]]; then
+    #    run git clone --depth=1 -q https://github.com/mongodb/mongo-php-driver.git
+    #fi
 
-    run cd mongo-php-driver && \
-    run git submodule update --init
+    #run cd mongo-php-driver && \
+    #run git submodule update --init
 
-    if [[ -n $(command -v "php${PHPv}") ]]; then
-        run "/usr/bin/phpize${PHPv}" && \
-        run ./configure --with-php-config="/usr/bin/php-config${PHPv}"
-    else
-        run /usr/bin/phpize && \
-        run ./configure
-    fi
+    #if [[ -n $(command -v "php${PHPv}") ]]; then
+    #    run "/usr/bin/phpize${PHPv}" && \
+    #    run ./configure --with-php-config="/usr/bin/php-config${PHPv}"
+    #else
+    #    run /usr/bin/phpize && \
+    #    run ./configure
+    #fi
 
-    run make all && \
-    run make install
+    #run make all && \
+    #run make install
 
     PHP_LIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
 
@@ -510,7 +519,7 @@ function install_php_mongodb() {
         run chmod 0644 "${PHP_LIB_DIR}/mongodb.so"
     fi
 
-    run cd "${CURRENT_DIR}" || return 1
+    #run cd "${CURRENT_DIR}" || return 1
 }
 
 ##
