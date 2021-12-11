@@ -1062,14 +1062,6 @@ function init_lemper_create() {
         esac
     done
 
-    # Default application credential data.
-    APP_UID="$(openssl rand -base64 32 | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)"
-    APP_DB_USER="${USERNAME}_${APP_UID}"
-    APP_DB_PASS="$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
-    APP_DB_NAME="app_${APP_UID}"
-    APP_ADMIN_USER="admin"
-    APP_ADMIN_PASS="$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
-
     if [[ "${MAIN_ARGS}" -ge 1 ]]; then
         # Additional Check - ensure that Nginx's configuration meets the requirements.
         if [[ ! -d /etc/nginx/sites-available && ! -d /etc/nginx/vhost ]]; then
@@ -1107,9 +1099,6 @@ function init_lemper_create() {
             if [[ -z $(getent passwd "${USERNAME}") ]]; then
                 fail "User account '${USERNAME}' does not exist. Please add new account first! Aborting..."
             fi
-
-            # Set application parameters.
-            [[ -z "${APP_ADMIN_EMAIL}" ]] && APP_ADMIN_EMAIL=${LEMPER_ADMIN_EMAIL:-"admin@${SERVERNAME}"}
 
             # PHP Commands.
             PHP_BIN=$(command -v "php${PHP_VERSION}")
@@ -1158,6 +1147,15 @@ function init_lemper_create() {
                 run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}" && \
                 run chmod 755 "${WEBROOT}"
             fi
+
+            # Set default application credential data.
+            APP_UID="$(openssl rand -base64 32 | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)"
+            APP_DB_USER="${USERNAME}_${APP_UID}"
+            APP_DB_PASS="$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+            APP_DB_NAME="app_${APP_UID}"
+            APP_ADMIN_USER="admin"
+            APP_ADMIN_PASS="$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"
+            [[ -z "${APP_ADMIN_EMAIL}" ]] && APP_ADMIN_EMAIL=${LEMPER_ADMIN_EMAIL:-"admin@${SERVERNAME}"}
 
             # Check framework parameter.
             if [[ -z "${FRAMEWORK}" ]]; then
