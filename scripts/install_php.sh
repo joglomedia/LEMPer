@@ -37,18 +37,22 @@ function add_php_repo() {
             else
                 info "PHP package repository already exists."
             fi
-
-            run apt-get update -qq -y
         ;;
         ubuntu)
-            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
-            run add-apt-repository -y ppa:ondrej/php
-            run apt-get update -qq -y
+            if [[ ! -f "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" ]]; then
+                run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
+                run add-apt-repository -y ppa:ondrej/php
+            else
+                info "PHP package repository already exists."
+            fi
         ;;
         *)
             fail "Unable to install PHP, this GNU/Linux distribution is not supported."
         ;;
     esac
+
+    info "Updating repository..."
+    run apt-get update -qq -y
 }
 
 ##
@@ -72,11 +76,11 @@ function install_php_fpm() {
 
         local PHP_EXTS=()
         local PHP_PECL_EXTS=()
-        local PHP_CUST_EXTS=() && \
-        read -r -a PHP_CUST_EXTS <<< "${PHP_EXTENSIONS}" # Read additional PHP extensions from env variable.
+        local PHP_REPO_EXTS=() && \
+        read -r -a PHP_REPO_EXTS <<< "${PHP_EXTENSIONS}" # Read additional PHP extensions from .env variable.
 
         # Check additional PHP extensions availability.
-        for EXT_NAME in "${PHP_CUST_EXTS[@]}"; do
+        for EXT_NAME in "${PHP_REPO_EXTS[@]}"; do
             echo "Checking additional PHP extension: ${EXT_NAME}..."
             if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "${PHPv}" > /dev/null; then
                 PHP_EXTS+=("php${PHPv}-${EXT_NAME}")
@@ -104,6 +108,10 @@ function install_php_fpm() {
         if [[ "${#PHP_PECL_EXTS[@]}" -gt 0 ]]; then
             run pecl -d "php_suffix=${PHPv}" "${PHP_PECL_EXTS[@]}"
         fi
+
+        # Install additional PHP extensions.
+        [[ "${INSTALL_MEMCACHED}" == true ]] && install_php_memcached "${PHPv}"
+        [[ "${INSTALL_MONGODB}" == true ]] && install_php_mongodb "${PHPv}"
 
         if [[ -n $(command -v "php${PHPv}") ]]; then
             TOTAL_EXTS=$((${#PHP_EXTS[@]} + ${#PHP_PECL_EXTS[@]}))
@@ -476,7 +484,11 @@ function install_php_mongodb() {
     CURRENT_DIR=$(pwd)
 
     run cd "${BUILD_DIR}" || return 1
-    run git clone --depth=1 -q https://github.com/mongodb/mongo-php-driver.git && \
+
+    if [[ ! -d "${BUILD_DIR}/php-${PHPv}-mongodb" ]]; then
+        run git clone --depth=1 -q https://github.com/mongodb/mongo-php-driver.git
+    fi
+
     run cd mongo-php-driver && \
     run git submodule update --init
 
@@ -689,8 +701,6 @@ function init_php_fpm_install() {
         if [[ "${IS_PKG_AVAIL}" -gt 0 ]]; then
             # Install PHP + default extensions.
             install_php_fpm "${VERSION}"
-            [[ "${INSTALL_MEMCACHED}" == true ]] && install_php_memcached "${VERSION}"
-            [[ "${INSTALL_MONGODB}" == true ]] && install_php_mongodb "${VERSION}"
         else
             error "PHP ${VERSION} package is not available on your operating system."
         fi
@@ -702,8 +712,6 @@ function init_php_fpm_install() {
         echo "PHP ${DEFAULT_PHP_VERSION} now being installed..."
 
         install_php_fpm "${DEFAULT_PHP_VERSION}"
-        [[ "${INSTALL_MEMCACHED}" == true ]] && install_php_memcached "${DEFAULT_PHP_VERSION}"
-        [[ "${INSTALL_MONGODB}" == true ]] && install_php_mongodb "${DEFAULT_PHP_VERSION}"
     fi
 
     # Install PHP composer.

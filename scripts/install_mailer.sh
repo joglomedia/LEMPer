@@ -16,6 +16,9 @@ fi
 # Make sure only root can run this installer script.
 requires_root
 
+# Make sure only supported distribution can run this installer script.
+preflight_system_check
+
 ##
 # Install Postfix Mail Transfer Agent.
 ##

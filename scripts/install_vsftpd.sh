@@ -16,8 +16,8 @@ fi
 # Make sure only root can run this installer script.
 requires_root
 
-DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
+# Make sure only supported distribution can run this installer script.
+preflight_system_check
 
 ##
 # Install Vsftpd.
@@ -61,6 +61,9 @@ function init_vsftpd_install() {
                 echo "Installing FTP server (VSFTPD) from source..."
 
                 #https://www.linuxfromscratch.org/blfs/view/svn/server/vsftpd.html
+
+                DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
+                RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
 
                 # Install libraries.
                 case "${DISTRIB_NAME}" in
