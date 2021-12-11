@@ -78,8 +78,8 @@ testTrueInstallImageMagick()
 {
     . scripts/install_imagemagick.sh
 
-    magick=$(command -v magick | grep -c magick)
-    assertTrue "[[ ${magick} -gt 0 ]]"
+    mgk=$(command -v magick | grep -c magick)
+    assertTrue "[[ ${mgk} -gt 0 ]]"
 }
 
 testEqualityInstallMySQL()
