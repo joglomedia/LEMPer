@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
 # Phalcon & Zephir Installer
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 02/11/2019
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 11/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.2.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -33,7 +33,7 @@ function install_phalcon() {
     run cd "${BUILD_DIR}" || return 1
 
     # Install Zephir from source.
-    if "${AUTO_INSTALL}"; then
+    if [[ "${AUTO_INSTALL}" == true ]]; then
         if [[ ${INSTALL_PHP_ZEPHIR} == y* || ${INSTALL_PHP_ZEPHIR} == true ]]; then
             DO_INSTALL_ZEPHIR="y"
         else
@@ -182,10 +182,13 @@ EOL
 # Enable Phalcon extension.
 function enable_phalcon() {
     # PHP version.
-    local PHPv=${1}
+    local PHPv="${1}"
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+    fi
 
-    if "${DRYRUN}"; then
-        echo "Enabling Phalcon PHP ${PHPv} extension in dryrun mode."
+    if [[ "${DRYRUN}" == true ]]; then
+        echo "Enabling Phalcon PHP ${PHPv} extension in dry run mode."
     else
         # Optimize Phalcon PHP extension.
         if [ -d "/etc/php/${PHPv}/mods-available/" ]; then
@@ -305,7 +308,7 @@ function init_phalcon_install() {
     # Check if PHP version DO_INSTALL_PHALCON="n".
     DO_INSTALL_PHALCON="n"
 
-    if "${AUTO_INSTALL}"; then
+    if [[ "${AUTO_INSTALL}" == true ]]; then
         if [[ -z "${PHP_PHALCON_INSTALLER}" || "${PHP_PHALCON_INSTALLER}" == "none" ]]; then
             DO_INSTALL_PHALCON="n"
         else
@@ -326,7 +329,7 @@ function init_phalcon_install() {
 
     if [[ ${DO_INSTALL_PHALCON} == y* && ${INSTALL_PHP_PHALCON} == true ]]; then
         # Select installer.
-        if "${AUTO_INSTALL}"; then
+        if [[ "${AUTO_INSTALL}" == true ]]; then
             if [ -z "${PHALCON_INSTALLER}" ]; then
                 SELECTED_INSTALLER=${PHP_PHALCON_INSTALLER}
             fi
@@ -346,7 +349,7 @@ function init_phalcon_install() {
         fi
 
         # Select Phalcon version.
-        if "${AUTO_INSTALL}"; then
+        if [[ "${AUTO_INSTALL}" == true ]]; then
             if [ -z "${SELECTED_PHALCON}" ]; then
                 SELECTED_PHALCON=${PHP_PHALCON_VERSION}
             fi
@@ -387,7 +390,7 @@ function init_phalcon_install() {
         esac
 
         # Select PHP version.
-        if "${AUTO_INSTALL}"; then
+        if [[ "${AUTO_INSTALL}" == true ]]; then
             if [ -z "${SELECTED_PHP}" ]; then
                 SELECTED_PHP=${PHP_VERSION}
             fi
@@ -449,6 +452,7 @@ function init_phalcon_install() {
 
         local SUPPORTED_PHP
         local PHP_PHALCON_PKG
+
         if version_older_than "${PHALCON_VERSION}" "3.4.6"; then
             SUPPORTED_PHP="5.6 7.0 7.1"
             PHP_PHALCON_PKG="php-phalcon3"

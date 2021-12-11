@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
 # PHP Loader Installer
-# Min. Requirement  : GNU/Linux Ubuntu 16.04 & 16.04
-# Last Build        : 03/04/2021
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 11/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.3.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -60,8 +60,8 @@ function enable_ioncube() {
 
     echo "Enable ionCube PHP ${PHPv} loader"
 
-    if "${DRYRUN}"; then
-        info "ionCube PHP ${PHPv} enabled in dryrun mode."
+    if [[ "${DRYRUN}" == true ]]; then
+        info "ionCube PHP ${PHPv} enabled in dry run mode."
     else
         if [[ -f "/usr/lib/php/loaders/ioncube/ioncube_loader_lin_${PHPv}.so" && -n $(command -v "php${PHPv}") ]]; then
             cat > "/etc/php/${PHPv}/mods-available/ioncube.ini" <<EOL
@@ -79,7 +79,7 @@ EOL
             fi
 
             # Restart PHP-fpm server.
-            if "${DRYRUN}"; then
+            if [[ "${DRYRUN}" == true ]]; then
                 info "php${PHPv}-fpm reloaded in dry run mode."
             else
                 if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
@@ -123,8 +123,8 @@ function disable_ioncube() {
 function remove_ioncube() {
     # PHP version.
     local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.4"}
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
     fi
 
     echo "Uninstalling ionCube PHP ${PHPv} loader..."
@@ -184,14 +184,14 @@ function install_sourceguardian() {
 function enable_sourceguardian() {
     # PHP version.
     local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.4"}
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
     fi
 
     echo "Enable SourceGuardian PHP ${PHPv} loader..."
 
-    if "${DRYRUN}"; then
-        info "SourceGuardian PHP ${PHPv} enabled in dryrun mode."
+    if [[ "${DRYRUN}" == true ]]; then
+        info "SourceGuardian PHP ${PHPv} enabled in dry run mode."
     else
         if [[ -f "/usr/lib/php/loaders/sourceguardian/ixed.${PHPv}.lin" && -n $(command -v "php${PHPv}") ]]; then
             cat > "/etc/php/${PHPv}/mods-available/sourceguardian.ini" <<EOL
@@ -210,7 +210,7 @@ EOL
             fi
 
             # Restart PHP-fpm server.
-            if "${DRYRUN}"; then
+            if [[ "${DRYRUN}" == true ]]; then
                 info "php${PHPv}-fpm reloaded in dry run mode."
             else
                 if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
@@ -238,8 +238,8 @@ EOL
 function disable_sourceguardian() {
     # PHP version.
     local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.4"}
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
     fi
 
     echo "Disabling SourceGuardian PHP ${PHPv} loader"
@@ -254,8 +254,8 @@ function disable_sourceguardian() {
 function remove_sourceguardian() {
     # PHP version.
     local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.4"}
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
     fi
 
     echo "Uninstalling SourceGuardian PHP ${PHPv} loader..."
@@ -327,7 +327,7 @@ function init_phploader_install() {
 
     # Install PHP loader.
     if [[ "${PHPv}" != "unsupported" && ! $(version_older_than "${PHPv}" "5.6") ]]; then
-        if "${AUTO_INSTALL}"; then
+        if [[ "${AUTO_INSTALL}" == true ]]; then
             # PHP Loader.
             if [ -z "${SELECTED_PHP_LOADER}" ]; then
                 SELECTED_PHP_LOADER=${PHP_LOADER:-""}
@@ -379,13 +379,6 @@ function init_phploader_install() {
                         fi
                     else
                         # Install all PHP version (except EOL & Beta).
-                        #enable_ioncube "5.6"
-                        #enable_ioncube "7.0"
-                        #enable_ioncube "7.1"
-                        #enable_ioncube "7.2"
-                        #enable_ioncube "7.3"
-                        #enable_ioncube "7.4"
-
                         for PHPver in 5.6 7.0 7.1 7.2 7.3 7.4 8.0; do
                             enable_ioncube "${PHPver}"
                         done
@@ -403,13 +396,6 @@ function init_phploader_install() {
                         fi
                     else
                         # Install all PHP version (except EOL & Beta).
-                        #enable_sourceguardian "5.6"
-                        #enable_sourceguardian "7.0"
-                        #enable_sourceguardian "7.1"
-                        #enable_sourceguardian "7.2"
-                        #enable_sourceguardian "7.3"
-                        #enable_sourceguardian "7.4"
-
                         Versions="5.6 7.0 7.1 7.2 7.3 7.4 8.0"
                         for PHPver in ${Versions}; do
                             enable_sourceguardian "${PHPver}"
@@ -431,23 +417,7 @@ function init_phploader_install() {
                         fi
                     else
                         # Install all PHP version (except EOL & Beta).
-                        #enable_ioncube "5.6"
-                        #enable_ioncube "7.0"
-                        #enable_ioncube "7.1"
-                        #enable_ioncube "7.2"
-                        #enable_ioncube "7.3"
-                        #enable_ioncube "7.4"
-                        #enable_ioncube "8.0"
-
-                        #enable_sourceguardian "5.6"
-                        #enable_sourceguardian "7.0"
-                        #enable_sourceguardian "7.1"
-                        #enable_sourceguardian "7.2"
-                        #enable_sourceguardian "7.3"
-                        #enable_sourceguardian "7.4"
-                        #enable_sourceguardian "8.0"
-
-                        Versions="5.6 7.0 7.1 7.2 7.3 7.4 8.0"
+                        Versions="5.6 7.0 7.1 7.2 7.3 7.4 8.0 8.1"
                         for PHPver in ${Versions}; do
                             enable_ioncube "${PHPver}"
                             enable_sourceguardian "${PHPver}"

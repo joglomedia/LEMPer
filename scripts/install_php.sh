@@ -459,6 +459,117 @@ function install_php_composer() {
 }
 
 ##
+# Install PHP MongoDB extension.
+##
+function install_php_mongodb() {
+    # PHP version.
+    local PHPv="${1}"
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+    fi
+
+    echo -e "\nInstalling PHP ${PHPv} MongoDB extension..."
+
+    run apt-get install -qq -y "php${PHPv}-mongodb"
+
+    local CURRENT_DIR && \
+    CURRENT_DIR=$(pwd)
+
+    run cd "${BUILD_DIR}" || return 1
+    run git clone --depth=1 -q https://github.com/mongodb/mongo-php-driver.git && \
+    run cd mongo-php-driver && \
+    run git submodule update --init
+
+    if [[ -n $(command -v "php${PHPv}") ]]; then
+        run "/usr/bin/phpize${PHPv}" && \
+        run ./configure --with-php-config="/usr/bin/php-config${PHPv}"
+    else
+        run /usr/bin/phpize && \
+        run ./configure
+    fi
+
+    run make all && \
+    run make install
+
+    PHP_LIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+
+    if [ -f "${PHP_LIB_DIR}/mongodb.so" ]; then
+        success "MongoDB module sucessfully installed at ${PHP_LIB_DIR}/mongodb.so."
+        run chmod 0644 "${PHP_LIB_DIR}/mongodb.so"
+    fi
+
+    run cd "${CURRENT_DIR}" || return 1
+}
+
+##
+# Install PHP Memcached extension.
+##
+function install_php_memcached() {
+    # PHP version.
+    local PHPv="${1}"
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+    fi
+
+    # Install PHP memcached module.
+    echo "Installing PHP ${PHPv} memcached extension..."
+
+    if [[ "${DRYRUN}" != true ]]; then
+        run apt-get install -qq -y "php${PHPv}-igbinary" "php${PHPv}-memcache" \
+            "php${PHPv}-memcached" "php${PHPv}-msgpack"
+    else
+        info "PHP ${PHPv} Memcached extension installed in dry run mode."
+    fi
+
+    echo "Optimizing PHP ${PHPv} memcached extension..."
+
+    # Optimize PHP memcache extension.
+    if [[ "${DRYRUN}" != true ]]; then
+        if [ -d "/etc/php/${PHPv}/mods-available/" ]; then
+            if [ -f "/etc/php/${PHPv}/mods-available/memcache.ini" ]; then
+                cat >> "/etc/php/${PHPv}/mods-available/memcache.ini" <<EOL
+
+; Optimized for LEMPer stack.
+memcache.dbpath="/var/lib/memcache"
+memcache.maxreclevel=0
+memcache.maxfiles=0
+memcache.archivememlim=0
+memcache.maxfilesize=0
+memcache.maxratio=0
+
+; Custom setting for WordPress + W3TC.
+session.bak_handler="memcache"
+session.bak_path="tcp://127.0.0.1:11211"
+EOL
+
+                success "PHP ${PHPv} Memcache module enabled."
+            fi
+
+            # Reload PHP-FPM service.
+            echo "Restarting php${PHPv}-fpm to apply Memcached module."
+
+            if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
+                run systemctl reload "php${PHPv}-fpm"
+                success "php${PHPv}-fpm restarted successfully."
+            elif [[ -n $(command -v "php${PHPv}") ]]; then
+                run systemctl start "php${PHPv}-fpm"
+
+                if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
+                    success "php${PHPv}-fpm started successfully."
+                else
+                    info "Something went wrong with php${PHPv}-fpm installation."
+                fi
+            fi
+
+        else
+            info "It seems that PHP ${PHPv} not yet installed. Please install it before!"
+        fi
+    else
+        info "PHP ${PHPv} Memcached extension optimized in dry run mode."
+    fi
+}
+
+##
 # Initialize PHP & FPM Installation.
 ##
 function init_php_fpm_install() {
@@ -572,11 +683,14 @@ function init_php_fpm_install() {
     # Add Ondrej's PHP repository.
     add_php_repo
 
-    # Install all selected PHP versions.
+    # Install all selected PHP versions and extensions.
     for VERSION in "${SELECTED_PHP_VERSIONS[@]}"; do
         IS_PKG_AVAIL=$(apt-cache search "php${VERSION}" | grep -c "${VERSION}")
         if [[ "${IS_PKG_AVAIL}" -gt 0 ]]; then
+            # Install PHP + default extensions.
             install_php_fpm "${VERSION}"
+            [[ "${INSTALL_MEMCACHED}" == true ]] && install_php_memcached "${VERSION}"
+            [[ "${INSTALL_MONGODB}" == true ]] && install_php_mongodb "${VERSION}"
         else
             error "PHP ${VERSION} package is not available on your operating system."
         fi
@@ -586,7 +700,10 @@ function init_php_fpm_install() {
     if [[ -z $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
         info "LEMPer requires PHP ${DEFAULT_PHP_VERSION} as default to run its administration tool."
         echo "PHP ${DEFAULT_PHP_VERSION} now being installed..."
+
         install_php_fpm "${DEFAULT_PHP_VERSION}"
+        [[ "${INSTALL_MEMCACHED}" == true ]] && install_php_memcached "${DEFAULT_PHP_VERSION}"
+        [[ "${INSTALL_MONGODB}" == true ]] && install_php_mongodb "${DEFAULT_PHP_VERSION}"
     fi
 
     # Install PHP composer.
