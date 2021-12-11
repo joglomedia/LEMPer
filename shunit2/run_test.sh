@@ -2,15 +2,11 @@
 
 # First example from https://github.com/kward/shunit2
 
-script_under_test=$(basename "$0")
-
-# Nginx versions.
-nginx_stable_version="1.21.0"
-nginx_latest_version="1.20.1"
+#script_under_test=$(basename "$0")
 
 # Source the helper functions.
-if [ -f scripts/helper.sh ]; then
-    source scripts/helper.sh
+if [[ -f ./scripts/helper.sh ]]; then
+    . ./scripts/helper.sh
     preflight_system_check
     init_log
     init_config
@@ -39,20 +35,24 @@ testEqualityCreateAccount()
     assertEquals "success" "${create_account_status}"
 }
 
-testEqualityInstallCertbot()
+testTrueInstallCertbot()
 {
     . scripts/install_certbotle.sh
 
-    certbot_bin=$(command -v certbot)
-    assertEquals "/usr/bin/certbot" "${certbot_bin}"
+    #certbot_bin=$(command -v certbot)
+    #assertEquals "/usr/bin/certbot" "${certbot_bin}"
+    cb=$(command -v certbot | grep -c certbot)
+    assertTrue "[[ ${cb} -gt 0 ]]"
 }
 
-testEqualityInstallNginx()
+testTrueInstallNginx()
 {
     . scripts/install_nginx.sh
 
-    nginx_bin=$(command -v nginx)
-    assertEquals "/usr/sbin/nginx" "${nginx_bin}"
+    #nginx_bin=$(command -v nginx)
+    #assertEquals "/usr/sbin/nginx" "${nginx_bin}"
+    ngx=$(command -v nginx | grep -c nginx)
+    assertTrue "[[ ${ngx} -gt 0 ]]"
 }
 
 testEqualityInstallPhp()
@@ -74,12 +74,12 @@ testTrueInstallPhpLoader()
     #assertTrue "[ ${sg} -gt 0 ]"
 }
 
-testEqualityInstallPhpImageMagick()
+testTrueInstallImageMagick()
 {
     . scripts/install_imagemagick.sh
 
-    imagick_bin=$(command -v identify)
-    assertEquals "/usr/bin/identify" "${imagick_bin}"
+    magick=$(command -v magick | grep -c magick)
+    assertTrue "[[ ${magick} -gt 0 ]]"
 }
 
 testEqualityInstallMySQL()
@@ -91,6 +91,14 @@ testEqualityInstallMySQL()
 
     mysqld_bin=$(command -v mysqld)
     assertEquals "/usr/sbin/mysqld" "${mysqld_bin}"
+}
+
+testEqualityInstallMemcached()
+{
+    . scripts/install_memcached.sh
+
+    memcached_bin=$(command -v memcached)
+    assertEquals "/usr/bin/memcached" "${memcached_bin}"
 }
 
 testEqualityInstallRedis()
@@ -126,13 +134,15 @@ testEqualityInstallFail2ban()
 testEqualityInstallTools()
 {
     . scripts/install_tools.sh
+
     assertTrue "[[ -x /usr/local/bin/lemper-cli ]]"
+    assertTrue "[[ -d /etc/lemper/cli-plugins ]]"
 }
 
 testEqualityCreateNewVhost()
 {
-    sudo /usr/local/bin/lemper-cli create -d lemper.local -f wordpress -i
-    assertTrue "[[ -f /etc/nginx/sites-available/lemper.local.conf ]]"
+    sudo /usr/local/bin/lemper-cli create -d lemper.test -f wordpress -i
+    assertTrue "[[ -f /etc/nginx/sites-available/lemper.test.conf ]]"
 }
 
 # load shunit2
