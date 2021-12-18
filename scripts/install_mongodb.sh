@@ -103,18 +103,14 @@ function init_mongodb_install() {
         # Add repository.
         add_mongodb_repo
 
-        echo "Installing MongoDB server and MongoDB PHP module..."
+        echo "Installing MongoDB server.."
 
-        if hash apt-get 2>/dev/null; then
-            run apt-get install -qq -y libbson-1.0 libmongoc-1.0-0 mongodb-org mongodb-org-server \
-                mongodb-org-shell mongodb-org-tools
-        else
-            fail "Unable to install MongoDB, this GNU/Linux distribution is not supported."
-        fi
+        run apt-get install -qq -y libbson-1.0 libmongoc-1.0-0 \
+            mongodb-org mongodb-org-server mongodb-org-shell mongodb-org-tools
 
         # Enable in start-up
-        run systemctl enable mongod.service
-        run systemctl restart mongod
+        run systemctl start mongod.service
+        run systemctl enable mongod
 
         if [[ "${DRYRUN}" == true ]]; then
             info "MongoDB server installed in dry run mode."
@@ -123,12 +119,12 @@ function init_mongodb_install() {
             echo "After installation finished, you can add a MongoDB administrative user. Example command lines below:";
             cat <<- EOL
 
-mongo
+mongosh
 > use admin
 > db.createUser({"user": "admin", "pwd": "<Enter a secure password>", "roles":[{"role": "root", "db": "admin"}]})
 > quit()
 
-mongo -u admin -p --authenticationDatabase user-data
+mongosh -u admin -p --authenticationDatabase user-data
 > use exampledb
 > db.createCollection("exampleCollection", {"capped": false})
 > var a = {"name": "John Doe", "attributes": {"age": 30, "address": "123 Main St", "phone": 8675309}}
@@ -140,10 +136,13 @@ mongo -u admin -p --authenticationDatabase user-data
 EOL
 
             # Add MongoDB default admin user.
-            if [[ -n $(command -v mongo) ]]; then
+            if [[ -n $(command -v mongosh) ]]; then
+                echo "Adding MongoDB default admin user.."
+
                 MONGODB_ADMIN_USER=${MONGODB_ADMIN_USER:-"lemperdb"}
-                MONGODB_ADMIN_PASSWORD=${MONGODB_ADMIN_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
-                run mongo admin --eval "db.createUser({'user': '${MONGODB_ADMIN_USER}', 'pwd': '${MONGODB_ADMIN_PASSWORD}', 'roles':[{'role': 'root', 'db': 'admin'}]});" >/dev/null 2>&1
+                MONGODB_ADMIN_PASSWORD=${MONGODB_ADMIN_PASSWORD:-"$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"}
+
+                run mongosh admin --eval "\"db.createUser({'user': '${MONGODB_ADMIN_USER}', 'pwd': '${MONGODB_ADMIN_PASSWORD}', 'roles':[{'role': 'root', 'db': 'admin'}]});\""
 
                 # Save config.
                 save_config -e "MONGODB_HOST=127.0.0.1\nMONGODB_PORT=27017\nMONGODB_ADMIN_USER=${MONGODB_ADMIN_USER}\nMONGODB_ADMIN_PASS=${MONGODB_ADMIN_PASSWORD}"
