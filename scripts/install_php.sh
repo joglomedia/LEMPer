@@ -98,10 +98,10 @@ function install_php() {
         for EXT_NAME in "${PHP_EXTS[@]}"; do
             echo -n "Checking extension: ${EXT_NAME}... "
 
-            if [[ "${EXT_NAME}" == "sodium" && "${PHPv//.}" -gt "72" ]]; then
-                echo "[N/A, PECL extension]"
+            if [[ "${EXT_NAME}" == *sodium && "${PHPv//.}" -gt "72" ]]; then
+                echo "[pecl libsodium]"
                 #echo "not available for PHP ${PHPv}"
-                PHP_PECL_EXTS+=("${EXT_NAME}")
+                PHP_PECL_EXTS+=("libsodium")
                 continue
             fi
 
@@ -207,6 +207,9 @@ function restart_php_fpm() {
     if [[ -z "${PHPv}" ]]; then
         PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
     fi
+
+    echo ""
+    echo "Restarting PHP-FPM service..."
 
     # Restart PHP-FPM service.
     if [[ "${DRYRUN}" != true ]]; then
