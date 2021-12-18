@@ -671,7 +671,7 @@ EOL
                     "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini"
             fi
         else
-            error "PHP ${PHPv} or ionCube loader not found."
+            info "PHP ${PHPv} or ionCube loader not found."
         fi
     else
         info "ionCube PHP ${PHPv} enabled in dry run mode."
