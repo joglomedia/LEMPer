@@ -20,8 +20,9 @@ jobs:
       - name: Prepare testing environment
         run: |
           cp .env.dist .env
+          sed -i "s/FIX_BROKEN_INSTALL=false/FIX_BROKEN_INSTALL=true/g" .env
           sed -i "s/ENVIRONMENT=\"production\"/ENVIRONMENT=\"development\"/g" .env
-          sed -i "s/SERVER_HOSTNAME=\"\"/SERVER_HOSTNAME=\"travis-ci.masedi.net\"/g" .env
+          sed -i "s/SERVER_HOSTNAME=\"\"/SERVER_HOSTNAME=\"gh-ci.lemper.cloud\"/g" .env
           sed -i "s/SERVER_IP=\"\"/SERVER_IP=\"127.0.0.1\"/g" .env
           sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/g" .env
           sed -i "s/AUTO_REMOVE=false/AUTO_REMOVE=true/g" .env

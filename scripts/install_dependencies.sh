@@ -29,6 +29,12 @@ if ! "${AUTO_INSTALL}"; then
     run dpkg-reconfigure locales
 fi
 
+# Fix broken install, first?
+if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
+    run dpkg --configure -a
+    run apt-get install -qq -y --fix-broken
+fi
+
 # Update repositories.
 echo "Updating repository, please wait..."
 run apt-get update -qq -y && \
@@ -40,7 +46,7 @@ run apt-get install -qq -y \
     apt-transport-https apt-utils apache2-utils autoconf automake bash build-essential ca-certificates \
     cmake cron curl dmidecode dnsutils gcc geoip-bin geoip-database gettext git gnupg2 \
     htop iptables libc-bin libc6-dev libcurl4-openssl-dev libgd-dev libgeoip-dev libgpgme11-dev \
-    libssl-dev libxml2-dev libpcre3-dev libtool libxslt1-dev logrotate lsb-release make \
+    libsodium-dev libssl-dev libxml2-dev libpcre3-dev libtool libxslt1-dev logrotate lsb-release make \
     openssh-server openssl pkg-config python python3 re2c rsync software-properties-common \
     sasl2-bin sendmail snmp sudo sysstat tar tzdata unzip wget whois zlib1g-dev
 
