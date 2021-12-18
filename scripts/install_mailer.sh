@@ -238,7 +238,7 @@ function install_dovecot() {
 
             # POP3
             run sed -i "s/#port\ =\ 110/port\ =\ 110/g" /etc/dovecot/conf.d/10-master.conf
-            # IMAPS
+            # POP3S
             run sed -i "s/#port\ =\ 995/port\ =\ 995/g" /etc/dovecot/conf.d/10-master.conf
             run sed -i "s/#ssl\ =\ yes/ssl\ =\ yes/g" /etc/dovecot/conf.d/10-master.conf
 
@@ -411,10 +411,12 @@ EOL
 
             # Publish Your Public Key in DNS Records.
             if [[ "${DRYRUN}" != true ]]; then
-                export DKIM_KEY=$(cat "/etc/opendkim/keys/${SENDER_DOMAIN}/lemper.txt")
+                DKIM_KEY=$(cat "/etc/opendkim/keys/${SENDER_DOMAIN}/lemper.txt")
             else
-                export DKIM_KEY="Example DKIM Key"
+                DKIM_KEY="Example DKIM Key"
             fi
+
+            export DKIM_KEY
 
             echo -e "Add this DKIM key to your DNS TXT record!\nDKIM Key: ${DKIM_KEY}"
 

@@ -4,7 +4,7 @@
 # | LEMPer is a simple LEMP stack installer for Debian/Ubuntu Linux         |
 # |-------------------------------------------------------------------------+
 # | Min requirement   : GNU/Linux Debian 8, Ubuntu 16.04 or Linux Mint 17   |
-# | Last Update       : 10/12/2021                                          |
+# | Last Update       : 18/12/2021                                          |
 # | Author            : MasEDI.Net (me@masedi.net)                          |
 # | Version           : 2.x.x                                               |
 # +-------------------------------------------------------------------------+
@@ -193,23 +193,36 @@ Here is your default system information:
     Server IP: ${SERVER_IP}
     SSH Port : ${SSH_PORT}
 
-LEMPer stack admin account:
+LEMPer Stack Admin Account:
     Username : ${USERNAME}
     Password : ${PASSWORD}
 
-Database administration (Adminer):
+Database Administration (Adminer):
     http://${SERVER_IP}:8082/lcp/dbadmin/
 
     Database root password: ${MYSQL_ROOT_PASSWORD}
 
-    Mariabackup user information:
+Mariabackup user information:
     DB Username: ${MARIABACKUP_USER}
     DB Password: ${MARIABACKUP_PASS}
 
-File manager (TinyFileManager):
+File Manager (TinyFileManager):
     http://${SERVER_IP}:8082/lcp/filemanager/
 
-    Use your LEMPer stack admin account for login.
+    Use your default LEMPer stack admin account for Filemanager login.
+
+Default Mail Service:
+    Maildir      : /home/${USERNAME}/Maildir
+    Sender Domain: ${SENDER_DOMAIN}
+    Sender IP    : ${SERVER_IP}
+    IMAP Port    : 143, 993 (SSL/TLS)
+    POP3 Port    : 110, 995 (SSL/TLS)
+
+    Domain Key   : lemper._domainkey.${SENDER_DOMAIN}
+    DKIM Key     : ${DKIM_KEY}
+    SPF Record   : v=spf1 ip4:${SERVER_IP} include:${SENDER_DOMAIN} mx ~all
+
+    Use your default LEMPer stack admin account for Mail login.
 
 
 Please Save the above Credentials & Keep it Secure!
