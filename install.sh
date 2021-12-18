@@ -103,18 +103,6 @@ if [ -f ./scripts/install_php.sh ]; then
     . ./scripts/install_php.sh
 fi
 
-### Phalcon PHP installation ###
-if [ -f ./scripts/install_phalcon.sh ]; then
-    echo ""
-    . ./scripts/install_phalcon.sh
-fi
-
-### Phalcon PHP installation ###
-if [ -f ./scripts/install_phploader.sh ]; then
-    echo ""
-    . ./scripts/install_phploader.sh
-fi
-
 ### Imagick installation ###
 if [ -f ./scripts/install_imagemagick.sh ]; then
     echo ""
@@ -125,6 +113,12 @@ fi
 if [ -f ./scripts/install_memcached.sh ]; then
     echo ""
     . ./scripts/install_memcached.sh
+fi
+
+### Phalcon PHP installation ###
+if [ -f ./scripts/install_phalcon.sh ]; then
+    echo ""
+    . ./scripts/install_phalcon.sh
 fi
 
 ### MySQL database installation ###

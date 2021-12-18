@@ -56,9 +56,9 @@ function add_php_repo() {
 }
 
 ##
-# Install PHP & FPM package.
+# Install PHP and extensions.
 ##
-function install_php_fpm() {
+function install_php() {
     export PHP_IS_INSTALLED="no"
 
     # PHP version.
@@ -70,7 +70,7 @@ function install_php_fpm() {
     # Checking if PHP already installed.
     if [[ -n $(command -v "php${PHPv}") ]]; then
         PHP_IS_INSTALLED="yes"
-        info "PHP ${PHPv} and it's extensions already exists, installation skipped."
+        info "PHP ${PHPv} and it's extensions already exists."
     else
         echo "Installing PHP ${PHPv} and required extensions..."
 
@@ -170,8 +170,37 @@ function install_php_fpm() {
             run mkdir -p /var/log/php
         fi
 
-        # Optimize PHP configuration.
+        # Optimize PHP & FPM configuration.
         optimize_php_fpm "${PHPv}"
+    fi
+}
+
+##
+# Restart PHP-FPM service.
+##
+function restart_php_fpm() {
+    # PHP version.
+    local PHPv="${1}"
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+    fi
+
+    # Restart PHP-FPM service.
+    if [[ "${DRYRUN}" != true ]]; then
+        if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
+            run systemctl reload "php${PHPv}-fpm"
+            success "php${PHPv}-fpm reloaded successfully."
+        elif [[ -n $(command -v "php${PHPv}") ]]; then
+            run systemctl start "php${PHPv}-fpm"
+
+            if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
+                success "php${PHPv}-fpm started successfully."
+            else
+                error "Something goes wrong with PHP ${PHPv} & FPM installation."
+            fi
+        fi
+    else
+        info "php${PHPv}-fpm reloaded in dry run mode."
     fi
 }
 
@@ -393,24 +422,6 @@ EOL
 
     # Fix cgi.fix_pathinfo (for PHP older than 5.3).
     #sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
-
-    # Restart PHP-fpm server.
-    if [[ "${DRYRUN}" == true ]]; then
-        info "php${PHPv}-fpm reloaded in dry run mode."
-    else
-        if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-            run systemctl reload "php${PHPv}-fpm"
-            success "php${PHPv}-fpm reloaded successfully."
-        elif [[ -n $(command -v "php${PHPv}") ]]; then
-            run systemctl start "php${PHPv}-fpm"
-
-            if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-                success "php${PHPv}-fpm started successfully."
-            else
-                error "Something goes wrong with PHP ${PHPv} & FPM installation."
-            fi
-        fi
-    fi
 }
 
 ##
@@ -563,25 +574,8 @@ session.bak_handler="memcache"
 session.bak_path="tcp://127.0.0.1:11211"
 EOL
 
-                success "PHP ${PHPv} Memcache module enabled."
+                success "PHP ${PHPv} Memcached extension enabled."
             fi
-
-            # Reload PHP-FPM service.
-            echo "Restarting php${PHPv}-fpm to apply Memcached module."
-
-            if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-                run systemctl reload "php${PHPv}-fpm"
-                success "php${PHPv}-fpm restarted successfully."
-            elif [[ -n $(command -v "php${PHPv}") ]]; then
-                run systemctl start "php${PHPv}-fpm"
-
-                if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
-                    success "php${PHPv}-fpm started successfully."
-                else
-                    info "Something went wrong with php${PHPv}-fpm installation."
-                fi
-            fi
-
         else
             info "It seems that PHP ${PHPv} not yet installed. Please install it before!"
         fi
@@ -591,23 +585,251 @@ EOL
 }
 
 ##
-# Initialize PHP & FPM Installation.
+# Install ionCube Loader.
 ##
-function init_php_fpm_install() {
+function install_ioncube_loader() {
+    echo "Installing ionCube PHP loader..."
+
+    # Delete old loaders file.
+    if [ -d /usr/lib/php/loaders/ioncube ]; then
+        echo "Remove old/existing ionCube PHP loader."
+        run rm -fr /usr/lib/php/loaders/ioncube
+    fi
+
+    local CURRENT_DIR && CURRENT_DIR=$(pwd)
+    run cd "${BUILD_DIR}" || return 1
+
+    echo "Downloading latest ionCube PHP loader..."
+
+    ARCH=${ARCH:-$(uname -p)}
+
+    if [[ "${ARCH}" == "x86_64" ]]; then
+        run wget -q --show-progress "https://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz"
+        run tar -xzf ioncube_loaders_lin_x86-64.tar.gz
+        run rm -f ioncube_loaders_lin_x86-64.tar.gz
+    else
+        run wget -q --show-progress "https://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86.tar.gz"
+        run tar -xzf ioncube_loaders_lin_x86.tar.gz
+        run rm -f ioncube_loaders_lin_x86.tar.gz
+    fi
+
+    run mv -f ioncube /usr/lib/php/loaders/
+    run cd "${CURRENT_DIR}" || return 1
+}
+
+##
+# Enable ionCube Loader.
+##
+function enable_ioncube_loader() {
+    # PHP version.
+    local PHPv="${1}"
+    if [ -z "${PHPv}" ]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+    fi
+
+    echo "Enable ionCube PHP ${PHPv} loader."
+
+    if [[ "${DRYRUN}" != true ]]; then
+        if [[ -f "/usr/lib/php/loaders/ioncube/ioncube_loader_lin_${PHPv}.so" && -n $(command -v "php${PHPv}") ]]; then
+            cat > "/etc/php/${PHPv}/mods-available/ioncube.ini" <<EOL
+[ioncube]
+zend_extension=/usr/lib/php/loaders/ioncube/ioncube_loader_lin_${PHPv}.so
+EOL
+
+            if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini" ]; then
+                run ln -s "/etc/php/${PHPv}/mods-available/ioncube.ini" \
+                    "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini"
+            fi
+            if [ ! -f "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini" ]; then
+                run ln -s "/etc/php/${PHPv}/mods-available/ioncube.ini" \
+                    "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini"
+            fi
+        else
+            error "PHP ${PHPv} or ionCube loader not found."
+        fi
+    else
+        info "ionCube PHP ${PHPv} enabled in dry run mode."
+    fi
+}
+
+##
+# Install SourceGuardian Loader.
+##
+function install_sourceguardian_loader() {
+    echo "Installing SourceGuardian PHP loader..."
+
+    # Delete old loaders file.
+    if [ -d /usr/lib/php/loaders/sourceguardian ]; then
+        echo "Remove old/existing loader."
+        run rm -fr /usr/lib/php/loaders/sourceguardian
+    fi
+
+    if [ ! -d "${BUILD_DIR}/sourceguardian" ]; then
+        run mkdir -p "${BUILD_DIR}/sourceguardian"
+    fi
+
+    local CURRENT_DIR && CURRENT_DIR=$(pwd)
+    run cd "${BUILD_DIR}/sourceguardian" || return 1
+
+    echo "Downloading latest SourceGuardian PHP loader..."
+
+    ARCH=${ARCH:-$(uname -p)}
+
+    if [[ "${ARCH}" == "x86_64" ]]; then
+        run wget -q --show-progress "https://www.sourceguardian.com/loaders/download/loaders.linux-x86_64.tar.gz"
+        run tar -xzf loaders.linux-x86_64.tar.gz
+        run rm -f loaders.linux-x86_64.tar.gz
+    else
+        run wget -q --show-progress "https://www.sourceguardian.com/loaders/download/loaders.linux-x86.tar.gz"
+        run tar -xzf loaders.linux-x86.tar.gz
+        run rm -f loaders.linux-x86.tar.gz
+    fi
+
+    run cd "${CURRENT_DIR}" || return 1
+    run mv -f "${BUILD_DIR}/sourceguardian" /usr/lib/php/loaders/
+}
+
+##
+# Enable SourceGuardian Loader.
+##
+function enable_sourceguardian_loader() {
+    # PHP version.
+    local PHPv="${1}"
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+    fi
+
+    echo "Enable SourceGuardian PHP ${PHPv} loader."
+
+    if [[ "${DRYRUN}" != true ]]; then
+        if [[ -f "/usr/lib/php/loaders/sourceguardian/ixed.${PHPv}.lin" && -n $(command -v "php${PHPv}") ]]; then
+            cat > "/etc/php/${PHPv}/mods-available/sourceguardian.ini" <<EOL
+[sourceguardian]
+zend_extension=/usr/lib/php/loaders/sourceguardian/ixed.${PHPv}.lin
+EOL
+
+            if [ ! -f "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini" ]; then
+                run ln -s "/etc/php/${PHPv}/mods-available/sourceguardian.ini" \
+                    "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini"
+            fi
+
+            if [ ! -f "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini" ]; then
+                run ln -s "/etc/php/${PHPv}/mods-available/sourceguardian.ini" \
+                    "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini"
+            fi
+        else
+            error "PHP ${PHPv} or SourceGuardian loader not found."
+        fi
+    else
+        info "SourceGuardian PHP ${PHPv} enabled in dry run mode."
+    fi
+}
+
+##
+# Install PHP Loader.
+##
+function install_php_loader() {
+    local PHPv="${1}"
+    local SELECTED_PHP_LOADER="${2}"
+
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+    fi
+
+    if [[ -z "${SELECTED_PHP_LOADER}" ]]; then
+        SELECTED_PHP_LOADER=${PHP_LOADER:-"ioncube"}
+    fi
+
+    # Install PHP loader.
+    if [[ "${PHPv}" != "unsupported" && ! $(version_older_than "${PHPv}" "5.6") ]]; then
+        if [[ "${AUTO_INSTALL}" == true ]]; then
+            if [[ "${INSTALL_PHP_LOADER}" == true ]]; then
+                DO_INSTALL_PHP_LOADER="y"
+            else
+                DO_INSTALL_PHP_LOADER="n"
+            fi
+        else
+            while [[ "${DO_INSTALL_PHP_LOADER}" != "y" && "${DO_INSTALL_PHP_LOADER}" != "n" ]]; do
+                read -rp "Do you want to install PHP Loader? [y/n]: " -i n -e DO_INSTALL_PHP_LOADER
+            done
+        fi
+
+        if [[ ${DO_INSTALL_PHP_LOADER} == y* || ${DO_INSTALL_PHP_LOADER} == Y* ]]; then
+            if ! "${AUTO_INSTALL}"; then
+                echo ""
+                echo "Available PHP Loaders:"
+                echo "  1). ionCube Loader (latest stable)"
+                echo "  2). SourceGuardian (latest stable)"
+                echo "  3). All loaders (ionCube, SourceGuardian)"
+                echo "--------------------------------------------"
+
+                while [[ ${SELECTED_PHP_LOADER} != "1" && ${SELECTED_PHP_LOADER} != "2" && \
+                        ${SELECTED_PHP_LOADER} != "3" && ${SELECTED_PHP_LOADER} != "ioncube" && \
+                        ${SELECTED_PHP_LOADER} != "sg" && ${SELECTED_PHP_LOADER} != "ic" && \
+                        ${SELECTED_PHP_LOADER} != "sourceguardian" && ${SELECTED_PHP_LOADER} != "all" ]]; do
+                    read -rp "Select an option [1-3]: " -i "${PHP_LOADER}" -e SELECTED_PHP_LOADER
+                done
+            fi
+
+            # Create PHP loaders directory.
+            if [ ! -d /usr/lib/php/loaders ]; then
+                run mkdir -p /usr/lib/php/loaders
+            fi
+
+            case ${SELECTED_PHP_LOADER} in
+                1 | "ic" | "ioncube")
+                    [ ! -d /usr/lib/php/loaders/ioncube ] && install_ioncube_loader
+                    enable_ioncube_loader "${PHPv}"
+                ;;
+                2 | "sg" | "sourceguardian")
+                    [ ! -d /usr/lib/php/loaders/sourceguardian ] && install_sourceguardian_loader
+                    enable_sourceguardian_loader "${PHPv}"
+                ;;
+                "all")
+                    [ ! -d /usr/lib/php/loaders/ioncube ] && install_ioncube_loader
+                    enable_ioncube_loader "${PHPv}"
+
+                    [ ! -d /usr/lib/php/loaders/sourceguardian ] && install_sourceguardian_loader
+                    enable_sourceguardian_loader "${PHPv}"
+                ;;
+                *)
+                    error "Your selected PHP loader ${SELECTED_PHP_LOADER} is not supported yet."
+                ;;
+            esac
+        else
+            info "PHP ${PHPv} ${SELECTED_PHP_LOADER} loader installation skipped."
+        fi
+    fi
+}
+
+##
+# Initialize PHP Installation.
+##
+function init_php_install() {
     local SELECTED_PHP_VERSIONS=()
     local OPT_PHP_VERSIONS=()
+    local OPT_PHP_EXTENSIONS=()
+    local OPT_PHP_LOADER=${PHP_LOADER:-"ioncube"}
 
-    OPTS=$(getopt -o p:l: \
-        -l php-version: \
-        -n "init_php_fpm_install" -- "$@")
+    OPTS=$(getopt -o p:x:l: \
+        -l php-version:,php-extensions,php-loader: \
+        -n "init_php_install" -- "$@")
 
     eval set -- "${OPTS}"
 
     while true
     do
         case "${1}" in
-            -p|--php-version) shift
+            -p | --php-version) shift
                 OPT_PHP_VERSIONS+=("${1}")
+                shift
+            ;;
+            -x | --php-extensions) shift
+                OPT_PHP_EXTENSIONS+=("${1}")
+                shift
+            ;;
+            -l | --php-loader) shift
+                OPT_PHP_LOADER="${1}"
                 shift
             ;;
             --) shift
@@ -620,7 +842,7 @@ function init_php_fpm_install() {
         esac
     done
 
-    # Read versions from config file.
+    # Include versions from config file.
     read -r -a SELECTED_PHP_VERSIONS <<< "${PHP_VERSIONS}"
 
     if [[ "${#OPT_PHP_VERSIONS[@]}" -gt 0 ]]; then
@@ -629,7 +851,7 @@ function init_php_fpm_install() {
         # Manually select PHP version in interactive mode.
         if ! "${AUTO_INSTALL}"; then
             echo "Which PHP version to be installed?"
-            echo "Supported PHP versions:"
+            echo "Available PHP versions:"
             echo "  1). PHP 5.6 (EOL)"
             echo "  2). PHP 7.0 (EOL)"
             echo "  3). PHP 7.1 (EOL)"
@@ -655,40 +877,32 @@ function init_php_fpm_install() {
 
             case "${SELECTED_PHP}" in
                 1 | "5.6")
-                    #install_php_fpm "5.6"
                     SELECTED_PHP_VERSIONS+=("5.6")
                 ;;
                 2 | "7.0")
-                    #install_php_fpm "7.0"
                     SELECTED_PHP_VERSIONS+=("7.0")
                 ;;
                 3 | "7.1")
-                    #install_php_fpm "7.1"
                     SELECTED_PHP_VERSIONS+=("7.1")
                 ;;
                 4 | "7.2")
-                    #install_php_fpm "7.2"
                     SELECTED_PHP_VERSIONS+=("7.2")
                 ;;
                 5 | "7.3")
-                    #install_php_fpm "7.3"
                     SELECTED_PHP_VERSIONS+=("7.3")
                 ;;
                 6 | "7.4")
-                    #install_php_fpm "7.4"
                     SELECTED_PHP_VERSIONS+=("7.4")
                 ;;
                 7 | "8.0")
-                    #install_php_fpm "8.0"
                     SELECTED_PHP_VERSIONS+=("8.0")
                 ;;
                 8 | "8.1")
-                    #install_php_fpm "8.0"
                     SELECTED_PHP_VERSIONS+=("8.0")
                 ;;
                 9 | "all")
                     # Select all PHP versions (except EOL & Beta).
-                    SELECTED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0")
+                    SELECTED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0" "8.1")
                 ;;
                 *)
                     error "Your selected PHP version ${SELECTED_PHP} is not supported yet."
@@ -705,13 +919,16 @@ function init_php_fpm_install() {
     add_php_repo
 
     # Install all selected PHP versions and extensions.
-    for VERSION in "${SELECTED_PHP_VERSIONS[@]}"; do
-        IS_PKG_AVAIL=$(apt-cache search "php${VERSION}" | grep -c "${VERSION}")
+    for PHPV in "${SELECTED_PHP_VERSIONS[@]}"; do
+        IS_PKG_AVAIL=$(apt-cache search "php${PHPV}" | grep -c "${PHPV}")
+
         if [[ "${IS_PKG_AVAIL}" -gt 0 ]]; then
             # Install PHP + default extensions.
-            install_php_fpm "${VERSION}"
+            install_php "${PHPV}"
+            install_php_loader "${PHPV}" "${OPT_PHP_LOADER}"
+            restart_php_fpm "${PHPV}"
         else
-            error "PHP ${VERSION} package is not available on your operating system."
+            error "PHP ${PHPV} package is not available for your operating system."
         fi
     done
 
@@ -720,14 +937,16 @@ function init_php_fpm_install() {
         info "LEMPer requires PHP ${DEFAULT_PHP_VERSION} as default to run its administration tool."
         echo "PHP ${DEFAULT_PHP_VERSION} now being installed..."
 
-        install_php_fpm "${DEFAULT_PHP_VERSION}"
+        install_php "${DEFAULT_PHP_VERSION}"
+        install_php_loader "${DEFAULT_PHP_VERSION}" "${OPT_PHP_LOADER}"
+        restart_php_fpm "${DEFAULT_PHP_VERSION}"
     fi
 
     # Install PHP composer.
     install_php_composer "${DEFAULT_PHP_VERSION}"
 }
 
-echo "[PHP & FPM Packages Installation]"
+echo "[PHP & Extensions Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
@@ -741,5 +960,5 @@ if [[ -n $(command -v php5.6) && \
     -n $(command -v php8.1) ]]; then
     info "All available PHP version already exists, installation skipped."
 else
-    init_php_fpm_install "$@"
+    init_php_install "$@"
 fi
