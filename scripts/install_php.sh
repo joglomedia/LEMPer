@@ -82,8 +82,8 @@ function install_php() {
         read -r -a PHP_EXTS <<< "${PHP_EXTENSIONS}"
 
         PHP_EXTS+=("bcmath" "bz2" "calendar" "cli" "common" "curl" "dev" "exif" "fpm" "gd" "gettext" "gmp" "gnupg" \
-            "iconv" "igbinary" "imap" "intl" "mbstring" "msgpack" "mysql" "opcache" "pdo" "pgsql" "posix" "pspell" \
-            "readline" "redis" "ldap" "snmp" "soap" "sqlite3" "tidy" "tokenizer" "xml" "xmlrpc" "xsl" "zip")
+            "iconv" "imap" "intl" "mbstring" "mysql" "opcache" "pcov" "pdo" "pgsql" "posix" "pspell" \
+            "readline" "redis" "ldap" "snmp" "soap" "sqlite3" "tidy" "tokenizer" "xml" "xmlrpc" "xsl" "yaml" "zip")
 
         # Add PHP extensions.
         [[ "${INSTALL_MEMCACHED}" == true ]] && PHP_EXTS+=("memcache" "memcached")

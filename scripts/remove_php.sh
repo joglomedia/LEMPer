@@ -398,7 +398,7 @@ function init_php_fpm_removal() {
 
             if [[ "${PHP_IS_EXISTS}" == false ]]; then
                 echo "Removing additional unused PHP packages..."
-                run apt-get --purge remove-qq -y dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
+                run apt-get --purge remove -qq -y dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
 
                 # Remove PHP repository.
                 run add-apt-repository -y --remove ppa:ondrej/php
