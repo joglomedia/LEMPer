@@ -161,8 +161,8 @@ echo "[MongoDB Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(command -v mongod) ]]; then
-    info "MongoDB server already exists. Installation skipped..."
+if [[ -n $(command -v mongod) && "${FORCE_INSTALL}" != true ]]; then
+    info "MongoDB server already exists, installation skipped."
 else
     init_mongodb_install "$@"
 fi

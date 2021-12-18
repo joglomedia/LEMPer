@@ -152,12 +152,8 @@ echo "[Fail2ban Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(command -v fail2ban-server) ]]; then
+if [[ -n $(command -v fail2ban-server) && "${FORCE_INSTALL}" != true ]]; then
     info "Fail2ban already exists, installation skipped."
 else
-    if [[ "${INSTALL_FAIL2BAN}" == true ]]; then
-        init_fail2ban_install "$@"
-    else
-        info "Fail2ban installation skipped."
-    fi
+    init_fail2ban_install "$@"
 fi

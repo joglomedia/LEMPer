@@ -258,8 +258,8 @@ echo "[Memcached Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(command -v memcached) ]]; then
-    info "Memcached server already exists, installation skipped..."
+if [[ -n $(command -v memcached) && "${FORCE_INSTALL}" != true ]]; then
+    info "Memcached server already exists, installation skipped."
 else
     init_memcached_install "$@"
 fi

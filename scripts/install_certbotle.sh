@@ -119,8 +119,8 @@ echo "[Certbot Let's Encrypt Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(command -v certbot) ]]; then
-    info "Certbot Let's Encrypt already exists. Installation skipped..."
+if [[ -n $(command -v certbot) && "${FORCE_INSTALL}" != true ]]; then
+    info "Certbot Let's Encrypt already exists, installation skipped."
 else
     init_certbotle_install "$@"
 fi

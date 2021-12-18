@@ -225,8 +225,8 @@ echo "[FTP Server (VSFTPD) Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(command -v vsftpd) ]]; then
-    info "FTP Server (VSFTPD) already exists. Installation skipped..."
+if [[ -n $(command -v vsftpd) && "${FORCE_INSTALL}" != true ]]; then
+    info "FTP Server (VSFTPD) already exists, installation skipped."
 else
     init_vsftpd_install "$@"
 fi

@@ -210,7 +210,6 @@ function restart_php_fpm() {
         PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
     fi
 
-    echo ""
     echo "Restarting PHP-FPM service..."
 
     # Restart PHP-FPM service.
@@ -984,7 +983,7 @@ if [[ -n $(command -v php5.6) && \
     -n $(command -v php7.3) && \
     -n $(command -v php7.4) && \
     -n $(command -v php8.0) && \
-    -n $(command -v php8.1) ]]; then
+    -n $(command -v php8.1) && "${FORCE_INSTALL}" != true ]]; then
     info "All available PHP version already exists, installation skipped."
 else
     init_php_install "$@"

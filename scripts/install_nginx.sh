@@ -1572,8 +1572,8 @@ echo "[Nginx HTTP (Web) Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(command -v nginx) && -d /etc/nginx/sites-available ]]; then
-    info "Nginx web server already exists. Installation skipped..."
+if [[ -n $(command -v nginx) && -d /etc/nginx/sites-available && "${FORCE_INSTALL}" != true ]]; then
+    info "Nginx web server already exists, installation skipped."
 else
     init_nginx_install "$@"
 fi

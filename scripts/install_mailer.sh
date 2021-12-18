@@ -149,6 +149,8 @@ EOL
         else
             info "Postfix reloaded in dry run mode."
         fi
+    else
+        info "Postfix installation skipped."
     fi
 }
 
@@ -263,6 +265,8 @@ function install_dovecot() {
         else
             info "Dovecot installed in dry run mode."
         fi
+    else
+        info "Dovecot installation skipped."
     fi
 }
 
@@ -406,7 +410,11 @@ EOL
             run chown opendkim:opendkim "/etc/opendkim/keys/${SENDER_DOMAIN}/lemper.private"
 
             # Publish Your Public Key in DNS Records.
-            DKIM_KEY=$(cat "/etc/opendkim/keys/${SENDER_DOMAIN}/lemper.txt")
+            if [[ "${DRYRUN}" != true ]]; then
+                export DKIM_KEY=$(cat "/etc/opendkim/keys/${SENDER_DOMAIN}/lemper.txt")
+            else
+                export DKIM_KEY="Example DKIM Key"
+            fi
 
             echo -e "Add this DKIM key to your DNS TXT record!\nDKIM Key: ${DKIM_KEY}"
 
@@ -429,14 +437,14 @@ function init_mailer_install() {
     [[ -z "${SENDER_DOMAIN}" && "${SENDER_DOMAIN}" == "example.com" ]] && \
         SENDER_DOMAIN="${SERVER_HOSTNAME}"
 
-    if [[ -n $(command -v postfix) ]]; then
-        info "Postfix already exists. Installation skipped..."
+    if [[ -n $(command -v postfix) && "${FORCE_INSTALL}" != true ]]; then
+        info "Postfix already exists, installation skipped."
     else
         install_postfix "$@"
     fi
 
-    if [[ -n $(command -v dovecot) ]]; then
-        info "Dovecot already exists. Installation skipped..."
+    if [[ -n $(command -v dovecot) && "${FORCE_INSTALL}" != true ]]; then
+        info "Dovecot already exists, installation skipped."
     else
         install_dovecot "$@"
     fi
