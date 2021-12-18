@@ -65,9 +65,7 @@ testEqualityInstallPhp()
 
 testTrueInstallPhpLoader()
 {
-    . scripts/install_phploader.sh
-
-    ic=$(php7.4 -v | grep -c ionCube)
+    ic=$(php -v | grep -c ionCube)
     assertTrue "[[ ${ic} -gt 0 ]]"
 
     #g=$(php7.4 -v | grep -c SourceGuardian)

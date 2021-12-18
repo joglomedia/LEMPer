@@ -27,7 +27,6 @@ jobs:
           sed -i "s/AUTO_REMOVE=false/AUTO_REMOVE=true/g" .env
           sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
           sed -i "s/LEMPER_ADMIN_EMAIL=\"mail@example.com\"/LEMPER_ADMIN_EMAIL=\"me@masedi.net\"/g" .env
-          sed -i "s/PHP_VERSIONS=\"7.4\"/PHP_VERSIONS=\"7.4\"/g" .env
           sed -i "s/INSTALL_PHP_LOADER=false/INSTALL_PHP_LOADER=true/g" .env
           sed -i "s/PHP_LOADER=\"none\"/PHP_LOADER=\"ioncube\"/g" .env
           sed -i "s/IMAGEMAGICK_INSTALLER=\"repo\"/IMAGEMAGICK_INSTALLER=\"source\"/g" .env
