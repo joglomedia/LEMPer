@@ -83,16 +83,6 @@ if [[ -n $(command -v nginx) ]]; then
     . "${SCRIPTS_DIR}/remove_nginx.sh"
 fi
 
-# Remove Mysql service if exists.
-if [[ -n $(command -v mysqld) ]]; then
-    warning -e "\nMariaDB (MySQL) database server already installed. Should we remove it?"
-    echo "Backup your database before continue!"
-
-    # shellchechk source=scripts/remove_mariadb.sh
-    # shellcheck disable=SC1091
-    . "${SCRIPTS_DIR}/remove_mariadb.sh"
-fi
-
 # Remove PHP & FPM service if exists.
 PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
 
@@ -103,6 +93,16 @@ if [[ -n $(command -v "php${PHPv}") ]]; then
     # shellchechk source=scripts/remove_php.sh
     # shellcheck disable=SC1091
     . "${SCRIPTS_DIR}/remove_php.sh" "${PHPv}"
+fi
+
+# Remove Mysql service if exists.
+if [[ -n $(command -v mysqld) ]]; then
+    warning -e "\nMariaDB (MySQL) database server already installed. Should we remove it?"
+    echo "Backup your database before continue!"
+
+    # shellchechk source=scripts/remove_mariadb.sh
+    # shellcheck disable=SC1091
+    . "${SCRIPTS_DIR}/remove_mariadb.sh"
 fi
 
 # Remove default lemper account if exists.
