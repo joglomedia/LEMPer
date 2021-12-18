@@ -81,9 +81,9 @@ function install_php() {
         # Include user defined extensions from config file.
         read -r -a PHP_EXTS <<< "${PHP_EXTENSIONS}"
 
-        PHP_EXTS+=("bcmath" "bz2" "calendar" "cli" "common" "curl" "dev" "exif" "fpm" "gd" "gettext" "gmp" "gnupg" \
-            "iconv" "imap" "intl" "mbstring" "mysql" "opcache" "pcov" "pdo" "pgsql" "posix" "pspell" \
-            "readline" "redis" "ldap" "snmp" "soap" "sqlite3" "tidy" "tokenizer" "xml" "xmlrpc" "xsl" "yaml" "zip")
+        PHP_EXTS+=("bcmath" "bz2" "cli" "common" "curl" "dev" "fpm" "gd" "gmp" "gnupg" \
+            "imap" "intl" "mbstring" "mysql" "opcache" "pcov" "pgsql" "pspell" "readline" "redis" \
+            "ldap" "snmp" "soap" "sqlite3" "tidy" "tokenizer" "xml" "xmlrpc" "xsl" "yaml" "zip")
 
         # Add PHP extensions.
         [[ "${INSTALL_MEMCACHED}" == true ]] && PHP_EXTS+=("memcache" "memcached")
@@ -125,6 +125,10 @@ function install_php() {
 
         # Install PHP extensions from PECL.
         echo "Installing PHP extensions from PECL..."
+
+        # Sort PHP extensions.
+        #shellcheck disable=SC2207
+        PHP_PECL_EXTS=($(printf "%s\n" "${PHP_PECL_EXTS[@]}" | sort -u | tr '\n' ' '))
 
         # Remove json extension from PHP greater than 7.4. It is now always available.
         if [[ $(bc -l <<< "${PHPv} > 7.4") == 1 ]]; then
