@@ -122,7 +122,10 @@ function disable_ioncube_loader() {
 
     echo "Disabling ionCube PHP ${PHPv} loader"
 
+    [[ -f "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini" ]] && \
     run unlink "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini"
+
+    [[ -f "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini" ]] && \
     run unlink "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini"
 }
 
@@ -138,12 +141,9 @@ function remove_ioncube_loader() {
 
     echo "Uninstalling ionCube PHP ${PHPv} loader..."
 
-    if [[ -f "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini" || \
-        -f "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini" ]]; then
-        disable_ioncube_loader "${PHPv}"
-    fi
+    disable_ioncube_loader "${PHPv}"
 
-    if [ -d /usr/lib/php/loaders/ioncube ]; then
+    if [[ -d /usr/lib/php/loaders/ioncube ]]; then
         run rm -fr /usr/lib/php/loaders/ioncube
         success "ionCube PHP ${PHPv} loader has been removed."
     else
@@ -163,7 +163,10 @@ function disable_sourceguardian_loader() {
 
     echo "Disabling SourceGuardian PHP ${PHPv} loader"
 
+    [[ -f "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini" ]] && \
     run unlink "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini"
+
+    [[ -f "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini" ]] && \
     run unlink "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini"
 }
 
@@ -179,12 +182,9 @@ function remove_sourceguardian_loader() {
 
     echo "Uninstalling SourceGuardian PHP ${PHPv} loader..."
 
-    if [[ -f "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini" || \
-        -f "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini" ]]; then
-        disable_sourceguardian_loader "${PHPv}"
-    fi
+    disable_sourceguardian_loader "${PHPv}"
 
-    if [ -d /usr/lib/php/loaders/sourceguardian ]; then
+    if [[ -d /usr/lib/php/loaders/sourceguardian ]]; then
         run rm -fr /usr/lib/php/loaders/sourceguardian
         success "SourceGuardian PHP ${PHPv} loader has been removed."
     else
