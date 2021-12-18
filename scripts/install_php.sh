@@ -74,34 +74,46 @@ function install_php() {
     else
         echo "Installing PHP ${PHPv} and required extensions..."
 
-        local PHP_EXTS=()
+        local PHP_REPO_EXTS=()
         local PHP_PECL_EXTS=()
-        local PHP_REPO_EXTS=() && \
-        read -r -a PHP_REPO_EXTS <<< "${PHP_EXTENSIONS}" # Read additional PHP extensions from .env variable.
+        local PHP_EXTS=()
+
+        # Include user defined extensions from config file.
+        read -r -a PHP_EXTS <<< "${PHP_EXTENSIONS}"
+
+        PHP_EXTS+=("bcmath" "bz2" "calendar" "cli" "common" "curl" "dev" "exif" "fpm" "gd" "gettext" "gmp" "gnupg" \
+            "iconv" "igbinary" "imap" "intl" "mbstring" "msgpack" "mysql" "opcache" "pdo" "pgsql" "posix" "pspell" \
+            "readline" "redis" "ldap" "snmp" "soap" "sqlite3" "tidy" "tokenizer" "xml" "xmlrpc" "xsl" "zip")
+
+        # Add PHP extensions.
+        [[ "${INSTALL_MEMCACHED}" == true ]] && PHP_EXTS+=("memcache" "memcached")
+        [[ "${INSTALL_MONGODB}" == true ]] && PHP_EXTS+=("mongodb")
+        [[ "${INSTALL_REDIS}" == true ]] && PHP_EXTS+=("redis")
 
         # Check additional PHP extensions availability.
-        for EXT_NAME in "${PHP_REPO_EXTS[@]}"; do
-            echo "Checking additional PHP extension: ${EXT_NAME}..."
+        for EXT_NAME in "${PHP_EXTS[@]}"; do
+            echo "Checking PHP extension: ${EXT_NAME}..."
             if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "php${PHPv}-${EXT_NAME}" > /dev/null; then
-                PHP_EXTS+=("php${PHPv}-${EXT_NAME}")
+                PHP_REPO_EXTS+=("php${PHPv}-${EXT_NAME}")
             elif apt-cache search "php-${EXT_NAME}" | grep -c "php-${EXT_NAME}" > /dev/null; then
-                PHP_EXTS+=("php-${EXT_NAME}")
+                PHP_REPO_EXTS+=("php-${EXT_NAME}")
             else
                 PHP_PECL_EXTS+=("${EXT_NAME}")
             fi
         done
 
-        PHP_EXTS+=("php${PHPv}" "php${PHPv}-bcmath" "php${PHPv}-bz2" "php${PHPv}-calendar" "php${PHPv}-cli" \
-"php${PHPv}-common" "php${PHPv}-curl" "php${PHPv}-dev" "php${PHPv}-exif" "php${PHPv}-fpm" "php${PHPv}-gd" \
-"php${PHPv}-gettext" "php${PHPv}-gmp" "php${PHPv}-gnupg" "php${PHPv}-iconv" "php${PHPv}-imap" "php${PHPv}-intl" \
-"php${PHPv}-mbstring" "php${PHPv}-mysql" "php${PHPv}-opcache" "php${PHPv}-pdo" "php${PHPv}-pgsql" "php${PHPv}-posix" \
-"php${PHPv}-pspell" "php${PHPv}-readline" "php${PHPv}-redis" "php${PHPv}-ldap" "php${PHPv}-snmp" "php${PHPv}-soap" \
-"php${PHPv}-sqlite3" "php${PHPv}-tidy" "php${PHPv}-tokenizer" "php${PHPv}-xml" "php${PHPv}-xmlrpc" "php${PHPv}-xsl" \
-"php${PHPv}-zip" dh-php php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi)
+#        PHP_REPO_EXTS+=("php${PHPv}" "php${PHPv}-bcmath" "php${PHPv}-bz2" "php${PHPv}-calendar" "php${PHPv}-cli" \
+#"php${PHPv}-common" "php${PHPv}-curl" "php${PHPv}-dev" "php${PHPv}-exif" "php${PHPv}-fpm" "php${PHPv}-gd" \
+#"php${PHPv}-gettext" "php${PHPv}-gmp" "php${PHPv}-gnupg" "php${PHPv}-iconv" "php${PHPv}-igbinary" "php${PHPv}-imap" \
+#"php${PHPv}-intl" "php${PHPv}-mbstring" "php${PHPv}-msgpack" "php${PHPv}-mysql" "php${PHPv}-opcache" "php${PHPv}-pdo" \
+#"php${PHPv}-pgsql" "php${PHPv}-posix" "php${PHPv}-pspell" "php${PHPv}-readline" "php${PHPv}-redis" "php${PHPv}-ldap" \
+#"php${PHPv}-snmp" "php${PHPv}-soap" "php${PHPv}-sqlite3" "php${PHPv}-tidy" "php${PHPv}-tokenizer" "php${PHPv}-xml" \
+#"php${PHPv}-xmlrpc" "php${PHPv}-xsl" "php${PHPv}-zip" dh-php php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi)
 
         # Install PHP and PHP extensions.
-        if [[ "${#PHP_EXTS[@]}" -gt 0 ]]; then
-            run apt-get install -qq -y "${PHP_EXTS[@]}"
+        if [[ "${#PHP_REPO_EXTS[@]}" -gt 0 ]]; then
+            run apt-get install -qq -y "php${PHPv}" "${PHP_REPO_EXTS[@]}" \
+                dh-php php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
         fi
 
         # Install PHP extensions from PECL.
@@ -425,6 +437,103 @@ EOL
 }
 
 ##
+# Install PHP MongoDB extension.
+##
+function install_php_mongodb() {
+    # PHP version.
+    local PHPv="${1}"
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+    fi
+
+    #echo -e "\nInstalling PHP ${PHPv} MongoDB extension..."
+
+    #run apt-get install -qq -y "php${PHPv}-mongodb"
+
+    #local CURRENT_DIR && \
+    #CURRENT_DIR=$(pwd)
+
+    #run cd "${BUILD_DIR}" || return 1
+
+    #if [[ ! -d "${BUILD_DIR}/php-${PHPv}-mongodb" ]]; then
+    #    run git clone --depth=1 -q https://github.com/mongodb/mongo-php-driver.git
+    #fi
+
+    #run cd mongo-php-driver && \
+    #run git submodule update --init
+
+    #if [[ -n $(command -v "php${PHPv}") ]]; then
+    #    run "/usr/bin/phpize${PHPv}" && \
+    #    run ./configure --with-php-config="/usr/bin/php-config${PHPv}"
+    #else
+    #    run /usr/bin/phpize && \
+    #    run ./configure
+    #fi
+
+    #run make all && \
+    #run make install
+
+    PHP_LIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+
+    if [ -f "${PHP_LIB_DIR}/mongodb.so" ]; then
+        success "MongoDB module sucessfully installed at ${PHP_LIB_DIR}/mongodb.so."
+        run chmod 0644 "${PHP_LIB_DIR}/mongodb.so"
+    fi
+
+    #run cd "${CURRENT_DIR}" || return 1
+}
+
+##
+# Install PHP Memcached extension.
+##
+function install_php_memcached() {
+    # PHP version.
+    local PHPv="${1}"
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+    fi
+
+    # Install PHP memcached module.
+#    echo "Installing PHP ${PHPv} memcached extension..."
+
+#    if [[ "${DRYRUN}" != true ]]; then
+#        run apt-get install -qq -y "php${PHPv}-memcache" "php${PHPv}-memcached"
+#    else
+#        info "PHP ${PHPv} Memcached extension installed in dry run mode."
+#    fi
+
+    echo "Optimizing PHP ${PHPv} memcached extension..."
+
+    # Optimize PHP memcache extension.
+    if [[ "${DRYRUN}" != true ]]; then
+        if [ -d "/etc/php/${PHPv}/mods-available/" ]; then
+            if [ -f "/etc/php/${PHPv}/mods-available/memcache.ini" ]; then
+                cat >> "/etc/php/${PHPv}/mods-available/memcache.ini" <<EOL
+
+; Optimized for LEMPer stack.
+memcache.dbpath="/var/lib/memcache"
+memcache.maxreclevel=0
+memcache.maxfiles=0
+memcache.archivememlim=0
+memcache.maxfilesize=0
+memcache.maxratio=0
+
+; Custom setting for WordPress + W3TC.
+session.bak_handler="memcache"
+session.bak_path="tcp://127.0.0.1:11211"
+EOL
+
+                success "PHP ${PHPv} Memcached extension enabled."
+            fi
+        else
+            info "It seems that PHP ${PHPv} not yet installed. Please install it before!"
+        fi
+    else
+        info "PHP ${PHPv} Memcached extension optimized in dry run mode."
+    fi
+}
+
+##
 # Install PHP Composer.
 ##
 function install_php_composer() {
@@ -483,104 +592,6 @@ function install_php_composer() {
         else
             error "Something went wrong with PHP Composer installation."
         fi
-    fi
-}
-
-##
-# Install PHP MongoDB extension.
-##
-function install_php_mongodb() {
-    # PHP version.
-    local PHPv="${1}"
-    if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
-    fi
-
-    echo -e "\nInstalling PHP ${PHPv} MongoDB extension..."
-
-    run apt-get install -qq -y "php${PHPv}-mongodb"
-
-    #local CURRENT_DIR && \
-    #CURRENT_DIR=$(pwd)
-
-    #run cd "${BUILD_DIR}" || return 1
-
-    #if [[ ! -d "${BUILD_DIR}/php-${PHPv}-mongodb" ]]; then
-    #    run git clone --depth=1 -q https://github.com/mongodb/mongo-php-driver.git
-    #fi
-
-    #run cd mongo-php-driver && \
-    #run git submodule update --init
-
-    #if [[ -n $(command -v "php${PHPv}") ]]; then
-    #    run "/usr/bin/phpize${PHPv}" && \
-    #    run ./configure --with-php-config="/usr/bin/php-config${PHPv}"
-    #else
-    #    run /usr/bin/phpize && \
-    #    run ./configure
-    #fi
-
-    #run make all && \
-    #run make install
-
-    PHP_LIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
-
-    if [ -f "${PHP_LIB_DIR}/mongodb.so" ]; then
-        success "MongoDB module sucessfully installed at ${PHP_LIB_DIR}/mongodb.so."
-        run chmod 0644 "${PHP_LIB_DIR}/mongodb.so"
-    fi
-
-    #run cd "${CURRENT_DIR}" || return 1
-}
-
-##
-# Install PHP Memcached extension.
-##
-function install_php_memcached() {
-    # PHP version.
-    local PHPv="${1}"
-    if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
-    fi
-
-    # Install PHP memcached module.
-    echo "Installing PHP ${PHPv} memcached extension..."
-
-    if [[ "${DRYRUN}" != true ]]; then
-        run apt-get install -qq -y "php${PHPv}-igbinary" "php${PHPv}-memcache" \
-            "php${PHPv}-memcached" "php${PHPv}-msgpack"
-    else
-        info "PHP ${PHPv} Memcached extension installed in dry run mode."
-    fi
-
-    echo "Optimizing PHP ${PHPv} memcached extension..."
-
-    # Optimize PHP memcache extension.
-    if [[ "${DRYRUN}" != true ]]; then
-        if [ -d "/etc/php/${PHPv}/mods-available/" ]; then
-            if [ -f "/etc/php/${PHPv}/mods-available/memcache.ini" ]; then
-                cat >> "/etc/php/${PHPv}/mods-available/memcache.ini" <<EOL
-
-; Optimized for LEMPer stack.
-memcache.dbpath="/var/lib/memcache"
-memcache.maxreclevel=0
-memcache.maxfiles=0
-memcache.archivememlim=0
-memcache.maxfilesize=0
-memcache.maxratio=0
-
-; Custom setting for WordPress + W3TC.
-session.bak_handler="memcache"
-session.bak_path="tcp://127.0.0.1:11211"
-EOL
-
-                success "PHP ${PHPv} Memcached extension enabled."
-            fi
-        else
-            info "It seems that PHP ${PHPv} not yet installed. Please install it before!"
-        fi
-    else
-        info "PHP ${PHPv} Memcached extension optimized in dry run mode."
     fi
 }
 
