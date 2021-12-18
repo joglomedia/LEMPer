@@ -106,7 +106,7 @@ function init_nginx_install() {
 
                 echo "Installing Nginx from package repository..."
 
-                if hash apt-get 2>/dev/null; then
+                #if hash apt-get 2>/dev/null; then
                     if [[ -n "${NGINX_PKG}" ]]; then
                         local EXTRA_MODULE_PKGS=()
 
@@ -274,9 +274,9 @@ function init_nginx_install() {
                         # Install Nginx and its modules.
                         run apt-get install -qq -y "${NGINX_PKG}" "${EXTRA_MODULE_PKGS[@]}"
                     fi
-                else
-                    fail "Unable to install Nginx, this GNU/Linux distribution is not supported."
-                fi
+                #else
+                #    fail "Unable to install Nginx, this GNU/Linux distribution is not supported."
+                #fi
             ;;
 
             2|"source")
@@ -515,9 +515,8 @@ function init_nginx_install() {
 
                             # Requires libpam-dev
                             echo "Building Auth PAM module requires libpam-dev package, install now..."
-                            if hash apt-get 2>/dev/null; then
-                                run apt-get install -qq -y libpam-dev
-                            fi
+
+                            run apt-get install -qq -y libpam-dev
                         fi
 
                         # Brotli compression module.

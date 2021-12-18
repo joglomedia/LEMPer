@@ -476,12 +476,25 @@ function init_phalcon_install() {
                 1|"repo")
                     echo "Installing Phalcon framework from repository..."
 
-                    if hash apt-get 2>/dev/null; then
-                        if [[ "${SELECTED_PHP}" != "all" && "${SELECTED_PHP}" != "7" ]]; then
+                    if [[ "${SELECTED_PHP}" != "all" && "${SELECTED_PHP}" != "7" ]]; then
+                        if [[ -n $(command -v "php${PHPv}") ]]; then
+                            PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+                            if [[ ! -f "${PHPLIB_DIR}/phalcon.so" ]]; then
+                                run apt-get install -qq -y "php-psr" "${PHP_PHALCON_PKG}"
+                                enable_phalcon "${PHPv}"
+                            else
+                                error "PHP ${PHPv} Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so."
+                            fi
+                        else
+                            error "PHP ${PHPv} not found, Phalcon installation cancelled."
+                        fi
+                    else
+                        # Install Phalcon on all supported PHP.
+                        for PHPv in ${SUPPORTED_PHP}; do
                             if [[ -n $(command -v "php${PHPv}") ]]; then
                                 PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
                                 if [[ ! -f "${PHPLIB_DIR}/phalcon.so" ]]; then
-                                    run apt-get install -qq -y "php-psr" "${PHP_PHALCON_PKG}"
+                                    run apt-get install -qq -y "php${PHPv}-psr" "php${PHPv}-phalcon"
                                     enable_phalcon "${PHPv}"
                                 else
                                     error "PHP ${PHPv} Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so."
@@ -489,24 +502,7 @@ function init_phalcon_install() {
                             else
                                 error "PHP ${PHPv} not found, Phalcon installation cancelled."
                             fi
-                        else
-                            # Install Phalcon on all supported PHP.
-                            for PHPv in ${SUPPORTED_PHP}; do
-                                if [[ -n $(command -v "php${PHPv}") ]]; then
-                                    PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
-                                    if [[ ! -f "${PHPLIB_DIR}/phalcon.so" ]]; then
-                                        run apt-get install -qq -y "php${PHPv}-psr" "php${PHPv}-phalcon"
-                                        enable_phalcon "${PHPv}"
-                                    else
-                                        error "PHP ${PHPv} Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so."
-                                    fi
-                                else
-                                    error "PHP ${PHPv} not found, Phalcon installation cancelled."
-                                fi
-                            done
-                        fi
-                    else
-                        fail "Unable to install Phalcon extension, this GNU/Linux distribution is not supported."
+                        done
                     fi
                 ;;
 
