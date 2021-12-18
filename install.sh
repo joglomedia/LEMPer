@@ -97,30 +97,6 @@ if [ -f ./scripts/install_nginx.sh ]; then
     . ./scripts/install_nginx.sh
 fi
 
-### PHP installation ###
-if [ -f ./scripts/install_php.sh ]; then
-    echo ""
-    . ./scripts/install_php.sh
-fi
-
-### Imagick installation ###
-if [ -f ./scripts/install_imagemagick.sh ]; then
-    echo ""
-    . ./scripts/install_imagemagick.sh
-fi
-
-### Memcached installation ###
-if [ -f ./scripts/install_memcached.sh ]; then
-    echo ""
-    . ./scripts/install_memcached.sh
-fi
-
-### Phalcon PHP installation ###
-if [ -f ./scripts/install_phalcon.sh ]; then
-    echo ""
-    . ./scripts/install_phalcon.sh
-fi
-
 ### MySQL database installation ###
 if [ -f ./scripts/install_mariadb.sh ]; then
     echo ""
@@ -137,6 +113,30 @@ fi
 if [ -f ./scripts/install_mongodb.sh ]; then
     echo ""
     . ./scripts/install_mongodb.sh
+fi
+
+### Memcached installation ###
+if [ -f ./scripts/install_memcached.sh ]; then
+    echo ""
+    . ./scripts/install_memcached.sh
+fi
+
+### Imagick installation ###
+if [ -f ./scripts/install_imagemagick.sh ]; then
+    echo ""
+    . ./scripts/install_imagemagick.sh
+fi
+
+### PHP installation ###
+if [ -f ./scripts/install_php.sh ]; then
+    echo ""
+    . ./scripts/install_php.sh
+fi
+
+### Phalcon PHP installation ###
+if [ -f ./scripts/install_phalcon.sh ]; then
+    echo ""
+    . ./scripts/install_phalcon.sh
 fi
 
 ### Mail server installation ###

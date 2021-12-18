@@ -67,16 +67,16 @@ if [ -f ./scripts/remove_nginx.sh ]; then
     . ./scripts/remove_nginx.sh
 fi
 
-### Remove PHP & FPM ###
-if [ -f ./scripts/remove_php.sh ]; then
-    echo ""
-    . ./scripts/remove_php.sh
-fi
-
 ### Remove MySQL ###
 if [ -f ./scripts/remove_mariadb.sh ]; then
     echo ""
     . ./scripts/remove_mariadb.sh
+fi
+
+### Remove PHP & FPM ###
+if [ -f ./scripts/remove_php.sh ]; then
+    echo ""
+    . ./scripts/remove_php.sh
 fi
 
 ### Remove PHP & FPM ###

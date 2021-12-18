@@ -51,33 +51,33 @@ function remove_php_fpm() {
         fi
 
         # Remove mcrypt extension.
-        if [[ "${PHPv//.}" -lt "72" ]]; then
-            if "php${PHPv}" -m | grep -qw mcrypt; then
-                run apt-get --purge remove -y "php${PHPv}-mcrypt"
-            fi
-        elif [[ "${PHPv}" == "7.2" ]]; then
-            if "php${PHPv}" -m | grep -qw mcrypt; then
+        #if [[ "${PHPv//.}" -lt "72" ]]; then
+        #    if "php${PHPv}" -m | grep -qw mcrypt; then
+        #        run apt-get --purge remove -y "php${PHPv}-mcrypt"
+        #    fi
+        #elif [[ "${PHPv}" == "7.2" ]]; then
+        #    if "php${PHPv}" -m | grep -qw mcrypt; then
                 # Uninstall mcrypt pecl.
                 #run pecl uninstall mcrypt
 
                 # Unlink enabled extension.
-                [ -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ] && \
-                run unlink "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini"
+        #        [ -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ] && \
+        #        run unlink "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini"
 
-                [ -f "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini" ] && \
-                run unlink "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
+        #        [ -f "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini" ] && \
+        #        run unlink "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
 
                 # Remove extension.
-                run rm -f "/etc/php/${PHPv}/mods-available/mcrypt.ini"
-            fi
-        else
+        #        run rm -f "/etc/php/${PHPv}/mods-available/mcrypt.ini"
+        #    fi
+        #else
             # Use libsodium? remove separately.
-            info "If you're installing Libsodium extension, then remove it separately."
-        fi
+        #    info "If you're installing Libsodium extension, then remove it separately."
+        #fi
 
         # Remove PHP packages.
         # shellcheck disable=SC2046
-        run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/php/ { print $2 }' | grep -wE "^php${PHPv}")
+        run apt-get --purge remove -qq -y $(dpkg-query -l | awk '/php/ { print $2 }' | grep -wE "^php${PHPv}")
 
         # Remove PHP & FPM config files.
         warning "!! This action is not reversible !!"
@@ -398,7 +398,7 @@ function init_php_fpm_removal() {
 
             if [[ "${PHP_IS_EXISTS}" == false ]]; then
                 echo "Removing additional unused PHP packages..."
-                run apt-get remove --purge -qq -y dh-php php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
+                run apt-get --purge remove-qq -y dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
 
                 # Remove PHP repository.
                 run add-apt-repository -y --remove ppa:ondrej/php

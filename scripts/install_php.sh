@@ -90,30 +90,37 @@ function install_php() {
         [[ "${INSTALL_MONGODB}" == true ]] && PHP_EXTS+=("mongodb")
         [[ "${INSTALL_REDIS}" == true ]] && PHP_EXTS+=("redis")
 
+        # Sort PHP extensions.
+        #shellcheck disable=SC2207
+        PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | sort -u | tr '\n' ' '))
+
         # Check additional PHP extensions availability.
         for EXT_NAME in "${PHP_EXTS[@]}"; do
-            echo "Checking PHP extension: ${EXT_NAME}..."
+            echo -n "Checking extension: ${EXT_NAME}... "
+
+            if [[ "${EXT_NAME}" == "sodium" && "${PHPv//.}" -gt "72" ]]; then
+                echo "[N/A, PECL extension]"
+                #echo "not available for PHP ${PHPv}"
+                PHP_PECL_EXTS+=("${EXT_NAME}")
+                continue
+            fi
+
             if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "php${PHPv}-${EXT_NAME}" > /dev/null; then
+                echo "[php${PHPv}-${EXT_NAME}]"
                 PHP_REPO_EXTS+=("php${PHPv}-${EXT_NAME}")
             elif apt-cache search "php-${EXT_NAME}" | grep -c "php-${EXT_NAME}" > /dev/null; then
+                echo "[php${PHPv}-${EXT_NAME}]"
                 PHP_REPO_EXTS+=("php-${EXT_NAME}")
             else
+                echo "[pecl ${EXT_NAME}]"
                 PHP_PECL_EXTS+=("${EXT_NAME}")
             fi
         done
 
-#        PHP_REPO_EXTS+=("php${PHPv}" "php${PHPv}-bcmath" "php${PHPv}-bz2" "php${PHPv}-calendar" "php${PHPv}-cli" \
-#"php${PHPv}-common" "php${PHPv}-curl" "php${PHPv}-dev" "php${PHPv}-exif" "php${PHPv}-fpm" "php${PHPv}-gd" \
-#"php${PHPv}-gettext" "php${PHPv}-gmp" "php${PHPv}-gnupg" "php${PHPv}-iconv" "php${PHPv}-igbinary" "php${PHPv}-imap" \
-#"php${PHPv}-intl" "php${PHPv}-mbstring" "php${PHPv}-msgpack" "php${PHPv}-mysql" "php${PHPv}-opcache" "php${PHPv}-pdo" \
-#"php${PHPv}-pgsql" "php${PHPv}-posix" "php${PHPv}-pspell" "php${PHPv}-readline" "php${PHPv}-redis" "php${PHPv}-ldap" \
-#"php${PHPv}-snmp" "php${PHPv}-soap" "php${PHPv}-sqlite3" "php${PHPv}-tidy" "php${PHPv}-tokenizer" "php${PHPv}-xml" \
-#"php${PHPv}-xmlrpc" "php${PHPv}-xsl" "php${PHPv}-zip" dh-php php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi)
-
         # Install PHP and PHP extensions.
         if [[ "${#PHP_REPO_EXTS[@]}" -gt 0 ]]; then
             run apt-get install -qq -y "php${PHPv}" "${PHP_REPO_EXTS[@]}" \
-                dh-php php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
+                dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
         fi
 
         # Install PHP extensions from PECL.
