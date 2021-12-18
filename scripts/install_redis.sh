@@ -99,7 +99,7 @@ function init_redis_install {
                 fi
 
                 if curl -sLI "${REDIS_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                    run wget -q --show-progress -O "redis.tar.gz" "${REDIS_DOWNLOAD_URL}" && \
+                    run wget -q -O "redis.tar.gz" "${REDIS_DOWNLOAD_URL}" && \
                     run tar -zxf "redis.tar.gz" && \
                     run cd redis-* && \
                     run make && \

@@ -90,7 +90,7 @@ function init_memcached_install() {
                 fi
 
                 if curl -sLI "${MEMCACHED_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                    run wget "${MEMCACHED_DOWNLOAD_URL}" -O memcached.tar.gz -q --show-progress && \
+                    run wget -q "${MEMCACHED_DOWNLOAD_URL}" -O memcached.tar.gz && \
                     run tar -zxf memcached.tar.gz && \
                     run cd memcached-* && \
 

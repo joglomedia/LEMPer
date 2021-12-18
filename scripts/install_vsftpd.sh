@@ -133,7 +133,7 @@ function init_vsftpd_install() {
                 fi
 
                 run cd "${BUILD_DIR}" && \
-                run wget "${VSFTPD_ZIP_URL}" -q --show-progress && \
+                run wget -q "${VSFTPD_ZIP_URL}" && \
                 run tar -zxf "${VSFTPD_FILENAME}" && \
                 run cd vsftpd-*/ && \
                 run make && \

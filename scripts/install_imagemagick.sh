@@ -70,7 +70,7 @@ function init_imagemagick_install() {
                 fi
 
                 run cd "${BUILD_DIR}" && \
-                run wget "${IMAGEMAGICK_ZIP_URL}" -q --show-progress && \
+                run wget -q "${IMAGEMAGICK_ZIP_URL}" && \
                 run tar -zxf "${IMAGEMAGICK_FILENAME}" && \
                 run cd ImageMagick-*/ && \
                 run ./configure && \

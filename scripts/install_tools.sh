@@ -76,10 +76,10 @@ function init_tools_install() {
     [ ! -d /usr/share/nginx/html/lcp/dbadmin ] && run mkdir -p /usr/share/nginx/html/lcp/dbadmin
 
     # Overwrite existing files.
-    run wget https://github.com/vrana/adminer/releases/download/v4.8.1/adminer-4.8.1.php \
-        -O /usr/share/nginx/html/lcp/dbadmin/index.php -q --show-progress
-    run wget https://github.com/vrana/adminer/releases/download/v4.8.1/editor-4.8.1.php \
-        -O /usr/share/nginx/html/lcp/dbadmin/editor.php -q --show-progress
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.8.1/adminer-4.8.1.php \
+        -O /usr/share/nginx/html/lcp/dbadmin/index.php 
+    run wget -q https://github.com/vrana/adminer/releases/download/v4.8.1/editor-4.8.1.php \
+        -O /usr/share/nginx/html/lcp/dbadmin/editor.php 
 
     # Install File Manager.
     # Experimental: Tinyfilemanager https://github.com/joglomedia/tinyfilemanager
@@ -92,8 +92,8 @@ function init_tools_install() {
         CURRENT_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/filemanager && \
         #run git pull -q
-        run wget https://raw.githubusercontent.com/joglomedia/tinyfilemanager/lemperfm_1.3.0/index.php \
-            -O /usr/share/nginx/html/lcp/filemanager/index.php -q --show-progress && \
+        run wget -q https://raw.githubusercontent.com/joglomedia/tinyfilemanager/lemperfm_1.3.0/index.php \
+            -O /usr/share/nginx/html/lcp/filemanager/index.php && \
         run cd "${CURRENT_DIR}" || return 1
     fi
 
@@ -104,8 +104,8 @@ function init_tools_install() {
     fi
 
     # Install Zend OpCache Web Admin.
-    run wget https://raw.github.com/rlerdorf/opcache-status/master/opcache.php \
-        -O /usr/share/nginx/html/lcp/opcache.php -q --show-progress
+    run wget -q https://raw.github.com/rlerdorf/opcache-status/master/opcache.php \
+        -O /usr/share/nginx/html/lcp/opcache.php 
 
     # Install phpMemcachedAdmin Web Admin.
     if [ ! -d /usr/share/nginx/html/lcp/memcadmin/ ]; then

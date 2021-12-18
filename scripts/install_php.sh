@@ -138,7 +138,9 @@ function install_php() {
         run pecl channel-update pear.php.net
 
         if [[ "${#PHP_PECL_EXTS[@]}" -gt 0 ]]; then
-            run pecl -d "php_suffix=${PHPv}" install "${PHP_PECL_EXTS[@]}"
+            run pecl -d "php_suffix=${PHPv}" install \
+                -D 'enable-sockets="no" enable-openssl="yes" enable-http2="yes" enable-mysqlnd="yes" enable-swoole-json="yes" enable-swoole-curl="yes" enable-cares="yes" with-postgres="yes"' \
+                "${PHP_PECL_EXTS[@]}"
         fi
 
         # Install additional PHP extensions.
@@ -629,11 +631,11 @@ function install_ioncube_loader() {
     ARCH=${ARCH:-$(uname -p)}
 
     if [[ "${ARCH}" == "x86_64" ]]; then
-        run wget -q --show-progress "https://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz"
+        run wget -q "https://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz"
         run tar -xzf ioncube_loaders_lin_x86-64.tar.gz
         run rm -f ioncube_loaders_lin_x86-64.tar.gz
     else
-        run wget -q --show-progress "https://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86.tar.gz"
+        run wget -q "https://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86.tar.gz"
         run tar -xzf ioncube_loaders_lin_x86.tar.gz
         run rm -f ioncube_loaders_lin_x86.tar.gz
     fi
@@ -701,11 +703,11 @@ function install_sourceguardian_loader() {
     ARCH=${ARCH:-$(uname -p)}
 
     if [[ "${ARCH}" == "x86_64" ]]; then
-        run wget -q --show-progress "https://www.sourceguardian.com/loaders/download/loaders.linux-x86_64.tar.gz"
+        run wget -q "https://www.sourceguardian.com/loaders/download/loaders.linux-x86_64.tar.gz"
         run tar -xzf loaders.linux-x86_64.tar.gz
         run rm -f loaders.linux-x86_64.tar.gz
     else
-        run wget -q --show-progress "https://www.sourceguardian.com/loaders/download/loaders.linux-x86.tar.gz"
+        run wget -q "https://www.sourceguardian.com/loaders/download/loaders.linux-x86.tar.gz"
         run tar -xzf loaders.linux-x86.tar.gz
         run rm -f loaders.linux-x86.tar.gz
     fi

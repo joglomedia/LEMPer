@@ -898,8 +898,8 @@ function install_wordpress() {
         if [ ! -f "${WEBROOT}/wp-includes/class-wp.php" ]; then
             if ! command -v wp-cli &> /dev/null; then
                 info "WP CLI command not found, trying to install it first."
-                run wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
-                     -O /usr/local/bin/wp-cli -q --show-progress && \
+                run wget -q https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
+                     -O /usr/local/bin/wp-cli  && \
                 run chmod ugo+x /usr/local/bin/wp-cli
             fi
 
@@ -1212,8 +1212,8 @@ function init_lemper_create() {
                             echo "Downloading Drupal latest skeleton files..."
 
                             if curl -sLI https://www.drupal.org/download-latest/zip | grep -q "HTTP/[.12]* [2].."; then
-                                run wget https://www.drupal.org/download-latest/zip \
-                                    -O "${TMPDIR}/drupal.zip" -q --show-progress && \
+                                run wget -q https://www.drupal.org/download-latest/zip \
+                                    -O "${TMPDIR}/drupal.zip"  && \
                                 run unzip -q "${TMPDIR}/drupal.zip" -d "${TMPDIR}" && \
                                 run rsync -rq ${TMPDIR}/drupal-*/ "${WEBROOT}" && \
                                 run rm -f "${TMPDIR}/drupal.zip" && \

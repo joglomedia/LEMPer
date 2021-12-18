@@ -392,7 +392,7 @@ function install_apf() {
     echo "Installing APF+BFD firewall..."
     if curl -sLI "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
     | grep -q "HTTP/[.12]* [2].."; then
-        run wget -q --show-progress "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" && \
+        run wget -q "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" && \
         run tar -xf "${APF_VERSION}.tar.gz" && \
         run cd advanced-policy-firewall-*/ && \
         run bash install.sh && \

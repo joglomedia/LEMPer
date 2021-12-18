@@ -536,7 +536,7 @@ add support for dynamic modules in a way compatible with ngx_pagespeed until 1.9
             status "Detected debian-based distro."
 
             install_dependencies "apt install ${INSTALL_FLAGS}" debian_is_installed \
-                build-essential zlib1g-dev libpcre3 libpcre3-dev unzip wget uuid-dev
+                build-essential zlib1g-dev libpcre3 libpcre3-dev unzip wget -q uuid-dev
 
             if gcc_too_old; then
                 if [ ! -e /usr/lib/gcc-mozilla/bin/gcc ]; then
@@ -554,7 +554,7 @@ add support for dynamic modules in a way compatible with ngx_pagespeed until 1.9
             status "Detected redhat-based distro."
 
             install_dependencies "yum install ${INSTALL_FLAGS}" redhat_is_installed \
-                gcc-c++ pcre-devel zlib-devel make unzip wget libuuid-devel
+                gcc-c++ pcre-devel zlib-devel make unzip wget -q libuuid-devel
 
             if gcc_too_old; then
                 if [ ! -e /opt/rh/devtoolset-2/root/usr/bin/gcc ]; then
