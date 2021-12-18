@@ -55,21 +55,23 @@ testTrueInstallNginx()
     assertTrue "[[ ${ngx} -gt 0 ]]"
 }
 
+testEqualityInstallMySQL()
+{
+    . scripts/install_mariadb.sh
+
+    mysql_bin=$(command -v mysql)
+    assertEquals "/usr/bin/mysql" "${mysql_bin}"
+
+    mysqld_bin=$(command -v mysqld)
+    assertEquals "/usr/sbin/mysqld" "${mysqld_bin}"
+}
+
 testEqualityInstallPhp()
 {
     . scripts/install_php.sh
 
     php_bin=$(command -v php)
     assertEquals "/usr/bin/php" "${php_bin}"
-}
-
-testTrueInstallPhpLoader()
-{
-    ic=$(php -v | grep -c ionCube)
-    assertTrue "[[ ${ic} -gt 0 ]]"
-
-    #g=$(php7.4 -v | grep -c SourceGuardian)
-    #assertTrue "[ ${sg} -gt 0 ]"
 }
 
 testTrueInstallImageMagick()
@@ -87,17 +89,6 @@ testTrueInstallImageMagick()
     if [[ ${cvt} -gt 0 ]]; then
         assertTrue "[[ ${cvt} -gt 0 ]]"
     fi
-}
-
-testEqualityInstallMySQL()
-{
-    . scripts/install_mariadb.sh
-
-    mysql_bin=$(command -v mysql)
-    assertEquals "/usr/bin/mysql" "${mysql_bin}"
-
-    mysqld_bin=$(command -v mysqld)
-    assertEquals "/usr/sbin/mysqld" "${mysqld_bin}"
 }
 
 testEqualityInstallMemcached()

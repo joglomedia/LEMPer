@@ -16,9 +16,6 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-      # Check repository
-      - name: Checking repository
-        run: ls -al /etc/apt/sources.list.d/
       # Prepare testing environment
       - name: Prepare testing environment
         run: |
