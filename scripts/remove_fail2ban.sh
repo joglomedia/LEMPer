@@ -25,7 +25,7 @@ function init_fail2ban_removal() {
     if dpkg-query -l | awk '/fail2ban/ { print $2 }' | grep -qwE "^fail2ban$"; then
         echo "Found fail2ban package installation. Removing..."
 
-        run apt-get remove --purge -qq -y fail2ban
+        run apt-get purge -qq -y fail2ban
     else
         info "Fail2ban package not found, possibly installed from source."
 

@@ -27,7 +27,7 @@ function init_mongodb_removal() {
 
         # Remove MongoDB server.
         #shellcheck disable=SC2046
-        run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
+        run apt-get purge -qq -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
         if [[ "${FORCE_REMOVE}" == true ]]; then
             run rm -f /etc/apt/sources.list.d/mongodb-org-*
         fi

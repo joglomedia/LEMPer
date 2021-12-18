@@ -63,7 +63,7 @@ if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
             run systemctl stop apache2
 
             # shellcheck disable=SC2046
-            run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/apache2/ { print $2 }') \
+            run apt-get purge -qq -y $(dpkg-query -l | awk '/apache2/ { print $2 }') \
                 $(dpkg-query -l | awk '/httpd/ { print $2 }')
         else
             echo "Removing Apache2 installation in dry run mode."
@@ -83,6 +83,16 @@ if [[ -n $(command -v nginx) ]]; then
     . "${SCRIPTS_DIR}/remove_nginx.sh"
 fi
 
+# Remove Mysql service if exists.
+if [[ -n $(command -v mysqld) ]]; then
+    warning -e "\nMariaDB (MySQL) database server already installed. Should we remove it?"
+    echo "Backup your database before continue!"
+
+    # shellchechk source=scripts/remove_mariadb.sh
+    # shellcheck disable=SC1091
+    . "${SCRIPTS_DIR}/remove_mariadb.sh"
+fi
+
 # Remove PHP & FPM service if exists.
 PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
 
@@ -93,16 +103,6 @@ if [[ -n $(command -v "php${PHPv}") ]]; then
     # shellchechk source=scripts/remove_php.sh
     # shellcheck disable=SC1091
     . "${SCRIPTS_DIR}/remove_php.sh" "${PHPv}"
-fi
-
-# Remove Mysql service if exists.
-if [[ -n $(command -v mysql) ]]; then
-    warning -e "\nMariaDB (MySQL) database server already installed. Should we remove it?"
-    echo "Backup your database before continue!"
-
-    # shellchechk source=scripts/remove_mariadb.sh
-    # shellcheck disable=SC1091
-    . "${SCRIPTS_DIR}/remove_mariadb.sh"
 fi
 
 # Remove default lemper account if exists.
@@ -131,9 +131,11 @@ if [[ -n $(getent passwd "${USERNAME}") ]]; then
 fi
 
 # Autoremove unused packages.
-echo -e "\nCleaning up unused packages..."
+echo -e "\nCleaning up unnecessary packages..."
 
-run apt-get autoremove -qq -y
+run apt-get autoremove -qq -y && \
+run apt-get autoclean -qq -y && \
+run apt-get clean -qq -y
 
 if [[ -z $(command -v apache2) && -z $(command -v nginx) && -z $(command -v mysql) ]]; then
     status "Your server cleaned up."

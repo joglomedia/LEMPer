@@ -24,7 +24,7 @@ function init_vsftpd_removal() {
 
     if dpkg-query -l | awk '/vsftpd/ { print $2 }' | grep -qwE "^vsftpd$"; then
         echo "Found FTP server (VSFTPD) package installation. Removing..."
-        run apt-get remove --purge -qq -y vsftpd
+        run apt-get purge -qq -y vsftpd
     else
         info "FTP server (VSFTPD) package not found, possibly installed from source."
         echo "Remove it manually!!"

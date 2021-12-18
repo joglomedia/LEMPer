@@ -167,7 +167,10 @@ fi
 
 ### Remove unnecessary packages ###
 echo -e "\nCleaning up unnecessary packages..."
-run apt-get autoremove -qq -y
+
+run apt-get autoremove -qq -y && \
+run apt-get autoclean -qq -y && \
+run apt-get clean -qq -y
 
 status -e "\nLEMP stack has been removed completely."
 warning -e "\nDid you know? that we're so sad to see you leave :'(

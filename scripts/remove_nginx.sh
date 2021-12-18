@@ -20,7 +20,6 @@ requires_root
 function init_nginx_removal() {
     # Stop nginx HTTP server process.
     if [[ $(pgrep -c nginx) -gt 0 ]]; then
-        #run service nginx stop
         run systemctl stop nginx
     fi
 
@@ -35,7 +34,7 @@ function init_nginx_removal() {
         echo "Found nginx-stable package installation, removing..."
 
         # shellcheck disable=SC2046
-        run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
+        run apt-get purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
         if [[ "${FORCE_REMOVE}" == true ]]; then
             run add-apt-repository -y --remove ppa:nginx/stable
         fi
@@ -43,7 +42,7 @@ function init_nginx_removal() {
         echo "Found nginx-custom package installation, removing..."
 
         # shellcheck disable=SC2046
-        run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
+        run apt-get purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
         if [[ "${FORCE_REMOVE}" == true ]]; then
             run add-apt-repository -y --remove ppa:rtcamp/nginx
         fi
@@ -51,7 +50,7 @@ function init_nginx_removal() {
         echo "Found nginx package installation, removing..."
 
         # shellcheck disable=SC2046
-        run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx") $(dpkg-query -l | awk '/libnginx/ { print $2 }' | grep -wE "^libnginx")
+        run apt-get purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx") $(dpkg-query -l | awk '/libnginx/ { print $2 }' | grep -wE "^libnginx")
         if [[ "${FORCE_REMOVE}" == true ]]; then
             run add-apt-repository -y --remove "ppa:ondrej/${NGINX_REPO}"
         fi

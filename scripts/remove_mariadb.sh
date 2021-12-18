@@ -45,14 +45,15 @@ function init_mariadb_removal() {
     MYSQL_VERSION=${MYSQL_VERSION:-"10.5"}
 
     # Stop MariaDB mysql server process.
-    [[ $(pgrep -c mysqld) -gt 0 ]] && \
+    if [[ $(pgrep -c mysqld) -gt 0 ]]; then
         run systemctl stop mysql
+    fi
 
     if dpkg-query -l | awk '/mariadb/ { print $2 }' | grep -qwE "^mariadb-server-${MYSQL_VERSION}"; then
         echo "Found MariaDB ${MYSQL_VERSION} packages installation, removing..."
 
         # Remove MariaDB server.
-        run apt-get remove --purge -qq -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
+        run apt-get purge -qq -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
             "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
             "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
 
@@ -68,7 +69,7 @@ function init_mariadb_removal() {
         echo "Found MySQL packages installation, removing..."
 
         # Remove MySQL server.
-        run apt-get remove --purge -qq -y mysql-client mysql-common mysql-server
+        run apt-get purge -qq -y mysql-server mysql-client mysql-common mysql-server-core-* mysql-client-core-*
 
         # Remove config.
         mariadb_remove_config
@@ -79,8 +80,8 @@ function init_mariadb_removal() {
         MYSQL_BIN=$(command -v mysql)
         MYSQLD_BIN=$(command -v mysqld)
 
-        echo "Mysql binary executable: ${MYSQL_BIN}"
-        echo "Mysqld binary executable: ${MYSQLD_BIN}"
+        echo "MySQL binary executable: ${MYSQL_BIN}"
+        echo "MySQL daemon binary executable: ${MYSQLD_BIN}"
     fi
 
     # Final test.
