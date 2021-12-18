@@ -805,18 +805,18 @@ function install_php_loader() {
 
             case ${SELECTED_PHP_LOADER} in
                 1 | "ic" | "ioncube")
-                    [ ! -d /usr/lib/php/loaders/ioncube ] && install_ioncube_loader
+                    install_ioncube_loader
                     enable_ioncube_loader "${PHPv}"
                 ;;
                 2 | "sg" | "sourceguardian")
-                    [ ! -d /usr/lib/php/loaders/sourceguardian ] && install_sourceguardian_loader
+                    install_sourceguardian_loader
                     enable_sourceguardian_loader "${PHPv}"
                 ;;
                 "all")
-                    [ ! -d /usr/lib/php/loaders/ioncube ] && install_ioncube_loader
+                    install_ioncube_loader
                     enable_ioncube_loader "${PHPv}"
 
-                    [ ! -d /usr/lib/php/loaders/sourceguardian ] && install_sourceguardian_loader
+                    install_sourceguardian_loader
                     enable_sourceguardian_loader "${PHPv}"
                 ;;
                 *)
