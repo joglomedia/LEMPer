@@ -23,10 +23,9 @@ If applicable, add screenshots / screen cast to help explain your problem.
 If applicable, add part of your non-sensitive data from configuration file (.env).
 
 **System Information (please complete the following information):**
-
-- OS: [e.g. Linux Mint 19.3 Tricia x86_64]
-- Shell: [e.g. bash 4.4.20]
-- Version [e.g. 2.0.0]
+ - OS: [e.g. Linux Mint 19.3 Tricia x86_64 ]
+ - Shell: [e.g. bash 4.4.20]
+ - Version [e.g. 2.0.0]
 
 **Additional Context**
 Add any other context about the problem here.
