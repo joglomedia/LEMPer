@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
 # Basic Server Security Hardening
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
 # Last Build        : 01/07/2019
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -62,13 +62,13 @@ Never share your private key.
             fi
 
             # Create authorized_keys file and copy your public key here.
-            if "${DRYRUN}"; then
-                echo "RSA public key added in dryrun mode."
-            else
+            if [[ "${DRYRUN}" != true ]]; then
                 cat >> "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" <<EOL
 ${RSA_PUB_KEY}
 EOL
                 success "RSA public key added to the authorized_keys."
+            else
+                info "RSA public key added in dry run mode."
             fi
 
             # Fix authorized_keys file ownership and permission.
@@ -165,7 +165,7 @@ EOL
 # Install & Configure Uncomplicated Firewall (UFW).
 #
 function install_ufw() {
-    SSH_PORT=${1:-$SSH_PORT}
+    SSH_PORT=${1:-"${SSH_PORT}"}
 
     echo "Installing Uncomplicated Firewall (UFW)..."
 
@@ -206,18 +206,28 @@ function install_ufw() {
         [[ "${MYSQL_ALLOW_REMOTE}" == true ]] && \
         run ufw allow 3306
 
+        # Open FTP ports.
+        if [[ "${INSTALL_VSFTPD}" == true ]]; then
+            run ufw allow 20/tcp
+            run ufw allow 21/tcp
+            run ufw allow 990/tcp # For TLS enabled.
+            run ufw allow 40000:50000/tcp # The range of passive ports.
+        fi
+
         # Open SMTPs port.
         run ufw allow 25
         run ufw allow 465
         run ufw allow 587
 
-        # Open IMAPs ports.
-        run ufw allow 143
-        run ufw allow 993
+        if [[ "${INSTALL_MAILER}" == true ]]; then
+            # Open IMAPs ports.
+            run ufw allow 143
+            run ufw allow 993
 
-        # Open POP3s ports.
-        run ufw allow 110
-        run ufw allow 995
+            # Open POP3s ports.
+            run ufw allow 110
+            run ufw allow 995
+        fi
 
         # Open DNS port.
         run ufw allow 53
@@ -229,14 +239,14 @@ function install_ufw() {
         run ufw --force enable
 
         # Restart
-        if "${DRYRUN}"; then
-            info "UFW firewall installed in dryrun mode."
-        else
+        if [[ "${DRYRUN}" != true ]]; then
             if systemctl restart ufw; then
                 success "UFW firewall installed successfully."
             else
                 info "Something went wrong with UFW installation."
             fi
+        else
+            info "UFW firewall installed in dry run mode."
         fi
     fi
 }
@@ -245,7 +255,7 @@ function install_ufw() {
 # Install & Configure ConfigServer Security & Firewall (CSF).
 #
 function install_csf() {
-    SSH_PORT=${1:-$SSH_PORT}
+    SSH_PORT=${1:-"${SSH_PORT}"}
 
     echo "Installing CSF+LFD firewall..."
 
@@ -281,29 +291,35 @@ function install_csf() {
         run sh install.sh && \
         run cd ../ || return 1
 
-        if [ -f /usr/local/csf/bin/csftest.pl ]; then
+        if [[ -f /usr/local/csf/bin/csftest.pl ]]; then
             run perl /usr/local/csf/bin/csftest.pl
         fi
     fi
 
-    if [ -f /etc/csf/csf.conf ]; then
+    if [[ -f /etc/csf/csf.conf ]]; then
         echo "Configuring CSF+LFD firewall rules..."
 
         # Enable CSF.
         run sed -i 's/^TESTING\ =\ "1"/TESTING\ =\ "0"/g' /etc/csf/csf.conf
 
+        # Allowed ports.
+        CSF_ALLOW_PORTS="53,80,8081,8082,8083,8443,25,465,587,110,143,993,995"
+
         # Open MySQL port for remote client access.
         if [[ "${MYSQL_ALLOW_REMOTE}" == true ]]; then
-            ALLOW_MYSQL_PORT=3306
-        else
-            ALLOW_MYSQL_PORT=""
+            CSF_ALLOW_PORTS="${CSF_ALLOW_PORTS},3306"
+        fi
+
+        # Open FTP ports.
+        if [[ "${INSTALL_VSFTPD}" == true ]]; then
+            CSF_ALLOW_PORTS="${CSF_ALLOW_PORTS},20,21,990,40000:50000"
         fi
 
         # Allowed incoming TCP ports.
-        run sed -i "s/^TCP_IN\ =\ \"[0-9_,]*\"/TCP_IN\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT},${ALLOW_MYSQL_PORT}\"/g" /etc/csf/csf.conf
+        run sed -i "s/^TCP_IN\ =\ \"[0-9_,]*\"/TCP_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
 
         # Allowed outgoing TCP ports.
-        run sed -i "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT},${ALLOW_MYSQL_PORT}\"/g" /etc/csf/csf.conf
+        run sed -i "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
 
         # IPv6 support (requires ip6tables).
         if [[ -n $(command -v ip6tables) ]]; then
@@ -315,10 +331,10 @@ function install_csf() {
                 run sed -i 's/^IPV6\ =\ "0"/IPV6\ =\ "1"/g' /etc/csf/csf.conf
 
                 # Allowed incoming TCP ports for IPv6.
-                run sed -i "s/^TCP6_IN\ =\ \"[0-9_,]*\"/TCP6_IN\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT},${ALLOW_MYSQL_PORT}\"/g" /etc/csf/csf.conf
+                run sed -i "s/^TCP6_IN\ =\ \"[0-9_,]*\"/TCP6_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
 
                 # Allowed outgoing TCP ports for IPv6.
-                run sed -i "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"20,21,25,53,80,110,143,443,465,587,993,995,8081,8082,8083,8443,${SSH_PORT},${ALLOW_MYSQL_PORT}\"/g" /etc/csf/csf.conf
+                run sed -i "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
             else
                 info "ip6tables version greater than 1.4.3 required for IPv6 support."
             fi
@@ -329,9 +345,7 @@ function install_csf() {
     run rm -fr csf/
     run cd "${CURRENT_DIR}" || return 1
 
-    if "${DRYRUN}"; then
-        info "CSF+LFD firewall installed in dryrun mode."
-    else
+    if [[ "${DRYRUN}" != true ]]; then
         if [[ -n $(command -v csf) && -n $(command -v lfd) ]]; then
             if systemctl restart csf; then
                 success "CSF firewall installed successfully. Starting now..."
@@ -347,15 +361,17 @@ function install_csf() {
         else
             info "Something went wrong with CSF+LFD installation."
         fi
+    else
+        info "CSF+LFD firewall installed in dry run mode."
     fi
 }
 
 ##
-# Install & Configure Advancef Policy Firewall (APF).
+# Install & Configure Advanced Policy Firewall (APF).
 #
 function install_apf() {
-    SSH_PORT=${1:-$SSH_PORT}
-    APF_VERSION=${APF_VERSION:-"1.7.6-1"}
+    SSH_PORT=${1:-"${SSH_PORT}"}
+    APF_VERSION=${APF_VERSION:-"1.7.6-2"}
 
     echo "Installing APF+BFD iptables firewall..."
 
@@ -403,8 +419,8 @@ function install_apf() {
     run rm -fr advanced-policy-firewall-*/
     run cd "${CURRENT_DIR}" || return 1
 
-    if "${DRYRUN}"; then
-        info "APF+BFD firewall installed in dryrun mode."
+    if [[ "${DRYRUN}" == true ]]; then
+        info "APF+BFD firewall installed in dry run mode."
     else
         if [[ -n $(command -v apf) ]]; then
             if systemctl restart apf; then
@@ -477,16 +493,17 @@ function install_firewall() {
 Any other iptables based firewall will be removed otherwise they will conflict."
     echo ""
 
-    if "${AUTO_INSTALL}"; then
+    if [[ "${AUTO_INSTALL}" == true ]]; then
         DO_INSTALL_FW="y"
     fi
+
     while [[ ${DO_INSTALL_FW} != "y" && ${DO_INSTALL_FW} != "n" ]]; do
         read -rp "Do you want to install Firewall configurator? [y/n]: " -i y -e DO_INSTALL_FW
     done
 
     if [[ "${DO_INSTALL_FW}" == y* && "${INSTALL_FW}" == true ]]; then
 
-        if "${AUTO_INSTALL}"; then
+        if [[ "${AUTO_INSTALL}" == true ]]; then
             # Set default Iptables-based firewall configutor engine.
             SELECTED_FW_CONFIGURATOR=${FW_CONFIGURATOR:-"ufw"}
         else
@@ -518,11 +535,9 @@ Any other iptables based firewall will be removed otherwise they will conflict."
             apf)
                 install_apf "${SSH_PORT}"
             ;;
-
             csf)
                 install_csf "${SSH_PORT}"
             ;;
-
             ufw|*)
                 install_ufw "${SSH_PORT}"
             ;;
@@ -536,27 +551,30 @@ Any other iptables based firewall will be removed otherwise they will conflict."
 # Initialize server security.
 #
 function init_secure_server() {
-    while [[ "${SECURED_SERVER}" != "y" && "${SECURED_SERVER}" != "n" && "${AUTO_INSTALL}" != true ]]; do
-        read -rp "Do you want to enable basic server security? [y/n]: " -i y -e SECURED_SERVER
-    done
-    if [[ "${SECURED_SERVER}" == Y* || "${SECURED_SERVER}" == y* || "${AUTO_INSTALL}" == true ]]; then
-        securing_ssh "$@"
+    if [[ "${AUTO_INSTALL}" == true ]]; then
+        DO_SECURE_SERVER="y"
+    else
+        while [[ "${DO_SECURE_SERVER}" != "y" && "${DO_SECURE_SERVER}" != "n" && "${AUTO_INSTALL}" != true ]]; do
+            read -rp "Do you want to enable basic server security? [y/n]: " -i y -e DO_SECURE_SERVER
+        done
     fi
 
-    install_firewall "$@"
+    if [[ "${DO_SECURE_SERVER}" == Y* || "${DO_SECURE_SERVER}" == y* ]]; then
+        securing_ssh "$@"
+        install_firewall "$@"
 
-    if [[ ${SSH_PORT} -ne 22 ]]; then
-        echo "
-You're running SSH server with modified configuration, restart to apply your changes.
+        if [[ ${SSH_PORT} -ne 22 ]]; then
+            echo -e "\nYou're running SSH server with modified configuration, restart to apply your changes.
 use this command: service ssh restart"
+        fi
     fi
 }
 
-echo "[LEMPer Basic Server Security]"
+echo "[LEMPer Stack Basic Server Security]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ "${1}" == "remove" || "${1}" == "uninstall" ]]; then
+if [[ "${1}" == "--remove" || "${1}" == "--uninstall" ]]; then
     remove_apf
     remove_csf
     remove_ufw

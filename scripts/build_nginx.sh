@@ -155,7 +155,7 @@ function warning() {
 # If we set -e or -u then users of this script will see it silently exit on
 # failure.    Instead we need to check the exit status of each command manually.
 # The run function handles exit-status checking for system-changing commands.
-# Additionally, this allows us to easily have a dryrun mode where we don't
+# Additionally, this allows us to easily have a dry run mode where we don't
 # actually make any changes.
 INITIAL_ENV=$(printenv | sort)
 function run() {
@@ -536,7 +536,7 @@ add support for dynamic modules in a way compatible with ngx_pagespeed until 1.9
             status "Detected debian-based distro."
 
             install_dependencies "apt install ${INSTALL_FLAGS}" debian_is_installed \
-                build-essential zlib1g-dev libpcre3 libpcre3-dev unzip wget uuid-dev
+                build-essential zlib1g-dev libpcre3 libpcre3-dev unzip wget -q uuid-dev
 
             if gcc_too_old; then
                 if [ ! -e /usr/lib/gcc-mozilla/bin/gcc ]; then
@@ -554,7 +554,7 @@ add support for dynamic modules in a way compatible with ngx_pagespeed until 1.9
             status "Detected redhat-based distro."
 
             install_dependencies "yum install ${INSTALL_FLAGS}" redhat_is_installed \
-                gcc-c++ pcre-devel zlib-devel make unzip wget libuuid-devel
+                gcc-c++ pcre-devel zlib-devel make unzip wget -q libuuid-devel
 
             if gcc_too_old; then
                 if [ ! -e /opt/rh/devtoolset-2/root/usr/bin/gcc ]; then

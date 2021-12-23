@@ -18,13 +18,13 @@
 set -e
 
 # Version control.
-APP_NAME=$(basename "$0")
-APP_VERSION="1.0.0"
+PROG_NAME=$(basename "$0")
+PROG_VER="2.x.x"
 CMD_PARENT="lemper-cli"
 CMD_NAME="manage"
 
 # Test mode.
-DRYRUN=false
+DRYRUN="false"
 
 # Color decorator.
 RED=91
@@ -59,7 +59,6 @@ function error() {
 # Prints an error message and exits with an error code.
 function fail() {
     error "$@"
-    echo >&2
     echo "For usage information, run this script with --help" >&2
     exit 1
 }
@@ -84,7 +83,7 @@ function info() {
 
 # Run command
 function run() {
-    if "$DRYRUN"; then
+    if "${DRYRUN}"; then
         echo_color "${YELLOW}" -n "would run "
         echo "$@"
     else
@@ -97,8 +96,8 @@ function run() {
 }
 
 # May need to run this as sudo!
-if [ "$(id -u)" -ne 0 ]; then
-    error "This command can only be used by root."
+if [[ "$(id -u)" -ne 0 ]]; then
+    error "This command can only be run by root."
     exit 1
 fi
 
@@ -112,10 +111,10 @@ fi
 # output to STDERR.
 #
 function show_usage() {
-cat <<- _EOF_
-${APP_NAME^} ${APP_VERSION}
-Simple NGINX virtual host (vHost) manager,
-enable/disable/remove NGINX vHost on Debian/Ubuntu Server.
+cat <<- EOL
+${CMD_PARENT} ${CMD_NAME} ${PROG_VER}
+Simple NGiNX virtual host (vHost) manager,
+enable/disable/remove NGiNX vHost on Debian/Ubuntu Server.
 
 Requirements:
   * LEMP stack setup uses [LEMPer](https://github.com/joglomedia/LEMPer)
@@ -134,7 +133,7 @@ Options:
       Disable virtual host.
   -e, --enable <vhost domain name>
       Enable virtual host.
-  -F, --enable-fail2ban <vhost domain name>
+  -f, --enable-fail2ban <vhost domain name>
       Enable fail2ban jail.
   --disable-fail2ban <vhost domain name>
       Disable fail2ban jail.
@@ -167,7 +166,7 @@ Example:
 
 For more informations visit https://masedi.net/lemper
 Mail bug reports and suggestions to <me@masedi.net>
-_EOF_
+EOL
 }
 
 ##
@@ -183,9 +182,7 @@ function enable_vhost() {
     # Enable Nginx's vhost config.
     if [[ ! -f "/etc/nginx/sites-enabled/${DOMAIN}.conf" && -f "/etc/nginx/sites-available/${DOMAIN}.conf" ]]; then
         run ln -s "/etc/nginx/sites-available/${DOMAIN}.conf" "/etc/nginx/sites-enabled/${DOMAIN}.conf"
-
         success "Your virtual host ${DOMAIN} has been enabled..."
-
         reload_nginx
     else
         fail "${DOMAIN} couldn't be enabled. Probably, it has been enabled or not created yet."
@@ -204,11 +201,9 @@ function disable_vhost() {
     echo "Disabling virtual host: ${DOMAIN}..."
 
     # Disable Nginx's vhost config.
-    if [ -f "/etc/nginx/sites-enabled/${DOMAIN}.conf" ]; then
+    if [[ -f "/etc/nginx/sites-enabled/${DOMAIN}.conf" ]]; then
         run unlink "/etc/nginx/sites-enabled/${DOMAIN}.conf"
-
         success "Your virtual host ${DOMAIN} has been disabled..."
-
         reload_nginx
     else
         fail "${DOMAIN} couldn't be disabled. Probably, it has been disabled or removed."
@@ -228,39 +223,45 @@ function remove_vhost() {
     read -t 30 -rp "Press [Enter] to continue..." </dev/tty
 
     # Get web root path from vhost config, first.
-    #shellcheck disable=SC2154
     local WEBROOT && \
     WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${DOMAIN}.conf" | awk '{print $3}' | cut -d'"' -f2)
 
     # Remove Nginx's vhost config.
-    [ -f "/etc/nginx/sites-enabled/${DOMAIN}.conf" ] && 
+    [[ -f "/etc/nginx/sites-enabled/${DOMAIN}.conf" ]] && \
         run unlink "/etc/nginx/sites-enabled/${DOMAIN}.conf"
 
-    [ -f "/etc/nginx/sites-available/${DOMAIN}.conf" ] && 
+    [[ -f "/etc/nginx/sites-available/${DOMAIN}.conf" ]] && \
         run rm -f "/etc/nginx/sites-available/${DOMAIN}.conf"
 
-    [ -f "/etc/nginx/sites-available/${DOMAIN}.nonssl-conf" ] && 
+    [[ -f "/etc/nginx/sites-available/${DOMAIN}.nonssl-conf" ]] && \
         run rm -f "/etc/nginx/sites-available/${DOMAIN}.nonssl-conf"
 
-    [ -f "/etc/nginx/sites-available/${DOMAIN}.ssl-conf" ] && 
+    [[ -f "/etc/nginx/sites-available/${DOMAIN}.ssl-conf" ]] && \
         run rm -f "/etc/nginx/sites-available/${DOMAIN}.ssl-conf"
+
+    [[ -f "/etc/lemper/vhost.d/${DOMAIN}.conf" ]] && \
+        run rm -f "/etc/lemper/vhost.d/${DOMAIN}.conf"
 
     # If we have local domain setup in hosts file, remove it.
     if grep -qwE "${DOMAIN}" "/etc/hosts"; then
         info "Domain ${DOMAIN} found in your hosts file. Removing now...";
-        run sed -i".bak" "/${DOMAIN}/d" "/etc/hosts"
+        run sed -i".backup" "/${DOMAIN}/d" "/etc/hosts"
     fi
 
     success "Virtual host configuration file removed."
 
     # Remove vhost root directory.
     read -rp "Do you want to delete website root directory? [y/n]: " -e DELETE_DIR
+
+    # Fix web root path for framework apps that use 'public' directory.
+    WEBROOT=$(echo "${WEBROOT}" | sed '$ s|\/public$||')
+
     if [[ "${DELETE_DIR}" == Y* || "${DELETE_DIR}" == y* ]]; then
-        if [[ ! -d ${WEBROOT} ]]; then
+        if [[ ! -d "${WEBROOT}" ]]; then
             read -rp "Enter real path to website root directory: " -i "${WEBROOT}" -e WEBROOT
         fi
 
-        if [ -d "${WEBROOT}" ]; then
+        if [[ -d "${WEBROOT}" ]]; then
             run rm -fr "${WEBROOT}"
             success "Virtual host root directory removed."
         else
@@ -302,7 +303,7 @@ function remove_vhost() {
             read -rp "MySQL Database: " -e DBNAME
 		done
 
-        if [ -d "/var/lib/mysql/${DBNAME}" ]; then
+        if [[ -d "/var/lib/mysql/${DBNAME}" ]]; then
             echo "Deleting database ${DBNAME}..."
             run mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "DROP DATABASE ${DBNAME}"
             success "Database '${DBNAME}' dropped."
@@ -317,7 +318,9 @@ function remove_vhost() {
     reload_nginx
 }
 
-
+##
+# Enable fail2ban for virtual host.
+#
 function enable_fail2ban() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
@@ -326,7 +329,6 @@ function enable_fail2ban() {
     echo "Enabling Fail2ban ${FRAMEWORK^} filter for ${DOMAIN}..."
 
     # Get web root path from vhost config, first.
-    #shellcheck disable=SC2154
     local WEBROOT && \
     WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${DOMAIN}.conf" | awk '{print $3}' | cut -d'"' -f2)
 
@@ -335,7 +337,7 @@ function enable_fail2ban() {
     fi
 
     if [[ $(command -v fail2ban-client) && -f "/etc/fail2ban/filter.d/${FRAMEWORK}.conf" ]]; then
-        cat > "/etc/fail2ban/jail.d/${DOMAIN}.conf" <<_EOL_
+        cat > "/etc/fail2ban/jail.d/${DOMAIN}.conf" <<EOL
 [${1}]
 enabled = true
 port = http,https
@@ -345,12 +347,32 @@ logpath = ${WEBROOT}/access_log
 bantime = 30d
 findtime = 5m
 maxretry = 3
-_EOL_
+EOL
 
         # Reload fail2ban
         run service fail2ban reload
+        success "Fail2ban ${FRAMEWORK^} filter for ${DOMAIN} enabled."
     else
-        info "Fail2ban or filter is not installed. Please install it first."
+        info "Fail2ban or framework's filter is not installed. Please install it first!"
+    fi
+}
+
+##
+# Enable fail2ban for virtual host.
+#
+function disable_fail2ban() {
+    # Verify user input hostname (domain name)
+    local DOMAIN=${1}
+    verify_vhost "${DOMAIN}"
+
+    echo "Disabling Fail2ban ${FRAMEWORK^} filter for ${DOMAIN}..."
+
+    if [[ $(command -v fail2ban-client) && -f "/etc/fail2ban/jail.d/${DOMAIN}.conf" ]]; then
+        run rm -f "/etc/fail2ban/jail.d/${DOMAIN}.conf"
+        run service fail2ban reload
+        success "Fail2ban ${FRAMEWORK^} filter for ${DOMAIN} disabled."
+    else
+        info "Fail2ban or framework's filter is not installed. Please install it first!"
     fi
 }
 
@@ -436,7 +458,7 @@ function enable_mod_pagespeed() {
         #        "/etc/nginx/sites-available/${DOMAIN}.conf"
         #fi
     else
-        info "Mod PageSpeed is not enabled. NGINX must be installed with PageSpeed module."
+        info "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
     fi
 
@@ -471,7 +493,7 @@ function disable_mod_pagespeed() {
         #        "/etc/nginx/sites-available/${DOMAIN}.conf"
         #fi
     else
-        info "Mod PageSpeed is not enabled. NGINX must be installed with PageSpeed module."
+        info "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
     fi
 
@@ -492,7 +514,6 @@ function enable_ssl() {
         echo "Certbot: Get Let's Encrypt certificate..."
 
         # Get web root path from vhost config, first.
-        #shellcheck disable=SC2154
         local WEBROOT && \
         WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${DOMAIN}.conf" | awk '{print $3}' | cut -d'"' -f2)
 
@@ -500,13 +521,12 @@ function enable_ssl() {
         if [[ -n $(command -v certbot) ]]; then
             # Is it wildcard vhost?
             if grep -qwE "${DOMAIN}\ \*.${DOMAIN}" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-                #run certbot certonly --rsa-key-size 4096 --manual --agree-tos --preferred-challenges dns --manual-public-ip-logging-ok \
-                #    --webroot-path="${WEBROOT}" -d "${DOMAIN}" -d "*.${DOMAIN}"
-                run certbot certonly --manual --agree-tos --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory \
-                    --manual-public-ip-logging-ok --webroot-path="${WEBROOT}" -d "${DOMAIN}" -d "*.${DOMAIN}"
+                run certbot certonly --manual --manual-public-ip-logging-ok --preferred-challenges dns \
+                    --server https://acme-v02.api.letsencrypt.org/directory --agree-tos \
+                    --webroot-path="${WEBROOT}" -d "${DOMAIN}" -d "*.${DOMAIN}"
             else
-                #run certbot certonly --rsa-key-size 4096 --webroot --agree-tos --preferred-challenges http --webroot-path="${WEBROOT}" -d "${DOMAIN}"
-                run certbot certonly --webroot --agree-tos --preferred-challenges http --webroot-path="${WEBROOT}" -d "${DOMAIN}"
+                run certbot certonly --webroot --preferred-challenges http --agree-tos \
+                    --webroot-path="${WEBROOT}" -d "${DOMAIN}"
             fi
         else
             fail "Certbot executable binary not found. Install it first!"
@@ -522,9 +542,7 @@ function enable_ssl() {
     fi
 
     # Update vhost config.
-    if "${DRYRUN}"; then
-        info "Updating HTTPS config in dryrun mode."
-    else
+    if [[ "${DRYRUN}" != true ]]; then
         # Ensure there is no HTTPS enabled server block.
         if ! grep -qwE "^\    listen\ 443 ssl http2" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
 
@@ -575,6 +593,8 @@ EOL
             warning -e "\nOops, Nginx HTTPS server block already exists. Please inspect manually for further action!"
             exit 1
         fi
+    else
+        info "Updating HTTPS config in dry run mode."
     fi
 
     exit 0
@@ -589,9 +609,7 @@ function disable_ssl() {
     verify_vhost "${DOMAIN}"
 
     # Update vhost config.
-    if "${DRYRUN}"; then
-        info "Disabling HTTPS config in dryrun mode."
-    else
+    if [[ "${DRYRUN}" != true ]]; then
         echo "Disabling HTTPS configuration..."
 
         if [ -f "/etc/nginx/sites-available/${DOMAIN}.nonssl-conf" ]; then
@@ -609,6 +627,8 @@ function disable_ssl() {
         else
             error "Something went wrong. You still could disable HTTPS manually."
         fi
+    else
+        info "Disabling HTTPS config in dry run mode."
     fi
 
     exit 0
@@ -623,9 +643,7 @@ function remove_ssl() {
     verify_vhost "${DOMAIN}"
 
     # Update vhost config.
-    if "${DRYRUN}"; then
-        info "Disabling HTTPS and removing SSL certificate in dryrun mode."
-    else
+    if [[ "${DRYRUN}" != true ]]; then
         # Disable HTTPS first.
         disable_ssl "${DOMAIN}"
 
@@ -642,6 +660,8 @@ function remove_ssl() {
         else
             fail "Certbot executable binary not found. Install it first!"
         fi
+    else
+        info "SSL certificate removed in dry run mode."
     fi
 }
 
@@ -654,9 +674,7 @@ function renew_ssl() {
     verify_vhost "${DOMAIN}"
 
     # Update vhost config.
-    if "${DRYRUN}"; then
-        info "Renew SSL certificate in dryrun mode."
-    else
+    if [[ "${DRYRUN}" != true ]]; then
         echo "Renew SSL certificate..."
 
         # Renew Let's Encrypt SSL using Certbot.
@@ -664,7 +682,6 @@ function renew_ssl() {
             echo "Certbot: Renew Let's Encrypt certificate..."
 
             # Get web root path from vhost config, first.
-            #shellcheck disable=SC2154
             local WEBROOT && \
             WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${DOMAIN}.conf" | awk '{print $3}' | cut -d'"' -f2)
 
@@ -672,7 +689,8 @@ function renew_ssl() {
             if [[ -n $(command -v certbot) ]]; then
                 # Is it wildcard vhost?
                 if grep -qwE "${DOMAIN}\ \*.${DOMAIN}" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-                    run certbot certonly --manual --agree-tos --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory \
+                    run certbot certonly --manual --agree-tos --preferred-challenges dns \
+                        --server https://acme-v02.api.letsencrypt.org/directory \
                         --manual-public-ip-logging-ok --webroot-path="${WEBROOT}" -d "${DOMAIN}" -d "*.${DOMAIN}"
                 else
                     run certbot renew --cert-name "${DOMAIN}" --dry-run
@@ -683,7 +701,10 @@ function renew_ssl() {
         else
             info "Certificate file not found. May be your SSL is not activated yet."
         fi
+    else
+        info "Renew SSL certificate in dry run mode."
     fi
+
     exit 0
 }
 
@@ -695,7 +716,7 @@ function enable_brotli() {
     verify_vhost "${DOMAIN}"
 
     if [[ -f "/etc/nginx/sites-available/${DOMAIN}.conf" && -f /etc/nginx/modules-enabled/20-mod-http-brotli-static.conf ]]; then
-        echo "Enable NGINX Brotli compression..."
+        echo "Enable NGiNX Brotli compression..."
 
         if grep -qwE "^\    include\ /etc/nginx/includes/compression_brotli.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             info "Brotli compression module already enabled."
@@ -718,7 +739,7 @@ function enable_brotli() {
 
         reload_nginx
     else
-        error "Sorry, we can't find NGINX and Brotli module config file"
+        error "Sorry, we can't find NGiNX and Brotli module config file"
         echo "it should be located under /etc/nginx/ directory."
         exit 1
     fi
@@ -733,7 +754,7 @@ function enable_gzip() {
     verify_vhost "${DOMAIN}"
 
     if [[ -f "/etc/nginx/sites-available/${DOMAIN}.conf" && -f /etc/nginx/includes/compression_gzip.conf ]]; then
-        echo "Enable NGINX Gzip compression..."
+        echo "Enable NGiNX Gzip compression..."
 
         if grep -qwE "^\    include\ /etc/nginx/includes/compression_gzip.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             info "Gzip compression module already enabled."
@@ -756,7 +777,7 @@ function enable_gzip() {
 
         reload_nginx
     else
-        error "Sorry, we can't find NGINX config file"
+        error "Sorry, we can't find NGiNX config file"
         echo "it should be located under /etc/nginx/ directory."
         exit 1
     fi
@@ -787,7 +808,8 @@ function disable_compression() {
 #
 function verify_vhost() {
     if [[ -z "${1}" ]]; then
-        error "Virtual host (vhost) or domain name is required. Type ${APP_NAME} --help for more info!"
+        error "Virtual host (vhost) or domain name is required."
+        echo "See '${PROG_NAME} --help' for more information."
         exit 1
     fi
 
@@ -796,18 +818,18 @@ function verify_vhost() {
         exit 1
     fi
 
-    if [ ! -f "/etc/nginx/sites-available/${DOMAIN}.conf" ]; then
-        error "Sorry, we couldn't find NGINX virtual host: ${1}..."
+    if [[ ! -f "/etc/nginx/sites-available/${DOMAIN}.conf" ]]; then
+        error "Sorry, we couldn't find NGiNX virtual host: ${1}..."
         exit 1
     fi
 }
 
 ##
-# Reload NGINX safely.
+# Reload NGiNX safely.
 #
 function reload_nginx() {
     # Reload Nginx
-    echo "Reloading NGINX configuration..."
+    echo "Reloading NGiNX configuration..."
 
     if [[ -e /var/run/nginx.pid ]]; then
         if nginx -t 2>/dev/null > /dev/null; then
@@ -817,7 +839,7 @@ function reload_nginx() {
             nginx -t
             exit 1
         fi
-    # NGINX service dead? Try to start it.
+    # NGiNX service dead? Try to start it.
     else
         if [[ -n $(command -v nginx) ]]; then
             if nginx -t 2>/dev/null > /dev/null; then
@@ -843,13 +865,14 @@ function reload_nginx() {
 
 
 ##
-# Main App
+# Main Manage CLI Wrapper
 #
-function init_app() {
-    OPTS=$(getopt -o e:d:r:c:p:s:bghv \
-      -l enable:,disable:,remove:,enable-fastcgi-cache:,disable-fastcgi-cache:,enable-pagespeed:,disable-pagespeed: \
-      -l enable-ssl:,disable-ssl:,remove-ssl:,renew-ssl:,enable-brotli:,enable-gzip:,disable-compression:,help,version \
-      -n "${APP_NAME}" -- "$@")
+function init_lemper_manage() {
+    OPTS=$(getopt -o c:d:e:f:p:r:s:bghv \
+      -l enable:,disable:,remove:,enable-fail2ban:,disable-fail2ban:,enable-fastcgi-cache:,disable-fastcgi-cache: \
+      -l enable-pagespeed:,disable-pagespeed:,enable-ssl:,disable-ssl:,remove-ssl:,renew-ssl: \
+      -l enable-brotli:,enable-gzip:,disable-compression:,help,version \
+      -n "${PROG_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
 
@@ -874,6 +897,14 @@ function init_app() {
             ;;
             --disable-fastcgi-cache)
                 disable_fastcgi_cache "${2}"
+                shift 2
+            ;;
+            -f | --enable-fail2ban)
+                enable_fail2ban "${2}"
+                shift 2
+            ;;
+            --disable-fail2ban)
+                disable_fail2ban "${2}"
                 shift 2
             ;;
             -p | --enable-pagespeed)
@@ -918,7 +949,7 @@ function init_app() {
                 shift 2
             ;;
             -v | --version)
-                echo "${APP_NAME} version ${APP_VERSION}"
+                echo "${PROG_NAME} version ${PROG_VER}"
                 exit 0
                 shift 2
             ;;
@@ -932,10 +963,10 @@ function init_app() {
         esac
     done
 
-    echo "${APP_NAME}: missing required argument"
-    echo "Try '${APP_NAME} --help' for more information."
+    echo "${PROG_NAME}: missing required argument"
+    echo "See '${PROG_NAME} --help' for more information."
 }
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-init_app "$@"
+init_lemper_manage "$@"

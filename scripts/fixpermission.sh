@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Fix file permission
-# Min. Requirement  : GNU/Linux Ubuntu 16.04 & 16.04
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
 # Last Build        : 17/07/2019
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0

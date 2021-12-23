@@ -1,7 +1,7 @@
 #!/bin/bash
 function header_msg() {
     clear
-    cat <<- _EOF_
+    cat <<- EOL
 #==========================================================================#
 #         Welcome to LEMPer Stack Manager for Debian/Ubuntu server         #
 #==========================================================================#
@@ -9,38 +9,37 @@ function header_msg() {
 #                                                                          #
 #        For more information please visit https://masedi.net/lemper       #
 #==========================================================================#
-_EOF_
+EOL
 }
 
 # Check if user is root
-if [ "$(id -u)" -ne 0 ]; then
+if [[ "$(id -u)" -ne 0 ]]; then
     echo "Error: Please use root to add new user."
     exit 1
 fi
 
 header_msg
 
-echo -n "Add new user? [y/n]: "
+echo -en "\nAdd new user? [y/n]: "
 read -r tambah
 
-while [[ "${tambah}" != n* ]]
-do
+while [[ "${tambah}" != n* && "${tambah}" != N* ]]; do
     echo -en "\nUsername: "
     read -r namauser
     echo -n "Password: "
-    read -r katasandi
+    read -rs katasandi
 
-    echo -n "Expire date? 'unlimited' for unlimited [yyyy-mm-dd]: "
+    echo -en "\nExpire date [yyyy-mm-dd]? '-1' or 'unlimited' for non expiry account: "
     read -r expired
-    if [[ "${expired}" != "unlimited" ]]; then
+    if [[ "${expired}" != "unlimited" && "${expired}" != "-1" ]]; then
     	setexpiredate="-e $expired"
     else
     	setexpiredate=""
     fi
 
-    echo -n "Allow shell access? [y/n]: "
+    echo -n "Allow Bash shell access? [y/n]: "
     read -r aksessh
-    if [[ "${aksessh}" == y* ]]; then
+    if [[ "${aksessh}" == y* || "${aksessh}" == Y* ]]; then
     	setusershell="-s /bin/bash"
     else
     	setusershell="-s /bin/false"
@@ -75,7 +74,7 @@ do
         fi
     else
         echo -e "\nUser '${namauser}' already exits."
-        sleep 3
+        sleep 1
     fi
 
     header_msg

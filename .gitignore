@@ -11,5 +11,6 @@ bin/lemper-cli-enc.sh
 bin/lemper-cli-enc.sh.x.c
 bin/lemperography.php
 LEMPer.wiki
+install.log
 #lib/lemper-create.sh
 #lib/lemper-manage.sh

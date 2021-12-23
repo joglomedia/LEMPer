@@ -43,7 +43,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * [Adminer](https://www.adminer.org/) web-based SQL & MongoDB database manager (PhpMyAdmin replacement).
 * [phpRedisAdmin](https://github.com/erikdubbelboer/phpRedisAdmin) web-based Redis database manager.
 * [phpMemcachedAdmin](https://github.com/elijaa/phpmemcachedadmin) web-based Memcached manager.
-* [TinyFileManager](https://github.com/prasathmani/tinyfilemanager) alternative web-based filemanager (Experimental).
+* [TinyFileManager](https://github.com/joglomedia/tinyfilemanager) alternative web-based filemanager (Experimental).
 
 ## Setting Up
 
@@ -56,7 +56,11 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 ### Install LEMPer Stack
 
 ```bash
-sudo apt-get install git && git clone -q https://github.com/joglomedia/LEMPer.git && cd LEMPer && cp -f .env.dist .env && sudo ./install.sh
+sudo apt-get install git && \
+git clone -q https://github.com/joglomedia/LEMPer.git && \
+cd LEMPer && \
+cp -f .env.dist .env && \
+sudo ./install.sh
 ```
 
 ### Remove LEMPer Stack
@@ -76,7 +80,7 @@ Here are some examples of using LEMPer CLI.
 ##### LEMPer CLI add new vhost / website
 
 ```bash
-sudo lemper-cli create -u ${USER} -d example.test -f wordpress -w ${HOME}/webapps/example.test --install-app
+sudo lemper-cli create -u ${USER} -d example.test -f wordpress -w ${HOME}/webapps/example.test --install-skeleton
 ```
 
 :warning: For local/development environment, in order to make the test domain (e.g. example.test) working as expected, you need to do a small workaround by modifying the `/etc/hosts` file. By adding the local domain name to the hosts file and assign it with local/private IP address.
@@ -84,7 +88,8 @@ sudo lemper-cli create -u ${USER} -d example.test -f wordpress -w ${HOME}/webapp
 Since version 2.4.0 this workaround could be done via `lemper-cli` by passing `--ipv4` parameter and assign it with private IP address, as below:
 
 ```bash
-sudo lemper-cli create -u ${USER} -d example.test -f wordpress -w ${HOME}/webapps/example.test --ipv4=127.0.10.1 --install-app
+sudo lemper-cli create -u ${USER} -d example.test -f wordpress \ 
+-w ${HOME}/webapps/example.test --ipv4=127.0.10.1 --install-skeleton
 ```
 
 For more info

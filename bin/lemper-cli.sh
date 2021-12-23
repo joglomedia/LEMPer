@@ -18,17 +18,17 @@
 set -e
 
 # Version control.
-APP_NAME=$(basename "$0")
-APP_VERSION="3.0.1"
+PROG_NAME=$(basename "$0")
+PROG_VER="2.x.x"
 
 # May need to run this as sudo!
-if [ "$(id -u)" -ne 0 ]; then
-    echo "This command can only be used by root."
+if [[ "$(id -u)" -ne 0 ]]; then
+    echo "This command can only be run by root."
     exit 1
 fi
 
 # Export LEMPer stack configuration.
-if [ -f "/etc/lemper/lemper.conf" ]; then
+if [[ -f "/etc/lemper/lemper.conf" ]]; then
     # Clean environemnt first.
     # shellcheck source=/etc/lemper/lemper.conf
     # shellcheck disable=SC2046
@@ -49,122 +49,74 @@ LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
 LEMPER_PASSWORD=${LEMPER_PASSWORD:-""}
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-""}
 
-# App library directory.
-APP_LIB_DIR="/usr/local/lib/lemper"
-
+# CLI plugins directory.
+CLI_PLUGINS_DIR="/etc/lemper/cli-plugins"
 
 ## 
 # Show usage
 # output to STDERR.
 #
 function cmd_help() {
-    cat <<- _EOF_
-${APP_NAME^} ${APP_VERSION}
-Command line management tool for LEMPer stack.
+    cat <<- EOL
+${PROG_NAME} ${PROG_VER}
+Command line management tool for LEMPer Stack.
 
-Usage: ${APP_NAME} [--version] [--help]
+Usage: ${PROG_NAME} [--version] [--help]
        <command> [<options>]
 
-These are common ${APP_NAME} commands used in various situations:
-  create  Create new virtual host
-  db      Wrapper for managing SQL database
-  manage  Enable, disable, delete existing virtual host
+These are common ${PROG_NAME} commands used in various situations:
+  create    Create new virtual host (add new domain to LEMPer stack).
+  db        Wrapper for managing SQL database (MySQL and MariaDB).
+  manage    Manage existing virtual host (enable, disable, delete, etc).
 
 For help with each command run:
-${APP_NAME} <command> -h|--help
-_EOF_
-
-    exit 0
+${PROG_NAME} <command> -h | --help
+EOL
 }
 
 ## 
 # Show version.
 #
 function cmd_version() {
-    echo "${APP_NAME} version $APP_VERSION"
-    exit 0
+    echo "${PROG_NAME} version $PROG_VER"
 }
 
 ##
-# Create new webapp.
+# Main LEMPer CLI Wrapper
 #
-function cmd_create() {
-    if [ -x "$APP_LIB_DIR/lemper-create" ]; then
-        "$APP_LIB_DIR/lemper-create" "$@"
+function init_lemper_cli() {
+    # Check command line arguments.
+    if [[ -n "${1}" ]]; then
+        CMD="${1}"
+        shift # Pass the remaining arguments to the next function.
+
+        case ${CMD} in
+            help | -h | --help)
+                cmd_help
+                exit 0
+            ;;
+            version | -v | --version)
+                cmd_version
+                exit 0
+            ;;
+            *)
+                if [[ -x "${CLI_PLUGINS_DIR}/lemper-${CMD}" ]]; then
+                    "${CLI_PLUGINS_DIR}/lemper-${CMD}" "$@"
+                    exit 0
+                else
+                    echo "${PROG_NAME}: '${CMD}' is not ${PROG_NAME} command."
+                    echo "See '${PROG_NAME} --help' for more information."
+                    exit 1
+                fi
+            ;;
+        esac
     else
-        echo "Oops, lemper create subcommand module couldn't be loaded."
+        echo "${PROG_NAME}: missing required arguments."
+        echo "See '${PROG_NAME} --help' for more information."
         exit 1
     fi
 }
 
-# Aliases to create.
-function cmd_app() {
-    cmd_create "$@"
-}
-
-# Aliases to create.
-function cmd_vhost() {
-    cmd_create "$@"
-}
-
-##
-# Manage existing webapp.
-#
-function cmd_manage() {
-    if [ -x "$APP_LIB_DIR/lemper-manage" ]; then
-        "$APP_LIB_DIR/lemper-manage" "$@"
-    else
-        echo "Oops, lemper manage subcommand module couldn't be loaded."
-        exit 1
-    fi
-}
-
-##
-# Manage database.
-#
-function cmd_db() {
-    if [ -x "$APP_LIB_DIR/lemper-db" ]; then
-        "$APP_LIB_DIR/lemper-db" "$@"
-    else
-        echo "Oops, lemper db (database) subcommand module couldn't be loaded."
-        exit 1
-    fi
-}
-
-##
-# TinyFileManager add user.
-#
-function cmd_tfm() {
-    if [ -x "$APP_LIB_DIR/lemper-tfm" ]; then
-        "$APP_LIB_DIR/lemper-tfm" "$@"
-    else
-        echo "Oops, lemper tfm subcommand module couldn't be loaded."
-        exit 1
-    fi
-}
-
-
-##
-# Main App
-#
-SUBCOMMAND="${1}"
-case ${SUBCOMMAND} in
-    "" | "help" )
-        cmd_help
-    ;;
-
-    "version")
-        cmd_version
-    ;;
-
-    *)
-        shift
-        if declare -F "cmd_${SUBCOMMAND}" &>/dev/null; then
-            "cmd_${SUBCOMMAND}" "$@"
-        else
-            echo "Error: '${SUBCOMMAND}' is not a known command." >&2
-            echo "Run '${APP_NAME} help' for a list of known commands." >&2
-            exit 1
-        fi
-    ;;
-esac
+# Start running things from a call at the end so if this script is executed
+# after a partial download it doesn't do anything.
+init_lemper_cli "$@"

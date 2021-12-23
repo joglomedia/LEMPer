@@ -1,9 +1,9 @@
-/var/log/nginx/*.log {
+/var/log/nginx/*.log /home/*/logs/nginx/*_log {
     daily
-    missingok
-    rotate 14
+    rotate 3
     compress
     delaycompress
+    missingok
     notifempty
     create 0640 www-data adm
     sharedscripts

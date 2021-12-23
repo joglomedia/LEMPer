@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 
 # MongoDB Uninstaller
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 06/11/2019
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 10/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -27,23 +27,29 @@ function init_mongodb_removal() {
 
         # Remove MongoDB server.
         #shellcheck disable=SC2046
-        run apt-get remove --purge -qq -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
-        if "${FORCE_REMOVE}"; then
+        #run apt-get purge -qq -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
+        run apt-get purge -qq -y mongodb-org mongodb-org-server mongodb-org-shell mongodb-org-tools
+
+        if [[ "${FORCE_REMOVE}" == true ]]; then
             run rm -f /etc/apt/sources.list.d/mongodb-org-*
         fi
 
         # Remove MongoDB config files.
         warning "!! This action is not reversible !!"
 
-        if "${AUTO_REMOVE}"; then
-            REMOVE_MONGODCONFIG="y"
+        if [[ "${AUTO_REMOVE}" == true ]]; then
+            if [[ "${FORCE_REMOVE}" == true ]]; then
+                REMOVE_MONGOD_CONFIG="y"
+            else
+                REMOVE_MONGOD_CONFIG="n"
+            fi
         else
-            while [[ "${REMOVE_MONGODCONFIG}" != "y" && "${REMOVE_MONGODCONFIG}" != "n" ]]; do
-                read -rp "Remove MongoDB database and configuration files? [y/n]: " -e REMOVE_MONGODCONFIG
+            while [[ "${REMOVE_MONGOD_CONFIG}" != "y" && "${REMOVE_MONGOD_CONFIG}" != "n" ]]; do
+                read -rp "Remove MongoDB database and configuration files? [y/n]: " -e REMOVE_MONGOD_CONFIG
             done
         fi
 
-        if [[ "${REMOVE_MONGODCONFIG}" == Y* || "${REMOVE_MONGODCONFIG}" == y* || "${FORCE_REMOVE}" == true ]]; then
+        if [[ "${REMOVE_MONGOD_CONFIG}" == Y* || "${REMOVE_MONGOD_CONFIG}" == y* ]]; then
             [ -f /etc/mongod.conf ] && run rm -fr /etc/mongod.conf
             [ -d /var/lib/mongodb ] && run rm -fr /var/lib/mongodb
 
@@ -59,20 +65,21 @@ function init_mongodb_removal() {
     fi
 
     # Final test.
-    if "${DRYRUN}"; then
-        info "MongoDB server removed in dryrun mode."
-    else
+    if [[ "${DRYRUN}" != true ]]; then
         if [[ -z $(command -v mongod) ]]; then
             success "MongoDB server removed succesfully."
         else
             info "Unable to remove MongoDB server."
         fi
+    else
+        info "MongoDB server removed in dry run mode."
     fi
 }
 
 echo "Uninstalling MongoDB server..."
+
 if [[ -n $(command -v mongod) ]]; then
-    if "${AUTO_REMOVE}"; then
+    if [[ "${AUTO_REMOVE}" == true ]]; then
         REMOVE_MONGOD="y"
     else
         while [[ "${REMOVE_MONGOD}" != "y" && "${REMOVE_MONGOD}" != "n" ]]; do

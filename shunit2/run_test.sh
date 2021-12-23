@@ -2,15 +2,11 @@
 
 # First example from https://github.com/kward/shunit2
 
-script_under_test=$(basename "$0")
-
-# Nginx versions.
-nginx_stable_version="1.21.0"
-nginx_latest_version="1.20.1"
+#script_under_test=$(basename "$0")
 
 # Source the helper functions.
-if [ -f scripts/helper.sh ]; then
-    source scripts/helper.sh
+if [[ -f ./scripts/helper.sh ]]; then
+    . ./scripts/helper.sh
     preflight_system_check
     init_log
     init_config
@@ -39,61 +35,24 @@ testEqualityCreateAccount()
     assertEquals "success" "${create_account_status}"
 }
 
-testEqualityInstallCertbot()
+testTrueInstallCertbot()
 {
     . scripts/install_certbotle.sh
 
-    certbot_bin=$(command -v certbot)
-    assertEquals "/usr/bin/certbot" "${certbot_bin}"
+    #certbot_bin=$(command -v certbot)
+    #assertEquals "/usr/bin/certbot" "${certbot_bin}"
+    cb=$(command -v certbot | grep -c certbot)
+    assertTrue "[[ ${cb} -gt 0 ]]"
 }
 
-#
-#testEqualityGetNginxStableVersion()
-#{
-#    ngx_stable_version=$(determine_stable_nginx_version)
-#    assertEquals "${nginx_stable_version}" "${ngx_stable_version}"
-#}
-
-#testEqualityGetNginxLatestVersion()
-#{
-#    ngx_latest_version=$(determine_latest_nginx_version)
-#    assertEquals "${nginx_latest_version}" "${ngx_latest_version}"
-#}
-#
-
-testEqualityInstallNginx()
+testTrueInstallNginx()
 {
     . scripts/install_nginx.sh
 
-    nginx_bin=$(command -v nginx)
-    assertEquals "/usr/sbin/nginx" "${nginx_bin}"
-}
-
-testEqualityInstallPhp()
-{
-    . scripts/install_php.sh
-
-    php_bin=$(command -v php)
-    assertEquals "/usr/bin/php" "${php_bin}"
-}
-
-testTrueInstallPhpLoader()
-{
-    . scripts/install_phploader.sh
-
-    ic=$(php7.4 -v | grep -c ionCube)
-    assertTrue "[ ${ic} -gt 0 ]"
-
-    #g=$(php7.4 -v | grep -c SourceGuardian)
-    #assertTrue "[ ${sg} -gt 0 ]"
-}
-
-testEqualityInstallPhpImageMagick()
-{
-    . scripts/install_imagemagick.sh
-
-    imagick_bin=$(command -v identify)
-    assertEquals "/usr/bin/identify" "${imagick_bin}"
+    #nginx_bin=$(command -v nginx)
+    #assertEquals "/usr/sbin/nginx" "${nginx_bin}"
+    ngx=$(command -v nginx | grep -c nginx)
+    assertTrue "[[ ${ngx} -gt 0 ]]"
 }
 
 testEqualityInstallMySQL()
@@ -107,16 +66,60 @@ testEqualityInstallMySQL()
     assertEquals "/usr/sbin/mysqld" "${mysqld_bin}"
 }
 
-#testEqualityInstallMailer()
-#{
-#    . scripts/install_mailer.sh
+testEqualityInstallPhp()
+{
+    . scripts/install_php.sh
 
-#    postfix_bin=$(command -v postfix)
-#    assertEquals "/usr/sbin/postfix" "${postfix_bin}"
+    php_bin=$(command -v php)
+    assertEquals "/usr/bin/php" "${php_bin}"
+}
 
-#    dovecot_bin=$(command -v dovecot)
-#    assertEquals "/usr/sbin/dovecot" "${dovecot_bin}"
-#}
+testTrueInstallImageMagick()
+{
+    . scripts/install_imagemagick.sh
+
+    mgk=$(command -v magick | grep -c magick)
+
+    if [[ ${mgk} -gt 0 ]]; then
+        assertTrue "[[ ${mgk} -gt 0 ]]"
+    fi
+
+    cvt=$(command -v convert | grep -c convert)
+
+    if [[ ${cvt} -gt 0 ]]; then
+        assertTrue "[[ ${cvt} -gt 0 ]]"
+    fi
+}
+
+testEqualityInstallMemcached()
+{
+    . scripts/install_memcached.sh
+
+    memcached_bin=$(command -v memcached)
+    assertEquals "/usr/bin/memcached" "${memcached_bin}"
+}
+
+testEqualityInstallRedis()
+{
+    . scripts/install_redis.sh
+
+    rediscli_bin=$(command -v redis-cli)
+    assertEquals "/usr/bin/redis-cli" "${rediscli_bin}"
+
+    redisserver_bin=$(command -v redis-server)
+    assertEquals "/usr/bin/redis-server" "${redisserver_bin}"
+}
+
+testEqualityInstallMongoDB()
+{
+    . scripts/install_mongodb.sh
+
+    mongo_bin=$(command -v mongo)
+    assertEquals "/usr/bin/mongo" "${mongo_bin}"
+
+    mongod_bin=$(command -v mongod)
+    assertEquals "/usr/bin/mongod" "${mongod_bin}"
+}
 
 testEqualityInstallFail2ban()
 {
@@ -124,6 +127,20 @@ testEqualityInstallFail2ban()
 
     fail2ban_bin=$(command -v fail2ban-server)
     assertEquals "/usr/local/bin/fail2ban-server" "${fail2ban_bin}"
+}
+
+testEqualityInstallTools()
+{
+    . scripts/install_tools.sh
+
+    assertTrue "[[ -x /usr/local/bin/lemper-cli ]]"
+    assertTrue "[[ -d /etc/lemper/cli-plugins ]]"
+}
+
+testEqualityCreateNewVhost()
+{
+    sudo /usr/local/bin/lemper-cli create -d lemper.test -f wordpress -i
+    assertTrue "[[ -f /etc/nginx/sites-available/lemper.test.conf ]]"
 }
 
 # load shunit2

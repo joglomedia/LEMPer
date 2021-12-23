@@ -4,7 +4,7 @@
 # | LEMPer is a simple LEMP stack installer for Debian/Ubuntu Linux         |
 # |-------------------------------------------------------------------------+
 # | Min requirement   : GNU/Linux Debian 8, Ubuntu 16.04 or Linux Mint 17   |
-# | Last Update       : 18/07/2021                                          |
+# | Last Update       : 18/12/2021                                          |
 # | Author            : MasEDI.Net (me@masedi.net)                          |
 # | Version           : 2.x.x                                               |
 # +-------------------------------------------------------------------------+
@@ -27,12 +27,12 @@ set -e
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 # Get installer base directory.
-export BASEDIR && \
-BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+export BASE_DIR && \
+BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    . ./scripts/helper.sh
+if [[ "$(type -t run)" != "function" ]]; then
+    . "${BASE_DIR}/scripts/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -97,36 +97,6 @@ if [ -f ./scripts/install_nginx.sh ]; then
     . ./scripts/install_nginx.sh
 fi
 
-### PHP installation ###
-if [ -f ./scripts/install_php.sh ]; then
-    echo ""
-    . ./scripts/install_php.sh
-fi
-
-### Phalcon PHP installation ###
-if [ -f ./scripts/install_phalcon.sh ]; then
-    echo ""
-    . ./scripts/install_phalcon.sh
-fi
-
-### Phalcon PHP installation ###
-if [ -f ./scripts/install_phploader.sh ]; then
-    echo ""
-    . ./scripts/install_phploader.sh
-fi
-
-### Imagick installation ###
-if [ -f ./scripts/install_imagemagick.sh ]; then
-    echo ""
-    . ./scripts/install_imagemagick.sh
-fi
-
-### Memcached installation ###
-if [ -f ./scripts/install_memcached.sh ]; then
-    echo ""
-    . ./scripts/install_memcached.sh
-fi
-
 ### MySQL database installation ###
 if [ -f ./scripts/install_mariadb.sh ]; then
     echo ""
@@ -145,16 +115,40 @@ if [ -f ./scripts/install_mongodb.sh ]; then
     . ./scripts/install_mongodb.sh
 fi
 
+### Memcached installation ###
+if [ -f ./scripts/install_memcached.sh ]; then
+    echo ""
+    . ./scripts/install_memcached.sh
+fi
+
+### Imagick installation ###
+if [ -f ./scripts/install_imagemagick.sh ]; then
+    echo ""
+    . ./scripts/install_imagemagick.sh
+fi
+
+### PHP installation ###
+if [ -f ./scripts/install_php.sh ]; then
+    echo ""
+    . ./scripts/install_php.sh
+fi
+
+### Phalcon PHP installation ###
+if [ -f ./scripts/install_phalcon.sh ]; then
+    echo ""
+    . ./scripts/install_phalcon.sh
+fi
+
 ### Mail server installation ###
 if [ -f ./scripts/install_mailer.sh ]; then
     echo ""
     . ./scripts/install_mailer.sh
 fi
 
-### Addon-tools installation ###
-if [ -f ./scripts/install_tools.sh ]; then
+### VSFTPD installation ###
+if [ -f ./scripts/install_vsftpd.sh ]; then
     echo ""
-    . ./scripts/install_tools.sh
+    . ./scripts/install_vsftpd.sh
 fi
 
 ### Fail2ban, intrusion prevention software framework. ###
@@ -163,14 +157,20 @@ if [ -f ./scripts/install_fail2ban.sh ]; then
     . ./scripts/install_fail2ban.sh
 fi
 
-### Basic server security ###
+### LEMPer tools installation ###
+if [ -f ./scripts/install_tools.sh ]; then
+    echo ""
+    . ./scripts/install_tools.sh
+fi
+
+### Basic server security setup ###
 if [ -f ./scripts/secure_server.sh ]; then
     echo ""
     . ./scripts/secure_server.sh
 fi
 
-### FINAL STEP ###
-if "${FORCE_REMOVE}"; then
+### FINAL SETUP ###
+if [[ "${FORCE_REMOVE}" == true ]]; then
     # Cleaning up all build dependencies hanging around on production server?
     echo -e "\nClean up installation process..."
     run apt-get autoremove -qq -y
@@ -182,9 +182,7 @@ if "${FORCE_REMOVE}"; then
     fi
 fi
 
-if "${DRYRUN}"; then
-    warning -e "\nLEMPer installation has been completed in dry-run mode."
-else
+if [[ "${DRYRUN}" != true ]]; then
     status -e "\nCongrats, your LEMP stack installation has been completed."
 
     ### Recap ###
@@ -195,23 +193,36 @@ Here is your default system information:
     Server IP: ${SERVER_IP}
     SSH Port : ${SSH_PORT}
 
-LEMPer stack admin account:
+LEMPer Stack Admin Account:
     Username : ${USERNAME}
     Password : ${PASSWORD}
 
-Database administration (Adminer):
+Database Administration (Adminer):
     http://${SERVER_IP}:8082/lcp/dbadmin/
 
     Database root password: ${MYSQL_ROOT_PASSWORD}
 
-    Mariabackup user information:
+Mariabackup user information:
     DB Username: ${MARIABACKUP_USER}
     DB Password: ${MARIABACKUP_PASS}
 
-File manager (TinyFileManager):
+File Manager (TinyFileManager):
     http://${SERVER_IP}:8082/lcp/filemanager/
 
-    Use your LEMPer stack admin account for login.
+    Use your default LEMPer stack admin account for Filemanager login.
+
+Default Mail Service:
+    Maildir      : /home/${USERNAME}/Maildir
+    Sender Domain: ${SENDER_DOMAIN}
+    Sender IP    : ${SERVER_IP}
+    IMAP Port    : 143, 993 (SSL/TLS)
+    POP3 Port    : 110, 995 (SSL/TLS)
+
+    Domain Key   : lemper._domainkey.${SENDER_DOMAIN}
+    DKIM Key     : ${DKIM_KEY}
+    SPF Record   : v=spf1 ip4:${SERVER_IP} include:${SENDER_DOMAIN} mx ~all
+
+    Use your default LEMPer stack admin account for Mail login.
 
 
 Please Save the above Credentials & Keep it Secure!
@@ -225,6 +236,8 @@ Please Save the above Credentials & Keep it Secure!
         # Securing LEMPer stack credentials.
         #secure_config
     fi
+else
+    warning -e "\nLEMPer installation has been completed in dry-run mode."
 fi
 
 echo "

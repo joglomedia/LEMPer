@@ -1,27 +1,30 @@
 #!/usr/bin/env bash
 
 # Helper Functions
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 18/07/2021
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 11/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Export environment variables.
-if [ -f ".env" ]; then
+BASE_DIR=${BASE_DIR:-"$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"}
+ENVFILE=$(echo "${BASE_DIR}/.env" | sed '$ s|\/scripts\/.env$|\/.env|')
+
+if [[ -f "${ENVFILE}" ]]; then
     # Clean environemnt first.
     # shellcheck source=.env.dist
     # shellcheck disable=SC2046
-    unset $(grep -v '^#' .env | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+    unset $(grep -v '^#' "${ENVFILE}" | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
 
     # shellcheck source=.env.dist
     # shellcheck disable=SC1094
-    source <(grep -v '^#' .env | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+    source <(grep -v '^#' "${ENVFILE}" | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
 else
     echo "Environment variables required, but the dotenv file doesn't exist. Copy .env.dist to .env first!"
     exit 1
 fi
 
-# Direct access? make as dryrun mode.
+# Direct access? make as dry run mode.
 DRYRUN=${DRYRUN:-true}
 
 # Init timezone, set default to UTC.
@@ -82,7 +85,7 @@ function info() {
 
 # Run command
 function run() {
-    if "${DRYRUN}"; then
+    if [[ "${DRYRUN}" == true ]]; then
         echo_color "${YELLOW}" -n "would run "
         echo "$@"
     else
@@ -175,15 +178,15 @@ function quote_arguments() {
 
 # Delete if directory exists.
 function delete_if_already_exists() {
-    if "${DRYRUN}"; then return; fi
+    if [[ "${DRYRUN}" == true ]]; then return; fi
 
     local directory="${1}"
-    if [ -d "${directory}" ]; then
-        if [ ${#directory} -lt 8 ]; then
+    if [[ -d "${directory}" ]]; then
+        if [[ ${#directory} -lt 8 ]]; then
             fail "Not deleting ${directory}; name is suspiciously short. Something is wrong."
         fi
 
-        if "${FORCE_REMOVE}"; then
+        if [[ "${FORCE_REMOVE}" == true ]]; then
             yn="y"
         else
             echo_color "${YELLOW}" -n "${directory} already exists, OK to delete?"
@@ -297,15 +300,15 @@ function validate_fqdn() {
 
 # Make sure only root can run LEMPer script.
 function requires_root() {
-    if [ "$(id -u)" -ne 0 ]; then
-        error "This command can only be used by root."
+    if [[ "$(id -u)" -ne 0 ]]; then
+        error "This command can only be run by root."
         exit 1
     fi
 }
 
 # Get general distribution name.
 function get_distrib_name() {
-    if [ -f "/etc/os-release" ]; then
+    if [[ -f "/etc/os-release" ]]; then
         # Export os-release vars.
         . /etc/os-release
 
@@ -314,7 +317,7 @@ function get_distrib_name() {
 
         # Get distribution name.
         [[ "${ID_LIKE}" == "ubuntu" ]] && DISTRIB_NAME="ubuntu" || DISTRIB_NAME=${ID:-"unsupported"}
-    elif [ -e /etc/system-release ]; then
+    elif [[ -e /etc/system-release ]]; then
     	DISTRIB_NAME="unsupported"
     else
         # Red Hat /etc/redhat-release
@@ -326,7 +329,7 @@ function get_distrib_name() {
 
 # Get general release name.
 function get_release_name() {
-    if [ -f "/etc/os-release" ]; then
+    if [[ -f "/etc/os-release" ]]; then
         # Export os-release vars.
         . /etc/os-release
 
@@ -346,9 +349,6 @@ function get_release_name() {
 
                 # TODO for Debian install
                 case ${MAJOR_RELEASE_VERSION} in
-                    8)
-                        RELEASE_NAME="jessie"
-                    ;;
                     9)
                         RELEASE_NAME="stretch"
                     ;;
@@ -368,7 +368,7 @@ function get_release_name() {
                 [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]] && \
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
 
-                case ${DISTRIB_RELEASE} in
+                case "${DISTRIB_RELEASE}" in
                     "16.04"|"LM18")
                         # Ubuntu release 16.04, LinuxMint 18 <= EOL
                         #RELEASE_NAME=${UBUNTU_CODENAME:-"xenial"}
@@ -407,7 +407,7 @@ function get_release_name() {
                 RELEASE_NAME="unsupported"
             ;;
         esac
-    elif [ -e /etc/system-release ]; then
+    elif [[ -e /etc/system-release ]]; then
     	RELEASE_NAME="unsupported"
     else
         # Red Hat /etc/redhat-release
@@ -424,14 +424,12 @@ function preflight_system_check() {
 
     # Check supported distribution and release version.
     if [[ "${DISTRIB_NAME}" == "unsupported" || "${RELEASE_NAME}" == "unsupported" ]]; then
-        fail "This Linux distribution isn't supported yet. If you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
+        fail -e "This Linux distribution isn't supported yet. \nIf you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
     fi
 
     # Create a temporary directory for the LEMPer installation.
     BUILD_DIR=${BUILD_DIR:-"/tmp/lemper_build"}
-    if [ ! -d "${BUILD_DIR}" ]; then
-        run mkdir -p "${BUILD_DIR}"
-    fi
+    [ ! -d "${BUILD_DIR}" ] && run mkdir -p "${BUILD_DIR}"
 }
 
 # Verify system pre-requisites configuration.
@@ -455,12 +453,12 @@ function verify_prerequisites() {
     SERVER_IP=${SERVER_IP:-$(get_ip_addr)}
 
     # Set server hostname.
-    if [ -n "${SERVER_HOSTNAME}" ]; then
+    if [[ -n "${SERVER_HOSTNAME}" ]]; then
         run hostname "${SERVER_HOSTNAME}" && \
         run bash -c "echo '${SERVER_HOSTNAME}' > /etc/hostname"
 
         if grep -q "${SERVER_HOSTNAME}" /etc/hosts; then
-            run sed -i".bak" "/${SERVER_HOSTNAME}/d" /etc/hosts
+            run sed -i".backup" "/${SERVER_HOSTNAME}/d" /etc/hosts
         else
             run bash -c "echo -e '\n#LEMPer local hosts\n${SERVER_IP}\t${SERVER_HOSTNAME}' >> /etc/hosts"
         fi
@@ -470,7 +468,7 @@ function verify_prerequisites() {
     fi
 
     # Validate server's hostname for production stack.
-    if [[ "${ENVIRONMENT}" = "production" ]]; then
+    if [[ "${ENVIRONMENT}" == "production" ]]; then
         # Check if the hostname is valid.
         if [[ $(validate_fqdn "${HOSTNAME}") != true ]]; then
             error "Your server's hostname is not fully qualified domain name (FQDN)."
@@ -525,25 +523,25 @@ function create_swap() {
     run swapon ${SWAP_FILE}
 
     # Make the change permanent.
-    if "${DRYRUN}"; then
-        echo "Add persistent swap to fstab in dryrun mode."
-    else
+    if [[ ${DRYRUN} != true ]]; then
         if grep -qwE "#${SWAP_FILE}" /etc/fstab; then
             run sed -i "s|#${SWAP_FILE}|${SWAP_FILE}|g" /etc/fstab
         else
             run echo "${SWAP_FILE} swap swap defaults 0 0" >> /etc/fstab
         fi
+    else
+        echo "Add persistent swap to fstab in dry run mode."
     fi
 
     # Adjust swappiness, default Ubuntu set to 60
     # meaning that the swap file will be used fairly often if the memory usage is
     # around half RAM, for production servers you may need to set a lower value.
     if [[ $(cat /proc/sys/vm/swappiness) -gt 10 ]]; then
-        if "${DRYRUN}"; then
-            echo "Update swappiness value in dryrun mode."
-        else
+        if [[ ${DRYRUN} != true ]]; then
             run sysctl vm.swappiness=10
             run echo "vm.swappiness=10" >> /etc/sysctl.conf
+        else
+            echo "Update swappiness value in dry run mode."
         fi
     fi
 }
@@ -552,7 +550,7 @@ function create_swap() {
 function remove_swap() {
     local SWAP_FILE="/swapfile"
 
-    if [ -f ${SWAP_FILE} ]; then
+    if [[ -f ${SWAP_FILE} ]]; then
         run swapoff ${SWAP_FILE} && \
         run sed -i "s|${SWAP_FILE}|#\ ${SWAP_FILE}|g" /etc/fstab && \
         run rm -f ${SWAP_FILE}
@@ -587,15 +585,16 @@ function create_account() {
     echo "Creating default LEMPer account..."
 
     if [[ -z $(getent passwd "${USERNAME}") ]]; then
-        if "${DRYRUN}"; then
-            echo "Create ${USERNAME} account in dryrun mode."
-        else
+        if [[ ${DRYRUN} != true ]]; then
             run useradd -d "/home/${USERNAME}" -m -s /bin/bash "${USERNAME}"
             run echo "${USERNAME}:${PASSWORD}" | chpasswd
             run usermod -aG sudo "${USERNAME}"
 
             # Create default directories.
             run mkdir -p "/home/${USERNAME}/webapps" && \
+            run mkdir -p "/home/${USERNAME}/logs" && \
+            run mkdir -p "/home/${USERNAME}/logs/nginx" && \
+            run mkdir -p "/home/${USERNAME}/logs/php" && \
             run mkdir -p "/home/${USERNAME}/.lemper" && \
             run mkdir -p "/home/${USERNAME}/.ssh" && \
             run chmod 700 "/home/${USERNAME}/.ssh" && \
@@ -604,9 +603,7 @@ function create_account() {
             run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
 
             # Add account credentials to /srv/.htpasswd.
-            if [ ! -f "/srv/.htpasswd" ]; then
-                run touch /srv/.htpasswd
-            fi
+            [ ! -f "/srv/.htpasswd" ] && run touch /srv/.htpasswd
 
             # Protect .htpasswd file.
             run chmod 0600 /srv/.htpasswd
@@ -632,6 +629,8 @@ function create_account() {
             save_log -e "Your default system account information:\nUsername: ${USERNAME}\nPassword: ${PASSWORD}"
 
             success "Username ${USERNAME} created."
+        else
+            echo "Create ${USERNAME} account in dry run mode."
         fi
     else
         info "Unable to create account, username ${USERNAME} already exists."
@@ -678,14 +677,14 @@ function get_ip_addr() {
 
 # Init logging.
 function init_log() {
-    export LOG_FILE=${LOG_FILE:-"./install.log"}
+    export LOG_FILE=${LOG_FILE:-"./lemper_install.log"}
     [ ! -f "${LOG_FILE}" ] && run touch "${LOG_FILE}"
     save_log "Initialize LEMPer installation log..."
 }
 
 # Save log.
 function save_log() {
-    if ! "${DRYRUN}"; then
+    if [[ ${DRYRUN} != true ]]; then
         {
             date '+%d-%m-%Y %T %Z'
             echo "$@"
@@ -697,9 +696,12 @@ function save_log() {
 # Make config file if not exist.
 function init_config() {
     if [ ! -f /etc/lemper/lemper.conf ]; then
-        run mkdir -p /etc/lemper/
-        run touch /etc/lemper/lemper.conf
-        run chmod 0600 /etc/lemper/lemper.conf
+        run mkdir -p /etc/lemper && run chmod 0700 /etc/lemper
+        run touch /etc/lemper/lemper.conf && run chmod 0600 /etc/lemper/lemper.conf
+    fi
+
+    if [ ! -d /etc/lemper/vhost.d ]; then
+        run mkdir -p /etc/lemper/vhost.d && run chmod 0700 /etc/lemper/vhost.d
     fi
 
     save_log -e "# LEMPer configuration.\n# Edit here if you change your password manually, but do NOT delete!"
@@ -707,7 +709,7 @@ function init_config() {
 
 # Save configuration.
 function save_config() {
-    if ! "${DRYRUN}"; then
+    if [[ ${DRYRUN} != true ]]; then
         [ -f /etc/lemper/lemper.conf ] && \
         echo "$@" >> /etc/lemper/lemper.conf
     fi
@@ -715,7 +717,7 @@ function save_config() {
 
 # Encrypt configuration.
 function secure_config() {
-    if ! "${DRYRUN}"; then
+    if [[ ${DRYRUN} != true ]]; then
         if [ -f /etc/lemper/lemper.conf ]; then
             run openssl aes-256-gcm -a -salt -md sha256 -k "${PASSWORD}" \
                 -in /etc/lemper/lemper.conf -out /etc/lemper/lemper.cnf
@@ -726,7 +728,7 @@ function secure_config() {
 # Header message.
 function header_msg() {
     clear
-#    cat <<- _EOF_
+#    cat <<- EOL
 #==========================================================================#
 #          Welcome to LEMPer Stack Manager for Debian/Ubuntu server        #
 #==========================================================================#
@@ -734,7 +736,7 @@ function header_msg() {
 #                                                                          #
 #        For more information please visit https://masedi.net/lemper       #
 #==========================================================================#
-#_EOF_
+#EOL
     status "
          _     _____ __  __ ____               _     
         | |   | ____|  \/  |  _ \ _welcome_to_| |__  
@@ -746,7 +748,7 @@ function header_msg() {
 
 # Footer credit message.
 function footer_msg() {
-    cat <<- _EOF_
+    cat <<- EOL
 
 #==========================================================================#
 #            Thank's for installing LEMPer Stack using LEMPer              #
@@ -756,5 +758,5 @@ function footer_msg() {
 #                                                                          #
 #          (c) 2014-2021 | MasEDI.Net | https://masedi.net/lemper          #
 #==========================================================================#
-_EOF_
+EOL
 }

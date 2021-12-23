@@ -110,7 +110,7 @@ server {
         fastcgi_pass unix:/run/php/php5.6-fpm.sock;
     }
 
-    include /etc/nginx/includes/error_pages.conf;
+    #include /etc/nginx/includes/error_pages.conf;
 
     #include /etc/nginx/includes/fcgiwrap.conf;
 }
@@ -237,7 +237,7 @@ server {
         fastcgi_pass unix:/run/php/php5.6-fpm.sock;
     }
 
-    include /etc/nginx/includes/error_pages.conf;
+    #include /etc/nginx/includes/error_pages.conf;
 
     #include /etc/nginx/includes/fcgiwrap.conf;
 }

@@ -1,103 +1,45 @@
 #!/usr/bin/env bash
 
 # ImageMagick Installer
-# Min. Requirement  : GNU/Linux Ubuntu 16.04
-# Last Build        : 02/11/2019
+# Min. Requirement  : GNU/Linux Ubuntu 18.04
+# Last Build        : 11/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
 # Include helper functions.
-if [ "$(type -t run)" != "function" ]; then
-    BASEDIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+if [[ "$(type -t run)" != "function" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASEDIR}/helper.sh"
+    . "${BASE_DIR}/helper.sh"
 fi
 
 # Make sure only root can run this installer script.
 requires_root
 
+# Make sure only supported distribution can run this installer script.
+preflight_system_check
 
-function install_imagemagick() {
-    # Do something here...
-    return 1
-}
-
-# Install PHP Imagick extension.
-function install_php_imagick() {
-    # PHP version.
-    local PHPv="${1}"
-    if [ -z "${PHPv}" ]; then
-        PHPv=${PHP_VERSION:-"7.3"}
-    fi
-
-    echo -e "\nInstalling PHP ${PHPv} Imagick extension..."
-
-    if hash apt-get 2>/dev/null; then
-        run apt-get install -qq -y "php${PHPv}-imagick"
-    else
-        fail "Unable to install PHP ${PHPv} Imagick, this GNU/Linux distribution is not supported."
-    fi
-}
-
+##
+# Install ImageMagick.
+##
 function init_imagemagick_install() {
     local SELECTED_INSTALLER=""
-    #local IMAGICK_VERSION=""
-    local OPT_PHP_VERSION=""
 
-    OPTS=$(getopt -o p:ir \
-        -l installer:,php-version:,install,remove \
-        -n "init_imagemagick_install" -- "$@")
-
-    eval set -- "${OPTS}"
-
-    while true
-    do
-        case "${1}" in
-            -I|--installer) shift
-                SELECTED_INSTALLER="${1}"
-                shift
-            ;;
-            -p|--php-version) shift
-                OPT_PHP_VERSION="${1}"
-                shift
-            ;;
-            -i|--install) shift
-                #ACTION="install"
-            ;;
-            -r|--remove) shift
-                #ACTION="remove"
-            ;;
-            --) shift
-                break
-            ;;
-            *)
-                fail "Invalid argument: ${1}"
-                exit 1
-            ;;
-        esac
-    done
-
-    if [ -n "${OPT_PHP_VERSION}" ]; then
-        PHP_VERSION=${OPT_PHP_VERSION}
-    else
-        PHP_VERSION=${PHP_VERSION:-"7.3"}
-    fi
-
-    if "${AUTO_INSTALL}"; then
-        if [[ -z "${PHP_IMAGEMAGICK_INSTALLER}" || "${PHP_IMAGEMAGICK_INSTALLER}" == "none" ]]; then
-            DO_INSTALL_IMAGEMAGICK="n"
-        else
+    if [[ "${AUTO_INSTALL}" == true ]]; then
+        if [[ "${INSTALL_IMAGEMAGICK}" == true ]]; then
             DO_INSTALL_IMAGEMAGICK="y"
-            SELECTED_INSTALLER=${PHP_IMAGEMAGICK_INSTALLER}
+            SELECTED_INSTALLER=${IMAGEMAGICK_INSTALLER:-"repo"}
+        else
+            DO_INSTALL_IMAGEMAGICK="n"
         fi
     else
-        while [[ "${DO_INSTALL_IMAGEMAGICK}" != "y" && "${DO_INSTALL_IMAGEMAGICK}" != "n" ]]; do
+        while [[ "${DO_INSTALL_IMAGEMAGICK}" != "y" && "${DO_INSTALL_IMAGEMAGICK}" != "Y" && \
+            "${DO_INSTALL_IMAGEMAGICK}" != "n" && "${DO_INSTALL_IMAGEMAGICK}" != "N" ]]; do
             read -rp "Do you want to install ImageMagick library? [y/n]: " -i y -e DO_INSTALL_IMAGEMAGICK
         done
-        echo ""
     fi
 
-    if [[ ${DO_INSTALL_IMAGEMAGICK} == y* && ${INSTALL_PHP_IMAGEMAGICK} == true ]]; then
+    if [[ ${DO_INSTALL_IMAGEMAGICK} == y* || ${DO_INSTALL_IMAGEMAGICK} == Y* ]]; then
         echo "Available ImageMagick installation method:"
         echo "  1). Install from Repository (repo)"
         echo "  2). Compile from Source (source)"
@@ -108,21 +50,29 @@ function init_imagemagick_install() {
             read -rp "Select an option [1-2]: " -e SELECTED_INSTALLER
         done
 
-        case ${SELECTED_INSTALLER} in
-            1|"repo")
+        case "${SELECTED_INSTALLER}" in
+            1 | "repo")
                 echo "Installing ImageMagick library from repository..."
                 run apt-get install -qq -y imagemagick
             ;;
-            2|"source")
+            2 | "source")
                 echo "Installing ImageMagick library from source..."
 
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
 
+                if [[ "${IMAGEMAGICK_VERSION}" == "latest" ]]; then
+                    IMAGEMAGICK_FILENAME="ImageMagick.tar.gz"
+                    IMAGEMAGICK_ZIP_URL="https://www.imagemagick.org/download/${IMAGEMAGICK_FILENAME}"
+                else
+                    IMAGEMAGICK_FILENAME="ImageMagick-${IMAGEMAGICK_VERSION}.tar.gz"
+                    IMAGEMAGICK_ZIP_URL="https://download.imagemagick.org/ImageMagick/download/releases/${IMAGEMAGICK_FILENAME}"
+                fi
+
                 run cd "${BUILD_DIR}" && \
-                run wget -q https://www.imagemagick.org/download/ImageMagick.tar.gz && \
-                run tar -zxf ImageMagick.tar.gz && \
-                run cd ImageMagick-* && \
+                run wget -q "${IMAGEMAGICK_ZIP_URL}" && \
+                run tar -zxf "${IMAGEMAGICK_FILENAME}" && \
+                run cd ImageMagick-*/ && \
                 run ./configure && \
                 run make && \
                 run make install && \
@@ -135,30 +85,29 @@ function init_imagemagick_install() {
             ;;
         esac
 
-        if "${DRYRUN}"; then
-            info "ImageMagick installed in dryrun mode."
-        else
+        if [[ "${DRYRUN}" != true ]]; then
             if [[ -n $(command -v magick) ]]; then
                 success "ImageMagick version $(magick -version | grep ^Version | cut -d' ' -f3) has been installed."
-            elif [[ -n $(command -v identify) ]]; then
-                success "ImageMagick version $(identify -version | grep ^Version | cut -d' ' -f3) has been installed."
+            elif [[ -n $(command -v convert) ]]; then
+                success "ImageMagick version $(convert -version | grep ^Version | cut -d' ' -f3) has been installed."
             fi
+        else
+            info "ImageMagick installed in dry run mode."
         fi
 
         # Install PHP Imagick extension.
-        install_php_imagick "${PHP_VERSION}"
+        #Moved to .env file as custom PHP_EXTENSIONS.
     else
         info "ImageMagick installation skipped."
     fi
 }
 
-
-echo "[ImageMagick Packages Installation]"
+echo "[ImageMagick Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(command -v magick) || -n $(command -v identify) ]]; then
-    info "ImageMagick already exists. Installation skipped..."
+if [[ -n $(command -v magick) && "${FORCE_INSTALL}" != true ]]; then
+    info "ImageMagick already exists, installation skipped."
 else
     init_imagemagick_install "$@"
 fi
