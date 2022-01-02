@@ -197,6 +197,7 @@ function init_lemper_cli() {
             *)
                 if [[ -x "${CLI_PLUGINS_DIR}/lemper-${CMD}" ]]; then
                     # Source the plugin executable file.
+                    # shellcheck disable=SC1090
                     . "${CLI_PLUGINS_DIR}/lemper-${CMD}" "$@"
                     exit 0
                 else
