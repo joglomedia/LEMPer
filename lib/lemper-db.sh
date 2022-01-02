@@ -23,94 +23,20 @@ PROG_VER="2.x.x"
 CMD_PARENT="lemper-cli"
 CMD_NAME="db"
 
-# Test mode.
-DRYRUN=false
-
-# Color decorator.
-RED=91
-GREEN=92
-YELLOW=93
-
-##
-# Helper Functions
-#
-function begin_color() {
-    color="${1}"
-    echo -e -n "\e[${color}m"
-}
-
-function end_color() {
-    echo -e -n "\e[0m"
-}
-
-function echo_color() {
-    color="${1}"
-    shift
-    begin_color "${color}"
-    echo "$@"
-    end_color
-}
-
-function error() {
-    echo_color "${RED}" -n "Error: " >&2
-    echo "$@" >&2
-}
-
-# Prints an error message and exits with an error code.
-function fail() {
-    error "$@"
-    #echo >&2
-    echo "For usage information, run this script with --help" >&2
-    exit 1
-}
-
-function status() {
-    echo_color "${GREEN}" "$@"
-}
-
-function warning() {
-    echo_color "${YELLOW}" "$@"
-}
-
-function success() {
-    echo_color "${GREEN}" -n "Success: " >&2
-    echo "$@" >&2
-}
-
-function info() {
-    echo_color "${YELLOW}" -n "Info: " >&2
-    echo "$@" >&2
-}
-
-# Run command
-function run() {
-    if "${DRYRUN}"; then
-        echo_color "${YELLOW}" -n "would run "
-        echo "$@"
-    else
-        if ! "$@"; then
-            local CMDSTR="$*"
-            error "Failure running '${CMDSTR}', exiting."
-            exit 1
-        fi
-    fi
-}
-
-# May need to run this as sudo!
-if [[ "$(id -u)" -ne 0 ]]; then
-    error "This command can only be run by root."
+# Make sure only root can access and not direct access.
+if [[ "$(type -t requires_root)" != "function" ]]; then
+    echo "Direct access to this script is not permitted."
     exit 1
 fi
 
-
 ##
 # Main Functions
-#
+##
 
 ##
 # Trim whitespace.
 # Ref: https://stackoverflow.com/a/3352015/12077262
-#
+##
 function str_trim() {
     local str="$*"
 
@@ -126,7 +52,7 @@ function str_trim() {
 ##
 # Convert string to uppercase.
 # Ref: https://unix.stackexchange.com/a/51987
-#
+##
 function str_to_upper() {
     local str="$*"
 
@@ -135,7 +61,7 @@ function str_to_upper() {
 
 ##
 # Prints help.
-#
+##
 function cmd_help() {
     cat <<- EOL
 ${CMD_PARENT} ${CMD_NAME} ${PROG_VER}
@@ -302,7 +228,7 @@ function cmd_users() {
 
 ##
 # Initialize account subcommand.
-# 
+## 
 function sub_cmd_account() {
     # account subcommands
     function cmd_account_help() {
@@ -541,8 +467,8 @@ EOL
 }
 
 ##
-# Main database operations.
-#
+# Main Database Operations.
+##
 function db_ops() {
     OPTS=$(getopt -o a:H:P:u:p:n:b:C:g:f:q:x:DrhVv \
       -l action:,dbhost:,dbport:,dbuser:,dbpass:,dbname:,dbprefix:,dbcollation:,dbprivileges:,dbfile:,dbquery:,extra-args: \
@@ -559,79 +485,97 @@ function db_ops() {
     while true
     do
         case "${1}" in
-            -a | --action) shift
+            -a | --action) 
+                shift
                 local ACTION="${1}"
                 MAIN_ARGS=$((MAIN_ARGS + 1))
                 shift
             ;;
-            -b | --dbprefix) shift
+            -b | --dbprefix) 
+                shift
                 DBPREFIX="${1}"
                 shift
             ;;
-            -C | --dbcollation) shift
+            -C | --dbcollation) 
+                shift
                 DBCOLLATION="${1}"
                 shift
             ;;
-            -f | --dbfile) shift
+            -f | --dbfile) 
+                shift
                 DBFILE="${1}"
                 shift
             ;;
-            -g | --dbprivileges) shift
+            -g | --dbprivileges) 
+                shift
                 DBPRIVILEGES="${1}"
                 shift
             ;;
-            -H | --dbhost) shift
+            -H | --dbhost) 
+                shift
                 DBHOST=${1}
                 shift
             ;;
-            -n | --dbname) shift
+            -n | --dbname) 
+                shift
                 DBNAME="${1}"
                 shift
             ;;
-            -p | --dbpass) shift
+            -p | --dbpass) 
+                shift
                 DBPASS="${1}"
                 shift
             ;;
-            -P | --dbport) shift
+            -P | --dbport) 
+                shift
                 DBPORT=${1}
                 shift
             ;;
-            -q | --dbquery) shift
+            -q | --dbquery) 
+                shift
                 DBQUERY="${1}"
                 shift
             ;;
-            -u | --dbuser) shift
+            -u | --dbuser) 
+                shift
                 DBUSER="${1}"
                 shift
             ;;
-            -x | --extra-args) shift
+            -x | --extra-args) 
+                shift
                 EXTRA_ARGS="${1}"
                 shift
             ;;
 
-            -D | --dry-run) shift
+            -D | --dry-run) 
+                shift
                 DRYRUN=true
             ;;
-            -r | --root) shift
+            -r | --root) 
+                shift
                 USEROOT=true
             ;;
-            -V | --verbose) shift
+            -V | --verbose) 
+                shift
                 VERBOSE=true
             ;;
 
-            -h | --help) shift
+            -h | --help) 
+                shift
                 # Bypass args.
                 BYPASSED_ARGS="${BYPASSED_ARGS} --help"
             ;;
-            -v | --version) shift
+            -v | --version) 
+                shift
                 # Bypass args.
                 BYPASSED_ARGS="${BYPASSED_ARGS} --version"
             ;;
-            --) shift
+            --) 
+                shift
                 break
             ;;
             *)
-                fail "Invalid argument: ${1}"
+                fail "unrecognized option '${1}'"
                 exit 1
             ;;
         esac
@@ -860,8 +804,8 @@ function db_ops() {
 }
 
 ##
-# Main DB CLI Wrapper
-#
+# Main Database CLI Wrapper
+##
 function init_lemper_db() {
     # Check command line arguments.
     if [[ -n "${1}" ]]; then

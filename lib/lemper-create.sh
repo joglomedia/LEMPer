@@ -23,79 +23,9 @@ PROG_VER="2.x.x"
 CMD_PARENT="lemper-cli"
 CMD_NAME="create"
 
-# Color decorator.
-RED=91
-GREEN=92
-YELLOW=93
-
-##
-# Helper Functions
-#
-function begin_color() {
-    color="${1}"
-    echo -e -n "\e[${color}m"
-}
-
-function end_color() {
-    echo -e -n "\e[0m"
-}
-
-function echo_color() {
-    color="${1}"
-    shift
-    begin_color "${color}"
-    echo "$@"
-    end_color
-}
-
-function error() {
-    echo_color "${RED}" -n "Error: " >&2
-    echo "$@" >&2
-}
-
-# Prints an error message and exits with an error code.
-function fail() {
-    error "$@"
-    echo >&2
-    echo "For usage information, run this script with --help" >&2
-    exit 1
-}
-
-function status() {
-    echo_color "${GREEN}" "$@"
-}
-
-function warning() {
-    echo_color "${YELLOW}" "$@"
-}
-
-function success() {
-    echo_color "${GREEN}" -n "Success: " >&2
-    echo "$@" >&2
-}
-
-function info() {
-    echo_color "${YELLOW}" -n "Info: " >&2
-    echo "$@" >&2
-}
-
-# Run command
-function run() {
-    if "$DRYRUN"; then
-        echo_color "${YELLOW}" -n "would run "
-        echo "$@"
-    else
-        if ! "$@"; then
-            local CMDSTR="$*"
-            error "Failure running '${CMDSTR}', exiting."
-            exit 1
-        fi
-    fi
-}
-
-# May need to run this as sudo!
-if [[ "$(id -u)" -ne 0 ]]; then
-    error "This command can only be run by root."
+# Make sure only root can access and not direct access.
+if ! declare -F "requires_root" &>/dev/null; then
+    echo "Direct access to this script is not permitted."
     exit 1
 fi
 
@@ -109,7 +39,7 @@ done
 
 if [[ ${#NO_PACKAGES[@]} -gt 0 ]]; then
     printf -v NO_PACKAGES_STR '%s, ' "${NO_PACKAGES[@]}"
-    error "${PROG_NAME} requires: ${NO_PACKAGES_STR%, }, please install it first!"
+    error "${PROG_NAME} ${COMMAND_NAME} requires: ${NO_PACKAGES_STR%, }, please install it first!"
     echo "help: run 'sudo apt-get install ${NO_PACKAGES[*]}'"
     exit 1
 fi
@@ -955,7 +885,7 @@ function init_lemper_create() {
     ENABLE_FAIL2BAN=false
     TMPDIR="/tmp/lemper"
 
-    # Test mode
+    # Dry run (test mode).
     DRYRUN=false
 
     # Args counter

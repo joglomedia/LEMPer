@@ -1,4 +1,34 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# +-------------------------------------------------------------------------+
+# | Lemper Create - Simple LEMP Virtual Host Creator                        |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
+
+set -e
+
+# Version control.
+PROG_NAME=$(basename "$0")
+PROG_VER="2.x.x"
+CMD_PARENT="lemper-cli"
+CMD_NAME="adduser"
+
+# Make sure only root can access and not direct access.
+if ! declare -F "requires_root" &>/dev/null; then
+    echo "Direct access to this script is not permitted."
+    exit 1
+fi
+
 function header_msg() {
     clear
     cat <<- EOL
@@ -11,12 +41,6 @@ function header_msg() {
 #==========================================================================#
 EOL
 }
-
-# Check if user is root
-if [[ "$(id -u)" -ne 0 ]]; then
-    echo "Error: Please use root to add new user."
-    exit 1
-fi
 
 header_msg
 

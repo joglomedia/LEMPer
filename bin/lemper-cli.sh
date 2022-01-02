@@ -21,13 +21,108 @@ set -e
 PROG_NAME=$(basename "$0")
 PROG_VER="2.x.x"
 
-# May need to run this as sudo!
-if [[ "$(id -u)" -ne 0 ]]; then
-    echo "This command can only be run by root."
-    exit 1
-fi
+# Test mode.
+DRYRUN=false
 
-# Export LEMPer stack configuration.
+# Color decorator.
+RED=91
+GREEN=92
+YELLOW=93
+
+##
+# Helper Functions.
+##
+function begin_color() {
+    color="${1}"
+    echo -e -n "\e[${color}m"
+}
+
+function end_color() {
+    echo -e -n "\e[0m"
+}
+
+function echo_color() {
+    color="${1}"
+    shift
+    begin_color "${color}"
+    echo "$@"
+    end_color
+}
+
+function status() {
+    echo_color "${GREEN}" "$@"
+}
+
+function warning() {
+    echo_color "${YELLOW}" "$@"
+}
+
+function success() {
+    echo_color "${GREEN}" -n "Success: " >&2
+    echo "$@" >&2
+}
+
+function info() {
+    echo_color "${YELLOW}" -n "Info: " >&2
+    echo "$@" >&2
+}
+
+function error() {
+    echo_color "${RED}" -n "Error: " >&2
+    echo "$@" >&2
+}
+
+# Prints an error message and exits with an error code.
+function fail() {
+    error "$@"
+    #echo >&2
+    echo "For usage information, run this script with --help" >&2
+    exit 1
+}
+
+function echo_ok() {
+    echo_color "${GREEN}" "OK"
+}
+
+function echo_warn() {
+    echo_color "${YELLOW}" "WARN"
+}
+
+function echo_err() {
+    echo_color "${RED}" "ERROR"
+}
+
+# Run command.
+function run() {
+    if "${DRYRUN}"; then
+        echo_color "${YELLOW}" -n "would run "
+        echo "$@"
+    else
+        if ! "$@"; then
+            local CMDSTR="$*"
+            error "Failure running '${CMDSTR}', exiting."
+            exit 1
+        fi
+    fi
+}
+
+# Make sure only root can run this script.
+function requires_root() {
+    if [[ "$(id -u)" -ne 0 ]]; then
+        if ! hash sudo 2>/dev/null; then
+            echo "${PROG_NAME} command must be run as 'root' or with sudo."
+            exit 1
+        else
+            #echo "Switching to root user to run this script."
+            sudo -E "$0" "$@"
+            exit 0
+        fi
+    fi
+}
+
+requires_root "$@"
+
+# Export LEMPer Stack configuration.
 if [[ -f "/etc/lemper/lemper.conf" ]]; then
     # Clean environemnt first.
     # shellcheck source=/etc/lemper/lemper.conf
@@ -39,8 +134,8 @@ if [[ -f "/etc/lemper/lemper.conf" ]]; then
     # shellcheck disable=SC1091
     source <(grep -v '^#' /etc/lemper/lemper.conf | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
 else
-    echo "LEMPer stack configuration required, but the file doesn't exist."
-    echo "It should be created during installation process and placed under '/etc/lemper/lemper.conf'"
+    echo "LEMPer Stack configuration required, but the file doesn't exist."
+    echo "It should be created during installation process and placed under '/etc/lemper/lemper.conf'."
     exit 1
 fi
 
@@ -49,13 +144,13 @@ LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
 LEMPER_PASSWORD=${LEMPER_PASSWORD:-""}
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-""}
 
-# CLI plugins directory.
+# Set CLI plugins directory.
 CLI_PLUGINS_DIR="/etc/lemper/cli-plugins"
 
 ## 
 # Show usage
 # output to STDERR.
-#
+##
 function cmd_help() {
     cat <<- EOL
 ${PROG_NAME} ${PROG_VER}
@@ -76,19 +171,19 @@ EOL
 
 ## 
 # Show version.
-#
+##
 function cmd_version() {
     echo "${PROG_NAME} version $PROG_VER"
 }
 
 ##
-# Main LEMPer CLI Wrapper
-#
+# Main LEMPer CLI Wrapper.
+##
 function init_lemper_cli() {
     # Check command line arguments.
     if [[ -n "${1}" ]]; then
         CMD="${1}"
-        shift # Pass the remaining arguments to the next function.
+        shift # Pass the remaining arguments as sub-command options (parameters).
 
         case ${CMD} in
             help | -h | --help)
@@ -101,7 +196,8 @@ function init_lemper_cli() {
             ;;
             *)
                 if [[ -x "${CLI_PLUGINS_DIR}/lemper-${CMD}" ]]; then
-                    "${CLI_PLUGINS_DIR}/lemper-${CMD}" "$@"
+                    # Source the plugin executable file.
+                    . "${CLI_PLUGINS_DIR}/lemper-${CMD}" "$@"
                     exit 0
                 else
                     echo "${PROG_NAME}: '${CMD}' is not ${PROG_NAME} command."

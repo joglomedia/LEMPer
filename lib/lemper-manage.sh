@@ -23,93 +23,20 @@ PROG_VER="2.x.x"
 CMD_PARENT="lemper-cli"
 CMD_NAME="manage"
 
-# Test mode.
-DRYRUN="false"
-
-# Color decorator.
-RED=91
-GREEN=92
-YELLOW=93
-
-##
-# Helper Functions
-#
-function begin_color() {
-    color="${1}"
-    echo -e -n "\e[${color}m"
-}
-
-function end_color() {
-    echo -e -n "\e[0m"
-}
-
-function echo_color() {
-    color="${1}"
-    shift
-    begin_color "${color}"
-    echo "$@"
-    end_color
-}
-
-function error() {
-    echo_color "${RED}" -n "Error: " >&2
-    echo "$@" >&2
-}
-
-# Prints an error message and exits with an error code.
-function fail() {
-    error "$@"
-    echo "For usage information, run this script with --help" >&2
-    exit 1
-}
-
-function status() {
-    echo_color "${GREEN}" "$@"
-}
-
-function warning() {
-    echo_color "${YELLOW}" "$@"
-}
-
-function success() {
-    echo_color "${GREEN}" -n "Success: " >&2
-    echo "$@" >&2
-}
-
-function info() {
-    echo_color "${YELLOW}" -n "Info: " >&2
-    echo "$@" >&2
-}
-
-# Run command
-function run() {
-    if "${DRYRUN}"; then
-        echo_color "${YELLOW}" -n "would run "
-        echo "$@"
-    else
-        if ! "$@"; then
-            local CMDSTR="$*"
-            error "Failure running '${CMDSTR}', exiting."
-            exit 1
-        fi
-    fi
-}
-
-# May need to run this as sudo!
-if [[ "$(id -u)" -ne 0 ]]; then
-    error "This command can only be run by root."
+# Make sure only root can access and not direct access.
+if ! declare -F "requires_root" &>/dev/null; then
+    echo "Direct access to this script is not permitted."
     exit 1
 fi
 
-
 ##
 # Main Functions
-#
+##
 
 ## 
 # Show usage
 # output to STDERR.
-#
+##
 function show_usage() {
 cat <<- EOL
 ${CMD_PARENT} ${CMD_NAME} ${PROG_VER}
@@ -171,7 +98,7 @@ EOL
 
 ##
 # Enable vhost.
-#
+##
 function enable_vhost() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
@@ -192,7 +119,7 @@ function enable_vhost() {
 
 ##
 # Disable vhost.
-#
+##
 function disable_vhost() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
@@ -213,7 +140,7 @@ function disable_vhost() {
 
 ##
 # Remove vhost.
-#
+##
 function remove_vhost() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
@@ -320,7 +247,7 @@ function remove_vhost() {
 
 ##
 # Enable fail2ban for virtual host.
-#
+##
 function enable_fail2ban() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
@@ -358,8 +285,8 @@ EOL
 }
 
 ##
-# Enable fail2ban for virtual host.
-#
+# Disable fail2ban for virtual host.
+##
 function disable_fail2ban() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
@@ -378,7 +305,7 @@ function disable_fail2ban() {
 
 ##
 # Enable Nginx's fastcgi cache.
-#
+##
 function enable_fastcgi_cache() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
@@ -405,7 +332,7 @@ function enable_fastcgi_cache() {
 
 ##
 # Disable Nginx's fastcgi cache.
-#
+##
 function disable_fastcgi_cache() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
@@ -432,7 +359,7 @@ function disable_fastcgi_cache() {
 
 ##
 # Enable Nginx's Mod PageSpeed.
-#
+##
 function enable_mod_pagespeed() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
@@ -441,7 +368,7 @@ function enable_mod_pagespeed() {
     echo "Enabling Mod PageSpeed for ${DOMAIN}..."
 
     if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
-        # enable mod pagespeed
+        # Enable mod pagespeed.
         run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" /etc/nginx/nginx.conf
         run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
@@ -450,7 +377,7 @@ function enable_mod_pagespeed() {
         run sed -i "s|#pagespeed\ Disallow|pagespeed\ Disallow|g" "/etc/nginx/sites-available/${DOMAIN}.conf"
         run sed -i "s|#pagespeed\ Domain|pagespeed\ Domain|g" "/etc/nginx/sites-available/${DOMAIN}.conf"
 
-        # If SSL enabled, ensure to also to enable PageSpeed related vars.
+        # If SSL enabled, ensure to also enable PageSpeed related vars.
         #if grep -qwE "^\    include\ /etc/nginx/includes/ssl.conf" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
         #    run sed -i "s/#pagespeed\ FetchHttps/pagespeed\ FetchHttps/g" \
         #        "/etc/nginx/sites-available/${DOMAIN}.conf"
@@ -468,7 +395,7 @@ function enable_mod_pagespeed() {
 
 ##
 # Disable Nginx's Mod PageSpeed.
-#
+##
 function disable_mod_pagespeed() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
@@ -503,7 +430,7 @@ function disable_mod_pagespeed() {
 
 ##
 # Enable HTTPS (HTTP over SSL).
-#
+##
 function enable_ssl() {
     # Verify user input hostname (domain name).
     local DOMAIN=${1}
@@ -602,7 +529,7 @@ EOL
 
 ##
 # Disable HTTPS (HTTP over SSL).
-#
+##
 function disable_ssl() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
@@ -636,7 +563,7 @@ function disable_ssl() {
 
 ##
 # Disable HTTPS and remove Let's Encrypt SSL certificate.
-#
+##
 function remove_ssl() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
@@ -667,7 +594,7 @@ function remove_ssl() {
 
 ##
 # Renew Let's Encrypt SSL certificate.
-#
+##
 function renew_ssl() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
@@ -710,7 +637,7 @@ function renew_ssl() {
 
 ##
 # Enable Brotli compression module.
-#
+##
 function enable_brotli() {
     local DOMAIN=${1}
     verify_vhost "${DOMAIN}"
@@ -748,7 +675,7 @@ function enable_brotli() {
 ##
 # Enable Gzip compression module,
 # enabled by default.
-#
+##
 function enable_gzip() {
     local DOMAIN=${1}
     verify_vhost "${DOMAIN}"
@@ -785,7 +712,7 @@ function enable_gzip() {
 
 ##
 # Disable Gzip/Brotli compression module
-#
+##
 function disable_compression() {
     local DOMAIN=${1}
     verify_vhost "${DOMAIN}"
@@ -805,7 +732,7 @@ function disable_compression() {
 
 ##
 # Verify if virtual host exists.
-#
+##
 function verify_vhost() {
     if [[ -z "${1}" ]]; then
         error "Virtual host (vhost) or domain name is required."
@@ -826,13 +753,13 @@ function verify_vhost() {
 
 ##
 # Reload NGiNX safely.
-#
+##
 function reload_nginx() {
     # Reload Nginx
     echo "Reloading NGiNX configuration..."
 
     if [[ -e /var/run/nginx.pid ]]; then
-        if nginx -t 2>/dev/null > /dev/null; then
+        if nginx -t > /dev/null 2>&1; then
             service nginx reload -s > /dev/null 2>&1
         else
             error "Configuration couldn't be validated. Please correct the error below:";
@@ -866,7 +793,7 @@ function reload_nginx() {
 
 ##
 # Main Manage CLI Wrapper
-#
+##
 function init_lemper_manage() {
     OPTS=$(getopt -o c:d:e:f:p:r:s:bghv \
       -l enable:,disable:,remove:,enable-fail2ban:,disable-fail2ban:,enable-fastcgi-cache:,disable-fastcgi-cache: \
