@@ -19,7 +19,7 @@ set -e
 
 # Version control.
 PROG_NAME=$(basename "$0")
-PROG_VER="2.x.x"
+#PROG_VER="2.x.x"
 CMD_PARENT="lemper-cli"
 CMD_NAME="site"
 
@@ -58,22 +58,23 @@ function init_lemper_site() {
             *)
                 if declare -f "site_subcmd_${CMD}" &>/dev/null 2>&1; then
                     # Run subcommand function if exists.
-                    site_subcmd_${CMD} "$@"
+                    "site_subcmd_${CMD}" "$@"
                     exit 0
                 elif [[ -x "${CLI_PLUGINS_DIR}/lemper-site-${CMD}" ]]; then
                     # Source the plugin executable file.
+                    # shellcheck disable=SC1090
                     . "${CLI_PLUGINS_DIR}/lemper-site-${CMD}" "$@"
                     exit 0
                 else
-                    echo "${PROG_NAME}: '${CMD}' is not ${PROG_NAME} command."
-                    echo "See '${PROG_NAME} --help' for more information."
+                    echo "${CMD_PARENT} ${CMD_NAME}: '${CMD}' is not ${PROG_NAME} command."
+                    echo "See '${CMD_PARENT} ${CMD_NAME}--help' for more information."
                     exit 1
                 fi
             ;;
         esac
     else
-        echo "${PROG_NAME}: missing required arguments."
-        echo "See '${PROG_NAME} --help' for more information."
+        echo "${PROG_NAME} ${CMD_NAME}: missing required arguments."
+        echo "See '${PROG_NAME} ${CMD_NAME} --help' for more information."
         exit 1
     fi
 }
