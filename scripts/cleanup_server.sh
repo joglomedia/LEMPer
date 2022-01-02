@@ -21,7 +21,7 @@ else
 fi
 
 # Make sure only root can run this installer script.
-requires_root
+requires_root "$@"
 
 # Make sure only supported distribution can run this installer script.
 preflight_system_check

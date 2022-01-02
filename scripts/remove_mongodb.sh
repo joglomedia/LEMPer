@@ -2,7 +2,7 @@
 
 # MongoDB Uninstaller
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 10/12/2021
+# Last Build        : 24/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -14,28 +14,43 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 # Make sure only root can run this installer script.
-requires_root
+requires_root "$@"
+
+# Make sure only supported distribution can run this installer script.
+preflight_system_check
+
+DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
+RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
+MONGODB_VERSION=${MONGODB_VERSION:-"5.0"}
+[[ "${RELEASE_NAME}" == "jessie" || "${RELEASE_NAME}" == "xenial" ]] && MONGODB_VERSION="4.4"
+
+function remove_mongodb_repo() {
+    echo "Removing MongoDB repository..."
+
+    if [[ -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" ]]; then
+        run rm -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
+        run apt-get update -qq -y
+    fi
+
+    echo "Removing MongoDB repository key..."
+
+    run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key del -"
+}
 
 function init_mongodb_removal() {
     # Stop MongoDB server process.
     if [[ $(pgrep -c mongod) -gt 0 ]]; then
+        echo "Stopping MongoDB server..."
+
         run systemctl stop mongod
     fi
 
     if dpkg-query -l | awk '/mongodb/ { print $2 }' | grep -qwE "^mongodb"; then
-        echo "Found MongoDB package installation. Removing..."
+        echo "Removing MongoDB packages..."
 
         # Remove MongoDB server.
         #shellcheck disable=SC2046
-        #run apt-get purge -qq -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
-        run apt-get purge -qq -y mongodb-org mongodb-org-server mongodb-org-shell mongodb-org-tools
-
-        if [[ "${FORCE_REMOVE}" == true ]]; then
-            run rm -f /etc/apt/sources.list.d/mongodb-org-*
-        fi
-
-        # Remove MongoDB config files.
-        warning "!! This action is not reversible !!"
+        run apt-get purge -qq -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
 
         if [[ "${AUTO_REMOVE}" == true ]]; then
             if [[ "${FORCE_REMOVE}" == true ]]; then
@@ -44,27 +59,35 @@ function init_mongodb_removal() {
                 REMOVE_MONGOD_CONFIG="n"
             fi
         else
+            # Remove MongoDB config files.
+            warning "!! This action is not reversible !!"
+
             while [[ "${REMOVE_MONGOD_CONFIG}" != "y" && "${REMOVE_MONGOD_CONFIG}" != "n" ]]; do
                 read -rp "Remove MongoDB database and configuration files? [y/n]: " -e REMOVE_MONGOD_CONFIG
             done
         fi
 
         if [[ "${REMOVE_MONGOD_CONFIG}" == Y* || "${REMOVE_MONGOD_CONFIG}" == y* ]]; then
-            [ -f /etc/mongod.conf ] && run rm -fr /etc/mongod.conf
+            echo "Removing MongoDB data & configs..."
+
+            [ -f /etc/mongod.conf ] && run rm -f /etc/mongod.conf
             [ -d /var/lib/mongodb ] && run rm -fr /var/lib/mongodb
 
-            echo "All your MongoDB database and configuration files deleted permanently."
+            #echo "All your MongoDB database and configuration files deleted permanently."
+
+            # Remove MongoDB repository.
+            remove_mongodb_repo
         fi
     else
         echo "MongoDB package not found, possibly installed from source."
-        echo "Remove it manually!!"
 
         MONGOD_BIN=$(command -v mongod)
 
-        echo "MongoDB server binary executable: ${MONGOD_BIN}"
+        echo "MongoDB server executable binary: ${MONGOD_BIN}"
+        echo "You could remove it manually!"
     fi
 
-    # Final test.
+    # Final check.
     if [[ "${DRYRUN}" != true ]]; then
         if [[ -z $(command -v mongod) ]]; then
             success "MongoDB server removed succesfully."
@@ -76,7 +99,7 @@ function init_mongodb_removal() {
     fi
 }
 
-echo "Uninstalling MongoDB server..."
+echo "[MongoDB ${MONGODB_VERSION} Server Removal]"
 
 if [[ -n $(command -v mongod) ]]; then
     if [[ "${AUTO_REMOVE}" == true ]]; then

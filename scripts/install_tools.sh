@@ -14,17 +14,17 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 # Make sure only root can run this installer script.
-requires_root
+requires_root "$@"
 
 # Make sure only supported distribution can run this installer script.
 preflight_system_check
 
 ##
-# Webadmin install.
-#
+# LEMPer CLI & web admin install.
+##
 function init_tools_install() {
     # Install Lemper CLI tool.
-    echo "Installing LEMPer Stack CLI tool..."
+    echo -n "Installing LEMPer CLI tool..."
 
     run cp -f bin/lemper-cli.sh /usr/local/bin/lemper-cli && \
     run chmod ugo+x /usr/local/bin/lemper-cli
@@ -36,9 +36,8 @@ function init_tools_install() {
 
     run cp -f lib/lemper-create.sh /etc/lemper/cli-plugins/lemper-create && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-create && \
-    [ ! -x /etc/lemper/cli-plugins/lemper-site ] && 
-        run ln -s /etc/lemper/cli-plugins/lemper-create /etc/lemper/cli-plugins/lemper-site
-    [ ! -x /etc/lemper/cli-plugins/lemper-vhost ] && 
+
+    [ ! -x /etc/lemper/cli-plugins/lemper-vhost ] && \
         run ln -s /etc/lemper/cli-plugins/lemper-create /etc/lemper/cli-plugins/lemper-vhost
 
     run cp -f lib/lemper-db.sh /etc/lemper/cli-plugins/lemper-db && \
@@ -53,8 +52,11 @@ function init_tools_install() {
     # Created vhost config directory.
     [ ! -d /etc/lemper/vhost.d ] && run mkdir -p /etc/lemper/vhost.d
 
-    # Install Web Admin.
-    echo "Installing LEMPer Stack web panel..."
+    [ -x /usr/local/bin/lemper-cli ] && echo_ok "OK"
+
+
+    # Install Database Adminer.
+    echo -n "Installing database adminer..."
 
     [ ! -d /usr/share/nginx/html/lcp ] && run mkdir -p /usr/share/nginx/html/lcp
 
@@ -79,11 +81,17 @@ function init_tools_install() {
     run wget -q https://github.com/vrana/adminer/releases/download/v4.8.1/adminer-4.8.1.php \
         -O /usr/share/nginx/html/lcp/dbadmin/index.php 
     run wget -q https://github.com/vrana/adminer/releases/download/v4.8.1/editor-4.8.1.php \
-        -O /usr/share/nginx/html/lcp/dbadmin/editor.php 
+        -O /usr/share/nginx/html/lcp/dbadmin/editor.php
+
+    [ -f /usr/share/nginx/html/lcp/dbadmin/index.php ] && echo_ok "OK"
+
 
     # Install File Manager.
     # Experimental: Tinyfilemanager https://github.com/joglomedia/tinyfilemanager
     # Clone custom TinyFileManager.
+
+    echo -n "Installing file manager..."
+
     if [ ! -d /usr/share/nginx/html/lcp/filemanager/config ]; then
         run git clone -q --depth=1 --branch=lemperfm_1.3.0 https://github.com/joglomedia/tinyfilemanager.git \
             /usr/share/nginx/html/lcp/filemanager
@@ -103,11 +111,20 @@ function init_tools_install() {
         run chmod ugo+x /etc/lemper/cli-plugins/lemper-tfm
     fi
 
+    [[ -f /usr/share/nginx/html/lcp/filemanager/index.php && -x /etc/lemper/cli-plugins/lemper-tfm ]] && \
+        echo_ok "OK"
+
+
     # Install Zend OpCache Web Admin.
+    echo -n "Installing phpOpCacheStatus panel..."
+
     run wget -q https://raw.github.com/rlerdorf/opcache-status/master/opcache.php \
-        -O /usr/share/nginx/html/lcp/opcache.php 
+        -O /usr/share/nginx/html/lcp/opcache.php
+    [ -f /usr/share/nginx/html/lcp/opcache.php ] && echo_ok "OK"
 
     # Install phpMemcachedAdmin Web Admin.
+    echo -n "Installing phpMemcachedAdmin panel..."
+
     if [ ! -d /usr/share/nginx/html/lcp/memcadmin/ ]; then
         run git clone -q --depth=1 --branch=master \
             https://github.com/elijaa/phpmemcachedadmin.git /usr/share/nginx/html/lcp/memcadmin/
@@ -120,7 +137,7 @@ function init_tools_install() {
     fi
 
     # Configure phpMemcachedAdmin.
-    if ! ${DRYRUN}; then
+    if [[ "${DRYRUN}" != true ]]; then
         if [[ ${MEMCACHED_SASL} == "enable" || ${MEMCACHED_SASL} == true ]]; then
             MEMCACHED_SASL_CREDENTIAL="username=${MEMCACHED_USERNAME},
             password=${MEMCACHED_PASSWORD},"
@@ -167,39 +184,42 @@ return [
 EOL
     fi
 
+    [ -f /usr/share/nginx/html/lcp/memcadmin/index.php ] && echo_ok "OK"
+
+
     # Install phpRedisAdmin Web Admin.
-    if "${INSTALL_REDIS}"; then
-        #echo "Installing PHP Redis Admin web panel..."
+    echo -n "Installing PhpRedisAdmin panel..."
 
-        COMPOSER_BIN=$(command -v composer)
+    COMPOSER_BIN=$(command -v composer)
 
-        local CURRENT_DIR && \
-        CURRENT_DIR=$(pwd)
-        run cd /usr/share/nginx/html/lcp || return 1
+    local CURRENT_DIR && \
+    CURRENT_DIR=$(pwd)
+    run cd /usr/share/nginx/html/lcp || return 1
 
-        if [ ! -f redisadmin/includes/config.inc.php ]; then
-            run "${COMPOSER_BIN}" -q create-project erik-dubbelboer/php-redis-admin redisadmin && \
-            run cd redisadmin && \
-            run "${COMPOSER_BIN}" -q update && \
-            run cp includes/config.sample.inc.php includes/config.inc.php
+    if [ ! -f redisadmin/includes/config.inc.php ]; then
+        run "${COMPOSER_BIN}" -q create-project erik-dubbelboer/php-redis-admin redisadmin && \
+        run cd redisadmin && \
+        run "${COMPOSER_BIN}" -q update && \
+        run cp includes/config.sample.inc.php includes/config.inc.php
 
-            if [[ "${REDIS_REQUIRE_PASSWORD}" == true ]]; then
-                run sed -i "s|//'auth'\ =>\ 'redispasswordhere'|'auth'\ =>\ '${REDIS_PASSWORD}'|g" includes/config.inc.php
-            fi
-        else
-            run cd redisadmin && \
-            run "${COMPOSER_BIN}" -q update
+        if [[ "${REDIS_REQUIRE_PASSWORD}" == true ]]; then
+            run sed -i "s|//'auth'\ =>\ 'redispasswordhere'|'auth'\ =>\ '${REDIS_PASSWORD}'|g" includes/config.inc.php
         fi
-
-        run cd "${CURRENT_DIR}" || return 1
+    else
+        run cd redisadmin && \
+        run "${COMPOSER_BIN}" -q update
     fi
+
+    run cd "${CURRENT_DIR}" || return 1
+    [ -f /usr/share/nginx/html/lcp/redisadmin/index.php ] && echo_ok "OK"
+
 
     # Assign ownership properly.
     run chown -hR www-data:www-data /usr/share/nginx/html
 
-    if [[ -x /usr/local/bin/lemper-cli && -d /usr/share/nginx/html/lcp ]]; then
-        success "LEMPer CLI & web tools successfully installed."
-    fi
+    #if [[ -x /usr/local/bin/lemper-cli && -d /usr/share/nginx/html/lcp ]]; then
+    #    success "LEMPer CLI & web tools successfully installed."
+    #fi
 }
 
 echo "[LEMPer CLI & Web Tools Installation]"

@@ -14,7 +14,7 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 # Make sure only root can run this installer script.
-requires_root
+requires_root "$@"
 
 function mariadb_remove_config() {
     # Remove MariaDB server config files.
