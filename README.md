@@ -1,7 +1,7 @@
 # [L]inux [E]ngine-X [M]ariaDB [P]HP Install[ER]
 
 <p align="center">
-  <img src="/.github/assets/lemper-logo.svg?raw=true" alt="Serverd by LEMPer Stack © @joglomedia"/>
+  <img src="/.github/assets/lemper-logo.svg?raw=true" alt="Served by LEMPer Stack © @joglomedia"/>
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small toolset (a bunch collection of scripts) that usually I use to deploy and manage LEMP stack on Debian/Ubuntu server. LEMPer is crafted to support wide-range PHP framework & CMS. It is available as <em>Free Alternative</em> to control panel such as cPanel, Plesk, CloudWays, Ploi, RunCloud, ServerPilot, etc.
+LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script, also known as LEMP / LNMP installer. This is just a small toolset (a bunch collection of scripts) that I use to deploy and manage LEMP stack on Debian and Ubuntu server. LEMPer is crafted to support wide-range PHP framework & CMS. It is available as <em>Free Alternative</em> to the paid control panel such as cPanel, Plesk, CloudWays, Ploi, RunCloud, ServerPilot, etc.
 </p>
 
 ## Features
@@ -27,7 +27,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * Support HTTP/2 natively for your secure website.
 * Free SSL certificates from [Let's Encrypt](https://letsencrypt.org/).
 * Get an A+ grade on several SSL Security Test ([Qualys SSL Labs](https://www.ssllabs.com/ssltest/analyze.html?d=masedi.net), [ImmuniWeb](https://www.immuniweb.com/ssl/?id=bVrykFnK), and Wormly).
-* Multiple PHP versions 5.6 [EOL], 7.0 [EOL], 7.1 [EOL], 7.2 [EOL], 7.3 [SFO], 7.4, 8.0 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
+* Multiple PHP versions 5.6 [EOL], 7.0 [EOL], 7.1 [EOL], 7.2 [EOL], 7.3 [SFO], 7.4, 8.0, 8.1 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
 * Run PHP as user who own the file (Multi-user isolation via FPM pool). Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
 * Supported PHP Framework and CMS:
   * Vanilla PHP: default,
@@ -40,6 +40,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * NoSQL database with MongoDB.
 * In-memory database with Redis.
 * Memory cache with Memcached.
+* FTP server with VSFTPD or Pure-FTPd.
 * [Adminer](https://www.adminer.org/) web-based SQL & MongoDB database manager (PhpMyAdmin replacement).
 * [phpRedisAdmin](https://github.com/erikdubbelboer/phpRedisAdmin) web-based Redis database manager.
 * [phpMemcachedAdmin](https://github.com/elijaa/phpmemcachedadmin) web-based Memcached manager.
