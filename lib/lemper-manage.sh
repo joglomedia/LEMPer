@@ -321,13 +321,13 @@ function enable_fastcgi_cache() {
         # enable fastcgi_cache conf
         run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
+
+        # Reload Nginx.
+        reload_nginx
     else
         info "FastCGI cache is not enabled. There is no cached configuration."
         exit 1
     fi
-
-    # Reload Nginx.
-    reload_nginx
 }
 
 ##
@@ -348,13 +348,13 @@ function disable_fastcgi_cache() {
         # enable fastcgi_cache conf
         run sed -i "s|^\        include\ /etc/nginx/includes/fastcgi_cache.conf|\        #include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
+
+        # Reload Nginx.
+        reload_nginx
     else
         info "FastCGI cache is not enabled. There is no cached configuration."
         exit 1
     fi
-
-    # Reload Nginx.
-    reload_nginx
 }
 
 ##
@@ -384,13 +384,13 @@ function enable_mod_pagespeed() {
         #    run sed -i "s/#pagespeed\ MapOriginDomain/pagespeed\ MapOriginDomain/g" \
         #        "/etc/nginx/sites-available/${DOMAIN}.conf"
         #fi
+
+        # Reload Nginx.
+        reload_nginx
     else
         info "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
     fi
-
-    # Reload Nginx.
-    reload_nginx
 }
 
 ##
@@ -419,13 +419,13 @@ function disable_mod_pagespeed() {
         #    run sed -i "s/^\    pagespeed\ MapOriginDomain/\    #pagespeed\ MapOriginDomain/g" \
         #        "/etc/nginx/sites-available/${DOMAIN}.conf"
         #fi
+
+        # Reload Nginx.
+        reload_nginx
     else
         info "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
         exit 1
     fi
-
-    # Reload Nginx.
-    reload_nginx
 }
 
 ##
@@ -518,13 +518,10 @@ EOL
             reload_nginx
         else
             warning -e "\nOops, Nginx HTTPS server block already exists. Please inspect manually for further action!"
-            exit 1
         fi
     else
         info "Updating HTTPS config in dry run mode."
     fi
-
-    exit 0
 }
 
 ##
@@ -557,8 +554,6 @@ function disable_ssl() {
     else
         info "Disabling HTTPS config in dry run mode."
     fi
-
-    exit 0
 }
 
 ##
@@ -587,6 +582,8 @@ function remove_ssl() {
         else
             fail "Certbot executable binary not found. Install it first!"
         fi
+
+        reload_nginx
     else
         info "SSL certificate removed in dry run mode."
     fi
@@ -628,11 +625,11 @@ function renew_ssl() {
         else
             info "Certificate file not found. May be your SSL is not activated yet."
         fi
+
+        reload_nginx
     else
         info "Renew SSL certificate in dry run mode."
     fi
-
-    exit 0
 }
 
 ##
@@ -844,18 +841,22 @@ function init_lemper_manage() {
             ;;
             -s | --enable-ssl)
                 enable_ssl "${2}"
+                exit
                 shift 2
             ;;
             --disable-ssl)
                 disable_ssl "${2}"
+                exit
                 shift 2
             ;;
             --remove-ssl)
                 remove_ssl "${2}"
+                exit
                 shift 2
             ;;
             --renew-ssl)
                 renew_ssl "${2}"
+                exit
                 shift 2
             ;;
             -b | --enable-brotli)
