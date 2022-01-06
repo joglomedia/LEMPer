@@ -1327,7 +1327,7 @@ function init_lemper_create() {
                             --admin_user="${APP_ADMIN_USER}" --admin_password="${APP_ADMIN_PASS}" \
                             --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
                         run sudo -u "${USERNAME}" -i -- wp-cli plugin install \
-                            akismet classic-editor nginx-helper redis-cache statically --activate --path="${WEBROOT}"
+                            akismet autoptimize cache-enabler classic-editor nginx-helper redis-cache --activate --path="${WEBROOT}"
                     fi
 
                     # Install WooCommerce.
@@ -1372,7 +1372,7 @@ function init_lemper_create() {
                             --title="WordPress Multi-site Managed by LEMPer" --admin_user="${APP_ADMIN_USER}" \
                             --admin_password="${APP_ADMIN_PASS}" --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
                         run sudo -u "${USERNAME}" -i -- wp-cli plugin install \
-                            akismet classic-editor nginx-helper redis-cache statically --activate-network --path="${WEBROOT}"
+                            akismet autoptimize cache-enabler classic-editor nginx-helper redis-cache --activate-network --path="${WEBROOT}"
                     fi
 
                     # Mercator domain mapping.
