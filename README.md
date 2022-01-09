@@ -125,23 +125,23 @@ sudo lemper-cli manage --help
 sudo lemper-cli help
 ```
 
-Note: Lemper CLI will automagically add a new PHP-FPM user's pool configuration if it doesn't exists. You must add the user account first.
+Note: LEMPer CLI automagically add a new PHP-FPM user's pool configuration if it doesn't exists. You must add the user account first.
 
 ### Web-based Administration
 
-You can access pre-installed web-based administration tools here
+You can access pre-installed web-based administration tools here.
 
 ```bash
 http://YOUR_IP_ADDRESS:8082/lcp/
 ```
 
-Adminer (Web-based SQL database managemer)
+Adminer (Web-based SQL database manager)
 
 ```bash
 http://YOUR_DOMAIN_NAME:8082/lcp/dbadmin
 ```
 
-TinyFileManager (Web-based file managemer)
+TinyFileManager (Web-based file manager)
 
 ```bash
 http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
@@ -162,7 +162,7 @@ Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new)
 
 ## Security Vulnerabilities and Bugs
 
-If you discover any security vulnerability or any bug within _LEMPer Stack_, please open an issue.
+If you discover any security vulnerability or any bug within _LEMPer Stack_, please open an [issue](https://github.com/joglomedia/LEMPer/issues/new).
 
 ## Contributing
 
@@ -205,16 +205,16 @@ Made with [contributors-img](https://contrib.rocks).
 
 ### Financial Contributors
 
-You can support us using any of the methods below:
+You can support development by using any of the methods below:
 
 **[Buy Me a Bottle of Milk or a Cup of Coffee](https://paypal.me/masedi) !!**
 
 ## Licence
 
-LEMPer stack is open-source project licensed under the GNU GPLv3 license.
+LEMPer Stack is open-source project licensed under the GNU GPLv3 license.
 
 ## Copyright
 
-(c) 2014-2021 | [MasEDI.Net](https://masedi.net/)
+(c) 2014-2022 | [MasEDI.Net](https://masedi.net/)
 
 ### Enjoy LEMPer Stack ;)
