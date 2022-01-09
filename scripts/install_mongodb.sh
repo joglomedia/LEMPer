@@ -133,6 +133,8 @@ function init_mongodb_install() {
             if [[ -n $(command -v mongosh) && $(pgrep -c mongod) -gt 0 ]]; then
                 echo "Final test MongoDB service..."
 
+                sleep 3 # Wait for MongoDB to completely start.
+
                 MONGODB_ADMIN_USER=${MONGODB_ADMIN_USER:-"lemperdb"}
                 MONGODB_ADMIN_PASSWORD=${MONGODB_ADMIN_PASSWORD:-"$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"}
 
