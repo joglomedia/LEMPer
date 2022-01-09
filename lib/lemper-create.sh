@@ -697,7 +697,7 @@ pm.max_requests = 500
 pm.status_path = /status
 ping.path = /ping
 
-slowlog = /var/log/php/php${PHP_VERSION}-fpm_slow.\$pool.log
+slowlog = /home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_slow.log
 request_slowlog_timeout = 5s
 
 chdir = /home/${USERNAME}
@@ -712,7 +712,7 @@ php_flag[display_errors] = On
 ;php_admin_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT & ~E_WARNING & ~E_NOTICE
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_flag[log_errors] = On
-php_admin_value[error_log] = /var/log/php/php${PHP_VERSION}-fpm.\$pool.log
+php_admin_value[error_log] = /home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm.log
 php_admin_value[date.timezone] = ${TIMEZONE}
 php_admin_value[memory_limit] = 128M
 php_admin_value[opcache.file_cache] = /home/${USERNAME}/.lemper/php/opcache
