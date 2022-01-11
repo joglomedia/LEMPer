@@ -2,7 +2,7 @@
 
 # PHP Installer
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 11/12/2021
+# Last Build        : 09/01/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -14,7 +14,7 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 # Make sure only root can run this installer script.
-requires_root
+requires_root "$@"
 
 # Make sure only supported distribution can run this installer script.
 preflight_system_check
@@ -195,6 +195,14 @@ function install_php() {
             run mkdir -p /var/log/php
         fi
 
+        if [[ ! -d "/home/${LEMPER_USERNAME}/logs/php" ]]; then
+            run mkdir -p "/home/${LEMPER_USERNAME}/logs/php"
+        fi
+
+        # Log rotation.
+        run cp -f "etc/logrotate.d/php${PHPv}-fpm" /etc/logrotate.d/ && \
+        run chmod 0644 "/etc/logrotate.d/php${PHPv}-fpm"
+
         # Optimize PHP & FPM configuration.
         optimize_php_fpm "${PHPv}"
     fi
@@ -253,6 +261,12 @@ function optimize_php_fpm() {
         run cp -f "etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/"
     else
         if [[ "${DRYRUN}" != true ]]; then
+            if [[ "${ENVIRONMENT}" =~ "prod" ]]; then
+                OVT="${OVT:-"0"}"
+            else
+                OVT="${OVT:-"1"}"
+            fi
+
             cat >> "/etc/php/${PHPv}/fpm/php.ini" <<EOL
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -262,13 +276,14 @@ function optimize_php_fpm() {
 [opcache]
 opcache.enable=1
 opcache.enable_cli=0
-opcache.memory_consumption=128
-opcache.interned_strings_buffer=8
-opcache.max_accelerated_files=10000
+opcache.memory_consumption=512
+opcache.interned_strings_buffer=64
+opcache.max_accelerated_files=32531
 opcache.max_wasted_percentage=5
-opcache.validate_timestamps=1
-opcache.revalidate_freq=1
+opcache.validate_timestamps=${OVT}
+opcache.revalidate_freq=600
 opcache.save_comments=1
+opcache.fast_shutdown=1
 opcache.error_log="/var/log/php/php${PHPv}-opcache_error.log"
 EOL
         else
@@ -408,7 +423,8 @@ pm.max_requests = 500
 pm.status_path = /status
 ping.path = /ping
 
-slowlog = /var/log/php/php${PHPv}-fpm_slow.\$pool.log
+;slowlog = /var/log/php/php${PHPv}-fpm_slow.\$pool.log
+slowlog = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_slow.log
 request_slowlog_timeout = 10s
 
 ;chroot = /home/${POOLNAME}
@@ -424,7 +440,7 @@ php_flag[display_errors] = On
 ;php_admin_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_flag[log_errors] = On
-php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
+php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-fpm.log
 php_admin_value[date.timezone] = ${TIMEZONE}
 php_admin_value[memory_limit] = 128M
 php_admin_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/php/opcache

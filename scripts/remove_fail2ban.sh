@@ -14,7 +14,7 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 # Make sure only root can run this installer script.
-requires_root
+requires_root "$@"
 
 function init_fail2ban_removal() {
     # Stop fail2ban process.

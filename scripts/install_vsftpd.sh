@@ -14,7 +14,7 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 # Make sure only root can run this installer script.
-requires_root
+requires_root "$@"
 
 # Make sure only supported distribution can run this installer script.
 preflight_system_check
@@ -118,7 +118,7 @@ function init_vsftpd_install() {
                 elif [[ -f "${LIB_GNU_DIR}/libcap.so" ]]; then
                     run ln -s "${LIB_GNU_DIR}/libcap.so" "${LIB_DIR}/libcap.so"
                 else
-                    error "Cannot find libcap.so file."
+                    echo "Cannot find libcap.so file."
                 fi
 
                 local CURRENT_DIR && \
@@ -135,11 +135,21 @@ function init_vsftpd_install() {
                 run cd "${BUILD_DIR}" && \
                 run wget -q "${VSFTPD_ZIP_URL}" && \
                 run tar -zxf "${VSFTPD_FILENAME}" && \
-                run cd vsftpd-*/ && \
+                run cd vsftpd-*/ || return 1
+
+                # If SSL Enabled, modify the builddefs.h file.
+                if [[ "${VSFTPD_SSL_ENABLE}" == true ]]; then
+                    run sed -i 's/\#undef\ VSF_BUILD_SSL/\#define\ VSF_BUILD_SSL/g' ./builddefs.h
+                fi
+
                 run make && \
                 run make install && \
                 run ldconfig /usr/local/lib && \
                 run cd "${CURRENT_DIR}" || return 1
+
+                # Move executable to /usr/sbin.
+                [ -x /usr/local/sbin/vsftpd ] && \
+                    run mv /usr/local/sbin/vsftpd /usr/sbin/
             ;;
             *)
                 # Skip installation.
@@ -182,9 +192,13 @@ pasv_max_port=50000
 user_sub_token=$USER
 local_root=/home/$USER
 
-rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
-rsa_private_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
-ssl_enable=Yes
+EOL
+
+            # Enable SSL.
+            if [[ "${VSFTPD_SSL_ENABLE}" == true ]]; then
+                cat >> /etc/vsftpd.conf <<EOL
+ssl_enable=YES
+require_ssl_reuse=NO
 allow_anon_ssl=NO
 force_local_data_ssl=YES
 force_local_logins_ssl=YES
@@ -192,8 +206,11 @@ ssl_tlsv1=YES
 ssl_sslv2=NO
 ssl_sslv3=NO
 ssl_ciphers=HIGH
-require_ssl_reuse=NO
+
+rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+rsa_private_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
 EOL
+            fi
         fi
 
         # Add systemd service.

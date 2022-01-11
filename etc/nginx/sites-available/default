@@ -35,19 +35,15 @@ server {
         auth_basic_user_file /srv/.htpasswd;
     }
 
-    location ~ \.(php|php74)$ {
+    location ~ \.php81$ {
         try_files $uri =404;
-
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_index index.php;
-
         include /etc/nginx/fastcgi_params;
         include /etc/nginx/includes/fastcgi.conf;
-
         # Uncomment to Enable PHP FastCGI cache.
         #include /etc/nginx/includes/fastcgi_cache.conf;
-
-        fastcgi_pass unix:/run/php/php7.4-fpm.sock;
+        fastcgi_pass unix:/run/php/php8.1-fpm.sock;
     }
 
     location ~ \.php80$ {
@@ -58,6 +54,17 @@ server {
         include /etc/nginx/includes/fastcgi.conf;
         #include /etc/nginx/includes/fastcgi_cache.conf;
         fastcgi_pass unix:/run/php/php8.0-fpm.sock;
+    }
+
+    location ~ \.(php|php74)$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+        # Uncomment to Enable PHP FastCGI cache.
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+        fastcgi_pass unix:/run/php/php7.4-fpm.sock;
     }
 
     location ~ \.php73$ {
@@ -111,7 +118,6 @@ server {
     }
 
     #include /etc/nginx/includes/error_pages.conf;
-
     #include /etc/nginx/includes/fcgiwrap.conf;
 }
 
@@ -143,7 +149,6 @@ server {
         auth_basic "Denied";
         auth_basic_user_file /srv/.htpasswd;
 
-        # Pass the PHP scripts to FastCGI with basic auth.
         location ~ \.php$ {
             try_files $uri =404;
 
@@ -156,25 +161,18 @@ server {
             # Uncomment to Enable PHP FastCGI cache.
             #include /etc/nginx/includes/fastcgi_cache.conf;
 
-            fastcgi_pass unix:/run/php/php7.3-fpm.sock;
+            fastcgi_pass unix:/run/php/php7.4-fpm.sock;
         }
     }
 
-    # Pass the PHP scripts to FastCGI server listening on Unix socket.
-    #
-    location ~ \.(php|php74)$ {
+    location ~ \.php81$ {
         try_files $uri =404;
-
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_index index.php;
-
         include /etc/nginx/fastcgi_params;
         include /etc/nginx/includes/fastcgi.conf;
-
-        # Uncomment to Enable PHP FastCGI cache.
         #include /etc/nginx/includes/fastcgi_cache.conf;
-
-        fastcgi_pass unix:/run/php/php7.4-fpm.sock;
+        fastcgi_pass unix:/run/php/php8.1-fpm.sock;
     }
 
     location ~ \.php80$ {
@@ -185,6 +183,16 @@ server {
         include /etc/nginx/includes/fastcgi.conf;
         #include /etc/nginx/includes/fastcgi_cache.conf;
         fastcgi_pass unix:/run/php/php8.0-fpm.sock;
+    }
+
+    location ~ \.(php|php74)$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+        fastcgi_pass unix:/run/php/php7.4-fpm.sock;
     }
 
     location ~ \.php73$ {
@@ -238,7 +246,6 @@ server {
     }
 
     #include /etc/nginx/includes/error_pages.conf;
-
     #include /etc/nginx/includes/fcgiwrap.conf;
 }
 

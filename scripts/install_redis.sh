@@ -2,7 +2,7 @@
 
 # Redis server installer
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 11/12/2021
+# Last Build        : 21/12/2021
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -14,7 +14,7 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 # Make sure only root can run this installer script.
-requires_root
+requires_root "$@"
 
 # Make sure only supported distribution can run this installer script.
 preflight_system_check
@@ -184,7 +184,7 @@ EOL
             # Custom kernel optimization for Redis.
             cat >> /etc/sysctl.conf <<EOL
 
-###################################
+###################################################################
 # Custom optimization for LEMPer
 #
 net.core.somaxconn=65535

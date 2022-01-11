@@ -1,7 +1,7 @@
 # [L]inux [E]ngine-X [M]ariaDB [P]HP Install[ER]
 
 <p align="center">
-  <img src="/.github/assets/lemper-logo.svg?raw=true" alt="Serverd by LEMPer Stack © @joglomedia"/>
+  <img src="/.github/assets/lemper-logo.svg?raw=true" alt="Served by LEMPer Stack © @joglomedia"/>
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script. This is just a small toolset (a bunch collection of scripts) that usually I use to deploy and manage LEMP stack on Debian/Ubuntu server. LEMPer is crafted to support wide-range PHP framework & CMS. It is available as <em>Free Alternative</em> to control panel such as cPanel, Plesk, CloudWays, Ploi, RunCloud, ServerPilot, etc.
+LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in Bash script, also known as LEMP / LNMP installer. This is just a small toolset (a bunch collection of scripts) that I use to deploy and manage LEMP stack on Debian and Ubuntu server. LEMPer is crafted to support wide-range PHP framework & CMS. It is available as <em>Free Alternative</em> to the paid control panel such as cPanel, Plesk, CloudWays, Ploi, RunCloud, ServerPilot, etc.
 </p>
 
 ## Features
@@ -27,7 +27,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * Support HTTP/2 natively for your secure website.
 * Free SSL certificates from [Let's Encrypt](https://letsencrypt.org/).
 * Get an A+ grade on several SSL Security Test ([Qualys SSL Labs](https://www.ssllabs.com/ssltest/analyze.html?d=masedi.net), [ImmuniWeb](https://www.immuniweb.com/ssl/?id=bVrykFnK), and Wormly).
-* Multiple PHP versions 5.6 [EOL], 7.0 [EOL], 7.1 [EOL], 7.2 [EOL], 7.3 [SFO], 7.4, 8.0 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
+* Multiple PHP versions 5.6 [EOL], 7.0 [EOL], 7.1 [EOL], 7.2 [EOL], 7.3 [SFO], 7.4, 8.0, 8.1 from [Ondrej's repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
 * Run PHP as user who own the file (Multi-user isolation via FPM pool). Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
 * Supported PHP Framework and CMS:
   * Vanilla PHP: default,
@@ -40,6 +40,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * NoSQL database with MongoDB.
 * In-memory database with Redis.
 * Memory cache with Memcached.
+* FTP server with VSFTPD or Pure-FTPd.
 * [Adminer](https://www.adminer.org/) web-based SQL & MongoDB database manager (PhpMyAdmin replacement).
 * [phpRedisAdmin](https://github.com/erikdubbelboer/phpRedisAdmin) web-based Redis database manager.
 * [phpMemcachedAdmin](https://github.com/elijaa/phpmemcachedadmin) web-based Memcached manager.
@@ -124,23 +125,23 @@ sudo lemper-cli manage --help
 sudo lemper-cli help
 ```
 
-Note: Lemper CLI will automagically add a new PHP-FPM user's pool configuration if it doesn't exists. You must add the user account first.
+Note: LEMPer CLI automagically add a new PHP-FPM user's pool configuration if it doesn't exists. You must add the user account first.
 
 ### Web-based Administration
 
-You can access pre-installed web-based administration tools here
+You can access pre-installed web-based administration tools here.
 
 ```bash
 http://YOUR_IP_ADDRESS:8082/lcp/
 ```
 
-Adminer (Web-based SQL database managemer)
+Adminer (Web-based SQL database manager)
 
 ```bash
 http://YOUR_DOMAIN_NAME:8082/lcp/dbadmin
 ```
 
-TinyFileManager (Web-based file managemer)
+TinyFileManager (Web-based file manager)
 
 ```bash
 http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
@@ -161,7 +162,7 @@ Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new)
 
 ## Security Vulnerabilities and Bugs
 
-If you discover any security vulnerability or any bug within _LEMPer Stack_, please open an issue.
+If you discover any security vulnerability or any bug within _LEMPer Stack_, please open an [issue](https://github.com/joglomedia/LEMPer/issues/new).
 
 ## Contributing
 
@@ -204,16 +205,16 @@ Made with [contributors-img](https://contrib.rocks).
 
 ### Financial Contributors
 
-You can support us using any of the methods below:
+You can support development by using any of the methods below:
 
 **[Buy Me a Bottle of Milk or a Cup of Coffee](https://paypal.me/masedi) !!**
 
 ## Licence
 
-LEMPer stack is open-source project licensed under the GNU GPLv3 license.
+LEMPer Stack is open-source project licensed under the GNU GPLv3 license.
 
 ## Copyright
 
-(c) 2014-2021 | [MasEDI.Net](https://masedi.net/)
+(c) 2014-2022 | [MasEDI.Net](https://masedi.net/)
 
 ### Enjoy LEMPer Stack ;)

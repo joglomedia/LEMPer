@@ -23,79 +23,9 @@ PROG_VER="2.x.x"
 CMD_PARENT="lemper-cli"
 CMD_NAME="create"
 
-# Color decorator.
-RED=91
-GREEN=92
-YELLOW=93
-
-##
-# Helper Functions
-#
-function begin_color() {
-    color="${1}"
-    echo -e -n "\e[${color}m"
-}
-
-function end_color() {
-    echo -e -n "\e[0m"
-}
-
-function echo_color() {
-    color="${1}"
-    shift
-    begin_color "${color}"
-    echo "$@"
-    end_color
-}
-
-function error() {
-    echo_color "${RED}" -n "Error: " >&2
-    echo "$@" >&2
-}
-
-# Prints an error message and exits with an error code.
-function fail() {
-    error "$@"
-    echo >&2
-    echo "For usage information, run this script with --help" >&2
-    exit 1
-}
-
-function status() {
-    echo_color "${GREEN}" "$@"
-}
-
-function warning() {
-    echo_color "${YELLOW}" "$@"
-}
-
-function success() {
-    echo_color "${GREEN}" -n "Success: " >&2
-    echo "$@" >&2
-}
-
-function info() {
-    echo_color "${YELLOW}" -n "Info: " >&2
-    echo "$@" >&2
-}
-
-# Run command
-function run() {
-    if "$DRYRUN"; then
-        echo_color "${YELLOW}" -n "would run "
-        echo "$@"
-    else
-        if ! "$@"; then
-            local CMDSTR="$*"
-            error "Failure running '${CMDSTR}', exiting."
-            exit 1
-        fi
-    fi
-}
-
-# May need to run this as sudo!
-if [[ "$(id -u)" -ne 0 ]]; then
-    error "This command can only be run by root."
+# Make sure only root can access and not direct access.
+if ! declare -F "requires_root" &>/dev/null; then
+    echo "Direct access to this script is not permitted."
     exit 1
 fi
 
@@ -109,7 +39,7 @@ done
 
 if [[ ${#NO_PACKAGES[@]} -gt 0 ]]; then
     printf -v NO_PACKAGES_STR '%s, ' "${NO_PACKAGES[@]}"
-    error "${PROG_NAME} requires: ${NO_PACKAGES_STR%, }, please install it first!"
+    error "${PROG_NAME} ${COMMAND_NAME} requires: ${NO_PACKAGES_STR%, }, please install it first!"
     echo "help: run 'sudo apt-get install ${NO_PACKAGES[*]}'"
     exit 1
 fi
@@ -767,7 +697,7 @@ pm.max_requests = 500
 pm.status_path = /status
 ping.path = /ping
 
-slowlog = /var/log/php/php${PHP_VERSION}-fpm_slow.\$pool.log
+slowlog = /home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_slow.log
 request_slowlog_timeout = 5s
 
 chdir = /home/${USERNAME}
@@ -782,7 +712,7 @@ php_flag[display_errors] = On
 ;php_admin_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT & ~E_WARNING & ~E_NOTICE
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 php_admin_flag[log_errors] = On
-php_admin_value[error_log] = /var/log/php/php${PHP_VERSION}-fpm.\$pool.log
+php_admin_value[error_log] = /home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm.log
 php_admin_value[date.timezone] = ${TIMEZONE}
 php_admin_value[memory_limit] = 128M
 php_admin_value[opcache.file_cache] = /home/${USERNAME}/.lemper/php/opcache
@@ -955,7 +885,7 @@ function init_lemper_create() {
     ENABLE_FAIL2BAN=false
     TMPDIR="/tmp/lemper"
 
-    # Test mode
+    # Dry run (test mode).
     DRYRUN=false
 
     # Args counter
@@ -1397,7 +1327,7 @@ function init_lemper_create() {
                             --admin_user="${APP_ADMIN_USER}" --admin_password="${APP_ADMIN_PASS}" \
                             --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
                         run sudo -u "${USERNAME}" -i -- wp-cli plugin install \
-                            akismet classic-editor nginx-helper redis-cache statically --activate --path="${WEBROOT}"
+                            akismet autoptimize cache-enabler classic-editor nginx-helper redis-cache --activate --path="${WEBROOT}"
                     fi
 
                     # Install WooCommerce.
@@ -1442,7 +1372,7 @@ function init_lemper_create() {
                             --title="WordPress Multi-site Managed by LEMPer" --admin_user="${APP_ADMIN_USER}" \
                             --admin_password="${APP_ADMIN_PASS}" --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
                         run sudo -u "${USERNAME}" -i -- wp-cli plugin install \
-                            akismet classic-editor nginx-helper redis-cache statically --activate-network --path="${WEBROOT}"
+                            akismet autoptimize cache-enabler classic-editor nginx-helper redis-cache --activate-network --path="${WEBROOT}"
                     fi
 
                     # Mercator domain mapping.

@@ -65,14 +65,6 @@ function fail() {
     exit 1
 }
 
-function status() {
-    echo_color "${GREEN}" "$@"
-}
-
-function warning() {
-    echo_color "${YELLOW}" "$@"
-}
-
 function success() {
     echo_color "${GREEN}" -n "Success: " >&2
     echo "$@" >&2
@@ -81,6 +73,42 @@ function success() {
 function info() {
     echo_color "${YELLOW}" -n "Info: " >&2
     echo "$@" >&2
+}
+
+function status() {
+    echo_color "${GREEN}" "$@"
+}
+
+function warning() {
+    echo_color "${YELLOW}" "$@"
+}
+
+function echo_ok() {
+    echo_color "${GREEN}" "$@"
+}
+
+function echo_warn() {
+    echo_color "${YELLOW}" "$@"
+}
+
+function echo_err() {
+    echo_color "${RED}" "$@"
+}
+
+# Make sure only root can run LEMPer script.
+function requires_root() {
+    if [[ "$(id -u)" -ne 0 ]]; then
+        if ! hash sudo 2>/dev/null; then
+            echo "Installer script must be run as 'root' or with sudo."
+            exit 1
+        else
+            #echo "Switching to root user to run installer script."
+            sudo -E "$0" "$@"
+            exit 0
+        fi
+    fi
+
+    #success "Root privileges granted."
 }
 
 # Run command
@@ -295,14 +323,6 @@ function validate_fqdn() {
         echo true # success
     else
         echo false # error
-    fi
-}
-
-# Make sure only root can run LEMPer script.
-function requires_root() {
-    if [[ "$(id -u)" -ne 0 ]]; then
-        error "This command can only be run by root."
-        exit 1
     fi
 }
 

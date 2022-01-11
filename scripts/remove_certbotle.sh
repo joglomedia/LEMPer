@@ -14,7 +14,7 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 # Make sure only root can run this installer script.
-requires_root
+requires_root "$@"
 
 function init_certbotle_removal() {
     if dpkg-query -l | awk '/certbot/ { print $2 }' | grep -qwE "^certbot$"; then

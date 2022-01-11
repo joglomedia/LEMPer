@@ -14,7 +14,7 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 # Make sure only root can run this installer script.
-requires_root
+requires_root "$@"
 
 # Make sure only supported distribution can run this installer script.
 preflight_system_check
@@ -22,14 +22,18 @@ preflight_system_check
 # Install Certbot Let's Encrypt.
 function init_certbotle_install() {
     if [[ "${AUTO_INSTALL}" == true ]]; then
-        DO_INSTALL_CERTBOT="y"
+        if [[ "${INSTALL_CERTBOT}" == true ]]; then
+            DO_INSTALL_CERTBOT="y"
+        else
+            DO_INSTALL_CERTBOT="n"
+        fi
     else
         while [[ "${DO_INSTALL_CERTBOT}" != "y" && "${DO_INSTALL_CERTBOT}" != "n" ]]; do
             read -rp "Do you want to install Certbot Let's Encrypt client? [y/n]: " -i y -e DO_INSTALL_CERTBOT
         done
     fi
 
-    if [[ ${DO_INSTALL_CERTBOT} == y* && ${INSTALL_CERTBOT} == true ]]; then
+    if [[ ${DO_INSTALL_CERTBOT} == y* || ${DO_INSTALL_CERTBOT} == Y* ]]; then
         echo "Installing Certbot Let's Encrypt client..."
 
         DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
