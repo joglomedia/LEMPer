@@ -671,6 +671,7 @@ EOL
 #
 function create_fpm_pool_conf() {
     local POOLNAME="${1}"
+    local PHPv="${2}"
 
     cat <<- EOL
 [${POOLNAME}]
@@ -1053,7 +1054,7 @@ function init_lemper_create() {
                     echo "Creating new PHP-FPM pool '${USERNAME}' configuration..."
 
                     # Create PHP FPM pool conf.
-                    create_fpm_pool_conf "${USERNAME}" > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
+                    create_fpm_pool_conf "${USERNAME}" "${PHP_VERSION}" > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
                     run touch "/var/log/php${PHP_VERSION}-fpm_slow.${USERNAME}.log"
 
                     # Create default directories.
