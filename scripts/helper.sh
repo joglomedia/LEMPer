@@ -2,12 +2,22 @@
 
 # Helper Functions
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 11/12/2021
+# Last Build        : 29/01/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
-# Export environment variables.
+# Define base directory.
 BASE_DIR=${BASE_DIR:-"$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"}
+
+# Define scripts directory.
+export SCRIPTS_DIR
+if grep -q "scripts" <<< "${BASE_DIR}"; then
+    SCRIPTS_DIR="${BASE_DIR}"
+else
+    SCRIPTS_DIR="${BASE_DIR}/scripts"
+fi
+
+# Export environment variables.
 ENVFILE=$(echo "${BASE_DIR}/.env" | sed '$ s|\/scripts\/.env$|\/.env|')
 
 if [[ -f "${ENVFILE}" ]]; then
@@ -437,8 +447,33 @@ function get_release_name() {
     echo "${RELEASE_NAME}"
 }
 
+# Get server private IP Address.
+function get_ip_private() {
+    local SERVER_IP_PRIVATE && \
+    SERVER_IP_PRIVATE=$(ip addr | grep 'inet' | grep -v inet6 | \
+        grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | \
+        grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
+    
+    echo "${SERVER_IP_PRIVATE}"
+}
+
+# Get server public IP Address.
+function get_ip_public() {
+    local SERVER_IP_PRIVATE && SERVER_IP_PRIVATE=$(get_ip_private)
+    local SERVER_IP_PUBLIC && \
+    SERVER_IP_PUBLIC=$(curl -s http://ipecho.net/plain)
+
+    # Ugly hack to detect aws-lightsail public IP address.
+    if [[ "${SERVER_IP_PRIVATE}" == "${SERVER_IP_PUBLIC}" ]]; then
+        echo "${SERVER_IP_PRIVATE}"
+    else
+        echo "${SERVER_IP_PUBLIC}"
+    fi
+}
+
 # Make sure only supported distribution can run LEMPer script.
 function preflight_system_check() {
+    # Set system distro version.
     export DISTRIB_NAME && DISTRIB_NAME=$(get_distrib_name)
     export RELEASE_NAME && RELEASE_NAME=$(get_release_name)
 
@@ -447,30 +482,24 @@ function preflight_system_check() {
         fail -e "This Linux distribution isn't supported yet. \nIf you'd like it to be, let us know at https://github.com/joglomedia/LEMPer/issues"
     fi
 
-    # Create a temporary directory for the LEMPer installation.
-    BUILD_DIR=${BUILD_DIR:-"/tmp/lemper_build"}
-    [ ! -d "${BUILD_DIR}" ] && run mkdir -p "${BUILD_DIR}"
-}
-
-# Verify system pre-requisites configuration.
-function verify_prerequisites() {
     # Set system architecture.
     export ARCH && \
     ARCH=$(uname -p)
 
     # Set default timezone.
     export TIMEZONE
-    if [[ -z "${TIMEZONE}" || "${TIMEZONE}" = "none" ]]; then
+    if [[ -z "${TIMEZONE}" || "${TIMEZONE}" == "none" ]]; then
         [ -f /etc/timezone ] && TIMEZONE=$(cat /etc/timezone) || TIMEZONE="UTC"
     fi
 
     # Set ethernet interface.
     export IFACE && \
-    IFACE=$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)
+    IFACE=$(find /sys/class/net -type l | grep -e "eno\|ens\|enp\|eth0" | cut -d'/' -f5)
 
     # Set server IP.
     export SERVER_IP && \
-    SERVER_IP=${SERVER_IP:-$(get_ip_addr)}
+    SERVER_IP=${SERVER_IP:-$(get_ip_public)}
+    SERVER_IP_LOCAL=$(get_ip_private)
 
     # Set server hostname.
     if [[ -n "${SERVER_HOSTNAME}" ]]; then
@@ -478,9 +507,9 @@ function verify_prerequisites() {
         run bash -c "echo '${SERVER_HOSTNAME}' > /etc/hostname"
 
         if grep -q "${SERVER_HOSTNAME}" /etc/hosts; then
-            run sed -i".backup" "/${SERVER_HOSTNAME}/d" /etc/hosts
+            run sed -i".bak" "/${SERVER_HOSTNAME}/d" /etc/hosts
         else
-            run bash -c "echo -e '\n#LEMPer local hosts\n${SERVER_IP}\t${SERVER_HOSTNAME}' >> /etc/hosts"
+            run bash -c "echo -e '\n# LEMPer local hosts\n${SERVER_IP_LOCAL}\t${SERVER_HOSTNAME}' >> /etc/hosts"
         fi
 
         export HOSTNAME && \
@@ -498,11 +527,18 @@ function verify_prerequisites() {
         fi
 
         # Check if the hostname is pointed to server IP address.
-        #if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" ]]; then
-        #    error "It seems that your server's hostname is not yet pointed to your server's IP address."
-        #    echo -n "In production environment you should add an DNS A record, points it to this server IP address "; status -n "${SERVER_IP}"; echo " !"
-        #    exit 1
-        #fi
+        if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" && $(dig "${HOSTNAME}" +short) != "${SERVER_IP_LOCAL}" ]]; then
+            error "It seems that your server's hostname '${HOSTNAME}' is not yet pointed to your server's IP address."
+            echo -n "In production environment you should add an A record and points it to this server IP address "; status -n "${SERVER_IP}"; echo " !"
+            exit 1
+        fi
+    fi
+
+    # Create a temporary directory for the LEMPer installation.
+    BUILD_DIR=${BUILD_DIR:-"/tmp/lemper_build"}
+
+    if [ ! -d "${BUILD_DIR}" ]; then
+        run mkdir -p "${BUILD_DIR}"
     fi
 }
 
@@ -558,8 +594,15 @@ function create_swap() {
     # around half RAM, for production servers you may need to set a lower value.
     if [[ $(cat /proc/sys/vm/swappiness) -gt 10 ]]; then
         if [[ ${DRYRUN} != true ]]; then
-            run sysctl vm.swappiness=10
-            run echo "vm.swappiness=10" >> /etc/sysctl.conf
+            cat >> /etc/sysctl.conf <<EOL
+###################################################################
+# Custom optimization for LEMPer
+#
+vm.swappiness=10
+
+EOL
+
+            run sysctl -w vm.swappiness=10
         else
             echo "Update swappiness value in dry run mode."
         fi
@@ -678,23 +721,6 @@ function delete_account() {
     fi
 }
 
-# Get server IP Address.
-function get_ip_addr() {
-    local IP_INTERNAL && \
-    IP_INTERNAL=$(ip addr | grep 'inet' | grep -v inet6 | \
-        grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | \
-        grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
-    local IP_EXTERNAL && \
-    IP_EXTERNAL=$(curl -s http://ipecho.net/plain)
-
-    # Ugly hack to detect aws-lightsail public IP address.
-    if [[ "${IP_INTERNAL}" == "${IP_EXTERNAL}" ]]; then
-        echo "${IP_INTERNAL}"
-    else
-        echo "${IP_EXTERNAL}"
-    fi
-}
-
 # Init logging.
 function init_log() {
     export LOG_FILE=${LOG_FILE:-"./lemper_install.log"}
@@ -771,12 +797,12 @@ function footer_msg() {
     cat <<- EOL
 
 #==========================================================================#
-#            Thank's for installing LEMPer Stack using LEMPer              #
+#             Thank's for installing LEMP Stack using LEMPer               #
 #        Found any bugs/errors, or suggestions? please let me know         #
 #       If useful, don't forget to buy me a cup of coffee or milk :D       #
 #   My PayPal is always open for donation, here https://paypal.me/masedi   #
 #                                                                          #
-#          (c) 2014-2021 | MasEDI.Net | https://masedi.net/lemper          #
+#          (c) 2014-2022 | MasEDI.Net | https://masedi.net/lemper          #
 #==========================================================================#
 EOL
 }
