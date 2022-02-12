@@ -34,11 +34,17 @@ function init_tools_install() {
     run cp -f lib/lemper-adduser.sh /etc/lemper/cli-plugins/lemper-adduser && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-adduser
 
+    run cp -f lib/lemper-site.sh /etc/lemper/cli-plugins/lemper-site && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site
+
     run cp -f lib/lemper-create.sh /etc/lemper/cli-plugins/lemper-create && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-create && \
 
-    [ ! -x /etc/lemper/cli-plugins/lemper-vhost ] && \
-        run ln -s /etc/lemper/cli-plugins/lemper-create /etc/lemper/cli-plugins/lemper-vhost
+    run cp -f lib/lemper-create.sh /etc/lemper/cli-plugins/lemper-site-add && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-add
+
+    #[ ! -x /etc/lemper/cli-plugins/lemper-vhost ] && \
+    #    run ln -s /etc/lemper/cli-plugins/lemper-create /etc/lemper/cli-plugins/lemper-vhost
 
     run cp -f lib/lemper-db.sh /etc/lemper/cli-plugins/lemper-db && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-db
