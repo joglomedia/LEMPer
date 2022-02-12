@@ -78,7 +78,7 @@ function install_php() {
     fi
 
     # Checking if PHP already installed.
-    if [[ -n $(command -v "php${PHPv}") ]]; then
+    if [[ -n $(command -v "php${PHPv}") && -n $(command -v "php-fpm${PHPv}") ]]; then
         PHP_IS_INSTALLED="yes"
         info "PHP ${PHPv} and it's extensions already exists."
     else
@@ -248,7 +248,7 @@ function restart_php_fpm() {
         if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
             run systemctl reload "php${PHPv}-fpm"
             success "php${PHPv}-fpm reloaded successfully."
-        elif [[ -n $(command -v "php${PHPv}") ]]; then
+        elif [[ -n $(command -v "php-fpm${PHPv}") ]]; then
             run systemctl start "php${PHPv}-fpm"
 
             if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
