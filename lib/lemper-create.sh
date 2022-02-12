@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | Lemper Create - Simple LEMP Virtual Host Creator                        |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2022 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -14,8 +14,6 @@
 # +-------------------------------------------------------------------------+
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
-
-set -e
 
 # Version control.
 PROG_NAME=$(basename "$0")
@@ -55,7 +53,7 @@ fi
 function show_usage {
     cat <<- EOL
 ${CMD_PARENT} ${CMD_NAME} ${PROG_VER}
-Creates NGiNX virtual host (vHost) configuration file.
+Creates Nginx virtual host (vHost) configuration file.
 
 Requirements:
   * LEMP stack setup uses [LEMPer](https://github.com/joglomedia/LEMPer)
@@ -94,7 +92,7 @@ Options:
   -s, --enable-ssl
       Enable HTTPS with Let's Encrypt free SSL certificate.
   -P, --enable-pagespeed
-      Enable NGiNX mod_pagespeed.
+      Enable Nginx mod_pagespeed.
   -W, --wildcard-domain
       Enable wildcard (*) domain.
 
@@ -141,10 +139,10 @@ server {
     index index.php index.html index.htm;
 
     # Enable Compression.
-    # gzip (default) or brotli (requires NGiNX installed with brotli module).
+    # gzip (default) or brotli (requires Nginx installed with brotli module).
     #include /etc/nginx/includes/compression_gzip.conf;
 
-    ## Uncomment to enable Mod PageSpeed (NGiNX must be installed with mod PageSpeed).
+    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
 
     # Authorizing domain.
@@ -260,10 +258,10 @@ server {
     index index.php index.html index.htm;
 
     # Enable Compression.
-    # gzip (default) or brotli (requires NGiNX installed with brotli module).
+    # gzip (default) or brotli (requires Nginx installed with brotli module).
     #include /etc/nginx/includes/compression_gzip.conf;
 
-    ## Uncomment to enable Mod PageSpeed (NGiNX must be installed with mod PageSpeed).
+    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
 
     # Authorizing domain.
@@ -373,10 +371,10 @@ server {
     index index.php index.html index.htm;
 
     # Enable Compression.
-    # gzip (default) or brotli (requires NGiNX installed with brotli module).
+    # gzip (default) or brotli (requires Nginx installed with brotli module).
     #include /etc/nginx/includes/compression_gzip.conf;
 
-    ## Uncomment to enable Mod PageSpeed (NGiNX must be installed with mod PageSpeed).
+    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
 
     # Authorizing domain.
@@ -487,10 +485,10 @@ server {
     index index.php index.html index.htm;
 
     # Enable Compression.
-    # gzip (default) or brotli (requires NGiNX installed with brotli module).
+    # gzip (default) or brotli (requires Nginx installed with brotli module).
     #include /etc/nginx/includes/compression_gzip.conf;
 
-    ## Uncomment to enable Mod PageSpeed (NGiNX must be installed with mod PageSpeed).
+    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
     #include /etc/nginx/includes/mod_pagespeed.conf;
 
     # Authorizing domain.
@@ -580,7 +578,7 @@ EOL
 #
 function prepare_vhost_wpms() {
     cat <<- EOL
-# Wordpress Multisite Mapping for NGiNX (Requires NGiNX Helper plugin).
+# Wordpress Multisite Mapping for Nginx (Requires Nginx Helper plugin).
 map \$http_host \$blogid {
     default 0;
     include ${WEBROOT}/wp-content/uploads/nginx-helper/[map].conf;
@@ -672,57 +670,69 @@ EOL
 # To be outputted into new pool file in fpm/pool.d.
 #
 function create_fpm_pool_conf() {
+    local POOLNAME="${1}"
+
     cat <<- EOL
-[${USERNAME}]
-user = ${USERNAME}
-group = ${USERNAME}
+[${POOLNAME}]
+user = ${POOLNAME}
+group = ${POOLNAME}
 
-listen = /run/php/php${PHP_VERSION}-fpm.\$pool.sock
-listen.owner = ${USERNAME}
-listen.group = ${USERNAME}
-listen.mode = 0666
-;listen.allowed_clients = 127.0.0.1
+listen = /run/php/php${PHPv}-fpm.\$pool.sock
+listen.owner = ${POOLNAME}
+listen.group = ${POOLNAME}
+listen.mode = 0660
+;listen.allowed_clients = 127.1.0.1
 
-; Custom PHP-FPM optimization here
-; adjust to meet your needs.
+; Custom PHP-FPM optimization, adjust here to meet your specs.
+; Default value here is optimized for a single CPU with at least 1GB RAM.
 pm = dynamic
-pm.max_children = 5
-pm.start_servers = 2
-pm.min_spare_servers = 1
-pm.max_spare_servers = 3
+pm.max_children = 30
+pm.start_servers = 5
+pm.min_spare_servers = 5
+pm.max_spare_servers = 20
 pm.process_idle_timeout = 30s
 pm.max_requests = 500
 
-; PHP-FPM monitoring
 pm.status_path = /status
 ping.path = /ping
 
-slowlog = /home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_slow.log
-request_slowlog_timeout = 5s
+slowlog = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_slow.log
+request_slowlog_timeout = 10s
 
-chdir = /home/${USERNAME}
+;chroot = /home/${POOLNAME}
+chdir = /home/${POOLNAME}
 
 ;catch_workers_output = yes
 ;decorate_workers_output = no
 
-security.limit_extensions = .php .php${PHP_VERSION//./}
+security.limit_extensions = .php .php5 .php7 .php${PHPv//./}
 
-; Custom PHP ini settings.
-php_flag[display_errors] = On
-;php_admin_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT & ~E_WARNING & ~E_NOTICE
+; Custom PHP ini settings for LEMPer Stack.
+php_admin_value[open_basedir] = /home/${POOLNAME}
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
-php_admin_flag[log_errors] = On
-php_admin_value[error_log] = /home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm.log
-php_admin_value[date.timezone] = ${TIMEZONE}
-php_admin_value[memory_limit] = 128M
-php_admin_value[opcache.file_cache] = /home/${USERNAME}/.lemper/php/opcache
-php_admin_value[open_basedir] = /home/${USERNAME}
-php_admin_value[session.save_path] = /home/${USERNAME}/.lemper/php/sessions
-php_admin_value[sys_temp_dir] = /home/${USERNAME}/.lemper/tmp
-php_admin_value[upload_tmp_dir] = /home/${USERNAME}/.lemper/tmp
-php_admin_value[upload_max_filesize] = 20M
-php_admin_value[post_max_size] = 20M
-;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f you@yourmail.com
+;php_admin_value[disable_classes] = 
+php_admin_flag[log_errors] = on
+php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-fpm.log
+php_admin_value[sys_temp_dir] = /home/${POOLNAME}/.lemper/tmp
+php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.lemper/tmp
+;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
+php_admin_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/tmp/php_opcache
+
+; Configuration below can be overwritten from PHP call 'ini_set'.
+php_flag[short_open_tag] = off
+php_value[max_execution_time] = 300
+php_value[max_input_time] = 60
+php_value[memory_limit] = 128M
+php_value[post_max_size] = 50M
+php_flag[file_uploads] = on
+php_value[upload_max_filesize] = 50M
+php_value[max_file_uploads] = 20
+php_value[default_socket_timeout] = 60
+php_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
+php_flag[display_errors] = on
+php_flag[cgi.fix_pathinfo] = 1
+php_value[date.timezone] = UTC
+php_value[session.save_path] = /home/${POOLNAME}/.lemper/tmp/php_sessions
 EOL
 }
 
@@ -730,17 +740,18 @@ EOL
 # Get server IP Address.
 #
 function get_ip_addr() {
-    local IP_INTERNAL && \
-    IP_INTERNAL=$(ip addr | grep 'inet' | grep -v inet6 | \
+    local SERVER_IP_PRIVATE && \
+    SERVER_IP_PRIVATE=$(ip addr | grep 'inet' | grep -v inet6 | \
         grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | \
         grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
-    local IP_EXTERNAL && \
-    IP_EXTERNAL=$(curl -s https://ipecho.net/plain)
+    local SERVER_IP_PUBLIC && \
+    SERVER_IP_PUBLIC=$(curl -s http://ipecho.net/plain)
 
-    if [[ "${IP_INTERNAL}" == "${IP_EXTERNAL}" ]]; then
-        echo "${IP_EXTERNAL}"
+    # Ugly hack to detect aws-lightsail public IP address.
+    if [[ "${SERVER_IP_PRIVATE}" == "${SERVER_IP_PUBLIC}" ]]; then
+        echo "${SERVER_IP_PRIVATE}"
     else
-        echo "${IP_INTERNAL}"
+        echo "${SERVER_IP_PUBLIC}"
     fi
 }
 
@@ -995,7 +1006,7 @@ function init_lemper_create() {
     if [[ "${MAIN_ARGS}" -ge 1 ]]; then
         # Additional Check - ensure that Nginx's configuration meets the requirements.
         if [[ ! -d /etc/nginx/sites-available && ! -d /etc/nginx/vhost ]]; then
-            fail "It seems that your NGiNX installation doesn't meet LEMPer requirements. Aborting..."
+            fail "It seems that your Nginx installation doesn't meet LEMPer requirements. Aborting..."
         fi
 
         # Check domain parameter.
@@ -1042,13 +1053,13 @@ function init_lemper_create() {
                     echo "Creating new PHP-FPM pool '${USERNAME}' configuration..."
 
                     # Create PHP FPM pool conf.
-                    create_fpm_pool_conf > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
+                    create_fpm_pool_conf "${USERNAME}" > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
                     run touch "/var/log/php${PHP_VERSION}-fpm_slow.${USERNAME}.log"
 
                     # Create default directories.
                     run mkdir -p "/home/${USERNAME}/.lemper/tmp"
-                    run mkdir -p "/home/${USERNAME}/.lemper/php/opcache"
-                    run mkdir -p "/home/${USERNAME}/.lemper/php/sessions"
+                    run mkdir -p "/home/${USERNAME}/.lemper/tmp/php_opcache"
+                    run mkdir -p "/home/${USERNAME}/.lemper/tmp/php_sessions"
                     run mkdir -p "/home/${USERNAME}/cgi-bin"
                     run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.lemper/" "/home/${USERNAME}/cgi-bin/"
 
@@ -1388,7 +1399,7 @@ EOL
                     # Enable sunrise. (insert new line before match)
                     run sed -i "/\/*\ That/i define( 'SUNRISE', true );\n" "${WEBROOT}/wp-config.php"
 
-                    # Pre-populate blog id mapping, used by NGiNX vhost config.
+                    # Pre-populate blog id mapping, used by Nginx vhost config.
                     if [[ ! -d "${WEBROOT}/wp-content/uploads/nginx-helper" ]]; then
                         run mkdir -p "${WEBROOT}/wp-content/uploads/nginx-helper"
                     fi
@@ -1548,7 +1559,7 @@ EOL
                         run sed -i "s|#pagespeed\ Disallow|pagespeed\ Disallow|g" "${VHOST_FILE}"
                         run sed -i "s|#pagespeed\ Domain|pagespeed\ Domain|g" "${VHOST_FILE}"
                     else
-                        info "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
+                        info "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module."
                     fi
                 fi
 
@@ -1599,18 +1610,18 @@ EOL
             fi
 
             # Reload Nginx
-            echo "Reloading NGiNX server configuration..."
+            echo "Reloading Nginx server configuration..."
 
             # Validate config, reload when validated.
             if nginx -t 2>/dev/null > /dev/null; then
                 run systemctl reload nginx
-                echo "NGiNX server reloaded with new configuration."
+                echo "Nginx server reloaded with new configuration."
             else
-                info "Something went wrong with NGiNX configuration."
+                info "Something went wrong with Nginx configuration."
             fi
 
             if [[ -f "/etc/nginx/sites-enabled/${SERVERNAME}.conf" && -e /var/run/nginx.pid ]]; then
-                success "Your ${SERVERNAME} successfully added to NGiNX virtual host."
+                success "Your ${SERVERNAME} successfully added to Nginx virtual host."
 
                 # Enable HTTPS.
                 if [[ ${ENABLE_SSL} == true ]]; then
@@ -1622,7 +1633,7 @@ EOL
                 # WordPress MS notice.
                 if [[ "${FRAMEWORK}" == "wordpress-ms" ]]; then
                     echo ""
-                    info -e "You're installing Wordpress Multisite.\nYou should activate NGiNX Helper plugin to work properly."
+                    info -e "You're installing Wordpress Multisite.\nYou should activate Nginx Helper plugin to work properly."
                 fi
 
                 # Save app installation details.
@@ -1647,7 +1658,7 @@ EOL
                 if [[ ${DRYRUN} == true ]]; then
                     info "Your ${SERVERNAME} successfully added in dry run mode."
                 else
-                    fail "An error occurred when adding ${SERVERNAME} to NGiNX virtual host."
+                    fail "An error occurred when adding ${SERVERNAME} to Nginx virtual host."
                 fi
             fi
         else

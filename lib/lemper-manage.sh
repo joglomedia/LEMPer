@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | Lemper Manage - Simple LEMP Virtual Host Manager                        |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2022 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -14,8 +14,6 @@
 # +-------------------------------------------------------------------------+
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
-
-set -e
 
 # Version control.
 PROG_NAME=$(basename "$0")
@@ -40,8 +38,8 @@ fi
 function show_usage() {
 cat <<- EOL
 ${CMD_PARENT} ${CMD_NAME} ${PROG_VER}
-Simple NGiNX virtual host (vHost) manager,
-enable/disable/remove NGiNX vHost on Debian/Ubuntu Server.
+Simple Nginx virtual host (vHost) manager,
+enable/disable/remove Nginx vHost on Debian/Ubuntu Server.
 
 Requirements:
   * LEMP stack setup uses [LEMPer](https://github.com/joglomedia/LEMPer)
@@ -388,7 +386,7 @@ function enable_mod_pagespeed() {
         # Reload Nginx.
         reload_nginx
     else
-        info "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
+        info "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module."
         exit 1
     fi
 }
@@ -423,7 +421,7 @@ function disable_mod_pagespeed() {
         # Reload Nginx.
         reload_nginx
     else
-        info "Mod PageSpeed is not enabled. NGiNX must be installed with PageSpeed module."
+        info "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module."
         exit 1
     fi
 }
@@ -639,8 +637,8 @@ function enable_brotli() {
     local DOMAIN=${1}
     verify_vhost "${DOMAIN}"
 
-    if [[ -f "/etc/nginx/sites-available/${DOMAIN}.conf" && -f /etc/nginx/modules-enabled/20-mod-http-brotli-static.conf ]]; then
-        echo "Enable NGiNX Brotli compression..."
+    if [[ -f "/etc/nginx/sites-available/${DOMAIN}.conf" && -f /etc/nginx/modules-enabled/30-mod-http-brotli-static.conf ]]; then
+        echo "Enable Nginx Brotli compression..."
 
         if grep -qwE "^\    include\ /etc/nginx/includes/compression_brotli.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             info "Brotli compression module already enabled."
@@ -663,7 +661,7 @@ function enable_brotli() {
 
         reload_nginx
     else
-        error "Sorry, we can't find NGiNX and Brotli module config file"
+        error "Sorry, we can't find Nginx and Brotli module config file"
         echo "it should be located under /etc/nginx/ directory."
         exit 1
     fi
@@ -678,7 +676,7 @@ function enable_gzip() {
     verify_vhost "${DOMAIN}"
 
     if [[ -f "/etc/nginx/sites-available/${DOMAIN}.conf" && -f /etc/nginx/includes/compression_gzip.conf ]]; then
-        echo "Enable NGiNX Gzip compression..."
+        echo "Enable Nginx Gzip compression..."
 
         if grep -qwE "^\    include\ /etc/nginx/includes/compression_gzip.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             info "Gzip compression module already enabled."
@@ -701,7 +699,7 @@ function enable_gzip() {
 
         reload_nginx
     else
-        error "Sorry, we can't find NGiNX config file"
+        error "Sorry, we can't find Nginx config file"
         echo "it should be located under /etc/nginx/ directory."
         exit 1
     fi
@@ -743,17 +741,17 @@ function verify_vhost() {
     fi
 
     if [[ ! -f "/etc/nginx/sites-available/${DOMAIN}.conf" ]]; then
-        error "Sorry, we couldn't find NGiNX virtual host: ${1}..."
+        error "Sorry, we couldn't find Nginx virtual host: ${1}..."
         exit 1
     fi
 }
 
 ##
-# Reload NGiNX safely.
+# Reload Nginx safely.
 ##
 function reload_nginx() {
     # Reload Nginx
-    echo "Reloading NGiNX configuration..."
+    echo "Reloading Nginx configuration..."
 
     if [[ -e /var/run/nginx.pid ]]; then
         if nginx -t > /dev/null 2>&1; then
@@ -763,7 +761,7 @@ function reload_nginx() {
             nginx -t
             exit 1
         fi
-    # NGiNX service dead? Try to start it.
+    # Nginx service dead? Try to start it.
     else
         if [[ -n $(command -v nginx) ]]; then
             if nginx -t 2>/dev/null > /dev/null; then
