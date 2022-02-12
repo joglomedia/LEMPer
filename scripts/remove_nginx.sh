@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-# NGiNX uninstaller
+# Nginx uninstaller
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 10/12/2021
+# Last Build        : 12/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -11,10 +11,13 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
-fi
 
-# Make sure only root can run this installer script.
-requires_root "$@"
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
+fi
 
 # Remove nginx.
 function init_nginx_removal() {
@@ -55,30 +58,32 @@ function init_nginx_removal() {
             run add-apt-repository -y --remove "ppa:ondrej/${NGINX_REPO}"
         fi
     else
-        info "NGiNX package not found, possibly installed from source."
+        info "Nginx package not found, possibly installed from source."
         echo "Remove it manually!!"
 
         NGINX_BIN=$(command -v nginx)
 
         if [[ -n "${NGINX_BIN}" ]]; then
-            echo "NGiNX binary executable: ${NGINX_BIN}"
+            echo "Nginx binary executable: ${NGINX_BIN}"
 
             # Disable systemctl.
-            echo "Disable NGiNX service."
+            echo "Disable Nginx service."
             [ -f /etc/systemd/system/multi-user.target.wants/nginx.service ] && run systemctl disable nginx
             [ -f /etc/systemd/system/multi-user.target.wants/nginx.service ] && \
             run unlink /etc/systemd/system/multi-user.target.wants/nginx.service
             [ -f /lib/systemd/system/nginx.service ] && run rm -f /lib/systemd/system/nginx.service
 
             # Remove Nginx files.
+            echo "Removing Nginx libraries & modules."
             [ -f /etc/init.d/nginx ] && run rm -f /etc/init.d/nginx
             [ -d /usr/lib/nginx ] && run rm -fr /usr/lib/nginx
+            [ -d /usr/local/nginx ] && run rm -fr /usr/local/nginx
             [ -d /etc/nginx/modules-enabled ] && run rm -fr /etc/nginx/modules-enabled
             [ -d /etc/nginx/modules-available ] && run rm -fr /etc/nginx/modules-available
 
             # Remove binary executable file.
             if [[ -x "${NGINX_BIN}" ]]; then
-                echo "Remove NGiNX binary executable file."
+                echo "Remove Nginx binary executable file."
                 run rm -f "${NGINX_BIN}"
             fi
 
@@ -88,7 +93,7 @@ function init_nginx_removal() {
                 run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
             fi
         else
-            error "Sorry, we couldn't find any NGiNX binary executable file."
+            error "Sorry, we couldn't find any Nginx binary executable file."
         fi
     fi
 
@@ -103,7 +108,7 @@ function init_nginx_removal() {
         fi
     else
         while [[ "${REMOVE_NGX_CONFIG}" != "y" && "${REMOVE_NGX_CONFIG}" != "n" ]]; do
-            read -rp "Remove all NGiNX configuration files? [y/n]: " -e REMOVE_NGX_CONFIG
+            read -rp "Remove all Nginx configuration files? [y/n]: " -e REMOVE_NGX_CONFIG
         done
     fi
 
@@ -112,37 +117,37 @@ function init_nginx_removal() {
         run rm -fr /var/cache/nginx
         run rm -fr /usr/share/nginx
 
-        echo "All your NGiNX configuration files deleted permanently."
+        echo "All your Nginx configuration files deleted permanently."
     fi
     
     # Final test.
     if [[ "${DRYRUN}" != true ]]; then
         if [[ -z $(command -v nginx) ]]; then
-            success "NGiNX HTTP server removed succesfully."
+            success "Nginx HTTP server removed succesfully."
         else
-            info "Unable to remove NGiNX HTTP server."
+            info "Unable to remove Nginx HTTP server."
         fi        
     else
-        info "NGiNX HTTP server removed in dry run mode."
+        info "Nginx HTTP server removed in dry run mode."
     fi
 }
 
-echo "Uninstalling NGiNX HTTP server..."
+echo "Uninstalling Nginx HTTP server..."
 
 if [[ -n $(command -v nginx) || -x /usr/sbin/nginx ]]; then
     if [[ "${AUTO_REMOVE}" == true ]]; then
         REMOVE_NGINX="y"
     else
         while [[ "${REMOVE_NGINX}" != "y" && "${REMOVE_NGINX}" != "n" ]]; do
-            read -rp "Are you sure to remove NGiNX HTTP server? [y/n]: " -e REMOVE_NGINX
+            read -rp "Are you sure to remove Nginx HTTP server? [y/n]: " -e REMOVE_NGINX
         done
     fi
 
     if [[ "${REMOVE_NGINX}" == Y* || "${REMOVE_NGINX}" == y* ]]; then
         init_nginx_removal "$@"
     else
-        echo "Found NGiNX HTTP server, but not removed."
+        echo "Found Nginx HTTP server, but not removed."
     fi
 else
-    info "Oops, NGiNX installation not found."
+    info "Oops, Nginx installation not found."
 fi
