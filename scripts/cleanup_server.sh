@@ -11,22 +11,15 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
+
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
 fi
 
-# Define scripts directory.
-if grep -q "scripts" <<< "${BASE_DIR}"; then
-    SCRIPTS_DIR="${BASE_DIR}"
-else
-    SCRIPTS_DIR="${BASE_DIR}/scripts"
-fi
-
-# Make sure only root can run this installer script.
-requires_root "$@"
-
-# Make sure only supported distribution can run this installer script.
-preflight_system_check
-
-echo "Cleaning up server..."
+echo "Cleaning up existing installation..."
 
 # Fix broken install, first?
 if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
@@ -73,9 +66,9 @@ if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
     fi
 fi
 
-# Remove NGiNX service if exists.
+# Remove Nginx service if exists.
 if [[ -n $(command -v nginx) ]]; then
-    warning -e "\nNGiNX HTTP server already installed. Should we remove it?"
+    warning -e "\nNginx HTTP server already installed. Should we remove it?"
     echo "Backup your config and data before continue!"
 
     # shellchechk source=scripts/remove_nginx.sh
@@ -84,7 +77,7 @@ if [[ -n $(command -v nginx) ]]; then
 fi
 
 # Remove PHP & FPM service if exists.
-PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
 
 if [[ -n $(command -v "php${PHPv}") ]]; then
     warning -e "\nPHP & FPM already installed. Should we remove it?"
