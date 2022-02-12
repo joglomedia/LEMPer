@@ -57,15 +57,16 @@ jobs:
           TERM: xterm-256color
         run: |
           set -ex
+          shellcheck -s bash -x lemper.sh
           shellcheck -s bash -x install.sh
           shellcheck -s bash -x remove.sh
           shellcheck -s bash -x bin/lemper-*.sh
           shellcheck -s bash -x lib/lemper-*.sh
-          shellcheck -s bash -x scripts/cleanup_server.sh
           shellcheck -s bash -x scripts/helper.sh
+          shellcheck -s bash -x scripts/cleanup_server.sh
+          shellcheck -s bash -x scripts/secure_server.sh
           shellcheck -s bash -x scripts/install_*.sh
           shellcheck -s bash -x scripts/remove_*.sh
-          shellcheck -s bash -x scripts/secure_server.sh
       # Simple Unit Tests
       - name: Run unit testing
         env:
