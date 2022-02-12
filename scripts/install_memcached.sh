@@ -2,7 +2,7 @@
 
 # Memcached Installer
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 11/12/2021
+# Last Build        : 12/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -11,13 +11,13 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
+
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
 fi
-
-# Make sure only root can run this installer script.
-requires_root "$@"
-
-# Make sure only supported distribution can run this installer script.
-preflight_system_check
 
 ##
 # Initialize Memcached Installation.
@@ -40,7 +40,7 @@ function init_memcached_install() {
 
     if [[ ${DO_INSTALL_MEMCACHED} == y* || ${DO_INSTALL_MEMCACHED} == Y* ]]; then
         # Install menu.
-        if ! "${AUTO_INSTALL}"; then
+        if [[ "${AUTO_INSTALL}" != true ]]; then
             echo "Available Memcached installation method:"
             echo "  1). Install from Repository (repo)"
             echo "  2). Compile from Source (source)"
@@ -83,7 +83,7 @@ function init_memcached_install() {
                 #fi
 
                 # Memcached source.
-                if [[ ${MEMCACHED_VERSION} == "latest" ]]; then
+                if [[ "${MEMCACHED_VERSION}" == "latest" || "${MEMCACHED_VERSION}" == "stable" ]]; then
                     MEMCACHED_DOWNLOAD_URL="http://memcached.org/latest"
                 else
                     MEMCACHED_DOWNLOAD_URL="https://memcached.org/files/memcached-${MEMCACHED_VERSION}.tar.gz"
@@ -94,7 +94,7 @@ function init_memcached_install() {
                     run tar -zxf memcached.tar.gz && \
                     run cd memcached-* && \
 
-                    if [[ ${MEMCACHED_SASL} == "enable" || ${MEMCACHED_SASL} == true ]]; then
+                    if [[ "${MEMCACHED_SASL}" == "enable" || "${MEMCACHED_SASL}" == true ]]; then
                         #run ./configure --enable-sasl --bindir=/usr/bin --with-libevent=/usr/local/libevent
                         run ./configure --enable-sasl --bindir=/usr/bin
                     else
@@ -204,9 +204,11 @@ EOL
                 fi
             fi
 
-            # Optimizing Memcached conf.
+            # Optimizing Memcached configurations.
+
             local RAM_SIZE && \
             RAM_SIZE=$(get_ram_size)
+
             if [[ ${RAM_SIZE} -le 2048 ]]; then
                 # If machine RAM less than / equal 2GiB, set Memcached to 1/16 of RAM size.
                 local MEMCACHED_SIZE=$((RAM_SIZE / 16))
@@ -217,6 +219,7 @@ EOL
                 # Otherwise, set Memcached to max of 2GiB.
                 local MEMCACHED_SIZE=2048
             fi
+
             run sed -i "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached_memcache.conf
             run sed -i "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached_www-data.conf
         fi

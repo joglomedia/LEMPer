@@ -2,7 +2,7 @@
 
 # Redis server installer
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 21/12/2021
+# Last Build        : 12/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -11,19 +11,19 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
+
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
 fi
 
-# Make sure only root can run this installer script.
-requires_root "$@"
-
-# Make sure only supported distribution can run this installer script.
-preflight_system_check
-
+##
+# Add Redis repository.
+##
 function add_redis_repo() {
     echo "Adding Redis repository..."
-
-    DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-    DISTRIB_REPO=${DISTRIB_REPO:-$(get_release_name)}
 
     case ${DISTRIB_NAME} in
         debian)
@@ -41,12 +41,14 @@ function add_redis_repo() {
             run apt-get update -q -y
         ;;
         *)
-            fail "Unable to add Redis, this GNU/Linux distribution is not supported."
+            fail "Unable to add Redis repo, this GNU/Linux distribution is not supported."
         ;;
     esac
 }
 
-# Install redis.
+##
+# Initialize Redis installation.
+##
 function init_redis_install {
     local SELECTED_INSTALLER=""
 
@@ -128,7 +130,7 @@ function init_redis_install {
                     error "An error occured while downloading Redis source."
                 fi
 
-                run cd "${CURRENT_DIR}" || error "Cannot change directory to ${CURRENT_DIR}"
+                run cd "${CURRENT_DIR}" || return 1
             ;;
             *)
                 # Skip unsupported installation mode.
@@ -152,7 +154,7 @@ function init_redis_install {
                 # set Redis max mem to 1/4 of RAM size.
                 local REDISMEM_SIZE=$((RAM_SIZE / 4))
             else
-                # Otherwise, set Memcached to max of 2048MiB.
+                # Otherwise, set to max of 2048MiB.
                 local REDISMEM_SIZE=2048
             fi
 
@@ -183,13 +185,14 @@ EOL
 
             # Custom kernel optimization for Redis.
             cat >> /etc/sysctl.conf <<EOL
-
-###################################################################
-# Custom optimization for LEMPer
-#
+# Redis key-value store.
 net.core.somaxconn=65535
 vm.overcommit_memory=1
 EOL
+
+            run sysctl -w net.core.somaxconn=65535 && \
+            run sysctl -w vm.overcommit_memory=1 && \
+            run bash -c "echo never > /sys/kernel/mm/transparent_hugepage/enabled"
 
             if [[ ! -f /etc/rc.local ]]; then
                 run touch /etc/rc.local
@@ -197,11 +200,9 @@ EOL
 
             # Make the change persistent.
             cat >> /etc/rc.local <<EOL
-
 ###################################################################
 # Custom optimization for LEMPer
 #
-sysctl -w net.core.somaxconn=65535
 echo never > /sys/kernel/mm/transparent_hugepage/enabled
 EOL
         else
@@ -250,12 +251,12 @@ EOL
     fi
 }
 
-echo "[Redis (Key-value) Server Installation]"
+echo "[Redis Server Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v redis-server) && "${FORCE_INSTALL}" != true ]]; then
-    info "Redis key-value store server already exists, installation skipped."
+    info "Redis server already exists, installation skipped."
 else
     init_redis_install "$@"
 fi

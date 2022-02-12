@@ -2,7 +2,7 @@
 
 # PHP & FPM Uninstaller
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 18/12/2021
+# Last Build        : 12/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -11,10 +11,13 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
-fi
 
-# Make sure only root can run this installer script.
-requires_root "$@"
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
+fi
 
 ##
 # Remove PHP & FPM installation from system.
@@ -23,7 +26,7 @@ function remove_php_fpm() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     # Stop default PHP FPM process.
@@ -34,20 +37,22 @@ function remove_php_fpm() {
     if dpkg-query -l | awk '/php/ { print $2 }' | grep -qwE "^php${PHPv}"; then
         echo "Removing PHP ${PHPv} packages installation..."
 
-        # Remove geoip extension.
-        if "php${PHPv}" -m | grep -qw geoip; then
-            # Uninstall geoip pecl.
-            #run pecl uninstall geoip
+        if [[ -n $(command -v "php${PHPv}") ]]; then
+            # Remove geoip extension.
+            if "php${PHPv}" -m | grep -qw geoip; then
+                # Uninstall geoip pecl.
+                #run pecl uninstall geoip
 
-            # Unlink enabled extension.
-            [ -f "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini" ] && \
-            run unlink "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini"
+                # Unlink enabled extension.
+                [ -f "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini" ] && \
+                run unlink "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini"
 
-            [ -f "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini" ] && \
-            run unlink "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini"
+                [ -f "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini" ] && \
+                run unlink "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini"
 
-            # Remove extension.
-            run rm -f "/etc/php/${PHPv}/mods-available/geoip.ini"
+                # Remove extension.
+                run rm -f "/etc/php/${PHPv}/mods-available/geoip.ini"
+            fi
         fi
 
         # Remove mcrypt extension.
@@ -117,7 +122,7 @@ function disable_ioncube_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     echo "Disable ionCube PHP ${PHPv} loader."
@@ -136,7 +141,7 @@ function remove_ioncube_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     echo "Uninstalling ionCube PHP ${PHPv} loader..."
@@ -158,7 +163,7 @@ function disable_sourceguardian_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     echo "Disable SourceGuardian PHP ${PHPv} loader."
@@ -177,7 +182,7 @@ function remove_sourceguardian_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     echo "Uninstalling SourceGuardian PHP ${PHPv} loader..."
@@ -200,7 +205,7 @@ function remove_php_loader() {
     local REMOVED_PHP_LOADER="${2}"
 
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     if [[ -z "${REMOVED_PHP_LOADER}" ]]; then
@@ -222,7 +227,7 @@ function remove_php_loader() {
         fi
 
         if [[ ${DO_REMOVE_PHP_LOADER} == y* || ${DO_REMOVE_PHP_LOADER} == Y* ]]; then
-            if ! "${AUTO_INSTALL}"; then
+            if [[ "${AUTO_INSTALL}" != true ]]; then
                 echo ""
                 echo "Available PHP Loaders:"
                 echo "  1). ionCube Loader (latest stable)"
@@ -308,8 +313,8 @@ function init_php_fpm_removal() {
             echo "  2). PHP 7.0 (EOL)"
             echo "  3). PHP 7.1 (EOL)"
             echo "  4). PHP 7.2 (EOL)"
-            echo "  5). PHP 7.3 (SFO)"
-            echo "  6). PHP 7.4 (Stable)"
+            echo "  5). PHP 7.3 (EOL)"
+            echo "  6). PHP 7.4 (SFO)"
             echo "  7). PHP 8.0 (Stable)"
             echo "  8). PHP 8.1 (Latest Stable)"
             echo "  9). All installed versions"
@@ -357,7 +362,7 @@ function init_php_fpm_removal() {
                 ;;
                 9 | "all")
                     # Select all PHP versions (except EOL & Beta).
-                    REMOVED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0")
+                    REMOVED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0" "8.1")
                 ;;
                 10 | n*)
                     info "No PHP version will be removed."
@@ -373,7 +378,7 @@ function init_php_fpm_removal() {
     # If FORCE_REMOVE, then remove all installed PHP versions include the default.
     if [[ "${FORCE_REMOVE}" == true ]]; then
         # Also remove default LEMPer PHP.
-        DEFAULT_PHP_VERSION=${DEFAULT_PHP_VERSION:-"7.4"}
+        DEFAULT_PHP_VERSION=${DEFAULT_PHP_VERSION:-"8.0"}
         REMOVED_PHP_VERSIONS+=("${DEFAULT_PHP_VERSION}")
     fi
 

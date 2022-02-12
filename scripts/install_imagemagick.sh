@@ -2,7 +2,7 @@
 
 # ImageMagick Installer
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 11/12/2021
+# Last Build        : 12/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -11,13 +11,13 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
+
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
 fi
-
-# Make sure only root can run this installer script.
-requires_root "$@"
-
-# Make sure only supported distribution can run this installer script.
-preflight_system_check
 
 ##
 # Install ImageMagick.
@@ -62,22 +62,26 @@ function init_imagemagick_install() {
                 CURRENT_DIR=$(pwd)
 
                 if [[ "${IMAGEMAGICK_VERSION}" == "latest" ]]; then
-                    IMAGEMAGICK_FILENAME="ImageMagick.tar.gz"
+                    IMAGEMAGICK_FILENAME="ImageMagick.tar.xz"
                     IMAGEMAGICK_ZIP_URL="https://www.imagemagick.org/download/${IMAGEMAGICK_FILENAME}"
                 else
-                    IMAGEMAGICK_FILENAME="ImageMagick-${IMAGEMAGICK_VERSION}.tar.gz"
+                    IMAGEMAGICK_FILENAME="ImageMagick-${IMAGEMAGICK_VERSION}.tar.xz"
                     IMAGEMAGICK_ZIP_URL="https://download.imagemagick.org/ImageMagick/download/releases/${IMAGEMAGICK_FILENAME}"
                 fi
 
-                run cd "${BUILD_DIR}" && \
-                run wget -q "${IMAGEMAGICK_ZIP_URL}" && \
-                run tar -zxf "${IMAGEMAGICK_FILENAME}" && \
-                run cd ImageMagick-*/ && \
-                run ./configure && \
-                run make && \
-                run make install && \
-                run ldconfig /usr/local/lib && \
-                run cd "${CURRENT_DIR}" || return 1
+                if curl -sLI "${IMAGEMAGICK_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
+                    run cd "${BUILD_DIR}" && \
+                    run wget -q "${IMAGEMAGICK_ZIP_URL}" && \
+                    run tar -xf "${IMAGEMAGICK_FILENAME}" && \
+                    run cd ImageMagick-*/ && \
+                    run ./configure && \
+                    run make && \
+                    run make install && \
+                    run ldconfig /usr/local/lib && \
+                    run cd "${CURRENT_DIR}" || return 1
+                else
+                    error "Something went wrong while downloading ImageMagick files."
+                fi
             ;;
             *)
                 # Skip installation.

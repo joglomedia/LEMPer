@@ -2,7 +2,7 @@
 
 # Mail Installer
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 18/07/2021
+# Last Build        : 12/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -11,13 +11,13 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
+
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
 fi
-
-# Make sure only root can run this installer script.
-requires_root "$@"
-
-# Make sure only supported distribution can run this installer script.
-preflight_system_check
 
 ##
 # Install Postfix Mail Transfer Agent.
@@ -123,7 +123,7 @@ EOL
         run postconf -e "virtual_alias_maps = hash:/etc/postfix/virtual/addresses"
 
         # Virtual domain mapping.
-        [ ! -f /etc/postfix/virtual/domains ] && touch /etc/postfix/virtual/domains
+        [ ! -f /etc/postfix/virtual/domains ] && run touch /etc/postfix/virtual/domains
         run bash -c "echo '${HOSTNAME}' > /etc/postfix/virtual/domains"
 
         if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true ]]; then
