@@ -1,5 +1,5 @@
 [Unit]
-Description=Advanced key-value store
+Description=Advanced key-value store installed using LEMPer Stack
 After=network.target
 Documentation=http://redis.io/documentation, man:redis-server(1)
 

@@ -10,7 +10,7 @@
 
 
 [Unit]
-Description=memcached daemon
+Description=Memcached daemon installed using LEMPer Stack
 After=network.target
 Documentation=man:memcached(1)
 
