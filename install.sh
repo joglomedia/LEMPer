@@ -8,7 +8,7 @@
 # | Author            : MasEDI.Net (me@masedi.net)                          |
 # | Version           : 2.x.x                                               |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2022 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -20,8 +20,9 @@
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
-# Work even if somebody does "bash lemper.sh".
-set -e
+# Work even if somebody does "bash install.sh".
+#set -exv -o pipefail # For verbose output.
+set -e -o pipefail
 
 # Try to re-export global path.
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -41,21 +42,18 @@ requires_root "$@"
 # Make sure only supported distribution can run this installer script.
 preflight_system_check
 
-
 ##
 # Main LEMPer Installer
 #
 header_msg
 
-echo "Starting LEMP stack installation..."
+echo "Starting LEMPer Stack installation..."
 echo "Please ensure that you're on a fresh install!"
 
-if ! "${AUTO_INSTALL}"; then
+if [[ "${AUTO_INSTALL}" != true ]]; then
     echo ""
     read -t 60 -rp "Press [Enter] to continue..." </dev/tty
 fi
-
-echo ""
 
 # Init log.
 run init_log
@@ -76,12 +74,13 @@ if [ -f ./scripts/cleanup_server.sh ]; then
 fi
 
 ### Create and enable swap ###
-if "${ENABLE_SWAP}"; then
+if [[ "${ENABLE_SWAP}" == true ]]; then
     echo ""
     enable_swap
 fi
 
 ### Create default account ###
+echo ""
 USERNAME=${LEMPER_USERNAME:-"lemper"}
 create_account "${USERNAME}"
 
@@ -183,21 +182,21 @@ if [[ "${FORCE_REMOVE}" == true ]]; then
 fi
 
 if [[ "${DRYRUN}" != true ]]; then
-    status -e "\nCongrats, your LEMP stack installation has been completed."
+    status -e "\nCongrats, your LEMPer Stack installation has been completed."
 
     ### Recap ###
     if [[ -n "${PASSWORD}" ]]; then
-        CREDENTIALS="
-Here is your default system information:
+        CREDENTIALS="~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~
+Default system information:
     Hostname : ${HOSTNAME}
     Server IP: ${SERVER_IP}
     SSH Port : ${SSH_PORT}
 
-LEMPer Stack Admin Account:
+LEMPer Stack admin account:
     Username : ${USERNAME}
     Password : ${PASSWORD}
 
-Database Administration (Adminer):
+Database administration (Adminer):
     http://${SERVER_IP}:8082/lcp/dbadmin/
 
     Database root password: ${MYSQL_ROOT_PASSWORD}
@@ -206,12 +205,15 @@ Mariabackup user information:
     DB Username: ${MARIABACKUP_USER}
     DB Password: ${MARIABACKUP_PASS}
 
-File Manager (TinyFileManager):
+File manager (TinyFileManager):
     http://${SERVER_IP}:8082/lcp/filemanager/
 
-    Use your default LEMPer stack admin account for Filemanager login.
+    Use your default LEMPer stack admin account for Filemanager login."
 
-Default Mail Service:
+        if [[ "${INSTALL_MAILER}" == true ]]; then
+            CREDENTIALS="${CREDENTIALS}
+
+Default Mail service:
     Maildir      : /home/${USERNAME}/Maildir
     Sender Domain: ${SENDER_DOMAIN}
     Sender IP    : ${SERVER_IP}
@@ -222,8 +224,33 @@ Default Mail Service:
     DKIM Key     : ${DKIM_KEY}
     SPF Record   : v=spf1 ip4:${SERVER_IP} include:${SENDER_DOMAIN} mx ~all
 
-    Use your default LEMPer stack admin account for Mail login.
+    Use your default LEMPer stack admin account for Mail login."
+        fi
 
+        if [[ "${INSTALL_MEMCACHED}" == true && "${MEMCACHED_SASL}" == true ]]; then
+            CREDENTIALS="${CREDENTIALS}
+
+Memcached SASL login:
+    Username    : ${MEMCACHED_USERNAME}
+    Password    : ${MEMCACHED_PASSWORD}"
+        fi
+
+        if [[ "${INSTALL_MONGODB}" == true ]]; then
+            CREDENTIALS="${CREDENTIALS}
+
+MongoDB test admin login:
+    Username    : ${MONGODB_ADMIN_USER}
+    Password    : ${MONGODB_ADMIN_PASSWORD}"
+        fi
+
+        if [[ "${INSTALL_REDIS}" == true && "${REDIS_REQUIRE_PASSWORD}" == true ]]; then
+            CREDENTIALS="${CREDENTIALS}
+
+Redis required password enabled:
+    Password    : ${REDIS_PASSWORD}"
+        fi
+
+        CREDENTIALS="${CREDENTIALS}
 
 Please Save the above Credentials & Keep it Secure!
 ~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~"

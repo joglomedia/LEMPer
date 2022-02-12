@@ -8,7 +8,7 @@
 # | Author            : MasEDI.Net (me@masedi.net)                          |
 # | Version           : 2.x.x                                               |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2022 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -21,7 +21,8 @@
 # +-------------------------------------------------------------------------+
 
 # Work even if somebody does "bash remove.sh".
-set -e
+#set -exv -o pipefail # For verbose output.
+set -e -o pipefail
 
 # Try to re-export global path.
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -174,9 +175,9 @@ run apt-get clean -qq -y
 
 status -e "\nLEMP stack has been removed completely."
 warning -e "\nDid you know? that we're so sad to see you leave :'(
-If you are not satisfied with LEMPer stack or have 
+If you are not satisfied with LEMPer Stack or have 
 any other reasons to uninstall it, please let us know ^^
 
-Issues: https://github.com/joglomedia/LEMPer/issues"
+Submit your issue here: https://github.com/joglomedia/LEMPer/issues"
 
 footer_msg
