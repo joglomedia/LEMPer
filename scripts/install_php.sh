@@ -87,7 +87,7 @@ function install_php() {
         local PHP_EXTS=()
         local PHP_REPO_EXTS=()
         local PHP_PECL_EXTS=()
-        local PHP_PECL_FLAG=""
+        #local PHP_PECL_FLAG=""
 
         # Include user defined extensions from config file.
         read -r -a PHP_EXTS <<< "${PHP_EXTENSIONS}"
@@ -109,17 +109,6 @@ function install_php() {
         for EXT_NAME in "${PHP_EXTS[@]}"; do
             echo -n "Checking extension ${EXT_NAME}... "
 
-            # Fix libsodium installation.
-            if [[ "${EXT_NAME}" == "libsodium" ]]; then
-                if [[ $(bc -l <<< "${PHPv//.} > 56 && ${PHPv//.} < 81") == 1 ]]; then
-                    echo "[pecl-libsodium]"
-                    PHP_PECL_EXTS+=("libsodium")
-                else
-                    echo "[Skipped]"
-                fi
-                continue
-            fi
-
             # Search extension from repository or PECL.
             if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "php${PHPv}-${EXT_NAME}" > /dev/null; then
                 echo "[php${PHPv}-${EXT_NAME}]"
@@ -128,12 +117,23 @@ function install_php() {
                 echo "[php${PHPv}-${EXT_NAME}]"
                 PHP_REPO_EXTS+=("php-${EXT_NAME}")
             else
+                # Fix libsodium ext.
+                if [[ "${EXT_NAME}" == "sodium" ]]; then
+                    #if [[ $(bc -l <<< "${PHPv//.} > 56 && ${PHPv//.} < 81") == 1 ]]; then
+                        echo "[pecl-libsodium]"
+                        PHP_PECL_EXTS+=("libsodium")
+                    #else
+                    #    echo "[Skipped]"
+                    #fi
+                    #continue
+                fi
+
+                #if [[ "${EXT_NAME}" == "openswoole" ]]; then
+                #    PHP_PECL_FLAG='-D enable-sockets="no" enable-openssl="yes" enable-http2="yes" enable-mysqlnd="yes" enable-swoole-json="yes" enable-swoole-curl="yes" enable-cares="yes" with-postgres="no"'
+                #fi
+
                 echo "[pecl-${EXT_NAME}]"
                 PHP_PECL_EXTS+=("${EXT_NAME}")
-
-                if [[ "${EXT_NAME}" == "openswoole" ]]; then
-                    PHP_PECL_FLAG='-D enable-sockets="no" enable-openssl="yes" enable-http2="yes" enable-mysqlnd="yes" enable-swoole-json="yes" enable-swoole-curl="yes" enable-cares="yes" with-postgres="no"'
-                fi
             fi
         done
 
@@ -153,16 +153,14 @@ function install_php() {
         PHP_PECL_EXTS=($(printf "%s\n" "${PHP_PECL_EXTS[@]}" | sort -u | tr '\n' ' '))
 
         # Remove json extension from PHP greater than 7.4. It is now always available.
-        if [[ $(bc -l <<< "${PHPv} > 7.4") == 1 ]]; then
+        if [[ $(bc -l <<< "${PHPv//.} > 74") == 1 ]]; then
             PHP_PECL_EXTS=("${PHP_PECL_EXTS[@]/json/}")
         fi
 
         run pecl channel-update pear.php.net
 
         if [[ "${#PHP_PECL_EXTS[@]}" -gt 0 ]]; then
-            run pecl -d "php_suffix=${PHPv}" install \
-                "${PHP_PECL_FLAG}" \
-                "${PHP_PECL_EXTS[@]}"
+            run pecl -d "php_suffix=${PHPv}" install "${PHP_PECL_EXTS[@]}"
         fi
 
         # Install additional PHP extensions.
