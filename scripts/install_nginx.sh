@@ -925,7 +925,7 @@ function init_nginx_install() {
                             run git clone -q --branch="master" --single-branch https://github.com/alibaba/tengine-patches.git
 
                             run cd nginx-upstream-fair && \
-                            run patch -p1 < "${EXTRA_MODULE_DIR}/tengine-patches/nginx-upstream-fair/upstream-fair-upstream-check.patch"
+                            run bash -c "patch -p1 < '${EXTRA_MODULE_DIR}/tengine-patches/nginx-upstream-fair/upstream-fair-upstream-check.patch'"
                             run cd "${EXTRA_MODULE_DIR}" || return 1
 
                             if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
