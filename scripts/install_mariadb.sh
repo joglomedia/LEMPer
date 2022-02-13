@@ -2,7 +2,7 @@
 
 # MariaDB Installer
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 12/02/2022
+# Last Build        : 13/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -25,16 +25,14 @@ fi
 function add_mariadb_repo() {
     echo "Adding MariaDB repository..."
 
-    DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-    RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
     MYSQL_SERVER=${MYSQL_SERVER:-"mariadb"}
     MYSQL_VERSION=${MYSQL_VERSION:-"10.6"}
 
+    # Fallback to oldest version if version is not supported.
     [ "${RELEASE_NAME}" == "jessie" ] && MYSQL_VERSION="10.5"
 
     # Add MariaDB official repo.
     # Ref: https://mariadb.com/kb/en/library/mariadb-package-repository-setup-and-usage/
-
     MARIADB_REPO_SETUP_URL="https://downloads.mariadb.com/MariaDB/mariadb_repo_setup"
 
     if curl -sLI "${MARIADB_REPO_SETUP_URL}" | grep -q "HTTP/[.12]* [2].."; then
@@ -51,8 +49,6 @@ function add_mariadb_repo() {
 # Install MariaDB (MySQL drop-in).
 ##
 function init_mariadb_install() {
-    MYSQL_VERSION=${MYSQL_VERSION:-"10.5"}
-
     if [[ "${AUTO_INSTALL}" == true ]]; then
         if [[ "${INSTALL_MYSQL}" == true ]]; then
             DO_INSTALL_MYSQL="y"
@@ -255,20 +251,6 @@ open_files_limit=65535
             run bash -c "echo -e '\n${MARIABACKUP_CNF}' >> /etc/mysql/my.cnf"
         fi
 
-        # Restart to take effect.
-        #systemctl restart mariadb
-
-        #if [[ $(pgrep -c mysql) -gt 0 ]]; then
-        #    success "Mariaback user '${MARIABACKUP_USER}' added successfully."
-        #elif [[ -n $(command -v mysql) ]]; then
-        #    systemctl start mariadb
-        #    if [[ $(pgrep -c mysql) -gt 0 ]]; then
-        #        success "Mariaback user '${MARIABACKUP_USER}' added successfully."
-        #    else
-        #        info "Something went wrong with MariaDB server installation."
-        #    fi
-        #fi
-
         # Save config.
         save_config -e "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}\nMARIABACKUP_USERNAME=${MARIABACKUP_USER}\nMARIABACKUP_PASSWORD=${MARIABACKUP_PASS}"
 
@@ -316,20 +298,6 @@ skip-bind-address"
         else
             run bash -c "echo -e '\n${REMOTE_CLIENT_CNF}' >> /etc/mysql/my.cnf"
         fi
-
-        # Restart to take effect.
-        #systemctl restart mariadb
-
-        #if [[ $(pgrep -c mysql) -gt 0 ]]; then
-        #    success "MySQL remote client access successfully enabled."
-        #elif [[ -n $(command -v mysql) ]]; then
-        #    systemctl start mariadb
-        #    if [[ $(pgrep -c mysql) -gt 0 ]]; then
-        #        success "MySQL remote client access successfully enabled."
-        #    else
-        #        info "Something went wrong with MariaDB server installation."
-        #    fi
-        #fi
     fi
 }
 
