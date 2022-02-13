@@ -184,6 +184,8 @@ EOL
             fi
 
             # Custom kernel optimization for Redis.
+            echo "Configure Redis kernel optimization."
+
             cat >> /etc/sysctl.conf <<EOL
 # Redis key-value store.
 net.core.somaxconn=65535

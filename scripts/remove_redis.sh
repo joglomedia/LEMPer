@@ -83,6 +83,7 @@ function init_redis_removal() {
 }
 
 echo "Uninstalling Redis server..."
+
 if [[ -n $(command -v redis-server) ]]; then
     if [[ "${AUTO_REMOVE}" == true ]]; then
         REMOVE_REDIS="y"
