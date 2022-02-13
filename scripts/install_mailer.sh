@@ -436,8 +436,9 @@ EOL
 # Initialize the mail server installation.
 ##
 function init_mailer_install() {
-    [[ -z "${SENDER_DOMAIN}" && "${SENDER_DOMAIN}" == "example.com" ]] && \
+    if [[ -z "${SENDER_DOMAIN}" || "${SENDER_DOMAIN}" == "example.com" ]]; then
         SENDER_DOMAIN="${SERVER_HOSTNAME}"
+    fi
 
     if [[ -n $(command -v postfix) && "${FORCE_INSTALL}" != true ]]; then
         info "Postfix already exists, installation skipped."
