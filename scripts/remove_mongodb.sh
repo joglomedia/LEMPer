@@ -101,7 +101,7 @@ function init_mongodb_removal() {
     fi
 }
 
-echo "[MongoDB ${MONGODB_VERSION} Server Removal]"
+echo "Uninstalling MongoDB ${MONGODB_VERSION} server..."
 
 if [[ -n $(command -v mongod) ]]; then
     if [[ "${AUTO_REMOVE}" == true ]]; then
