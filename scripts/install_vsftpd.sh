@@ -60,11 +60,6 @@ function init_vsftpd_install() {
             2 | "source")
                 echo "Installing FTP server (VSFTPD) from source..."
 
-                #https://www.linuxfromscratch.org/blfs/view/svn/server/vsftpd.html
-
-                DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-                RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
-
                 # Install libraries.
                 case "${DISTRIB_NAME}" in
                     "debian")
@@ -111,14 +106,16 @@ function init_vsftpd_install() {
                     LIB_DIR="/lib"
                 fi
 
-                if [[ -f "${LIB_GNU_DIR}/libcap.so.2" ]]; then
-                    run ln -s "${LIB_GNU_DIR}/libcap.so.2" "${LIB_DIR}/libcap.so"
-                elif [[ -f "${LIB_GNU_DIR}/libcap.so.1" ]]; then
-                    run ln -s "${LIB_GNU_DIR}/libcap.so.1" "${LIB_DIR}/libcap.so"
-                elif [[ -f "${LIB_GNU_DIR}/libcap.so" ]]; then
-                    run ln -s "${LIB_GNU_DIR}/libcap.so" "${LIB_DIR}/libcap.so"
-                else
-                    echo "Cannot find libcap.so file."
+                if [[ ! -f "${LIB_DIR}/libcap.so" ]]; then
+                    if [[ -f "${LIB_GNU_DIR}/libcap.so.2" ]]; then
+                        run ln -s "${LIB_GNU_DIR}/libcap.so.2" "${LIB_DIR}/libcap.so"
+                    elif [[ -f "${LIB_GNU_DIR}/libcap.so.1" ]]; then
+                        run ln -s "${LIB_GNU_DIR}/libcap.so.1" "${LIB_DIR}/libcap.so"
+                    elif [[ -f "${LIB_GNU_DIR}/libcap.so" ]]; then
+                        run ln -s "${LIB_GNU_DIR}/libcap.so" "${LIB_DIR}/libcap.so"
+                    else
+                        echo "Cannot find libcap.so file."
+                    fi
                 fi
 
                 local CURRENT_DIR && \
@@ -142,6 +139,11 @@ function init_vsftpd_install() {
                     run sed -i 's/\#undef\ VSF_BUILD_SSL/\#define\ VSF_BUILD_SSL/g' ./builddefs.h
                 fi
 
+                # Fix error install: cannot create regular file.
+                run mkdir -p /usr/local/man/man8 && \
+                run mkdir -p /usr/local/man/man5
+
+                # Make install.
                 run make && \
                 run make install && \
                 run ldconfig /usr/local/lib && \
