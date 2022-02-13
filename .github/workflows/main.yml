@@ -25,6 +25,7 @@ jobs:
           sed -i "s/SERVER_HOSTNAME=\"\"/SERVER_HOSTNAME=\"gh-ci.lemper.cloud\"/g" .env
           sed -i "s/SERVER_IP=\"\"/SERVER_IP=\"127.0.0.1\"/g" .env
           sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/g" .env
+          sed -i "s/FORCE_INSTALL=false/FORCE_INSTALL=true/g" .env
           sed -i "s/AUTO_REMOVE=false/AUTO_REMOVE=true/g" .env
           sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
           sed -i "s/LEMPER_ADMIN_EMAIL=\"mail@example.com\"/LEMPER_ADMIN_EMAIL=\"me@masedi.net\"/g" .env
