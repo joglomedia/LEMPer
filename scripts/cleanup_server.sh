@@ -30,7 +30,7 @@ if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
     [ -f /var/cache/apt/archives/lock ] && run rm /var/cache/apt/archives/lock
 
     run dpkg --configure -a
-    run apt-get install -qq -y --fix-broken
+    run apt --fix-broken install -qq -y
 fi
 
 # Remove Apache2 service if exists.
@@ -52,7 +52,6 @@ if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
         echo "Uninstall existing Apache/HTTPD server..."
 
         if [[ "${DRYRUN}" != true ]]; then
-            #run service apache2 stop
             run systemctl stop apache2
 
             # shellcheck disable=SC2046
@@ -80,17 +79,17 @@ fi
 PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
 
 if [[ -n $(command -v "php${PHPv}") ]]; then
-    warning -e "\nPHP & FPM already installed. Should we remove it?"
+    warning -e "\nPHP ${PHPv} already installed. Should we remove it?"
     echo "Backup your config and data before continue!"
 
     # shellchechk source=scripts/remove_php.sh
     # shellcheck disable=SC1091
-    . "${SCRIPTS_DIR}/remove_php.sh" "${PHPv}"
+    . "${SCRIPTS_DIR}/remove_php.sh" --php-version="${PHPv}"
 fi
 
 # Remove Mysql service if exists.
-if [[ -n $(command -v mysqld) ]]; then
-    warning -e "\nMariaDB (MySQL) database server already installed. Should we remove it?"
+if [[ -n $(command -v mysqld) || -n $(command -v mariadb) ]]; then
+    warning -e "\nMySQL database server already installed. Should we remove it?"
     echo "Backup your database before continue!"
 
     # shellchechk source=scripts/remove_mariadb.sh
