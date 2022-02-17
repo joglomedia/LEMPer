@@ -2,7 +2,7 @@
 
 # PHP Installer
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 12/02/2022
+# Last Build        : 13/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -87,7 +87,7 @@ function install_php() {
         local PHP_EXTS=()
         local PHP_REPO_EXTS=()
         local PHP_PECL_EXTS=()
-        #local PHP_PECL_FLAG=""
+        local PHP_PECL_FLAG=""
 
         # Include user defined extensions from config file.
         read -r -a PHP_EXTS <<< "${PHP_EXTENSIONS}"
@@ -117,23 +117,23 @@ function install_php() {
                 echo "[php${PHPv}-${EXT_NAME}]"
                 PHP_REPO_EXTS+=("php-${EXT_NAME}")
             else
-                # Fix libsodium ext.
+                # Fix PECL Sodium ext name.
                 if [[ "${EXT_NAME}" == "sodium" ]]; then
-                    #if [[ $(bc -l <<< "${PHPv//.} > 56 && ${PHPv//.} < 81") == 1 ]]; then
-                        echo "[pecl-libsodium]"
-                        PHP_PECL_EXTS+=("libsodium")
-                    #else
-                    #    echo "[Skipped]"
-                    #fi
-                    #continue
+                    EXT_NAME="libsodium"
                 fi
 
-                #if [[ "${EXT_NAME}" == "openswoole" ]]; then
-                #    PHP_PECL_FLAG='-D enable-sockets="no" enable-openssl="yes" enable-http2="yes" enable-mysqlnd="yes" enable-swoole-json="yes" enable-swoole-curl="yes" enable-cares="yes" with-postgres="no"'
-                #fi
+                # Check PECL extension is available.
+                if curl -sLI "https://pecl.php.net/rest/r/${EXT_NAME}/allreleases.xml" | grep -q "HTTP/[.12]* [2].."; then
+                #if pecl list | grep -c "${EXT_NAME}" > /dev/null; then
+                    echo "[pecl-${EXT_NAME}]"
+                    PHP_PECL_EXTS+=("${EXT_NAME}")
 
-                echo "[pecl-${EXT_NAME}]"
-                PHP_PECL_EXTS+=("${EXT_NAME}")
+                    if [[ "${EXT_NAME}" == "openswoole" ]]; then
+                        PHP_PECL_FLAG=' -D enable-sockets="no" enable-openssl="yes" enable-http2="yes" enable-mysqlnd="yes" enable-swoole-json="yes" enable-swoole-curl="yes" enable-cares="yes" with-postgres="no"'
+                    fi
+                else
+                    echo "Not found."
+                fi
             fi
         done
 
@@ -160,7 +160,7 @@ function install_php() {
         run pecl channel-update pear.php.net
 
         if [[ "${#PHP_PECL_EXTS[@]}" -gt 0 ]]; then
-            run pecl -d "php_suffix=${PHPv}" install "${PHP_PECL_EXTS[@]}"
+            run pecl -d "php_suffix=${PHPv}" install"${PHP_PECL_FLAG}" "${PHP_PECL_EXTS[@]}"
         fi
 
         # Install additional PHP extensions.
@@ -715,7 +715,7 @@ function enable_ioncube_loader() {
         PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
-    echo "Enable ionCube PHP ${PHPv} loader."
+    echo "Enable ionCube loader for PHP ${PHPv}."
 
     if [[ "${DRYRUN}" != true ]]; then
         if [[ -f "/usr/lib/php/loaders/ioncube/ioncube_loader_lin_${PHPv}.so" && -n $(command -v "php${PHPv}") ]]; then
@@ -733,10 +733,10 @@ EOL
                     "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini"
             fi
         else
-            info "PHP ${PHPv} or ionCube loader not found."
+            info "ionCube loader for PHP ${PHPv} not found."
         fi
     else
-        info "ionCube PHP ${PHPv} enabled in dry run mode."
+        info "ionCube loader for PHP ${PHPv} enabled in dry-run mode."
     fi
 }
 
@@ -786,7 +786,7 @@ function enable_sourceguardian_loader() {
         PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
-    echo "Enable SourceGuardian PHP ${PHPv} loader."
+    echo "Enable SourceGuardian loader for PHP ${PHPv}."
 
     if [[ "${DRYRUN}" != true ]]; then
         if [[ -f "/usr/lib/php/loaders/sourceguardian/ixed.${PHPv}.lin" && -n $(command -v "php${PHPv}") ]]; then
@@ -805,10 +805,10 @@ EOL
                     "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini"
             fi
         else
-            error "PHP ${PHPv} or SourceGuardian loader not found."
+            error "SourceGuardian loader for PHP ${PHPv} not found."
         fi
     else
-        info "SourceGuardian PHP ${PHPv} enabled in dry run mode."
+        info "SourceGuardian for PHP ${PHPv} enabled in dry-run mode."
     fi
 }
 
@@ -880,11 +880,11 @@ function install_php_loader() {
                     enable_sourceguardian_loader "${PHPv}"
                 ;;
                 *)
-                    error "Your selected PHP loader ${SELECTED_PHP_LOADER} is not supported yet."
+                    error "Your selected PHP loader '${SELECTED_PHP_LOADER}' is not supported yet."
                 ;;
             esac
         else
-            info "PHP ${PHPv} ${SELECTED_PHP_LOADER} loader installation skipped."
+            info "${SELECTED_PHP_LOADER} loader for PHP ${PHPv} installation skipped."
         fi
     fi
 }
@@ -904,8 +904,7 @@ function init_php_install() {
 
     eval set -- "${OPTS}"
 
-    while true
-    do
+    while true; do
         case "${1}" in
             -p | --php-version)
                 shift
