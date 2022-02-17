@@ -3,8 +3,8 @@
 # +-------------------------------------------------------------------------+
 # | LEMPer is a simple LEMP stack installer for Debian/Ubuntu Linux         |
 # |-------------------------------------------------------------------------+
-# | Min requirement   : GNU/Linux Debian 8, Ubuntu 16.04 or Linux Mint 17   |
-# | Last Update       : 18/12/2021                                          |
+# | Min requirement   : GNU/Linux Debian 8, Ubuntu 18.04 or Linux Mint 17   |
+# | Last Update       : 13/02/2022                                          |
 # | Author            : MasEDI.Net (me@masedi.net)                          |
 # | Version           : 2.x.x                                               |
 # +-------------------------------------------------------------------------+
@@ -84,16 +84,28 @@ echo ""
 USERNAME=${LEMPER_USERNAME:-"lemper"}
 create_account "${USERNAME}"
 
+### Nginx installation ###
+if [ -f ./scripts/install_nginx.sh ]; then
+    echo ""
+    . ./scripts/install_nginx.sh
+fi
+
 ### Certbot Let's Encrypt SSL installation ###
 if [ -f ./scripts/install_certbotle.sh ]; then
     echo ""
     . ./scripts/install_certbotle.sh
 fi
 
-### Nginx installation ###
-if [ -f ./scripts/install_nginx.sh ]; then
+### PHP installation ###
+if [ -f ./scripts/install_php.sh ]; then
     echo ""
-    . ./scripts/install_nginx.sh
+    . ./scripts/install_php.sh
+fi
+
+### Phalcon PHP installation ###
+if [ -f ./scripts/install_phalcon.sh ]; then
+    echo ""
+    . ./scripts/install_phalcon.sh
 fi
 
 ### MySQL database installation ###
@@ -124,18 +136,6 @@ fi
 if [ -f ./scripts/install_imagemagick.sh ]; then
     echo ""
     . ./scripts/install_imagemagick.sh
-fi
-
-### PHP installation ###
-if [ -f ./scripts/install_php.sh ]; then
-    echo ""
-    . ./scripts/install_php.sh
-fi
-
-### Phalcon PHP installation ###
-if [ -f ./scripts/install_phalcon.sh ]; then
-    echo ""
-    . ./scripts/install_phalcon.sh
 fi
 
 ### Mail server installation ###

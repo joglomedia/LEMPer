@@ -192,7 +192,6 @@ EOL
 
     [ -f /usr/share/nginx/html/lcp/memcadmin/index.php ] && echo_ok "OK"
 
-
     # Install phpRedisAdmin Web Admin.
     echo -n "Installing PhpRedisAdmin panel..."
 

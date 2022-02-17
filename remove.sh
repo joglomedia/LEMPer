@@ -3,8 +3,8 @@
 # +-------------------------------------------------------------------------+
 # | LEMPer is a simple LEMP stack installer for Debian/Ubuntu Linux         |
 # |-------------------------------------------------------------------------+
-# | Min requirement   : GNU/Linux Debian 8, Ubuntu 16.04 or Linux Mint 17   |
-# | Last Update       : 10/12/2021                                          |
+# | Min requirement   : GNU/Linux Debian 8, Ubuntu 18.04 or Linux Mint 17   |
+# | Last Update       : 13/02/2021                                          |
 # | Author            : MasEDI.Net (me@masedi.net)                          |
 # | Version           : 2.x.x                                               |
 # +-------------------------------------------------------------------------+
@@ -42,7 +42,6 @@ requires_root "$@"
 # Make sure only supported distribution can run this installer script.
 preflight_system_check
 
-
 ##
 # Main LEMPer Uninstaller
 #
@@ -68,12 +67,6 @@ if [ -f ./scripts/remove_nginx.sh ]; then
     . ./scripts/remove_nginx.sh
 fi
 
-### Remove PHP & FPM ###
-if [ -f ./scripts/remove_php.sh ]; then
-    echo ""
-    . ./scripts/remove_php.sh
-fi
-
 ### Remove MySQL ###
 if [ -f ./scripts/remove_mariadb.sh ]; then
     echo ""
@@ -81,9 +74,9 @@ if [ -f ./scripts/remove_mariadb.sh ]; then
 fi
 
 ### Remove PHP & FPM ###
-if [ -f ./scripts/remove_memcached.sh ]; then
+if [ -f ./scripts/remove_php.sh ]; then
     echo ""
-    . ./scripts/remove_memcached.sh
+    . ./scripts/remove_php.sh
 fi
 
 ### Remove Redis ###
@@ -96,6 +89,12 @@ fi
 if [ -f ./scripts/remove_mongodb.sh ]; then
     echo ""
     . ./scripts/remove_mongodb.sh
+fi
+
+### Remove PHP & FPM ###
+if [ -f ./scripts/remove_memcached.sh ]; then
+    echo ""
+    . ./scripts/remove_memcached.sh
 fi
 
 ### Remove Certbot ###
@@ -173,7 +172,7 @@ run apt-get autoremove -qq -y && \
 run apt-get autoclean -qq -y && \
 run apt-get clean -qq -y
 
-status -e "\nLEMP stack has been removed completely."
+status -e "\nLEMPer Stack has been removed completely."
 warning -e "\nDid you know? that we're so sad to see you leave :'(
 If you are not satisfied with LEMPer Stack or have 
 any other reasons to uninstall it, please let us know ^^
