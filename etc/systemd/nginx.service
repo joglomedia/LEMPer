@@ -11,7 +11,7 @@
 # http://nginx.org/en/docs/control.html
 #
 [Unit]
-Description=A high performance web server and a reverse proxy server installed using LEMPer
+Description=A high performance web server and a reverse proxy server installed using LEMPer Stack
 Documentation=man:nginx(8)
 After=syslog.target network.target remote-fs.target nss-lookup.target
 

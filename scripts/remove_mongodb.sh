@@ -2,7 +2,7 @@
 
 # MongoDB Uninstaller
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 24/12/2021
+# Last Build        : 12/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -11,18 +11,20 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
+
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
 fi
 
-# Make sure only root can run this installer script.
-requires_root "$@"
-
-# Make sure only supported distribution can run this installer script.
-preflight_system_check
-
-DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
-MONGODB_VERSION=${MONGODB_VERSION:-"5.0"}
-[[ "${RELEASE_NAME}" == "jessie" || "${RELEASE_NAME}" == "xenial" ]] && MONGODB_VERSION="4.4"
+# Set MongoDB version.
+if [[ "${RELEASE_NAME}" == "jessie" || "${RELEASE_NAME}" == "xenial" ]]; then
+    MONGODB_VERSION="4.4"
+else
+    MONGODB_VERSION=${MONGODB_VERSION:-"5.0"}
+fi
 
 function remove_mongodb_repo() {
     echo "Removing MongoDB repository..."
@@ -99,7 +101,7 @@ function init_mongodb_removal() {
     fi
 }
 
-echo "[MongoDB ${MONGODB_VERSION} Server Removal]"
+echo "Uninstalling MongoDB ${MONGODB_VERSION} server..."
 
 if [[ -n $(command -v mongod) ]]; then
     if [[ "${AUTO_REMOVE}" == true ]]; then

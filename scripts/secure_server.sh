@@ -2,7 +2,7 @@
 
 # Basic Server Security Hardening
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 01/07/2019
+# Last Build        : 12/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -11,10 +11,13 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
-fi
 
-# Make sure only root can run this installer script.
-requires_root "$@"
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
+fi
 
 ##
 # Securing SSH server.
@@ -23,7 +26,7 @@ function securing_ssh() {
     LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
     SSH_PASSWORDLESS=${SSH_PASSWORDLESS:-false}
 
-    if "${SSH_PASSWORDLESS}"; then
+    if [[ "${SSH_PASSWORDLESS}" == true ]]; then
         echo "
 Before starting, let's create a pair of keys that some hosts ask for during installation of the server.
 
@@ -77,11 +80,12 @@ EOL
             run chmod 600 "/home/${LEMPER_USERNAME}/.ssh/authorized_keys"
 
             echo -e "\nEnable SSH password-less login..."
+
             run bash -c "echo -e '\n\n#LEMPer custom config' >> /etc/ssh/sshd_config"
 
             # Restrict root login directly, use sudo user instead.
             SSH_ROOT_LOGIN=${SSH_ROOT_LOGIN:-false}
-            if ! "${SSH_ROOT_LOGIN}"; then
+            if [[ "${SSH_ROOT_LOGIN}" == false ]]; then
                 echo "Restricting SSH root login..."
 
                 if grep -qwE "^PermitRootLogin\ [a-z]*" /etc/ssh/sshd_config; then
@@ -134,6 +138,7 @@ EOL
 
     # Securing the SSH server.
     echo "Securing your SSH server with custom port..."
+
     SSH_PORT=${SSH_PORT:-""}
     while ! [[ ${SSH_PORT} =~ ^[0-9]+$ ]]; do
         read -rp "Custom SSH port (default SSH port is 22): " -e SSH_PORT
@@ -182,6 +187,7 @@ function install_ufw() {
     # Install UFW
     run apt-get install -qq -y ufw
 
+    # UFW app rules is here /etc/ufw/applications.d
     if [[ -n $(command -v ufw) ]]; then
         echo "Configuring UFW firewall rules..."
 
@@ -203,30 +209,36 @@ function install_ufw() {
         run ufw allow 8083 #LEMPer port
 
         # Open MySQL port.
-        [[ "${MYSQL_ALLOW_REMOTE}" == true ]] && \
-        run ufw allow 3306
+        if [[ "${MYSQL_ALLOW_REMOTE}" == true ]]; then
+            run ufw allow 3306
+        fi
 
         # Open FTP ports.
         if [[ "${INSTALL_VSFTPD}" == true ]]; then
+            FTP_MIN_PORT=${FTP_MIN_PORT:-45000}
+            FTP_MAX_PORT=${FTP_MAX_PORT:-45099}
+
             run ufw allow 20/tcp
             run ufw allow 21/tcp
-            run ufw allow 990/tcp # For TLS enabled.
-            run ufw allow 40000:50000/tcp # The range of passive ports.
+            # For TLS enabled.
+            run ufw allow 990/tcp
+            # The range of passive ports.
+            run ufw allow "${FTP_MIN_PORT}:${FTP_MAX_PORT}/tcp"
         fi
 
-        # Open SMTPs port.
-        run ufw allow 25
-        run ufw allow 465
-        run ufw allow 587
-
         if [[ "${INSTALL_MAILER}" == true ]]; then
+            # Open SMTPs port.
+            run ufw allow 25/tcp
+            run ufw allow 465/tcp
+            run ufw allow 587/tcp
+
             # Open IMAPs ports.
-            run ufw allow 143
-            run ufw allow 993
+            run ufw allow 143/tcp
+            run ufw allow 993/tcp
 
             # Open POP3s ports.
-            run ufw allow 110
-            run ufw allow 995
+            run ufw allow 110/tcp
+            run ufw allow 995/tcp
         fi
 
         # Open DNS port.
@@ -312,7 +324,9 @@ function install_csf() {
 
         # Open FTP ports.
         if [[ "${INSTALL_VSFTPD}" == true ]]; then
-            CSF_ALLOW_PORTS="${CSF_ALLOW_PORTS},20,21,990,40000:50000"
+            FTP_MIN_PORT=${FTP_MIN_PORT:-45000}
+            FTP_MAX_PORT=${FTP_MAX_PORT:-45099}
+            CSF_ALLOW_PORTS="${CSF_ALLOW_PORTS},20,21,990,${FTP_MIN_PORT}:${FTP_MAX_PORT}"
         fi
 
         # Allowed incoming TCP ports.
@@ -390,6 +404,7 @@ function install_apf() {
     run cd "${BUILD_DIR}" || return 1
 
     echo "Installing APF+BFD firewall..."
+
     if curl -sLI "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
     | grep -q "HTTP/[.12]* [2].."; then
         run wget -q "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" && \

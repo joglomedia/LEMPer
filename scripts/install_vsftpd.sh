@@ -2,7 +2,7 @@
 
 # VSFTPD Installer
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 24/10/2021
+# Last Build        : 12/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -11,13 +11,13 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
+
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
 fi
-
-# Make sure only root can run this installer script.
-requires_root "$@"
-
-# Make sure only supported distribution can run this installer script.
-preflight_system_check
 
 ##
 # Install Vsftpd.
@@ -59,11 +59,6 @@ function init_vsftpd_install() {
             ;;
             2 | "source")
                 echo "Installing FTP server (VSFTPD) from source..."
-
-                #https://www.linuxfromscratch.org/blfs/view/svn/server/vsftpd.html
-
-                DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-                RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
 
                 # Install libraries.
                 case "${DISTRIB_NAME}" in
@@ -111,14 +106,16 @@ function init_vsftpd_install() {
                     LIB_DIR="/lib"
                 fi
 
-                if [[ -f "${LIB_GNU_DIR}/libcap.so.2" ]]; then
-                    run ln -s "${LIB_GNU_DIR}/libcap.so.2" "${LIB_DIR}/libcap.so"
-                elif [[ -f "${LIB_GNU_DIR}/libcap.so.1" ]]; then
-                    run ln -s "${LIB_GNU_DIR}/libcap.so.1" "${LIB_DIR}/libcap.so"
-                elif [[ -f "${LIB_GNU_DIR}/libcap.so" ]]; then
-                    run ln -s "${LIB_GNU_DIR}/libcap.so" "${LIB_DIR}/libcap.so"
-                else
-                    echo "Cannot find libcap.so file."
+                if [[ ! -f "${LIB_DIR}/libcap.so" ]]; then
+                    if [[ -f "${LIB_GNU_DIR}/libcap.so.2" ]]; then
+                        run ln -s "${LIB_GNU_DIR}/libcap.so.2" "${LIB_DIR}/libcap.so"
+                    elif [[ -f "${LIB_GNU_DIR}/libcap.so.1" ]]; then
+                        run ln -s "${LIB_GNU_DIR}/libcap.so.1" "${LIB_DIR}/libcap.so"
+                    elif [[ -f "${LIB_GNU_DIR}/libcap.so" ]]; then
+                        run ln -s "${LIB_GNU_DIR}/libcap.so" "${LIB_DIR}/libcap.so"
+                    else
+                        echo "Cannot find libcap.so file."
+                    fi
                 fi
 
                 local CURRENT_DIR && \
@@ -142,6 +139,11 @@ function init_vsftpd_install() {
                     run sed -i 's/\#undef\ VSF_BUILD_SSL/\#define\ VSF_BUILD_SSL/g' ./builddefs.h
                 fi
 
+                # Fix error install: cannot create regular file.
+                run mkdir -p /usr/local/man/man8 && \
+                run mkdir -p /usr/local/man/man5
+
+                # Make install.
                 run make && \
                 run make install && \
                 run ldconfig /usr/local/lib && \
@@ -161,16 +163,20 @@ function init_vsftpd_install() {
         echo "Configuring FTP server (VSFTPD)..."
 
         if [[ "${DRYRUN}" != true ]]; then
+            FTP_MIN_PORT=${FTP_MIN_PORT:-45000}
+            FTP_MAX_PORT=${FTP_MAX_PORT:-45099}
+
             # Backup default vsftpd conf.
-            [[ -f /etc/vsftpd.conf ]] && \
+            if [[ -f /etc/vsftpd.conf ]]; then
                 run mv /etc/vsftpd.conf /etc/vsftpd.conf.bak
-    
+            fi
+
             run touch /etc/vsftpd.conf
 
-            # Enable jail
+            # Enable jail mode.
             cat > /etc/vsftpd.conf <<EOL
-listen=NO
-listen_ipv6=YES
+listen=YES
+listen_ipv6=NO
 anonymous_enable=NO
 local_enable=YES
 write_enable=YES
@@ -186,17 +192,24 @@ pam_service_name=vsftpd
 force_dot_files=YES
 
 pasv_enable=YES
-pasv_min_port=40000
-pasv_max_port=50000
+pasv_min_port=${FTP_MIN_PORT}
+pasv_max_port=${FTP_MAX_PORT}
+#pasv_address=${SERVER_IP}
+#pasv_addr_resolve=YES
 
-user_sub_token=$USER
-local_root=/home/$USER
+user_sub_token=\$USER
+local_root=/home/\$USER
 
+userlist_enable=YES
+userlist_file=/etc/vsftpd.userlist
+userlist_deny=NO
 EOL
 
             # Enable SSL.
+            # TODO: Change the self-signed certificate with a valid Let's Encrypt certificate.
             if [[ "${VSFTPD_SSL_ENABLE}" == true ]]; then
                 cat >> /etc/vsftpd.conf <<EOL
+
 ssl_enable=YES
 require_ssl_reuse=NO
 allow_anon_ssl=NO
@@ -211,6 +224,23 @@ rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
 rsa_private_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
 EOL
             fi
+
+            # If using elastic IP (such as AWS EC2), set the server IP.
+            if [[ "${SERVER_IP}" != "$(get_ip_private)" ]]; then
+                run sed -i "s|^#pasv_address=.*|pasv_address=${SERVER_IP}|g" /etc/vsftpd.conf
+                run sed -i "s|^#pasv_addr_resolve=.*|pasv_addr_resolve=YES|g" /etc/vsftpd.conf
+            fi
+
+            # If Let's Encrypt SSL certificate is issued for hostname, set the certificate.
+            if [[ -n "${HOSTNAME_CERT_PATH}" && -f "${HOSTNAME_CERT_PATH}/fullchain.pem" ]]; then
+                run sed -i "s|^rsa_cert_file=[^[:digit:]]*$|rsa_cert_file=${HOSTNAME_CERT_PATH}/fullchain.pem|g" /etc/vsftpd.conf
+                run sed -i "s|^rsa_private_key_file=[^[:digit:]]*$|rsa_private_key_file=${HOSTNAME_CERT_PATH}/privkey.pem|g" /etc/vsftpd.conf
+            fi
+
+            # Add default LEMPer Stack user to vsftpd.userlist.
+            LEMPER_USERNAME=${LEMPER_USERNAME:-lemper}
+            run touch /etc/vsftpd.userlist
+            run bash -c "echo '${LEMPER_USERNAME}' | tee -a /etc/vsftpd.userlist"
         fi
 
         # Add systemd service.
@@ -219,7 +249,7 @@ EOL
         [[ ! -f /etc/systemd/system/multi-user.target.wants/vsftpd.service ]] && \
             run ln -s /lib/systemd/system/vsftpd.service /etc/systemd/system/multi-user.target.wants/vsftpd.service
 
-        # Restart Fail2ban daemon.
+        # Restart vsftpd daemon.
         echo "Restarting FTP server (VSFTPD)..."
         run systemctl unmask vsftpd
         run systemctl restart vsftpd

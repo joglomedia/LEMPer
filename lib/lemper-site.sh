@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | Lemper Site - Simple LEMPer Stack Site (vhost) Manager                  |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2022 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -14,8 +14,6 @@
 # +-------------------------------------------------------------------------+
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
-
-set -e
 
 # Make sure only root can access and not direct access.
 if [[ "$(type -t requires_root)" != "function" ]]; then
@@ -75,15 +73,15 @@ function init_lemper_site() {
                     . "${CLI_PLUGINS_DIR}/lemper-site-${CMD}" "$@"
                     exit 0
                 else
-                    echo "${CMD_PARENT} ${CMD_NAME}: '${CMD}' is not ${CMD_NAME} subcommand."
-                    echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information."
+                    echo "${CMD_PARENT} ${CMD_NAME}: '${CMD}' is not ${CMD_NAME} subcommand"
+                    echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information"
                     exit 1
                 fi
             ;;
         esac
     else
-        echo "${CMD_PARENT} ${CMD_NAME}: missing required arguments."
-        echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information."
+        echo "${CMD_PARENT} ${CMD_NAME}: missing required arguments"
+        echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information"
         exit 1
     fi
 }

@@ -2,7 +2,7 @@
 
 # PHP Installer
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 09/01/2022
+# Last Build        : 13/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -11,13 +11,13 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
+
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
 fi
-
-# Make sure only root can run this installer script.
-requires_root "$@"
-
-# Make sure only supported distribution can run this installer script.
-preflight_system_check
 
 ##
 # Add PHP repository.
@@ -34,6 +34,11 @@ function add_php_repo() {
                 run touch "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb https://packages.sury.org/php/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
                 run wget -qO /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
+
+                # Add openswoole official repository.
+                if echo "${PHP_EXTENSIONS}" | grep -qwE "openswoole"; then
+                    run add-apt-repository -y ppa:openswoole/ppa
+                fi
             else
                 info "PHP package repository already exists."
             fi
@@ -42,6 +47,11 @@ function add_php_repo() {
             if [[ ! -f "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" ]]; then
                 run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
                 run add-apt-repository -y ppa:ondrej/php
+
+                # Add openswoole official repository.
+                if echo "${PHP_EXTENSIONS}" | grep -qwE "openswoole"; then
+                    run add-apt-repository -y ppa:openswoole/ppa
+                fi
             else
                 info "PHP package repository already exists."
             fi
@@ -51,7 +61,7 @@ function add_php_repo() {
         ;;
     esac
 
-    info "Updating repository..."
+    info "Updating repository, please wait..."
     run apt-get update -qq -y
 }
 
@@ -64,25 +74,26 @@ function install_php() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     # Checking if PHP already installed.
-    if [[ -n $(command -v "php${PHPv}") ]]; then
+    if [[ -n $(command -v "php${PHPv}") && -n $(command -v "php-fpm${PHPv}") ]]; then
         PHP_IS_INSTALLED="yes"
         info "PHP ${PHPv} and it's extensions already exists."
     else
-        echo "Installing PHP ${PHPv} and required extensions..."
+        echo "Preparing PHP ${PHPv} installation..."
 
+        local PHP_EXTS=()
         local PHP_REPO_EXTS=()
         local PHP_PECL_EXTS=()
-        local PHP_EXTS=()
+        local PHP_PECL_FLAG=""
 
         # Include user defined extensions from config file.
         read -r -a PHP_EXTS <<< "${PHP_EXTENSIONS}"
 
         PHP_EXTS+=("bcmath" "bz2" "cli" "common" "curl" "dev" "fpm" "gd" "gmp" "gnupg" \
-            "imap" "intl" "mbstring" "mysql" "opcache" "pcov" "pgsql" "pspell" "readline" "redis" \
+            "imap" "intl" "mbstring" "mysql" "opcache" "pcov" "pgsql" "pspell" "readline" \
             "ldap" "snmp" "soap" "sqlite3" "tidy" "tokenizer" "xml" "xmlrpc" "xsl" "yaml" "zip")
 
         # Add PHP extensions.
@@ -96,15 +107,9 @@ function install_php() {
 
         # Check additional PHP extensions availability.
         for EXT_NAME in "${PHP_EXTS[@]}"; do
-            echo -n "Checking extension: ${EXT_NAME}... "
+            echo -n "Checking extension ${EXT_NAME}... "
 
-            if [[ "${EXT_NAME}" == *sodium && "${PHPv//.}" -gt "72" ]]; then
-                echo "[pecl libsodium]"
-                #echo "not available for PHP ${PHPv}"
-                PHP_PECL_EXTS+=("libsodium")
-                continue
-            fi
-
+            # Search extension from repository or PECL.
             if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "php${PHPv}-${EXT_NAME}" > /dev/null; then
                 echo "[php${PHPv}-${EXT_NAME}]"
                 PHP_REPO_EXTS+=("php${PHPv}-${EXT_NAME}")
@@ -112,45 +117,63 @@ function install_php() {
                 echo "[php${PHPv}-${EXT_NAME}]"
                 PHP_REPO_EXTS+=("php-${EXT_NAME}")
             else
-                echo "[pecl ${EXT_NAME}]"
-                PHP_PECL_EXTS+=("${EXT_NAME}")
+                # Fix PECL Sodium ext name.
+                if [[ "${EXT_NAME}" == "sodium" ]]; then
+                    EXT_NAME="libsodium"
+                fi
+
+                # Check PECL extension is available.
+                if curl -sLI "https://pecl.php.net/rest/r/${EXT_NAME}/allreleases.xml" | grep -q "HTTP/[.12]* [2].."; then
+                #if pecl list | grep -c "${EXT_NAME}" > /dev/null; then
+                    echo "[pecl-${EXT_NAME}]"
+                    PHP_PECL_EXTS+=("${EXT_NAME}")
+
+                    if [[ "${EXT_NAME}" == "openswoole" ]]; then
+                        PHP_PECL_FLAG=' -D enable-sockets="no" enable-openssl="yes" enable-http2="yes" enable-mysqlnd="yes" enable-swoole-json="yes" enable-swoole-curl="yes" enable-cares="yes" with-postgres="no"'
+                    fi
+                else
+                    echo "Not found."
+                fi
             fi
         done
 
         # Install PHP and PHP extensions.
+        echo "Installing PHP ${PHPv} and it's extensions..."
+
         if [[ "${#PHP_REPO_EXTS[@]}" -gt 0 ]]; then
             run apt-get install -qq -y "php${PHPv}" "${PHP_REPO_EXTS[@]}" \
                 dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
         fi
 
         # Install PHP extensions from PECL.
-        echo "Installing PHP extensions from PECL..."
+        echo "Installing PHP extensions from PECL repo..."
 
         # Sort PHP extensions.
         #shellcheck disable=SC2207
         PHP_PECL_EXTS=($(printf "%s\n" "${PHP_PECL_EXTS[@]}" | sort -u | tr '\n' ' '))
 
         # Remove json extension from PHP greater than 7.4. It is now always available.
-        if [[ $(bc -l <<< "${PHPv} > 7.4") == 1 ]]; then
+        if [[ $(bc -l <<< "${PHPv//.} > 74") == 1 ]]; then
             PHP_PECL_EXTS=("${PHP_PECL_EXTS[@]/json/}")
         fi
 
         run pecl channel-update pear.php.net
 
         if [[ "${#PHP_PECL_EXTS[@]}" -gt 0 ]]; then
-            run pecl -d "php_suffix=${PHPv}" install \
-                -D 'enable-sockets="no" enable-openssl="yes" enable-http2="yes" enable-mysqlnd="yes" enable-swoole-json="yes" enable-swoole-curl="yes" enable-cares="yes" with-postgres="yes"' \
-                "${PHP_PECL_EXTS[@]}"
+            run pecl -d "php_suffix=${PHPv}" install"${PHP_PECL_FLAG}" "${PHP_PECL_EXTS[@]}"
         fi
 
         # Install additional PHP extensions.
         [[ "${INSTALL_MEMCACHED}" == true ]] && install_php_memcached "${PHPv}"
-        [[ "${INSTALL_MONGODB}" == true ]] && install_php_mongodb "${PHPv}"
+        #[[ "${INSTALL_MONGODB}" == true ]] && install_php_mongodb "${PHPv}"
 
         if [[ -n $(command -v "php${PHPv}") ]]; then
             TOTAL_EXTS=$((${#PHP_EXTS[@]} + ${#PHP_PECL_EXTS[@]}))
             success "PHP ${PHPv} along with ${TOTAL_EXTS} extensions installed."
         fi
+
+        # Unset PHP extensions variables.
+        run unset PHP_EXTS PHP_REPO_EXTS PHP_PECL_EXTS PHP_PECL_FLAG
 
         # Enable GeoIP module.
         if [[ "${PHP_PECL_EXTS[*]}" =~ "geoip" ]]; then
@@ -215,7 +238,7 @@ function restart_php_fpm() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     echo "Restarting PHP-FPM service..."
@@ -225,7 +248,7 @@ function restart_php_fpm() {
         if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
             run systemctl reload "php${PHPv}-fpm"
             success "php${PHPv}-fpm reloaded successfully."
-        elif [[ -n $(command -v "php${PHPv}") ]]; then
+        elif [[ -n $(command -v "php-fpm${PHPv}") ]]; then
             run systemctl start "php${PHPv}-fpm"
 
             if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
@@ -246,7 +269,7 @@ function optimize_php_fpm() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     echo "Optimizing PHP ${PHPv} & FPM configuration..."
@@ -363,20 +386,32 @@ EOL
         # Customize php ini settings.
         if [[ "${DRYRUN}" != true ]]; then
             cat >> "/etc/php/${PHPv}/fpm/pool.d/www.conf" <<EOL
-php_flag[display_errors] = On
-;php_admin_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
-;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
-php_admin_flag[log_errors] = On
-php_admin_value[error_log] = /var/log/php/php7.4-fpm.\$pool.log
-php_admin_value[date.timezone] = UTC
-php_admin_value[memory_limit] = 128M
-php_admin_value[opcache.file_cache] = /usr/share/nginx/html/.lemper/php/opcache
+; Custom PHP ini settings for LEMPer Stack.
 php_admin_value[open_basedir] = /usr/share/nginx/html
-php_admin_value[session.save_path] = /usr/share/nginx/html/.lemper/php/sessions
+;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
+;php_admin_value[disable_classes] = 
+php_admin_flag[log_errors] = on
+php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
 php_admin_value[sys_temp_dir] = /usr/share/nginx/html/.lemper/tmp
 php_admin_value[upload_tmp_dir] = /usr/share/nginx/html/.lemper/tmp
-php_admin_value[upload_max_filesize] = 20M
-php_admin_value[post_max_size] = 20M
+;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
+php_admin_value[opcache.file_cache] = /usr/share/nginx/html/.lemper/tmp/php_opcache
+
+; Configuration below can be overwritten from PHP call 'ini_set'.
+php_flag[short_open_tag] = off
+php_value[max_execution_time] = 300
+php_value[max_input_time] = 60
+php_value[memory_limit] = 128M
+php_value[post_max_size] = 50M
+php_flag[file_uploads] = on
+php_value[upload_max_filesize] = 50M
+php_value[max_file_uploads] = 20
+php_value[default_socket_timeout] = 60
+php_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
+php_flag[display_errors] = on
+php_flag[cgi.fix_pathinfo] = 1
+php_value[date.timezone] = UTC
+php_value[session.save_path] = /usr/share/nginx/html/.lemper/tmp/php_sessions
 EOL
         else
             info "Default FPM pool optimized in dry run mode."
@@ -407,23 +442,22 @@ group = ${POOLNAME}
 listen = /run/php/php${PHPv}-fpm.\$pool.sock
 listen.owner = ${POOLNAME}
 listen.group = ${POOLNAME}
-listen.mode = 0666
+listen.mode = 0660
 ;listen.allowed_clients = 127.1.0.1
 
-; Custom PHP-FPM optimization
-; adjust here to meet your needs.
+; Custom PHP-FPM optimization, adjust here to meet your specs.
+; Default value here is optimized for a single CPU with at least 1GB RAM.
 pm = dynamic
-pm.max_children = 5
-pm.start_servers = 2
-pm.min_spare_servers = 1
-pm.max_spare_servers = 3
+pm.max_children = 30
+pm.start_servers = 5
+pm.min_spare_servers = 5
+pm.max_spare_servers = 20
 pm.process_idle_timeout = 30s
 pm.max_requests = 500
 
 pm.status_path = /status
 ping.path = /ping
 
-;slowlog = /var/log/php/php${PHPv}-fpm_slow.\$pool.log
 slowlog = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_slow.log
 request_slowlog_timeout = 10s
 
@@ -435,21 +469,32 @@ chdir = /home/${POOLNAME}
 
 security.limit_extensions = .php .php5 .php7 .php${PHPv//./}
 
-; Custom PHP ini settings.
-php_flag[display_errors] = On
-;php_admin_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
-;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
-php_admin_flag[log_errors] = On
-php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-fpm.log
-php_admin_value[date.timezone] = ${TIMEZONE}
-php_admin_value[memory_limit] = 128M
-php_admin_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/php/opcache
+; Custom PHP ini settings for LEMPer Stack.
 php_admin_value[open_basedir] = /home/${POOLNAME}
-php_admin_value[session.save_path] = /home/${POOLNAME}/.lemper/php/sessions
+;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
+;php_admin_value[disable_classes] = 
+php_admin_flag[log_errors] = on
+php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-fpm.log
 php_admin_value[sys_temp_dir] = /home/${POOLNAME}/.lemper/tmp
 php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.lemper/tmp
-php_admin_value[upload_max_filesize] = 20M
-php_admin_value[post_max_size] = 20M
+;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
+php_admin_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/tmp/php_opcache
+
+; Configuration below can be overwritten from PHP call 'ini_set'.
+php_flag[short_open_tag] = off
+php_value[max_execution_time] = 300
+php_value[max_input_time] = 60
+php_value[memory_limit] = 128M
+php_value[post_max_size] = 50M
+php_flag[file_uploads] = on
+php_value[upload_max_filesize] = 50M
+php_value[max_file_uploads] = 20
+php_value[default_socket_timeout] = 60
+php_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
+php_flag[display_errors] = on
+php_flag[cgi.fix_pathinfo] = 1
+php_value[date.timezone] = UTC
+php_value[session.save_path] = /home/${POOLNAME}/.lemper/tmp/php_sessions
 EOL
         else
             info "Custom FPM pool '${POOLNAME}' created in dry run mode."
@@ -458,13 +503,15 @@ EOL
 
     # Create default directories.
     run mkdir -p "/home/${POOLNAME}/.lemper/tmp"
-    run mkdir -p "/home/${POOLNAME}/.lemper/php/opcache"
-    run mkdir -p "/home/${POOLNAME}/.lemper/php/sessions"
+    run mkdir -p "/home/${POOLNAME}/.lemper/tmp/php_opcache"
+    run mkdir -p "/home/${POOLNAME}/.lemper/tmp/php_sessions"
     run mkdir -p "/home/${POOLNAME}/cgi-bin"
     run chown -hR "${POOLNAME}:${POOLNAME}" "/home/${POOLNAME}"
 
     # Fix cgi.fix_pathinfo (for PHP older than 5.3).
     #sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
+    #sed -i "s/php_flag[cgi.fix_pathinfo]\ =\ 1/php_flag[cgi.fix_pathinfo]\ =\ 0/g" \
+    #    /etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf
 }
 
 ##
@@ -474,7 +521,7 @@ function install_php_mongodb() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     #echo -e "\nInstalling PHP ${PHPv} MongoDB extension..."
@@ -521,7 +568,7 @@ function install_php_memcached() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     # Install PHP memcached module.
@@ -571,7 +618,7 @@ function install_php_composer() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     # Checking if php composer already installed.
@@ -643,19 +690,18 @@ function install_ioncube_loader() {
 
     echo "Downloading latest ionCube PHP loader..."
 
-    ARCH=${ARCH:-$(uname -p)}
+    IC_ARCH=${ARCH:-$(uname -p)}
+    IC_ZIP_FILENAME="ioncube_loaders_linux_${IC_ARCH}.tar.gz"
+    IC_ZIP_URL="https://raw.githubusercontent.com/joglomedia/php-loaders/main/${IC_ZIP_FILENAME}"
 
-    if [[ "${ARCH}" == "x86_64" ]]; then
-        run wget -q "https://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86-64.tar.gz"
-        run tar -xzf ioncube_loaders_lin_x86-64.tar.gz
-        run rm -f ioncube_loaders_lin_x86-64.tar.gz
+    if curl -sLI "${IC_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
+        run wget -q "${IC_ZIP_URL}" && \
+        run tar -xzf "${IC_ZIP_FILENAME}" && \
+        run mv -f ioncube /usr/lib/php/loaders/
     else
-        run wget -q "https://downloads2.ioncube.com/loader_downloads/ioncube_loaders_lin_x86.tar.gz"
-        run tar -xzf ioncube_loaders_lin_x86.tar.gz
-        run rm -f ioncube_loaders_lin_x86.tar.gz
+        error "Cannot download ionCube PHP loader."
     fi
 
-    run mv -f ioncube /usr/lib/php/loaders/
     run cd "${CURRENT_DIR}" || return 1
 }
 
@@ -666,10 +712,10 @@ function enable_ioncube_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
-    echo "Enable ionCube PHP ${PHPv} loader."
+    echo "Enable ionCube loader for PHP ${PHPv}."
 
     if [[ "${DRYRUN}" != true ]]; then
         if [[ -f "/usr/lib/php/loaders/ioncube/ioncube_loader_lin_${PHPv}.so" && -n $(command -v "php${PHPv}") ]]; then
@@ -687,10 +733,10 @@ EOL
                     "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini"
             fi
         else
-            info "PHP ${PHPv} or ionCube loader not found."
+            info "ionCube loader for PHP ${PHPv} not found."
         fi
     else
-        info "ionCube PHP ${PHPv} enabled in dry run mode."
+        info "ionCube loader for PHP ${PHPv} enabled in dry-run mode."
     fi
 }
 
@@ -715,20 +761,19 @@ function install_sourceguardian_loader() {
 
     echo "Downloading latest SourceGuardian PHP loader..."
 
-    ARCH=${ARCH:-$(uname -p)}
+    SG_ARCH=${ARCH:-$(uname -p)}
+    SG_ZIP_FILENAME="sourceguardian_loaders.linux-${SG_ARCH}.tar.gz"
+    SG_ZIP_URL="https://raw.githubusercontent.com/joglomedia/php-loaders/main/${SG_ZIP_FILENAME}"
 
-    if [[ "${ARCH}" == "x86_64" ]]; then
-        run wget -q "https://www.sourceguardian.com/loaders/download/loaders.linux-x86_64.tar.gz"
-        run tar -xzf loaders.linux-x86_64.tar.gz
-        run rm -f loaders.linux-x86_64.tar.gz
+    if curl -sLI "${SG_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
+        run wget -q "${SG_ZIP_URL}" && \
+        run tar -xzf "${SG_ZIP_FILENAME}" && \
+        run mv -f "${BUILD_DIR}/sourceguardian" /usr/lib/php/loaders/
     else
-        run wget -q "https://www.sourceguardian.com/loaders/download/loaders.linux-x86.tar.gz"
-        run tar -xzf loaders.linux-x86.tar.gz
-        run rm -f loaders.linux-x86.tar.gz
+        error "Cannot download SourceGuardian PHP loader."
     fi
 
     run cd "${CURRENT_DIR}" || return 1
-    run mv -f "${BUILD_DIR}/sourceguardian" /usr/lib/php/loaders/
 }
 
 ##
@@ -738,10 +783,10 @@ function enable_sourceguardian_loader() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
-    echo "Enable SourceGuardian PHP ${PHPv} loader."
+    echo "Enable SourceGuardian loader for PHP ${PHPv}."
 
     if [[ "${DRYRUN}" != true ]]; then
         if [[ -f "/usr/lib/php/loaders/sourceguardian/ixed.${PHPv}.lin" && -n $(command -v "php${PHPv}") ]]; then
@@ -760,10 +805,10 @@ EOL
                     "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini"
             fi
         else
-            error "PHP ${PHPv} or SourceGuardian loader not found."
+            error "SourceGuardian loader for PHP ${PHPv} not found."
         fi
     else
-        info "SourceGuardian PHP ${PHPv} enabled in dry run mode."
+        info "SourceGuardian for PHP ${PHPv} enabled in dry-run mode."
     fi
 }
 
@@ -775,7 +820,7 @@ function install_php_loader() {
     local SELECTED_PHP_LOADER="${2}"
 
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     if [[ -z "${SELECTED_PHP_LOADER}" ]]; then
@@ -797,7 +842,7 @@ function install_php_loader() {
         fi
 
         if [[ ${DO_INSTALL_PHP_LOADER} == y* || ${DO_INSTALL_PHP_LOADER} == Y* ]]; then
-            if ! "${AUTO_INSTALL}"; then
+            if [[ "${AUTO_INSTALL}" != true ]]; then
                 echo ""
                 echo "Available PHP Loaders:"
                 echo "  1). ionCube Loader (latest stable)"
@@ -835,11 +880,11 @@ function install_php_loader() {
                     enable_sourceguardian_loader "${PHPv}"
                 ;;
                 *)
-                    error "Your selected PHP loader ${SELECTED_PHP_LOADER} is not supported yet."
+                    error "Your selected PHP loader '${SELECTED_PHP_LOADER}' is not supported yet."
                 ;;
             esac
         else
-            info "PHP ${PHPv} ${SELECTED_PHP_LOADER} loader installation skipped."
+            info "${SELECTED_PHP_LOADER} loader for PHP ${PHPv} installation skipped."
         fi
     fi
 }
@@ -854,27 +899,30 @@ function init_php_install() {
     local OPT_PHP_LOADER=${PHP_LOADER:-"ioncube"}
 
     OPTS=$(getopt -o p:x:l: \
-        -l php-version:,php-extensions,php-loader: \
+        -l php-version:,php-extensions:,php-loader: \
         -n "init_php_install" -- "$@")
 
     eval set -- "${OPTS}"
 
-    while true
-    do
+    while true; do
         case "${1}" in
-            -p | --php-version) shift
+            -p | --php-version)
+                shift
                 OPT_PHP_VERSIONS+=("${1}")
                 shift
             ;;
-            -x | --php-extensions) shift
+            -x | --php-extensions)
+                shift
                 OPT_PHP_EXTENSIONS+=("${1}")
                 shift
             ;;
-            -l | --php-loader) shift
+            -l | --php-loader)
+                shift
                 OPT_PHP_LOADER="${1}"
                 shift
             ;;
-            --) shift
+            --)
+                shift
                 break
             ;;
             *)
@@ -891,15 +939,15 @@ function init_php_install() {
         SELECTED_PHP_VERSIONS+=("${OPT_PHP_VERSIONS[@]}")
     else
         # Manually select PHP version in interactive mode.
-        if ! "${AUTO_INSTALL}"; then
+        if [[ "${AUTO_INSTALL}" != true ]]; then
             echo "Which PHP version to be installed?"
             echo "Available PHP versions:"
             echo "  1). PHP 5.6 (EOL)"
             echo "  2). PHP 7.0 (EOL)"
             echo "  3). PHP 7.1 (EOL)"
             echo "  4). PHP 7.2 (EOL)"
-            echo "  5). PHP 7.3 (SFO)"
-            echo "  6). PHP 7.4 (Stable)"
+            echo "  5). PHP 7.3 (EOL)"
+            echo "  6). PHP 7.4 (SFO)"
             echo "  7). PHP 8.0 (Stable)"
             echo "  8). PHP 8.1 (Latest Stable)"
             echo "  9). All available versions"

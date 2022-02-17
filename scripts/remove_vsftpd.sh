@@ -2,7 +2,7 @@
 
 # VSFTPD Uninstaller
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 10/12/2021
+# Last Build        : 12/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 2.5.0
 
@@ -11,10 +11,13 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
-fi
 
-# Make sure only root can run this installer script.
-requires_root "$@"
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
+fi
 
 function init_vsftpd_removal() {
     # Stop VSFTPD process.
@@ -58,11 +61,15 @@ function init_vsftpd_removal() {
     if [[ "${REMOVE_VSFTPD_CONFIG}" == y* || "${REMOVE_VSFTPD_CONFIG}" == Y* ]]; then
         [[ -f /etc/vsftpd.conf ]] && run rm -f /etc/vsftpd.conf
         [[ -f /etc/vsftpd.conf.bak ]] && run rm -f /etc/vsftpd.conf.bak
+        [[ -f /etc/vsftpd.userlist ]] && run rm -f /etc/vsftpd.userlist
+
         echo "All configuration files deleted permanently."
     fi
 
     # Final test.
     if [[ "${DRYRUN}" != true ]]; then
+        run systemctl daemon-reload
+
         if [[ -z $(command -v vsftpd) ]]; then
             success "FTP server (VSFTPD) removed succesfully."
         else

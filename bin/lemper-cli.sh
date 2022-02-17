@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | Lemper CLI - Simple LEMP Stack Manager                                  |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2022 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -15,7 +15,9 @@
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
-set -e
+# Work even if somebody does "bash lemper-cli.sh".
+#set -exv -o pipefail # For verbose output.
+set -e -o pipefail
 
 # Version control.
 PROG_NAME=$(basename "$0")
@@ -201,15 +203,15 @@ function init_lemper_cli() {
                     . "${CLI_PLUGINS_DIR}/lemper-${CMD}" "$@"
                     exit 0
                 else
-                    echo "${PROG_NAME}: '${CMD}' is not ${PROG_NAME} command."
-                    echo "See '${PROG_NAME} --help' for more information."
+                    echo "${PROG_NAME}: '${CMD}' is not ${PROG_NAME} command"
+                    echo "See '${PROG_NAME} --help' for more information"
                     exit 1
                 fi
             ;;
         esac
     else
-        echo "${PROG_NAME}: missing required arguments."
-        echo "See '${PROG_NAME} --help' for more information."
+        echo "${PROG_NAME}: missing required arguments"
+        echo "See '${PROG_NAME} --help' for more information"
         exit 1
     fi
 }

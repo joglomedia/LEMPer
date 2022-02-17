@@ -11,22 +11,15 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
+
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
 fi
 
-# Define scripts directory.
-if grep -q "scripts" <<< "${BASE_DIR}"; then
-    SCRIPTS_DIR="${BASE_DIR}"
-else
-    SCRIPTS_DIR="${BASE_DIR}/scripts"
-fi
-
-# Make sure only root can run this installer script.
-requires_root "$@"
-
-# Make sure only supported distribution can run this installer script.
-preflight_system_check
-
-echo "Cleaning up server..."
+echo "Cleaning up existing installation..."
 
 # Fix broken install, first?
 if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
@@ -37,7 +30,7 @@ if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
     [ -f /var/cache/apt/archives/lock ] && run rm /var/cache/apt/archives/lock
 
     run dpkg --configure -a
-    run apt-get install -qq -y --fix-broken
+    run apt --fix-broken install -qq -y
 fi
 
 # Remove Apache2 service if exists.
@@ -59,7 +52,6 @@ if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
         echo "Uninstall existing Apache/HTTPD server..."
 
         if [[ "${DRYRUN}" != true ]]; then
-            #run service apache2 stop
             run systemctl stop apache2
 
             # shellcheck disable=SC2046
@@ -73,9 +65,9 @@ if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
     fi
 fi
 
-# Remove NGiNX service if exists.
+# Remove Nginx service if exists.
 if [[ -n $(command -v nginx) ]]; then
-    warning -e "\nNGiNX HTTP server already installed. Should we remove it?"
+    warning -e "\nNginx HTTP server already installed. Should we remove it?"
     echo "Backup your config and data before continue!"
 
     # shellchechk source=scripts/remove_nginx.sh
@@ -84,20 +76,20 @@ if [[ -n $(command -v nginx) ]]; then
 fi
 
 # Remove PHP & FPM service if exists.
-PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
 
 if [[ -n $(command -v "php${PHPv}") ]]; then
-    warning -e "\nPHP & FPM already installed. Should we remove it?"
+    warning -e "\nPHP ${PHPv} already installed. Should we remove it?"
     echo "Backup your config and data before continue!"
 
     # shellchechk source=scripts/remove_php.sh
     # shellcheck disable=SC1091
-    . "${SCRIPTS_DIR}/remove_php.sh" "${PHPv}"
+    . "${SCRIPTS_DIR}/remove_php.sh" --php-version="${PHPv}"
 fi
 
 # Remove Mysql service if exists.
-if [[ -n $(command -v mysqld) ]]; then
-    warning -e "\nMariaDB (MySQL) database server already installed. Should we remove it?"
+if [[ -n $(command -v mysqld) || -n $(command -v mariadb) ]]; then
+    warning -e "\nMySQL database server already installed. Should we remove it?"
     echo "Backup your database before continue!"
 
     # shellchechk source=scripts/remove_mariadb.sh

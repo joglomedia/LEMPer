@@ -25,6 +25,7 @@ jobs:
           sed -i "s/SERVER_HOSTNAME=\"\"/SERVER_HOSTNAME=\"gh-ci.lemper.cloud\"/g" .env
           sed -i "s/SERVER_IP=\"\"/SERVER_IP=\"127.0.0.1\"/g" .env
           sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/g" .env
+          sed -i "s/FORCE_INSTALL=false/FORCE_INSTALL=true/g" .env
           sed -i "s/AUTO_REMOVE=false/AUTO_REMOVE=true/g" .env
           sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
           sed -i "s/LEMPER_ADMIN_EMAIL=\"mail@example.com\"/LEMPER_ADMIN_EMAIL=\"me@masedi.net\"/g" .env
@@ -57,15 +58,16 @@ jobs:
           TERM: xterm-256color
         run: |
           set -ex
+          shellcheck -s bash -x lemper.sh
           shellcheck -s bash -x install.sh
           shellcheck -s bash -x remove.sh
           shellcheck -s bash -x bin/lemper-*.sh
           shellcheck -s bash -x lib/lemper-*.sh
-          shellcheck -s bash -x scripts/cleanup_server.sh
           shellcheck -s bash -x scripts/helper.sh
+          shellcheck -s bash -x scripts/cleanup_server.sh
+          shellcheck -s bash -x scripts/secure_server.sh
           shellcheck -s bash -x scripts/install_*.sh
           shellcheck -s bash -x scripts/remove_*.sh
-          shellcheck -s bash -x scripts/secure_server.sh
       # Simple Unit Tests
       - name: Run unit testing
         env:

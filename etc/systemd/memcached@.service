@@ -9,7 +9,7 @@
 #     Environment=OPTIONS="-l 127.0.0.1,::1"
 
 [Unit]
-Description=memcached daemon for %i
+Description=Memcached daemon for %i installed using LEMPer Stack
 After=network.target
 Documentation=man:memcached(1)
 

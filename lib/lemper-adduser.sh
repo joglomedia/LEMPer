@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | Lemper Create - Simple LEMP Virtual Host Creator                        |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2021 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2022 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -14,8 +14,6 @@
 # +-------------------------------------------------------------------------+
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
-
-set -e
 
 # Version control.
 #PROG_NAME=$(basename "$0")

@@ -2,7 +2,7 @@
 
 # Phalcon & Zephir Installer
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 11/12/2021
+# Last Build        : 12/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.2.0
 
@@ -11,13 +11,13 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
+
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
 fi
-
-# Make sure only root can run this installer script.
-requires_root "$@"
-
-# Make sure only supported distribution can run this installer script.
-preflight_system_check
 
 # Install Phalcon from source.
 function install_phalcon() {
@@ -187,7 +187,7 @@ function enable_phalcon() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"7.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
     fi
 
     if [[ "${DRYRUN}" == true ]]; then
@@ -405,8 +405,8 @@ function init_phalcon_install() {
             echo "  2). PHP 7.0 (EOL)"
             echo "  3). PHP 7.1 (EOL)"
             echo "  4). PHP 7.2 (EOL)"
-            echo "  5). PHP 7.3 (SFO)"
-            echo "  6). PHP 7.4 (stable)"
+            echo "  5). PHP 7.3 (EOL)"
+            echo "  6). PHP 7.4 (SFO)"
             echo "  7). PHP 8.0 (Latest stable)"
             echo "  8). All available versions"
             echo "--------------------------------------------"

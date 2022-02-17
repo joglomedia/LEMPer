@@ -2,7 +2,7 @@
 
 # Mail Installer
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 18/07/2021
+# Last Build        : 14/02/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -11,13 +11,13 @@ if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
     . "${BASE_DIR}/helper.sh"
+
+    # Make sure only root can run this installer script.
+    requires_root "$@"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
 fi
-
-# Make sure only root can run this installer script.
-requires_root "$@"
-
-# Make sure only supported distribution can run this installer script.
-preflight_system_check
 
 ##
 # Install Postfix Mail Transfer Agent.
@@ -37,60 +37,42 @@ function install_postfix() {
     fi
 
     if [[ ${DO_INSTALL_POSTFIX} == y* || ${DO_INSTALL_POSTFIX} == Y* ]]; then
-        echo "Installing Postfix..."
+        echo "Installing Postfix Mail-Transfer Agent..."
 
         run apt-get install -qq -y mailutils postfix
 
         # Configure Postfix.
-        echo "Configuring Postfix..."
+        echo "Configuring Postfix Mail-Transfer Agent..."
 
-        run postconf -e "inet_interfaces = all"
-        run postconf -e "inet_protocols = all"
-        run postconf -e "alias_maps = hash:/etc/aliases"
-        run postconf -e "alias_database = hash:/etc/aliases"
-        run postconf -e "home_mailbox = Maildir/"
-        run postconf -e "myhostname = ${HOSTNAME}"
-        #run postconf -e "mydomain = lemper.cloud"
-        run postconf -e "myorigin = localhost"
-        run postconf -e "mydestination = \$myhostname, localhost, localhost.localdomain"
+        run postconf -e "inet_interfaces=all"
+        run postconf -e "inet_protocols=all"
+        run postconf -e "alias_maps=hash:/etc/aliases"
+        run postconf -e "alias_database=hash:/etc/aliases"
+        run postconf -e "home_mailbox=Maildir/"
+        run postconf -e "myhostname=${HOSTNAME}"
+        run postconf -e "mydomain=${HOSTNAME}"
+        run postconf -e "myorigin=${HOSTNAME}"
+        run postconf -e "mydestination=\$myhostname, localhost, localhost.localdomain"
+        #run postconf -e "relayhost="  [smtp.gmail.com]:587 require login
 
         # Setting up SMTP authentication.
-        run postconf -e "smtpd_sasl_type = dovecot"
-        run postconf -e "smtpd_sasl_path = private/auth"
-        run postconf -e "smtpd_sasl_local_domain ="
-        run postconf -e "smtpd_sasl_security_options = noanonymous"
-        run postconf -e "broken_sasl_auth_clients = yes"
-        run postconf -e "smtpd_sasl_auth_enable = yes"
-        run postconf -e "smtpd_recipient_restrictions = permit_sasl_authenticated,permit_mynetworks,reject_unauth_destination,reject_invalid_hostname,reject_non_fqdn_hostname,reject_non_fqdn_sender,reject_non_fqdn_recipient,reject_unknown_sender_domain,reject_rbl_client sbl.spamhaus.org,reject_rbl_client cbl.abuseat.org"
-
-        # Generating Let's Encrypt certificates.
-        local CERTPATH=""
-
-        if [[ "${ENVIRONMENT}" == "production" ]]; then
-            # Stop webserver first
-            run systemctl stop nginx
-
-            if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && $(dig "${SENDER_DOMAIN}" +short) == "${SERVER_IP}" ]]; then
-                run certbot certonly --standalone --agree-tos --preferred-challenges http -d "${SENDER_DOMAIN}"
-                CERTPATH="/etc/letsencrypt/live/${SENDER_DOMAIN}"
-            elif [[ $(dig "${HOSTNAME}" +short) == "${SERVER_IP}" ]]; then
-                run certbot certonly --standalone --agree-tos --preferred-challenges http --webroot-path=/usr/share/nginx/html -d "${HOSTNAME}"
-                CERTPATH="/etc/letsencrypt/live/${HOSTNAME}"
-            fi
-
-            # Re-start webserver
-            run systemctl start nginx
-        fi
+        run postconf -e "smtpd_sasl_type=dovecot"
+        run postconf -e "smtpd_sasl_path=private/auth"
+        run postconf -e "smtpd_sasl_local_domain=localhost.localdomain"
+        run postconf -e "smtpd_sasl_security_options=noanonymous"
+        run postconf -e "broken_sasl_auth_clients=yes"
+        run postconf -e "smtpd_sasl_auth_enable=yes"
+        run postconf -e "smtpd_recipient_restrictions=permit_sasl_authenticated,permit_mynetworks,reject_unauth_destination,reject_invalid_hostname,reject_non_fqdn_hostname,reject_non_fqdn_sender,reject_non_fqdn_recipient,reject_unknown_sender_domain,reject_rbl_client sbl.spamhaus.org,reject_rbl_client cbl.abuseat.org"
 
         # Enable secure Postfix.
-        if [[ -n "${CERTPATH}" ]]; then
-            run postconf -e "smtpd_tls_cert_file = ${CERTPATH}/fullchain.pem"
-            run postconf -e "smtpd_tls_key_file = ${CERTPATH}/privkey.pem"
-            run postconf -e "smtp_tls_security_level = may"
-            run postconf -e "smtpd_tls_security_level = may"
-            run postconf -e "smtp_tls_note_starttls_offer = yes"
-            run postconf -e "smtpd_tls_loglevel = 1"
-            run postconf -e "smtpd_tls_received_header = yes"
+        if [[ -n "${MAILER_CERT_PATH}" ]]; then
+            run postconf -e "smtpd_tls_cert_file=${MAILER_CERT_PATH}/fullchain.pem"
+            run postconf -e "smtpd_tls_key_file=${MAILER_CERT_PATH}/privkey.pem"
+            run postconf -e "smtp_tls_security_level=may"
+            run postconf -e "smtpd_tls_security_level=may"
+            run postconf -e "smtp_tls_note_starttls_offer=yes"
+            run postconf -e "smtpd_tls_loglevel=1"
+            run postconf -e "smtpd_tls_received_header=yes"
         fi
 
         # TODO: Multiple domain, multiple user settings.
@@ -109,7 +91,9 @@ root@${HOSTNAME}    ${LEMPER_USERNAME}
 wordpress@${HOSTNAME}   ${LEMPER_USERNAME}
 EOL
 
-            if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true ]]; then
+            if [[ "${SENDER_DOMAIN}" == "${HOSTNAME}" ]]; then
+                run bash -c "echo '@${SENDER_DOMAIN}   ${LEMPER_USERNAME}' >> /etc/postfix/virtual/addresses"
+            else
                 cat >> /etc/postfix/virtual/addresses <<EOL
 ${SENDER_DOMAIN}    DOMAIN
 @${SENDER_DOMAIN}   ${LEMPER_USERNAME}
@@ -120,17 +104,19 @@ EOL
         fi
 
         run postmap /etc/postfix/virtual/addresses
-        run postconf -e "virtual_alias_maps = hash:/etc/postfix/virtual/addresses"
+        run postconf -e "virtual_alias_maps=hash:/etc/postfix/virtual/addresses"
 
         # Virtual domain mapping.
-        [ ! -f /etc/postfix/virtual/domains ] && touch /etc/postfix/virtual/domains
-        run bash -c "echo '${HOSTNAME}' > /etc/postfix/virtual/domains"
+        [ ! -f /etc/postfix/virtual/domains ] && run touch /etc/postfix/virtual/domains
 
-        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true ]]; then
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && "${SENDER_DOMAIN}" != "${HOSTNAME}" ]]; then
             run bash -c "echo '${SENDER_DOMAIN}' >> /etc/postfix/virtual/domains"
         fi
 
-        run postconf -e "virtual_alias_domains = /etc/postfix/virtual/domains"
+        run postconf -e "virtual_alias_domains=/etc/postfix/virtual/domains"
+
+        # Enable Postfix on startup.
+        run systemctl enable postfix@-.service
 
         # Installation status.
         if [[ "${DRYRUN}" != true ]]; then
@@ -172,12 +158,12 @@ function install_dovecot() {
     fi
 
     if [[ ${DO_INSTALL_DOVECOT} == y* || ${DO_INSTALL_DOVECOT} == Y* ]]; then
-        echo "Installing Dovecot..."
+        echo "Installing Dovecot IMAP & POP3 Server..."
 
         run apt-get install -qq -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
 
         # Configure Dovecot.
-        echo "Configuring Dovecot..."
+        echo "Configuring Dovecot IMAP & POP3 Server..."
 
         run maildirmake.dovecot /etc/skel/Maildir
         run maildirmake.dovecot /etc/skel/Maildir/.Drafts
@@ -192,8 +178,22 @@ function install_dovecot() {
         run adduser "${LEMPER_USERNAME}" mail
 
         # Include the Maildir location in terminal and mail profiles.
-        run bash -c "echo -e '\nexport MAIL=~/Maildir' >> /etc/bash.bashrc"
-        run bash -c "echo -e '\nexport MAIL=~/Maildir' >> /etc/profile.d/mail.sh"
+        #run bash -c "echo -e '\nexport MAIL=~/Maildir' >> /etc/bash.bashrc"
+        #run bash -c "echo -e '\nexport MAIL=~/Maildir' >> /etc/profile.d/mail.sh"
+
+        if grep -q "MAIL=~/Maildir" /etc/bash.bashrc; then
+            run sed -i".bak" "/export\ MAIL=~\/Maildir/d" /etc/bash.bashrc
+            run bash -c "echo -e 'export MAIL=~/Maildir' >> /etc/bash.bashrc"
+        else
+            run bash -c "echo -e '\n# LEMPer Mailer\nexport MAIL=~/Maildir' >> /etc/bash.bashrc"
+        fi
+
+        if grep -q "MAIL=~/Maildir" /etc/profile.d/mail.sh; then
+            run sed -i".bak" "/export\ MAIL=~\/Maildir/d" /etc/profile.d/mail.sh
+            run bash -c "echo -e 'export MAIL=~/Maildir' >> /etc/profile.d/mail.sh"
+        else
+            run bash -c "echo -e '\n# LEMPer Mailer\nexport MAIL=~/Maildir' >> /etc/profile.d/mail.sh"
+        fi
 
         # User authentication (with SASL).
         if [[ -f /etc/dovecot/conf.d/10-auth.conf ]]; then
@@ -217,7 +217,7 @@ function install_dovecot() {
         fi
 
         # Set the mail directory to use the same format as Postfix.
-        if [ -f /etc/dovecot/conf.d/10-mail.conf ]; then
+        if [[ -f /etc/dovecot/conf.d/10-mail.conf ]]; then
             # Maildir.
             if grep -qwE "^mail_location\ =\ [^[:digit:]]*$" /etc/dovecot/conf.d/10-mail.conf; then
                 run sed -i "s/^mail_location\ =\ [^[:digit:]]*$/mail_location\ =\ maildir:~\/Maildir/g" \
@@ -229,7 +229,7 @@ function install_dovecot() {
         fi
 
         # Enable IMAP and POP3 protocols for email clients.
-        if [ -f /etc/dovecot/conf.d/10-master.conf ]; then
+        if [[ -f /etc/dovecot/conf.d/10-master.conf ]]; then
             # IMAP
             run sed -i "s/#port\ =\ 143/port\ =\ 143/g" /etc/dovecot/conf.d/10-master.conf
             # IMAPS
@@ -247,6 +247,30 @@ function install_dovecot() {
             run sed -i "s/#user\ =\ postfix/user\ =\ postfix/g" /etc/dovecot/conf.d/10-master.conf
             run sed -i "s/#group\ =\ postfix/group\ =\ postfix/g" /etc/dovecot/conf.d/10-master.conf
         fi
+
+        # Let's Encrypt SSL certs.
+        if [[ -n "${MAILER_CERT_PATH}" && -f /etc/dovecot/conf.d/10-ssl.conf ]]; then
+            # SSL cert.
+            if grep -qwE "^ssl_cert\ =\ [^[:digit:]]*$" /etc/dovecot/conf.d/10-ssl.conf; then
+                run sed -i "s|^ssl_cert\ =\ [^[:digit:]]*$|ssl_cert\ =\ <${MAILER_CERT_PATH}/fullchain.pem|g" \
+                    /etc/dovecot/conf.d/10-ssl.conf
+            else
+                run sed -iE "/^#ssl_cert\ =\ [^[:digit:]]*$/a ssl_cert\ =\ <${MAILER_CERT_PATH}/fullchain.pem" \
+                    /etc/dovecot/conf.d/10-ssl.conf
+            fi
+
+            # SSL key.
+            if grep -qwE "^ssl_key\ =\ [^[:digit:]]*$" /etc/dovecot/conf.d/10-ssl.conf; then
+                run sed -i "s|^ssl_key\ =\ [^[:digit:]]*$|ssl_key\ =\ ${MAILER_CERT_PATH}/privkey.pem|g" \
+                    /etc/dovecot/conf.d/10-ssl.conf
+            else
+                run sed -iE "/^#ssl_key\ =\ [^[:digit:]]*$/a ssl_key\ =\ ${MAILER_CERT_PATH}/privkey.pem" \
+                    /etc/dovecot/conf.d/10-ssl.conf
+            fi
+        fi
+
+        # Enable Dovecot on startup.
+        run systemctl enable dovecot.service
 
         # Installation status.
         if [[ "${DRYRUN}" != true ]]; then
@@ -298,8 +322,10 @@ function install_spf_dkim() {
         echo "Configuring SPF + DKIM..."
 
         # Update postfix master conf.
-        run bash -c "echo 'policyd-spf  unix  -       n       n       -       0       spawn
-user=policyd-spf argv=/usr/bin/policyd-spf' >> /etc/postfix/master.cf"
+        if ! grep -qwE "^policyd-spf\  unix" /etc/postfix/master.cf; then
+            run bash -c "echo 'policyd-spf  unix  -       n       n       -       0       spawn
+  user=policyd-spf argv=/usr/bin/policyd-spf' >> /etc/postfix/master.cf"
+        fi
 
         # Update postfix main conf.
         run postconf -e 'policyd-spf_time_limit = 3600'
@@ -401,12 +427,10 @@ EOL
             run mkdir -p "/etc/opendkim/keys/${SENDER_DOMAIN}"
 
             # Generate keys using opendkim-genkey tool.
-            #opendkim-genkey -b 2048 -d your-domain.com -D /etc/opendkim/keys/your-domain.com -s default -v
             local KEY_HASH_LENGTH=${KEY_HASH_LENGTH:-2048}
             run opendkim-genkey -b "${KEY_HASH_LENGTH}" -d "${SENDER_DOMAIN}" -D "/etc/opendkim/keys/${SENDER_DOMAIN}" -s lemper -v
 
             # Make opendkim as the owner of the private key.
-            #chown opendkim:opendkim /etc/opendkim/keys/your-domain.com/default.private
             run chown opendkim:opendkim "/etc/opendkim/keys/${SENDER_DOMAIN}/lemper.private"
 
             # Publish Your Public Key in DNS Records.
@@ -429,6 +453,27 @@ EOL
             echo "opendkim-testkey -d ${SENDER_DOMAIN} -s lemper -vvv"
             sleep 3
         fi
+
+        # Enable Dovecot on startup.
+        run systemctl enable opendkim
+
+        # Installation status.
+        if [[ "${DRYRUN}" != true ]]; then
+            if [[ $(pgrep -c opendkim) -gt 0 ]]; then
+                run systemctl reload opendkim
+                success "OpenDKIM reloaded successfully."
+            elif [[ -n $(command -v opendkim) ]]; then
+                run systemctl start opendkim
+
+                if [[ $(pgrep -c opendkim) -gt 0 ]]; then
+                    success "OpenDKIM started successfully."
+                else
+                    error "Something goes wrong with OpenDKIM + SPF installation."
+                fi
+            fi
+        else
+            info "OpenDKIM + SPF installed in dry run mode."
+        fi
     fi
 }
 
@@ -436,8 +481,42 @@ EOL
 # Initialize the mail server installation.
 ##
 function init_mailer_install() {
-    [[ -z "${SENDER_DOMAIN}" && "${SENDER_DOMAIN}" == "example.com" ]] && \
-        SENDER_DOMAIN="${SERVER_HOSTNAME}"
+    if [[ $(validate_fqdn "${SENDER_DOMAIN}") == false || "${SENDER_DOMAIN}" == "mail.example.com" ]]; then
+        # Hostname TLD.
+        #SENDER_DOMAIN=$(echo "${HOSTNAME}" | rev | cut -d "." -f1-2 | rev)
+        SENDER_DOMAIN="${HOSTNAME}"
+    fi
+
+    # Generating Let's Encrypt certificates.
+    export MAILER_CERT_PATH
+
+    if [[ "${ENVIRONMENT}" == "production" && "${DRYRUN}" != true ]]; then
+        # Stop webserver first.
+        run systemctl stop nginx
+
+        if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true && $(dig "${SENDER_DOMAIN}" +short) == "${SERVER_IP}" ]]; then
+            echo "Generating LE certificates for sender domain '${SENDER_DOMAIN}'..."
+
+            if [[ ! -d "/etc/letsencrypt/live/${SENDER_DOMAIN}" ]]; then
+                run certbot certonly --standalone --agree-tos --preferred-challenges http -d "${SENDER_DOMAIN}"
+            fi
+
+            MAILER_CERT_PATH="/etc/letsencrypt/live/${SENDER_DOMAIN}"
+        elif [[ $(dig "${HOSTNAME}" +short) == $(get_ip_private) ]]; then
+            echo "Generating LE certificates for sender domain '${HOSTNAME}'..."
+
+            if [[ ! -d "/etc/letsencrypt/live/${HOSTNAME}" ]]; then
+                run certbot certonly --standalone --agree-tos --preferred-challenges http --webroot-path=/usr/share/nginx/html -d "${HOSTNAME}"
+            fi
+
+            MAILER_CERT_PATH="/etc/letsencrypt/live/${HOSTNAME}"
+        else
+            MAILER_CERT_PATH=""
+        fi
+
+        # Re-start webserver.
+        run systemctl start nginx
+    fi
 
     if [[ -n $(command -v postfix) && "${FORCE_INSTALL}" != true ]]; then
         info "Postfix already exists, installation skipped."

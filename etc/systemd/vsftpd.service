@@ -1,5 +1,5 @@
 [Unit]
-Description=vsftpd FTP server
+Description=Very secure FTP server installed using LEMPer Stack
 After=network.target
 
 [Service]
