@@ -98,13 +98,28 @@ EOL
             fi
 
             # Register a new account.
-            local LE_EMAIL=${LEMPER_ADMIN_EMAIL:-"cert@lemper.sh"}
+            local LE_EMAIL=${LEMPER_ADMIN_EMAIL:-"cert@lemper.cloud"}
 
-            if [ -d /etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory ]; then
+            if [[ -d /etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory ]]; then
                 run certbot update_account --email "${LE_EMAIL}" --no-eff-email --agree-tos
             else
                 run certbot register --email "${LE_EMAIL}" --no-eff-email --agree-tos
             fi
+        fi
+
+        # Generate a new certificate for the hostname domain.
+        if [[ "${ENVIRONMENT}" == "production" ]]; then
+            # Stop webserver first.
+            run systemctl stop nginx
+
+            if [[ $(dig "${HOSTNAME}" +short) == "${SERVER_IP}" ]]; then
+                run certbot certonly --standalone --agree-tos --preferred-challenges http --webroot-path=/usr/share/nginx/html -d "${HOSTNAME}"
+                export HOSTNAME_CERT_PATH && \
+                HOSTNAME_CERT_PATH="/etc/letsencrypt/live/${HOSTNAME}"
+            fi
+
+            # Re-start webserver.
+            run systemctl start nginx
         fi
 
         if [[ "${DRYRUN}" != true ]]; then
