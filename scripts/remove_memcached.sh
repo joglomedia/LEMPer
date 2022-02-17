@@ -112,6 +112,8 @@ function init_memcached_removal() {
 
     # Final test.
     if [[ "${DRYRUN}" != true ]]; then
+        run systemctl daemon-reload
+
         if [[ -z $(command -v memcached) ]]; then
             success "Memcached server removed succesfully."
         else
