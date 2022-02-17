@@ -119,9 +119,11 @@ function init_nginx_removal() {
 
         echo "All your Nginx configuration files deleted permanently."
     fi
-    
+
     # Final test.
     if [[ "${DRYRUN}" != true ]]; then
+        run systemctl daemon-reload
+
         if [[ -z $(command -v nginx) ]]; then
             success "Nginx HTTP server removed succesfully."
         else

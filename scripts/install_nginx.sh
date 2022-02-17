@@ -1499,9 +1499,12 @@ function init_nginx_install() {
         run cp -fr etc/nginx/{conf.d,includes,vhost} /etc/nginx/
 
         # Copy custom index & error pages.
-        [ ! -d /usr/share/nginx/html ] && run mkdir -p /usr/share/nginx/html
+        [ ! -d /usr/share/nginx/html ] && run mkdir -p /usr/share/nginx/html/
         run cp -fr share/nginx/html/error-pages /usr/share/nginx/html/
         run cp -f share/nginx/html/index.html /usr/share/nginx/html/
+
+        # Let's Encrypt acme challenge directory.
+        [ ! -d /usr/share/nginx/html/.well-known ] && run mkdir -p /usr/share/nginx/html/.well-known/acme-challenge/
 
         # Create Nginx cache directory.
         [ ! -d /var/cache/nginx/fastcgi_cache ] && run mkdir -p /var/cache/nginx/fastcgi_cache
