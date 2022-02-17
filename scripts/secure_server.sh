@@ -187,6 +187,7 @@ function install_ufw() {
     # Install UFW
     run apt-get install -qq -y ufw
 
+    # UFW app rules is here /etc/ufw/applications.d
     if [[ -n $(command -v ufw) ]]; then
         echo "Configuring UFW firewall rules..."
 
@@ -214,25 +215,30 @@ function install_ufw() {
 
         # Open FTP ports.
         if [[ "${INSTALL_VSFTPD}" == true ]]; then
+            FTP_MIN_PORT=${FTP_MIN_PORT:-45000}
+            FTP_MAX_PORT=${FTP_MAX_PORT:-45099}
+
             run ufw allow 20/tcp
             run ufw allow 21/tcp
-            run ufw allow 990/tcp # For TLS enabled.
-            run ufw allow 40000:50000/tcp # The range of passive ports.
+            # For TLS enabled.
+            run ufw allow 990/tcp
+            # The range of passive ports.
+            run ufw allow "${FTP_MIN_PORT}:${FTP_MAX_PORT}/tcp"
         fi
 
-        # Open SMTPs port.
-        run ufw allow 25
-        run ufw allow 465
-        run ufw allow 587
-
         if [[ "${INSTALL_MAILER}" == true ]]; then
+            # Open SMTPs port.
+            run ufw allow 25/tcp
+            run ufw allow 465/tcp
+            run ufw allow 587/tcp
+
             # Open IMAPs ports.
-            run ufw allow 143
-            run ufw allow 993
+            run ufw allow 143/tcp
+            run ufw allow 993/tcp
 
             # Open POP3s ports.
-            run ufw allow 110
-            run ufw allow 995
+            run ufw allow 110/tcp
+            run ufw allow 995/tcp
         fi
 
         # Open DNS port.
@@ -318,7 +324,9 @@ function install_csf() {
 
         # Open FTP ports.
         if [[ "${INSTALL_VSFTPD}" == true ]]; then
-            CSF_ALLOW_PORTS="${CSF_ALLOW_PORTS},20,21,990,40000:50000"
+            FTP_MIN_PORT=${FTP_MIN_PORT:-45000}
+            FTP_MAX_PORT=${FTP_MAX_PORT:-45099}
+            CSF_ALLOW_PORTS="${CSF_ALLOW_PORTS},20,21,990,${FTP_MIN_PORT}:${FTP_MAX_PORT}"
         fi
 
         # Allowed incoming TCP ports.

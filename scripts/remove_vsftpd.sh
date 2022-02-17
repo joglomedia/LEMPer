@@ -61,11 +61,15 @@ function init_vsftpd_removal() {
     if [[ "${REMOVE_VSFTPD_CONFIG}" == y* || "${REMOVE_VSFTPD_CONFIG}" == Y* ]]; then
         [[ -f /etc/vsftpd.conf ]] && run rm -f /etc/vsftpd.conf
         [[ -f /etc/vsftpd.conf.bak ]] && run rm -f /etc/vsftpd.conf.bak
+        [[ -f /etc/vsftpd.userlist ]] && run rm -f /etc/vsftpd.userlist
+
         echo "All configuration files deleted permanently."
     fi
 
     # Final test.
     if [[ "${DRYRUN}" != true ]]; then
+        run systemctl daemon-reload
+
         if [[ -z $(command -v vsftpd) ]]; then
             success "FTP server (VSFTPD) removed succesfully."
         else
