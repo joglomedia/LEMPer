@@ -71,14 +71,16 @@ function init_redis_removal() {
     fi
 
     # Final test.
-    if [[ "${DRYRUN}" == true ]]; then
-        info "Redis server removed in dry run mode."
-    else
+    if [[ "${DRYRUN}" != true ]]; then
+        run systemctl daemon-reload
+
         if [[ -z $(command -v redis-server) ]]; then
             success "Redis server removed succesfully."
         else
             info "Unable to remove Redis server."
         fi
+    else
+        info "Redis server removed in dry run mode."
     fi
 }
 

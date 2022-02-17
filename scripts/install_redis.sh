@@ -232,12 +232,11 @@ EOL
         # Restart and enable Redis on system boot.
         echo "Starting Redis server..."
 
-        if [[ -f /etc/systemd/system/redis.service ]]; then
-            run systemctl restart redis-server.service
+        if [[ -f /etc/systemd/system/redis.service || -f /lib/systemd/system/redis-server.service ]]; then
             run systemctl enable redis-server.service
-        else
-            run systemctl restart redis-server
         fi
+
+        run systemctl restart redis-server.service
 
         if [[ "${DRYRUN}" != true ]]; then
             if [[ $(pgrep -c redis-server) -gt 0 ]]; then
