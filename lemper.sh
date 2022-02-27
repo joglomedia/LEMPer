@@ -36,10 +36,6 @@ fi
 # Try to re-export global path.
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-# Get installer base directory.
-export BASE_DIR && \
-BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-
 ##
 # Main LEMPer Installer
 ##
@@ -423,6 +419,9 @@ function exit_if_optarg_is_empty() {
     fi
 }
 
+##
+# Set installer's debug mode.
+##
 function set_debug_mode() {
     DEBUG_MODE=${1}
 
@@ -434,6 +433,9 @@ function set_debug_mode() {
     fi
 }
 
+##
+# Set installer's dry-run mode.
+##
 function set_dryrun_mode() {
     DRYRUN=${1}
 
@@ -444,6 +446,9 @@ function set_dryrun_mode() {
     fi
 }
 
+##
+# Calculate installation total time.
+##
 function final_time_result() {
     START_TIME=${1}
     END_TIME=$(date +%s)
@@ -458,7 +463,32 @@ function final_time_result() {
 }
 
 ##
-# Run go.sh <COMMANDS> <OPTIONS>
+# Clone the LEMPer repository.
+##
+function git_clone_lemper() {
+    GIT_BRANCH=${1:-master}
+
+    if [[ -z $(command -v git) ]]; then
+        echo "Git is not installed, now installing..."
+        apt-get update -y && apt-get install -y git
+    fi
+
+    if [[ -n $(command -v git) && ! -d LEMPer/.git ]]; then
+        echo -e "\nCloning LEMPer from ${GIT_BRANCH} branch..."
+        git clone -q https://github.com/joglomedia/LEMPer.git
+    else
+        echo -e "\nUpdating LEMPer from ${GIT_BRANCH} branch..."
+        cd LEMPer
+        git pull -q
+        cd ..
+    fi
+
+    cd LEMPer
+    git checkout -q "${GIT_BRANCH}"
+}
+
+##
+# Run lemper.sh <COMMANDS> <OPTIONS>
 #
 # COMMANDS:
 #   install
@@ -470,6 +500,10 @@ function final_time_result() {
 function init_lemper_install() {
     START_TIME=$(date +%s)
 
+    # Clone LEMPer repository first.
+    git_clone_lemper "2.x.x"
+
+    # Check dotenv config file.
     if [[ ! -f .env.dist ]]; then
         echo "${PROG_NAME}: .env.dist file not found."
         exit 1
@@ -481,15 +515,15 @@ function init_lemper_install() {
         cp .env.dist .env
     fi
 
-    # Default args.
+    # Set default args.
     DEBUG_MODE=false
     DRYRUN=false
 
-    # Sub command.
+    # Get sub command.
     CMD=${1}
     shift
 
-    # Options.
+    # Set getopt options.
     OPTS=$(getopt -o h:i:dgpDBF \
         -l debug,development,dry-run,fix-broken-install,force,guided,hostname:,ipv4:,production,unattended \
         -l with-nginx:,with-nginx-installer:,with-php:,with-php-extensions:,with-php-loader: \
@@ -525,8 +559,20 @@ function init_lemper_install() {
                 esac
                 shift
             ;;
+            --with-nginx-lua)
+                sed -i "s/NGX_HTTP_LUA=[a-zA-Z]*/NGX_HTTP_LUA=true/g" .env
+                shift
+            ;;
             --with-nginx-pagespeed)
                 sed -i "s/NGX_PAGESPEED=[a-zA-Z]*/NGX_PAGESPEED=true/g" .env
+                shift
+            ;;
+            --with-nginx-passenger)
+                sed -i "s/NGX_HTTP_PASSENGER=[a-zA-Z]*/NGX_HTTP_PASSENGER=true/g" .env
+                shift
+            ;;
+            --with-nginx-rtmp)
+                sed -i "s/NGX_RTMP=[a-zA-Z]*/NGX_RTMP=true/g" .env
                 shift
             ;;
             # Usage: --with-php <php-version>
@@ -553,11 +599,14 @@ function init_lemper_install() {
                 sed -i "s/INSTALL_PHP_LOADER=[a-zA-Z]*/INSTALL_PHP_LOADER=true/g" .env
                 PHP_LOADER=$( echo "${1}" | tr '[:upper:]' '[:lower:]' )
                 case "${PHP_LOADER}" in
-                    sg | sourceguardian)
-                        sed -i "s/PHP_LOADER=\"[a-zA-Z]*\"/PHP_LOADER=\"sourceguardian\"/g" .env
+                    all)
+                        sed -i "s/PHP_LOADER=\"[a-zA-Z]*\"/PHP_LOADER=\"all\"/g" .env
                     ;;
                     ic | ioncube)
                         sed -i "s/PHP_LOADER=\"[a-zA-Z]*\"/PHP_LOADER=\"ioncube\"/g" .env
+                    ;;
+                    sg | sourceguardian)
+                        sed -i "s/PHP_LOADER=\"[a-zA-Z]*\"/PHP_LOADER=\"sourceguardian\"/g" .env
                     ;;
                     *)
                         echo "Selected PHP Loader: ${PHP_LOADER} is not supported."
@@ -758,7 +807,7 @@ function init_lemper_install() {
 
     # Include helper functions.
     if [[ "$(type -t run)" != "function" ]]; then
-        . "${BASE_DIR}/scripts/helper.sh"
+        . ./scripts/helper.sh
     fi
 
     # Make sure only supported distribution can run this installer script.
