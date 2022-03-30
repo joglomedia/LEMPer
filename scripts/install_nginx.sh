@@ -56,7 +56,7 @@ function add_nginx_repo() {
         ;;
         ubuntu)
             # Nginx custom with ngx cache purge from Ondrej repo.
-            #run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
+            run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
             run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}"
             run apt-get update -qq -y
@@ -182,7 +182,7 @@ function init_nginx_install() {
                             # Embed the power of Lua into Nginx HTTP Servers.
                             if "${NGX_HTTP_LUA}"; then
                                 echo "Adding ngx-http-lua module..."
-                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-lua")
+                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "luajit" "libluajit" "libnginx-mod-http-lua")
                             fi
 
                             # Nginx Memc - An extended version of the standard memcached module.
@@ -366,14 +366,14 @@ function init_nginx_install() {
 
                         # OpenSSL
                         if grep -iq openssl <<<"${NGINX_CUSTOMSSL_VERSION}"; then
-                            OPENSSL_SOURCE="https://www.openssl.org/source/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
-                            #OPENSSL_SOURCE="https://github.com/openssl/openssl/archive/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                            OPENSSL_SOURCE_URL="https://www.openssl.org/source/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                            #OPENSSL_SOURCE_URL="https://github.com/openssl/openssl/archive/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
 
-                            if curl -sLI "${OPENSSL_SOURCE}" | grep -q "HTTP/[.12]* [2].."; then
-                                run wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${OPENSSL_SOURCE}" && \
+                            if curl -sLI "${OPENSSL_SOURCE_URL}" | grep -q "HTTP/[.12]* [2].."; then
+                                run wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${OPENSSL_SOURCE_URL}" && \
                                 run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
 
-                                [ -d "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" ] && \
+                                [[ -d "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" ]] && \
                                     NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
                                         --with-openssl=${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION} \
                                         --with-openssl-opt=enable-ec_nistp_64_gcc_128 \
@@ -385,13 +385,13 @@ function init_nginx_install() {
 
                         # LibreSSL
                         elif grep -iq libressl <<<"${NGINX_CUSTOMSSL_VERSION}"; then
-                            LIBRESSL_SOURCE="https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                            LIBRESSL_SOURCE_URL="https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
 
-                            if curl -sLI "${LIBRESSL_SOURCE}" | grep -q "HTTP/[.12]* [2].."; then
-                                run wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${LIBRESSL_SOURCE}" && \
+                            if curl -sLI "${LIBRESSL_SOURCE_URL}" | grep -q "HTTP/[.12]* [2].."; then
+                                run wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${LIBRESSL_SOURCE_URL}" && \
                                 run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
 
-                                [ -d "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" ] && \
+                                [[ -d "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" ]] && \
                                     NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
                                         --with-openssl=${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION} \
                                         --with-openssl-opt=no-weak-ssl-ciphers"
@@ -403,9 +403,30 @@ function init_nginx_install() {
                         elif grep -iq boringssl <<< "${NGINX_CUSTOMSSL_VERSION}"; then
                             # BoringSSL requires Golang, install it first.
                             if [[ -z $(command -v go) ]]; then
+                                GOLANG_VER="1.17.8"
+
+                                local DISTRIB_ARCH
+                                case "${ARCH}" in
+                                    i386 | i486| i586 | i686)
+                                        DISTRIB_ARCH="386"
+                                    ;;
+                                    x86_64 | amd64)
+                                        DISTRIB_ARCH="amd64"
+                                    ;;
+                                    arm64 | aarch* | armv8*)
+                                        DISTRIB_ARCH="arm64"
+                                    ;;
+                                    arm | armv7*)
+                                        DISTRIB_ARCH="armv6l"
+                                    ;;
+                                    *)
+                                        DISTRIB_ARCH="386"
+                                    ;;
+                                esac
+
                                 case "${DISTRIB_NAME}" in
                                     debian)
-                                        GOLANG_DOWNLOAD_URL="https://dl.google.com/go/go1.13.4.linux-amd64.tar.gz"
+                                        GOLANG_DOWNLOAD_URL="https://go.dev/dl/go${GOLANG_VER}.linux-${DISTRIB_ARCH}.tar.gz"
 
                                         if curl -sLI "${GOLANG_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
                                             run wget -q -O golang.tar.gz "${GOLANG_DOWNLOAD_URL}" && \
@@ -432,11 +453,11 @@ function init_nginx_install() {
                             IFS='- ' read -r -a BSPARTS <<< "${NGINX_CUSTOMSSL_VERSION}"
                             IFS=${SAVEIFS} # Restore IFS
                             BORINGSSL_VERSION=${BSPARTS[1]}
-                            [[ -z ${BORINGSSL_VERSION} || ${BORINGSSL_VERSION} = "latest" ]] && BORINGSSL_VERSION="master"
-                            BORINGSSL_DOWNLOAD_URL="https://boringssl.googlesource.com/boringssl/+archive/refs/heads/${BORINGSSL_VERSION}.tar.gz"
+                            [[ -z ${BORINGSSL_VERSION} || ${BORINGSSL_VERSION} == "latest" ]] && BORINGSSL_VERSION="master"
+                            BORINGSSL_SOURCE_URL="https://boringssl.googlesource.com/boringssl/+archive/refs/heads/${BORINGSSL_VERSION}.tar.gz"
 
-                            if curl -sLI "${BORINGSSL_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                                run wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${BORINGSSL_DOWNLOAD_URL}" && \
+                            if curl -sLI "${BORINGSSL_SOURCE_URL}" | grep -q "HTTP/[.12]* [2].."; then
+                                run wget -q -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${BORINGSSL_SOURCE_URL}" && \
                                 run mkdir -p "${NGINX_CUSTOMSSL_VERSION}" && \
                                 run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz" -C "${NGINX_CUSTOMSSL_VERSION}" && \
                                 run cd "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" && \
@@ -453,13 +474,11 @@ function init_nginx_install() {
                                 run make -C"${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/build" -j"${NB_PROC}" && \
 
                                 # Copy the BoringSSL crypto libraries to .openssl/lib so nginx can find them.
-                                run cp build/crypto/libcrypto.a .openssl/lib && \
-                                run cp build/ssl/libssl.a .openssl/lib && \
+                                run cp build/crypto/libcrypto.a build/ssl/libssl.a .openssl/lib && \
 
                                 # Back to extra module dir.
                                 run cd "${EXTRA_MODULE_DIR}" || return 1
 
-                                #NGX_CONFIGURE_ARGS="--with-openssl=${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION} ${NGX_CONFIGURE_ARGS}"
                                 NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
                                     --with-cc-opt=\"-I${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/include\" \
                                     --with-ld-opt=\"-L${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/lib\""
@@ -674,7 +693,6 @@ function init_nginx_install() {
                             GEOLITE2_COUNTRY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
 
                             if curl -sLI "${GEOLITE2_COUNTRY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
-                                #run wget -q https://geolite.maxmind.com/download/geoip/database/GeoLite2-Country.tar.gz && \
                                 run wget -q "${GEOLITE2_COUNTRY_SRC}" -O GeoLite2-Country.tar.gz && \
                                 run tar -xf GeoLite2-Country.tar.gz && \
                                 run cd GeoLite2-Country_*/ && \
@@ -685,7 +703,6 @@ function init_nginx_install() {
                             GEOLITE2_CITY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
 
                             if curl -sLI "${GEOLITE2_CITY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
-                                #run wget -q https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz && \
                                 run wget -q "${GEOLITE2_CITY_SRC}" -O GeoLite2-City.tar.gz && \
                                 run tar -xf GeoLite2-City.tar.gz && \
                                 run cd GeoLite2-City_*/ && \
