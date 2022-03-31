@@ -501,7 +501,7 @@ function init_lemper_install() {
     START_TIME=$(date +%s)
 
     # Clone LEMPer repository first.
-    git_clone_lemper "2.x.x"
+    git_clone_lemper "master" > /dev/null 2>&1
 
     # Check dotenv config file.
     if [[ ! -f .env.dist ]]; then
@@ -510,7 +510,7 @@ function init_lemper_install() {
     fi
 
     if [[ -f .env ]]; then
-        cp .env .env.bak
+        cp -f .env .env.bak
     else
         cp .env.dist .env
     fi
@@ -526,7 +526,8 @@ function init_lemper_install() {
     # Set getopt options.
     OPTS=$(getopt -o h:i:dgpDBF \
         -l debug,development,dry-run,fix-broken-install,force,guided,hostname:,ipv4:,production,unattended \
-        -l with-nginx:,with-nginx-installer:,with-php:,with-php-extensions:,with-php-loader: \
+        -l with-nginx:,with-nginx-installer:,with-nginx-custom-ssl:,with-nginx-lua,with-nginx-pagespeed,with-nginx-passenger \
+        -l with-nginx-pcre:,with-nginx-rtmp,with-php:,with-php-extensions:,with-php-loader: \
         -l with-mysql-server:,with-memcached:,with-memcached-installer:,with-mongodb:,with-mongodb-admin: \
         -l with-redis:,with-redis-installer:,with-redis-requirepass:,with-ftp-server: \
         -n "${PROG_NAME}" -- "$@")
@@ -559,6 +560,14 @@ function init_lemper_install() {
                 esac
                 shift
             ;;
+            --with-nginx-custom-ssl)
+                exit_if_optarg_is_empty "${1}" "${2}"
+                shift
+                NGINX_CUSTOMSSL_VERSION=${1-"openssl-1.1.1l"}
+                sed -i "s/NGINX_WITH_CUSTOMSSL=[a-zA-Z]*/NGINX_WITH_CUSTOMSSL=true/g" .env
+                sed -i "s/NGINX_CUSTOMSSL_VERSION=\"[0-9a-zA-Z.-\ ]*\"/NGINX_CUSTOMSSL_VERSION=\"${NGINX_CUSTOMSSL_VERSION}\"/g" .env
+                shift
+            ;;
             --with-nginx-lua)
                 sed -i "s/NGX_HTTP_LUA=[a-zA-Z]*/NGX_HTTP_LUA=true/g" .env
                 shift
@@ -569,6 +578,14 @@ function init_lemper_install() {
             ;;
             --with-nginx-passenger)
                 sed -i "s/NGX_HTTP_PASSENGER=[a-zA-Z]*/NGX_HTTP_PASSENGER=true/g" .env
+                shift
+            ;;
+            --with-nginx-pcre)
+                exit_if_optarg_is_empty "${1}" "${2}"
+                shift
+                NGINX_PCRE_VERSION=${1-"8.45"}
+                sed -i "s/NGINX_WITH_PCRE=[a-zA-Z]*/NGINX_WITH_PCRE=true/g" .env
+                sed -i "s/NGINX_PCRE_VERSION=\"[0-9a-zA-Z.\ ]*\"/NGINX_PCRE_VERSION=\"${NGINX_PCRE_VERSION}\"/g" .env
                 shift
             ;;
             --with-nginx-rtmp)
@@ -661,7 +678,7 @@ function init_lemper_install() {
                 MEMCACHED_INSTALLER=${1}
                 case "${MEMCACHED_INSTALLER}" in
                     source)
-                        sed -i "s/MEMCACHED_INSTALLER=\"[a-zA-Z.\ ]*\"/MEMCACHED_INSTALLER=\"source\"/g" .env
+                        sed -i "s/MEMCACHED_INSTALLER=\"[a-zA-Z]*\"/MEMCACHED_INSTALLER=\"source\"/g" .env
                     ;;
                     *)
                         sed -i "s/MEMCACHED_INSTALLER=\"[a-zA-Z]*\"/MEMCACHED_INSTALLER=\"repo\"/g" .env
@@ -690,8 +707,8 @@ function init_lemper_install() {
                 MONGODB_ADMIN_PASS="${MONGODB_ADMIN_AUTH[1]}"
                 # Restore default IFS
                 IFS=${_IFS}
-                sed -i "s/MONGODB_ADMIN_USER=\"[0-9a-zA-Z._-\ ]*\"/MONGODB_ADMIN_USER=\"${MONGODB_ADMIN_USER}\"/g" .env
-                sed -i "s/MONGODB_ADMIN_PASSWORD=\"[0-9a-zA-Z._-\ ]*\"/MONGODB_ADMIN_PASSWORD=\"${MONGODB_ADMIN_PASS}\"/g" .env
+                sed -i "s/MONGODB_ADMIN_USER=\"[0-9a-zA-Z._-]*\"/MONGODB_ADMIN_USER=\"${MONGODB_ADMIN_USER}\"/g" .env
+                sed -i "s/MONGODB_ADMIN_PASSWORD=\"[0-9a-zA-Z._-]*\"/MONGODB_ADMIN_PASSWORD=\"${MONGODB_ADMIN_PASS}\"/g" .env
                 shift
             ;;
             # Usage: --with-redis <latest | stable | redis-version>
@@ -701,7 +718,7 @@ function init_lemper_install() {
                 REDIS_VERSION=${1}
                 if [ -z "${REDIS_VERSION}" ]; then REDIS_VERSION="stable"; fi
                 sed -i "s/INSTALL_REDIS=[a-zA-Z]*/INSTALL_REDIS=true/g" .env
-                sed -i "s/REDIS_VERSION=\"[0-9a-zA-Z._-\ ]*\"/REDIS_VERSION=\"${REDIS_VERSION}\"/g" .env
+                sed -i "s/REDIS_VERSION=\"[0-9a-zA-Z._-]*\"/REDIS_VERSION=\"${REDIS_VERSION}\"/g" .env
                 shift
             ;;
             # Usage: --with-redis-installer <source | repo>
@@ -725,7 +742,7 @@ function init_lemper_install() {
                 shift
                 REDIS_PASSWORD=${1}
                 sed -i "s/REDIS_REQUIRE_PASSWORD=[a-zA-Z]*/REDIS_REQUIRE_PASSWORD=true/g" .env
-                sed -i "s/REDIS_PASSWORD=\"[0-9a-zA-Z._-\ ]*\"/REDIS_PASSWORD=\"${REDIS_PASSWORD}\"/g" .env
+                sed -i "s/REDIS_PASSWORD=\"[0-9a-zA-Z._-]*\"/REDIS_PASSWORD=\"${REDIS_PASSWORD}\"/g" .env
                 shift
             ;;
             --with-ssh-port)
@@ -787,6 +804,13 @@ function init_lemper_install() {
             ;;
             -p | --production)
                 sed -i "s/ENVIRONMENT=\"[a-zA-Z]*\"/ENVIRONMENT=\"production\"/g" .env
+                shift
+            ;;
+            --admin-email)
+                exit_if_optarg_is_empty "${1}" "${2}"
+                shift
+                LEMPER_ADMIN_EMAIL=${1}
+                sed -i "s/LEMPER_ADMIN_EMAIL=\"[0-9a-zA-Z._-@\ ]*\"/LEMPER_ADMIN_EMAIL=\"${LEMPER_ADMIN_EMAIL}\"/g" .env
                 shift
             ;;
             --)

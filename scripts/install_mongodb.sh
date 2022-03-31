@@ -31,7 +31,7 @@ fi
 ##
 function add_mongodb_repo() {
     local DISTRIB_ARCH
-    case ${ARCH} in
+    case "${ARCH}" in
         i386 | i486| i586 | i686)
             DISTRIB_ARCH="i386"
         ;;
