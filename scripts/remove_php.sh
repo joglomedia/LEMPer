@@ -247,7 +247,7 @@ function remove_php_loader() {
         fi
     fi
 }
-
+ 
 ##
 # Initialize PHP & FPM removal.
 ##
@@ -290,11 +290,14 @@ function init_php_fpm_removal() {
         esac
     done
 
+    # Include versions from config file.
+    read -r -a REMOVED_PHP_VERSIONS <<< "${PHP_VERSIONS}"
+
     if [[ "${#OPT_PHP_VERSIONS[@]}" -gt 0 ]]; then
         REMOVED_PHP_VERSIONS+=("${OPT_PHP_VERSIONS[@]}")
     else
         # Manually select PHP version in interactive mode.
-        if ! "${AUTO_REMOVE}"; then
+        if [[ "${AUTO_REMOVE}" != true ]]; then
             echo "Which PHP version to be removed?"
             echo "Available PHP versions:"
             echo "  1). PHP 5.6 (EOL)"
@@ -370,15 +373,14 @@ function init_php_fpm_removal() {
         REMOVED_PHP_VERSIONS+=("${DEFAULT_PHP_VERSION}")
     fi
 
-    # Sort PHP versions.
-    #shellcheck disable=SC2207
-    REMOVED_PHP_VERSIONS=($(printf "%s\n" "${REMOVED_PHP_VERSIONS[@]}" | sort -u | tr '\n' ' '))
-
     # Remove all selected PHP versions.
     if [[ "${#REMOVED_PHP_VERSIONS[@]}" -gt 0 ]]; then
+        # Sort PHP versions.
+        #shellcheck disable=SC2207
+        REMOVED_PHP_VERSIONS=($(printf "%s\n" "${REMOVED_PHP_VERSIONS[@]}" | sort -u | tr '\n' ' '))
+
         for PHP_VER in "${REMOVED_PHP_VERSIONS[@]}"; do
             remove_php_fpm "${PHP_VER}" "${OPT_PHP_LOADER}"
-            echo ""
         done
 
         # Final clean up (executed only if no PHP version installed).
