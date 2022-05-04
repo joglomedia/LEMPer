@@ -3,12 +3,10 @@ on:
   push:
     branches:
       - '2.x.x'
-      - '3.x.x'
       - 'master'
   pull_request:
     branches: 
       - '2.x.x'
-      - '3.x.x'
       - 'master'
   workflow_dispatch:
 jobs:
@@ -48,9 +46,9 @@ jobs:
           sudo apt-get install -q -y bash curl
           sudo curl -sSL -o /usr/local/bin/shunit2 https://raw.githubusercontent.com/kward/shunit2/master/shunit2
           sudo chmod +x /usr/local/bin/shunit2
-          sudo curl -sSLO https://github.com/koalaman/shellcheck/releases/download/v0.7.2/shellcheck-v0.7.2.linux.x86_64.tar.xz
-          sudo tar -xf shellcheck-v0.7.2.linux.x86_64.tar.xz
-          sudo mv shellcheck-v0.7.2/shellcheck /usr/local/bin/
+          sudo curl -sSLO https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.x86_64.tar.xz
+          sudo tar -xf shellcheck-v0.8.0.linux.x86_64.tar.xz
+          sudo mv shellcheck-v0.8.0/shellcheck /usr/local/bin/
           sudo chmod +x /usr/local/bin/shellcheck
       # Shellcheck Tests
       - name: Run shellcheck testing

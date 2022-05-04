@@ -103,10 +103,17 @@ if [ -f ./scripts/remove_certbotle.sh ]; then
     . ./scripts/remove_certbotle.sh
 fi
 
-### Remove VSFTPD ###
-if [ -f ./scripts/remove_vsftpd.sh ]; then
-    echo ""
-    . ./scripts/remove_vsftpd.sh
+### Remove FTP installation ###
+if [[ "${FTP_SERVER_NAME}" == "pureftpd" || "${FTP_SERVER_NAME}" == "pure-ftpd" ]]; then
+    if [ -f ./scripts/remove_pureftpd.sh ]; then
+        echo ""
+        . ./scripts/remove_pureftpd.sh
+    fi
+else
+    if [ -f ./scripts/remove_vsftpd.sh ]; then
+        echo ""
+        . ./scripts/remove_vsftpd.sh
+    fi
 fi
 
 ### Remove Fail2ban ###
