@@ -40,7 +40,7 @@ run apt-get install -qq -y \
     htop iptables libc-bin libc6-dev libcurl4-openssl-dev libgd-dev libgeoip-dev libgpgme11-dev \
     libsodium-dev libssl-dev libxml2-dev libpcre3-dev libtool libxslt1-dev locales logrotate lsb-release \
     make net-tools openssh-server openssl pkg-config python python3 re2c rsync software-properties-common \
-    sasl2-bin sendmail snmp sudo sysstat tar tzdata unzip wget whois xz-utils zlib1g-dev
+    sasl2-bin snmp sudo sysstat tar tzdata unzip wget whois xz-utils zlib1g-dev
 
 # Update locale
 echo "Reconfigure locale..."

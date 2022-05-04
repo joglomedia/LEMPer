@@ -144,10 +144,17 @@ if [ -f ./scripts/install_mailer.sh ]; then
     . ./scripts/install_mailer.sh
 fi
 
-### VSFTPD installation ###
-if [ -f ./scripts/install_vsftpd.sh ]; then
-    echo ""
-    . ./scripts/install_vsftpd.sh
+### FTP installation ###
+if [[ "${FTP_SERVER_NAME}" == "pureftpd" || "${FTP_SERVER_NAME}" == "pure-ftpd" ]]; then
+    if [ -f ./scripts/install_pureftpd.sh ]; then
+        echo ""
+        . ./scripts/install_pureftpd.sh
+    fi
+else
+    if [ -f ./scripts/install_vsftpd.sh ]; then
+        echo ""
+        . ./scripts/install_vsftpd.sh
+    fi
 fi
 
 ### Fail2ban, intrusion prevention software framework. ###

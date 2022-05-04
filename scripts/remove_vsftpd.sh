@@ -23,6 +23,7 @@ function init_vsftpd_removal() {
     # Stop VSFTPD process.
     if [[ $(pgrep -c vsftpd) -gt 0 ]]; then
         run systemctl stop vsftpd
+        run systemctl disable vsftpd
     fi
 
     if dpkg-query -l | awk '/vsftpd/ { print $2 }' | grep -qwE "^vsftpd$"; then

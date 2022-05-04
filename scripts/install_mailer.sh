@@ -39,6 +39,13 @@ function install_postfix() {
     if [[ ${DO_INSTALL_POSTFIX} == y* || ${DO_INSTALL_POSTFIX} == Y* ]]; then
         echo "Installing Postfix Mail-Transfer Agent..."
 
+        if [[ -n $(command -v sendmail) ]]; then
+            echo "Remove existing sendmail install..."
+            run service sendmail stop && \
+            run update-rc.d -f sendmail remove && \
+            run apt-get remove -qq -y sendmail
+        fi
+
         run apt-get install -qq -y mailutils postfix
 
         # Configure Postfix.

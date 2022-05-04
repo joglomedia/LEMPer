@@ -138,6 +138,7 @@ function init_tools_install() {
         local CURRENT_DIR && \
         CURRENT_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/memcadmin && \
+        run git config --global --add safe.directory /usr/share/nginx/html/lcp/memcadmin && \
         run git pull -q && \
         run cd "${CURRENT_DIR}" || return 1
     fi

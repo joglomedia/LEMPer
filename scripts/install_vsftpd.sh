@@ -26,19 +26,19 @@ function init_vsftpd_install() {
     local SELECTED_INSTALLER=""
 
     if [[ "${AUTO_INSTALL}" == true ]]; then
-        if [[ "${INSTALL_VSFTPD}" == true ]]; then
-            DO_INSTALL_VSFTPD="y"
-            SELECTED_INSTALLER=${VSFTPD_INSTALLER:-"repo"}
+        if [[ "${INSTALL_FTP_SERVER}" == true ]]; then
+            DO_INSTALL_FTP_SERVER="y"
+            SELECTED_INSTALLER=${FTP_SERVER_INSTALLER:-"repo"}
         else
-            DO_INSTALL_VSFTPD="n"
+            DO_INSTALL_FTP_SERVER="n"
         fi
     else
-        while [[ "${DO_INSTALL_VSFTPD}" != "y" && "${DO_INSTALL_VSFTPD}" != "n" ]]; do
-            read -rp "Do you want to install FTP server (VSFTPD)? [y/n]: " -i y -e DO_INSTALL_VSFTPD
+        while [[ "${DO_INSTALL_FTP_SERVER}" != "y" && "${DO_INSTALL_FTP_SERVER}" != "n" ]]; do
+            read -rp "Do you want to install FTP server (VSFTPD)? [y/n]: " -i y -e DO_INSTALL_FTP_SERVER
         done
     fi
 
-    if [[ ${DO_INSTALL_VSFTPD} == y* || ${DO_INSTALL_VSFTPD} == Y* ]]; then
+    if [[ ${DO_INSTALL_FTP_SERVER} == y* || ${DO_INSTALL_FTP_SERVER} == Y* ]]; then
         echo "Available VSFTPD installation method:"
         echo "  1). Install from Repository (repo)"
         echo "  2). Compile from Source (source)"
@@ -53,9 +53,6 @@ function init_vsftpd_install() {
             1 | "repo")
                 echo "Installing FTP server (VSFTPD) from repository..."
                 run apt-get install -qq -y vsftpd
-
-                # Backup original config.
-                run cp /etc/vsftpd.conf /etc/vsftpd.conf.backup
             ;;
             2 | "source")
                 echo "Installing FTP server (VSFTPD) from source..."
@@ -121,21 +118,21 @@ function init_vsftpd_install() {
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
 
-                if [[ "${VSFTPD_VERSION}" == "latest" ]]; then
+                if [[ "${FTP_SERVER_VERSION}" == "latest" || "${FTP_SERVER_VERSION}" == "stable" ]]; then
                     VSFTPD_FILENAME="vsftpd-3.0.5.tar.gz"
                     VSFTPD_ZIP_URL="https://security.appspot.com/downloads/${VSFTPD_FILENAME}"
                 else
-                    VSFTPD_FILENAME="vsftpd-${VSFTPD_VERSION}.tar.gz"
+                    VSFTPD_FILENAME="vsftpd-${FTP_SERVER_VERSION}.tar.gz"
                     VSFTPD_ZIP_URL="https://security.appspot.com/downloads/${VSFTPD_FILENAME}"
                 fi
 
                 run cd "${BUILD_DIR}" && \
                 run wget -q "${VSFTPD_ZIP_URL}" && \
                 run tar -zxf "${VSFTPD_FILENAME}" && \
-                run cd vsftpd-*/ || return 1
+                run cd "${VSFTPD_FILENAME%.*.*}" / || return 1
 
                 # If SSL Enabled, modify the builddefs.h file.
-                if [[ "${VSFTPD_SSL_ENABLE}" == true ]]; then
+                if [[ "${FTP_SSL_ENABLE}" == true ]]; then
                     run sed -i 's/\#undef\ VSF_BUILD_SSL/\#define\ VSF_BUILD_SSL/g' ./builddefs.h
                 fi
 
@@ -207,7 +204,7 @@ EOL
 
             # Enable SSL.
             # TODO: Change the self-signed certificate with a valid Let's Encrypt certificate.
-            if [[ "${VSFTPD_SSL_ENABLE}" == true ]]; then
+            if [[ "${FTP_SSL_ENABLE}" == true ]]; then
                 cat >> /etc/vsftpd.conf <<EOL
 
 ssl_enable=YES
@@ -251,8 +248,10 @@ EOL
 
         # Restart vsftpd daemon.
         echo "Restarting FTP server (VSFTPD)..."
+
         run systemctl unmask vsftpd
         run systemctl restart vsftpd
+        run systemctl enable vsftpd
 
         if [[ "${DRYRUN}" != true ]]; then
             if [[ $(pgrep -c vsftpd) -gt 0 ]]; then
