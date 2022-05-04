@@ -565,7 +565,23 @@ function remove_ssl() {
     # Update vhost config.
     if [[ "${DRYRUN}" != true ]]; then
         # Disable HTTPS first.
-        disable_ssl "${DOMAIN}"
+        echo "Disabling HTTPS configuration..."
+
+        if [ -f "/etc/nginx/sites-available/${DOMAIN}.nonssl-conf" ]; then
+            # Disable vhost first.
+            run unlink "/etc/nginx/sites-enabled/${DOMAIN}.conf"
+
+            # Backup ssl config.
+            run mv "/etc/nginx/sites-available/${DOMAIN}.conf" "/etc/nginx/sites-available/${DOMAIN}.ssl-conf"
+
+            # Restore non ssl config.
+            run mv "/etc/nginx/sites-available/${DOMAIN}.nonssl-conf" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            run ln -s "/etc/nginx/sites-available/${DOMAIN}.conf" "/etc/nginx/sites-enabled/${DOMAIN}.conf"
+
+            reload_nginx
+        else
+            error "Something went wrong. You still could disable HTTPS manually."
+        fi
 
         # Remove SSL config.
         if [ -f "/etc/nginx/sites-available/${DOMAIN}.ssl-conf" ]; then
@@ -759,7 +775,7 @@ function reload_nginx() {
         else
             error "Configuration couldn't be validated. Please correct the error below:";
             nginx -t
-            exit 1
+            [[ ${EXIT} ]] && exit 1
         fi
     # Nginx service dead? Try to start it.
     else
