@@ -399,11 +399,6 @@ function get_release_name() {
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
 
                 case "${DISTRIB_RELEASE}" in
-                    "16.04"|"LM18")
-                        # Ubuntu release 16.04, LinuxMint 18 <= EOL
-                        #RELEASE_NAME=${UBUNTU_CODENAME:-"xenial"}
-                        RELEASE_NAME="unsupported"
-                    ;;
                     "18.04"|"LM19")
                         # Ubuntu release 18.04, LinuxMint 19
                         RELEASE_NAME=${UBUNTU_CODENAME:-"bionic"}
@@ -412,9 +407,9 @@ function get_release_name() {
                         # Ubuntu release 20.04, LinuxMint 20
                         RELEASE_NAME=${UBUNTU_CODENAME:-"focal"}
                     ;;
-                    "21.04")
-                        # Ubuntu release 21.04
-                        RELEASE_NAME=${UBUNTU_CODENAME:-"hirsuite"}
+                    "22.04"|"LM21")
+                        # Ubuntu release 22.04, LinuxMint 21
+                        RELEASE_NAME=${UBUNTU_CODENAME:-"jammy"}
                     ;;
                     *)
                         RELEASE_NAME="unsupported"
@@ -453,7 +448,7 @@ function get_ip_private() {
     SERVER_IP_PRIVATE=$(ip addr | grep 'inet' | grep -v inet6 | \
         grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | \
         grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
-    
+
     echo "${SERVER_IP_PRIVATE}"
 }
 
@@ -461,7 +456,7 @@ function get_ip_private() {
 function get_ip_public() {
     local SERVER_IP_PRIVATE && SERVER_IP_PRIVATE=$(get_ip_private)
     local SERVER_IP_PUBLIC && \
-    SERVER_IP_PUBLIC=$(curl -s http://ipecho.net/plain)
+    SERVER_IP_PUBLIC=$(curl -sk --connect-timeout 10 --retry 3 --retry-delay 0 http://ipecho.net/plain)
 
     # Ugly hack to detect aws-lightsail public IP address.
     if [[ "${SERVER_IP_PRIVATE}" == "${SERVER_IP_PUBLIC}" ]]; then
@@ -508,9 +503,9 @@ function preflight_system_check() {
 
         if grep -q "${SERVER_HOSTNAME}" /etc/hosts; then
             run sed -i".bak" "/${SERVER_HOSTNAME}/d" /etc/hosts
-            run bash -c "echo -e '${SERVER_IP_LOCAL}\t${SERVER_HOSTNAME}' >> /etc/hosts"
+            run bash -c "echo -e '${SERVER_IP}\t${SERVER_HOSTNAME}' >> /etc/hosts"
         else
-            run bash -c "echo -e '\n# LEMPer local hosts\n${SERVER_IP_LOCAL}\t${SERVER_HOSTNAME}' >> /etc/hosts"
+            run bash -c "echo -e '\n# LEMPer local hosts\n${SERVER_IP}\t${SERVER_HOSTNAME}' >> /etc/hosts"
         fi
 
         export HOSTNAME && \

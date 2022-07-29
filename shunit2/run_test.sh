@@ -45,6 +45,25 @@ testTrueInstallCertbot()
     assertTrue "[[ ${cb} -gt 0 ]]"
 }
 
+testTrueInstallFTPServer()
+{
+    if [[ "${FTP_SERVER_NAME}" == "pureftpd" || "${FTP_SERVER_NAME}" == "pure-ftpd" ]]; then
+        if [ -f scripts/install_pureftpd.sh ]; then
+            . scripts/install_pureftpd.sh
+        fi
+
+        ftps=$(command -v pure-ftpd | grep -c pure-ftpd)
+        assertTrue "[[ ${ftps} -gt 0 ]]"
+    else
+        if [ -f scripts/install_vsftpd.sh ]; then
+            . scripts/install_vsftpd.sh
+        fi
+
+        ftps=$(command -v vsftpd | grep -c vsftpd)
+        assertTrue "[[ ${ftps} -gt 0 ]]"
+    fi
+}
+
 testTrueInstallNginx()
 {
     . scripts/install_nginx.sh

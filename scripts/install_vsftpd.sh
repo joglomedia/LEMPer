@@ -129,7 +129,7 @@ function init_vsftpd_install() {
                 run cd "${BUILD_DIR}" && \
                 run wget -q "${VSFTPD_ZIP_URL}" && \
                 run tar -zxf "${VSFTPD_FILENAME}" && \
-                run cd "${VSFTPD_FILENAME%.*.*}" / || return 1
+                run cd "${VSFTPD_FILENAME%.*.*}" || return 1
 
                 # If SSL Enabled, modify the builddefs.h file.
                 if [[ "${FTP_SSL_ENABLE}" == true ]]; then
