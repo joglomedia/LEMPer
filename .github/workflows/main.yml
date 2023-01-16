@@ -61,9 +61,8 @@ jobs:
           shellcheck -s bash -x remove.sh
           shellcheck -s bash -x bin/lemper-*.sh
           shellcheck -s bash -x lib/lemper-*.sh
-          shellcheck -s bash -x scripts/helper.sh
-          shellcheck -s bash -x scripts/cleanup_server.sh
-          shellcheck -s bash -x scripts/secure_server.sh
+          shellcheck -s bash -x scripts/utils.sh
+          shellcheck -s bash -x scripts/server_*.sh
           shellcheck -s bash -x scripts/install_*.sh
           shellcheck -s bash -x scripts/remove_*.sh
       # Simple Unit Tests
@@ -72,6 +71,6 @@ jobs:
           TERM: xterm-256color
         run: |
           set -ex
-          sudo bash scripts/cleanup_server.sh
+          sudo bash scripts/server_cleanup.sh
           sudo bash scripts/install_dependencies.sh
           sudo bash shunit2/run_test.sh
