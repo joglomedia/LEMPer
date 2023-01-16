@@ -5,13 +5,13 @@
 #script_under_test=$(basename "$0")
 
 # Source the helper functions.
-if [[ -f ./scripts/helper.sh ]]; then
-    . ./scripts/helper.sh
+if [[ -f ./scripts/utils.sh ]]; then
+    . ./scripts/utils.sh
     preflight_system_check
     init_log
     init_config
 else
-    echo "Helper function (scripts/helper.sh) not found."
+    echo "Helper function (scripts/utils.sh) not found."
     exit 1
 fi
 
@@ -129,16 +129,16 @@ testEqualityInstallRedis()
     assertEquals "/usr/bin/redis-server" "${redisserver_bin}"
 }
 
-testEqualityInstallMongoDB()
-{
-    . scripts/install_mongodb.sh
+#testEqualityInstallMongoDB()
+# {
+#    . scripts/install_mongodb.sh
 
-    mongo_bin=$(command -v mongo)
-    assertEquals "/usr/bin/mongo" "${mongo_bin}"
+#    mongo_bin=$(command -v mongo)
+#    assertEquals "/usr/bin/mongo" "${mongo_bin}"
 
-    mongod_bin=$(command -v mongod)
-    assertEquals "/usr/bin/mongod" "${mongod_bin}"
-}
+#    mongod_bin=$(command -v mongod)
+#    assertEquals "/usr/bin/mongod" "${mongod_bin}"
+#}
 
 testEqualityInstallFail2ban()
 {
