@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -68,7 +68,7 @@ function init_fail2ban_install() {
                 fail2ban_download_link="https://github.com/fail2ban/fail2ban/archive/${FAIL2BAN_VERSION}.tar.gz"
 
                 if curl -sLI "${fail2ban_download_link}" | grep -q "HTTP/[.12]* [2].."; then
-                    run wget -q "${fail2ban_download_link}" -O fail2ban.tar.gz  && \
+                    run wget "${fail2ban_download_link}" -O fail2ban.tar.gz  && \
                     run tar -zxf fail2ban.tar.gz && \
                     run cd fail2ban-*/ && \
                     run python setup.py install && \
@@ -108,6 +108,7 @@ maxretry = 3
 [nginx-http-auth]
 enabled = true
 port = http,https,8082,8083
+filter = nginx-http-auth
 maxretry = 3
 
 EOL

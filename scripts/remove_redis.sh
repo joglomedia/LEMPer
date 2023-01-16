@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -42,7 +42,7 @@ function init_redis_removal() {
 
         echo "Deleting Redis binary executable: ${REDIS_BIN}"
 
-        [[ -x "${REDIS_BIN}" ]] && run rm -f "${REDIS_BIN}"
+        [[ -n $(command -v redis-server) ]] && run rm -f "${REDIS_BIN}"
     fi
 
     # Remove Redis config files.

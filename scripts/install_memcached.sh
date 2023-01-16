@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -73,7 +73,7 @@ function init_memcached_install() {
                 # Install Libevent from source.
                 #LIBEVENT_DOWNLOAD_URL="https://github.com/libevent/libevent/releases/download/release-2.1.11-stable/libevent-2.1.11-stable.tar.gz"
                 #if curl -sLI "${LIBEVENT_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                #    run wget -q -O libevent.tar.gz "${LIBEVENT_DOWNLOAD_URL}"
+                #    run wget -O libevent.tar.gz "${LIBEVENT_DOWNLOAD_URL}"
                 #    run tar -zxf libevent.tar.gz
                 #    run cd libevent-*
                 #    run ./configure --prefix=/usr/local/libevent
@@ -90,7 +90,7 @@ function init_memcached_install() {
                 fi
 
                 if curl -sLI "${MEMCACHED_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                    run wget -q "${MEMCACHED_DOWNLOAD_URL}" -O memcached.tar.gz && \
+                    run wget "${MEMCACHED_DOWNLOAD_URL}" -O memcached.tar.gz && \
                     run tar -zxf memcached.tar.gz && \
                     run cd memcached-* && \
 

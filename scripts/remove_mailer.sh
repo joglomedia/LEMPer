@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -37,7 +37,7 @@ function init_postfix_removal() {
 
         echo "Deleting Postfix binary executable: ${POSTFIX_BIN}"
 
-        [[ -x "${POSTFIX_BIN}" ]] && run rm -f "${POSTFIX_BIN}"
+        [[ -n $(command -v postfix) ]] && run rm -f "${POSTFIX_BIN}"
     fi
 
     warning "!! This action is not reversible !!"
@@ -91,7 +91,7 @@ function init_dovecot_removal() {
 
         echo "Deleting Dovecot IMAP server executable: ${DOVECOT_BIN}"
 
-        [[ -x "${DOVECOT_BIN}" ]] && run rm -f "${DOVECOT_BIN}"
+        [[ -n "${DOVECOT_BIN}" ]] && run rm -f "${DOVECOT_BIN}"
     fi
 
     warning "!! This action is not reversible !!"
@@ -145,7 +145,7 @@ function init_spfdkim_removal() {
 
         echo "Deleting OpenDKIM executable: ${OPENDKIM_BIN}"
 
-        [[ -x "${OPENDKIM_BIN}" ]] && run rm -f "${OPENDKIM_BIN}"
+        [[ -x $(command -v opendkim) ]] && run rm -f "${OPENDKIM_BIN}"
     fi
 
     warning "!! This action is not reversible !!"

@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -50,22 +50,22 @@ function init_vsftpd_install() {
         done
 
         case "${SELECTED_INSTALLER}" in
-            1 | "repo")
+            1 | repo)
                 echo "Installing FTP server (VSFTPD) from repository..."
                 run apt-get install -qq -y vsftpd
             ;;
-            2 | "source")
+            2 | source)
                 echo "Installing FTP server (VSFTPD) from source..."
 
                 # Install libraries.
                 case "${DISTRIB_NAME}" in
-                    "debian")
+                    debian)
                         case "${RELEASE_NAME}" in
-                            "stretch")
+                            stretch)
                                 run apt-get install -qq -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
-                                    libcap-dev libcap2 libtirpc-common libtirpc-dev libtirpc1
+                                    libcap-dev libcap2 libtirpc-dev libtirpc1
                             ;;
-                            "buster" | "bullseye")
+                            buster | bullseye)
                                 run apt-get install -qq -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
                                     libcap-dev libcap2 libtirpc-common libtirpc-dev libtirpc3
                             ;;
@@ -74,13 +74,13 @@ function init_vsftpd_install() {
                             ;;
                         esac
                     ;;
-                    "ubuntu")
+                    ubuntu)
                         case "${RELEASE_NAME}" in
-                            "bionic")
+                            bionic)
                                 run apt-get install -qq -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
                                     libcap-dev libcap2 libtirpc-dev libtirpc1
                             ;;
-                            "focal")
+                            focal | jammy)
                                 run apt-get install -qq -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
                                     libcap-dev libcap2 libtirpc-common libtirpc-dev libtirpc3
                             ;;
@@ -89,10 +89,15 @@ function init_vsftpd_install() {
                             ;;
                         esac
                     ;;
+                    #centos | rocky*)
+                    #    run dnf install -q -y pam pam_cap libcap libcap-devel pam-devel libcap-devel libtirpc-devel
+                    #;;
                     *)
                         fail "Unsupported OS distribution: ${DISTRIB_NAME^}."
                     ;;
                 esac
+
+                echo "Preparing to compile VSFTPD..."
 
                 # Fix error: sysdeputil.o: In function `vsf_sysdep_has_capabilities'
                 LIB_GNU_DIR="/lib/${ARCH}-linux-gnu"
@@ -103,12 +108,12 @@ function init_vsftpd_install() {
                     LIB_DIR="/lib"
                 fi
 
-                if [[ ! -f "${LIB_DIR}/libcap.so" ]]; then
-                    if [[ -f "${LIB_GNU_DIR}/libcap.so.2" ]]; then
+                if [ ! -f "${LIB_DIR}/libcap.so" ]; then
+                    if [ -f "${LIB_GNU_DIR}/libcap.so.2" ]; then
                         run ln -s "${LIB_GNU_DIR}/libcap.so.2" "${LIB_DIR}/libcap.so"
-                    elif [[ -f "${LIB_GNU_DIR}/libcap.so.1" ]]; then
+                    elif [ -f "${LIB_GNU_DIR}/libcap.so.1" ]; then
                         run ln -s "${LIB_GNU_DIR}/libcap.so.1" "${LIB_DIR}/libcap.so"
-                    elif [[ -f "${LIB_GNU_DIR}/libcap.so" ]]; then
+                    elif [ -f "${LIB_GNU_DIR}/libcap.so" ]; then
                         run ln -s "${LIB_GNU_DIR}/libcap.so" "${LIB_DIR}/libcap.so"
                     else
                         echo "Cannot find libcap.so file."
@@ -126,10 +131,17 @@ function init_vsftpd_install() {
                     VSFTPD_ZIP_URL="https://security.appspot.com/downloads/${VSFTPD_FILENAME}"
                 fi
 
-                run cd "${BUILD_DIR}" && \
-                run wget -q "${VSFTPD_ZIP_URL}" && \
+                run cd "${BUILD_DIR}" || return 1
+
+                if [ ! -f "${VSFTPD_FILENAME}" ]; then
+                    echo "Downloading VSFTPD source code..."
+                    run wget "${VSFTPD_ZIP_URL}"
+                fi
+
                 run tar -zxf "${VSFTPD_FILENAME}" && \
                 run cd "${VSFTPD_FILENAME%.*.*}" || return 1
+
+                echo "Compile and install VSFTPD..."
 
                 # If SSL Enabled, modify the builddefs.h file.
                 if [[ "${FTP_SSL_ENABLE}" == true ]]; then
@@ -164,7 +176,7 @@ function init_vsftpd_install() {
             FTP_MAX_PORT=${FTP_MAX_PORT:-45099}
 
             # Backup default vsftpd conf.
-            if [[ -f /etc/vsftpd.conf ]]; then
+            if [ -f /etc/vsftpd.conf ]; then
                 run mv /etc/vsftpd.conf /etc/vsftpd.conf.bak
             fi
 
@@ -188,9 +200,9 @@ allow_writeable_chroot=YES
 pam_service_name=vsftpd
 force_dot_files=YES
 
-pasv_enable=YES
-pasv_min_port=${FTP_MIN_PORT}
-pasv_max_port=${FTP_MAX_PORT}
+pasv_enable=NO
+#pasv_min_port=${FTP_MIN_PORT}
+#pasv_max_port=${FTP_MAX_PORT}
 #pasv_address=${SERVER_IP}
 #pasv_addr_resolve=YES
 
@@ -202,9 +214,33 @@ userlist_file=/etc/vsftpd.userlist
 userlist_deny=NO
 EOL
 
+            # Enable passv mode.
+            if [[ "${FTP_PASV_MODE}" == true ]]; then
+                run sed -i 's/pasv_enable=NO/pasv_enable=YES/g' /etc/vsftpd.conf
+                run sed -i 's/\#pasv_min_port/pasv_min_port/g' /etc/vsftpd.conf
+                run sed -i 's/\#pasv_max_port/pasv_max_port/g' /etc/vsftpd.conf
+
+                # If using elastic IP (such as AWS EC2), set the server IP.
+                if [[ "${ENVIRONMENT}" == prod* && "${SERVER_IP}" != "$(get_ip_private)" ]]; then
+                    run sed -i "s|^#pasv_address=.*|pasv_address=${SERVER_IP}|g" /etc/vsftpd.conf
+                    run sed -i "s|^#pasv_addr_resolve=.*|pasv_addr_resolve=YES|g" /etc/vsftpd.conf
+                fi
+            fi
+
             # Enable SSL.
-            # TODO: Change the self-signed certificate with a valid Let's Encrypt certificate.
             if [[ "${FTP_SSL_ENABLE}" == true ]]; then
+                # Certificate files.
+                if [[ -n "${HOSTNAME_CERT_PATH}" && -f "${HOSTNAME_CERT_PATH}/fullchain.pem" ]]; then
+                    RSA_CERT_FILE="${HOSTNAME_CERT_PATH}/fullchain.pem"
+                    RSA_KEY_FILE="${HOSTNAME_CERT_PATH}/privkey.pem"
+                elif [[ -f "/etc/lemper/ssl/${HOSTNAME}/cert.pem" ]]; then
+                    RSA_CERT_FILE="/etc/lemper/ssl/${HOSTNAME}/cert.pem"
+                    RSA_KEY_FILE="/etc/lemper/ssl/${HOSTNAME}/privkey.pem"
+                else
+                    RSA_CERT_FILE="/etc/ssl/certs/ssl-cert-snakeoil.pem"
+                    RSA_KEY_FILE="/etc/ssl/private/ssl-cert-snakeoil.key"
+                fi
+
                 cat >> /etc/vsftpd.conf <<EOL
 
 ssl_enable=YES
@@ -217,24 +253,59 @@ ssl_sslv2=NO
 ssl_sslv3=NO
 ssl_ciphers=HIGH
 
-rsa_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
-rsa_private_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+rsa_cert_file=${RSA_CERT_FILE}
+rsa_private_key_file=${RSA_KEY_FILE}
 EOL
             fi
 
-            # If using elastic IP (such as AWS EC2), set the server IP.
-            if [[ "${SERVER_IP}" != "$(get_ip_private)" ]]; then
-                run sed -i "s|^#pasv_address=.*|pasv_address=${SERVER_IP}|g" /etc/vsftpd.conf
-                run sed -i "s|^#pasv_addr_resolve=.*|pasv_addr_resolve=YES|g" /etc/vsftpd.conf
+            if [ ! -f /etc/pam.d/vsftpd ]; then
+                run touch /etc/pam.d/vsftpd
+                cat > /etc/pam.d/vsftpd <<EOL
+# Standard behaviour for ftpd(8).
+#auth    required        pam_listfile.so item=user sense=deny file=/etc/ftpusers onerr=succeed
+
+# Note: vsftpd handles anonymous logins on its own. Do not enable pam_ftp.so.
+
+# Standard pam includes
+#@include common-account
+#@include common-session
+#@include common-auth
+#auth    required        pam_shells.so
+
+
+### Other fix for other login issue (tested on CentOS 8 / Rocky 8)
+
+#%PAM-1.0
+account    required    pam_listfile.so item=user sense=allow file=/etc/vsftpd.userlist onerr=fail
+account    required    pam_unix.so
+auth       required    pam_unix.so
+EOL
             fi
 
-            # If Let's Encrypt SSL certificate is issued for hostname, set the certificate.
-            if [[ -n "${HOSTNAME_CERT_PATH}" && -f "${HOSTNAME_CERT_PATH}/fullchain.pem" ]]; then
-                run sed -i "s|^rsa_cert_file=[^[:digit:]]*$|rsa_cert_file=${HOSTNAME_CERT_PATH}/fullchain.pem|g" /etc/vsftpd.conf
-                run sed -i "s|^rsa_private_key_file=[^[:digit:]]*$|rsa_private_key_file=${HOSTNAME_CERT_PATH}/privkey.pem|g" /etc/vsftpd.conf
+            if [[ ! -f /etc/ftpusers ]]; then
+                run touch /etc/ftpusers
+                cat > /etc/ftpusers <<EOL
+# /etc/ftpusers: list of users disallowed FTP access. See ftpusers(5).
+
+root
+daemon
+bin
+sys
+sync
+games
+man
+lp
+mail
+news
+uucp
+nobody
+www-data
+EOL
             fi
 
             # Add default LEMPer Stack user to vsftpd.userlist.
+            echo -n "Adding default user to vsftpd.userlist: "
+
             LEMPER_USERNAME=${LEMPER_USERNAME:-lemper}
             run touch /etc/vsftpd.userlist
             run bash -c "echo '${LEMPER_USERNAME}' | tee -a /etc/vsftpd.userlist"
@@ -250,11 +321,12 @@ EOL
         echo "Restarting FTP server (VSFTPD)..."
 
         run systemctl unmask vsftpd
+        run systemctl daemon-reload
         run systemctl restart vsftpd
-        run systemctl enable vsftpd
 
         if [[ "${DRYRUN}" != true ]]; then
             if [[ $(pgrep -c vsftpd) -gt 0 ]]; then
+                run systemctl enable vsftpd
                 success "FTP server (VSFTPD) started successfully."
             else
                 info "Something went wrong with FTP server installation."

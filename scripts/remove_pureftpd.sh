@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -36,7 +36,7 @@ function init_pureftpd_removal() {
         PUREFTPD_BIN=$(command -v pure-ftpd)
         echo "Deleting Pure-FTPd binary executable: ${PUREFTPD_BIN}"
 
-        [[ -x "${PUREFTPD_BIN}" ]] && run rm -f "${PUREFTPD_BIN}"
+        [[ -n $(command -v pure-ftpd) ]] && run rm -f "${PUREFTPD_BIN}"
     fi
 
     [[ -f /etc/systemd/system/multi-user.target.wants/pure-ftpd.service ]] && \

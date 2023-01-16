@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -70,23 +70,24 @@ function init_pureftpd_install() {
                 fi
 
                 run cd "${BUILD_DIR}" && \
-                run wget -q "${PUREFTPD_ZIP_URL}" && \
+                run wget "${PUREFTPD_ZIP_URL}" && \
                 run tar -zxf "${PUREFTPD_FILENAME}" && \
                 run cd "${PUREFTPD_FILENAME%.*.*}" || return 1
 
                 # Enable MySQL support.
-                run ./configure --prefix=/usr --with-mysql --with-uploadscript --with-extauth --with-ftpwho --with-wrapper --with-virtualchroot --with-everything && \
+                run ./configure --prefix=/usr --with-tls --with-mysql --with-puredb --with-uploadscript \
+                    --with-extauth --with-ftpwho --with-wrapper --with-virtualchroot --with-everything && \
 
                 # Make install.
-                run make && \
+                run make && make check && \
                 run make install && \
                 run cd "${CURRENT_DIR}" || return 1
 
                 # Move executable to /usr/sbin.
-                #if [[ -x /usr/local/sbin/pure-ftpd ]]; then
+                if [[ -x /usr/local/sbin/pure-ftpd ]]; then
                 #    run mv /usr/local/sbin/pure-ftpd /usr/sbin/
-                    #run ln -sf /usr/local/sbin/pure-ftpd /usr/sbin/pure-ftpd
-                #fi
+                    run ln -s /usr/local/sbin/pure-ftpd /usr/sbin/pure-ftpd
+                fi
             ;;
             *)
                 # Skip installation.
@@ -138,7 +139,7 @@ LimitRecursion               10000 8
 AnonymousCanCreateDirs       no
 MaxLoad                      4
 
-PassivePortRange             ${FTP_MIN_PORT} ${FTP_MAX_PORT}
+# PassivePortRange             ${FTP_MIN_PORT} ${FTP_MAX_PORT}
 # ForcePassiveIP               ${SERVER_IP}
 
 # AntiWarez                    yes
@@ -170,52 +171,65 @@ IPV4Only                     no
 
 EOL
 
+
+            # Enable passv mode.
+            if [[ "${FTP_PASV_MODE}" == true ]]; then
+                run sed -i "s|^#\ PassivePortRange|PassivePortRange|g" /etc/pure-ftpd/pure-ftpd.conf
+
+                # If we are behind NAT (such as AWS, GCP, Azure), set the Public IP.
+                if [[ "${SERVER_IP}" != "$(get_ip_private)" ]]; then
+                    run sed -i "s|^#\ ForcePassiveIP|ForcePassiveIP|g" /etc/pure-ftpd/pure-ftpd.conf
+                fi
+            fi
+
             # Enable SSL.
-            # TODO: Change the self-signed certificate with a valid Let's Encrypt certificate.
             if [[ "${FTP_SSL_ENABLE}" == true ]]; then
+                # Certificate files.
+                if [[ -n "${HOSTNAME_CERT_PATH}" && -f "${HOSTNAME_CERT_PATH}/fullchain.pem" ]]; then
+                    RSA_CERT_FILE="${HOSTNAME_CERT_PATH}/fullchain.pem"
+                    #RSA_KEY_FILE="${HOSTNAME_CERT_PATH}/privkey.pem"
+                elif [[ -f "/etc/lemper/ssl/${HOSTNAME}/cert.pem" ]]; then
+                    RSA_CERT_FILE="/etc/lemper/ssl/${HOSTNAME}/cert.pem"
+                    #RSA_KEY_FILE="/etc/lemper/ssl/${HOSTNAME}/privkey.pem"
+                else
+                    RSA_CERT_FILE="/etc/ssl/certs/ssl-cert-snakeoil.pem"
+                    #RSA_KEY_FILE="/etc/ssl/private/ssl-cert-snakeoil.key"
+                fi
+
                 cat >> /etc/pure-ftpd/pure-ftpd.conf <<EOL
 TLS                          2
 TLSCipherSuite               HIGH:MEDIUM:+TLSv1:!SSLv2:!SSLv3
-CertFile                     /etc/ssl/certs/ssl-cert-snakeoil.pem
+CertFile                     ${RSA_CERT_FILE}
 
 EOL
             fi
 
-            # If we are behind NAT (such as AWS, GCP, Azure), set the Public IP.
-            if [[ "${SERVER_IP}" != "$(get_ip_private)" ]]; then
-                run sed -i "s|^#\ ForcePassiveIP|ForcePassiveIP|g" /etc/pure-ftpd/pure-ftpd.conf
-            fi
-
-            # If Let's Encrypt SSL certificate is issued for hostname, set the certificate.
-            if [[ -n "${HOSTNAME_CERT_PATH}" && -f "${HOSTNAME_CERT_PATH}/fullchain.pem" ]]; then
-                run sed -i "s|^CertFile\                     [^[:digit:]]*$|CertFile\                     ${HOSTNAME_CERT_PATH}/fullchain.pem|g" /etc/pure-ftpd/pure-ftpd.conf
-            fi
         fi
 
         # Add init.d script.
-        #if [[ ! -f /etc/init.d/pure-ftpd ]]; then
-        #    run cp -f etc/init.d/pure-ftpd /etc/init.d/pure-ftpd
-        #    run chmod +x /etc/init.d/pure-ftpd
-        #    run update-rc.d pure-ftpd defaults
-        #fi
+        if [[ ! -f /etc/init.d/pure-ftpd ]]; then
+            run cp -f etc/init.d/pure-ftpd /etc/init.d/pure-ftpd
+            run chmod +x /etc/init.d/pure-ftpd
+            run update-rc.d pure-ftpd defaults
+        fi
 
         # Add systemd service.
-        #[[ ! -f /run/systemd/generator.late/pure-ftpd.service ]] && \
-        #    run cp etc/systemd/pure-ftpd.service /run/systemd/generator.late/pure-ftpd.service
-        #[[ ! -f /run/systemd/generator.late/multi-user.target.wants/pure-ftpd.service ]] && \
-        #    run ln -sf /run/systemd/generator.late/pure-ftpd.service /run/systemd/generator.late/multi-user.target.wants/pure-ftpd.service
-        #[[ ! -f /run/systemd/generator.late/graphical.target.wants/pure-ftpd.service ]] && \
-        #    run ln -sf /run/systemd/generator.late/pure-ftpd.service /run/systemd/generator.late/graphical.target.wants/pure-ftpd.service
+        [[ ! -f /run/systemd/generator.late/pure-ftpd.service ]] && \
+            run cp etc/systemd/pure-ftpd.service /run/systemd/generator.late/pure-ftpd.service
+        [[ ! -f /run/systemd/generator.late/multi-user.target.wants/pure-ftpd.service ]] && \
+            run ln -s /run/systemd/generator.late/pure-ftpd.service /run/systemd/generator.late/multi-user.target.wants/pure-ftpd.service
+        [[ ! -f /run/systemd/generator.late/graphical.target.wants/pure-ftpd.service ]] && \
+            run ln -s /run/systemd/generator.late/pure-ftpd.service /run/systemd/generator.late/graphical.target.wants/pure-ftpd.service
 
         # Restart Pure-FTPd daemon.
         echo "Restarting FTP server (Pure-FTPd)..."
 
         run systemctl daemon-reload
         run systemctl restart pure-ftpd
-        #run systemctl enable pure-ftpd
 
         if [[ "${DRYRUN}" != true ]]; then
             if [[ $(pgrep -c pure-ftpd) -gt 0 ]]; then
+                run systemctl enable pure-ftpd
                 success "FTP server (Pure-FTPd) started successfully."
             else
                 info "Something went wrong with FTP server installation."

@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -42,7 +42,7 @@ function init_memcached_removal() {
 
         echo "Memcached binary executable: ${MEMCACHED_BIN}"
 
-        if [[ -n "${MEMCACHED_BIN}" ]]; then
+        if [[ -n $(command -v memcached) ]]; then
             # Disable systemctl.
             if [ -f /etc/systemd/system/multi-user.target.wants/memcached.service ]; then
                 echo "Disabling Memcached service..."

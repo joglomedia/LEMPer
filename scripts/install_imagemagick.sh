@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -71,7 +71,7 @@ function init_imagemagick_install() {
 
                 if curl -sLI "${IMAGEMAGICK_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
                     run cd "${BUILD_DIR}" && \
-                    run wget -q "${IMAGEMAGICK_ZIP_URL}" && \
+                    run wget "${IMAGEMAGICK_ZIP_URL}" && \
                     run tar -xf "${IMAGEMAGICK_FILENAME}" && \
                     run cd ImageMagick-*/ && \
                     run ./configure && \

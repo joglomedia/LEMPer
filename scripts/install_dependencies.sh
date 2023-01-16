@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -39,7 +39,7 @@ run apt-get install -qq -y \
     cmake cron curl dmidecode dnsutils gcc geoip-bin geoip-database gettext git gnupg2 \
     htop iptables libc-bin libc6-dev libcurl4-openssl-dev libgd-dev libgeoip-dev libgpgme11-dev \
     libsodium-dev libssl-dev libxml2-dev libpcre3-dev libtool libxslt1-dev locales logrotate lsb-release \
-    make net-tools openssh-server openssl pkg-config python python3 re2c rsync software-properties-common \
+    make net-tools openssh-server openssl pkg-config python3 re2c rsync software-properties-common \
     sasl2-bin snmp sudo sysstat tar tzdata unzip wget whois xz-utils zlib1g-dev
 
 # Update locale

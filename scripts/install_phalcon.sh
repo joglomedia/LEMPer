@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -90,7 +90,7 @@ function install_phalcon() {
         run cd php-psr || return 1
     else
         run cd php-psr && \
-        run git pull -q
+        run git pull
     fi
     run "${PHPIZE_BIN}" && \
     run ./configure --with-php-config="${PHPCONFIG_BIN}" && \
@@ -115,7 +115,7 @@ function install_phalcon() {
     CPHALCON_SOURCE="https://github.com/phalcon/cphalcon/archive/v${PHALCON_VERSION}.tar.gz"
 
     if curl -sLI "${CPHALCON_SOURCE}" | grep -q "HTTP/[.12]* [2].."; then
-        run wget -q -O "cphalcon-${PHALCON_VERSION}.tar.gz" "${CPHALCON_SOURCE}" && \
+        run wget -O "cphalcon-${PHALCON_VERSION}.tar.gz" "${CPHALCON_SOURCE}" && \
         run tar -zxf "cphalcon-${PHALCON_VERSION}.tar.gz" && \
         run cd "cphalcon-${PHALCON_VERSION}/build" || return 1
     elif curl -sLI "https://raw.githubusercontent.com/phalcon/cphalcon/${PHALCON_VERSION}/README.md" \
@@ -123,14 +123,14 @@ function install_phalcon() {
 
         # Clone repository.
         if [ ! -d cphalcon ]; then
-            run git clone -q https://github.com/phalcon/cphalcon.git && \
+            run git clone https://github.com/phalcon/cphalcon.git && \
             run cd cphalcon && \
             run git checkout "${PHALCON_VERSION}" && \
             run cd build || return 1
         else
             run cd cphalcon && \
             run git checkout "${PHALCON_VERSION}" && \
-            run git pull -q && \
+            run git pull && \
             run cd build || return 1
         fi
     else

@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -45,11 +45,17 @@ function init_certbotle_install() {
                     jessie)
                         run apt-get install -qq -y certbot -t jessie-backports
                     ;;
-                    stretch)
-                        run apt-get install -qq -y certbot -t stretch-backports
-                    ;;
-                    buster)
-                        run apt-get install -qq -y certbot
+                    stretch | buster | bullseye)
+                        run add-apt-repository ppa:deadsnakes/ppa -y && \
+                        run apt-get update -qq -y && \
+                        run apt-get install -qq -y python3.7 python3.7-dev python3.7-venv \
+                            python3.9 python3.9-dev python3.9-venv && \
+                        run update-alternatives --install /usr/bin/python python "$(command -v python3.7)" 37 && \
+                        run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
+                        run update-alternatives --set python /usr/bin/python3.7 && \
+                        run python -m pip install --upgrade pip && \
+                        run python -m pip install --upgrade setuptools && \
+                        run python -m pip install --upgrade certbot
                     ;;
                     *)
                         error "Unable to add Certbot, unsupported distribution release: ${DISTRIB_NAME^} ${RELEASE_NAME^}."
@@ -59,23 +65,41 @@ function init_certbotle_install() {
                 esac
             ;;
             ubuntu)
-                case "${RELEASE_NAME}" in
-                    focal)
-                        run apt-get install -qq -y certbot
-                    ;;
-                    *)
-                        run add-apt-repository -y ppa:certbot/certbot
-                        run apt-get update -qq -y
-                        run apt-get install -qq -y certbot
-                    ;;
-                esac
+                # Install Python
+                run add-apt-repository ppa:deadsnakes/ppa -y && \
+                run apt-get update -qq -y && \
+                run apt-get install -qq -y python3.7 python3.7-dev python3.7-venv \
+                    python3.9 python3.9-dev python3.9-venv && \
+                run update-alternatives --install /usr/bin/python python "$(command -v python3.7)" 37 && \
+                run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
+                run update-alternatives --set python /usr/bin/python3.7 && \
+                run python -m pip install --upgrade pip && \
+                run python -m pip install --upgrade setuptools && \
+                run python -m pip install --upgrade certbot
+            ;;
+            centos | rocky*)
+                run dnf install-q -y epel-release && run dnf update -q -y  && \
+                run dnf install-q -y certbot
+                #run dnf install -y python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
+                #    python39 python39-libs python39-pip-wheel python39-setuptools-wheel && \
+                #run update-alternatives --install /usr/bin/unversioned-python python "$(command -v python3)" 3 && \
+                #run update-alternatives --install /usr/bin/unversioned-python python "$(command -v python3.9)" 39 && \
+                #run update-alternatives --set python /usr/bin/python3.9 && \
+                #run python -m pip install --upgrade pip && \
+                #run python -m pip install --upgrade setuptools && \
+                #run python -m pip install --upgrade certbot
+            ;;
+            *)
+                error "Unable to add Certbot, unsupported distribution release: ${DISTRIB_NAME^} ${RELEASE_NAME^}."
+                echo "Sorry your system is not supported yet, installing from source may fix the issue."
+                exit 1
             ;;
         esac
 
         # Add Certbot auto renew command to cronjob.
         if [[ "${DRYRUN}" != true ]]; then
             export EDITOR=nano
-            CRONCMD='0 */3 * * * /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
+            CRONCMD='0 */6 * * * /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
             touch lemper.cron
             crontab -u root lemper.cron
             crontab -l > lemper.cron
@@ -83,16 +107,17 @@ function init_certbotle_install() {
             if ! grep -qwE "/usr/bin/certbot\ renew" lemper.cron; then
                 cat >> lemper.cron <<EOL
 # LEMPer Cronjob
-# Certbot Auto-renew Let's Encrypt certificates
-#SHELL=/bin/sh
-#PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+# Certbot Auto-renew Let's Encrypt certificates.
+SHELL=/bin/bash
+PATH=PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=root
 
 ${CRONCMD}
 EOL
 
                 crontab lemper.cron
                 rm -f lemper.cron
-                service cron reload
+                #service cron reload
             else
                 info "Certbot auto-renew command added to cronjob in dry run mode."
             fi
@@ -107,19 +132,63 @@ EOL
             fi
         fi
 
+        # Self-signed OpenSSL cert config.
+        run mkdir -p "/etc/lemper/ssl/${HOSTNAME}" && \
+        run cp -f etc/openssl/ca.conf /etc/lemper/ssl/ca.conf && \
+        run cp -f etc/openssl/csr.conf /etc/lemper/ssl/csr.conf && \
+        run cp -f etc/openssl/cert.conf /etc/lemper/ssl/cert.conf
+
         # Generate a new certificate for the hostname domain.
-        if [[ "${ENVIRONMENT}" == "production" ]]; then
+        if [[ "${ENVIRONMENT}" == prod* ]]; then
             # Stop webserver first.
             run systemctl stop nginx
 
             if [[ $(dig "${HOSTNAME}" +short) == "${SERVER_IP}" ]]; then
-                run certbot certonly --standalone --agree-tos --preferred-challenges http --webroot-path=/usr/share/nginx/html -d "${HOSTNAME}"
+                run certbot certonly --standalone --agree-tos --preferred-challenges http \
+                    --webroot-path=/usr/share/nginx/html -d "${HOSTNAME}"
                 export HOSTNAME_CERT_PATH && \
                 HOSTNAME_CERT_PATH="/etc/letsencrypt/live/${HOSTNAME}"
             fi
 
             # Re-start webserver.
             run systemctl start nginx
+        else
+            # Self-signed certificate for local development environment.
+            run sed -i "s|^CN\ =\ .*|CN\ =\ ${HOSTNAME}|g" /etc/lemper/ssl/ca.conf && \
+            run sed -i "s|^CN\ =\ .*|CN\ =\ ${HOSTNAME}|g" /etc/lemper/ssl/csr.conf && \
+            run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${HOSTNAME}|g" /etc/lemper/ssl/csr.conf && \
+            run sed -i "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${HOSTNAME}|g" /etc/lemper/ssl/csr.conf && \
+            run sed -r -i "s|^IP.1\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.1\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+            run sed -r -i "s|^IP.2\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.2\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+            run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${HOSTNAME}|g" /etc/lemper/ssl/cert.conf
+
+            # Create Certificate Authority (CA).
+            run openssl req -x509 -sha256 -days 365000 -nodes -newkey "rsa:${KEY_HASH_LENGTH}" \
+                -keyout /etc/lemper/ssl/lemperCA.key -out /etc/lemper/ssl/lemperCA.crt \
+                -config /etc/lemper/ssl/ca.conf && \
+
+            # Create Server Private Key.
+            run openssl genrsa -out "/etc/lemper/ssl/${HOSTNAME}/privkey.pem" "${KEY_HASH_LENGTH}" && \
+
+            # Generate Certificate Signing Request (CSR) using Server Private Key.
+            run openssl req -new -key "/etc/lemper/ssl/${HOSTNAME}/privkey.pem" \
+                -out "/etc/lemper/ssl/${HOSTNAME}/csr.pem" -config /etc/lemper/ssl/csr.conf
+
+            # Generate SSL certificate With self signed CA.
+            run openssl x509 -req -sha256 -days 365000 -CAcreateserial \
+                -CA /etc/lemper/ssl/lemperCA.crt -CAkey /etc/lemper/ssl/lemperCA.key \
+                -in "/etc/lemper/ssl/${HOSTNAME}/csr.pem" -out "/etc/lemper/ssl/${HOSTNAME}/cert.pem" \
+                -extfile /etc/lemper/ssl/cert.conf
+
+            # Create chain file.
+            run cat /etc/lemper/ssl/lemperCA.crt "/etc/lemper/ssl/${HOSTNAME}/cert.pem" > \
+                "/etc/lemper/ssl/${HOSTNAME}/chain.pem"
+
+            if [ -f "/etc/lemper/ssl/${HOSTNAME}/cert.pem" ]; then
+                success "Self-signed SSL certificate has been successfully generated."
+            else
+                fail "An error occurred when generating self-signed SSL certificate."
+            fi
         fi
 
         if [[ "${DRYRUN}" != true ]]; then

@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -162,11 +162,17 @@ function init_mariadb_install() {
                 else
                     if [[ "${MYSQL_SECURE_INSTALL}" == true ]]; then
                         while [[ "${DO_MYSQL_SECURE_INSTALL}" != "y" && "${DO_MYSQL_SECURE_INSTALL}" != "n" ]]; do
-                            read -rp "Do you want to secure MySQL installation? [y/n]: " -e DO_MYSQL_SECURE_INSTALL
+                            read -rp "Do you want to secure MariaDB installation? [y/n]: " -e DO_MYSQL_SECURE_INSTALL
                         done
 
                         if [[ "${DO_MYSQL_SECURE_INSTALL}" == y* || "${DO_MYSQL_SECURE_INSTALL}" == Y* ]]; then
-                            run mysql_secure_installation
+                            if [[ -n $(command -v mysql_secure_installation) ]]; then
+                                run mysql_secure_installation
+                            elif [[ -n $(command -v mariadb-secure-installation) ]]; then
+                                run mariadb-secure-installation
+                            else
+                                error "Unable to secure MariaDB installation."
+                            fi
                         fi
                     fi
                 fi

@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -152,7 +152,8 @@ EOL
         fi
 
         # Save config.
-        save_config -e "HOSTNAME=${HOSTNAME}\nSERVER_IP=${SERVER_IP}\nSSH_PORT=${SSH_PORT}"
+        #save_config -e "HOSTNAME=${HOSTNAME}\nSERVER_IP=${SERVER_IP}\nSSH_PORT=${SSH_PORT}"
+        run sudo sed -i "s|^SERVER_SSH_PORT=[0-9]*|SERVER_SSH_PORT=${SSH_PORT}|g" /etc/lemper/lemper.conf
 
         # Save log.
         save_log "Default SSH port updated to ${SSH_PORT}."
@@ -297,7 +298,7 @@ function install_csf() {
 
     echo "Installing CSF+LFD firewall..."
     if curl -sLI https://download.configserver.com/csf.tgz | grep -q "HTTP/[.12]* [2].."; then
-        run wget -q https://download.configserver.com/csf.tgz && \
+        run wget https://download.configserver.com/csf.tgz && \
         run tar -xzf csf.tgz && \
         run cd csf/ && \
         run sh install.sh && \
@@ -407,7 +408,7 @@ function install_apf() {
 
     if curl -sLI "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
     | grep -q "HTTP/[.12]* [2].."; then
-        run wget -q "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" && \
+        run wget "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" && \
         run tar -xf "${APF_VERSION}.tar.gz" && \
         run cd advanced-policy-firewall-*/ && \
         run bash install.sh && \

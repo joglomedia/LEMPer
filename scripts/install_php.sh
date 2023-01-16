@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -284,10 +284,10 @@ function optimize_php_fpm() {
         run cp -f "etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/"
     else
         if [[ "${DRYRUN}" != true ]]; then
-            if [[ "${ENVIRONMENT}" =~ "prod" ]]; then
+            if [[ "${ENVIRONMENT}" == prod* ]]; then
                 OVT="${OVT:-"0"}"
             else
-                OVT="${OVT:-"1"}"
+                OVT="${OVT:-"1"}" # Opcache is revalidated every file changes, good for development.
             fi
 
             cat >> "/etc/php/${PHPv}/fpm/php.ini" <<EOL
@@ -307,7 +307,7 @@ opcache.validate_timestamps=${OVT}
 opcache.revalidate_freq=600
 opcache.save_comments=1
 opcache.fast_shutdown=1
-opcache.error_log="/var/log/php/php${PHPv}-opcache_error.log"
+opcache.error_log=/var/log/php/php${PHPv}-opcache_error.log
 EOL
         else
             info "PHP opcache optimized in dry run mode."
@@ -396,6 +396,7 @@ php_admin_value[sys_temp_dir] = /usr/share/nginx/html/.lemper/tmp
 php_admin_value[upload_tmp_dir] = /usr/share/nginx/html/.lemper/tmp
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
 php_admin_value[opcache.file_cache] = /usr/share/nginx/html/.lemper/tmp/php_opcache
+php_admin_value[opcache.error_log] = /var/log/php/php${PHPv}-opcache_error.log
 
 ; Configuration below can be overwritten from PHP call 'ini_set'.
 php_flag[short_open_tag] = off
@@ -455,8 +456,8 @@ pm.max_spare_servers = 20
 pm.process_idle_timeout = 30s
 pm.max_requests = 500
 
-pm.status_path = /status
-ping.path = /ping
+pm.status_path = /php-fpm_status
+ping.path = /php-fpm_ping
 
 slowlog = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_slow.log
 request_slowlog_timeout = 10s
@@ -637,9 +638,8 @@ function install_php_composer() {
             local CURRENT_DIR && CURRENT_DIR=$(pwd)
             run cd "${BUILD_DIR}" || error "Cannot change directory to ${BUILD_DIR}."
 
-            PHP_BIN=$(command -v "php${PHPv}")
-
-            if [[ -n "${PHP_BIN}" ]]; then
+            if [[ -n $(command -v "php${PHPv}") ]]; then
+                PHP_BIN=$(command -v "php${PHPv}")
                 EXPECTED_SIGNATURE="$(wget -q -O - https://composer.github.io/installer.sig)"
                 run "${PHP_BIN}" -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
                 ACTUAL_SIGNATURE="$(${PHP_BIN} -r "echo hash_file('sha384', 'composer-setup.php');")"
@@ -651,7 +651,8 @@ function install_php_composer() {
 
                     # Fix chmod permission to executable.
                     if [[ -f /usr/local/bin/composer ]]; then
-                        run chmod ugo+x /usr/local/bin/composer
+                        run chmod ugo+x /usr/local/bin/composer && \
+                        run ln -sf /usr/local/bin/composer /usr/bin/composer
                         run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bashrc"
                         run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bash_profile"
                         run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.profile"
@@ -695,7 +696,7 @@ function install_ioncube_loader() {
     IC_ZIP_URL="https://raw.githubusercontent.com/joglomedia/php-loaders/main/${IC_ZIP_FILENAME}"
 
     if curl -sLI "${IC_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
-        run wget -q "${IC_ZIP_URL}" && \
+        run wget "${IC_ZIP_URL}" && \
         run tar -xzf "${IC_ZIP_FILENAME}" && \
         run mv -f ioncube /usr/lib/php/loaders/
     else
@@ -766,7 +767,7 @@ function install_sourceguardian_loader() {
     SG_ZIP_URL="https://raw.githubusercontent.com/joglomedia/php-loaders/main/${SG_ZIP_FILENAME}"
 
     if curl -sLI "${SG_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
-        run wget -q "${SG_ZIP_URL}" && \
+        run wget "${SG_ZIP_URL}" && \
         run tar -xzf "${SG_ZIP_FILENAME}" && \
         run mv -f "${BUILD_DIR}/sourceguardian" /usr/lib/php/loaders/
     else
