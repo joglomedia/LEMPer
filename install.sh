@@ -33,7 +33,7 @@ BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
 
 # Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    . "${BASE_DIR}/scripts/helper.sh"
+    . "${BASE_DIR}/scripts/utils.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -67,16 +67,10 @@ if [ -f ./scripts/install_dependencies.sh ]; then
     . ./scripts/install_dependencies.sh
 fi
 
-### Clean-up server ###
-if [ -f ./scripts/cleanup_server.sh ]; then
+### Server clean-up ###
+if [ -f ./scripts/server_cleanup.sh ]; then
     echo ""
-    . ./scripts/cleanup_server.sh
-fi
-
-### Create and enable swap ###
-if [[ "${ENABLE_SWAP}" == true ]]; then
-    echo ""
-    enable_swap
+    . ./scripts/server_cleanup.sh
 fi
 
 ### Create default account ###
@@ -169,10 +163,16 @@ if [ -f ./scripts/install_tools.sh ]; then
     . ./scripts/install_tools.sh
 fi
 
-### Basic server security setup ###
-if [ -f ./scripts/secure_server.sh ]; then
+### Basic server optimization ###
+if [ -f ./scripts/server_optimization.sh ]; then
     echo ""
-    . ./scripts/secure_server.sh
+    . ./scripts/server_optimization.sh
+fi
+
+### Basic server security setup ###
+if [ -f ./scripts/server_security.sh ]; then
+    echo ""
+    . ./scripts/server_security.sh
 fi
 
 ### FINAL SETUP ###

@@ -33,7 +33,7 @@ BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
 
 # Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    . "${BASE_DIR}/scripts/helper.sh"
+    . "${BASE_DIR}/scripts/utils.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -123,9 +123,9 @@ if [ -f ./scripts/remove_fail2ban.sh ]; then
 fi
 
 ### Remove server security setup ###
-if [ -f ./scripts/secure_server.sh ]; then
+if [ -f ./scripts/server_security.sh ]; then
     echo ""
-    . ./scripts/secure_server.sh --remove
+    . ./scripts/server_security.sh --remove
 fi
 
 ### Remove default user account ###
