@@ -948,10 +948,11 @@ function init_php_install() {
             echo "  3). PHP 7.1 (EOL)"
             echo "  4). PHP 7.2 (EOL)"
             echo "  5). PHP 7.3 (EOL)"
-            echo "  6). PHP 7.4 (SFO)"
-            echo "  7). PHP 8.0 (Stable)"
-            echo "  8). PHP 8.1 (Latest Stable)"
-            echo "  9). All available versions"
+            echo "  6). PHP 7.4 (EOL)"
+            echo "  7). PHP 8.0 (SFO)"
+            echo "  8). PHP 8.1 (Latest)"
+            echo "  9). PHP 8.2 (Latest Stable)"
+            echo "  10). All available versions"
             echo "--------------------------------------------"
 
             [[ -n "${DEFAULT_PHP_VERSION}" ]] && \
@@ -959,10 +960,12 @@ function init_php_install() {
 
             while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                     ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
-                    ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && ${SELECTED_PHP} != "9" && \
+                    ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && \
+                    ${SELECTED_PHP} != "9" && ${SELECTED_PHP} != "10" && \
                     ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && ${SELECTED_PHP} != "7.1" && \
                     ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
-                    ${SELECTED_PHP} != "8.0" &&  ${SELECTED_PHP} != "8.1" && ${SELECTED_PHP} != "all" ]]; do
+                    ${SELECTED_PHP} != "8.0" &&  ${SELECTED_PHP} != "8.1" && \
+                    ${SELECTED_PHP} != "8.2" && ${SELECTED_PHP} != "all" ]]; do
                 read -rp "Enter a PHP version from an option above [1-9]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
             done
 
@@ -989,11 +992,14 @@ function init_php_install() {
                     SELECTED_PHP_VERSIONS+=("8.0")
                 ;;
                 8 | "8.1")
-                    SELECTED_PHP_VERSIONS+=("8.0")
+                    SELECTED_PHP_VERSIONS+=("8.1")
                 ;;
-                9 | "all")
+                9 | "8.2")
+                    SELECTED_PHP_VERSIONS+=("8.2")
+                ;;
+                10 | "all")
                     # Select all PHP versions (except EOL & Beta).
-                    SELECTED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0" "8.1")
+                    SELECTED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0" "8.1", "8.2")
                 ;;
                 *)
                     error "Your selected PHP version ${SELECTED_PHP} is not supported yet."
