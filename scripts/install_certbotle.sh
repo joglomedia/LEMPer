@@ -46,15 +46,9 @@ function init_certbotle_install() {
                         run apt-get install -qq -y certbot -t jessie-backports
                     ;;
                     stretch | buster | bullseye)
-                        run add-apt-repository ppa:deadsnakes/ppa -y && \
-                        run apt-get update -qq -y && \
-                        run apt-get install -qq -y python3.7 python3.7-dev python3.7-venv \
-                            python3.9 python3.9-dev python3.9-venv && \
-                        run update-alternatives --install /usr/bin/python python "$(command -v python3.7)" 37 && \
-                        run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
-                        run update-alternatives --set python /usr/bin/python3.7 && \
                         run python -m pip install --upgrade pip && \
                         run python -m pip install --upgrade setuptools && \
+                        run python -m pip install --upgrade cffi && \
                         run python -m pip install --upgrade certbot
                     ;;
                     *)
@@ -65,28 +59,17 @@ function init_certbotle_install() {
                 esac
             ;;
             ubuntu)
-                # Install Python
-                run add-apt-repository ppa:deadsnakes/ppa -y && \
-                run apt-get update -qq -y && \
-                run apt-get install -qq -y python3.7 python3.7-dev python3.7-venv \
-                    python3.9 python3.9-dev python3.9-venv && \
-                run update-alternatives --install /usr/bin/python python "$(command -v python3.7)" 37 && \
-                run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
-                run update-alternatives --set python /usr/bin/python3.7 && \
                 run python -m pip install --upgrade pip && \
                 run python -m pip install --upgrade setuptools && \
+                run python -m pip install --upgrade cffi && \
                 run python -m pip install --upgrade certbot
             ;;
             centos | rocky*)
                 run dnf install-q -y epel-release && run dnf update -q -y  && \
                 run dnf install-q -y certbot
-                #run dnf install -y python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
-                #    python39 python39-libs python39-pip-wheel python39-setuptools-wheel && \
-                #run update-alternatives --install /usr/bin/unversioned-python python "$(command -v python3)" 3 && \
-                #run update-alternatives --install /usr/bin/unversioned-python python "$(command -v python3.9)" 39 && \
-                #run update-alternatives --set python /usr/bin/python3.9 && \
                 #run python -m pip install --upgrade pip && \
                 #run python -m pip install --upgrade setuptools && \
+                #run python -m pip install --upgrade cffi && \
                 #run python -m pip install --upgrade certbot
             ;;
             *)
