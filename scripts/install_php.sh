@@ -62,7 +62,10 @@ function add_php_repo() {
     esac
 
     info "Updating repository, please wait..."
-    run apt-get update -qq -y
+    run apt-get update -q -y && \
+    run apt-get install -q -y geoip-bin geoip-database gettext libgd-dev libgeoip-dev libsodium-dev \
+        libxml2-dev libxslt1-dev
+
 }
 
 ##
