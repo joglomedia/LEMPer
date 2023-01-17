@@ -74,12 +74,6 @@ function lemper_install() {
     USERNAME=${LEMPER_USERNAME:-"lemper"}
     create_account "${USERNAME}"
 
-    ### Nginx installation ###
-    if [ -f ./scripts/install_nginx.sh ]; then
-        echo ""
-        . ./scripts/install_nginx.sh
-    fi
-
     ### Certbot Let's Encrypt SSL installation ###
     if [ -f ./scripts/install_certbotle.sh ]; then
         echo ""
@@ -96,6 +90,12 @@ function lemper_install() {
     if [ -f ./scripts/install_phalcon.sh ]; then
         echo ""
         . ./scripts/install_phalcon.sh
+    fi
+
+    ### Nginx installation ###
+    if [ -f ./scripts/install_nginx.sh ]; then
+        echo ""
+        . ./scripts/install_nginx.sh
     fi
 
     ### MySQL database installation ###
