@@ -45,23 +45,12 @@ testTrueInstallCertbot()
     assertTrue "[[ ${cb} -gt 0 ]]"
 }
 
-testTrueInstallFTPServer()
+testEqualityInstallPhp()
 {
-    if [[ "${FTP_SERVER_NAME}" == "pureftpd" || "${FTP_SERVER_NAME}" == "pure-ftpd" ]]; then
-        if [ -f scripts/install_pureftpd.sh ]; then
-            . scripts/install_pureftpd.sh
-        fi
+    . scripts/install_php.sh
 
-        ftps=$(command -v pure-ftpd | grep -c pure-ftpd)
-        assertTrue "[[ ${ftps} -gt 0 ]]"
-    else
-        if [ -f scripts/install_vsftpd.sh ]; then
-            . scripts/install_vsftpd.sh
-        fi
-
-        ftps=$(command -v vsftpd | grep -c vsftpd)
-        assertTrue "[[ ${ftps} -gt 0 ]]"
-    fi
+    php_bin=$(command -v php)
+    assertEquals "/usr/bin/php" "${php_bin}"
 }
 
 testTrueInstallNginx()
@@ -83,14 +72,6 @@ testEqualityInstallMySQL()
 
     mysqld_bin=$(command -v mysqld)
     assertEquals "/usr/sbin/mysqld" "${mysqld_bin}"
-}
-
-testEqualityInstallPhp()
-{
-    . scripts/install_php.sh
-
-    php_bin=$(command -v php)
-    assertEquals "/usr/bin/php" "${php_bin}"
 }
 
 testTrueInstallImageMagick()
@@ -139,6 +120,25 @@ testEqualityInstallRedis()
 #    mongod_bin=$(command -v mongod)
 #    assertEquals "/usr/bin/mongod" "${mongod_bin}"
 #}
+
+testTrueInstallFTPServer()
+{
+    if [[ "${FTP_SERVER_NAME}" == "pureftpd" || "${FTP_SERVER_NAME}" == "pure-ftpd" ]]; then
+        if [ -f scripts/install_pureftpd.sh ]; then
+            . scripts/install_pureftpd.sh
+        fi
+
+        ftps=$(command -v pure-ftpd | grep -c pure-ftpd)
+        assertTrue "[[ ${ftps} -gt 0 ]]"
+    else
+        if [ -f scripts/install_vsftpd.sh ]; then
+            . scripts/install_vsftpd.sh
+        fi
+
+        ftps=$(command -v vsftpd | grep -c vsftpd)
+        assertTrue "[[ ${ftps} -gt 0 ]]"
+    fi
+}
 
 testEqualityInstallFail2ban()
 {

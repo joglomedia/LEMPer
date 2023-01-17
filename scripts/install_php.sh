@@ -65,7 +65,6 @@ function add_php_repo() {
     run apt-get update -q -y && \
     run apt-get install -q -y geoip-bin geoip-database gettext libgd-dev libgeoip-dev libsodium-dev \
         libxml2-dev libxslt1-dev
-
 }
 
 ##
