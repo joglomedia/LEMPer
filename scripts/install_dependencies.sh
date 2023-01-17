@@ -21,6 +21,9 @@ fi
 
 echo "Installing required dependencies..."
 
+DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
+RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
+
 # Fix broken install, first?
 if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
     run dpkg --configure -a
@@ -29,18 +32,53 @@ fi
 
 # Update repositories.
 echo "Updating repository, please wait..."
-run apt-get update -qq -y && \
-run apt-get upgrade -qq -y
+run apt-get update -q -y && \
+run apt-get upgrade -q -y
 
 # Install dependencies.
 echo "Installing packages, be patient..."
-run apt-get install -qq -y \
+run apt-get install -q -y \
     apt-transport-https apt-utils autoconf automake bash build-essential ca-certificates \
-    cmake cron curl dmidecode dnsutils gcc geoip-bin geoip-database gettext git gnupg2 \
-    htop iptables libc-bin libc6-dev libcurl4-openssl-dev libgd-dev libgeoip-dev libgpgme11-dev \
-    libsodium-dev libssl-dev libxml2-dev libpcre3-dev libtool libxslt1-dev locales logrotate lsb-release \
-    make net-tools openssh-server openssl pkg-config python3 re2c rsync software-properties-common \
+    cmake cron curl dmidecode dnsutils gcc git gnupg2 htop iptables libc-bin libc6-dev \
+    libcurl4-openssl-dev libgpgme11-dev libssl-dev libpcre3-dev libtool locales logrotate lsb-release \
+    make net-tools openssh-server openssl pkg-config re2c rsync software-properties-common \
     sasl2-bin snmp sudo sysstat tar tzdata unzip wget whois xz-utils zlib1g-dev
+
+# Install Python
+echo "Installing Python..."
+
+case "${DISTRIB_NAME}" in
+    debian)
+        case "${RELEASE_NAME}" in
+            stretch | buster | bullseye)
+                run add-apt-repository ppa:deadsnakes/ppa -y && \
+                run apt-get update -qq -y && \
+                run apt-get install -q -y python3.7 python3.7-dev python3.7-venv \
+                    python3.9 python3.9-dev python3.9-venv && \
+                run update-alternatives --install /usr/bin/python python "$(command -v python3.7)" 37 && \
+                run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
+                run update-alternatives --set python /usr/bin/python3.7
+            ;;
+        esac
+    ;;
+    ubuntu)
+        # Install Python
+        run add-apt-repository ppa:deadsnakes/ppa -y && \
+        run apt-get update -qq -y && \
+        run apt-get install -q -y python3.7 python3.7-dev python3.7-venv \
+            python3.9 python3.9-dev python3.9-venv && \
+        run update-alternatives --install /usr/bin/python python "$(command -v python3.7)" 37 && \
+        run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
+        run update-alternatives --set python /usr/bin/python3.7
+    ;;
+    centos | rocky*)
+        run dnf install -y python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
+            python39 python39-libs python39-pip-wheel python39-setuptools-wheel && \
+        run update-alternatives --install /usr/bin/unversioned-python python "$(command -v python3)" 3 && \
+        run update-alternatives --install /usr/bin/unversioned-python python "$(command -v python3.9)" 39 && \
+        run update-alternatives --set python /usr/bin/python3
+    ;;
+esac
 
 # Update locale
 echo "Reconfigure locale..."
