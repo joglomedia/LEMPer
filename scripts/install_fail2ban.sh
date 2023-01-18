@@ -71,6 +71,8 @@ function init_fail2ban_install() {
                     run wget "${fail2ban_download_link}" -O fail2ban.tar.gz  && \
                     run tar -zxf fail2ban.tar.gz && \
                     run cd fail2ban-*/ && \
+                    # Convert to Python3 codebase
+                    run ./fail2ban-2to3 && \
                     run python setup.py install && \
                     run cp files/debian-initd /etc/init.d/fail2ban && \
                     run update-rc.d fail2ban defaults
