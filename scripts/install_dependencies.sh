@@ -40,11 +40,12 @@ echo "Installing packages, be patient..."
 run apt-get install -q -y \
     apt-transport-https apt-utils autoconf automake bash build-essential ca-certificates \
     cmake cron curl dmidecode dnsutils gcc git gnupg2 htop iptables libc-bin libc6-dev \
-    libcurl4-openssl-dev libgpgme11-dev libssl-dev libpcre3-dev libtool locales logrotate lsb-release \
-    make net-tools openssh-server openssl pkg-config re2c rsync software-properties-common \
-    sasl2-bin snmp sudo sysstat tar tzdata unzip wget whois xz-utils zlib1g-dev
+    libcurl4-openssl-dev libgpgme11-dev libssl-dev libpcre3-dev libxml2-dev libxslt1-dev \
+    libtool locales logrotate lsb-release make net-tools openssh-server openssl pkg-config \
+    re2c rsync software-properties-common sasl2-bin snmp sudo sysstat tar tzdata unzip wget \
+    whois xz-utils zlib1g-dev geoip-bin geoip-database gettext libgeoip-dev
 
-# Install Python
+# Install Python 3
 echo "Installing Python..."
 
 case "${DISTRIB_NAME}" in
