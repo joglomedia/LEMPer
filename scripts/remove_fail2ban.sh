@@ -22,9 +22,10 @@ fi
 function init_fail2ban_removal() {
     # Stop fail2ban process.
     if [[ $(pgrep -c fail2ban-server) -gt 0 ]]; then
-        run systemctl stop fail2ban.service && \
-        run systemctl disable fail2ban.service
+        run systemctl stop fail2ban
     fi
+
+    run systemctl disable fail2ban
 
     if dpkg-query -l | awk '/fail2ban/ { print $2 }' | grep -qwE "^fail2ban$"; then
         echo "Found fail2ban package installation. Removing..."

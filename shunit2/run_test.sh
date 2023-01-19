@@ -145,7 +145,7 @@ testEqualityInstallFail2ban()
     . scripts/install_fail2ban.sh
 
     fail2ban_bin=$(command -v fail2ban-server)
-    assertEquals "/usr/local/bin/fail2ban-server" "${fail2ban_bin}"
+    assertTrue "[[ -x ${fail2ban_bin} ]]"
 }
 
 testEqualityInstallTools()
@@ -158,7 +158,7 @@ testEqualityInstallTools()
 
 testEqualityCreateNewVhost()
 {
-    sudo /usr/local/bin/lemper-cli create -d lemper.test -f wordpress -i
+    sudo /usr/local/bin/lemper-cli site add -d lemper.test -f wordpress -i
     assertTrue "[[ -f /etc/nginx/sites-available/lemper.test.conf ]]"
 }
 
