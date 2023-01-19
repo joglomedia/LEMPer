@@ -53,7 +53,7 @@ function init_fail2ban_install() {
         case "${SELECTED_INSTALLER}" in
             1 | "repo")
                 echo "Installing Fail2ban from repository..."
-                run apt-get install -qq -y fail2ban
+                run apt-get install -q -y fail2ban
             ;;
             2 | "source")
                 echo "Installing Fail2ban from source..."
@@ -72,6 +72,7 @@ function init_fail2ban_install() {
                     run tar -zxf fail2ban.tar.gz && \
                     run cd fail2ban-*/ && \
                     # Convert to Python3 codebase
+                    run python -m pip install --upgrade 2to3 && \
                     run ./fail2ban-2to3 && \
                     run python setup.py install && \
                     run cp files/debian-initd /etc/init.d/fail2ban && \
@@ -135,7 +136,8 @@ EOL
 
         # Restart Fail2ban daemon.
         echo "Starting Fail2ban server..."
-        run systemctl start fail2ban
+        run systemctl start fail2ban.service && \
+        run systemctl enable fail2ban.service
 
         if [[ "${DRYRUN}" != true ]]; then
             if [[ $(pgrep -c fail2ban-server) -gt 0 ]]; then
