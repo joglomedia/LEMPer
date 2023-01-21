@@ -30,15 +30,12 @@ function init_fail2ban_removal() {
 
     if dpkg-query -l | awk '/fail2ban/ { print $2 }' | grep -qwE "^fail2ban$"; then
         echo "Found fail2ban package installation. Removing..."
-
-        run apt-get purge -q -y fail2ban
+        run apt-get purge -q -y fail2ban && \
+        run dpkg --purge fail2ban
     else
         info "Fail2ban package not found, possibly installed from source."
-
         run rm -f /usr/local/bin/fail2ban-*
     fi
-
-    run dpkg --purge fail2ban
 
     [ -f /etc/systemd/system/multi-user.target.wants/fail2ban.service ] && \
         run unlink /etc/systemd/system/multi-user.target.wants/fail2ban.service
