@@ -33,8 +33,11 @@ function remove_php_fpm() {
 
     # Stop default PHP FPM process.
     if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
+        echo "Stopping php${PHPv}-fpm..."
         run systemctl stop "php${PHPv}-fpm"
     fi
+
+    run systemctl disable "php${PHPv}-fpm"
 
     if dpkg-query -l | awk '/php/ { print $2 }' | grep -qwE "^php${PHPv}"; then
         echo "Removing PHP ${PHPv} packages installation..."

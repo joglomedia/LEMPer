@@ -22,6 +22,7 @@ fi
 function init_fail2ban_removal() {
     # Stop fail2ban process.
     if [[ $(pgrep -c fail2ban-server) -gt 0 ]]; then
+        echo "Stopping fail2ban..."
         run systemctl stop fail2ban
     fi
 

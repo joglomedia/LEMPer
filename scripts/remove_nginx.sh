@@ -23,8 +23,11 @@ fi
 function init_nginx_removal() {
     # Stop nginx HTTP server process.
     if [[ $(pgrep -c nginx) -gt 0 ]]; then
+        echo "Stopping nginx..."
         run systemctl stop nginx
     fi
+
+    run systemctl disable nginx
 
     if [[ ${NGX_VERSION} == "mainline" || ${NGX_VERSION} == "latest" ]]; then
         local NGINX_REPO="nginx-mainline"

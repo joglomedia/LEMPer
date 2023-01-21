@@ -22,6 +22,7 @@ fi
 function init_memcached_removal() {
     # Stop Memcached server process.
     if [[ $(pgrep -c memcached) -gt 0 ]]; then
+        echo "Stopping memcached..."
         #run service memcached@memcache stop
         #run service memcached@www-data stop
         # shellcheck disable=SC2046

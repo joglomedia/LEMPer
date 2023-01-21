@@ -39,8 +39,6 @@ testTrueInstallCertbot()
 {
     . scripts/install_certbotle.sh
 
-    #certbot_bin=$(command -v certbot)
-    #assertEquals "/usr/bin/certbot" "${certbot_bin}"
     cb=$(command -v certbot | grep -c certbot)
     assertTrue "[[ ${cb} -gt 0 ]]"
 }
@@ -57,8 +55,6 @@ testTrueInstallNginx()
 {
     . scripts/install_nginx.sh
 
-    #nginx_bin=$(command -v nginx)
-    #assertEquals "/usr/sbin/nginx" "${nginx_bin}"
     ngx=$(command -v nginx | grep -c nginx)
     assertTrue "[[ ${ngx} -gt 0 ]]"
 }
@@ -145,7 +141,7 @@ testEqualityInstallFail2ban()
     . scripts/install_fail2ban.sh
 
     fail2ban_bin=$(command -v fail2ban-server)
-    assertTrue "[[ -x ${fail2ban_bin} ]]"
+    assertTrue "[[ ${fail2ban_bin} -gt 0 ]]"
 }
 
 testEqualityInstallTools()
@@ -160,6 +156,100 @@ testEqualityCreateNewVhost()
 {
     sudo /usr/local/bin/lemper-cli site add -d lemper.test -f wordpress -i
     assertTrue "[[ -f /etc/nginx/sites-available/lemper.test.conf ]]"
+}
+
+# Remove / uninstaller
+
+testTrueRemoveCertbot()
+{
+    . scripts/remove_certbotle.sh
+
+    cb=$(command -v certbot | grep -c certbot)
+    assertTrue "[[ ${cb} -eq 0 ]]"
+}
+
+testEqualityRemovePhp()
+{
+    . scripts/remove_php.sh
+
+    php_bin=$(command -v php)
+    assertEquals "" "${php_bin}"
+}
+
+testTrueRemoveNginx()
+{
+    . scripts/remove_nginx.sh
+
+    ngx=$(command -v nginx | grep -c nginx)
+    assertTrue "[[ ${ngx} -eq 0 ]]"
+}
+
+testEqualityRemoveMySQL()
+{
+    . scripts/remove_mariadb.sh
+
+    mysql_bin=$(command -v mysql)
+    assertEquals "" "${mysql_bin}"
+
+    mysqld_bin=$(command -v mysqld)
+    assertEquals "" "${mysqld_bin}"
+}
+
+testEqualityRemoveMemcached()
+{
+    . scripts/remove_memcached.sh
+
+    memcached_bin=$(command -v memcached)
+    assertEquals "" "${memcached_bin}"
+}
+
+testEqualityRemoveRedis()
+{
+    . scripts/remove_redis.sh
+
+    rediscli_bin=$(command -v redis-cli)
+    assertEquals "" "${rediscli_bin}"
+
+    redisserver_bin=$(command -v redis-server)
+    assertEquals "" "${redisserver_bin}"
+}
+
+#testEqualityRemoveMongoDB()
+# {
+#    . scripts/remove_mongodb.sh
+
+#    mongo_bin=$(command -v mongo)
+#    assertEquals "" "${mongo_bin}"
+
+#    mongod_bin=$(command -v mongod)
+#    assertEquals "" "${mongod_bin}"
+#}
+
+testTrueRemoveFTPServer()
+{
+    if [[ "${FTP_SERVER_NAME}" == "pureftpd" || "${FTP_SERVER_NAME}" == "pure-ftpd" ]]; then
+        if [ -f scripts/remove_pureftpd.sh ]; then
+            . scripts/remove_pureftpd.sh
+        fi
+
+        ftps=$(command -v pure-ftpd | grep -c pure-ftpd)
+        assertTrue "[[ ${ftps} -eq 0 ]]"
+    else
+        if [ -f scripts/remove_vsftpd.sh ]; then
+            . scripts/remove_vsftpd.sh
+        fi
+
+        ftps=$(command -v vsftpd | grep -c vsftpd)
+        assertTrue "[[ ${ftps} -eq 0 ]]"
+    fi
+}
+
+testEqualityRemoveFail2ban()
+{
+    . scripts/remove_fail2ban.sh
+
+    fail2ban_bin=$(command -v fail2ban-server | grep -c fail2ban-server)
+    assertTrue "[[ ${fail2ban_bin} -eq 0 ]]"
 }
 
 # load shunit2

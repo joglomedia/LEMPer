@@ -21,8 +21,11 @@ fi
 
 function init_postfix_removal() {
     if [[ $(pgrep -c postfix) -gt 0 ]]; then
+        echo "Stopping postfix..."
         run systemctl stop postfix
     fi
+
+    run systemctl disable postfix
 
     if dpkg-query -l | awk '/postfix/ { print $2 }' | grep -qwE "^postfix"; then
         echo "Found Postfix Mail-Transfer Agent package installation. Removing..."
@@ -75,8 +78,11 @@ function init_postfix_removal() {
 
 function init_dovecot_removal() {
     if [[ $(pgrep -c dovecot) -gt 0 ]]; then
+        echo "Stopping dovecot..."
         run systemctl stop dovecot
     fi
+
+    run systemctl disable dovecot
 
     if dpkg-query -l | awk '/dovecot/ { print $2 }' | grep -qwE "^dovecot"; then
         echo "Found Dovecot IMAP server package installation. Removing..."

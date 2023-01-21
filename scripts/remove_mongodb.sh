@@ -42,10 +42,11 @@ function remove_mongodb_repo() {
 function init_mongodb_removal() {
     # Stop MongoDB server process.
     if [[ $(pgrep -c mongod) -gt 0 ]]; then
-        echo "Stopping MongoDB server..."
-
+        echo "Stopping mongodb..."
         run systemctl stop mongod
     fi
+
+    run systemctl disable mongod
 
     if dpkg-query -l | awk '/mongodb/ { print $2 }' | grep -qwE "^mongodb"; then
         echo "Removing MongoDB packages..."

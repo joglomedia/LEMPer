@@ -22,9 +22,11 @@ fi
 function init_pureftpd_removal() {
     # Stop Pure-FTPd process.
     if [[ $(pgrep -c pure-ftpd) -gt 0 ]]; then
+        echo "Stopping pure-ftpd..."
         run systemctl stop pure-ftpd
-        run systemctl disable pure-ftpd
     fi
+
+    run systemctl disable pure-ftpd
 
     if dpkg-query -l | awk '/pure-ftpd/ { print $2 }' | grep -qwE "^pure-ftpd$"; then
         echo "Found FTP server (Pure-FTPd) package installation. Removing..."
