@@ -31,7 +31,7 @@ function remove_mongodb_repo() {
 
     if [[ -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" ]]; then
         run rm -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
-        run apt-get update -qq -y
+        run apt-get update -q -y
     fi
 
     echo "Removing MongoDB repository key..."
@@ -52,7 +52,7 @@ function init_mongodb_removal() {
 
         # Remove MongoDB server.
         #shellcheck disable=SC2046
-        run apt-get purge -qq -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
+        run apt-get purge -q -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
 
         if [[ "${AUTO_REMOVE}" == true ]]; then
             if [[ "${FORCE_REMOVE}" == true ]]; then

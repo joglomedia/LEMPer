@@ -52,7 +52,7 @@ function init_vsftpd_install() {
         case "${SELECTED_INSTALLER}" in
             1 | repo)
                 echo "Installing FTP server (VSFTPD) from repository..."
-                run apt-get install -qq -y vsftpd
+                run apt-get install -q -y vsftpd
             ;;
             2 | source)
                 echo "Installing FTP server (VSFTPD) from source..."
@@ -62,11 +62,11 @@ function init_vsftpd_install() {
                     debian)
                         case "${RELEASE_NAME}" in
                             stretch)
-                                run apt-get install -qq -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
+                                run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
                                     libcap-dev libcap2 libtirpc-dev libtirpc1
                             ;;
                             buster | bullseye)
-                                run apt-get install -qq -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
+                                run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
                                     libcap-dev libcap2 libtirpc-common libtirpc-dev libtirpc3
                             ;;
                             *)
@@ -77,11 +77,11 @@ function init_vsftpd_install() {
                     ubuntu)
                         case "${RELEASE_NAME}" in
                             bionic)
-                                run apt-get install -qq -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
+                                run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
                                     libcap-dev libcap2 libtirpc-dev libtirpc1
                             ;;
                             focal | jammy)
-                                run apt-get install -qq -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
+                                run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
                                     libcap-dev libcap2 libtirpc-common libtirpc-dev libtirpc3
                             ;;
                             *)

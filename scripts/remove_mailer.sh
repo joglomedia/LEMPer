@@ -28,7 +28,7 @@ function init_postfix_removal() {
         echo "Found Postfix Mail-Transfer Agent package installation. Removing..."
 
         # shellcheck disable=SC2046
-        run apt-get purge -qq -y postfix mailutils
+        run apt-get purge -q -y postfix mailutils
     else
         info "Postfix Mail-Transfer Agent package not found, possibly installed from source."
         echo "Remove it manually!!"
@@ -82,7 +82,7 @@ function init_dovecot_removal() {
         echo "Found Dovecot IMAP server package installation. Removing..."
 
         # shellcheck disable=SC2046
-        run apt-get purge -qq -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
+        run apt-get purge -q -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
     else
         info "Dovecot IMAP server package not found, possibly installed from source."
         echo "Remove it manually!!"
@@ -136,7 +136,7 @@ function init_spfdkim_removal() {
         echo "Found OpenDKIM + SPF package installation. Removing..."
 
         # shellcheck disable=SC2046
-        run apt-get purge -qq -y postfix-policyd-spf-python opendkim opendkim-tools
+        run apt-get purge -q -y postfix-policyd-spf-python opendkim opendkim-tools
     else
         info "OpenDKIM + SPF package not found, possibly installed from source."
         echo "Remove it manually!!"

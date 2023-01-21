@@ -480,7 +480,7 @@ function init_phalcon_install() {
                         if [[ -n $(command -v "php${PHPv}") ]]; then
                             PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
                             if [[ ! -f "${PHPLIB_DIR}/phalcon.so" ]]; then
-                                run apt-get install -qq -y "php-psr" "${PHP_PHALCON_PKG}"
+                                run apt-get install -q -y "php-psr" "${PHP_PHALCON_PKG}"
                                 enable_phalcon "${PHPv}"
                             else
                                 error "PHP ${PHPv} Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so."
@@ -494,7 +494,7 @@ function init_phalcon_install() {
                             if [[ -n $(command -v "php${PHPv}") ]]; then
                                 PHPLIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
                                 if [[ ! -f "${PHPLIB_DIR}/phalcon.so" ]]; then
-                                    run apt-get install -qq -y "php${PHPv}-psr" "php${PHPv}-phalcon"
+                                    run apt-get install -q -y "php${PHPv}-psr" "php${PHPv}-phalcon"
                                     enable_phalcon "${PHPv}"
                                 else
                                     error "PHP ${PHPv} Phalcon extension already installed here ${PHPLIB_DIR}/phalcon.so."

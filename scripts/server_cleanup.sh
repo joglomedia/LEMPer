@@ -30,7 +30,7 @@ if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
     [ -f /var/cache/apt/archives/lock ] && run rm /var/cache/apt/archives/lock
 
     run dpkg --configure -a
-    run apt --fix-broken install -qq -y
+    run apt --fix-broken install -q -y
 fi
 
 # Remove Apache2 service if exists.
@@ -55,7 +55,7 @@ if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
             run systemctl stop apache2
 
             # shellcheck disable=SC2046
-            run apt-get purge -qq -y $(dpkg-query -l | awk '/apache2/ { print $2 }') \
+            run apt-get purge -q -y $(dpkg-query -l | awk '/apache2/ { print $2 }') \
                 $(dpkg-query -l | awk '/httpd/ { print $2 }')
         else
             echo "Removing Apache2 installation in dry run mode."
@@ -125,9 +125,9 @@ fi
 # Autoremove unused packages.
 echo -e "\nCleaning up unnecessary packages..."
 
-run apt-get autoremove -qq -y && \
-run apt-get autoclean -qq -y && \
-run apt-get clean -qq -y
+run apt-get autoremove -q -y && \
+run apt-get autoclean -q -y && \
+run apt-get clean -q -y
 
 if [[ -z $(command -v apache2) && -z $(command -v nginx) && -z $(command -v mysql) ]]; then
     status "Your server cleaned up."

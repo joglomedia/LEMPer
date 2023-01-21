@@ -39,7 +39,7 @@ function add_mariadb_repo() {
         run curl -sSL -o "${BUILD_DIR}/mariadb_repo_setup" "${MARIADB_REPO_SETUP_URL}" && \
         run bash "${BUILD_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
             --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}" && \
-        run apt-get update -qq -y
+        run apt-get update -q -y
     else
         error "MariaDB repo installer not found."
     fi
@@ -69,7 +69,7 @@ function init_mariadb_install() {
         echo "Installing MariaDB (MySQL drop-in replacement) server..."
 
         # Install MariaDB
-        run apt-get install -qq -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
+        run apt-get install -q -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
             "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
             "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
 

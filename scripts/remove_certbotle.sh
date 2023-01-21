@@ -24,7 +24,7 @@ function init_certbotle_removal() {
         echo "Found Certbot package installation. Removing..."
 
         # Remove Certbot.
-        run apt-get purge -qq -y certbot
+        run apt-get purge -q -y certbot
 
         [[ "${FORCE_REMOVE}" == true ]] && \
             run add-apt-repository -y --remove ppa:certbot/certbot

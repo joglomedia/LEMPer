@@ -28,7 +28,7 @@ function init_pureftpd_removal() {
 
     if dpkg-query -l | awk '/pure-ftpd/ { print $2 }' | grep -qwE "^pure-ftpd$"; then
         echo "Found FTP server (Pure-FTPd) package installation. Removing..."
-        run apt-get purge -qq -y pure-ftpd pure-ftpd-common pure-ftpd-mysql
+        run apt-get purge -q -y pure-ftpd pure-ftpd-common pure-ftpd-mysql
     else
         info "FTP server (Pure-FTPd) package not found, possibly installed from source."
         echo "Remove it manually!!"

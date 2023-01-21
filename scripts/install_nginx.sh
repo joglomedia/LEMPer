@@ -47,7 +47,7 @@ function add_nginx_repo() {
                 run touch "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb https://packages.sury.org/${NGINX_REPO}/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
-                run apt-get update -qq -y
+                run apt-get update -q -y
             else
                 info "${NGINX_REPO} repository already exists."
             fi
@@ -59,7 +59,7 @@ function add_nginx_repo() {
             run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
             run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}"
-            run apt-get update -qq -y
+            run apt-get update -q -y
 
             NGINX_PKG="nginx-extras"
         ;;
@@ -278,7 +278,7 @@ function init_nginx_install() {
                         fi
 
                         # Install Nginx and its modules.
-                        run apt-get install -qq -y "${NGINX_PKG}" "${EXTRA_MODULE_PKGS[@]}"
+                        run apt-get install -q -y "${NGINX_PKG}" "${EXTRA_MODULE_PKGS[@]}"
                     fi
                 #else
                 #    fail "Unable to install Nginx, this GNU/Linux distribution is not supported."
@@ -437,8 +437,8 @@ function init_nginx_install() {
                             ;;
                             ubuntu)
                                 run add-apt-repository -y ppa:longsleep/golang-backports && \
-                                run apt-get update -qq -y && \
-                                run apt-get install -qq -y golang-go
+                                run apt-get update -q -y && \
+                                run apt-get install -q -y golang-go
                             ;;
                             *)
                                 fail "Unsupported distribution."
@@ -538,7 +538,7 @@ function init_nginx_install() {
                         # Requires libpam-dev
                         echo "Building Auth PAM module requires libpam-dev package, install now..."
 
-                        run apt-get install -qq -y libpam-dev
+                        run apt-get install -q -y libpam-dev
                     fi
 
                     # Brotli compression module.
@@ -657,8 +657,8 @@ function init_nginx_install() {
 
                         if [[ "${DISTRIB_NAME}" == "ubuntu" ]]; then
                         run add-apt-repository -y ppa:maxmind/ppa && \
-                        run apt-get update -qq -y && \
-                        run apt-get install -qq -y libmaxminddb0 libmaxminddb-dev mmdb-bin
+                        run apt-get update -q -y && \
+                        run apt-get install -q -y libmaxminddb0 libmaxminddb-dev mmdb-bin
                         else
                         if [ ! -d libmaxminddb ]; then
                             run git clone --recursive https://github.com/maxmind/libmaxminddb.git && \

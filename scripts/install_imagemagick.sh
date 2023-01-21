@@ -53,7 +53,7 @@ function init_imagemagick_install() {
         case "${SELECTED_INSTALLER}" in
             1 | "repo")
                 echo "Installing ImageMagick library from repository..."
-                run apt-get install -qq -y imagemagick
+                run apt-get install -q -y imagemagick
             ;;
             2 | "source")
                 echo "Installing ImageMagick library from source..."

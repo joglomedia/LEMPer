@@ -175,7 +175,7 @@ function lemper_install() {
     if [[ "${FORCE_REMOVE}" == true ]]; then
         # Cleaning up all build dependencies hanging around on production server?
         echo -e "\nClean up installation process..."
-        run apt-get autoremove -qq -y
+        run apt-get autoremove -q -y
 
         # Cleanup build dir
         echo "Clean up build directory..."
@@ -292,7 +292,7 @@ function lemper_remove() {
     # Fix broken install, first?
     if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
         run dpkg --configure -a
-        run apt-get install -qq -y --fix-broken
+        run apt-get install -q -y --fix-broken
     fi
 
     ### Remove Nginx ###
@@ -409,9 +409,9 @@ function lemper_remove() {
     ### Remove unnecessary packages ###
     echo -e "\nCleaning up unnecessary packages..."
 
-    run apt-get autoremove -qq -y && \
-    run apt-get autoclean -qq -y && \
-    run apt-get clean -qq -y
+    run apt-get autoremove -q -y && \
+    run apt-get autoclean -q -y && \
+    run apt-get clean -q -y
 
     echo -e "\nLEMPer Stack has been removed completely."
     warning -e "\nDid you know? that we're so sad to see you leave :'(

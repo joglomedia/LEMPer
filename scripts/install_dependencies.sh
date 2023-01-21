@@ -27,7 +27,7 @@ RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
 # Fix broken install, first?
 if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
     run dpkg --configure -a
-    run apt-get install -qq -y --fix-broken
+    run apt-get install -q -y --fix-broken
 fi
 
 # Update repositories.
@@ -53,7 +53,7 @@ case "${DISTRIB_NAME}" in
         case "${RELEASE_NAME}" in
             stretch | buster | bullseye)
                 run add-apt-repository ppa:deadsnakes/ppa -y && \
-                run apt-get update -qq -y && \
+                run apt-get update -q -y && \
                 run apt-get install -q -y python3.7 python3.7-dev python3.7-venv \
                     python3.9 python3.9-dev python3.9-venv && \
                 run update-alternatives --install /usr/bin/python python "$(command -v python3.7)" 37 && \
@@ -65,7 +65,7 @@ case "${DISTRIB_NAME}" in
     ubuntu)
         # Install Python
         run add-apt-repository ppa:deadsnakes/ppa -y && \
-        run apt-get update -qq -y && \
+        run apt-get update -q -y && \
         run apt-get install -q -y python3.7 python3.7-dev python3.7-venv \
             python3.9 python3.9-dev python3.9-venv && \
         run update-alternatives --install /usr/bin/python python "$(command -v python3.7)" 37 && \

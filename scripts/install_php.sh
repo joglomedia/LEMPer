@@ -142,7 +142,7 @@ function install_php() {
         echo "Installing PHP ${PHPv} and it's extensions..."
 
         if [[ "${#PHP_REPO_EXTS[@]}" -gt 0 ]]; then
-            run apt-get install -qq -y "php${PHPv}" "${PHP_REPO_EXTS[@]}" \
+            run apt-get install -q -y "php${PHPv}" "${PHP_REPO_EXTS[@]}" \
                 dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
         fi
 
@@ -528,7 +528,7 @@ function install_php_mongodb() {
 
     #echo -e "\nInstalling PHP ${PHPv} MongoDB extension..."
 
-    #run apt-get install -qq -y "php${PHPv}-mongodb"
+    #run apt-get install -q -y "php${PHPv}-mongodb"
 
     #local CURRENT_DIR && \
     #CURRENT_DIR=$(pwd)
@@ -577,7 +577,7 @@ function install_php_memcached() {
 #    echo "Installing PHP ${PHPv} memcached extension..."
 
 #    if [[ "${DRYRUN}" != true ]]; then
-#        run apt-get install -qq -y "php${PHPv}-memcache" "php${PHPv}-memcached"
+#        run apt-get install -q -y "php${PHPv}-memcache" "php${PHPv}-memcached"
 #    else
 #        info "PHP ${PHPv} Memcached extension installed in dry run mode."
 #    fi
@@ -1059,4 +1059,13 @@ if [[ -n $(command -v php5.6) && \
     info "All available PHP version already exists, installation skipped."
 else
     init_php_install "$@"
+
+    # Set default PHP.
+    if [[ -n $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
+        run update-alternatives --set php "$(command -v "php${DEFAULT_PHP_VERSION}")"
+        run update-alternatives --set phar "$(command -v "phar${DEFAULT_PHP_VERSION}")"
+        run update-alternatives --set phar.phar "$(command -v "phar.phar${DEFAULT_PHP_VERSION}")"
+        run update-alternatives --set php-config "$(command -v "php-config${DEFAULT_PHP_VERSION}")"
+        run update-alternatives --set phpize "$(command -v "phpize${DEFAULT_PHP_VERSION}")"
+    fi
 fi

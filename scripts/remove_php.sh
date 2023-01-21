@@ -59,7 +59,7 @@ function remove_php_fpm() {
 
         # Remove PHP packages.
         # shellcheck disable=SC2046
-        run apt-get purge -qq -y $(dpkg-query -l | awk '/php/ { print $2 }' | grep -wE "^php${PHPv}")
+        run apt-get purge -q -y $(dpkg-query -l | awk '/php/ { print $2 }' | grep -wE "^php${PHPv}")
 
         # Remove PHP loaders.
         remove_php_loader "${PHPv}" "${REMOVED_PHP_LOADER}"
@@ -393,7 +393,7 @@ function init_php_fpm_removal() {
 
             if [[ "${PHP_IS_EXISTS}" == false ]]; then
                 echo "Removing additional unused PHP packages..."
-                run apt-get purge -qq -y dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
+                run apt-get purge -q -y dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
 
                 # Remove openswoole official repository.
                 if echo "${PHP_EXTENSIONS}" | grep -qwE "openswoole"; then

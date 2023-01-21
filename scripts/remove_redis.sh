@@ -30,7 +30,7 @@ function init_redis_removal() {
         echo "Found Redis package installation. Removing..."
 
         # shellcheck disable=SC2046
-        run apt-get purge -qq -y $(dpkg-query -l | awk '/redis/ { print $2 }')
+        run apt-get purge -q -y $(dpkg-query -l | awk '/redis/ { print $2 }')
         if [[ "${FORCE_REMOVE}" == true ]]; then
             run add-apt-repository -y --remove ppa:chris-lea/redis-server
         fi

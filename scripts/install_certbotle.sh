@@ -43,7 +43,7 @@ function init_certbotle_install() {
             debian)
                 case "${RELEASE_NAME}" in
                     jessie)
-                        run apt-get install -qq -y certbot -t jessie-backports
+                        run apt-get install -q -y certbot -t jessie-backports
                     ;;
                     stretch | buster | bullseye)
                         run python -m pip install --upgrade pip && \

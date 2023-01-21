@@ -60,7 +60,7 @@ function add_mongodb_repo() {
 
                 run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/debian ${RELEASE_NAME}/mongodb-org/${MONGODB_VERSION} main' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
-                run apt-get update -qq -y
+                run apt-get update -q -y
             else
                 info "MongoDB ${MONGODB_VERSION} repository already exists."
             fi
@@ -75,7 +75,7 @@ function add_mongodb_repo() {
 
                 run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/ubuntu ${RELEASE_NAME}/mongodb-org/${MONGODB_VERSION} multiverse' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
-                run apt-get update -qq -y
+                run apt-get update -q -y
             else
                 info "MongoDB ${MONGODB_VERSION} repository already exists."
             fi
@@ -113,7 +113,7 @@ function init_mongodb_install() {
 
         echo "Installing MongoDB server..."
 
-        run apt-get install -qq -y libbson-1.0 libmongoc-1.0-0 mongodb-org mongodb-org-server \
+        run apt-get install -q -y libbson-1.0 libmongoc-1.0-0 mongodb-org mongodb-org-server \
             mongodb-org-shell mongodb-org-tools mongodb-org-mongos mongodb-database-tools \
             mongodb-org-database-tools-extra mongodb-mongosh
 

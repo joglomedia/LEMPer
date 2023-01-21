@@ -186,7 +186,7 @@ function install_ufw() {
     fi
 
     # Install UFW
-    run apt-get install -qq -y ufw
+    run apt-get install -q -y ufw
 
     # UFW app rules is here /etc/ufw/applications.d
     if [[ -n $(command -v ufw) ]]; then
@@ -288,7 +288,7 @@ function install_csf() {
     if [[ -n $(command -v cpan) ]]; then
         run cpan -i "LWP LWP::Protocol::https GD::Graph IO::Socket::INET6"
     else
-        run apt-get install -qq -y libwww-perl liblwp-protocol-https-perl \
+        run apt-get install -q -y libwww-perl liblwp-protocol-https-perl \
             libgd-graph-perl libio-socket-inet6-perl
     fi
 
@@ -463,7 +463,7 @@ function remove_ufw() {
 
         echo "Removing UFW iptables firewall..."
 
-        run apt-get remove -qq -y ufw
+        run apt-get remove -q -y ufw
     fi
 }
 
@@ -544,7 +544,7 @@ Any other iptables based firewall will be removed otherwise they will conflict."
         # Ensure that iptables installed.
         if [[ -z $(command -v iptables) ]]; then
             echo "Iptables is required, trying to install it first..."
-            run apt-get install -qq -y iptables
+            run apt-get install -q -y iptables
         fi
 
         case "${SELECTED_FW_CONFIGURATOR}" in

@@ -179,7 +179,7 @@ fi
 if [[ "${FORCE_REMOVE}" == true ]]; then
     # Cleaning up all build dependencies hanging around on production server?
     echo -e "\nClean up installation process..."
-    run apt-get autoremove -qq -y
+    run apt-get autoremove -q -y
 
     # Cleanup build dir
     echo "Clean up build directory..."

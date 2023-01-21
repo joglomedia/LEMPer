@@ -56,13 +56,13 @@ function init_memcached_install() {
             1 | repo)
                 echo "Installing Memcached server from repository..."
 
-                run apt-get install -qq -y \
+                run apt-get install -q -y \
                     libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2 memcached
             ;;
             2 | source)
                 echo "Installing Memcached server from source..."
 
-                run apt-get install -qq -y \
+                run apt-get install -q -y \
                     libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2
 
                 local CURRENT_DIR && \
