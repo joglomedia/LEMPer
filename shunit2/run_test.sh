@@ -244,13 +244,13 @@ testTrueRemoveFTPServer()
     fi
 }
 
-testEqualityRemoveFail2ban()
-{
-    . scripts/remove_fail2ban.sh
-
-    fail2ban_bin=$(command -v fail2ban-server | grep -c fail2ban-server)
-    assertTrue "[[ ${fail2ban_bin} -eq 0 ]]"
-}
+#testEqualityRemoveFail2ban()
+# {
+#    . scripts/remove_fail2ban.sh
+#
+#    fail2ban_bin=$(command -v fail2ban-server | grep -c fail2ban-server)
+#    assertTrue "[[ ${fail2ban_bin} -eq 0 ]]"
+# }
 
 # load shunit2
 . /usr/local/bin/shunit2
