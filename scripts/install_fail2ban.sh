@@ -136,8 +136,8 @@ EOL
 
         # Restart Fail2ban daemon.
         echo "Starting Fail2ban server..."
-        run systemctl start fail2ban.service && \
-        run systemctl enable fail2ban.service
+        run systemctl start fail2ban && \
+        run systemctl enable fail2ban
 
         if [[ "${DRYRUN}" != true ]]; then
             if [[ $(pgrep -c fail2ban-server) -gt 0 ]]; then
