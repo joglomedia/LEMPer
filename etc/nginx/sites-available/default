@@ -11,8 +11,8 @@ server {
     #ssl_certificate_key /etc/letsencrypt/live/localhost.localdomain/privkey.pem;
     #ssl_trusted_certificate /etc/letsencrypt/live/localhost.localdomain/fullchain.pem;
 
-    access_log /var/log/nginx/localhost.access.log;
-    error_log /var/log/nginx/localhost.error.log;
+    access_log /var/log/nginx/localhost.access.log combined buffer=32k;
+    error_log /var/log/nginx/localhost.error.log error;
 
     root /usr/share/nginx/html;
     index index.php index.html index.htm;
@@ -24,15 +24,28 @@ server {
 
     include /etc/nginx/vhost/site_default.conf;
 
-    location ~ ^/(status|ping)$ {
+    # Nginx basic status monitoring.
+    location = /nginx_status {
+        stub_status;
+        allow all;
+        auth_basic "Denied";
+        auth_basic_user_file /srv/.htpasswd;
+        access_log off;
+        log_not_found off;
+    }
+
+    # PHP-FPM status monitoring.
+    location ~ ^/php-fpm_(status|ping)$ {
         include /etc/nginx/fastcgi_params;
 
-        fastcgi_pass unix:/run/php/php7.4-fpm.sock;
+        fastcgi_pass unix:/run/php/php8.0-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $fastcgi_script_name;
 
         allow all;
         auth_basic "Denied";
         auth_basic_user_file /srv/.htpasswd;
+        access_log off;
+        log_not_found off;
     }
 
     location ~ \.php81$ {
@@ -46,7 +59,7 @@ server {
         fastcgi_pass unix:/run/php/php8.1-fpm.sock;
     }
 
-    location ~ \.php80$ {
+    location ~ \.(php|php80)$ {
         try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_index index.php;
@@ -56,7 +69,7 @@ server {
         fastcgi_pass unix:/run/php/php8.0-fpm.sock;
     }
 
-    location ~ \.(php|php74)$ {
+    location ~ \.php74$ {
         try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_index index.php;
@@ -132,8 +145,8 @@ server {
     index index.php index.html index.htm;
 
     # Log Settings.
-    access_log /var/log/nginx/localhost.access.log;
-    error_log /var/log/nginx/localhost.error.log;
+    access_log /var/log/nginx/localhost.access.log combined buffer=32k;
+    error_log /var/log/nginx/localhost.error.log error;
 
     location /lcp {
         try_files $uri $uri/ /index.php?$args;
@@ -161,7 +174,7 @@ server {
             # Uncomment to Enable PHP FastCGI cache.
             #include /etc/nginx/includes/fastcgi_cache.conf;
 
-            fastcgi_pass unix:/run/php/php7.4-fpm.sock;
+            fastcgi_pass unix:/run/php/php8.0-fpm.sock;
         }
     }
 
@@ -175,7 +188,7 @@ server {
         fastcgi_pass unix:/run/php/php8.1-fpm.sock;
     }
 
-    location ~ \.php80$ {
+    location ~ \.(php|php80)$ {
         try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_index index.php;
@@ -185,7 +198,7 @@ server {
         fastcgi_pass unix:/run/php/php8.0-fpm.sock;
     }
 
-    location ~ \.(php|php74)$ {
+    location ~ \.php74$ {
         try_files $uri =404;
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_index index.php;

@@ -639,7 +639,7 @@ with --no-deps-check."
             run cd "$nps_module_dir"
         else
             echo "Downloading ngx_pagespeed..."
-            run git clone -q "git@github.com:pagespeed/ngx_pagespeed.git" \
+            run git clone "git@github.com:pagespeed/ngx_pagespeed.git" \
                 "$nps_module_dir"
             run cd "$nps_module_dir"
             run git checkout "$tag_name"
@@ -661,7 +661,7 @@ with --no-deps-check."
         nps_baseurl="https://github.com/apache/incubator-pagespeed-ngx/archive"
         nps_downloaded="$TEMPDIR/$nps_downloaded_fname.zip"
         echo "Downloading ngx_pagespeed..."
-        run wget -q "$nps_baseurl/$tag_name.zip" -O "$nps_downloaded"
+        run wget "$nps_baseurl/$tag_name.zip" -O "$nps_downloaded"
         # Read the directory name from the zip, the first line is expected to have it.
         nps_module_dir=$(unzip -qql "$nps_downloaded" | head -n1 | tr -s ' ' | cut -d' ' -f5-)
         nps_module_dir="$BUILDDIR/${nps_module_dir::-1}"
@@ -720,7 +720,7 @@ with --no-deps-check."
         fi
 
         echo "Downloading PSOL binary..."
-        run wget -q "$psol_url"
+        run wget "$psol_url"
 
         status "Extracting PSOL..."
         run tar -xzf $(basename "$psol_url") # extracts to psol/
@@ -825,7 +825,7 @@ with --no-deps-check."
             nginx_leaf="nginx-${NGINX_VERSION}.tar.gz"
             nginx_fname="$TEMPDIR/$nginx_leaf"
             echo "Downloading nginx..."
-            run wget -q "http://nginx.org/download/$nginx_leaf" -O "$nginx_fname"
+            run wget "http://nginx.org/download/$nginx_leaf" -O "$nginx_fname"
             nginx_dir="$BUILDDIR/nginx-${NGINX_VERSION}/"
             delete_if_already_exists "$nginx_dir"
             status "Extracting nginx..."

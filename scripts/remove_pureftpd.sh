@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -22,13 +22,15 @@ fi
 function init_pureftpd_removal() {
     # Stop Pure-FTPd process.
     if [[ $(pgrep -c pure-ftpd) -gt 0 ]]; then
+        echo "Stopping pure-ftpd..."
         run systemctl stop pure-ftpd
-        run systemctl disable pure-ftpd
     fi
+
+    run systemctl disable pure-ftpd
 
     if dpkg-query -l | awk '/pure-ftpd/ { print $2 }' | grep -qwE "^pure-ftpd$"; then
         echo "Found FTP server (Pure-FTPd) package installation. Removing..."
-        run apt-get purge -qq -y pure-ftpd pure-ftpd-common pure-ftpd-mysql
+        run apt-get purge -q -y pure-ftpd pure-ftpd-common pure-ftpd-mysql
     else
         info "FTP server (Pure-FTPd) package not found, possibly installed from source."
         echo "Remove it manually!!"
@@ -36,7 +38,7 @@ function init_pureftpd_removal() {
         PUREFTPD_BIN=$(command -v pure-ftpd)
         echo "Deleting Pure-FTPd binary executable: ${PUREFTPD_BIN}"
 
-        [[ -x "${PUREFTPD_BIN}" ]] && run rm -f "${PUREFTPD_BIN}"
+        [[ -n $(command -v pure-ftpd) ]] && run rm -f "${PUREFTPD_BIN}"
     fi
 
     [[ -f /etc/systemd/system/multi-user.target.wants/pure-ftpd.service ]] && \

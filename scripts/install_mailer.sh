@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -43,10 +43,10 @@ function install_postfix() {
             echo "Remove existing sendmail install..."
             run service sendmail stop && \
             run update-rc.d -f sendmail remove && \
-            run apt-get remove -qq -y sendmail
+            run apt-get remove -q -y sendmail
         fi
 
-        run apt-get install -qq -y mailutils postfix
+        run apt-get install -q -y mailutils postfix
 
         # Configure Postfix.
         echo "Configuring Postfix Mail-Transfer Agent..."
@@ -167,7 +167,7 @@ function install_dovecot() {
     if [[ ${DO_INSTALL_DOVECOT} == y* || ${DO_INSTALL_DOVECOT} == Y* ]]; then
         echo "Installing Dovecot IMAP & POP3 Server..."
 
-        run apt-get install -qq -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
+        run apt-get install -q -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
 
         # Configure Dovecot.
         echo "Configuring Dovecot IMAP & POP3 Server..."
@@ -324,7 +324,7 @@ function install_spf_dkim() {
     if [[ ${DO_INSTALL_SPFDKIM} == y* || ${DO_INSTALL_SPFDKIM} == Y* ]]; then
         echo "Installing Postfix Policy Agent and OpenDKIM..."
 
-        run apt-get install -qq -y postfix-policyd-spf-python opendkim opendkim-tools
+        run apt-get install -q -y postfix-policyd-spf-python opendkim opendkim-tools
 
         echo "Configuring SPF + DKIM..."
 

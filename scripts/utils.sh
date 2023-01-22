@@ -2,7 +2,7 @@
 
 # Helper Functions
 # Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 29/01/2022
+# Last Build        : 06/08/2022
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
@@ -20,7 +20,7 @@ fi
 # Export environment variables.
 ENVFILE=$(echo "${BASE_DIR}/.env" | sed '$ s|\/scripts\/.env$|\/.env|')
 
-if [[ -f "${ENVFILE}" ]]; then
+if [ -f "${ENVFILE}" ]; then
     # Clean environemnt first.
     # shellcheck source=.env.dist
     # shellcheck disable=SC2046
@@ -219,7 +219,7 @@ function delete_if_already_exists() {
     if [[ "${DRYRUN}" == true ]]; then return; fi
 
     local directory="${1}"
-    if [[ -d "${directory}" ]]; then
+    if [ -d "${directory}" ]; then
         if [[ ${#directory} -lt 8 ]]; then
             fail "Not deleting ${directory}; name is suspiciously short. Something is wrong."
         fi
@@ -338,7 +338,7 @@ function validate_fqdn() {
 
 # Get general distribution name.
 function get_distrib_name() {
-    if [[ -f "/etc/os-release" ]]; then
+    if [ -f /etc/os-release ]; then
         # Export os-release vars.
         . /etc/os-release
 
@@ -359,7 +359,7 @@ function get_distrib_name() {
 
 # Get general release name.
 function get_release_name() {
-    if [[ -f "/etc/os-release" ]]; then
+    if [ -f /etc/os-release ]; then
         # Export os-release vars.
         . /etc/os-release
 
@@ -367,7 +367,11 @@ function get_release_name() {
         [ -f /etc/lsb-release ] && . /etc/lsb-release
 
         # Get distribution name.
-        [[ "${ID_LIKE}" == "ubuntu" ]] && DISTRIB_NAME="ubuntu" || DISTRIB_NAME=${ID:-"unsupported"}
+        if [[ "${ID_LIKE}" == "ubuntu" ]]; then
+            DISTRIB_NAME="ubuntu"
+        else
+            DISTRIB_NAME=${ID:-"unsupported"}
+        fi
 
         # Get distribution release / version ID.
         DISTRO_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE}"}
@@ -422,9 +426,9 @@ function get_release_name() {
 
                 # TODO for Amzn install
             ;;
-            centos)
+            centos | fedora | rocky)
                 # CentOS
-                RELEASE_NAME="unsupported"
+                RELEASE_NAME="rhel"
 
                 # TODO for CentOS install
             ;;
@@ -432,7 +436,7 @@ function get_release_name() {
                 RELEASE_NAME="unsupported"
             ;;
         esac
-    elif [[ -e /etc/system-release ]]; then
+    elif [ -f /etc/system-release ]; then
     	RELEASE_NAME="unsupported"
     else
         # Red Hat /etc/redhat-release
@@ -584,32 +588,13 @@ function create_swap() {
     else
         echo "Add persistent swap to fstab in dry run mode."
     fi
-
-    # Adjust swappiness, default Ubuntu set to 60
-    # meaning that the swap file will be used fairly often if the memory usage is
-    # around half RAM, for production servers you may need to set a lower value.
-    if [[ $(cat /proc/sys/vm/swappiness) -gt 10 ]]; then
-        if [[ ${DRYRUN} != true ]]; then
-            cat >> /etc/sysctl.conf <<EOL
-###################################################################
-# Custom optimization for LEMPer
-#
-vm.swappiness=10
-
-EOL
-
-            run sysctl -w vm.swappiness=10
-        else
-            echo "Update swappiness value in dry run mode."
-        fi
-    fi
 }
 
 # Remove created Swap.
 function remove_swap() {
     local SWAP_FILE="/swapfile"
 
-    if [[ -f ${SWAP_FILE} ]]; then
+    if [ -f "${SWAP_FILE}" ]; then
         run swapoff ${SWAP_FILE} && \
         run sed -i "s|${SWAP_FILE}|#\ ${SWAP_FILE}|g" /etc/fstab && \
         run rm -f ${SWAP_FILE}
@@ -682,6 +667,7 @@ function create_account() {
             fi
 
             # Save config.
+            save_config -e "ENVIRONMENT=${ENVIRONMENT}\nHOSTNAME=${HOSTNAME}\nSERVER_IP=${SERVER_IP}\nSERVER_SSH_PORT=${SSH_PORT}"
             save_config -e "LEMPER_USERNAME=${USERNAME}\nLEMPER_PASSWORD=${PASSWORD}\nLEMPER_ADMIN_EMAIL=${LEMPER_ADMIN_EMAIL}"
 
             # Save data to log file.

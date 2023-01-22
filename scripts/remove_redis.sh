@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -22,15 +22,18 @@ fi
 function init_redis_removal() {
     # Stop Redis server process.
     if [[ $(pgrep -c redis-server) -gt 0 ]]; then
+        echo "Stopping redis-server..."
         run systemctl stop redis-server
     fi
+
+    run systemctl disable redis-server
 
     # Remove Redis server.
     if dpkg-query -l | awk '/redis/ { print $2 }' | grep -qwE "^redis-server"; then
         echo "Found Redis package installation. Removing..."
 
         # shellcheck disable=SC2046
-        run apt-get purge -qq -y $(dpkg-query -l | awk '/redis/ { print $2 }')
+        run apt-get purge -q -y $(dpkg-query -l | awk '/redis/ { print $2 }')
         if [[ "${FORCE_REMOVE}" == true ]]; then
             run add-apt-repository -y --remove ppa:chris-lea/redis-server
         fi
@@ -42,7 +45,7 @@ function init_redis_removal() {
 
         echo "Deleting Redis binary executable: ${REDIS_BIN}"
 
-        [[ -x "${REDIS_BIN}" ]] && run rm -f "${REDIS_BIN}"
+        [[ -n $(command -v redis-server) ]] && run rm -f "${REDIS_BIN}"
     fi
 
     # Remove Redis config files.

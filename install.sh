@@ -33,7 +33,7 @@ BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
 
 # Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    . "${BASE_DIR}/scripts/helper.sh"
+    . "${BASE_DIR}/scripts/utils.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -67,28 +67,16 @@ if [ -f ./scripts/install_dependencies.sh ]; then
     . ./scripts/install_dependencies.sh
 fi
 
-### Clean-up server ###
-if [ -f ./scripts/cleanup_server.sh ]; then
+### Server clean-up ###
+if [ -f ./scripts/server_cleanup.sh ]; then
     echo ""
-    . ./scripts/cleanup_server.sh
-fi
-
-### Create and enable swap ###
-if [[ "${ENABLE_SWAP}" == true ]]; then
-    echo ""
-    enable_swap
+    . ./scripts/server_cleanup.sh
 fi
 
 ### Create default account ###
 echo ""
 USERNAME=${LEMPER_USERNAME:-"lemper"}
 create_account "${USERNAME}"
-
-### Nginx installation ###
-if [ -f ./scripts/install_nginx.sh ]; then
-    echo ""
-    . ./scripts/install_nginx.sh
-fi
 
 ### Certbot Let's Encrypt SSL installation ###
 if [ -f ./scripts/install_certbotle.sh ]; then
@@ -106,6 +94,12 @@ fi
 if [ -f ./scripts/install_phalcon.sh ]; then
     echo ""
     . ./scripts/install_phalcon.sh
+fi
+
+### Nginx installation ###
+if [ -f ./scripts/install_nginx.sh ]; then
+    echo ""
+    . ./scripts/install_nginx.sh
 fi
 
 ### MySQL database installation ###
@@ -169,17 +163,23 @@ if [ -f ./scripts/install_tools.sh ]; then
     . ./scripts/install_tools.sh
 fi
 
-### Basic server security setup ###
-if [ -f ./scripts/secure_server.sh ]; then
+### Basic server optimization ###
+if [ -f ./scripts/server_optimization.sh ]; then
     echo ""
-    . ./scripts/secure_server.sh
+    . ./scripts/server_optimization.sh
+fi
+
+### Basic server security setup ###
+if [ -f ./scripts/server_security.sh ]; then
+    echo ""
+    . ./scripts/server_security.sh
 fi
 
 ### FINAL SETUP ###
 if [[ "${FORCE_REMOVE}" == true ]]; then
     # Cleaning up all build dependencies hanging around on production server?
     echo -e "\nClean up installation process..."
-    run apt-get autoremove -qq -y
+    run apt-get autoremove -q -y
 
     # Cleanup build dir
     echo "Clean up build directory..."

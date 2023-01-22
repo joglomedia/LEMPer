@@ -18,8 +18,8 @@ log_format cache '$remote_addr - $upstream_cache_status [$time_local] '
 
 # Purge cache for request method.
 map $request_method $purge_method {
-    PURGE 1;
     default 0;
+    PURGE 1;
 }
 
 # Skip caching for request method.

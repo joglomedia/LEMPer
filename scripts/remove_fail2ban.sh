@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -22,20 +22,20 @@ fi
 function init_fail2ban_removal() {
     # Stop fail2ban process.
     if [[ $(pgrep -c fail2ban-server) -gt 0 ]]; then
+        echo "Stopping fail2ban..."
         run systemctl stop fail2ban
     fi
 
+    run systemctl disable fail2ban
+
     if dpkg-query -l | awk '/fail2ban/ { print $2 }' | grep -qwE "^fail2ban$"; then
         echo "Found fail2ban package installation. Removing..."
-
-        run apt-get purge -qq -y fail2ban
+        run apt-get purge -q -y fail2ban && \
+        run dpkg --purge fail2ban
     else
         info "Fail2ban package not found, possibly installed from source."
-
         run rm -f /usr/local/bin/fail2ban-*
     fi
-
-    run dpkg --purge fail2ban
 
     [ -f /etc/systemd/system/multi-user.target.wants/fail2ban.service ] && \
         run unlink /etc/systemd/system/multi-user.target.wants/fail2ban.service

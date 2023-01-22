@@ -63,28 +63,16 @@ function lemper_install() {
         . ./scripts/install_dependencies.sh
     fi
 
-    ### Clean-up server ###
-    if [ -f ./scripts/cleanup_server.sh ]; then
+    ### Server clean-up ###
+    if [ -f ./scripts/server_cleanup.sh ]; then
         echo ""
-        . ./scripts/cleanup_server.sh
-    fi
-
-    ### Create and enable swap ###
-    if [[ "${ENABLE_SWAP}" == true ]]; then
-        echo ""
-        enable_swap
+        . ./scripts/server_cleanup.sh
     fi
 
     ### Create default account ###
     echo ""
     USERNAME=${LEMPER_USERNAME:-"lemper"}
     create_account "${USERNAME}"
-
-    ### Nginx installation ###
-    if [ -f ./scripts/install_nginx.sh ]; then
-        echo ""
-        . ./scripts/install_nginx.sh
-    fi
 
     ### Certbot Let's Encrypt SSL installation ###
     if [ -f ./scripts/install_certbotle.sh ]; then
@@ -102,6 +90,12 @@ function lemper_install() {
     if [ -f ./scripts/install_phalcon.sh ]; then
         echo ""
         . ./scripts/install_phalcon.sh
+    fi
+
+    ### Nginx installation ###
+    if [ -f ./scripts/install_nginx.sh ]; then
+        echo ""
+        . ./scripts/install_nginx.sh
     fi
 
     ### MySQL database installation ###
@@ -165,17 +159,23 @@ function lemper_install() {
         . ./scripts/install_tools.sh
     fi
 
-    ### Basic server security setup ###
-    if [ -f ./scripts/secure_server.sh ]; then
+    ### Basic server optimization ###
+    if [ -f ./scripts/server_optimization.sh ]; then
         echo ""
-        . ./scripts/secure_server.sh
+        . ./scripts/server_optimization.sh
+    fi
+
+    ### Basic server security setup ###
+    if [ -f ./scripts/server_security.sh ]; then
+        echo ""
+        . ./scripts/server_security.sh
     fi
 
     ### FINAL SETUP ###
     if [[ "${FORCE_REMOVE}" == true ]]; then
         # Cleaning up all build dependencies hanging around on production server?
         echo -e "\nClean up installation process..."
-        run apt-get autoremove -qq -y
+        run apt-get autoremove -q -y
 
         # Cleanup build dir
         echo "Clean up build directory..."
@@ -292,7 +292,7 @@ function lemper_remove() {
     # Fix broken install, first?
     if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
         run dpkg --configure -a
-        run apt-get install -qq -y --fix-broken
+        run apt-get install -q -y --fix-broken
     fi
 
     ### Remove Nginx ###
@@ -357,9 +357,9 @@ function lemper_remove() {
     fi
 
     ### Remove server security setup ###
-    if [ -f ./scripts/secure_server.sh ]; then
+    if [ -f ./scripts/server_security.sh ]; then
         echo ""
-        . ./scripts/secure_server.sh --remove
+        . ./scripts/server_security.sh --remove
     fi
 
     ### Remove default user account ###
@@ -409,9 +409,9 @@ function lemper_remove() {
     ### Remove unnecessary packages ###
     echo -e "\nCleaning up unnecessary packages..."
 
-    run apt-get autoremove -qq -y && \
-    run apt-get autoclean -qq -y && \
-    run apt-get clean -qq -y
+    run apt-get autoremove -q -y && \
+    run apt-get autoclean -q -y && \
+    run apt-get clean -q -y
 
     echo -e "\nLEMPer Stack has been removed completely."
     warning -e "\nDid you know? that we're so sad to see you leave :'(
@@ -489,16 +489,16 @@ function git_clone_lemper() {
 
     if [[ -n $(command -v git) && ! -d LEMPer/.git ]]; then
         echo -e "\nCloning LEMPer from ${GIT_BRANCH} branch..."
-        git clone -q https://github.com/joglomedia/LEMPer.git
+        git clone https://github.com/joglomedia/LEMPer.git
     else
         echo -e "\nUpdating LEMPer from ${GIT_BRANCH} branch..."
         cd LEMPer
-        git pull -q
+        git pull
         cd ..
     fi
 
     cd LEMPer
-    git checkout -q "${GIT_BRANCH}"
+    git checkout "${GIT_BRANCH}"
 }
 
 ##
@@ -557,7 +557,7 @@ function init_lemper_install() {
                 shift
                 NGINX_VERSION=${1}
                 sed -i "s/INSTALL_NGINX=[a-zA-Z]*/INSTALL_NGINX=true/g" .env
-                sed -i "s/NGINX_VERSION=\"[0-9a-zA-Z._-\ ]*\"/NGINX_VERSION=\"${NGINX_VERSION}\"/g" .env
+                sed -i "s/NGINX_VERSION=\"[a-zA-Z0-9\ ._-]*\"/NGINX_VERSION=\"${NGINX_VERSION}\"/g" .env
                 shift
             ;;
             # Usage: --with-nginx-installer <repo | source>
@@ -567,7 +567,7 @@ function init_lemper_install() {
                 NGINX_INSTALLER=${1}
                 case "${NGINX_INSTALLER}" in
                     source)
-                        sed -i "s/NGINX_INSTALLER=\"[a-zA-Z.\ ]*\"/NGINX_INSTALLER=\"source\"/g" .env
+                        sed -i "s/NGINX_INSTALLER=\"[a-zA-Z]*\"/NGINX_INSTALLER=\"source\"/g" .env
                     ;;
                     *)
                         sed -i "s/NGINX_INSTALLER=\"[a-zA-Z]*\"/NGINX_INSTALLER=\"repo\"/g" .env
@@ -580,7 +580,7 @@ function init_lemper_install() {
                 shift
                 NGINX_CUSTOMSSL_VERSION=${1-"openssl-1.1.1l"}
                 sed -i "s/NGINX_WITH_CUSTOMSSL=[a-zA-Z]*/NGINX_WITH_CUSTOMSSL=true/g" .env
-                sed -i "s/NGINX_CUSTOMSSL_VERSION=\"[0-9a-zA-Z._-\ ]*\"/NGINX_CUSTOMSSL_VERSION=\"${NGINX_CUSTOMSSL_VERSION}\"/g" .env
+                sed -i "s/NGINX_CUSTOMSSL_VERSION=\"[a-zA-Z0-9\ ._-]*\"/NGINX_CUSTOMSSL_VERSION=\"${NGINX_CUSTOMSSL_VERSION}\"/g" .env
                 shift
             ;;
             --with-nginx-lua)
@@ -600,7 +600,7 @@ function init_lemper_install() {
                 shift
                 NGINX_PCRE_VERSION=${1-"8.45"}
                 sed -i "s/NGINX_WITH_PCRE=[a-zA-Z]*/NGINX_WITH_PCRE=true/g" .env
-                sed -i "s/NGINX_PCRE_VERSION=\"[0-9a-zA-Z._-\ ]*\"/NGINX_PCRE_VERSION=\"${NGINX_PCRE_VERSION}\"/g" .env
+                sed -i "s/NGINX_PCRE_VERSION=\"[a-zA-Z0-9\ ._-]*\"/NGINX_PCRE_VERSION=\"${NGINX_PCRE_VERSION}\"/g" .env
                 shift
             ;;
             --with-nginx-rtmp)
@@ -613,7 +613,7 @@ function init_lemper_install() {
                 shift
                 PHP_VERSIONS=${1}
                 sed -i "s/INSTALL_PHP=[a-zA-Z]*/INSTALL_PHP=true/g" .env
-                sed -i "s/PHP_VERSIONS=\"[0-9a-zA-Z._-\ ]*\"/PHP_VERSIONS=\"${PHP_VERSIONS}\"/g" .env
+                sed -i "s/PHP_VERSIONS=\"[a-zA-Z0-9\ ._-]*\"/PHP_VERSIONS=\"${PHP_VERSIONS}\"/g" .env
                 shift
             ;;
             # Usage: --with-php-extensions=<ext-name1 ext-name2 ext-name>
@@ -621,7 +621,7 @@ function init_lemper_install() {
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 PHP_EXTENSIONS=$( echo "${1}" | tr '[:upper:]' '[:lower:]' )
-                sed -i "s/PHP_EXTENSIONS=\"[0-9a-zA-Z,._-\ ]*\"/PHP_EXTENSIONS=\"${PHP_EXTENSIONS}\"/g" .env
+                sed -i "s/PHP_EXTENSIONS=\"[0-9a-zA-Z\ ,._-]*\"/PHP_EXTENSIONS=\"${PHP_EXTENSIONS}\"/g" .env
                 shift
             ;;
             # Usage: --with-php-loader <ioncube | sourceguardian>
@@ -673,7 +673,7 @@ function init_lemper_install() {
                     ;;
                 esac
                 if [ -n "${MYSQL_SERVER_VER}" ]; then
-                    sed -i "s/MYSQL_VERSION=\"[0-9a-zA-Z._-\ ]*\"/MYSQL_VERSION=\"${MYSQL_SERVER_VER}\"/g" .env
+                    sed -i "s/MYSQL_VERSION=\"[a-zA-Z0-9\ ._-]*\"/MYSQL_VERSION=\"${MYSQL_SERVER_VER}\"/g" .env
                 fi
                 shift
             ;;
@@ -683,7 +683,7 @@ function init_lemper_install() {
                 shift
                 MEMCACHED_VERSION=${1}
                 sed -i "s/INSTALL_MEMCACHED=[a-zA-Z]*/INSTALL_MEMCACHED=true/g" .env
-                sed -i "s/MEMCACHED_VERSION=\"[0-9a-zA-Z._-\ ]*\"/MEMCACHED_VERSION=\"${MEMCACHED_VERSION}\"/g" .env
+                sed -i "s/MEMCACHED_VERSION=\"[a-zA-Z0-9\ ._-]*\"/MEMCACHED_VERSION=\"${MEMCACHED_VERSION}\"/g" .env
                 shift
             ;;
             # Usage: --with-memcached-installer <source | repo>
@@ -707,7 +707,7 @@ function init_lemper_install() {
                 shift
                 MONGODB_VERSION=${1}
                 sed -i "s/INSTALL_MONGODB=[a-zA-Z]*/INSTALL_MONGODB=true/g" .env
-                sed -i "s/MONGODB_VERSION=\"[0-9a-zA-Z._-\ ]*\"/MONGODB_VERSION=\"${MONGODB_VERSION}\"/g" .env
+                sed -i "s/MONGODB_VERSION=\"[a-zA-Z0-9\ ._-]*\"/MONGODB_VERSION=\"${MONGODB_VERSION}\"/g" .env
                 shift
             ;;
             # Usage: --with-mongodb-admin <username:password>
@@ -722,8 +722,8 @@ function init_lemper_install() {
                 MONGODB_ADMIN_PASS="${MONGODB_ADMIN_AUTH[1]}"
                 # Restore default IFS
                 IFS=${_IFS}
-                sed -i "s/MONGODB_ADMIN_USER=\"[0-9a-zA-Z._-]*\"/MONGODB_ADMIN_USER=\"${MONGODB_ADMIN_USER}\"/g" .env
-                sed -i "s/MONGODB_ADMIN_PASSWORD=\"[0-9a-zA-Z._-\ ]*\"/MONGODB_ADMIN_PASSWORD=\"${MONGODB_ADMIN_PASS}\"/g" .env
+                sed -i "s/MONGODB_ADMIN_USER=\"[a-zA-Z0-9._-]*\"/MONGODB_ADMIN_USER=\"${MONGODB_ADMIN_USER}\"/g" .env
+                sed -i "s/MONGODB_ADMIN_PASSWORD=\"[a-zA-Z0-9\ ._-]*\"/MONGODB_ADMIN_PASSWORD=\"${MONGODB_ADMIN_PASS}\"/g" .env
                 shift
             ;;
             # Usage: --with-redis <latest | stable | redis-version>
@@ -733,7 +733,7 @@ function init_lemper_install() {
                 REDIS_VERSION=${1}
                 if [ -z "${REDIS_VERSION}" ]; then REDIS_VERSION="stable"; fi
                 sed -i "s/INSTALL_REDIS=[a-zA-Z]*/INSTALL_REDIS=true/g" .env
-                sed -i "s/REDIS_VERSION=\"[0-9a-zA-Z._-\ ]*\"/REDIS_VERSION=\"${REDIS_VERSION}\"/g" .env
+                sed -i "s/REDIS_VERSION=\"[a-zA-Z0-9\ ._-]*\"/REDIS_VERSION=\"${REDIS_VERSION}\"/g" .env
                 shift
             ;;
             # Usage: --with-redis-installer <source | repo>
@@ -757,7 +757,7 @@ function init_lemper_install() {
                 shift
                 REDIS_PASSWORD=${1}
                 sed -i "s/REDIS_REQUIRE_PASSWORD=[a-zA-Z]*/REDIS_REQUIRE_PASSWORD=true/g" .env
-                sed -i "s/REDIS_PASSWORD=\"[0-9a-zA-Z._-]*\"/REDIS_PASSWORD=\"${REDIS_PASSWORD}\"/g" .env
+                sed -i "s/REDIS_PASSWORD=\"[a-zA-Z0-9._-](.*)\"/REDIS_PASSWORD=\"${REDIS_PASSWORD}\"/g" .env
                 shift
             ;;
             --with-ftp-server)
@@ -781,11 +781,11 @@ function init_lemper_install() {
                     ;;
                     *)
                         echo "Selected MySQL Server: ${FTP_SERVER_NAME} is not supported, fallback to VSFTPD."
-                        sed -i "s/FTP_SERVER_NAME=\"[0-9a-zA-Z._-]*\"/FTP_SERVER_NAME=\"vsftpd\"/g" .env
+                        sed -i "s/FTP_SERVER_NAME=\"[a-zA-Z0-9._-]*\"/FTP_SERVER_NAME=\"vsftpd\"/g" .env
                     ;;
                 esac
                 if [ -n "${FTP_SERVER_VER}" ]; then
-                    sed -i "s/FTP_SERVER_VERSION=\"[0-9a-zA-Z._-\ ]*\"/FTP_SERVER_VERSION=\"${FTP_SERVER_VER}\"/g" .env
+                    sed -i "s/FTP_SERVER_VERSION=\"[a-zA-Z0-9\ ._-]*\"/FTP_SERVER_VERSION=\"${FTP_SERVER_VER}\"/g" .env
                 fi
                 shift
             ;;
@@ -797,7 +797,7 @@ function init_lemper_install() {
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 MAIL_SENDER_DOMAIN=${1}
-                sed -i "s/SENDER_DOMAIN=\"[0-9a-zA-Z._-@\ ]*\"/SENDER_DOMAIN=\"${MAIL_SENDER_DOMAIN}\"/g" .env
+                sed -i "s/SENDER_DOMAIN=\"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]\"/SENDER_DOMAIN=\"${MAIL_SENDER_DOMAIN}\"/g" .env
                 shift
             ;;
             --with-ssh-port)
@@ -820,14 +820,14 @@ function init_lemper_install() {
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 SSH_PUB_KEY=${1}
-                sed -i "s/SSH_PUB_KEY=\"[0-9a-zA-Z._-]*\"/SSH_PUB_KEY=\"${SSH_PUB_KEY}\"/g" .env
+                sed -i "s/SSH_PUB_KEY=\"[a-zA-Z0-9._-](.*)\"/SSH_PUB_KEY=\"${SSH_PUB_KEY}\"/g" .env
                 shift
             ;;
             -e | --admin-email)
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 LEMPER_ADMIN_EMAIL=${1}
-                sed -i "s/LEMPER_ADMIN_EMAIL=\"[0-9a-zA-Z._-@\ ]*\"/LEMPER_ADMIN_EMAIL=\"${LEMPER_ADMIN_EMAIL}\"/g" .env
+                sed -i "s/LEMPER_ADMIN_EMAIL=\"[a-zA-Z0-9._-](.*)\@[a-zA-Z0-9._-](.*)\"/LEMPER_ADMIN_EMAIL=\"${LEMPER_ADMIN_EMAIL}\"/g" .env
                 shift
             ;;
             -B | --fix-broken-install)
@@ -861,7 +861,7 @@ function init_lemper_install() {
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 SERVER_HOSTNAME=${1}
-                sed -i "s/SERVER_HOSTNAME=\"[a-zA-Z0-9._-]*\"/SERVER_HOSTNAME=\"${SERVER_HOSTNAME}\"/g" .env
+                sed -i "s/SERVER_HOSTNAME=\"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]\"/SERVER_HOSTNAME=\"${SERVER_HOSTNAME}\"/g" .env
                 shift
             ;;
             -i | --ipv4)
@@ -893,7 +893,7 @@ function init_lemper_install() {
 
     # Include helper functions.
     if [[ "$(type -t run)" != "function" ]]; then
-        . ./scripts/helper.sh
+        . ./scripts/utils.sh
     fi
 
     # Make sure only supported distribution can run this installer script.

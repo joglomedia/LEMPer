@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -27,7 +27,8 @@ function init_tools_install() {
     echo -n "Installing LEMPer CLI tool..."
 
     run cp -f bin/lemper-cli.sh /usr/local/bin/lemper-cli && \
-    run chmod ugo+x /usr/local/bin/lemper-cli
+    run chmod ugo+x /usr/local/bin/lemper-cli && \
+    run ln -sf /usr/local/bin/lemper-cli /usr/bin/lemper-cli
 
     [ ! -d /etc/lemper/cli-plugins ] && run mkdir -p /etc/lemper/cli-plugins
 
@@ -37,20 +38,20 @@ function init_tools_install() {
     run cp -f lib/lemper-site.sh /etc/lemper/cli-plugins/lemper-site && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-site
 
-    run cp -f lib/lemper-create.sh /etc/lemper/cli-plugins/lemper-create && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-create && \
+    #run cp -f lib/lemper-create.sh /etc/lemper/cli-plugins/lemper-create && \
+    #run chmod ugo+x /etc/lemper/cli-plugins/lemper-create && \
 
     run cp -f lib/lemper-create.sh /etc/lemper/cli-plugins/lemper-site-add && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-add
 
-    #[ ! -x /etc/lemper/cli-plugins/lemper-vhost ] && \
-    #    run ln -s /etc/lemper/cli-plugins/lemper-create /etc/lemper/cli-plugins/lemper-vhost
+    #run cp -f lib/lemper-manage.sh /etc/lemper/cli-plugins/lemper-manage && \
+    #run chmod ugo+x /etc/lemper/cli-plugins/lemper-manage
+
+    run cp -f lib/lemper-manage.sh /etc/lemper/cli-plugins/lemper-site-mod && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-mod
 
     run cp -f lib/lemper-db.sh /etc/lemper/cli-plugins/lemper-db && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-db
-
-    run cp -f lib/lemper-manage.sh /etc/lemper/cli-plugins/lemper-manage && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-manage
 
     # Remove old LEMPer CLI tool.
     [ -d /usr/local/lib/lemper ] && run rm -fr /usr/local/lib/lemper/lemper-*
@@ -105,7 +106,7 @@ function init_tools_install() {
         local CURRENT_DIR && \
         CURRENT_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/filemanager && \
-        #run git pull -q
+        #run git pull
         run wget -q https://raw.githubusercontent.com/joglomedia/tinyfilemanager/lemperfm_1.3.0/index.php \
             -O /usr/share/nginx/html/lcp/filemanager/index.php && \
         run cd "${CURRENT_DIR}" || return 1
@@ -139,7 +140,7 @@ function init_tools_install() {
         CURRENT_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/memcadmin && \
         run git config --global --add safe.directory /usr/share/nginx/html/lcp/memcadmin && \
-        run git pull -q && \
+        run git pull && \
         run cd "${CURRENT_DIR}" || return 1
     fi
 

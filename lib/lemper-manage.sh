@@ -222,7 +222,7 @@ function remove_vhost() {
             echo "No database found."
         fi
 
-        echo "+----------------------+"
+        echo "+-------------------------------+"
 
         until [[ "${DBNAME}" != "" ]]; do
             read -rp "MySQL Database: " -e DBNAME
@@ -434,49 +434,70 @@ function enable_ssl() {
     local DOMAIN=${1}
     verify_vhost "${DOMAIN}"
 
-    #TODO: Generate Let's Encrypt SSL using Certbot.
-    if [ ! -d "/etc/letsencrypt/live/${DOMAIN}" ]; then
-        echo "Certbot: Get Let's Encrypt certificate..."
+    if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
+        if [[ "${ENVIRONMENT}" == prod* ]]; then
+            echo "Certbot: Get Let's Encrypt certificate..."
 
-        # Get web root path from vhost config, first.
-        local WEBROOT && \
-        WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${DOMAIN}.conf" | awk '{print $3}' | cut -d'"' -f2)
+            # Get web root path from vhost config, first.
+            local WEBROOT && \
+            WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${DOMAIN}.conf" | awk '{print $3}' | cut -d'"' -f2)
 
-        # Certbot get Let's Encrypt SSL.
-        if [[ -n $(command -v certbot) ]]; then
-            # Is it wildcard vhost?
-            if grep -qwE "${DOMAIN}\ \*.${DOMAIN}" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-                run certbot certonly --manual --manual-public-ip-logging-ok --preferred-challenges dns \
-                    --server https://acme-v02.api.letsencrypt.org/directory --agree-tos \
-                    --webroot-path="${WEBROOT}" -d "${DOMAIN}" -d "*.${DOMAIN}"
+            # Certbot get Let's Encrypt SSL.
+            if [[ -n $(command -v certbot) ]]; then
+                # Is it wildcard vhost?
+                if grep -qwE "${DOMAIN}\ \*.${DOMAIN}" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+                    run certbot certonly --manual --manual-public-ip-logging-ok --preferred-challenges dns \
+                        --server https://acme-v02.api.letsencrypt.org/directory --agree-tos \
+                        --webroot-path="${WEBROOT}" -d "${DOMAIN}" -d "*.${DOMAIN}"
+                else
+                    run certbot certonly --webroot --preferred-challenges http --agree-tos \
+                        --webroot-path="${WEBROOT}" -d "${DOMAIN}"
+                fi
             else
-                run certbot certonly --webroot --preferred-challenges http --agree-tos \
-                    --webroot-path="${WEBROOT}" -d "${DOMAIN}"
+                fail "Certbot executable binary not found. Install it first!"
             fi
         else
-            fail "Certbot executable binary not found. Install it first!"
+            # Self-signed SSL.
+            echo "Self-signed SSL: Generate SSL certificate..."
+            
+            generate_selfsigned_ssl "${DOMAIN}"
+            
+            if [ ! -d "/etc/letsencrypt/live/${DOMAIN}" ]; then
+                run mkdir -p "/etc/letsencrypt/live/${DOMAIN}"
+                run chmod 0700 /etc/letsencrypt/live
+            fi
+
+            run ln -sf "/etc/lemper/ssl/${DOMAIN}/cert.pem" "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" && \
+            run ln -sf "/etc/lemper/ssl/${DOMAIN}/privkey.pem" "/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
         fi
-    fi
 
-    # Generate Diffie-Hellman parameters.
-    if [ ! -f /etc/nginx/ssl/dhparam-2048.pem ]; then
-        echo "Generating Diffie-Hellman parameters for enhanced HTTPS/SSL security."
+        # Generate Diffie-Hellman parameters.
+        if [ ! -f /etc/nginx/ssl/dhparam-2048.pem ]; then
+            echo "Generating Diffie-Hellman parameters for enhanced HTTPS/SSL security."
 
-        run openssl dhparam -out /etc/nginx/ssl/dhparam-2048.pem 2048
-        #run openssl dhparam -out /etc/nginx/ssl/dhparam-4096.pem 4096
+            run openssl dhparam -out /etc/nginx/ssl/dhparam-2048.pem 2048
+            #run openssl dhparam -out /etc/nginx/ssl/dhparam-4096.pem 4096
+        fi
+    else
+        info "SSL certificates is already exists for ${DOMAIN}."
     fi
 
     # Update vhost config.
     if [[ "${DRYRUN}" != true ]]; then
         # Ensure there is no HTTPS enabled server block.
-        if ! grep -qwE "^\    listen\ 443 ssl http2" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+        if ! grep -qwE "^\    listen\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b:443\ ssl\ http2" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
 
             # Make backup first.
             run cp -f "/etc/nginx/sites-available/${DOMAIN}.conf" "/etc/nginx/sites-available/${DOMAIN}.nonssl-conf"
 
             # Change listening port to 443.
-            run sed -i "s/listen\ 80/listen\ 443 ssl http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443 ssl http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            if grep -qwE "^\    listen\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b:80" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+                run sed -i "s/\:80/\:443 ssl http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            else
+                run sed -i "s/listen\ 80/listen\ 443\ ssl\ http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            fi
+            
+            run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443\ ssl\ http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
 
             # Enable SSL configs.
             run sed -i "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
@@ -539,15 +560,17 @@ function disable_ssl() {
             run unlink "/etc/nginx/sites-enabled/${DOMAIN}.conf"
 
             # Backup ssl config.
+            [[ -f "/etc/nginx/sites-available/${DOMAIN}.conf" ]] && \
             run mv "/etc/nginx/sites-available/${DOMAIN}.conf" "/etc/nginx/sites-available/${DOMAIN}.ssl-conf"
 
             # Restore non ssl config.
+            [[ -f "/etc/nginx/sites-available/${DOMAIN}.nonssl-conf" ]] && \
             run mv "/etc/nginx/sites-available/${DOMAIN}.nonssl-conf" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            run ln -s "/etc/nginx/sites-available/${DOMAIN}.conf" "/etc/nginx/sites-enabled/${DOMAIN}.conf"
+            run ln -sf "/etc/nginx/sites-available/${DOMAIN}.conf" "/etc/nginx/sites-enabled/${DOMAIN}.conf"
 
             reload_nginx
         else
-            error "Something went wrong. You still could disable HTTPS manually."
+            error "It seems that SSL is not yet enabled."
         fi
     else
         info "Disabling HTTPS config in dry run mode."
@@ -572,15 +595,15 @@ function remove_ssl() {
             run unlink "/etc/nginx/sites-enabled/${DOMAIN}.conf"
 
             # Backup ssl config.
+            [[ -f "/etc/nginx/sites-available/${DOMAIN}.conf" ]] && \
             run mv "/etc/nginx/sites-available/${DOMAIN}.conf" "/etc/nginx/sites-available/${DOMAIN}.ssl-conf"
 
             # Restore non ssl config.
+            [[ -f "/etc/nginx/sites-available/${DOMAIN}.nonssl-conf" ]] && \
             run mv "/etc/nginx/sites-available/${DOMAIN}.nonssl-conf" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            run ln -s "/etc/nginx/sites-available/${DOMAIN}.conf" "/etc/nginx/sites-enabled/${DOMAIN}.conf"
-
-            reload_nginx
+            run ln -sf "/etc/nginx/sites-available/${DOMAIN}.conf" "/etc/nginx/sites-enabled/${DOMAIN}.conf"
         else
-            error "Something went wrong. You still could disable HTTPS manually."
+            error "It seems that SSL is not yet enabled."
         fi
 
         # Remove SSL config.
@@ -591,10 +614,28 @@ function remove_ssl() {
         # Remove SSL cert.
         echo "Removing SSL certificate..."
 
-        if [[ -n $(command -v certbot) ]]; then
-            run certbot delete --cert-name "${DOMAIN}"
+        if [[ "${ENVIRONMENT}" == prod* ]]; then
+            if [[ -n $(command -v certbot) ]]; then
+                run certbot delete --cert-name "${DOMAIN}"
+            else
+                fail "Certbot executable binary not found. Install it first!"
+            fi
         else
-            fail "Certbot executable binary not found. Install it first!"
+            if [ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]; then
+                run unlink "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+            fi
+
+            if [ -f "/etc/letsencrypt/live/${DOMAIN}/privkey.pem" ]; then
+                run unlink "/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+            fi
+
+            if [ -d "/etc/letsencrypt/live/${DOMAIN}/" ]; then
+                run rm -rf "/etc/letsencrypt/live/${DOMAIN}/"
+            fi
+
+            if [ -d "/etc/lemper/ssl/${DOMAIN}/" ]; then
+                run rm -rf "/etc/lemper/ssl/${DOMAIN}/"
+            fi
         fi
 
         reload_nginx
@@ -611,12 +652,11 @@ function renew_ssl() {
     local DOMAIN=${1}
     verify_vhost "${DOMAIN}"
 
-    # Update vhost config.
-    if [[ "${DRYRUN}" != true ]]; then
-        echo "Renew SSL certificate..."
+    echo "Renew SSL certificate..."
 
-        # Renew Let's Encrypt SSL using Certbot.
-        if [ -d "/etc/letsencrypt/live/${DOMAIN}" ]; then
+    # Renew Let's Encrypt SSL using Certbot.
+    if [[ -d "/etc/letsencrypt/live/${DOMAIN}" ]]; then
+        if [[ "${ENVIRONMENT}" == prod* ]]; then
             echo "Certbot: Renew Let's Encrypt certificate..."
 
             # Get web root path from vhost config, first.
@@ -637,13 +677,22 @@ function renew_ssl() {
                 fail "Certbot executable binary not found. Install it first!"
             fi
         else
-            info "Certificate file not found. May be your SSL is not activated yet."
-        fi
+            # Re-generate self-signed certs.
+            generate_selfsigned_ssl "${DOMAIN}"
+        
+            if [[ ! -d "/etc/letsencrypt/live/${DOMAIN}" ]]; then
+                run mkdir -p "/etc/letsencrypt/live/${DOMAIN}"
+                run chmod 0700 /etc/letsencrypt/live
+            fi
 
-        reload_nginx
+            run ln -sf "/etc/lemper/ssl/${DOMAIN}/cert.pem" "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+            run ln -sf "/etc/lemper/ssl/${DOMAIN}/privkey.pem" "/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+        fi
     else
-        info "Renew SSL certificate in dry run mode."
+        info "Certificate file not found. May be your SSL is not activated yet."
     fi
+
+    reload_nginx
 }
 
 ##
@@ -775,7 +824,7 @@ function reload_nginx() {
         else
             error "Configuration couldn't be validated. Please correct the error below:";
             nginx -t
-            [[ ${EXIT} ]] && exit 1
+            exit 1
         fi
     # Nginx service dead? Try to start it.
     else
@@ -798,6 +847,90 @@ function reload_nginx() {
         exit 0
     else
         fail "An error occurred when updating configuration.";
+    fi
+}
+
+##
+# Generate sel-signed certificate.
+##
+function generate_selfsigned_ssl() {
+    # Verify user input hostname (domain name).
+    local DOMAIN=${1}
+    local SERVER_IP=${2:-$(get_ip_public)}
+    verify_vhost "${DOMAIN}"
+
+    [ ! -d "/etc/lemper/ssl/${DOMAIN}" ] && run mkdir -p "/etc/lemper/ssl/${DOMAIN}"
+
+    run sed -i "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
+    run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
+    run sed -i "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
+    run sed -r -i "s|^IP.1\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.1\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+    run sed -r -i "s|^IP.2\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.2\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+    run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
+
+    # Create Certificate Authority (CA).
+    if [[ ! -f /etc/lemper/ssl/lemperCA.key || ! -f /etc/lemper/ssl/lemperCA.crt ]]; then
+        run openssl req -x509 -sha256 -days 365000 -nodes -newkey rsa:2048 \
+            -keyout "/etc/lemper/ssl/${DOMAIN}-ca.key" -out "/etc/lemper/ssl/${DOMAIN}-ca.crt" \
+            -config /etc/lemper/ssl/ca.conf
+            #-subj "/CN=${HOSTNAME}/C=ID/L=Jakarta"
+
+        CA_KEY_FILE="/etc/lemper/ssl/${DOMAIN}-ca.key"
+        CA_CRT_FILE="/etc/lemper/ssl/${DOMAIN}-ca.crt"
+    else
+        CA_KEY_FILE="/etc/lemper/ssl/lemperCA.key"
+        CA_CRT_FILE="/etc/lemper/ssl/lemperCA.crt"
+    fi
+
+    # Create Server Private Key.
+    run openssl genrsa -out "/etc/lemper/ssl/${DOMAIN}/privkey.pem" 2048 && \
+
+    # Generate Certificate Signing Request (CSR) using Server Private Key.
+    run openssl req -new -key "/etc/lemper/ssl/${DOMAIN}/privkey.pem" \
+        -out "/etc/lemper/ssl/${DOMAIN}/csr.csr" -config /etc/lemper/ssl/csr.conf
+
+    # Generate SSL certificate With self signed CA.
+    run openssl x509 -req -sha256 -days 365000 -CAcreateserial \
+        -CA "${CA_CRT_FILE}" -CAkey "${CA_KEY_FILE}" \
+        -in "/etc/lemper/ssl/${DOMAIN}/csr.csr" -out "/etc/lemper/ssl/${DOMAIN}/cert.pem" \
+        -extfile /etc/lemper/ssl/cert.conf
+
+    # Create chain file.
+    run cat "/etc/lemper/ssl/${DOMAIN}/cert.pem" "${CA_CRT_FILE}" >> \
+        "/etc/lemper/ssl/${DOMAIN}/chain.pem"
+
+    if [ -f "/etc/lemper/ssl/${DOMAIN}/cert.pem" ]; then
+        success "Self-signed SSL certificate has been successfully generated."
+    else
+        fail "An error occurred when generating self-signed SSL certificate."
+    fi
+}
+
+##
+# Get server private IP Address.
+##
+function get_ip_private() {
+    local SERVER_IP_PRIVATE && \
+    SERVER_IP_PRIVATE=$(ip addr | grep 'inet' | grep -v inet6 | \
+        grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | \
+        grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
+
+    echo "${SERVER_IP_PRIVATE}"
+}
+
+##
+# Get server public IP Address.
+##
+function get_ip_public() {
+    local SERVER_IP_PRIVATE && SERVER_IP_PRIVATE=$(get_ip_private)
+    local SERVER_IP_PUBLIC && \
+    SERVER_IP_PUBLIC=$(curl -sk --connect-timeout 10 --retry 3 --retry-delay 0 http://ipecho.net/plain)
+
+    # Ugly hack to detect aws-lightsail public IP address.
+    if [[ "${SERVER_IP_PRIVATE}" == "${SERVER_IP_PUBLIC}" ]]; then
+        echo "${SERVER_IP_PRIVATE}"
+    else
+        echo "${SERVER_IP_PUBLIC}"
     fi
 }
 

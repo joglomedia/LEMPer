@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -31,7 +31,7 @@ function remove_mongodb_repo() {
 
     if [[ -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" ]]; then
         run rm -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
-        run apt-get update -qq -y
+        run apt-get update -q -y
     fi
 
     echo "Removing MongoDB repository key..."
@@ -42,17 +42,18 @@ function remove_mongodb_repo() {
 function init_mongodb_removal() {
     # Stop MongoDB server process.
     if [[ $(pgrep -c mongod) -gt 0 ]]; then
-        echo "Stopping MongoDB server..."
-
+        echo "Stopping mongodb..."
         run systemctl stop mongod
     fi
+
+    run systemctl disable mongod
 
     if dpkg-query -l | awk '/mongodb/ { print $2 }' | grep -qwE "^mongodb"; then
         echo "Removing MongoDB packages..."
 
         # Remove MongoDB server.
         #shellcheck disable=SC2046
-        run apt-get purge -qq -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
+        run apt-get purge -q -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
 
         if [[ "${AUTO_REMOVE}" == true ]]; then
             if [[ "${FORCE_REMOVE}" == true ]]; then

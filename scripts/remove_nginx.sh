@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -23,8 +23,11 @@ fi
 function init_nginx_removal() {
     # Stop nginx HTTP server process.
     if [[ $(pgrep -c nginx) -gt 0 ]]; then
+        echo "Stopping nginx..."
         run systemctl stop nginx
     fi
+
+    run systemctl disable nginx
 
     if [[ ${NGX_VERSION} == "mainline" || ${NGX_VERSION} == "latest" ]]; then
         local NGINX_REPO="nginx-mainline"
@@ -37,7 +40,7 @@ function init_nginx_removal() {
         echo "Found nginx-stable package installation, removing..."
 
         # shellcheck disable=SC2046
-        run apt-get purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
+        run apt-get purge -q -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
         if [[ "${FORCE_REMOVE}" == true ]]; then
             run add-apt-repository -y --remove ppa:nginx/stable
         fi
@@ -45,7 +48,7 @@ function init_nginx_removal() {
         echo "Found nginx-custom package installation, removing..."
 
         # shellcheck disable=SC2046
-        run apt-get purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
+        run apt-get purge -q -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
         if [[ "${FORCE_REMOVE}" == true ]]; then
             run add-apt-repository -y --remove ppa:rtcamp/nginx
         fi
@@ -53,7 +56,7 @@ function init_nginx_removal() {
         echo "Found nginx package installation, removing..."
 
         # shellcheck disable=SC2046
-        run apt-get purge -qq -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx") $(dpkg-query -l | awk '/libnginx/ { print $2 }' | grep -wE "^libnginx")
+        run apt-get purge -q -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx") $(dpkg-query -l | awk '/libnginx/ { print $2 }' | grep -wE "^libnginx")
         if [[ "${FORCE_REMOVE}" == true ]]; then
             run add-apt-repository -y --remove "ppa:ondrej/${NGINX_REPO}"
         fi
@@ -63,7 +66,7 @@ function init_nginx_removal() {
 
         NGINX_BIN=$(command -v nginx)
 
-        if [[ -n "${NGINX_BIN}" ]]; then
+        if [[ -n $(command -v nginx) ]]; then
             echo "Nginx binary executable: ${NGINX_BIN}"
 
             # Disable systemctl.

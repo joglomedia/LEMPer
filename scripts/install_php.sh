@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -62,7 +62,8 @@ function add_php_repo() {
     esac
 
     info "Updating repository, please wait..."
-    run apt-get update -qq -y
+    run apt-get update -q -y && \
+    run apt-get install -q -y libgd-dev libsodium-dev
 }
 
 ##
@@ -141,7 +142,7 @@ function install_php() {
         echo "Installing PHP ${PHPv} and it's extensions..."
 
         if [[ "${#PHP_REPO_EXTS[@]}" -gt 0 ]]; then
-            run apt-get install -qq -y "php${PHPv}" "${PHP_REPO_EXTS[@]}" \
+            run apt-get install -q -y "php${PHPv}" "${PHP_REPO_EXTS[@]}" \
                 dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
         fi
 
@@ -284,10 +285,10 @@ function optimize_php_fpm() {
         run cp -f "etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/"
     else
         if [[ "${DRYRUN}" != true ]]; then
-            if [[ "${ENVIRONMENT}" =~ "prod" ]]; then
+            if [[ "${ENVIRONMENT}" == prod* ]]; then
                 OVT="${OVT:-"0"}"
             else
-                OVT="${OVT:-"1"}"
+                OVT="${OVT:-"1"}" # Opcache is revalidated every file changes, good for development.
             fi
 
             cat >> "/etc/php/${PHPv}/fpm/php.ini" <<EOL
@@ -307,7 +308,7 @@ opcache.validate_timestamps=${OVT}
 opcache.revalidate_freq=600
 opcache.save_comments=1
 opcache.fast_shutdown=1
-opcache.error_log="/var/log/php/php${PHPv}-opcache_error.log"
+opcache.error_log=/var/log/php/php${PHPv}-opcache_error.log
 EOL
         else
             info "PHP opcache optimized in dry run mode."
@@ -396,6 +397,7 @@ php_admin_value[sys_temp_dir] = /usr/share/nginx/html/.lemper/tmp
 php_admin_value[upload_tmp_dir] = /usr/share/nginx/html/.lemper/tmp
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
 php_admin_value[opcache.file_cache] = /usr/share/nginx/html/.lemper/tmp/php_opcache
+php_admin_value[opcache.error_log] = /var/log/php/php${PHPv}-opcache_error.log
 
 ; Configuration below can be overwritten from PHP call 'ini_set'.
 php_flag[short_open_tag] = off
@@ -455,8 +457,8 @@ pm.max_spare_servers = 20
 pm.process_idle_timeout = 30s
 pm.max_requests = 500
 
-pm.status_path = /status
-ping.path = /ping
+pm.status_path = /php-fpm_status
+ping.path = /php-fpm_ping
 
 slowlog = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_slow.log
 request_slowlog_timeout = 10s
@@ -526,7 +528,7 @@ function install_php_mongodb() {
 
     #echo -e "\nInstalling PHP ${PHPv} MongoDB extension..."
 
-    #run apt-get install -qq -y "php${PHPv}-mongodb"
+    #run apt-get install -q -y "php${PHPv}-mongodb"
 
     #local CURRENT_DIR && \
     #CURRENT_DIR=$(pwd)
@@ -575,7 +577,7 @@ function install_php_memcached() {
 #    echo "Installing PHP ${PHPv} memcached extension..."
 
 #    if [[ "${DRYRUN}" != true ]]; then
-#        run apt-get install -qq -y "php${PHPv}-memcache" "php${PHPv}-memcached"
+#        run apt-get install -q -y "php${PHPv}-memcache" "php${PHPv}-memcached"
 #    else
 #        info "PHP ${PHPv} Memcached extension installed in dry run mode."
 #    fi
@@ -637,9 +639,8 @@ function install_php_composer() {
             local CURRENT_DIR && CURRENT_DIR=$(pwd)
             run cd "${BUILD_DIR}" || error "Cannot change directory to ${BUILD_DIR}."
 
-            PHP_BIN=$(command -v "php${PHPv}")
-
-            if [[ -n "${PHP_BIN}" ]]; then
+            if [[ -n $(command -v "php${PHPv}") ]]; then
+                PHP_BIN=$(command -v "php${PHPv}")
                 EXPECTED_SIGNATURE="$(wget -q -O - https://composer.github.io/installer.sig)"
                 run "${PHP_BIN}" -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
                 ACTUAL_SIGNATURE="$(${PHP_BIN} -r "echo hash_file('sha384', 'composer-setup.php');")"
@@ -651,7 +652,8 @@ function install_php_composer() {
 
                     # Fix chmod permission to executable.
                     if [[ -f /usr/local/bin/composer ]]; then
-                        run chmod ugo+x /usr/local/bin/composer
+                        run chmod ugo+x /usr/local/bin/composer && \
+                        run ln -sf /usr/local/bin/composer /usr/bin/composer
                         run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bashrc"
                         run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.bash_profile"
                         run bash -c "echo '[ -d \"\$HOME/.composer/vendor/bin\" ] && export PATH=\"\$PATH:\$HOME/.composer/vendor/bin\"' >> /home/${LEMPER_USERNAME}/.profile"
@@ -695,7 +697,7 @@ function install_ioncube_loader() {
     IC_ZIP_URL="https://raw.githubusercontent.com/joglomedia/php-loaders/main/${IC_ZIP_FILENAME}"
 
     if curl -sLI "${IC_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
-        run wget -q "${IC_ZIP_URL}" && \
+        run wget "${IC_ZIP_URL}" && \
         run tar -xzf "${IC_ZIP_FILENAME}" && \
         run mv -f ioncube /usr/lib/php/loaders/
     else
@@ -766,7 +768,7 @@ function install_sourceguardian_loader() {
     SG_ZIP_URL="https://raw.githubusercontent.com/joglomedia/php-loaders/main/${SG_ZIP_FILENAME}"
 
     if curl -sLI "${SG_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
-        run wget -q "${SG_ZIP_URL}" && \
+        run wget "${SG_ZIP_URL}" && \
         run tar -xzf "${SG_ZIP_FILENAME}" && \
         run mv -f "${BUILD_DIR}/sourceguardian" /usr/lib/php/loaders/
     else
@@ -947,10 +949,11 @@ function init_php_install() {
             echo "  3). PHP 7.1 (EOL)"
             echo "  4). PHP 7.2 (EOL)"
             echo "  5). PHP 7.3 (EOL)"
-            echo "  6). PHP 7.4 (SFO)"
-            echo "  7). PHP 8.0 (Stable)"
-            echo "  8). PHP 8.1 (Latest Stable)"
-            echo "  9). All available versions"
+            echo "  6). PHP 7.4 (EOL)"
+            echo "  7). PHP 8.0 (SFO)"
+            echo "  8). PHP 8.1 (Latest)"
+            echo "  9). PHP 8.2 (Latest Stable)"
+            echo "  10). All available versions"
             echo "--------------------------------------------"
 
             [[ -n "${DEFAULT_PHP_VERSION}" ]] && \
@@ -958,10 +961,12 @@ function init_php_install() {
 
             while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                     ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
-                    ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && ${SELECTED_PHP} != "9" && \
+                    ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && \
+                    ${SELECTED_PHP} != "9" && ${SELECTED_PHP} != "10" && \
                     ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && ${SELECTED_PHP} != "7.1" && \
                     ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
-                    ${SELECTED_PHP} != "8.0" &&  ${SELECTED_PHP} != "8.1" && ${SELECTED_PHP} != "all" ]]; do
+                    ${SELECTED_PHP} != "8.0" &&  ${SELECTED_PHP} != "8.1" && \
+                    ${SELECTED_PHP} != "8.2" && ${SELECTED_PHP} != "all" ]]; do
                 read -rp "Enter a PHP version from an option above [1-9]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
             done
 
@@ -988,11 +993,14 @@ function init_php_install() {
                     SELECTED_PHP_VERSIONS+=("8.0")
                 ;;
                 8 | "8.1")
-                    SELECTED_PHP_VERSIONS+=("8.0")
+                    SELECTED_PHP_VERSIONS+=("8.1")
                 ;;
-                9 | "all")
+                9 | "8.2")
+                    SELECTED_PHP_VERSIONS+=("8.2")
+                ;;
+                10 | "all")
                     # Select all PHP versions (except EOL & Beta).
-                    SELECTED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0" "8.1")
+                    SELECTED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2")
                 ;;
                 *)
                     error "Your selected PHP version ${SELECTED_PHP} is not supported yet."
@@ -1051,4 +1059,13 @@ if [[ -n $(command -v php5.6) && \
     info "All available PHP version already exists, installation skipped."
 else
     init_php_install "$@"
+
+    # Set default PHP.
+    if [[ -n $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
+        run update-alternatives --set php "$(command -v "php${DEFAULT_PHP_VERSION}")"
+        run update-alternatives --set phar "$(command -v "phar${DEFAULT_PHP_VERSION}")"
+        run update-alternatives --set phar.phar "$(command -v "phar.phar${DEFAULT_PHP_VERSION}")"
+        run update-alternatives --set php-config "$(command -v "php-config${DEFAULT_PHP_VERSION}")"
+        run update-alternatives --set phpize "$(command -v "phpize${DEFAULT_PHP_VERSION}")"
+    fi
 fi

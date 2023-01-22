@@ -33,7 +33,7 @@ BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
 
 # Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    . "${BASE_DIR}/scripts/helper.sh"
+    . "${BASE_DIR}/scripts/utils.sh"
 fi
 
 # Make sure only root can run this installer script.
@@ -58,7 +58,7 @@ fi
 # Fix broken install, first?
 if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
     run dpkg --configure -a
-    run apt-get install -qq -y --fix-broken
+    run apt-get install -q -y --fix-broken
 fi
 
 ### Remove Nginx ###
@@ -123,9 +123,9 @@ if [ -f ./scripts/remove_fail2ban.sh ]; then
 fi
 
 ### Remove server security setup ###
-if [ -f ./scripts/secure_server.sh ]; then
+if [ -f ./scripts/server_security.sh ]; then
     echo ""
-    . ./scripts/secure_server.sh --remove
+    . ./scripts/server_security.sh --remove
 fi
 
 ### Remove default user account ###
@@ -175,9 +175,9 @@ fi
 ### Remove unnecessary packages ###
 echo -e "\nCleaning up unnecessary packages..."
 
-run apt-get autoremove -qq -y && \
-run apt-get autoclean -qq -y && \
-run apt-get clean -qq -y
+run apt-get autoremove -q -y && \
+run apt-get autoclean -q -y && \
+run apt-get clean -q -y
 
 status -e "\nLEMPer Stack has been removed completely."
 warning -e "\nDid you know? that we're so sad to see you leave :'(

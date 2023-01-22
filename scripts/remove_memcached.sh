@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -22,6 +22,7 @@ fi
 function init_memcached_removal() {
     # Stop Memcached server process.
     if [[ $(pgrep -c memcached) -gt 0 ]]; then
+        echo "Stopping memcached..."
         #run service memcached@memcache stop
         #run service memcached@www-data stop
         # shellcheck disable=SC2046
@@ -32,7 +33,7 @@ function init_memcached_removal() {
         echo "Found Memcached package installation. Removing..."
 
         # Remove Memcached server.
-        run apt-get purge -qq -y libmemcached11 memcached php-igbinary \
+        run apt-get purge -q -y libmemcached11 memcached php-igbinary \
             php-memcache php-memcached php-msgpack
     else
         echo "Memcached package not found, possibly installed from source."
@@ -42,7 +43,7 @@ function init_memcached_removal() {
 
         echo "Memcached binary executable: ${MEMCACHED_BIN}"
 
-        if [[ -n "${MEMCACHED_BIN}" ]]; then
+        if [[ -n $(command -v memcached) ]]; then
             # Disable systemctl.
             if [ -f /etc/systemd/system/multi-user.target.wants/memcached.service ]; then
                 echo "Disabling Memcached service..."

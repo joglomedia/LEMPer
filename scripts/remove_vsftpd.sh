@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -22,13 +22,15 @@ fi
 function init_vsftpd_removal() {
     # Stop VSFTPD process.
     if [[ $(pgrep -c vsftpd) -gt 0 ]]; then
+        echo "Stopping vsftpd..."
         run systemctl stop vsftpd
-        run systemctl disable vsftpd
     fi
+
+    run systemctl disable vsftpd
 
     if dpkg-query -l | awk '/vsftpd/ { print $2 }' | grep -qwE "^vsftpd$"; then
         echo "Found FTP server (VSFTPD) package installation. Removing..."
-        run apt-get purge -qq -y vsftpd
+        run apt-get purge -q -y vsftpd
     else
         info "FTP server (VSFTPD) package not found, possibly installed from source."
         echo "Remove it manually!!"
@@ -36,7 +38,7 @@ function init_vsftpd_removal() {
         VSFTPD_BIN=$(command -v vsftpd)
         echo "Deleting vsftpd binary executable: ${VSFTPD_BIN}"
 
-        [[ -x "${VSFTPD_BIN}" ]] && run rm -f "${VSFTPD_BIN}"
+        [[ -n $(command -v vsftpd) ]] && run rm -f "${VSFTPD_BIN}"
     fi
 
     [[ -f /etc/systemd/system/multi-user.target.wants/vsftpd.service ]] && \
@@ -60,9 +62,11 @@ function init_vsftpd_removal() {
     fi
 
     if [[ "${REMOVE_VSFTPD_CONFIG}" == y* || "${REMOVE_VSFTPD_CONFIG}" == Y* ]]; then
-        [[ -f /etc/vsftpd.conf ]] && run rm -f /etc/vsftpd.conf
-        [[ -f /etc/vsftpd.conf.bak ]] && run rm -f /etc/vsftpd.conf.bak
-        [[ -f /etc/vsftpd.userlist ]] && run rm -f /etc/vsftpd.userlist
+        [ -f /etc/vsftpd.conf ] && run rm -f /etc/vsftpd.conf
+        [ -f /etc/vsftpd.conf.bak ] && run rm -f /etc/vsftpd.conf.bak
+        [ -f /etc/vsftpd.userlist ] && run rm -f /etc/vsftpd.userlist
+        [ -f /etc/ftpusers ] && run rm -f /etc/ftpusers
+        [ -f /etc/pam.d/vsftpd ] && run rm -f /etc/pam.d/vsftpd
 
         echo "All configuration files deleted permanently."
     fi

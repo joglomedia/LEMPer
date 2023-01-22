@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -49,14 +49,17 @@ function init_mariadb_removal() {
 
     # Stop MariaDB mysql server process.
     if [[ $(pgrep -c mysqld) -gt 0 ]]; then
+        echo "Stopping mariadb..."
         run systemctl stop mysql
     fi
+
+    run systemctl disable mysql
 
     if dpkg-query -l | awk '/mariadb/ { print $2 }' | grep -qwE "^mariadb-server-${MYSQL_VERSION}"; then
         echo "Found MariaDB ${MYSQL_VERSION} packages installation, removing..."
 
         # Remove MariaDB server.
-        run apt-get purge -qq -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
+        run apt-get purge -q -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
             "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
             "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
 
@@ -72,7 +75,7 @@ function init_mariadb_removal() {
         echo "Found MySQL packages installation, removing..."
 
         # Remove MySQL server.
-        run apt-get purge -qq -y mysql-server mysql-client mysql-common mysql-server-core-* mysql-client-core-*
+        run apt-get purge -q -y mysql-server mysql-client mysql-common mysql-server-core-* mysql-client-core-*
 
         # Remove config.
         mariadb_remove_config

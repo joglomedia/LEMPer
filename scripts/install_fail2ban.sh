@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -53,7 +53,7 @@ function init_fail2ban_install() {
         case "${SELECTED_INSTALLER}" in
             1 | "repo")
                 echo "Installing Fail2ban from repository..."
-                run apt-get install -qq -y fail2ban
+                run apt-get install -q -y fail2ban
             ;;
             2 | "source")
                 echo "Installing Fail2ban from source..."
@@ -68,9 +68,12 @@ function init_fail2ban_install() {
                 fail2ban_download_link="https://github.com/fail2ban/fail2ban/archive/${FAIL2BAN_VERSION}.tar.gz"
 
                 if curl -sLI "${fail2ban_download_link}" | grep -q "HTTP/[.12]* [2].."; then
-                    run wget -q "${fail2ban_download_link}" -O fail2ban.tar.gz  && \
+                    run wget "${fail2ban_download_link}" -O fail2ban.tar.gz  && \
                     run tar -zxf fail2ban.tar.gz && \
                     run cd fail2ban-*/ && \
+                    # Convert to Python3 codebase
+                    run python -m pip install --upgrade 2to3 && \
+                    run ./fail2ban-2to3 && \
                     run python setup.py install && \
                     run cp files/debian-initd /etc/init.d/fail2ban && \
                     run update-rc.d fail2ban defaults
@@ -108,6 +111,7 @@ maxretry = 3
 [nginx-http-auth]
 enabled = true
 port = http,https,8082,8083
+filter = nginx-http-auth
 maxretry = 3
 
 EOL
@@ -132,7 +136,8 @@ EOL
 
         # Restart Fail2ban daemon.
         echo "Starting Fail2ban server..."
-        run systemctl start fail2ban
+        run systemctl start fail2ban && \
+        run systemctl enable fail2ban
 
         if [[ "${DRYRUN}" != true ]]; then
             if [[ $(pgrep -c fail2ban-server) -gt 0 ]]; then

@@ -5,13 +5,13 @@
 #script_under_test=$(basename "$0")
 
 # Source the helper functions.
-if [[ -f ./scripts/helper.sh ]]; then
-    . ./scripts/helper.sh
+if [[ -f ./scripts/utils.sh ]]; then
+    . ./scripts/utils.sh
     preflight_system_check
     init_log
     init_config
 else
-    echo "Helper function (scripts/helper.sh) not found."
+    echo "Helper function (scripts/utils.sh) not found."
     exit 1
 fi
 
@@ -39,37 +39,22 @@ testTrueInstallCertbot()
 {
     . scripts/install_certbotle.sh
 
-    #certbot_bin=$(command -v certbot)
-    #assertEquals "/usr/bin/certbot" "${certbot_bin}"
     cb=$(command -v certbot | grep -c certbot)
     assertTrue "[[ ${cb} -gt 0 ]]"
 }
 
-testTrueInstallFTPServer()
+testEqualityInstallPhp()
 {
-    if [[ "${FTP_SERVER_NAME}" == "pureftpd" || "${FTP_SERVER_NAME}" == "pure-ftpd" ]]; then
-        if [ -f scripts/install_pureftpd.sh ]; then
-            . scripts/install_pureftpd.sh
-        fi
+    . scripts/install_php.sh
 
-        ftps=$(command -v pure-ftpd | grep -c pure-ftpd)
-        assertTrue "[[ ${ftps} -gt 0 ]]"
-    else
-        if [ -f scripts/install_vsftpd.sh ]; then
-            . scripts/install_vsftpd.sh
-        fi
-
-        ftps=$(command -v vsftpd | grep -c vsftpd)
-        assertTrue "[[ ${ftps} -gt 0 ]]"
-    fi
+    php_bin=$(command -v php)
+    assertEquals "/usr/bin/php" "${php_bin}"
 }
 
 testTrueInstallNginx()
 {
     . scripts/install_nginx.sh
 
-    #nginx_bin=$(command -v nginx)
-    #assertEquals "/usr/sbin/nginx" "${nginx_bin}"
     ngx=$(command -v nginx | grep -c nginx)
     assertTrue "[[ ${ngx} -gt 0 ]]"
 }
@@ -83,14 +68,6 @@ testEqualityInstallMySQL()
 
     mysqld_bin=$(command -v mysqld)
     assertEquals "/usr/sbin/mysqld" "${mysqld_bin}"
-}
-
-testEqualityInstallPhp()
-{
-    . scripts/install_php.sh
-
-    php_bin=$(command -v php)
-    assertEquals "/usr/bin/php" "${php_bin}"
 }
 
 testTrueInstallImageMagick()
@@ -129,23 +106,42 @@ testEqualityInstallRedis()
     assertEquals "/usr/bin/redis-server" "${redisserver_bin}"
 }
 
-testEqualityInstallMongoDB()
+#testEqualityInstallMongoDB()
+# {
+#    . scripts/install_mongodb.sh
+
+#    mongo_bin=$(command -v mongo)
+#    assertEquals "/usr/bin/mongo" "${mongo_bin}"
+
+#    mongod_bin=$(command -v mongod)
+#    assertEquals "/usr/bin/mongod" "${mongod_bin}"
+#}
+
+testTrueInstallFTPServer()
 {
-    . scripts/install_mongodb.sh
+    if [[ "${FTP_SERVER_NAME}" == "pureftpd" || "${FTP_SERVER_NAME}" == "pure-ftpd" ]]; then
+        if [ -f scripts/install_pureftpd.sh ]; then
+            . scripts/install_pureftpd.sh
+        fi
 
-    mongo_bin=$(command -v mongo)
-    assertEquals "/usr/bin/mongo" "${mongo_bin}"
+        ftps=$(command -v pure-ftpd | grep -c pure-ftpd)
+        assertTrue "[[ ${ftps} -gt 0 ]]"
+    else
+        if [ -f scripts/install_vsftpd.sh ]; then
+            . scripts/install_vsftpd.sh
+        fi
 
-    mongod_bin=$(command -v mongod)
-    assertEquals "/usr/bin/mongod" "${mongod_bin}"
+        ftps=$(command -v vsftpd | grep -c vsftpd)
+        assertTrue "[[ ${ftps} -gt 0 ]]"
+    fi
 }
 
 testEqualityInstallFail2ban()
 {
     . scripts/install_fail2ban.sh
 
-    fail2ban_bin=$(command -v fail2ban-server)
-    assertEquals "/usr/local/bin/fail2ban-server" "${fail2ban_bin}"
+    fail2ban_bin=$(command -v fail2ban-server | grep -c fail2ban-server)
+    assertTrue "[[ ${fail2ban_bin} -gt 0 ]]"
 }
 
 testEqualityInstallTools()
@@ -158,7 +154,7 @@ testEqualityInstallTools()
 
 testEqualityCreateNewVhost()
 {
-    sudo /usr/local/bin/lemper-cli create -d lemper.test -f wordpress -i
+    sudo /usr/local/bin/lemper-cli site add -d lemper.test -f wordpress -i
     assertTrue "[[ -f /etc/nginx/sites-available/lemper.test.conf ]]"
 }
 

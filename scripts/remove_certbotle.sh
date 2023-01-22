@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -24,17 +24,23 @@ function init_certbotle_removal() {
         echo "Found Certbot package installation. Removing..."
 
         # Remove Certbot.
-        run apt-get purge -qq -y certbot
+        run apt-get purge -q -y certbot
 
         [[ "${FORCE_REMOVE}" == true ]] && \
             run add-apt-repository -y --remove ppa:certbot/certbot
+    elif snap list | awk '/certbot/ { print $1 }' | grep -qwE "^certbot$"; then
+        echo "Found Certbot snap installation. Removing..."
+
+        # Remove Certbot.
+        [ -x /usr/bin/certbot ] && run unlink /usr/bin/certbot
+        [[ -n $(command -v snap) ]] && run snap remove certbot
     else
         echo "Certbot package not found, possibly installed from source."
-        echo "Remove it manually."
 
         CERTBOT_BIN=$(command -v certbot)
-
         echo "Certbot binary executable: ${CERTBOT_BIN}"
+
+        #run python -m pip uninstall certbot
     fi
 
     # Remove Certbot config files.

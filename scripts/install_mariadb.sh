@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -39,7 +39,7 @@ function add_mariadb_repo() {
         run curl -sSL -o "${BUILD_DIR}/mariadb_repo_setup" "${MARIADB_REPO_SETUP_URL}" && \
         run bash "${BUILD_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
             --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}" && \
-        run apt-get update -qq -y
+        run apt-get update -q -y
     else
         error "MariaDB repo installer not found."
     fi
@@ -69,7 +69,7 @@ function init_mariadb_install() {
         echo "Installing MariaDB (MySQL drop-in replacement) server..."
 
         # Install MariaDB
-        run apt-get install -qq -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
+        run apt-get install -q -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
             "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
             "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
 
@@ -162,11 +162,17 @@ function init_mariadb_install() {
                 else
                     if [[ "${MYSQL_SECURE_INSTALL}" == true ]]; then
                         while [[ "${DO_MYSQL_SECURE_INSTALL}" != "y" && "${DO_MYSQL_SECURE_INSTALL}" != "n" ]]; do
-                            read -rp "Do you want to secure MySQL installation? [y/n]: " -e DO_MYSQL_SECURE_INSTALL
+                            read -rp "Do you want to secure MariaDB installation? [y/n]: " -e DO_MYSQL_SECURE_INSTALL
                         done
 
                         if [[ "${DO_MYSQL_SECURE_INSTALL}" == y* || "${DO_MYSQL_SECURE_INSTALL}" == Y* ]]; then
-                            run mysql_secure_installation
+                            if [[ -n $(command -v mysql_secure_installation) ]]; then
+                                run mysql_secure_installation
+                            elif [[ -n $(command -v mariadb-secure-installation) ]]; then
+                                run mariadb-secure-installation
+                            else
+                                error "Unable to secure MariaDB installation."
+                            fi
                         fi
                     fi
                 fi

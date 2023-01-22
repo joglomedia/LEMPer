@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -101,7 +101,7 @@ function init_redis_install {
                 fi
 
                 if curl -sLI "${REDIS_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                    run wget -q -O "redis.tar.gz" "${REDIS_DOWNLOAD_URL}" && \
+                    run wget -O "redis.tar.gz" "${REDIS_DOWNLOAD_URL}" && \
                     run tar -zxf "redis.tar.gz" && \
                     run cd redis-* && \
                     run make && \
@@ -166,6 +166,7 @@ function init_redis_install {
 #
 maxmemory ${REDISMEM_SIZE}mb
 maxmemory-policy allkeys-lru
+#maxmemory-policy allkeys-lfu
 EOL
 
             # Is Redis password protected enable?
@@ -182,31 +183,6 @@ EOL
                 save_config "REDIS_PASSWORD=${REDIS_PASSWORD}"
                 save_log -e "Redis server requirepass is enabled, here is your authentication password: ${REDIS_PASSWORD}\nSave this password and use it to authenticate your Redis connection (typically use -a parameter)."
             fi
-
-            # Custom kernel optimization for Redis.
-            echo "Configure Redis kernel optimization."
-
-            cat >> /etc/sysctl.conf <<EOL
-# Redis key-value store.
-net.core.somaxconn=65535
-vm.overcommit_memory=1
-EOL
-
-            run sysctl -w net.core.somaxconn=65535 && \
-            run sysctl -w vm.overcommit_memory=1 && \
-            run bash -c "echo never > /sys/kernel/mm/transparent_hugepage/enabled"
-
-            if [[ ! -f /etc/rc.local ]]; then
-                run touch /etc/rc.local
-            fi
-
-            # Make the change persistent.
-            cat >> /etc/rc.local <<EOL
-###################################################################
-# Custom optimization for LEMPer
-#
-echo never > /sys/kernel/mm/transparent_hugepage/enabled
-EOL
         else
             info "Redis configuration skipped in dry run mode."
         fi

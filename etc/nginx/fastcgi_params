@@ -3,7 +3,8 @@
 
 # Comment out HTTPS line for PHP behind SSL https.
 #fastcgi_param HTTPS on; # old pre .03 method
-#fastcgi_param HTTPS $server_https;	# new .04+ map method
+fastcgi_param HTTPS $server_https;	# new .04+ map method
+fastcgi_param HTTP_X_FORWARDED_PROTO $proto_https;
 
 # Comment out PATH_TRANSLATED line if /etc/php5/fpm/php.ini sets following:
 # cgi.fix_pathinfo=0

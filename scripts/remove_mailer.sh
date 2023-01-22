@@ -10,7 +10,7 @@
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
     # shellcheck disable=SC1091
-    . "${BASE_DIR}/helper.sh"
+    . "${BASE_DIR}/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -21,14 +21,17 @@ fi
 
 function init_postfix_removal() {
     if [[ $(pgrep -c postfix) -gt 0 ]]; then
+        echo "Stopping postfix..."
         run systemctl stop postfix
     fi
+
+    run systemctl disable postfix
 
     if dpkg-query -l | awk '/postfix/ { print $2 }' | grep -qwE "^postfix"; then
         echo "Found Postfix Mail-Transfer Agent package installation. Removing..."
 
         # shellcheck disable=SC2046
-        run apt-get purge -qq -y postfix mailutils
+        run apt-get purge -q -y postfix mailutils
     else
         info "Postfix Mail-Transfer Agent package not found, possibly installed from source."
         echo "Remove it manually!!"
@@ -37,7 +40,7 @@ function init_postfix_removal() {
 
         echo "Deleting Postfix binary executable: ${POSTFIX_BIN}"
 
-        [[ -x "${POSTFIX_BIN}" ]] && run rm -f "${POSTFIX_BIN}"
+        [[ -n $(command -v postfix) ]] && run rm -f "${POSTFIX_BIN}"
     fi
 
     warning "!! This action is not reversible !!"
@@ -75,14 +78,17 @@ function init_postfix_removal() {
 
 function init_dovecot_removal() {
     if [[ $(pgrep -c dovecot) -gt 0 ]]; then
+        echo "Stopping dovecot..."
         run systemctl stop dovecot
     fi
+
+    run systemctl disable dovecot
 
     if dpkg-query -l | awk '/dovecot/ { print $2 }' | grep -qwE "^dovecot"; then
         echo "Found Dovecot IMAP server package installation. Removing..."
 
         # shellcheck disable=SC2046
-        run apt-get purge -qq -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
+        run apt-get purge -q -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
     else
         info "Dovecot IMAP server package not found, possibly installed from source."
         echo "Remove it manually!!"
@@ -91,7 +97,7 @@ function init_dovecot_removal() {
 
         echo "Deleting Dovecot IMAP server executable: ${DOVECOT_BIN}"
 
-        [[ -x "${DOVECOT_BIN}" ]] && run rm -f "${DOVECOT_BIN}"
+        [[ -n "${DOVECOT_BIN}" ]] && run rm -f "${DOVECOT_BIN}"
     fi
 
     warning "!! This action is not reversible !!"
@@ -136,7 +142,7 @@ function init_spfdkim_removal() {
         echo "Found OpenDKIM + SPF package installation. Removing..."
 
         # shellcheck disable=SC2046
-        run apt-get purge -qq -y postfix-policyd-spf-python opendkim opendkim-tools
+        run apt-get purge -q -y postfix-policyd-spf-python opendkim opendkim-tools
     else
         info "OpenDKIM + SPF package not found, possibly installed from source."
         echo "Remove it manually!!"
@@ -145,7 +151,7 @@ function init_spfdkim_removal() {
 
         echo "Deleting OpenDKIM executable: ${OPENDKIM_BIN}"
 
-        [[ -x "${OPENDKIM_BIN}" ]] && run rm -f "${OPENDKIM_BIN}"
+        [[ -x $(command -v opendkim) ]] && run rm -f "${OPENDKIM_BIN}"
     fi
 
     warning "!! This action is not reversible !!"

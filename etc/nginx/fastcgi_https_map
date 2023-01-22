@@ -5,3 +5,8 @@ map $scheme $server_https {
 	default off;
 	https on;
 }
+
+map $http_x_forwarded_proto $proto_https {
+	default $scheme;
+	https https;
+}

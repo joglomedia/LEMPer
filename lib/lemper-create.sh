@@ -207,7 +207,7 @@ server {
     }
 
     ## PHP-FPM status monitoring
-    location ~ ^/(status|ping)$ {
+    location ~ ^/php-fpm_(status|ping)$ {
         include /etc/nginx/fastcgi_params;
 
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
@@ -320,7 +320,7 @@ server {
     }
 
     ## PHP-FPM status monitoring
-    location ~ ^/(status|ping)$ {
+    location ~ ^/php-fpm_(status|ping)$ {
         include /etc/nginx/fastcgi_params;
 
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
@@ -434,7 +434,7 @@ server {
     }
 
     ## PHP-FPM status monitoring
-    location ~ ^/(status|ping)$ {
+    location ~ ^/php-fpm_(status|ping)$ {
         include /etc/nginx/fastcgi_params;
 
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
@@ -551,7 +551,7 @@ server {
     }
 
     ## PHP-FPM status monitoring
-    location ~ ^/(status|ping)$ {
+    location ~ ^/php-fpm_(status|ping)$ {
         include /etc/nginx/fastcgi_params;
 
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
@@ -694,8 +694,8 @@ pm.max_spare_servers = 20
 pm.process_idle_timeout = 30s
 pm.max_requests = 500
 
-pm.status_path = /status
-ping.path = /ping
+pm.status_path = /php-fpm_status
+ping.path = /php-fpm_ping
 
 slowlog = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_slow.log
 request_slowlog_timeout = 10s
@@ -713,11 +713,10 @@ php_admin_value[open_basedir] = /home/${POOLNAME}
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
-php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-fpm.log
+php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php8.0-fpm_error.log
 php_admin_value[sys_temp_dir] = /home/${POOLNAME}/.lemper/tmp
 php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.lemper/tmp
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
-php_admin_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/tmp/php_opcache
 
 ; Configuration below can be overwritten from PHP call 'ini_set'.
 php_flag[short_open_tag] = off
@@ -733,7 +732,10 @@ php_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
 php_flag[display_errors] = on
 php_flag[cgi.fix_pathinfo] = 1
 php_value[date.timezone] = UTC
-php_value[session.save_path] = /home/${POOLNAME}/.lemper/tmp/php_sessions
+php_value[session.save_handler] = files
+php_value[session.save_path] = /home/${POOLNAME}/.lemper/php/sessions
+php_value[soap.wsdl_cache_dir]  = /home/${POOLNAME}/.lemper/php/wsdlcache
+php_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/php/opcache
 EOL
 }
 
@@ -838,11 +840,12 @@ function install_wordpress() {
     if [[ "${INSTALL_APP}" == true ]]; then
         # Check WordPress install directory.
         if [ ! -f "${WEBROOT}/wp-includes/class-wp.php" ]; then
-            if ! command -v wp-cli &> /dev/null; then
+            if [[ -z $(command -v "wp-cli") ]]; then
                 info "WP CLI command not found, trying to install it first."
-                run wget -q https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
+                run wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
                      -O /usr/local/bin/wp-cli  && \
-                run chmod ugo+x /usr/local/bin/wp-cli
+                run chmod ugo+x /usr/local/bin/wp-cli && \
+                run ln -sf /usr/local/bin/wp-cli /usr/bin/wp-cli
             fi
 
             # Download WordPress skeleton files.
@@ -887,7 +890,7 @@ function init_lemper_create() {
     SERVERNAME=""
     WEBROOT=""
     FRAMEWORK="default"
-    PHP_VERSION="7.4"
+    PHP_VERSION="8.0"
     INSTALL_APP=false
     WPMS_SUBDOMAINS=""
     ENABLE_FASTCGI_CACHE=false
@@ -1042,12 +1045,12 @@ function init_lemper_create() {
                 fail "User account '${USERNAME}' does not exist. Please add new account first! Aborting..."
             fi
 
-            # PHP Commands.
-            PHP_BIN=$(command -v "php${PHP_VERSION}")
-            PHP_COMPOSER_BIN=$(command -v composer)
+            # Check PHP runtime version is exists.
+            if [[ -n $(command -v "php${PHP_VERSION}") && -d "/etc/php/${PHP_VERSION}/fpm" ]]; then
+                # PHP runtime commands.
+                PHP_BIN=$(command -v "php${PHP_VERSION}")
+                PHP_COMPOSER_BIN=$(command -v "composer")
 
-            # Check PHP fpm version is exists.
-            if [[ -n $(command -v "php-fpm${PHP_VERSION}") && -d "/etc/php/${PHP_VERSION}/fpm" ]]; then
                 # Additional check - if FPM user's pool already exist.
                 if [[ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]]; then
                     info "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."
@@ -1059,8 +1062,9 @@ function init_lemper_create() {
 
                     # Create default directories.
                     run mkdir -p "/home/${USERNAME}/.lemper/tmp"
-                    run mkdir -p "/home/${USERNAME}/.lemper/tmp/php_opcache"
-                    run mkdir -p "/home/${USERNAME}/.lemper/tmp/php_sessions"
+                    run mkdir -p "/home/${USERNAME}/.lemper/php/opcache"
+                    run mkdir -p "/home/${USERNAME}/.lemper/php/sessions"
+                    run mkdir -p "/home/${USERNAME}/.lemper/php/wsdlcache"
                     run mkdir -p "/home/${USERNAME}/cgi-bin"
                     run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.lemper/" "/home/${USERNAME}/cgi-bin/"
 
@@ -1121,7 +1125,7 @@ function init_lemper_create() {
                             if [[ -n "${PHP_COMPOSER_BIN}" ]]; then
                                 run "${PHP_BIN}" "${PHP_COMPOSER_BIN}" create-project --prefer-source codeigniter4/appstarter "${WEBROOT}"
                             else
-                                run git clone -q --depth=1 --branch=master "https://github.com/codeigniter4/appstarter.git" "${WEBROOT}" || \
+                                run git clone --depth=1 --branch=master "https://github.com/codeigniter4/appstarter.git" "${WEBROOT}" || \
                                 error "Something went wrong while downloading CodeIgniter v4 files."
                             fi
                         else
@@ -1154,7 +1158,7 @@ function init_lemper_create() {
                             echo "Downloading Drupal latest skeleton files..."
 
                             if curl -sLI https://www.drupal.org/download-latest/zip | grep -q "HTTP/[.12]* [2].."; then
-                                run wget -q https://www.drupal.org/download-latest/zip \
+                                run wget https://www.drupal.org/download-latest/zip \
                                     -O "${TMPDIR}/drupal.zip"  && \
                                 run unzip -q "${TMPDIR}/drupal.zip" -d "${TMPDIR}" && \
                                 run rsync -rq ${TMPDIR}/drupal-*/ "${WEBROOT}" && \
@@ -1195,7 +1199,7 @@ function init_lemper_create() {
                                 run sudo -u "${USERNAME}" -i -- "${PHP_BIN}" "${PHP_COMPOSER_BIN}" \
                                     create-project --prefer-dist "laravel/${FRAMEWORK}" "${WEBROOT}"
                             else
-                                run git clone -q --depth=1 --branch=master "https://github.com/laravel/${FRAMEWORK}.git" "${WEBROOT}" || \
+                                run git clone --depth=1 --branch=master "https://github.com/laravel/${FRAMEWORK}.git" "${WEBROOT}" || \
                                 error "Something went wrong while downloading ${FRAMEWORK^} files."
                             fi
 
@@ -1249,13 +1253,12 @@ function init_lemper_create() {
                                 ;;
                             esac
 
-                            PHP_PHALCON_BIN=$(command -v phalcon)
-
-                            if [[ -n "${PHP_PHALCON_BIN}" ]]; then
+                            if [[ -n $(command -v phalcon) ]]; then
+                                PHP_PHALCON_BIN=$(command -v phalcon)
                                 run sudo -u "${USERNAME}" -i -- "${PHP_PHALCON_BIN}" project \
                                     --name="${SERVERNAME}" --type="${PHALCON_TYPE}" --directory="/home/${USERNAME}/webapps"
                             else
-                                run git clone -q --depth=1 --branch=master "https://github.com/joglomedia/${FRAMEWORK}-skeleton.git" "${WEBROOT}" || \
+                                run git clone --depth=1 --branch=master "https://github.com/joglomedia/${FRAMEWORK}-skeleton.git" "${WEBROOT}" || \
                                 error "Something went wrong while downloading ${FRAMEWORK} files."
                             fi
                         else
@@ -1295,7 +1298,7 @@ function init_lemper_create() {
                                 run composer create-project --prefer-dist symfony/website-skeleton "${WEBROOT}"
                             else
                                 warning "Symfony CLI not found, trying to install it first..."
-                                run wget -q https://get.symfony.com/cli/installer -O - | bash
+                                run wget https://get.symfony.com/cli/installer -O - | bash
 
                                 if [[ -f "${HOME}/.symfony/bin/symfony" ]]; then
                                     run cp -f "${HOME}/.symfony/bin/symfony" /usr/local/bin/symfony
@@ -1381,14 +1384,14 @@ function init_lemper_create() {
 
                     if command -v wp-cli &> /dev/null; then
                         run sudo -u "${USERNAME}" -i -- wp-cli core multisite-install "${WPMS_SUBDOMAINS}" --url="${SERVERNAME}" \
-                            --title="WordPress Multi-site Managed by LEMPer" --admin_user="${APP_ADMIN_USER}" \
+                            --title="WordPress Multisite Managed by LEMPer Stack" --admin_user="${APP_ADMIN_USER}" \
                             --admin_password="${APP_ADMIN_PASS}" --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
                         run sudo -u "${USERNAME}" -i -- wp-cli plugin install \
                             akismet autoptimize cache-enabler classic-editor nginx-helper redis-cache --activate-network --path="${WEBROOT}"
                     fi
 
                     # Mercator domain mapping.
-                    run git clone --depth=1 --branch=master -q https://github.com/humanmade/Mercator.git "${WEBROOT}/wp-content/mu-plugins/mercator" && \
+                    run git clone --depth=1 --branch=master https://github.com/humanmade/Mercator.git "${WEBROOT}/wp-content/mu-plugins/mercator" && \
                     cat > "${WEBROOT}/wp-content/sunrise.php" <<EOL
 <?php
 // Default mu-plugins directory if you haven't set it
@@ -1615,7 +1618,7 @@ EOL
 
             # Validate config, reload when validated.
             if nginx -t 2>/dev/null > /dev/null; then
-                run systemctl reload nginx
+                run systemctl restart nginx
                 echo "Nginx server reloaded with new configuration."
             else
                 info "Something went wrong with Nginx configuration."

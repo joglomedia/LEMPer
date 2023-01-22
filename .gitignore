@@ -3,6 +3,7 @@
 .env.bak
 .env.save
 .travis.yml
+dev-notes.md
 install.log
 lemper.log
 lemper_install.log
