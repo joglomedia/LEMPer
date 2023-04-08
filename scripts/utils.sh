@@ -622,29 +622,29 @@ function enable_swap() {
 
 # Create default system account.
 function create_account() {
-    export USERNAME=${1:-"lemper"}
-    export PASSWORD && \
-    PASSWORD=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+    export LEMPER_USERNAME=${1:-"lemper"}
+    export LEMPER_PASSWORD && \
+    LEMPER_PASSWORD=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
 
     echo "Creating default LEMPer account..."
 
-    if [[ -z $(getent passwd "${USERNAME}") ]]; then
+    if [[ -z $(getent passwd "${LEMPER_USERNAME}") ]]; then
         if [[ ${DRYRUN} != true ]]; then
-            run useradd -d "/home/${USERNAME}" -m -s /bin/bash "${USERNAME}"
-            run echo "${USERNAME}:${PASSWORD}" | chpasswd
-            run usermod -aG sudo "${USERNAME}"
+            run useradd -d "/home/${LEMPER_USERNAME}" -m -s /bin/bash "${LEMPER_USERNAME}"
+            run echo "${LEMPER_USERNAME}:${LEMPER_PASSWORD}" | chpasswd
+            run usermod -aG sudo "${LEMPER_USERNAME}"
 
             # Create default directories.
-            run mkdir -p "/home/${USERNAME}/webapps" && \
-            run mkdir -p "/home/${USERNAME}/logs" && \
-            run mkdir -p "/home/${USERNAME}/logs/nginx" && \
-            run mkdir -p "/home/${USERNAME}/logs/php" && \
-            run mkdir -p "/home/${USERNAME}/.lemper" && \
-            run mkdir -p "/home/${USERNAME}/.ssh" && \
-            run chmod 700 "/home/${USERNAME}/.ssh" && \
-            run touch "/home/${USERNAME}/.ssh/authorized_keys" && \
-            run chmod 600 "/home/${USERNAME}/.ssh/authorized_keys" && \
-            run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
+            run mkdir -p "/home/${LEMPER_USERNAME}/webapps" && \
+            run mkdir -p "/home/${LEMPER_USERNAME}/logs" && \
+            run mkdir -p "/home/${LEMPER_USERNAME}/logs/nginx" && \
+            run mkdir -p "/home/${LEMPER_USERNAME}/logs/php" && \
+            run mkdir -p "/home/${LEMPER_USERNAME}/.lemper" && \
+            run mkdir -p "/home/${LEMPER_USERNAME}/.ssh" && \
+            run chmod 700 "/home/${LEMPER_USERNAME}/.ssh" && \
+            run touch "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" && \
+            run chmod 600 "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" && \
+            run chown -hR "${LEMPER_USERNAME}:${LEMPER_USERNAME}" "/home/${LEMPER_USERNAME}"
 
             # Add account credentials to /srv/.htpasswd.
             [ ! -f "/srv/.htpasswd" ] && run touch /srv/.htpasswd
@@ -655,51 +655,51 @@ function create_account() {
 
             # Generate password hash.
             if [[ -n $(command -v mkpasswd) ]]; then
-                PASSWORD_HASH=$(mkpasswd --method=sha-256 "${PASSWORD}")
-                run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
-                run echo "${USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
+                PASSWORD_HASH=$(mkpasswd --method=sha-256 "${LEMPER_PASSWORD}")
+                run sed -i "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
+                run echo "${LEMPER_USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             elif [[ -n $(command -v htpasswd) ]]; then
-                run htpasswd -b /srv/.htpasswd "${USERNAME}" "${PASSWORD}"
+                run htpasswd -b /srv/.htpasswd "${LEMPER_USERNAME}" "${LEMPER_PASSWORD}"
             else
-                PASSWORD_HASH=$(openssl passwd -1 "${PASSWORD}")
-                run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
-                run echo "${USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
+                PASSWORD_HASH=$(openssl passwd -1 "${LEMPER_PASSWORD}")
+                run sed -i "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
+                run echo "${LEMPER_USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             fi
 
             # Save config.
             save_config -e "ENVIRONMENT=${ENVIRONMENT}\nHOSTNAME=${HOSTNAME}\nSERVER_IP=${SERVER_IP}\nSERVER_SSH_PORT=${SSH_PORT}"
-            save_config -e "LEMPER_USERNAME=${USERNAME}\nLEMPER_PASSWORD=${PASSWORD}\nLEMPER_ADMIN_EMAIL=${LEMPER_ADMIN_EMAIL}"
+            save_config -e "LEMPER_USERNAME=${LEMPER_USERNAME}\nLEMPER_PASSWORD=${LEMPER_PASSWORD}\nLEMPER_ADMIN_EMAIL=${LEMPER_ADMIN_EMAIL}"
 
             # Save data to log file.
-            save_log -e "Your default system account information:\nUsername: ${USERNAME}\nPassword: ${PASSWORD}"
+            save_log -e "Your default system account information:\nUsername: ${LEMPER_USERNAME}\nPassword: ${LEMPER_PASSWORD}"
 
-            success "Username ${USERNAME} created."
+            success "Username ${LEMPER_USERNAME} created."
         else
-            echo "Create ${USERNAME} account in dry run mode."
+            echo "Create ${LEMPER_USERNAME} account in dry run mode."
         fi
     else
-        info "Unable to create account, username ${USERNAME} already exists."
+        info "Unable to create account, username ${LEMPER_USERNAME} already exists."
     fi
 }
 
 # Delete default system account.
 function delete_account() {
-    local USERNAME=${1:-"lemper"}
+    local LEMPER_USERNAME=${1:-"lemper"}
 
-    if [[ -n $(getent passwd "${USERNAME}") ]]; then
-        if pgrep -u "${USERNAME}" > /dev/null; then
+    if [[ -n $(getent passwd "${LEMPER_USERNAME}") ]]; then
+        if pgrep -u "${LEMPER_USERNAME}" > /dev/null; then
             error "Couldn't delete user currently used by running processes."
         else
-            run userdel -r "${USERNAME}"
+            run userdel -r "${LEMPER_USERNAME}"
 
             if [ -f "/srv/.htpasswd" ]; then
-                run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
+                run sed -i "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
             fi
 
-            success "Account ${USERNAME} deleted."
+            success "Account ${LEMPER_USERNAME} deleted."
         fi
     else
-        info "Account ${USERNAME} not found."
+        info "Account ${LEMPER_USERNAME} not found."
     fi
 }
 
@@ -747,7 +747,7 @@ function save_config() {
 function secure_config() {
     if [[ ${DRYRUN} != true ]]; then
         if [ -f /etc/lemper/lemper.conf ]; then
-            run openssl aes-256-gcm -a -salt -md sha256 -k "${PASSWORD}" \
+            run openssl aes-256-gcm -a -salt -md sha256 -k "${LEMPER_PASSWORD}" \
                 -in /etc/lemper/lemper.conf -out /etc/lemper/lemper.cnf
         fi
     fi
