@@ -31,7 +31,7 @@ testEqualityCreateAccount()
 {
     create_account_status=""
     create_account lemper
-    [[ -n $(getent passwd "${USERNAME}") ]] && create_account_status="success"
+    [[ -n $(getent passwd "${LEMPER_USERNAME}") ]] && create_account_status="success"
     assertEquals "success" "${create_account_status}"
 }
 

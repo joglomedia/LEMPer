@@ -173,7 +173,7 @@ EOL
             if [[ "${REDIS_REQUIRE_PASSWORD}" == true ]]; then
                 echo "Configure Redis requirepass password."
 
-                REDIS_PASSWORD=${REDIS_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+                export REDIS_PASSWORD=${REDIS_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
 
                 # Update Redis config.
                 cat >> /etc/redis/redis.conf <<EOL

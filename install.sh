@@ -75,8 +75,8 @@ fi
 
 ### Create default account ###
 echo ""
-USERNAME=${LEMPER_USERNAME:-"lemper"}
-create_account "${USERNAME}"
+LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
+create_account "${LEMPER_USERNAME}"
 
 ### Certbot Let's Encrypt SSL installation ###
 if [ -f ./scripts/install_certbotle.sh ]; then
@@ -192,7 +192,7 @@ if [[ "${DRYRUN}" != true ]]; then
     status -e "\nCongrats, your LEMPer Stack installation has been completed."
 
     ### Recap ###
-    if [[ -n "${PASSWORD}" ]]; then
+    if [[ -n "${LEMPER_PASSWORD}" ]]; then
         CREDENTIALS="~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~
 Default system information:
     Hostname : ${HOSTNAME}
@@ -200,46 +200,26 @@ Default system information:
     SSH Port : ${SSH_PORT}
 
 LEMPer Stack admin account:
-    Username : ${USERNAME}
-    Password : ${PASSWORD}
+    Username : ${LEMPER_USERNAME}
+    Password : ${LEMPER_PASSWORD}
 
 Database administration (Adminer):
     http://${SERVER_IP}:8082/lcp/dbadmin/
 
-    Database root password: ${MYSQL_ROOT_PASSWORD}
+    MySQL root password: ${MYSQL_ROOT_PASSWORD}
 
 Mariabackup user information:
     DB Username: ${MARIABACKUP_USER}
-    DB Password: ${MARIABACKUP_PASS}
+    DB Password: ${MARIABACKUP_PASS}"
 
-File manager (TinyFileManager):
-    http://${SERVER_IP}:8082/lcp/filemanager/
-
-    Use your default LEMPer stack admin account for Filemanager login."
-
-        if [[ "${INSTALL_MAILER}" == true ]]; then
+        if [[ "${INSTALL_POSTGRES}" == true ]]; then
             CREDENTIALS="${CREDENTIALS}
 
-Default Mail service:
-    Maildir      : /home/${USERNAME}/Maildir
-    Sender Domain: ${SENDER_DOMAIN}
-    Sender IP    : ${SERVER_IP}
-    IMAP Port    : 143, 993 (SSL/TLS)
-    POP3 Port    : 110, 995 (SSL/TLS)
+PostgreSQL user information:
+    Default Postgres User: ${POSTGRES_USER}
 
-    Domain Key   : lemper._domainkey.${SENDER_DOMAIN}
-    DKIM Key     : ${DKIM_KEY}
-    SPF Record   : v=spf1 ip4:${SERVER_IP} include:${SENDER_DOMAIN} mx ~all
-
-    Use your default LEMPer stack admin account for Mail login."
-        fi
-
-        if [[ "${INSTALL_MEMCACHED}" == true && "${MEMCACHED_SASL}" == true ]]; then
-            CREDENTIALS="${CREDENTIALS}
-
-Memcached SASL login:
-    Username    : ${MEMCACHED_USERNAME}
-    Password    : ${MEMCACHED_PASSWORD}"
+    PostgresSQL DB Username: ${PSQL_USER}
+    PostgresSQL DB Password: ${PSQL_PASS}"
         fi
 
         if [[ "${INSTALL_MONGODB}" == true ]]; then
@@ -257,7 +237,37 @@ Redis required password enabled:
     Password    : ${REDIS_PASSWORD}"
         fi
 
+        if [[ "${INSTALL_MEMCACHED}" == true && "${MEMCACHED_SASL}" == true ]]; then
+            CREDENTIALS="${CREDENTIALS}
+
+Memcached SASL login:
+    Username    : ${MEMCACHED_USERNAME}
+    Password    : ${MEMCACHED_PASSWORD}"
+        fi
+
+        if [[ "${INSTALL_MAILER}" == true ]]; then
+            CREDENTIALS="${CREDENTIALS}
+
+Default Mail service:
+    Maildir      : /home/${LEMPER_USERNAME}/Maildir
+    Sender Domain: ${SENDER_DOMAIN}
+    Sender IP    : ${SERVER_IP}
+    IMAP Port    : 143, 993 (SSL/TLS)
+    POP3 Port    : 110, 995 (SSL/TLS)
+
+    Domain Key   : lemper._domainkey.${SENDER_DOMAIN}
+    DKIM Key     : ${DKIM_KEY}
+    SPF Record   : v=spf1 ip4:${SERVER_IP} include:${SENDER_DOMAIN} mx ~all
+
+    Use your default LEMPer stack admin account for Mail login."
+        fi
+
         CREDENTIALS="${CREDENTIALS}
+
+File manager (TinyFileManager):
+    http://${SERVER_IP}:8082/lcp/filemanager/
+
+    Use your default LEMPer stack admin account for Filemanager login.
 
 Please Save the above Credentials & Keep it Secure!
 ~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~"

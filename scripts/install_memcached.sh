@@ -178,8 +178,8 @@ function init_memcached_install() {
                 echo "Memcached SASL auth option is enabled..."
 
                 if [[ "${DRYRUN}" != true ]]; then
-                    MEMCACHED_USERNAME=${MEMCACHED_USERNAME:-"lempermc"}
-                    MEMCACHED_PASSWORD=${MEMCACHED_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+                    export MEMCACHED_USERNAME=${MEMCACHED_USERNAME:-"lempermc"}
+                    export MEMCACHED_PASSWORD=${MEMCACHED_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
 
                     run mkdir -p /etc/sasl2 && run touch /etc/sasl2/memcached_memcache.conf
                     cat > /etc/sasl2/memcached_memcache.conf <<EOL
