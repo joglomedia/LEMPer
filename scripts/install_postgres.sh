@@ -73,7 +73,7 @@ function init_postgres_install() {
 
     local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
     local POSTGRES_TEST_DB="${PSQL_USER}db"
-    local PGDATA=${POSTGRES_PGDATA:-"/var/lib/postgresql/data"}
+    #local PGDATA=${POSTGRES_PGDATA:-"/var/lib/postgresql/data"}
     local POSTGRES_PKGS=()
 
     # Do PostgreSQL server installation here...
