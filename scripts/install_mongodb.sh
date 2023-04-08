@@ -136,8 +136,8 @@ function init_mongodb_install() {
 
                 sleep 3 # Wait for MongoDB to completely started.
 
-                MONGODB_ADMIN_USER=${MONGODB_ADMIN_USER:-"lemperdb"}
-                MONGODB_ADMIN_PASSWORD=${MONGODB_ADMIN_PASSWORD:-"$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"}
+                export MONGODB_ADMIN_USER=${MONGODB_ADMIN_USER:-"lemperdb"}
+                export MONGODB_ADMIN_PASSWORD=${MONGODB_ADMIN_PASSWORD:-"$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"}
 
                 run mongosh admin \
                     --eval "\"db.createUser({'user': '${MONGODB_ADMIN_USER}', 'pwd': '${MONGODB_ADMIN_PASSWORD}', 'roles':[{'role': 'root', 'db': 'admin'}]});\""
