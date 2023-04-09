@@ -1175,6 +1175,11 @@ function init_nginx_install() {
                     NGX_BUILD_EXTRA_ARGS="--psol-from-source"
                 fi
 
+                # Workaround for Building on newer glibc (eg. Ubuntu 21.10 and above) #1743
+                if [[ "${RELEASE_NAME}" == "jammy" ]]; then
+                    NGX_BUILD_EXTRA_ARGS="--psol-from-source"
+                fi
+
                 [[ "${NGINX_DYNAMIC_MODULE}" == true ]] && NGX_BUILD_EXTRA_ARGS="${NGX_BUILD_EXTRA_ARGS} --dynamic-module"
                 [[ "${DRYRUN}" == true ]] && NGX_BUILD_EXTRA_ARGS="${NGX_BUILD_EXTRA_ARGS} --dryrun"
 
