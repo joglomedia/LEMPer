@@ -10,7 +10,7 @@ on:
       - 'master'
   workflow_dispatch:
 jobs:
-  build:
+  ubuntu-focal:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
@@ -31,6 +31,72 @@ jobs:
           sed -i "s/INSTALL_PHP_LOADER=false/INSTALL_PHP_LOADER=true/g" .env
           sed -i "s/PHP_LOADER=\"none\"/PHP_LOADER=\"ioncube\"/g" .env
           sed -i "s/IMAGEMAGICK_INSTALLER=\"source\"/IMAGEMAGICK_INSTALLER=\"repo\"/g" .env
+          sed -i "s/INSTALL_POSTGRES=false/INSTALL_POSTGRES=true/g" .env
+          sed -i "s/INSTALL_MEMCACHED=false/INSTALL_MEMCACHED=true/g" .env
+          sed -i "s/INSTALL_MONGODB=false/INSTALL_MONGODB=true/g" .env
+          sed -i "s/INSTALL_REDIS=false/INSTALL_REDIS=true/g" .env
+          sed -i "s/INSTALL_MAILER=true/INSTALL_MAILER=false/g" .env
+          sed -i "s/INSTALL_SPFDKIM=true/INSTALL_SPFDKIM=false/g" .env
+          sed -i "s/SENDER_DOMAIN=\"example.com\"/SENDER_DOMAIN=\"lemper.test\"/g" .env
+          sed -i "s/INSTALL_FAIL2BAN=false/INSTALL_FAIL2BAN=true/g" .env
+      # Install Dependencies
+      - name: Install testing dependencies
+        run: |
+          set -ex
+          sudo apt-get update -q -y
+          sudo apt-get install -q -y bash curl
+          sudo curl -sSL -o /usr/local/bin/shunit2 https://raw.githubusercontent.com/kward/shunit2/master/shunit2
+          sudo chmod +x /usr/local/bin/shunit2
+          sudo curl -sSLO https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.x86_64.tar.xz
+          sudo tar -xf shellcheck-v0.8.0.linux.x86_64.tar.xz
+          sudo mv shellcheck-v0.8.0/shellcheck /usr/local/bin/
+          sudo chmod +x /usr/local/bin/shellcheck
+      # Shellcheck Tests
+      - name: Run shellcheck testing
+        env:
+          TERM: xterm-256color
+        run: |
+          set -ex
+          shellcheck -s bash -x lemper.sh
+          shellcheck -s bash -x install.sh
+          shellcheck -s bash -x remove.sh
+          shellcheck -s bash -x bin/lemper-*.sh
+          shellcheck -s bash -x lib/lemper-*.sh
+          shellcheck -s bash -x scripts/utils.sh
+          shellcheck -s bash -x scripts/server_*.sh
+          shellcheck -s bash -x scripts/install_*.sh
+          shellcheck -s bash -x scripts/remove_*.sh
+      # Simple Unit Tests
+      - name: Run unit testing
+        env:
+          TERM: xterm-256color
+        run: |
+          set -ex
+          sudo bash scripts/server_cleanup.sh
+          sudo bash scripts/install_dependencies.sh
+          sudo bash shunit2/run_test.sh
+  ubuntu-latest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      # Prepare testing environment
+      - name: Prepare testing environment
+        run: |
+          cp .env.dist .env
+          sed -i "s/FIX_BROKEN_INSTALL=false/FIX_BROKEN_INSTALL=true/g" .env
+          sed -i "s/ENVIRONMENT=\"production\"/ENVIRONMENT=\"development\"/g" .env
+          sed -i "s/SERVER_HOSTNAME=\"\"/SERVER_HOSTNAME=\"gh-ci.lemper.cloud\"/g" .env
+          sed -i "s/SERVER_IP=\"\"/SERVER_IP=\"127.0.0.1\"/g" .env
+          sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/g" .env
+          sed -i "s/FORCE_INSTALL=false/FORCE_INSTALL=true/g" .env
+          sed -i "s/AUTO_REMOVE=false/AUTO_REMOVE=true/g" .env
+          sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
+          sed -i "s/LEMPER_ADMIN_EMAIL=\"mail@example.com\"/LEMPER_ADMIN_EMAIL=\"me@masedi.net\"/g" .env
+          sed -i "s/NGINX_INSTALLER="source"/NGINX_INSTALLER="repo"/g" .env
+          sed -i "s/INSTALL_PHP_LOADER=false/INSTALL_PHP_LOADER=true/g" .env
+          sed -i "s/PHP_LOADER=\"none\"/PHP_LOADER=\"ioncube\"/g" .env
+          sed -i "s/IMAGEMAGICK_INSTALLER=\"source\"/IMAGEMAGICK_INSTALLER=\"repo\"/g" .env
+          sed -i "s/INSTALL_POSTGRES=false/INSTALL_POSTGRES=true/g" .env
           sed -i "s/INSTALL_MEMCACHED=false/INSTALL_MEMCACHED=true/g" .env
           sed -i "s/INSTALL_MONGODB=false/INSTALL_MONGODB=true/g" .env
           sed -i "s/INSTALL_REDIS=false/INSTALL_REDIS=true/g" .env
