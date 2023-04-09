@@ -223,12 +223,11 @@ function install_php() {
             run mkdir -p "/home/${LEMPER_USERNAME}/logs/php"
         fi
 
-        # Log rotation.
-        run cp -f "etc/logrotate.d/php${PHPv}-fpm" /etc/logrotate.d/ && \
-        run chmod 0644 "/etc/logrotate.d/php${PHPv}-fpm"
-
         # Optimize PHP & FPM configuration.
         optimize_php_fpm "${PHPv}"
+
+        # Log rotation.
+        add_php_logrotate "${PHPv}"
     fi
 }
 
@@ -514,6 +513,33 @@ EOL
     #sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
     #sed -i "s/php_flag[cgi.fix_pathinfo]\ =\ 1/php_flag[cgi.fix_pathinfo]\ =\ 0/g" \
     #    /etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf
+}
+
+function add_php_logrotate() {
+    # PHP version.
+    local PHPv="${1}"
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
+    fi
+
+    run touch "/etc/logrotate.d/php${PHPv}-fpm"
+    cat >> "/etc/logrotate.d/php${PHPv}-fpm" <<EOL
+/var/log/php${PHPv}-fpm.log /home/*/logs/php/php${PHPv}-fpm.log {
+    rotate 12
+    weekly
+    missingok
+    notifempty
+    compress
+    delaycompress
+    postrotate
+        if [ -x /usr/lib/php/php${PHPv}-fpm-reopenlogs ]; then
+            /usr/lib/php/php${PHPv}-fpm-reopenlogs;
+        fi
+    endscript
+}
+EOL
+
+    run chmod 0644 "/etc/logrotate.d/php${PHPv}-fpm"
 }
 
 ##
