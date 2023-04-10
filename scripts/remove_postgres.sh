@@ -52,7 +52,7 @@ function postgres_remove_config() {
 function init_postgres_removal() {
     local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
     local POSTGRES_USER=${POSTGRES_USER:-"postgres"}
-    local POSTGRES_PKGS=()
+    #local POSTGRES_PKGS=()
 
     # Stop PostgreSQL mysql server process.
     if [[ $(pgrep -c postgres) -gt 0 ]]; then
