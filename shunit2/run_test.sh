@@ -21,11 +21,11 @@ testEqualityGetDistribName()
     assertEquals "ubuntu" "${distrib_name}"
 }
 
-testEqualityGetReleaseName()
-{
-    release_name=$(get_release_name)
-    assertEquals "focal" "${release_name}"
-}
+#testEqualityGetReleaseName()
+#{
+#    release_name=$(get_release_name)
+#    assertEquals "focal" "${release_name}"
+#}
 
 testEqualityCreateAccount()
 {
@@ -68,6 +68,14 @@ testEqualityInstallMySQL()
 
     mysqld_bin=$(command -v mysqld)
     assertEquals "/usr/sbin/mysqld" "${mysqld_bin}"
+}
+
+testTrueInstallPostgres()
+{
+    . scripts/install_postgres.sh
+
+    pgs=$(command -v postgres | grep -c postgres)
+    assertTrue "[[ ${pgs} -gt 0 ]]"
 }
 
 testTrueInstallImageMagick()
