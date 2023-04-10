@@ -65,16 +65,8 @@ function init_postgres_removal() {
     if dpkg-query -l | awk '/postgresql/ { print $2 }' | grep -qwE "^postgresql"; then
         echo "Found PostgreSQL ${POSTGRES_VERSION} packages installation, removing..."
 
-        # Installed Postgres packages.
-        if [[ "${POSTGRES_VERSION}" == "latest" || "${POSTGRES_VERSION}" == "stable" ]]; then
-            POSTGRES_PKGS+=("postgresql" "postgresql-client" "postgresql-client-common" "postgresql-common")
-        else
-            POSTGRES_PKGS+=("postgresql-${POSTGRES_VERSION}" "postgresql-client-${POSTGRES_VERSION}" \
-                "postgresql-client-common" "postgresql-common")
-        fi
-
-        # Remove PostgreSQL server.
-        run apt-get --purge remove -q -y "${POSTGRES_PKGS[@]}"
+        # shellcheck disable=SC2046
+        run apt-get purge -q -y $(dpkg-query -l | awk '/postgresql/ { print $2 }' | grep -wE "^postgresql")
 
         # Remove PostgreSQL default user.
         if [[ -n $(getent passwd "${POSTGRES_USER}") ]]; then
