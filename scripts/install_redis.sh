@@ -25,21 +25,21 @@ fi
 function add_redis_repo() {
     echo "Adding Redis repository..."
 
-    case ${DISTRIB_NAME} in
-        debian)
-            if [[ ! -f "/etc/apt/sources.list.d/dotdeb-stable.list" ]]; then
-                run touch /etc/apt/sources.list.d/dotdeb-stable.list
-                run bash -c "echo -e 'deb http://ftp.utexas.edu/dotdeb/ stable all\ndeb-src http://ftp.utexas.edu/dotdeb/ stable all' > /etc/apt/sources.list.d/dotdeb-stable.list"
-                run bash -c "wget -qO - 'https://www.dotdeb.org/dotdeb.gpg' | apt-key add -"
+    case "${DISTRIB_NAME}" in
+        debian | ubuntu)
+            if [[ ! -f "/etc/apt/sources.list.d/redis-${RELEASE_NAME}.list" ]]; then
+                run bash -c "curl -fsSL https://packages.redis.io/gpg | gpg --dearmor --yes -o /usr/share/keyrings/redis-archive-keyring.gpg"
+                run touch "/etc/apt/sources.list.d/redis-${RELEASE_NAME}.list"
+                run bash -c "echo 'deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb ${RELEASE_NAME} main' | tee /etc/apt/sources.list.d/redis-${RELEASE_NAME}.list"
                 run apt-get update -q -y
             else
-                info "Dotdeb repository already exists."
+                info "Redis repository already exists."
             fi
         ;;
-        ubuntu)
-            run add-apt-repository -y ppa:chris-lea/redis-server && \
-            run apt-get update -q -y
-        ;;
+        #ubuntu)
+        #    run add-apt-repository -y ppa:redislabs/redis && \
+        #    run apt-get update -q -y
+        #;;
         *)
             fail "Unable to add Redis repo, this GNU/Linux distribution is not supported."
         ;;
@@ -85,7 +85,7 @@ function init_redis_install {
                 echo "Installing Redis server from repository..."
 
                 # Install Redis.
-                run apt-get install -q -y redis-server redis-tools
+                run apt-get install -q -y redis redis-server redis-tools
             ;;
             2 | "source")
                 echo "Installing Redis server from source..."
