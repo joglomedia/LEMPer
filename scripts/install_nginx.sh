@@ -34,15 +34,12 @@ function add_nginx_repo_ondrej() {
         local NGINX_REPO="nginx"
     fi
 
-    DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-    RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
-
     #local ALTERNATIVE_REPO=false
     #[[ "${RELEASE_NAME}" == "jessie" || "${RELEASE_NAME}" == "xenial" ]] && ALTERNATIVE_REPO=true
 
     case "${DISTRIB_NAME}" in
         debian)
-            if [ ! -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list" ]; then
+            if [[ ! -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
                 run touch "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb https://packages.sury.org/${NGINX_REPO}/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
@@ -75,7 +72,7 @@ function add_nginx_repo_myguard() {
     echo "Add MyGuard's Nginx repository..."
 
     # Nginx version.
-    local NGINX_VERSION=${NGINX_VERSION:-"stable"}
+    NGINX_VERSION=${NGINX_VERSION:-"stable"}
 
     if [[ ${NGINX_VERSION} == "mainline" || ${NGINX_VERSION} == "latest" ]]; then
         local NGINX_REPO="nginx"
@@ -83,14 +80,13 @@ function add_nginx_repo_myguard() {
         local NGINX_REPO="nginx"
     fi
 
-    DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-    RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
+    DISTRIB_ARCH=$(get_distrib_arch)
 
     case "${DISTRIB_NAME}" in
         debian | ubuntu)
-            if [ ! -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list" ]; then
+            if [[ ! -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
                 run touch "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
-                run bash -c "echo 'deb [arch=amd64] http://deb.myguard.nl ${RELEASE_NAME} main' > /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
+                run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl ${RELEASE_NAME} main' > /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run wget -qO "/etc/apt/trusted.gpg.d/deb.myguard.nl.gpg" "https://deb.myguard.nl/pool/deb.myguard.nl.gpg"
                 run apt-get update -q -y
             else
@@ -483,24 +479,7 @@ function init_nginx_install() {
                         if [[ -z $(command -v go) ]]; then
                             GOLANG_VER="1.17.8"
 
-                            local DISTRIB_ARCH
-                            case "${ARCH}" in
-                                i386 | i486| i586 | i686)
-                                    DISTRIB_ARCH="386"
-                                ;;
-                                x86_64 | amd64)
-                                    DISTRIB_ARCH="amd64"
-                                ;;
-                                arm64 | aarch* | armv8*)
-                                    DISTRIB_ARCH="arm64"
-                                ;;
-                                arm | armv7*)
-                                    DISTRIB_ARCH="armv6l"
-                                ;;
-                                *)
-                                    DISTRIB_ARCH="386"
-                                ;;
-                            esac
+                            DISTRIB_ARCH=$(get_distrib_arch)
 
                             case "${DISTRIB_NAME}" in
                                 debian)
@@ -1151,7 +1130,6 @@ function init_nginx_install() {
                 # Build nginx from source installer.
                 echo -e "\nBuilding Nginx from source..."
 
-                #NGX_BUILD_URL="https://raw.githubusercontent.com/pagespeed/ngx_pagespeed/master/scripts/build_ngx_pagespeed.sh"
                 NGX_BUILD_URL="https://raw.githubusercontent.com/apache/incubator-pagespeed-ngx/master/scripts/build_ngx_pagespeed.sh"
 
                 if [[ -f "${BUILD_DIR}/build_nginx" ]]; then
@@ -1175,9 +1153,11 @@ function init_nginx_install() {
                     NGX_BUILD_EXTRA_ARGS="--psol-from-source"
                 fi
 
-                # Workaround for Building on newer glibc (eg. Ubuntu 21.10 and above) #1743
+                # Workaround for Building on newer glibc (eg. Ubuntu 21.10 and above)
+                # issue https://github.com/apache/incubator-pagespeed-ngx/issues/1743
                 if [[ "${RELEASE_NAME}" == "jammy" ]]; then
-                    NGX_BUILD_EXTRA_ARGS="--psol-from-source"
+                    export PSOL_BINARY_URL && \
+                        PSOL_BINARY_URL="https://www.tiredofit.nl/psol-jammy.tar.gz"
                 fi
 
                 [[ "${NGINX_DYNAMIC_MODULE}" == true ]] && NGX_BUILD_EXTRA_ARGS="${NGX_BUILD_EXTRA_ARGS} --dynamic-module"

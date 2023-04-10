@@ -374,8 +374,8 @@ function get_release_name() {
         fi
 
         # Get distribution release / version ID.
-        DISTRO_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE}"}
-        MAJOR_RELEASE_VERSION=$(echo ${DISTRO_VERSION} | awk -F. '{print $1}')
+        DISTRIB_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE}"}
+        MAJOR_RELEASE_VERSION=$(echo "${DISTRIB_VERSION}" | awk -F. '{print $1}')
 
         case ${DISTRIB_NAME} in
             debian)
@@ -446,6 +446,53 @@ function get_release_name() {
     echo "${RELEASE_NAME}"
 }
 
+# Get general release name.
+function get_release_version() {
+    if [ -f /etc/os-release ]; then
+        # Export os-release vars.
+        . /etc/os-release
+
+        # Export lsb-release vars.
+        [ -f /etc/lsb-release ] && . /etc/lsb-release
+
+        # Get distribution release / version ID.
+        RELEASE_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE}"}
+    elif [ -f /etc/system-release ]; then
+    	RELEASE_VERSION="0.0"
+    else
+        # Red Hat /etc/redhat-release
+    	RELEASE_VERSION="0.0"
+    fi
+
+    echo "${RELEASE_VERSION}"
+}
+
+# Get distribution architecture.
+function get_distrib_arch() {
+    local ARCH=${ARCH:-$(uname -p)}
+    local DISTRIB_ARCH
+    
+    case "${ARCH}" in
+        i386 | i486| i586 | i686)
+            DISTRIB_ARCH="386"
+        ;;
+        x86_64 | amd64)
+            DISTRIB_ARCH="amd64"
+        ;;
+        arm64 | aarch* | armv8*)
+            DISTRIB_ARCH="arm64"
+        ;;
+        arm | armv7*)
+            DISTRIB_ARCH="armv6l"
+        ;;
+        *)
+            DISTRIB_ARCH="386"
+        ;;
+    esac
+
+    echo "${DISTRIB_ARCH}"
+}
+
 # Get server private IP Address.
 function get_ip_private() {
     local SERVER_IP_PRIVATE && \
@@ -475,6 +522,7 @@ function preflight_system_check() {
     # Set system distro version.
     export DISTRIB_NAME && DISTRIB_NAME=$(get_distrib_name)
     export RELEASE_NAME && RELEASE_NAME=$(get_release_name)
+    export RELEASE_VERSION && RELEASE_VERSION=$(get_release_version)
 
     # Check supported distribution and release version.
     if [[ "${DISTRIB_NAME}" == "unsupported" || "${RELEASE_NAME}" == "unsupported" ]]; then
