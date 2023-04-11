@@ -117,8 +117,7 @@ function init_mariadb_install() {
                 run systemctl enable mariadb.service
 
                 # Restart MariaDB service daemon.
-                run systemctl start mariadb
-                #run service mysql start
+                run systemctl start mariadb.service
 
                 ##
                 # MariaDB secure installation
@@ -188,18 +187,19 @@ function init_mariadb_install() {
                 enable_mariabackup
 
                 # Restart MariaDB (MySQL)
-                run systemctl restart mariadb
+                run systemctl restart mariadb.service
+                sleep 3
 
                 if [[ $(pgrep -c mysql) -gt 0 ]]; then
                     success "MariaDB server configured successfully."
-                elif [[ -n $(command -v mysql) ]]; then
+                elif [[ -n $(command -v mysql) || -n $(command -v mariadb) ]]; then
                     # Server died? try to start it.
-                    run systemctl start mariadb
+                    run systemctl start mariadb.service
 
                     if [[ $(pgrep -c mysql) -gt 0 ]]; then
                         success "MariaDB server configured successfully."
                     else
-                        info "Something went wrong with MariaDB server installation."
+                        info "Something went wrong with MariaDB server configuration."
                     fi
                 fi
             else
@@ -237,7 +237,7 @@ function enable_mariabackup() {
         SQL_QUERY="CREATE USER '${MARIABACKUP_USER}'@'localhost' IDENTIFIED BY '${MARIABACKUP_PASS}';
                 GRANT RELOAD, PROCESS, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${MARIABACKUP_USER}'@'localhost';"
 
-        mysql -u "root" -p"${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"
+        run mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"
 
         # Update my.cnf
         MARIABACKUP_CNF="###################################
