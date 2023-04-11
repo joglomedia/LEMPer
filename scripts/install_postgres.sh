@@ -120,36 +120,48 @@ function init_postgres_install() {
                 run systemctl enable "postgresql@${POSTGRES_VERSION}-main.service"
 
                 # Restart PostgreSQL service daemon.
-                #run systemctl start "postgresql@${POSTGRES_VERSION}-main.service"
+                #run systemctl restart "postgresql@${POSTGRES_VERSION}-main.service"
             fi
 
             if [[ $(pgrep -c postgres) -gt 0 || -n $(command -v psql) ]]; then
                 success "PostgreSQL server installed successfully."
 
-                if [[ -n $(command -v psql) ]]; then
-                    echo "Creating PostgreSQL user '${POSTGRES_USER}' and database '${POSTGRES_TEST_DB}'."
-
-                    # Create test role and database.
-                    run sudo -i -u "${POSTGRES_USER}" -- psql -v ON_ERROR_STOP=1 <<-PGSQL
-                        CREATE ROLE ${PSQL_USER} LOGIN PASSWORD '${PSQL_PASS}';
-                        CREATE DATABASE ${POSTGRES_TEST_DB};
-                        GRANT ALL PRIVILEGES ON DATABASE ${POSTGRES_TEST_DB} TO ${PSQL_USER};
-PGSQL
-                fi
-
                 # Restart Postgres
                 run systemctl restart "postgresql@${POSTGRES_VERSION}-main.service"
+                sleep 3
 
                 if [[ $(pgrep -c postgres) -gt 0 ]]; then
+                    # Create default test role and database.
+                    if [[ -n $(command -v psql) ]]; then
+                        echo "Creating PostgreSQL user '${PSQL_USER}' and database '${POSTGRES_TEST_DB}'."
+
+                        run sudo -i -u "${POSTGRES_USER}" -- psql -v ON_ERROR_STOP=1 <<-PGSQL
+                            CREATE ROLE ${PSQL_USER} LOGIN PASSWORD '${PSQL_PASS}';
+                            CREATE DATABASE ${POSTGRES_TEST_DB};
+                            GRANT ALL PRIVILEGES ON DATABASE ${POSTGRES_TEST_DB} TO ${PSQL_USER};
+PGSQL
+                    fi
+
                     success "PostgreSQL server configured successfully."
-                elif [[ -n $(command -v postgres) ]]; then
+                else
                     # Server died? try to start it.
                     run systemctl start "postgresql@${POSTGRES_VERSION}-main.service"
 
                     if [[ $(pgrep -c postgres) -gt 0 ]]; then
+                        # Create default test role and database.
+                        if [[ -n $(command -v psql) ]]; then
+                            echo "Creating PostgreSQL user '${PSQL_USER}' and database '${POSTGRES_TEST_DB}'."
+
+                            run sudo -i -u "${POSTGRES_USER}" -- psql -v ON_ERROR_STOP=1 <<-PGSQL
+                                CREATE ROLE ${PSQL_USER} LOGIN PASSWORD '${PSQL_PASS}';
+                                CREATE DATABASE ${POSTGRES_TEST_DB};
+                                GRANT ALL PRIVILEGES ON DATABASE ${POSTGRES_TEST_DB} TO ${PSQL_USER};
+PGSQL
+                        fi
+
                         success "PostgreSQL server configured successfully."
                     else
-                        info "Something went wrong with PostgreSQL server installation."
+                        info "Something went wrong with PostgreSQL server configuration."
                     fi
                 fi
             else
