@@ -84,6 +84,12 @@ if [ -f ./scripts/install_certbotle.sh ]; then
     . ./scripts/install_certbotle.sh
 fi
 
+### Nginx installation ###
+if [ -f ./scripts/install_nginx.sh ]; then
+    echo ""
+    . ./scripts/install_nginx.sh
+fi
+
 ### PHP installation ###
 if [ -f ./scripts/install_php.sh ]; then
     echo ""
@@ -94,12 +100,6 @@ fi
 if [ -f ./scripts/install_phalcon.sh ]; then
     echo ""
     . ./scripts/install_phalcon.sh
-fi
-
-### Nginx installation ###
-if [ -f ./scripts/install_nginx.sh ]; then
-    echo ""
-    . ./scripts/install_nginx.sh
 fi
 
 ### MySQL database installation ###
@@ -183,8 +183,8 @@ if [[ "${FORCE_REMOVE}" == true ]]; then
 
     # Cleanup build dir
     echo "Clean up build directory..."
-    if [ -d "$BUILD_DIR" ]; then
-        run rm -fr "$BUILD_DIR"
+    if [ -d "${BUILD_DIR}" ]; then
+        run rm -fr "${BUILD_DIR}"
     fi
 fi
 

@@ -68,6 +68,9 @@ Options:
   -s, --psol-from-source
       Build PSOL from source instead of downloading a pre-built binary module.
 
+  -f, --psol-binary-file
+      Url to the PSOL binary file.
+
   -l, --devel
       Sets up a development environment in ngx_pagespeed/nginx, building with
       testing-only dependencies.  Includes --psol-from-source, conflicts with
@@ -355,6 +358,11 @@ function build_ngx_pagespeed() {
       -s | --psol-from-source) shift
         PSOL_FROM_SOURCE=true
         ;;
+      # Modified
+      -f | --psol-binary-file) shift
+        PSOL_BINARY_URL="$1"
+        shift
+        ;;
       -l | --devel) shift
         DEVEL=true
         ;;
@@ -393,6 +401,11 @@ function build_ngx_pagespeed() {
     status "Detected that we're running in an existing ngx_pagespeed checkout."
     USE_GIT_CHECKOUT=true
     ALREADY_CHECKED_OUT=true
+  fi
+
+  # Modified
+  if [[ "${PSOL_FROM_SOURCE}" == true ]]; then
+    USE_GIT_CHECKOUT=true
   fi
 
   if "$ALREADY_CHECKED_OUT"; then
@@ -435,8 +448,8 @@ function build_ngx_pagespeed() {
     else
       BUILD_TYPE="Release"
     fi
-  elif [ -n "$BUILD_TYPE" ]; then
-    fail "Setting --build-type requires --psol-from-source or --devel."
+  #elif [ -n "$BUILD_TYPE" ]; then
+  #  fail "Setting --build-type requires --psol-from-source or --devel."
   fi
 
   if [ "$NGINX_VERSION" = "latest" ]; then
@@ -592,14 +605,18 @@ Not deleting $directory; name is suspiciously short.  Something is wrong."
   if "$USE_GIT_CHECKOUT"; then
     # We're either doing a --devel build, or someone is running us from an
     # existing git checkout.
-    nps_module_dir="$PWD"
+    #nps_module_dir="$PWD"
+    nps_module_dir="$BUILDDIR/incubator-pagespeed-ngx"
     install_dir="$nps_module_dir"
     if "$ALREADY_CHECKED_OUT"; then
       run cd "$nps_module_dir"
     else
       status "Checking out ngx_pagespeed..."
-      run git clone "git@github.com:pagespeed/ngx_pagespeed.git" \
-                    "$nps_module_dir"
+      #run git clone "git@github.com:pagespeed/ngx_pagespeed.git" "$nps_module_dir"
+      if [[ -d "$nps_module_dir" ]]; then
+        run rm -fr "$nps_module_dir"
+      fi
+      run git clone https://github.com/apache/incubator-pagespeed-ngx.git "$nps_module_dir"
       run cd "$nps_module_dir"
       run git checkout "$tag_name"
     fi
@@ -667,13 +684,18 @@ Not deleting $directory; name is suspiciously short.  Something is wrong."
         fail "Got bad psol binary location information: $psol_url"
       fi
     else
-      # For past releases we have to grep it from the config file.  The url has
-      # always looked like this, and the config file has contained it since
-      # before we started tagging our ngx_pagespeed releases.
-      psol_url="$(grep -o \
-          "https://dl.google.com/dl/page-speed/psol/[0-9.]*.tar.gz" config)"
-      if [ -z "$psol_url" ]; then
-        fail "Couldn't find PSOL url in $PWD/config"
+      # Modified
+      if [[ -n "${PSOL_BINARY_URL}" ]]; then
+        psol_url="${PSOL_BINARY_URL}"
+      else
+        # For past releases we have to grep it from the config file.  The url has
+        # always looked like this, and the config file has contained it since
+        # before we started tagging our ngx_pagespeed releases.
+        psol_url="$(grep -o \
+            "https://dl.google.com/dl/page-speed/psol/[0-9.]*.tar.gz" config)"
+        if [ -z "$psol_url" ]; then
+          fail "Couldn't find PSOL url in $PWD/config"
+        fi
       fi
     fi
 

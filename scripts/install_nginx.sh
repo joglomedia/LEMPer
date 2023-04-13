@@ -136,14 +136,15 @@ function init_nginx_install() {
         if [[ "${NGX_PAGESPEED}" == true ]]; then
             info "NGX_PAGESPEED module requires Nginx to be installed from source or MyGuard repo."
 
-            if [[ "${NGINX_INSTALLER}" == "repo" ]]; then
+            #if [[ "${NGINX_INSTALLER}" == "repo" ]]; then
                 # MyGuard repo only support mainline version.
                 echo "Switch Nginx to the mainline/latest version."
 
+                SELECTED_INSTALLER="repo"
                 SELECTED_REPO="myguard"
-            else
-                SELECTED_INSTALLER="source"
-            fi
+            #else
+            #    SELECTED_INSTALLER="source"
+            #fi
         fi
 
         case "${SELECTED_INSTALLER}" in
@@ -1132,25 +1133,31 @@ function init_nginx_install() {
 
                 NGX_BUILD_URL="https://raw.githubusercontent.com/apache/incubator-pagespeed-ngx/master/scripts/build_ngx_pagespeed.sh"
 
-                if [[ -f "${BUILD_DIR}/build_nginx" ]]; then
+                if [[ -f "${BUILD_DIR}/build_nginx.sh" ]]; then
                     echo "Using cached build_nginx script..."
                 else
-                    echo "Downloading build_nginx script..."
-                    
-                    if curl -sLI "${NGX_BUILD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                        run curl -sS -o "${BUILD_DIR}/build_nginx" "${NGX_BUILD_URL}"
+                    if [[ -f "${PWD}/scripts/build_nginx.sh" ]]; then
+                        echo "Copying custom build_nginx script..."
+                        run cp "${PWD}/scripts/build_nginx.sh" "${BUILD_DIR}/build_nginx.sh"
                     else
-                        fail "Nginx from source installer not found."
+                        echo "Downloading build_nginx script..."
+
+                        if curl -sLI "${NGX_BUILD_URL}" | grep -q "HTTP/[.12]* [2].."; then
+                            run curl -sS -o "${BUILD_DIR}/build_nginx.sh" "${NGX_BUILD_URL}"
+                        else
+                            fail "Nginx from source installer not found."
+                        fi
                     fi
                 fi
 
                 NGX_PAGESPEED_VERSION=${NGX_PAGESPEED_VERSION:-"latest-stable"}
-                NGX_BUILD_EXTRA_ARGS=""
+                NGX_BUILD_EXTRA_ARGS=()
 
                 # Workaround for NPS issue https://github.com/apache/incubator-pagespeed-ngx/issues/1752
                 if ! version_older_than "${NGINX_RELEASE_VERSION}" "1.22.99"; then
                     NGX_PAGESPEED_VERSION="master"
-                    NGX_BUILD_EXTRA_ARGS="--psol-from-source"
+                    # --psol-from-source
+                    NGX_BUILD_EXTRA_ARGS+=("-s" "-t Release")
                 fi
 
                 # Workaround for Building on newer glibc (eg. Ubuntu 21.10 and above)
@@ -1160,13 +1167,13 @@ function init_nginx_install() {
                         PSOL_BINARY_URL="https://www.tiredofit.nl/psol-jammy.tar.gz"
                 fi
 
-                [[ "${NGINX_DYNAMIC_MODULE}" == true ]] && NGX_BUILD_EXTRA_ARGS="${NGX_BUILD_EXTRA_ARGS} --dynamic-module"
-                [[ "${DRYRUN}" == true ]] && NGX_BUILD_EXTRA_ARGS="${NGX_BUILD_EXTRA_ARGS} --dryrun"
+                [[ "${NGINX_DYNAMIC_MODULE}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--dynamic-module")
+                [[ "${DRYRUN}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--dryrun")
 
                 # Build Nginx from source.
-                run bash "${BUILD_DIR}/build_nginx" -v "${NGX_PAGESPEED_VERSION}" -n "${NGINX_RELEASE_VERSION}" \
-                    -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y "${NGX_BUILD_EXTRA_ARGS}"
-
+                run bash "${BUILD_DIR}/build_nginx.sh" -y "${NGX_BUILD_EXTRA_ARGS[@]}" -b "${BUILD_DIR}" \
+                    --ngx-pagespeed-version="${NGX_PAGESPEED_VERSION}" --nginx-version="${NGINX_RELEASE_VERSION}" \
+                    --additional-nginx-configure-arguments="${NGX_CONFIGURE_ARGS}"
 
                 echo "Configuring Nginx extra modules..."
 
@@ -1581,7 +1588,7 @@ function init_nginx_install() {
             ;;
             *)
                 # Skip installation.
-                error "Installer method not supported. Nginx installation skipped."
+                fail "Installer method not supported. Nginx installation failed."
             ;;
         esac
 
