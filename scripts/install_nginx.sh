@@ -1647,8 +1647,9 @@ EOL
 
         # Custom tmp, PHP opcache & sessions dir.
         run mkdir -p /usr/share/nginx/html/.lemper/tmp
-        run mkdir -p /usr/share/nginx/html/.lemper/tmp/php_opcache
-        run mkdir -p /usr/share/nginx/html/.lemper/tmp/php_sessions
+        run mkdir -p /usr/share/nginx/html/.lemper/php/sessions
+        run mkdir -p /usr/share/nginx/html/.lemper/php/opcache
+        run mkdir -p /usr/share/nginx/html/.lemper/php/wsdlcache
 
         # Fix ownership.
         [ -d /usr/share/nginx/html ] && run chown -hR www-data:www-data /usr/share/nginx/html
