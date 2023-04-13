@@ -164,6 +164,12 @@ PGSQL
                         info "Something went wrong with PostgreSQL server configuration."
                     fi
                 fi
+
+                # Save config.
+                save_config -e "POSTGRES_USER=${POSTGRES_USER}\nPSQL_DB_USER=${PSQL_USER}\nPSQL_DB_PASS=${PSQL_PASS}\nPSQL_DB_TEST=${POSTGRES_TEST_DB}"
+
+                # Save log.
+                save_log -e "Postgres server credentials.\nPostgres default user: ${POSTGRES_USER}, Postgres DB Username: ${PSQL_USER}, Postgres DB Password: ${PSQL_PASS}, Postgres DB Test: ${POSTGRES_TEST_DB}\nSave this credential and use it to authenticate your PostgreSQL test database connection."
             else
                 info "Something went wrong with PostgreSQL server installation."
             fi
