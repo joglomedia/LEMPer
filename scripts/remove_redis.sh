@@ -24,9 +24,8 @@ function init_redis_removal() {
     if [[ $(pgrep -c redis-server) -gt 0 ]]; then
         echo "Stopping redis-server..."
         run systemctl stop redis-server
+        run systemctl disable redis-server
     fi
-
-    run systemctl disable redis-server
 
     # Remove Redis server.
     if dpkg-query -l | awk '/redis/ { print $2 }' | grep -qwE "^redis-server"; then

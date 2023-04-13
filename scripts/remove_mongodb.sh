@@ -44,9 +44,8 @@ function init_mongodb_removal() {
     if [[ $(pgrep -c mongod) -gt 0 ]]; then
         echo "Stopping mongodb..."
         run systemctl stop mongod
+        run systemctl disable mongod
     fi
-
-    run systemctl disable mongod
 
     if dpkg-query -l | awk '/mongodb/ { print $2 }' | grep -qwE "^mongodb"; then
         echo "Removing MongoDB packages..."

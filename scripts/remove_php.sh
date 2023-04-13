@@ -35,9 +35,8 @@ function remove_php_fpm() {
     if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
         echo "Stopping php${PHPv}-fpm..."
         run systemctl stop "php${PHPv}-fpm"
+        run systemctl disable "php${PHPv}-fpm"
     fi
-
-    run systemctl disable "php${PHPv}-fpm"
 
     if dpkg-query -l | awk '/php/ { print $2 }' | grep -qwE "^php${PHPv}"; then
         echo "Removing PHP ${PHPv} packages installation..."
@@ -430,7 +429,8 @@ if [[ -n $(command -v php5.6) || \
     -n $(command -v php7.3) || \
     -n $(command -v php7.4) || \
     -n $(command -v php8.0) || \
-    -n $(command -v php8.1) ]]; then
+    -n $(command -v php8.1) || \
+    -n $(command -v php8.2) ]]; then
 
     if [[ "${AUTO_REMOVE}" == true ]]; then
         REMOVE_PHP="y"

@@ -98,9 +98,9 @@ if [[ -n $(command -v mysqld) || -n $(command -v mariadb) ]]; then
 fi
 
 # Remove default lemper account if exists.
-USERNAME=${LEMPER_USERNAME:-"lemper"}
+LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
 
-if [[ -n $(getent passwd "${USERNAME}") ]]; then
+if [[ -n $(getent passwd "${LEMPER_USERNAME}") ]]; then
     warning -e "\nDefault lemper account already exists. Should we remove it?"
     echo "Backup your data before continue!"
 
@@ -113,7 +113,7 @@ if [[ -n $(getent passwd "${USERNAME}") ]]; then
     fi
 
     if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* ]]; then
-        run delete_account "${USERNAME}"
+        run delete_account "${LEMPER_USERNAME}"
 
         # Clean up existing lemper config.
         run bash -c "echo '' > /etc/lemper/lemper.conf"

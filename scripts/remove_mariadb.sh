@@ -51,9 +51,8 @@ function init_mariadb_removal() {
     if [[ $(pgrep -c mysqld) -gt 0 ]]; then
         echo "Stopping mariadb..."
         run systemctl stop mysql
+        run systemctl disable mysql
     fi
-
-    run systemctl disable mysql
 
     if dpkg-query -l | awk '/mariadb/ { print $2 }' | grep -qwE "^mariadb-server-${MYSQL_VERSION}"; then
         echo "Found MariaDB ${MYSQL_VERSION} packages installation, removing..."

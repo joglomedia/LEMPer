@@ -25,9 +25,8 @@ function init_nginx_removal() {
     if [[ $(pgrep -c nginx) -gt 0 ]]; then
         echo "Stopping nginx..."
         run systemctl stop nginx
+        run systemctl disable nginx
     fi
-
-    run systemctl disable nginx
 
     if [[ ${NGX_VERSION} == "mainline" || ${NGX_VERSION} == "latest" ]]; then
         local NGINX_REPO="nginx-mainline"
@@ -99,8 +98,8 @@ function init_nginx_removal() {
 
             # Delete default account credential from server .htpasswd.
             if [ -f /srv/.htpasswd ]; then
-                local USERNAME=${LEMPER_USERNAME:-"lemper"}
-                run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
+                local LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
+                run sed -i "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
             fi
         else
             error "Sorry, we couldn't find any Nginx binary executable file."

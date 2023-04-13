@@ -19,36 +19,6 @@ if [[ "$(type -t run)" != "function" ]]; then
     preflight_system_check
 fi
 
-function postgres_remove_config() {
-    local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
-    local PGDATA=${POSTGRES_PGDATA:-"/var/lib/postgresql/data"}
-
-    # Remove PostgreSQL server config files.
-    echo "Removing PostgreSQL configuration..."
-    warning "!! This action is not reversible !!"
-
-    if [[ "${AUTO_REMOVE}" == true ]]; then
-        if [[ "${FORCE_REMOVE}" == true ]]; then
-            REMOVE_POSTGRES_CONFIG="y"
-        else
-            REMOVE_POSTGRES_CONFIG="n"
-        fi
-    else
-        while [[ "${REMOVE_POSTGRES_CONFIG}" != "y" && "${REMOVE_POSTGRES_CONFIG}" != "n" ]]; do
-            read -rp "Remove PostgreSQL database and configuration files? [y/n]: " -e REMOVE_POSTGRES_CONFIG
-        done
-    fi
-
-    if [[ "${REMOVE_POSTGRES_CONFIG}" == y* || "${REMOVE_POSTGRES_CONFIG}" == Y* ]]; then
-        [ -d /var/lib/postgresql ] && run rm -fr /var/lib/postgresql
-        [ -d /var/run/postgresql ] && run rm -fr /var/run/postgresql
-        [ -d "${PGDATA}" ] && run rm -fr "${PGDATA}"
-        [ -d "/etc/postgresql/${POSTGRES_VERSION}" ] && run rm -fr "/etc/postgresql/${POSTGRES_VERSION}"
-
-        echo "All database and configuration files deleted permanently."
-    fi
-}
-
 function init_postgres_removal() {
     local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
     local POSTGRES_USER=${POSTGRES_USER:-"postgres"}
@@ -58,6 +28,7 @@ function init_postgres_removal() {
     if [[ $(pgrep -c postgres) -gt 0 ]]; then
         echo "Stopping postgres..."
         run systemctl stop "postgresql@${POSTGRES_VERSION}-main.service"
+        run systemctl disable "postgresql@${POSTGRES_VERSION}-main.service"
     fi
 
     #run systemctl disable "postgresql@${POSTGRES_VERSION}-main.service"
@@ -98,6 +69,36 @@ function init_postgres_removal() {
         fi
     else
         info "PostgreSQL server removed in dry run mode."
+    fi
+}
+
+function postgres_remove_config() {
+    local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
+    local PGDATA=${POSTGRES_PGDATA:-"/var/lib/postgresql/data"}
+
+    # Remove PostgreSQL server config files.
+    echo "Removing PostgreSQL configuration..."
+    warning "!! This action is not reversible !!"
+
+    if [[ "${AUTO_REMOVE}" == true ]]; then
+        if [[ "${FORCE_REMOVE}" == true ]]; then
+            REMOVE_POSTGRES_CONFIG="y"
+        else
+            REMOVE_POSTGRES_CONFIG="n"
+        fi
+    else
+        while [[ "${REMOVE_POSTGRES_CONFIG}" != "y" && "${REMOVE_POSTGRES_CONFIG}" != "n" ]]; do
+            read -rp "Remove PostgreSQL database and configuration files? [y/n]: " -e REMOVE_POSTGRES_CONFIG
+        done
+    fi
+
+    if [[ "${REMOVE_POSTGRES_CONFIG}" == y* || "${REMOVE_POSTGRES_CONFIG}" == Y* ]]; then
+        [ -d /var/lib/postgresql ] && run rm -fr /var/lib/postgresql
+        [ -d /var/run/postgresql ] && run rm -fr /var/run/postgresql
+        [ -d "${PGDATA}" ] && run rm -fr "${PGDATA}"
+        [ -d "/etc/postgresql/${POSTGRES_VERSION}" ] && run rm -fr "/etc/postgresql/${POSTGRES_VERSION}"
+
+        echo "All database and configuration files deleted permanently."
     fi
 }
 
