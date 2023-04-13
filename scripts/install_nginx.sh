@@ -1185,9 +1185,9 @@ function init_nginx_install() {
                 # Custom Nginx dynamic modules configuration.
 
                 if [[ -f /usr/lib/nginx/modules/ndk_http_module.so && \
-                    ! -f /etc/nginx/modules-available/mod-ndk-http.conf ]]; then
+                    ! -f /etc/nginx/modules-available/mod-http-ndk.conf ]]; then
                     run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ndk_http_module.so\";' \
-                        > /etc/nginx/modules-available/mod-ndk-http.conf"
+                        > /etc/nginx/modules-available/mod-http-ndk.conf"
                 fi
 
                 if [[ -f /usr/lib/nginx/modules/ngx_http_auth_pam_module.so && \
@@ -1257,9 +1257,9 @@ function init_nginx_install() {
                 fi
 
                 if [[ -f /usr/lib/nginx/modules/ngx_http_js_module.so && \
-                    ! -f /etc/nginx/modules-available/mod-http-js.conf ]]; then
+                    ! -f /etc/nginx/modules-available/mod-http-njs.conf ]]; then
                     run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_js_module.so\";' \
-                        > /etc/nginx/modules-available/mod-http-js.conf"
+                        > /etc/nginx/modules-available/mod-http-njs.conf"
                 fi
 
                 if [[ -f /usr/lib/nginx/modules/ngx_http_lua_module.so && \
@@ -1443,9 +1443,9 @@ function init_nginx_install() {
                     fi
 
                     if [[ "${NGX_HTTP_NJS}" && \
-                        -f /etc/nginx/modules-available/mod-http-js.conf ]]; then
-                        run ln -fs /etc/nginx/modules-available/mod-http-js.conf \
-                            /etc/nginx/modules-enabled/30-mod-http-js.conf
+                        -f /etc/nginx/modules-available/mod-http-njs.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-http-njs.conf \
+                            /etc/nginx/modules-enabled/30-mod-http-njs.conf
                     fi
 
                     if [[ "${NGX_HTTP_LUA}" && \
@@ -1467,9 +1467,9 @@ function init_nginx_install() {
                     fi
 
                     if [[ "${NGX_HTTP_NDK}" && \
-                        -f /etc/nginx/modules-available/mod-ndk-http.conf ]]; then
-                        run ln -fs /etc/nginx/modules-available/mod-ndk-http.conf \
-                            /etc/nginx/modules-enabled/20-mod-ndk-http.conf
+                        -f /etc/nginx/modules-available/mod-http-ndk.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-http-ndk.conf \
+                            /etc/nginx/modules-enabled/20-mod-http-ndk.conf
                     fi
 
                     if [[ "${NGX_HTTP_PASSENGER}" && \
@@ -1694,14 +1694,14 @@ EOL
 
         # Enable Lua package path.
         if [[ "${NGX_HTTP_LUA}" == true && \
-            -f /etc/nginx/modules-enabled/40-mod-http-headers-more-filter.conf ]]; then
+            -f /etc/nginx/modules-enabled/30-mod-http-lua.conf ]]; then
             run sed -i "s|#lua_package_path|lua_package_path|g" \
                 /etc/nginx/nginx.conf
         fi
 
         # Enable PageSpeed config.
         if [[ "${NGX_PAGESPEED}" == true && \
-            -f /etc/nginx/modules-enabled/30-mod-http-lua.conf ]]; then
+            -f /etc/nginx/modules-enabled/60-mod-pagespeed.conf ]]; then
             run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" \
                 /etc/nginx/nginx.conf
         fi
@@ -1717,6 +1717,9 @@ EOL
             [ ! -d /etc/nginx/ssl ] && mkdir -p /etc/nginx/ssl
             run openssl dhparam -out "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" "${DH_LENGTH}"
         fi
+
+        # Generate default hostname SSL cert.
+        generate_hostname_cert
 
         # Final test.
         if [[ "${DRYRUN}" != true ]]; then
@@ -1760,6 +1763,61 @@ EOL
         fi
     else
         info "Nginx HTTP (web) server installation skipped."
+    fi
+}
+
+function generate_hostname_cert() {
+    # Generate a new certificate for the hostname domain.
+    if [[ "${ENVIRONMENT}" == prod* ]]; then
+        # Stop webserver first.
+        run systemctl stop nginx.service
+
+        if [[ $(dig "${HOSTNAME}" +short) == "${SERVER_IP}" ]]; then
+        run certbot certonly --standalone --agree-tos --preferred-challenges http \
+            --webroot-path=/usr/share/nginx/html -d "${HOSTNAME}"
+        export HOSTNAME_CERT_PATH && \
+        HOSTNAME_CERT_PATH="/etc/letsencrypt/live/${HOSTNAME}"
+        fi
+
+        # Re-start webserver.
+        run systemctl start nginx.service
+    else
+        # Self-signed certificate for local development environment.
+        run sed -i "s|^CN\ =\ .*|CN\ =\ ${HOSTNAME}|g" /etc/lemper/ssl/ca.conf && \
+        run sed -i "s|^CN\ =\ .*|CN\ =\ ${HOSTNAME}|g" /etc/lemper/ssl/csr.conf && \
+        run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${HOSTNAME}|g" /etc/lemper/ssl/csr.conf && \
+        run sed -i "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${HOSTNAME}|g" /etc/lemper/ssl/csr.conf && \
+        run sed -r -i "s|^IP.1\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.1\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+        run sed -r -i "s|^IP.2\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.2\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+        run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${HOSTNAME}|g" /etc/lemper/ssl/cert.conf
+
+        # Create Certificate Authority (CA).
+        run openssl req -x509 -sha256 -days 365000 -nodes -newkey "rsa:${KEY_HASH_LENGTH}" \
+        -keyout /etc/lemper/ssl/lemperCA.key -out /etc/lemper/ssl/lemperCA.crt \
+        -config /etc/lemper/ssl/ca.conf && \
+
+        # Create Server Private Key.
+        run openssl genrsa -out "/etc/lemper/ssl/${HOSTNAME}/privkey.pem" "${KEY_HASH_LENGTH}" && \
+
+        # Generate Certificate Signing Request (CSR) using Server Private Key.
+        run openssl req -new -key "/etc/lemper/ssl/${HOSTNAME}/privkey.pem" \
+        -out "/etc/lemper/ssl/${HOSTNAME}/csr.pem" -config /etc/lemper/ssl/csr.conf
+
+        # Generate SSL certificate With self signed CA.
+        run openssl x509 -req -sha256 -days 365000 -CAcreateserial \
+        -CA /etc/lemper/ssl/lemperCA.crt -CAkey /etc/lemper/ssl/lemperCA.key \
+        -in "/etc/lemper/ssl/${HOSTNAME}/csr.pem" -out "/etc/lemper/ssl/${HOSTNAME}/cert.pem" \
+        -extfile /etc/lemper/ssl/cert.conf
+
+        # Create chain file.
+        run cat /etc/lemper/ssl/lemperCA.crt "/etc/lemper/ssl/${HOSTNAME}/cert.pem" > \
+        "/etc/lemper/ssl/${HOSTNAME}/chain.pem"
+
+        if [ -f "/etc/lemper/ssl/${HOSTNAME}/cert.pem" ]; then
+        success "Self-signed SSL certificate has been successfully generated."
+        else
+        fail "An error occurred when generating self-signed SSL certificate."
+        fi
     fi
 }
 
