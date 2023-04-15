@@ -128,7 +128,7 @@ function install_certbot_pip() {
     run python -m venv /opt/certbot/ && \
     run /opt/certbot/bin/pip install --upgrade pip setuptools cffi && \
     run /opt/certbot/bin/pip install --upgrade certbot certbot-nginx && \
-    run ln -s /opt/certbot/bin/certbot /usr/bin/certbot
+    run ln -sf /opt/certbot/bin/certbot /usr/bin/certbot
 }
 
 echo "[Certbot Let's Encrypt Installation]"
