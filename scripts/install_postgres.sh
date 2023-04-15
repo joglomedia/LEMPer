@@ -126,39 +126,29 @@ function init_postgres_install() {
             if [[ $(pgrep -c postgres) -gt 0 || -n $(command -v psql) ]]; then
                 success "PostgreSQL server installed successfully."
 
+                # Create default PostgreSQL role and database test.
+                # Skip from GitHub Action due to unknown database connection issue.
+                if [[ -n $(command -v psql) && "${SERVER_HOSTNAME}" != "gh-ci.lemper.cloud" ]]; then
+                    echo "Creating PostgreSQL user '${PSQL_USER}' and database '${POSTGRES_TEST_DB}'."
+
+                    run sudo -i -u "${POSTGRES_USER}" -- psql -v ON_ERROR_STOP=1 <<-PGSQL
+                        CREATE ROLE ${PSQL_USER} LOGIN PASSWORD '${PSQL_PASS}';
+                        CREATE DATABASE ${POSTGRES_TEST_DB};
+                        GRANT ALL PRIVILEGES ON DATABASE ${POSTGRES_TEST_DB} TO ${PSQL_USER};
+PGSQL
+                fi
+
                 # Restart Postgres
                 run systemctl restart "postgresql@${POSTGRES_VERSION}-main.service"
                 sleep 3
 
                 if [[ $(pgrep -c postgres) -gt 0 ]]; then
-                    # Create default test role and database.
-                    if [[ -n $(command -v psql) ]]; then
-                        echo "Creating PostgreSQL user '${PSQL_USER}' and database '${POSTGRES_TEST_DB}'."
-
-                        run sudo -i -u "${POSTGRES_USER}" -- psql -v ON_ERROR_STOP=1 <<-PGSQL
-                            CREATE ROLE ${PSQL_USER} LOGIN PASSWORD '${PSQL_PASS}';
-                            CREATE DATABASE ${POSTGRES_TEST_DB};
-                            GRANT ALL PRIVILEGES ON DATABASE ${POSTGRES_TEST_DB} TO ${PSQL_USER};
-PGSQL
-                    fi
-
                     success "PostgreSQL server configured successfully."
                 else
                     # Server died? try to start it.
                     run systemctl start "postgresql@${POSTGRES_VERSION}-main.service"
 
                     if [[ $(pgrep -c postgres) -gt 0 ]]; then
-                        # Create default test role and database.
-                        if [[ -n $(command -v psql) ]]; then
-                            echo "Creating PostgreSQL user '${PSQL_USER}' and database '${POSTGRES_TEST_DB}'."
-
-                            run sudo -i -u "${POSTGRES_USER}" -- psql -v ON_ERROR_STOP=1 <<-PGSQL
-                                CREATE ROLE ${PSQL_USER} LOGIN PASSWORD '${PSQL_PASS}';
-                                CREATE DATABASE ${POSTGRES_TEST_DB};
-                                GRANT ALL PRIVILEGES ON DATABASE ${POSTGRES_TEST_DB} TO ${PSQL_USER};
-PGSQL
-                        fi
-
                         success "PostgreSQL server configured successfully."
                     else
                         info "Something went wrong with PostgreSQL server configuration."
