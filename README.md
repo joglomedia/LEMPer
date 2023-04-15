@@ -20,7 +20,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 ## Features
 
 * Nginx - A high performance web server and a reverse proxy server.
-  * Community package from [Ondrej's Nginx repository](https://launchpad.net/~ondrej/+archive/ubuntu/nginx).
+  * Community package from [Ondrej repo](https://launchpad.net/~ondrej/+archive/ubuntu/nginx) or @eilandert's [MyGuard repo](https://deb.myguard.nl/nginx-modules/) with built-in PageSpeed module.
   * Custom build from [source](https://github.com/nginx/nginx) featured with :
     * [Brotli module](https://github.com/google/ngx_brotli.git) an alternative compression to Gzip
     * [Lua Nginx module](https://github.com/openresty/lua-nginx-module) with LuaJIT 2 library
@@ -28,14 +28,14 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
     * FastCGI [cache purge module](https://github.com/nginx-modules/ngx_cache_purge.git) for atomic cache purging
     * Customizable SSL library: OpenSSL (default), LibreSSL, and BoringSSL
     * and much more useful 3rd-party modules.
-  * Pre-configured optimization for low-end VPS/cloud server. Need reliable VPS/cloud server? Get one from [UpCloud](https://masedi.net/upcloud/) or [DigitalOcean](https://masedi.net/digitalocean/).
+  * Pre-configured optimization for low-end VPS/cloud server. Need reliable VPS/cloud server? Get one from [UpCloud](https://masedi.net/l/upcloud/) or [DigitalOcean](https://masedi.net/l/digitalocean/).
   * Nginx virtual host (vhost) configuration optimized for WordPress and several PHP Frameworks.
   * Support HTTP/2 natively for your secure website.
   * Free SSL certificates from [Let's Encrypt](https://letsencrypt.org/).
   * Get an A+ grade on several SSL Security Test ([Qualys SSL Labs](https://www.ssllabs.com/ssltest/analyze.html?d=masedi.net), [ImmuniWeb](https://www.immuniweb.com/ssl/?id=bVrykFnK), and Wormly).
 * PHP - Most used language that [powers 78.9% of all websites](https://w3techs.com/technologies/details/pl-php) around the universe.
   * Community package from [Ondrej's PHP repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
-  * Multiple PHP versions 5.6 [EOL], 7.0 [EOL], 7.1 [EOL], 7.2 [EOL], 7.3 [EOL], 7.4 [SFO], 8.0, 8.1 (Latest).
+  * Multiple PHP versions ~5.6 [EOL]~, ~7.0 [EOL]~, ~7.1 [EOL]~, ~7.2 [EOL]~, ~7.3 [EOL]~, 7.4 [SFO], 8.0, 8.1, 8.2 (Latest).
   * Run PHP as user who own the file (Multi-user isolation via FPM pool).
   * Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
   * Supported PHP Framework and CMS:
@@ -45,11 +45,11 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
     * more coming soon.
   * PHP Zend OPcache.
   * PHP Loader, ionCube & SourceGuardian.
-* SQL database with MariaDB 10 (MySQL drop-in replacement).
+* SQL database with MariaDB (MySQL drop-in replacement) or PostgreSQL.
 * NoSQL database with MongoDB.
 * Key-value store database with Redis.
 * In-memory cache with Memcached.
-* FTP server with VSFTPD or Pure-FTPd (_coming soon_).
+* FTP server with VSFTPD or Pure-FTPd.
 * Web-based administration tools:
   * [Adminer](https://www.adminer.org/) web-based SQL & MongoDB database manager (PhpMyAdmin replacement).
   * [phpRedisAdmin](https://github.com/erikdubbelboer/phpRedisAdmin) web-based Redis database manager.
@@ -82,7 +82,7 @@ sudo ./remove.sh
 
 ### LEMPer Command Line Administration Tool
 
-LEMPer comes with friendly command line tool which will make your LEMP stack administration much easier. These command line tool called Lemper CLI (lemper-cli) for creating new virtual host and managing existing LEMP stack.
+LEMPer packed with friendly command line tool which will make your LEMP stack administration much easier. These command line tool called Lemper CLI (lemper-cli) for creating new virtual host and managing existing LEMP stack.
 
 #### LEMPer CLI Usage
 
@@ -164,10 +164,11 @@ http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
 * [x] Add [Let's Encrypt SSL](https://letsencrypt.org/)
 * [x] Add network security (iptable rules, firewall configurator, else?)
 * [x] Add database backup tool (Mariabackup, Percona Xtrabackup, else?)
+* [x] Add PostgreSQL database (SQL object-relational database system)
 * [x] Add enhanced security (AppArmor, cgroups, jailkit (chrooted/jail users), fail2ban, else?)
-* [ ] Add CrowdSec a modern Host-based Intrusion Detection System (replacement option for Fail2ban)
+* [ ] Add CrowdSec a modern Host-based Intrusion Prevention System (modern-replacement for Fail2ban)
 * [ ] Add NodeJS installation to support modern web frontend development
-* [ ] Add Pure-FTPd installation as an alternative option to VSFTPD
+* [x] Add Pure-FTPd installation as an alternative option to VSFTPD
 * [ ] Add file backup tool (Borg, Duplicati, Rclone, Restic, Rsnapshot, else?)
 * [ ] Add server monitoring (Amplify, Monit, Nagios, else?)
 * [ ] Add user account & hosting package management
@@ -229,6 +230,6 @@ LEMPer Stack is open-source project licensed under the GNU GPLv3 license.
 
 ## Copyright
 
-(c) 2014-2022 | [MasEDI.Net](https://masedi.net/)
+(c) 2014-2023 | [MasEDI.Net](https://masedi.net/)
 
 ### Enjoy LEMPer Stack ;)
