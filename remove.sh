@@ -73,6 +73,12 @@ if [ -f ./scripts/remove_mariadb.sh ]; then
     . ./scripts/remove_mariadb.sh
 fi
 
+### Remove PostgreSQL ###
+if [ -f ./scripts/remove_postgres.sh ]; then
+    echo ""
+    . ./scripts/remove_postgres.sh
+fi
+
 ### Remove PHP & FPM ###
 if [ -f ./scripts/remove_php.sh ]; then
     echo ""

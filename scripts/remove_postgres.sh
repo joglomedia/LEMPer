@@ -21,7 +21,7 @@ fi
 
 function init_postgres_removal() {
     local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
-    local POSTGRES_USER=${POSTGRES_USER:-"postgres"}
+    local POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER:-"postgres"}
     #local POSTGRES_PKGS=()
 
     # Stop PostgreSQL mysql server process.
@@ -40,12 +40,12 @@ function init_postgres_removal() {
         run apt-get purge -q -y $(dpkg-query -l | awk '/postgresql/ { print $2 }' | grep -wE "^postgresql")
 
         # Remove PostgreSQL default user.
-        if [[ -n $(getent passwd "${POSTGRES_USER}") ]]; then
-            run userdel -r "${POSTGRES_USER}"
+        if [[ -n $(getent passwd "${POSTGRES_SUPERUSER}") ]]; then
+            run userdel -r "${POSTGRES_SUPERUSER}"
         fi
 
-        if [[ -n $(getent group "${POSTGRES_USER}") ]]; then
-            run groupdel "${POSTGRES_USER}"
+        if [[ -n $(getent group "${POSTGRES_SUPERUSER}") ]]; then
+            run groupdel "${POSTGRES_SUPERUSER}"
         fi
 
         # Remove config.

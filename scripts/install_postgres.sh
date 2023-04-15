@@ -66,13 +66,13 @@ function init_postgres_install() {
         done
     fi
 
-    #export POSTGRES_USER=${POSTGRES_USER:-"postgres"}
-    export POSTGRES_USER="postgres"
-    export PSQL_USER=${LEMPER_USERNAME:-"lemper"}
-    export PSQL_PASS=${LEMPER_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+    #export POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER:-"postgres"}
+    POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER:-"postgres"}
+    POSTGRES_DB_USER=${POSTGRES_DB_USER:-"${LEMPER_USERNAME}"}
+    POSTGRES_DB_PASS=${POSTGRES_DB_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
 
     local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
-    local POSTGRES_TEST_DB="${PSQL_USER}db"
+    local POSTGRES_TEST_DB="${POSTGRES_DB_USER}db"
     #local PGDATA=${POSTGRES_PGDATA:-"/var/lib/postgresql/data"}
     local POSTGRES_PKGS=()
 
@@ -84,11 +84,11 @@ function init_postgres_install() {
         echo "Installing PostgreSQL server..."
 
         # Default PostgreSQL user
-        #if [[ -z $(getent passwd "${POSTGRES_USER}") ]]; then
-        #    run groupadd -r "${POSTGRES_USER}" --gid=999 && \
-        #    run useradd -r -g "${POSTGRES_USER}" --uid=999 --home-dir=/var/lib/postgresql --shell=/bin/bash "${POSTGRES_USER}" && \
+        #if [[ -z $(getent passwd "${POSTGRES_SUPERUSER}") ]]; then
+        #    run groupadd -r "${POSTGRES_SUPERUSER}" --gid=999 && \
+        #    run useradd -r -g "${POSTGRES_SUPERUSER}" --uid=999 --home-dir=/var/lib/postgresql --shell=/bin/bash "${POSTGRES_SUPERUSER}" && \
         #    run mkdir -p /var/lib/postgresql && \
-        #    run chown -hR "${POSTGRES_USER}":"${POSTGRES_USER}" /var/lib/postgresql
+        #    run chown -hR "${POSTGRES_SUPERUSER}":"${POSTGRES_SUPERUSER}" /var/lib/postgresql
         #fi
 
         # Install Postgres
@@ -102,10 +102,10 @@ function init_postgres_install() {
         run apt-get install -q -y "${POSTGRES_PKGS[@]}"
 
         #run mkdir -p /var/run/postgresql && \
-        #run chown -R "${POSTGRES_USER}":"${POSTGRES_USER}" /var/run/postgresql && \
+        #run chown -R "${POSTGRES_SUPERUSER}":"${POSTGRES_SUPERUSER}" /var/run/postgresql && \
         #run chmod 2777 /var/run/postgresql
         #run mkdir -p "${PGDATA}" && \
-        #run chown -R "${POSTGRES_USER}":"${POSTGRES_USER}" "${PGDATA}" && \
+        #run chown -R "${POSTGRES_SUPERUSER}":"${POSTGRES_SUPERUSER}" "${PGDATA}" && \
         #run chmod 777 "${PGDATA}"
 
         # Configure PostgreSQL installation.
@@ -129,12 +129,12 @@ function init_postgres_install() {
                 # Create default PostgreSQL role and database test.
                 # Skip from GitHub Action due to unknown database connection issue.
                 if [[ -n $(command -v psql) && "${SERVER_HOSTNAME}" != "gh-ci.lemper.cloud" ]]; then
-                    echo "Creating PostgreSQL user '${PSQL_USER}' and database '${POSTGRES_TEST_DB}'."
+                    echo "Creating PostgreSQL user '${POSTGRES_DB_USER}' and database '${POSTGRES_TEST_DB}'."
 
-                    run sudo -i -u "${POSTGRES_USER}" -- psql -v ON_ERROR_STOP=1 <<-PGSQL
-                        CREATE ROLE ${PSQL_USER} LOGIN PASSWORD '${PSQL_PASS}';
+                    run sudo -i -u "${POSTGRES_SUPERUSER}" -- psql -v ON_ERROR_STOP=1 <<-PGSQL
+                        CREATE ROLE ${POSTGRES_DB_USER} LOGIN PASSWORD '${POSTGRES_DB_PASS}';
                         CREATE DATABASE ${POSTGRES_TEST_DB};
-                        GRANT ALL PRIVILEGES ON DATABASE ${POSTGRES_TEST_DB} TO ${PSQL_USER};
+                        GRANT ALL PRIVILEGES ON DATABASE ${POSTGRES_TEST_DB} TO ${POSTGRES_DB_USER};
 PGSQL
                 fi
 
@@ -156,10 +156,10 @@ PGSQL
                 fi
 
                 # Save config.
-                save_config -e "POSTGRES_USER=${POSTGRES_USER}\nPSQL_DB_USER=${PSQL_USER}\nPSQL_DB_PASS=${PSQL_PASS}\nPSQL_DB_TEST=${POSTGRES_TEST_DB}"
+                save_config -e "POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER}\nPSQL_DB_USER=${POSTGRES_DB_USER}\nPSQL_DB_PASS=${POSTGRES_DB_PASS}\nPSQL_DB_TEST=${POSTGRES_TEST_DB}"
 
                 # Save log.
-                save_log -e "Postgres server credentials.\nPostgres default user: ${POSTGRES_USER}, Postgres DB Username: ${PSQL_USER}, Postgres DB Password: ${PSQL_PASS}, Postgres DB Test: ${POSTGRES_TEST_DB}\nSave this credential and use it to authenticate your PostgreSQL test database connection."
+                save_log -e "Postgres server credentials.\nPostgres default user: ${POSTGRES_SUPERUSER}, Postgres DB Username: ${POSTGRES_DB_USER}, Postgres DB Password: ${POSTGRES_DB_PASS}, Postgres DB Test: ${POSTGRES_TEST_DB}\nSave this credential and use it to authenticate your PostgreSQL test database connection."
             else
                 info "Something went wrong with PostgreSQL server installation."
             fi

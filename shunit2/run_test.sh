@@ -74,7 +74,7 @@ testTrueInstallPostgres()
 {
     . scripts/install_postgres.sh
 
-    pgs=$(command -v postgres | grep -c postgres)
+    pgs=$(pgrep -c postgres)
     assertTrue "[[ ${pgs} -gt 0 ]]"
 }
 

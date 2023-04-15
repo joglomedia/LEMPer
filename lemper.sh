@@ -104,6 +104,12 @@ function lemper_install() {
         . ./scripts/install_mariadb.sh
     fi
 
+    ### PostgreSQL database installation ###
+    if [ -f ./scripts/install_postgres.sh ]; then
+        echo ""
+        . ./scripts/install_postgres.sh
+    fi
+
     ### Redis database installation ###
     if [ -f ./scripts/install_redis.sh ]; then
         echo ""
@@ -189,7 +195,9 @@ function lemper_install() {
 
         ### Recap ###
         if [[ -n "${LEMPER_PASSWORD}" ]]; then
-            CREDENTIALS="~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~
+            CREDENTIALS="
+~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Default System Information:
     Hostname : ${HOSTNAME}
     Server IP: ${SERVER_IP}
@@ -212,10 +220,10 @@ Mariabackup user information:
                 CREDENTIALS="${CREDENTIALS}
 
 PostgreSQL user information:
-    Default Postgres User: ${POSTGRES_USER}
+    Default Postgres User: ${POSTGRES_SUPERUSER}
 
-    PostgresSQL DB Username: ${PSQL_USER}
-    PostgresSQL DB Password: ${PSQL_PASS}"
+    PostgresSQL DB Username: ${POSTGRES_DB_USER}
+    PostgresSQL DB Password: ${POSTGRES_DB_PASS}"
             fi
 
             if [[ "${INSTALL_MONGODB}" == true ]]; then
@@ -266,6 +274,7 @@ File manager (TinyFileManager):
     Use your default LEMPer stack admin account for Filemanager login.
 
 Please Save the above Credentials & Keep it Secure!
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~"
 
             status "${CREDENTIALS}"
@@ -315,6 +324,12 @@ function lemper_remove() {
     if [ -f ./scripts/remove_mariadb.sh ]; then
         echo ""
         . ./scripts/remove_mariadb.sh
+    fi
+
+    ### Remove PostgreSQL ###
+    if [ -f ./scripts/remove_postgres.sh ]; then
+        echo ""
+        . ./scripts/remove_postgres.sh
     fi
 
     ### Remove PHP & FPM ###
