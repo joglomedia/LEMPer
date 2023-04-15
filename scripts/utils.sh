@@ -832,7 +832,7 @@ function footer_msg() {
 #       If useful, don't forget to buy me a cup of coffee or milk :D       #
 #   My PayPal is always open for donation, here https://paypal.me/masedi   #
 #                                                                          #
-#          (c) 2014-2022 | MasEDI.Net | https://masedi.net/lemper          #
+#          (c) 2014-2023 | MasEDI.Net | https://masedi.net/lemper          #
 #==========================================================================#
 EOL
 }
