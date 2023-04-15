@@ -43,20 +43,20 @@ testTrueInstallCertbot()
     assertTrue "[[ ${cb} -gt 0 ]]"
 }
 
-testEqualityInstallPhp()
-{
-    . scripts/install_php.sh
-
-    php_bin=$(command -v php)
-    assertEquals "/usr/bin/php" "${php_bin}"
-}
-
 testTrueInstallNginx()
 {
     . scripts/install_nginx.sh
 
     ngx=$(command -v nginx | grep -c nginx)
     assertTrue "[[ ${ngx} -gt 0 ]]"
+}
+
+testEqualityInstallPhp()
+{
+    . scripts/install_php.sh
+
+    php_bin=$(command -v php)
+    assertEquals "/usr/bin/php" "${php_bin}"
 }
 
 testEqualityInstallMySQL()
