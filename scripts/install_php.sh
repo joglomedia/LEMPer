@@ -223,12 +223,11 @@ function install_php() {
             run mkdir -p "/home/${LEMPER_USERNAME}/logs/php"
         fi
 
-        # Log rotation.
-        run cp -f "etc/logrotate.d/php${PHPv}-fpm" /etc/logrotate.d/ && \
-        run chmod 0644 "/etc/logrotate.d/php${PHPv}-fpm"
-
         # Optimize PHP & FPM configuration.
         optimize_php_fpm "${PHPv}"
+
+        # Log rotation.
+        add_php_logrotate "${PHPv}"
     fi
 }
 
@@ -392,12 +391,10 @@ php_admin_value[open_basedir] = /usr/share/nginx/html
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
-php_admin_value[error_log] = /var/log/php/php${PHPv}-fpm.\$pool.log
+php_admin_value[error_log] = /var/log/php/${PHPv}-fpm.\$pool_error.log
 php_admin_value[sys_temp_dir] = /usr/share/nginx/html/.lemper/tmp
 php_admin_value[upload_tmp_dir] = /usr/share/nginx/html/.lemper/tmp
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
-php_admin_value[opcache.file_cache] = /usr/share/nginx/html/.lemper/tmp/php_opcache
-php_admin_value[opcache.error_log] = /var/log/php/php${PHPv}-opcache_error.log
 
 ; Configuration below can be overwritten from PHP call 'ini_set'.
 php_flag[short_open_tag] = off
@@ -413,7 +410,10 @@ php_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
 php_flag[display_errors] = on
 php_flag[cgi.fix_pathinfo] = 1
 php_value[date.timezone] = UTC
-php_value[session.save_path] = /usr/share/nginx/html/.lemper/tmp/php_sessions
+php_value[session.save_handler] = files
+php_value[session.save_path] = /usr/share/nginx/html/.lemper/php/sessions
+php_value[soap.wsdl_cache_dir] = /usr/share/nginx/html/.lemper/php/wsdlcache
+php_value[opcache.file_cache] = /usr/share/nginx/html/.lemper/php/opcache
 EOL
         else
             info "Default FPM pool optimized in dry run mode."
@@ -422,7 +422,7 @@ EOL
 
     # Copy the optimized-version of php fpm default lemper pool.
     local POOLNAME=${LEMPER_USERNAME:-"lemper"}
-    if [[ -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" && ${POOLNAME} = "lemper" ]]; then
+    if [[ -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" && ${POOLNAME} == "lemper" ]]; then
         run cp -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
 
         # Update timezone.
@@ -469,18 +469,17 @@ chdir = /home/${POOLNAME}
 ;catch_workers_output = yes
 ;decorate_workers_output = no
 
-security.limit_extensions = .php .php5 .php7 .php${PHPv//./}
+security.limit_extensions = .php .php7 .php8 .php${PHPv//./}
 
 ; Custom PHP ini settings for LEMPer Stack.
 php_admin_value[open_basedir] = /home/${POOLNAME}
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
-php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-fpm.log
+php_admin_value[error_log] = /var/log/php/${PHPv}-fpm.\$pool_error.log
 php_admin_value[sys_temp_dir] = /home/${POOLNAME}/.lemper/tmp
 php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.lemper/tmp
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
-php_admin_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/tmp/php_opcache
 
 ; Configuration below can be overwritten from PHP call 'ini_set'.
 php_flag[short_open_tag] = off
@@ -496,7 +495,10 @@ php_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
 php_flag[display_errors] = on
 php_flag[cgi.fix_pathinfo] = 1
 php_value[date.timezone] = UTC
-php_value[session.save_path] = /home/${POOLNAME}/.lemper/tmp/php_sessions
+php_value[session.save_handler] = files
+php_value[session.save_path] = /home/${POOLNAME}/.lemper/php/sessions
+php_value[soap.wsdl_cache_dir] = /home/${POOLNAME}/.lemper/php/wsdlcache
+php_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/php/opcache
 EOL
         else
             info "Custom FPM pool '${POOLNAME}' created in dry run mode."
@@ -505,8 +507,9 @@ EOL
 
     # Create default directories.
     run mkdir -p "/home/${POOLNAME}/.lemper/tmp"
-    run mkdir -p "/home/${POOLNAME}/.lemper/tmp/php_opcache"
-    run mkdir -p "/home/${POOLNAME}/.lemper/tmp/php_sessions"
+    run mkdir -p "/home/${POOLNAME}/.lemper/php/sessions"
+    run mkdir -p "/home/${POOLNAME}/.lemper/php/wsdlcache"
+    run mkdir -p "/home/${POOLNAME}/.lemper/php/opcache"
     run mkdir -p "/home/${POOLNAME}/cgi-bin"
     run chown -hR "${POOLNAME}:${POOLNAME}" "/home/${POOLNAME}"
 
@@ -514,6 +517,33 @@ EOL
     #sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
     #sed -i "s/php_flag[cgi.fix_pathinfo]\ =\ 1/php_flag[cgi.fix_pathinfo]\ =\ 0/g" \
     #    /etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf
+}
+
+function add_php_logrotate() {
+    # PHP version.
+    local PHPv="${1}"
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
+    fi
+
+    run touch "/etc/logrotate.d/php${PHPv}-fpm"
+    cat >> "/etc/logrotate.d/php${PHPv}-fpm" <<EOL
+/var/log/php${PHPv}-fpm.log /home/*/logs/php/php${PHPv}-fpm.log {
+    rotate 12
+    weekly
+    missingok
+    notifempty
+    compress
+    delaycompress
+    postrotate
+        if [ -x /usr/lib/php/php${PHPv}-fpm-reopenlogs ]; then
+            /usr/lib/php/php${PHPv}-fpm-reopenlogs;
+        fi
+    endscript
+}
+EOL
+
+    run chmod 0644 "/etc/logrotate.d/php${PHPv}-fpm"
 }
 
 ##
@@ -967,7 +997,7 @@ function init_php_install() {
                     ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
                     ${SELECTED_PHP} != "8.0" &&  ${SELECTED_PHP} != "8.1" && \
                     ${SELECTED_PHP} != "8.2" && ${SELECTED_PHP} != "all" ]]; do
-                read -rp "Enter a PHP version from an option above [1-9]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
+                read -rp "Enter a PHP version from an option above [1-10]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
             done
 
             case "${SELECTED_PHP}" in
@@ -1055,7 +1085,8 @@ if [[ -n $(command -v php5.6) && \
     -n $(command -v php7.3) && \
     -n $(command -v php7.4) && \
     -n $(command -v php8.0) && \
-    -n $(command -v php8.1) && "${FORCE_INSTALL}" != true ]]; then
+    -n $(command -v php8.1) && \
+    -n $(command -v php8.2) && "${FORCE_INSTALL}" != true ]]; then
     info "All available PHP version already exists, installation skipped."
 else
     init_php_install "$@"

@@ -35,12 +35,15 @@ function init_certbotle_removal() {
         [ -x /usr/bin/certbot ] && run unlink /usr/bin/certbot
         [[ -n $(command -v snap) ]] && run snap remove certbot
     else
-        echo "Certbot package not found, possibly installed from source."
+        echo "Certbot package not found, possibly installed from Python's pip or source."
 
         CERTBOT_BIN=$(command -v certbot)
         echo "Certbot binary executable: ${CERTBOT_BIN}"
 
-        #run python -m pip uninstall certbot
+        if [[ -x /opt/certbot/bin/pip ]]; then
+            run unlink /usr/bin/certbot && \
+            run /opt/certbot/bin/pip uninstall -y certbot certbot-nginx
+        fi
     fi
 
     # Remove Certbot config files.

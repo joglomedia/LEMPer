@@ -43,7 +43,7 @@ run apt-get install -q -y \
     libcurl4-openssl-dev libgpgme11-dev libssl-dev libpcre3-dev libxml2-dev libxslt1-dev \
     libtool locales logrotate lsb-release make net-tools openssh-server openssl pkg-config \
     re2c rsync software-properties-common sasl2-bin snmp sudo sysstat tar tzdata unzip wget \
-    whois xz-utils zlib1g-dev geoip-bin geoip-database gettext libgeoip-dev
+    whois xz-utils zlib1g-dev geoip-bin geoip-database gettext libgeoip-dev libpthread-stubs0-dev uuid-dev
 
 # Install Python 3
 echo "Installing Python..."
@@ -55,7 +55,7 @@ case "${DISTRIB_NAME}" in
                 run add-apt-repository ppa:deadsnakes/ppa -y && \
                 run apt-get update -q -y && \
                 run apt-get install -q -y python3.7 python3.7-dev python3.7-venv \
-                    python3.9 python3.9-dev python3.9-venv && \
+                    python3.9 python3.9-dev python3.9-venv python3-pip && \
                 run update-alternatives --install /usr/bin/python python "$(command -v python3.7)" 37 && \
                 run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
                 run update-alternatives --set python /usr/bin/python3.7
@@ -67,7 +67,7 @@ case "${DISTRIB_NAME}" in
         run add-apt-repository ppa:deadsnakes/ppa -y && \
         run apt-get update -q -y && \
         run apt-get install -q -y python3.7 python3.7-dev python3.7-venv \
-            python3.9 python3.9-dev python3.9-venv && \
+            python3.9 python3.9-dev python3.9-venv python3-pip && \
         run update-alternatives --install /usr/bin/python python "$(command -v python3.7)" 37 && \
         run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
         run update-alternatives --set python /usr/bin/python3.7

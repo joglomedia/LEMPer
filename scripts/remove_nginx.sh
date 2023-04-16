@@ -25,9 +25,8 @@ function init_nginx_removal() {
     if [[ $(pgrep -c nginx) -gt 0 ]]; then
         echo "Stopping nginx..."
         run systemctl stop nginx
+        run systemctl disable nginx
     fi
-
-    run systemctl disable nginx
 
     if [[ ${NGX_VERSION} == "mainline" || ${NGX_VERSION} == "latest" ]]; then
         local NGINX_REPO="nginx-mainline"
@@ -41,14 +40,18 @@ function init_nginx_removal() {
 
         # shellcheck disable=SC2046
         run apt-get purge -q -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
+
         if [[ "${FORCE_REMOVE}" == true ]]; then
-            run add-apt-repository -y --remove ppa:nginx/stable
+            #run add-apt-repository -y --remove ppa:nginx/stable
+            run rm -f "/etc/apt/sources.list.d/ondrej-nginx-${RELEASE_NAME}.list"
+            run rm -f "/etc/apt/sources.list.d/myguard-nginx-${RELEASE_NAME}.list"
         fi
     elif dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-custom"; then
         echo "Found nginx-custom package installation, removing..."
 
         # shellcheck disable=SC2046
         run apt-get purge -q -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
+
         if [[ "${FORCE_REMOVE}" == true ]]; then
             run add-apt-repository -y --remove ppa:rtcamp/nginx
         fi
@@ -57,8 +60,11 @@ function init_nginx_removal() {
 
         # shellcheck disable=SC2046
         run apt-get purge -q -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx") $(dpkg-query -l | awk '/libnginx/ { print $2 }' | grep -wE "^libnginx")
+
         if [[ "${FORCE_REMOVE}" == true ]]; then
-            run add-apt-repository -y --remove "ppa:ondrej/${NGINX_REPO}"
+            #run add-apt-repository -y --remove "ppa:ondrej/${NGINX_REPO}"
+            run rm -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
+            run rm -f "/etc/apt/sources.list.d/myguard-nginx-${RELEASE_NAME}.list"
         fi
     else
         info "Nginx package not found, possibly installed from source."
@@ -92,8 +98,8 @@ function init_nginx_removal() {
 
             # Delete default account credential from server .htpasswd.
             if [ -f /srv/.htpasswd ]; then
-                local USERNAME=${LEMPER_USERNAME:-"lemper"}
-                run sed -i "/^${USERNAME}:/d" /srv/.htpasswd
+                local LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
+                run sed -i "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
             fi
         else
             error "Sorry, we couldn't find any Nginx binary executable file."

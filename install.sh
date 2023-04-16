@@ -84,6 +84,12 @@ if [ -f ./scripts/install_certbotle.sh ]; then
     . ./scripts/install_certbotle.sh
 fi
 
+### Nginx installation ###
+if [ -f ./scripts/install_nginx.sh ]; then
+    echo ""
+    . ./scripts/install_nginx.sh
+fi
+
 ### PHP installation ###
 if [ -f ./scripts/install_php.sh ]; then
     echo ""
@@ -96,16 +102,16 @@ if [ -f ./scripts/install_phalcon.sh ]; then
     . ./scripts/install_phalcon.sh
 fi
 
-### Nginx installation ###
-if [ -f ./scripts/install_nginx.sh ]; then
-    echo ""
-    . ./scripts/install_nginx.sh
-fi
-
 ### MySQL database installation ###
 if [ -f ./scripts/install_mariadb.sh ]; then
     echo ""
     . ./scripts/install_mariadb.sh
+fi
+
+### PostgreSQL database installation ###
+if [ -f ./scripts/install_postgres.sh ]; then
+    echo ""
+    . ./scripts/install_postgres.sh
 fi
 
 ### Redis database installation ###
@@ -183,8 +189,8 @@ if [[ "${FORCE_REMOVE}" == true ]]; then
 
     # Cleanup build dir
     echo "Clean up build directory..."
-    if [ -d "$BUILD_DIR" ]; then
-        run rm -fr "$BUILD_DIR"
+    if [ -d "${BUILD_DIR}" ]; then
+        run rm -fr "${BUILD_DIR}"
     fi
 fi
 
@@ -193,7 +199,9 @@ if [[ "${DRYRUN}" != true ]]; then
 
     ### Recap ###
     if [[ -n "${LEMPER_PASSWORD}" ]]; then
-        CREDENTIALS="~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~
+        CREDENTIALS="
+~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~
+
 Default system information:
     Hostname : ${HOSTNAME}
     Server IP: ${SERVER_IP}
@@ -216,10 +224,10 @@ Mariabackup user information:
             CREDENTIALS="${CREDENTIALS}
 
 PostgreSQL user information:
-    Default Postgres User: ${POSTGRES_USER}
+    Postgres Superuser: ${POSTGRES_SUPERUSER}
 
-    PostgresSQL DB Username: ${PSQL_USER}
-    PostgresSQL DB Password: ${PSQL_PASS}"
+    Postgres DB Username: ${POSTGRES_DB_USER}
+    Postgres DB Password: ${POSTGRES_DB_PASS}"
         fi
 
         if [[ "${INSTALL_MONGODB}" == true ]]; then
@@ -270,6 +278,7 @@ File manager (TinyFileManager):
     Use your default LEMPer stack admin account for Filemanager login.
 
 Please Save the above Credentials & Keep it Secure!
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~"
 
         status "${CREDENTIALS}"

@@ -58,7 +58,12 @@ function init_fail2ban_install() {
             2 | "source")
                 echo "Installing Fail2ban from source..."
 
-                FAIL2BAN_VERSION=${FAIL2BAN_VERSION:-"0.11.2"}
+                FAIL2BAN_VERSION=${FAIL2BAN_VERSION:-"1.0.2"}
+
+                if [[ "${FAIL2BAN_VERSION}" == "latest" ]]; then
+                    FAIL2BAN_VERSION="master"
+                fi
+
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
                 run cd "${BUILD_DIR}" || return 1
@@ -89,10 +94,10 @@ function init_fail2ban_install() {
         if [[ "${DRYRUN}" != true ]]; then
             SSH_PORT=${SSH_PORT:-22}
 
-            # Add Wordpress custom filter.
-            run cp -f etc/fail2ban/filter.d/wordpress.conf /etc/fail2ban/filter.d/
+            # Add custom filter.
+            run cp -fr etc/fail2ban/filter.d/*.conf /etc/fail2ban/filter.d/
 
-            # Enable jail
+            # Enable jail.
             cat > /etc/fail2ban/jail.local <<EOL
 [DEFAULT]
 # banned for 30 days

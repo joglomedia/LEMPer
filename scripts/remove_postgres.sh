@@ -19,6 +19,59 @@ if [[ "$(type -t run)" != "function" ]]; then
     preflight_system_check
 fi
 
+function init_postgres_removal() {
+    local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
+    local POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER:-"postgres"}
+    #local POSTGRES_PKGS=()
+
+    # Stop PostgreSQL mysql server process.
+    if [[ $(pgrep -c postgres) -gt 0 ]]; then
+        echo "Stopping postgres..."
+        run systemctl stop "postgresql@${POSTGRES_VERSION}-main.service"
+        run systemctl disable "postgresql@${POSTGRES_VERSION}-main.service"
+    fi
+
+    #run systemctl disable "postgresql@${POSTGRES_VERSION}-main.service"
+
+    if dpkg-query -l | awk '/postgresql/ { print $2 }' | grep -qwE "^postgresql"; then
+        echo "Found PostgreSQL ${POSTGRES_VERSION} packages installation, removing..."
+
+        # shellcheck disable=SC2046
+        run apt-get purge -q -y $(dpkg-query -l | awk '/postgresql/ { print $2 }' | grep -wE "^postgresql")
+
+        # Remove PostgreSQL default user.
+        if [[ -n $(getent passwd "${POSTGRES_SUPERUSER}") ]]; then
+            run userdel -r "${POSTGRES_SUPERUSER}"
+        fi
+
+        if [[ -n $(getent group "${POSTGRES_SUPERUSER}") ]]; then
+            run groupdel "${POSTGRES_SUPERUSER}"
+        fi
+
+        # Remove config.
+        postgres_remove_config
+
+        # Remove repository.
+        if [[ "${FORCE_REMOVE}" == true ]]; then
+            run rm -f "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list"
+        fi
+    else
+        echo "No installed PostgreSQL ${POSTGRES_VERSION} or MySQL packages found."
+        echo "Possibly installed from source? Remove it manually!"
+    fi
+
+    # Final test.
+    if [[ "${DRYRUN}" != true ]]; then
+        if [[ $(pgrep -c postgres) -eq 0 ]]; then
+            success "PostgreSQL server removed."
+        else
+            info "PostgreSQL server not removed."
+        fi
+    else
+        info "PostgreSQL server removed in dry run mode."
+    fi
+}
+
 function postgres_remove_config() {
     local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
     local PGDATA=${POSTGRES_PGDATA:-"/var/lib/postgresql/data"}
@@ -46,66 +99,6 @@ function postgres_remove_config() {
         [ -d "/etc/postgresql/${POSTGRES_VERSION}" ] && run rm -fr "/etc/postgresql/${POSTGRES_VERSION}"
 
         echo "All database and configuration files deleted permanently."
-    fi
-}
-
-function init_postgres_removal() {
-    local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
-    local POSTGRES_USER=${POSTGRES_USER:-"postgres"}
-    local POSTGRES_PKGS=()
-
-    # Stop PostgreSQL mysql server process.
-    if [[ $(pgrep -c postgres) -gt 0 ]]; then
-        echo "Stopping postgres..."
-        run systemctl stop "postgresql@${POSTGRES_VERSION}-main.service"
-    fi
-
-    #run systemctl disable "postgresql@${POSTGRES_VERSION}-main.service"
-
-    if dpkg-query -l | awk '/postgresql/ { print $2 }' | grep -qwE "^postgresql"; then
-        echo "Found PostgreSQL ${POSTGRES_VERSION} packages installation, removing..."
-
-        # Installed Postgres packages.
-        if [[ "${POSTGRES_VERSION}" == "latest" || "${POSTGRES_VERSION}" == "stable" ]]; then
-            POSTGRES_PKGS+=("postgresql" "postgresql-client" "postgresql-client-common" "postgresql-common")
-        else
-            POSTGRES_PKGS+=("postgresql-${POSTGRES_VERSION}" "postgresql-client-${POSTGRES_VERSION}" \
-                "postgresql-client-common" "postgresql-common")
-        fi
-
-        # Remove PostgreSQL server.
-        run apt-get --purge remove -q -y "${POSTGRES_PKGS[@]}"
-
-        # Remove PostgreSQL default user.
-        if [[ -n $(getent passwd "${POSTGRES_USER}") ]]; then
-            run userdel -r "${POSTGRES_USER}"
-        fi
-
-        if [[ -n $(getent group "${POSTGRES_USER}") ]]; then
-            run groupdel "${POSTGRES_USER}"
-        fi
-
-        # Remove config.
-        postgres_remove_config
-
-        # Remove repository.
-        if [[ "${FORCE_REMOVE}" == true ]]; then
-            run rm -f "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list"
-        fi
-    else
-        echo "No installed PostgreSQL ${POSTGRES_VERSION} or MySQL packages found."
-        echo "Possibly installed from source? Remove it manually!"
-    fi
-
-    # Final test.
-    if [[ "${DRYRUN}" != true ]]; then
-        if [[ $(pgrep -c postgres) -eq 0 ]]; then
-            success "PostgreSQL server removed."
-        else
-            info "PostgreSQL server not removed."
-        fi
-    else
-        info "PostgreSQL server removed in dry run mode."
     fi
 }
 

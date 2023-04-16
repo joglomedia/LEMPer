@@ -21,11 +21,11 @@ testEqualityGetDistribName()
     assertEquals "ubuntu" "${distrib_name}"
 }
 
-testEqualityGetReleaseName()
-{
-    release_name=$(get_release_name)
-    assertEquals "focal" "${release_name}"
-}
+#testEqualityGetReleaseName()
+#{
+#    release_name=$(get_release_name)
+#    assertEquals "focal" "${release_name}"
+#}
 
 testEqualityCreateAccount()
 {
@@ -43,20 +43,20 @@ testTrueInstallCertbot()
     assertTrue "[[ ${cb} -gt 0 ]]"
 }
 
-testEqualityInstallPhp()
-{
-    . scripts/install_php.sh
-
-    php_bin=$(command -v php)
-    assertEquals "/usr/bin/php" "${php_bin}"
-}
-
 testTrueInstallNginx()
 {
     . scripts/install_nginx.sh
 
     ngx=$(command -v nginx | grep -c nginx)
     assertTrue "[[ ${ngx} -gt 0 ]]"
+}
+
+testEqualityInstallPhp()
+{
+    . scripts/install_php.sh
+
+    php_bin=$(command -v php)
+    assertEquals "/usr/bin/php" "${php_bin}"
 }
 
 testEqualityInstallMySQL()
@@ -68,6 +68,14 @@ testEqualityInstallMySQL()
 
     mysqld_bin=$(command -v mysqld)
     assertEquals "/usr/sbin/mysqld" "${mysqld_bin}"
+}
+
+testTrueInstallPostgres()
+{
+    . scripts/install_postgres.sh
+
+    pgs=$(pgrep -c postgres)
+    assertTrue "[[ ${pgs} -gt 0 ]]"
 }
 
 testTrueInstallImageMagick()

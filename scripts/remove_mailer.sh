@@ -80,9 +80,8 @@ function init_dovecot_removal() {
     if [[ $(pgrep -c dovecot) -gt 0 ]]; then
         echo "Stopping dovecot..."
         run systemctl stop dovecot
+        run systemctl disable dovecot
     fi
-
-    run systemctl disable dovecot
 
     if dpkg-query -l | awk '/dovecot/ { print $2 }' | grep -qwE "^dovecot"; then
         echo "Found Dovecot IMAP server package installation. Removing..."
@@ -136,6 +135,7 @@ function init_dovecot_removal() {
 function init_spfdkim_removal() {
     if [[ $(pgrep -c opendkim) -gt 0 ]]; then
         run systemctl stop opendkim
+        run systemctl disable opendkim
     fi
 
     if dpkg-query -l | awk '/opendkim/ { print $2 }' | grep -qwE "^opendkim"; then

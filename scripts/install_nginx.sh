@@ -20,14 +20,13 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 ##
-# Add Nginx repository.
+# Add Ondrej's Nginx repository.
 ##
-function add_nginx_repo() {
-    echo "Add Nginx repository..."
+function add_nginx_repo_ondrej() {
+    echo "Add Ondrej's Nginx repository..."
 
     # Nginx version.
     local NGINX_VERSION=${NGINX_VERSION:-"stable"}
-    export NGX_PACKAGE
 
     if [[ ${NGINX_VERSION} == "mainline" || ${NGINX_VERSION} == "latest" ]]; then
         local NGINX_REPO="nginx-mainline"
@@ -35,15 +34,9 @@ function add_nginx_repo() {
         local NGINX_REPO="nginx"
     fi
 
-    DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-    RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
-
-    #local ALTERNATIVE_REPO=false
-    #[[ "${RELEASE_NAME}" == "jessie" || "${RELEASE_NAME}" == "xenial" ]] && ALTERNATIVE_REPO=true
-
     case "${DISTRIB_NAME}" in
         debian)
-            if [ ! -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list" ]; then
+            if [[ ! -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
                 run touch "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb https://packages.sury.org/${NGINX_REPO}/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
@@ -52,7 +45,7 @@ function add_nginx_repo() {
                 info "${NGINX_REPO} repository already exists."
             fi
 
-            NGINX_PKG="nginx-extras"
+            NGINX_PKG="nginx-core"
         ;;
         ubuntu)
             # Nginx custom with ngx cache purge from Ondrej repo.
@@ -61,7 +54,44 @@ function add_nginx_repo() {
             run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}"
             run apt-get update -q -y
 
-            NGINX_PKG="nginx-extras"
+            NGINX_PKG="nginx-core"
+        ;;
+        *)
+            fail "Unable to add Nginx, this GNU/Linux distribution is not supported."
+        ;;
+    esac
+}
+
+##
+# Add MyGuard's Nginx repository.
+##
+function add_nginx_repo_myguard() {
+    echo "Add MyGuard's Nginx repository..."
+
+    # Nginx version.
+    NGINX_VERSION=${NGINX_VERSION:-"stable"}
+
+    if [[ ${NGINX_VERSION} == "mainline" || ${NGINX_VERSION} == "latest" ]]; then
+        local NGINX_REPO="nginx"
+    else
+        local NGINX_REPO="nginx"
+    fi
+
+    DISTRIB_ARCH=$(get_distrib_arch)
+
+    case "${DISTRIB_NAME}" in
+        debian | ubuntu)
+            if [[ ! -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
+                run touch "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
+                run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl ${RELEASE_NAME} main' > /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
+                run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl/openssl3 ${RELEASE_NAME} main' > /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
+                run wget -qO "/etc/apt/trusted.gpg.d/deb.myguard.nl.gpg" "https://deb.myguard.nl/pool/deb.myguard.nl.gpg"
+                run apt-get update -q -y
+            else
+                info "${NGINX_REPO} repository already exists."
+            fi
+
+            NGINX_PKG="nginx-core"
         ;;
         *)
             fail "Unable to add Nginx, this GNU/Linux distribution is not supported."
@@ -73,14 +103,14 @@ function add_nginx_repo() {
 # Initialize Nginx installation.
 ##
 function init_nginx_install() {
-    local SELECTED_INSTALLER=""
+    local SELECTED_INSTALLER=${NGINX_INSTALLER:-"source"}
+    local SELECTED_REPO="ondrej"
 
     if [[ "${AUTO_INSTALL}" == true ]]; then
         if [[ -z "${NGINX_INSTALLER}" || "${NGINX_INSTALLER}" == "none" ]]; then
             DO_INSTALL_NGINX="n"
         else
             DO_INSTALL_NGINX="y"
-            SELECTED_INSTALLER=${NGINX_INSTALLER:-"source"}
         fi
     else
         while [[ ${DO_INSTALL_NGINX} != "y" && ${DO_INSTALL_NGINX} != "n" ]]; do
@@ -100,17 +130,31 @@ function init_nginx_install() {
             read -rp "Select an option [1-2]: " -e SELECTED_INSTALLER
         done
 
-        # NgxPageSpeed module currently available from source install.
-        if [[ ${NGX_PAGESPEED} == true ]]; then
-            SELECTED_INSTALLER="source"
-            info "NGX_PAGESPEED module requires Nginx to be installed from source."
+        # NgxPageSpeed module currently available from source install or MyGuard repo.
+        if [[ "${NGX_PAGESPEED}" == true ]]; then
+            info "NGX_PAGESPEED module requires Nginx to be installed from source or MyGuard repo."
+
+            #if [[ "${NGINX_INSTALLER}" == "repo" ]]; then
+                # MyGuard repo only support mainline version.
+                echo "Switch Nginx repo to the mainline/latest version."
+
+                SELECTED_INSTALLER="repo"
+                SELECTED_REPO="myguard"
+            #else
+            #    SELECTED_INSTALLER="source"
+            #fi
         fi
 
         case "${SELECTED_INSTALLER}" in
             1|"repo")
-                add_nginx_repo
 
-                echo "Installing Nginx from package repository..."
+                if [[ "${SELECTED_REPO}" == "myguard" ]]; then
+                    add_nginx_repo_myguard
+                else
+                    add_nginx_repo_ondrej
+                fi
+
+                echo "Installing Nginx from ${SELECTED_REPO} repository..."
 
                 #if hash apt-get 2>/dev/null; then
                     if [[ -n "${NGINX_PKG}" ]]; then
@@ -128,7 +172,12 @@ function init_nginx_install() {
                             # Brotli compression
                             if "${NGX_HTTP_BROTLI}"; then
                                 echo "Adding ngx-http-brotli module..."
-                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-brotli")
+
+                                if [[ "${SELECTED_REPO}" == "myguard" ]]; then
+                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-brotli")
+                                else
+                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-brotli")
+                                fi
                             fi
 
                             # Cache Purge
@@ -158,13 +207,13 @@ function init_nginx_install() {
                             # HTTP Geoip module.
                             if "${NGX_HTTP_GEOIP}"; then
                                 echo "Adding ngx-http-geoip module..."
-                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libmaxminddb" "libnginx-mod-http-geoip" "libnginx-mod-stream-geoip")
+                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libmaxminddb0" "libmaxminddb-dev" "libnginx-mod-http-geoip" "libnginx-mod-stream-geoip")
                             fi
 
                             # GeoIP2
                             if "${NGX_HTTP_GEOIP2}"; then
                                 echo "Adding ngx-http-geoip2 module..."
-                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libmaxminddb" "libnginx-mod-http-geoip2" "libnginx-mod-stream-geoip2")
+                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libmaxminddb0" "libmaxminddb-dev" "libnginx-mod-http-geoip2" "libnginx-mod-stream-geoip2")
                             fi
 
                             # Headers more module.
@@ -182,7 +231,12 @@ function init_nginx_install() {
                             # Embed the power of Lua into Nginx HTTP Servers.
                             if "${NGX_HTTP_LUA}"; then
                                 echo "Adding ngx-http-lua module..."
-                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "luajit" "libluajit" "libnginx-mod-http-lua")
+
+                                if [[ "${SELECTED_REPO}" == "myguard" ]]; then
+                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "lua-resty" "lua-resty-lrucache" "libnginx-mod-http-lua")
+                                else
+                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "luajit" "libluajit" "libnginx-mod-http-lua")
+                                fi
                             fi
 
                             # Nginx Memc - An extended version of the standard memcached module.
@@ -194,7 +248,10 @@ function init_nginx_install() {
                             # NGX_HTTP_NAXSI is an open-source, high performance, low rules maintenance WAF for NGINX.
                             if "${NGX_HTTP_NAXSI}"; then
                                 echo "Adding ngx-http-naxsi (Web Application Firewall) module..."
-                                #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-naxsi")
+                                #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-naxsi")
+                                if [[ "${SELECTED_REPO}" == "myguard" ]]; then
+                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-naxsi")
+                                fi
                             fi
 
                             # NDK adds additional generic tools that module developers can use in their own modules.
@@ -205,9 +262,12 @@ function init_nginx_install() {
 
                             # NJS is a subset of the JavaScript language that allows extending nginx functionality.
                             # shellcheck disable=SC2153
-                            if "${NGX_HTTP_JS}"; then
-                                echo "Adding ngx-http-js module..."
-                                #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-js")
+                            if "${NGX_HTTP_NJS}"; then
+                                echo "Adding ngx-http-njs module..."
+                                #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-njs")
+                                if [[ "${SELECTED_REPO}" == "myguard" ]]; then
+                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-njs")
+                                fi
                             fi
 
                             # Nginx mod HTTP Passenger.
@@ -226,6 +286,9 @@ function init_nginx_install() {
                             if "${NGX_HTTP_REDIS2}"; then
                                 echo "Adding ngx-http-redis module..."
                                 #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-redis2")
+                                if [[ "${SELECTED_REPO}" == "myguard" ]]; then
+                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-redis2")
+                                fi
                             fi
 
                             # A filter module which can do both regular expression and fixed string substitutions for nginx
@@ -244,6 +307,9 @@ function init_nginx_install() {
                             if "${NGX_HTTP_VTS}"; then
                                 echo "Adding ngx-http-module-vts (VHost traffic status) module..."
                                 #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-vts")
+                                if [[ "${SELECTED_REPO}" == "myguard" ]]; then
+                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-vhost-traffic-status")
+                                fi
                             fi
 
                             # HTTP XSLT module.
@@ -262,6 +328,15 @@ function init_nginx_install() {
                             if "${NGX_NCHAN}"; then
                                 echo "Adding ngx-nchan (Pub/Sub) module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-nchan")
+                            fi
+
+                            # Nginx mod PageSpeed.
+                            if "${NGX_PAGESPEED}"; then
+                                echo "Adding ngx-pagespeed module..."
+                                #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-pagespeed")
+                                if [[ "${SELECTED_REPO}" == "myguard" ]]; then
+                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-pagespeed")
+                                fi
                             fi
 
                             # NGINX-based Media Streaming Server.
@@ -368,17 +443,17 @@ function init_nginx_install() {
                         #OPENSSL_SOURCE_URL="https://github.com/openssl/openssl/archive/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
 
                         if curl -sLI "${OPENSSL_SOURCE_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                        run wget -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${OPENSSL_SOURCE_URL}" && \
-                        run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                            run wget -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${OPENSSL_SOURCE_URL}" && \
+                            run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
 
-                        [[ -d "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" ]] && \
-                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                                --with-openssl=${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION} \
-                                --with-openssl-opt=enable-ec_nistp_64_gcc_128 \
-                                --with-openssl-opt=no-nextprotoneg \
-                                --with-openssl-opt=no-weak-ssl-ciphers"
+                            [[ -d "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" ]] && \
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --with-openssl=${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION} \
+                                    --with-openssl-opt=enable-ec_nistp_64_gcc_128 \
+                                    --with-openssl-opt=no-nextprotoneg \
+                                    --with-openssl-opt=no-weak-ssl-ciphers"
                         else
-                        error "Unable to determine OpenSSL source page."
+                            error "Unable to determine OpenSSL source page."
                         fi
 
                     # LibreSSL
@@ -386,64 +461,47 @@ function init_nginx_install() {
                         LIBRESSL_SOURCE_URL="https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
 
                         if curl -sLI "${LIBRESSL_SOURCE_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                        run wget -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${LIBRESSL_SOURCE_URL}" && \
-                        run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                            run wget -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${LIBRESSL_SOURCE_URL}" && \
+                            run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
 
-                        [[ -d "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" ]] && \
-                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                                --with-openssl=${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION} \
-                                --with-openssl-opt=no-weak-ssl-ciphers"
+                            [[ -d "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" ]] && \
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --with-openssl=${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION} \
+                                    --with-openssl-opt=no-weak-ssl-ciphers"
                         else
-                        error "Unable to determine LibreSSL source page."
+                            error "Unable to determine LibreSSL source page."
                         fi
 
                     # BoringSSL
                     elif grep -iq boringssl <<< "${NGINX_CUSTOMSSL_VERSION}"; then
                         # BoringSSL requires Golang, install it first.
                         if [[ -z $(command -v go) ]]; then
-                        GOLANG_VER="1.17.8"
+                            GOLANG_VER="1.17.8"
 
-                        local DISTRIB_ARCH
-                        case "${ARCH}" in
-                            i386 | i486| i586 | i686)
-                                DISTRIB_ARCH="386"
-                            ;;
-                            x86_64 | amd64)
-                                DISTRIB_ARCH="amd64"
-                            ;;
-                            arm64 | aarch* | armv8*)
-                                DISTRIB_ARCH="arm64"
-                            ;;
-                            arm | armv7*)
-                                DISTRIB_ARCH="armv6l"
-                            ;;
-                            *)
-                                DISTRIB_ARCH="386"
-                            ;;
-                        esac
+                            DISTRIB_ARCH=$(get_distrib_arch)
 
-                        case "${DISTRIB_NAME}" in
-                            debian)
-                                GOLANG_DOWNLOAD_URL="https://go.dev/dl/go${GOLANG_VER}.linux-${DISTRIB_ARCH}.tar.gz"
+                            case "${DISTRIB_NAME}" in
+                                debian)
+                                    GOLANG_DOWNLOAD_URL="https://go.dev/dl/go${GOLANG_VER}.linux-${DISTRIB_ARCH}.tar.gz"
 
-                                if curl -sLI "${GOLANG_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                                    run wget -O golang.tar.gz "${GOLANG_DOWNLOAD_URL}" && \
-                                    run tar -C /usr/local -zxf golang.tar.gz && \
-                                    run bash -c "echo -e '\nexport PATH=\"\$PATH:/usr/local/go/bin\"' >> ~/.profile" && \
-                                    run source ~/.profile
-                                else
-                                    info "Unable to determine Golang source page."
-                                fi
-                            ;;
-                            ubuntu)
-                                run add-apt-repository -y ppa:longsleep/golang-backports && \
-                                run apt-get update -q -y && \
-                                run apt-get install -q -y golang-go
-                            ;;
-                            *)
-                                fail "Unsupported distribution."
-                            ;;
-                        esac
+                                    if curl -sLI "${GOLANG_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
+                                        run wget -O golang.tar.gz "${GOLANG_DOWNLOAD_URL}" && \
+                                        run tar -C /usr/local -zxf golang.tar.gz && \
+                                        run bash -c "echo -e '\nexport PATH=\"\$PATH:/usr/local/go/bin\"' >> ~/.profile" && \
+                                        run source ~/.profile
+                                    else
+                                        info "Unable to determine Golang source page."
+                                    fi
+                                ;;
+                                ubuntu)
+                                    run add-apt-repository -y ppa:longsleep/golang-backports && \
+                                    run apt-get update -q -y && \
+                                    run apt-get install -q -y golang-go
+                                ;;
+                                *)
+                                    fail "Unsupported distribution."
+                                ;;
+                            esac
                         fi
 
                         # Split BoringSSL version.
@@ -455,33 +513,33 @@ function init_nginx_install() {
                         BORINGSSL_SOURCE_URL="https://boringssl.googlesource.com/boringssl/+archive/refs/heads/${BORINGSSL_VERSION}.tar.gz"
 
                         if curl -sLI "${BORINGSSL_SOURCE_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                        run wget -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${BORINGSSL_SOURCE_URL}" && \
-                        run mkdir -p "${NGINX_CUSTOMSSL_VERSION}" && \
-                        run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz" -C "${NGINX_CUSTOMSSL_VERSION}" && \
-                        run cd "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" && \
+                            run wget -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${BORINGSSL_SOURCE_URL}" && \
+                            run mkdir -p "${NGINX_CUSTOMSSL_VERSION}" && \
+                            run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz" -C "${NGINX_CUSTOMSSL_VERSION}" && \
+                            run cd "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" && \
 
-                        # Make an .openssl directory for nginx and then symlink BoringSSL's include directory tree.
-                        run mkdir -p build .openssl/lib .openssl/include && \
-                        run ln -sf "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/include/openssl" .openssl/include/openssl && \
+                            # Make an .openssl directory for nginx and then symlink BoringSSL's include directory tree.
+                            run mkdir -p build .openssl/lib .openssl/include && \
+                            run ln -sf "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/include/openssl" .openssl/include/openssl && \
 
-                        # Fix "Error 127" during build.
-                        run touch "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/include/openssl/ssl.h" && \
+                            # Fix "Error 127" during build.
+                            run touch "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/include/openssl/ssl.h" && \
 
-                        # Build BoringSSL static.
-                        run cmake -B"${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/build" -H"${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" && \
-                        run make -C"${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/build" -j"${NB_PROC}" && \
+                            # Build BoringSSL static.
+                            run cmake -B"${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/build" -H"${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" && \
+                            run make -C"${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/build" -j"${NB_PROC}" && \
 
-                        # Copy the BoringSSL crypto libraries to .openssl/lib so nginx can find them.
-                        run cp build/crypto/libcrypto.a build/ssl/libssl.a .openssl/lib && \
+                            # Copy the BoringSSL crypto libraries to .openssl/lib so nginx can find them.
+                            run cp build/crypto/libcrypto.a build/ssl/libssl.a .openssl/lib && \
 
-                        # Back to extra module dir.
-                        run cd "${EXTRA_MODULE_DIR}" || return 1
+                            # Back to extra module dir.
+                            run cd "${EXTRA_MODULE_DIR}" || return 1
 
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --with-cc-opt=\"-I${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/include\" \
-                            --with-ld-opt=\"-L${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/lib\""
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --with-cc-opt=\"-I${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/include\" \
+                                --with-ld-opt=\"-L${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/lib\""
                         else
-                        info "Unable to determine BoringSSL source page."
+                            info "Unable to determine BoringSSL source page."
                         fi
                     else
                         error "Unable to determine CustomSSL version."
@@ -502,7 +560,7 @@ function init_nginx_install() {
                         run tar -zxf "${NGINX_PCRE_VERSION}.tar.gz"
 
                         if [ -d "${BUILD_DIR}/${NGINX_PCRE_VERSION}" ]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} --with-pcre=${BUILD_DIR}/${NGINX_PCRE_VERSION} --with-pcre-jit"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} --with-pcre=${BUILD_DIR}/${NGINX_PCRE_VERSION} --with-pcre-jit"
                         fi
                     else
                         error "Unable to determine PCRE JIT ${NGINX_PCRE_VERSION} source."
@@ -528,11 +586,11 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/sto/ngx_http_auth_pam_module.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_http_auth_pam_module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_http_auth_pam_module"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/ngx_http_auth_pam_module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/ngx_http_auth_pam_module"
                         fi
 
                         # Requires libpam-dev
@@ -552,11 +610,11 @@ function init_nginx_install() {
                         run cd ../ || return 1
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_brotli"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_brotli"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/ngx_brotli"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/ngx_brotli"
                         fi
                     fi
 
@@ -568,11 +626,11 @@ function init_nginx_install() {
                         #run git clone https://github.com/joglomedia/ngx_cache_purge.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_cache_purge"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_cache_purge"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/ngx_cache_purge"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/ngx_cache_purge"
                         fi
                     fi
 
@@ -583,11 +641,11 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/arut/nginx-dav-ext-module.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/nginx-dav-ext-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/nginx-dav-ext-module"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/nginx-dav-ext-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/nginx-dav-ext-module"
                         fi
                     fi
 
@@ -598,11 +656,11 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/openresty/echo-nginx-module.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/echo-nginx-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/echo-nginx-module"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/echo-nginx-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/echo-nginx-module"
                         fi
                     fi
 
@@ -613,11 +671,11 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/aperezdc/ngx-fancyindex.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx-fancyindex"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx-fancyindex"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/ngx-fancyindex"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/ngx-fancyindex"
                         fi
                     fi
 
@@ -626,11 +684,11 @@ function init_nginx_install() {
                         echo "Adding ngx-http-geoip module..."
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --with-http_geoip_module=dynamic"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --with-http_geoip_module=dynamic"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --with-http_geoip_module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --with-http_geoip_module"
                         fi
                     fi
 
@@ -641,11 +699,11 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/leev/ngx_http_geoip2_module.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_http_geoip2_module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_http_geoip2_module"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/ngx_http_geoip2_module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/ngx_http_geoip2_module"
                         fi
 
                         # install libmaxminddb
@@ -656,31 +714,31 @@ function init_nginx_install() {
                         DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
 
                         if [[ "${DISTRIB_NAME}" == "ubuntu" ]]; then
-                        run add-apt-repository -y ppa:maxmind/ppa && \
-                        run apt-get update -q -y && \
-                        run apt-get install -q -y libmaxminddb0 libmaxminddb-dev mmdb-bin
+                            run add-apt-repository -y ppa:maxmind/ppa && \
+                            run apt-get update -q -y && \
+                            run apt-get install -q -y libmaxminddb0 libmaxminddb-dev mmdb-bin
                         else
-                        if [ ! -d libmaxminddb ]; then
-                            run git clone --recursive https://github.com/maxmind/libmaxminddb.git && \
-                            run cd libmaxminddb || return 1
-                        else
-                            run cd libmaxminddb && \
-                            run git pull
-                        fi
+                            if [ ! -d libmaxminddb ]; then
+                                run git clone --recursive https://github.com/maxmind/libmaxminddb.git && \
+                                run cd libmaxminddb || return 1
+                            else
+                                run cd libmaxminddb && \
+                                run git pull
+                            fi
 
-                        run ./bootstrap && \
-                        run ./configure && \
-                        run make -j"${NB_PROC}" && \
-                        run make install && \
-                        run bash -c "echo /usr/local/lib >> /etc/ld.so.conf.d/local.conf" && \
-                        run ldconfig && \
-                        run cd ../ || return 1
+                            run ./bootstrap && \
+                            run ./configure && \
+                            run make -j"${NB_PROC}" && \
+                            run make install && \
+                            run bash -c "echo /usr/local/lib >> /etc/ld.so.conf.d/local.conf" && \
+                            run ldconfig && \
+                            run cd ../ || return 1
                         fi
 
                         echo "Downloading MaxMind GeoIP2-GeoLite2 database..."
 
                         if [ -d geoip-db ]; then
-                        run rm -rf geoip-db
+                            run rm -rf geoip-db
                         fi
 
                         run mkdir -p geoip-db && \
@@ -689,34 +747,34 @@ function init_nginx_install() {
 
                         # Download MaxMind GeoLite2 database.
                         if [[ ! -f GeoLite2-City.tar.gz ]]; then
-                        GEOLITE2_COUNTRY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
+                            GEOLITE2_COUNTRY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
 
-                        if curl -sLI "${GEOLITE2_COUNTRY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
-                            run wget "${GEOLITE2_COUNTRY_SRC}" -O GeoLite2-Country.tar.gz && \
-                            run tar -xf GeoLite2-Country.tar.gz && \
-                            run cd GeoLite2-Country_*/ && \
-                            run mv GeoLite2-Country.mmdb /opt/geoip/ && \
-                            run cd ../ || return 1
-                        fi
+                            if curl -sLI "${GEOLITE2_COUNTRY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
+                                run wget "${GEOLITE2_COUNTRY_SRC}" -O GeoLite2-Country.tar.gz && \
+                                run tar -xf GeoLite2-Country.tar.gz && \
+                                run cd GeoLite2-Country_*/ && \
+                                run mv GeoLite2-Country.mmdb /opt/geoip/ && \
+                                run cd ../ || return 1
+                            fi
                         fi
 
                         if [[ ! -f GeoLite2-City.tar.gz ]]; then
-                        GEOLITE2_CITY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
+                            GEOLITE2_CITY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
 
-                        if curl -sLI "${GEOLITE2_CITY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
-                            run wget "${GEOLITE2_CITY_SRC}" -O GeoLite2-City.tar.gz && \
-                            run tar -xf GeoLite2-City.tar.gz && \
-                            run cd GeoLite2-City_*/ && \
-                            run mv GeoLite2-City.mmdb /opt/geoip/
-                        fi
+                            if curl -sLI "${GEOLITE2_CITY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
+                                run wget "${GEOLITE2_CITY_SRC}" -O GeoLite2-City.tar.gz && \
+                                run tar -xf GeoLite2-City.tar.gz && \
+                                run cd GeoLite2-City_*/ && \
+                                run mv GeoLite2-City.mmdb /opt/geoip/
+                            fi
                         fi
 
                         run cd "${EXTRA_MODULE_DIR}" || return 1
 
                         if [[ -f /opt/geoip/GeoLite2-City.mmdb && -f /opt/geoip/GeoLite2-Country.mmdb ]]; then
-                        success "MaxMind GeoIP2-GeoLite2 database successfully installed."
+                            success "MaxMind GeoIP2-GeoLite2 database successfully installed."
                         else
-                        error "Failed installing MaxMind GeoIP2-GeoLite2 database."
+                            error "Failed installing MaxMind GeoIP2-GeoLite2 database."
                         fi
                     fi
 
@@ -727,11 +785,11 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/openresty/headers-more-nginx-module.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/headers-more-nginx-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/headers-more-nginx-module"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/headers-more-nginx-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/headers-more-nginx-module"
                         fi
                     fi
 
@@ -740,11 +798,11 @@ function init_nginx_install() {
                         echo "Adding ngx-http-image-filter module..."
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --with-http_image_filter_module=dynamic"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --with-http_image_filter_module=dynamic"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --with-http_image_filter_module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --with-http_image_filter_module"
                         fi
                     fi
 
@@ -765,11 +823,11 @@ function init_nginx_install() {
                         run cd "${BUILD_DIR}" || return 1
 
                         if [ ! -d luajit2 ]; then
-                        run git clone https://github.com/openresty/luajit2.git && \
-                        run cd luajit2 || return 1
+                            run git clone https://github.com/openresty/luajit2.git && \
+                            run cd luajit2 || return 1
                         else
-                        run cd luajit2 && \
-                        run git fetch -q --all --tags
+                            run cd luajit2 && \
+                            run git fetch -q --all --tags
                         fi
 
                         run git checkout "tags/${LUA_JIT_VERSION}" && \
@@ -780,11 +838,11 @@ function init_nginx_install() {
                         echo "Lua module requires Lua Resty Core library, installing now..."
 
                         if [ ! -d lua-resty-core ]; then
-                        run git clone https://github.com/openresty/lua-resty-core.git && \
-                        run cd lua-resty-core || return 1
+                            run git clone https://github.com/openresty/lua-resty-core.git && \
+                            run cd lua-resty-core || return 1
                         else
-                        run cd lua-resty-core && \
-                        run git fetch -q --all --tags
+                            run cd lua-resty-core && \
+                            run git fetch -q --all --tags
                         fi
 
                         run git checkout "tags/${LUA_RESTY_CORE_VERSION}" && \
@@ -795,11 +853,11 @@ function init_nginx_install() {
                         echo "Lua module requires Lua-land LRU Cache library, installing now..."
 
                         if [ ! -d lua-resty-lrucache ]; then
-                        run git clone https://github.com/openresty/lua-resty-lrucache.git && \
-                        run cd lua-resty-lrucache || return 1
+                            run git clone https://github.com/openresty/lua-resty-lrucache.git && \
+                            run cd lua-resty-lrucache || return 1
                         else
-                        run cd lua-resty-lrucache && \
-                        run git fetch -q --all --tags
+                            run cd lua-resty-lrucache && \
+                            run git fetch -q --all --tags
                         fi
 
                         run git checkout "tags/${LUA_RESTY_LRUCACHE_VERSION}" && \
@@ -816,11 +874,11 @@ function init_nginx_install() {
                         https://github.com/openresty/lua-nginx-module.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/lua-nginx-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/lua-nginx-module"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/lua-nginx-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/lua-nginx-module"
                         fi
                         
                     fi
@@ -832,11 +890,11 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/openresty/memc-nginx-module.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/memc-nginx-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/memc-nginx-module"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/memc-nginx-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/memc-nginx-module"
                         fi
                     fi
 
@@ -847,11 +905,11 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/nbs-system/naxsi.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/naxsi/naxsi_src"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/naxsi/naxsi_src"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/naxsi/naxsi_src"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/naxsi/naxsi_src"
                         fi
                     fi
 
@@ -862,27 +920,27 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/vision5/ngx_devel_kit.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_devel_kit"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_devel_kit"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/ngx_devel_kit"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/ngx_devel_kit"
                         fi
                     fi
 
                     # NJS is a subset of the JavaScript language that allows extending nginx functionality.
                     # shellcheck disable=SC2153
-                    if "${NGX_HTTP_JS}"; then
+                    if "${NGX_HTTP_NJS}"; then
                         echo "Adding ngx-http-js module..."
 
                         run git clone --branch="master" --single-branch https://github.com/nginx/njs.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/njs/nginx"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/njs/nginx"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/njs/nginx"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/njs/nginx"
                         fi
                     fi
 
@@ -891,15 +949,15 @@ function init_nginx_install() {
                         echo "Adding ngx-http-passenger module..."
 
                         if [[ -n $(command -v passenger-config) ]]; then
-                        if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                                --add-dynamic-module=$(passenger-config --nginx-addon-dir)"
+                            if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --add-dynamic-module=$(passenger-config --nginx-addon-dir)"
+                            else
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --add-module=$(passenger-config --nginx-addon-dir)"
+                            fi
                         else
-                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                                --add-module=$(passenger-config --nginx-addon-dir)"
-                        fi
-                        else
-                        error "Passenger module not found, skipped..."
+                            error "Passenger module not found, skipped..."
                         fi
                     fi
 
@@ -910,11 +968,11 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/openresty/redis2-nginx-module.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/redis2-nginx-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/redis2-nginx-module"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/redis2-nginx-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/redis2-nginx-module"
                         fi
                     fi
 
@@ -925,11 +983,11 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/yaoweibin/ngx_http_substitutions_filter_module.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_http_substitutions_filter_module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/ngx_http_substitutions_filter_module"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/ngx_http_substitutions_filter_module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/ngx_http_substitutions_filter_module"
                         fi
                     fi
 
@@ -948,12 +1006,12 @@ function init_nginx_install() {
                         run cd "${EXTRA_MODULE_DIR}" || return 1
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        # Dynamic module not supported yet (testing lemper branch)
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/nginx-upstream-fair"
+                            # Dynamic module not supported yet (testing lemper branch)
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/nginx-upstream-fair"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/nginx-upstream-fair"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/nginx-upstream-fair"
                         fi
                     fi
 
@@ -964,11 +1022,11 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/vozlt/nginx-module-vts.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/nginx-module-vts"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/nginx-module-vts"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/nginx-module-vts"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/nginx-module-vts"
                         fi
                     fi
 
@@ -977,11 +1035,11 @@ function init_nginx_install() {
                         echo "Adding ngx-http-xslt-filter module..."
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --with-http_xslt_module=dynamic"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --with-http_xslt_module=dynamic"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --with-http_xslt_module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --with-http_xslt_module"
                         fi
                     fi
 
@@ -990,13 +1048,13 @@ function init_nginx_install() {
                         echo "Adding ngx-mail module..."
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --with-mail=dynamic \
-                            --with-mail_ssl_module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --with-mail=dynamic \
+                                --with-mail_ssl_module"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --with-mail \
-                            --with-mail_ssl_module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --with-mail \
+                                --with-mail_ssl_module"
                         fi
                     fi
 
@@ -1007,11 +1065,11 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/slact/nchan.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/nchan"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/nchan"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/nchan"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/nchan"
                         fi
                     fi
 
@@ -1022,11 +1080,11 @@ function init_nginx_install() {
                         run git clone --branch="master" --single-branch https://github.com/arut/nginx-rtmp-module.git
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-dynamic-module=${EXTRA_MODULE_DIR}/nginx-rtmp-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-dynamic-module=${EXTRA_MODULE_DIR}/nginx-rtmp-module"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --add-module=${EXTRA_MODULE_DIR}/nginx-rtmp-module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --add-module=${EXTRA_MODULE_DIR}/nginx-rtmp-module"
                         fi
                     fi
 
@@ -1035,33 +1093,33 @@ function init_nginx_install() {
                         echo "Adding ngx-stream module..."
 
                         if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --with-stream=dynamic \
-                            --with-stream_geoip_module=dynamic \
-                            --with-stream_realip_module \
-                            --with-stream_ssl_module \
-                            --with-stream_ssl_preread_module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --with-stream=dynamic \
+                                --with-stream_geoip_module=dynamic \
+                                --with-stream_realip_module \
+                                --with-stream_ssl_module \
+                                --with-stream_ssl_preread_module"
                         else
-                        NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                            --with-stream \
-                            --with-stream_geoip_module \
-                            --with-stream_realip_module \
-                            --with-stream_ssl_module \
-                            --with-stream_ssl_preread_module"
+                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                --with-stream \
+                                --with-stream_geoip_module \
+                                --with-stream_realip_module \
+                                --with-stream_ssl_module \
+                                --with-stream_ssl_preread_module"
                         fi
 
                         if "${NGX_HTTP_LUA}"; then
-                        echo "Adding ngx-stream-lua module..."
+                            echo "Adding ngx-stream-lua module..."
 
-                        run git clone --branch="master" --single-branch https://github.com/openresty/stream-lua-nginx-module.git
+                            run git clone --branch="master" --single-branch https://github.com/openresty/stream-lua-nginx-module.git
 
-                        if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
-                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                                --add-dynamic-module=${EXTRA_MODULE_DIR}/stream-lua-nginx-module"
-                        else
-                            NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
-                                --add-module=${EXTRA_MODULE_DIR}/stream-lua-nginx-module"
-                        fi
+                            if [[ "${NGINX_DYNAMIC_MODULE}" == true ]]; then
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --add-dynamic-module=${EXTRA_MODULE_DIR}/stream-lua-nginx-module"
+                            else
+                                NGX_CONFIGURE_ARGS="${NGX_CONFIGURE_ARGS} \
+                                    --add-module=${EXTRA_MODULE_DIR}/stream-lua-nginx-module"
+                            fi
                         fi
                     fi
                 fi
@@ -1071,37 +1129,49 @@ function init_nginx_install() {
                 # Build nginx from source installer.
                 echo -e "\nBuilding Nginx from source..."
 
-                #NGX_BUILD_URL="https://raw.githubusercontent.com/pagespeed/ngx_pagespeed/master/scripts/build_ngx_pagespeed.sh"
                 NGX_BUILD_URL="https://raw.githubusercontent.com/apache/incubator-pagespeed-ngx/master/scripts/build_ngx_pagespeed.sh"
 
-                if [[ -f "${BUILD_DIR}/build_nginx" ]]; then
+                if [[ -f "${BUILD_DIR}/build_nginx.sh" ]]; then
                     echo "Using cached build_nginx script..."
                 else
-                    echo "Downloading build_nginx script..."
-                    
-                    if curl -sLI "${NGX_BUILD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                        run curl -sS -o "${BUILD_DIR}/build_nginx" "${NGX_BUILD_URL}"
+                    if [[ -f "${PWD}/scripts/build_nginx.sh" ]]; then
+                        echo "Copying custom build_nginx script..."
+                        run cp "${PWD}/scripts/build_nginx.sh" "${BUILD_DIR}/build_nginx.sh"
                     else
-                        fail "Nginx from source installer not found."
+                        echo "Downloading build_nginx script..."
+
+                        if curl -sLI "${NGX_BUILD_URL}" | grep -q "HTTP/[.12]* [2].."; then
+                            run curl -sS -o "${BUILD_DIR}/build_nginx.sh" "${NGX_BUILD_URL}"
+                        else
+                            fail "Nginx from source installer not found."
+                        fi
                     fi
                 fi
 
                 NGX_PAGESPEED_VERSION=${NGX_PAGESPEED_VERSION:-"latest-stable"}
-                NGX_BUILD_EXTRA_ARGS=""
+                NGX_BUILD_EXTRA_ARGS=()
 
                 # Workaround for NPS issue https://github.com/apache/incubator-pagespeed-ngx/issues/1752
                 if ! version_older_than "${NGINX_RELEASE_VERSION}" "1.22.99"; then
                     NGX_PAGESPEED_VERSION="master"
-                    NGX_BUILD_EXTRA_ARGS="--psol-from-source"
+                    # --psol-from-source
+                    NGX_BUILD_EXTRA_ARGS+=("-s" "-t Release")
                 fi
 
-                [[ "${NGINX_DYNAMIC_MODULE}" == true ]] && NGX_BUILD_EXTRA_ARGS="${NGX_BUILD_EXTRA_ARGS} --dynamic-module"
-                [[ "${DRYRUN}" == true ]] && NGX_BUILD_EXTRA_ARGS="${NGX_BUILD_EXTRA_ARGS} --dryrun"
+                # Workaround for Building on newer glibc (eg. Ubuntu 21.10 and above)
+                # issue https://github.com/apache/incubator-pagespeed-ngx/issues/1743
+                if [[ "${RELEASE_NAME}" == "jammy" ]]; then
+                    export PSOL_BINARY_URL && \
+                        PSOL_BINARY_URL="https://www.tiredofit.nl/psol-jammy.tar.gz"
+                fi
+
+                [[ "${NGINX_DYNAMIC_MODULE}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--dynamic-module")
+                [[ "${DRYRUN}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--dryrun")
 
                 # Build Nginx from source.
-                run bash "${BUILD_DIR}/build_nginx" -v "${NGX_PAGESPEED_VERSION}" -n "${NGINX_RELEASE_VERSION}" \
-                    -b "${BUILD_DIR}" -a "${NGX_CONFIGURE_ARGS}" -y "${NGX_BUILD_EXTRA_ARGS}"
-
+                run bash "${BUILD_DIR}/build_nginx.sh" -y "${NGX_BUILD_EXTRA_ARGS[@]}" -b "${BUILD_DIR}" \
+                    --ngx-pagespeed-version="${NGX_PAGESPEED_VERSION}" --nginx-version="${NGINX_RELEASE_VERSION}" \
+                    --additional-nginx-configure-arguments="${NGX_CONFIGURE_ARGS}"
 
                 echo "Configuring Nginx extra modules..."
 
@@ -1120,9 +1190,9 @@ function init_nginx_install() {
                 # Custom Nginx dynamic modules configuration.
 
                 if [[ -f /usr/lib/nginx/modules/ndk_http_module.so && \
-                    ! -f /etc/nginx/modules-available/mod-ndk-http.conf ]]; then
+                    ! -f /etc/nginx/modules-available/mod-http-ndk.conf ]]; then
                     run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ndk_http_module.so\";' \
-                        > /etc/nginx/modules-available/mod-ndk-http.conf"
+                        > /etc/nginx/modules-available/mod-http-ndk.conf"
                 fi
 
                 if [[ -f /usr/lib/nginx/modules/ngx_http_auth_pam_module.so && \
@@ -1192,9 +1262,9 @@ function init_nginx_install() {
                 fi
 
                 if [[ -f /usr/lib/nginx/modules/ngx_http_js_module.so && \
-                    ! -f /etc/nginx/modules-available/mod-http-js.conf ]]; then
+                    ! -f /etc/nginx/modules-available/mod-http-njs.conf ]]; then
                     run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_js_module.so\";' \
-                        > /etc/nginx/modules-available/mod-http-js.conf"
+                        > /etc/nginx/modules-available/mod-http-njs.conf"
                 fi
 
                 if [[ -f /usr/lib/nginx/modules/ngx_http_lua_module.so && \
@@ -1377,10 +1447,10 @@ function init_nginx_install() {
                             /etc/nginx/modules-enabled/40-mod-http-image-filter.conf
                     fi
 
-                    if [[ "${NGX_HTTP_JS}" && \
-                        -f /etc/nginx/modules-available/mod-http-js.conf ]]; then
-                        run ln -fs /etc/nginx/modules-available/mod-http-js.conf \
-                            /etc/nginx/modules-enabled/30-mod-http-js.conf
+                    if [[ "${NGX_HTTP_NJS}" && \
+                        -f /etc/nginx/modules-available/mod-http-njs.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-http-njs.conf \
+                            /etc/nginx/modules-enabled/30-mod-http-njs.conf
                     fi
 
                     if [[ "${NGX_HTTP_LUA}" && \
@@ -1402,9 +1472,9 @@ function init_nginx_install() {
                     fi
 
                     if [[ "${NGX_HTTP_NDK}" && \
-                        -f /etc/nginx/modules-available/mod-ndk-http.conf ]]; then
-                        run ln -fs /etc/nginx/modules-available/mod-ndk-http.conf \
-                            /etc/nginx/modules-enabled/20-mod-ndk-http.conf
+                        -f /etc/nginx/modules-available/mod-http-ndk.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-http-ndk.conf \
+                            /etc/nginx/modules-enabled/20-mod-http-ndk.conf
                     fi
 
                     if [[ "${NGX_HTTP_PASSENGER}" && \
@@ -1481,7 +1551,7 @@ function init_nginx_install() {
                                 /etc/nginx/modules-enabled/50-mod-stream-geoip.conf
                         fi
 
-                        if [[ "${NGX_HTTP_JS}" && \
+                        if [[ "${NGX_HTTP_NJS}" && \
                             -f /etc/nginx/modules-available/mod-stream-js.conf ]]; then
                             run ln -fs /etc/nginx/modules-available/mod-stream-js.conf \
                                 /etc/nginx/modules-enabled/50-mod-stream-js.conf.conf
@@ -1516,7 +1586,7 @@ function init_nginx_install() {
             ;;
             *)
                 # Skip installation.
-                error "Installer method not supported. Nginx installation skipped."
+                fail "Installer method not supported. Nginx installation failed."
             ;;
         esac
 
@@ -1582,8 +1652,9 @@ EOL
 
         # Custom tmp, PHP opcache & sessions dir.
         run mkdir -p /usr/share/nginx/html/.lemper/tmp
-        run mkdir -p /usr/share/nginx/html/.lemper/tmp/php_opcache
-        run mkdir -p /usr/share/nginx/html/.lemper/tmp/php_sessions
+        run mkdir -p /usr/share/nginx/html/.lemper/php/sessions
+        run mkdir -p /usr/share/nginx/html/.lemper/php/opcache
+        run mkdir -p /usr/share/nginx/html/.lemper/php/wsdlcache
 
         # Fix ownership.
         [ -d /usr/share/nginx/html ] && run chown -hR www-data:www-data /usr/share/nginx/html
@@ -1629,14 +1700,14 @@ EOL
 
         # Enable Lua package path.
         if [[ "${NGX_HTTP_LUA}" == true && \
-            -f /etc/nginx/modules-enabled/40-mod-http-headers-more-filter.conf ]]; then
+            -f /etc/nginx/modules-enabled/30-mod-http-lua.conf ]]; then
             run sed -i "s|#lua_package_path|lua_package_path|g" \
                 /etc/nginx/nginx.conf
         fi
 
         # Enable PageSpeed config.
         if [[ "${NGX_PAGESPEED}" == true && \
-            -f /etc/nginx/modules-enabled/30-mod-http-lua.conf ]]; then
+            -f /etc/nginx/modules-enabled/60-mod-pagespeed.conf ]]; then
             run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" \
                 /etc/nginx/nginx.conf
         fi
@@ -1652,6 +1723,9 @@ EOL
             [ ! -d /etc/nginx/ssl ] && mkdir -p /etc/nginx/ssl
             run openssl dhparam -out "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" "${DH_LENGTH}"
         fi
+
+        # Generate default hostname SSL cert.
+        generate_hostname_cert
 
         # Final test.
         if [[ "${DRYRUN}" != true ]]; then
@@ -1695,6 +1769,61 @@ EOL
         fi
     else
         info "Nginx HTTP (web) server installation skipped."
+    fi
+}
+
+function generate_hostname_cert() {
+    # Generate a new certificate for the hostname domain.
+    if [[ "${ENVIRONMENT}" == prod* ]]; then
+        # Stop webserver first.
+        run systemctl stop nginx.service
+
+        if [[ $(dig "${HOSTNAME}" +short) == "${SERVER_IP}" ]]; then
+        run certbot certonly --standalone --agree-tos --preferred-challenges http \
+            --webroot-path=/usr/share/nginx/html -d "${HOSTNAME}"
+        export HOSTNAME_CERT_PATH && \
+        HOSTNAME_CERT_PATH="/etc/letsencrypt/live/${HOSTNAME}"
+        fi
+
+        # Re-start webserver.
+        run systemctl start nginx.service
+    else
+        # Self-signed certificate for local development environment.
+        run sed -i "s|^CN\ =\ .*|CN\ =\ ${HOSTNAME}|g" /etc/lemper/ssl/ca.conf && \
+        run sed -i "s|^CN\ =\ .*|CN\ =\ ${HOSTNAME}|g" /etc/lemper/ssl/csr.conf && \
+        run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${HOSTNAME}|g" /etc/lemper/ssl/csr.conf && \
+        run sed -i "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${HOSTNAME}|g" /etc/lemper/ssl/csr.conf && \
+        run sed -r -i "s|^IP.1\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.1\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+        run sed -r -i "s|^IP.2\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.2\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+        run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${HOSTNAME}|g" /etc/lemper/ssl/cert.conf
+
+        # Create Certificate Authority (CA).
+        run openssl req -x509 -sha256 -days 365000 -nodes -newkey "rsa:${KEY_HASH_LENGTH}" \
+        -keyout /etc/lemper/ssl/lemperCA.key -out /etc/lemper/ssl/lemperCA.crt \
+        -config /etc/lemper/ssl/ca.conf && \
+
+        # Create Server Private Key.
+        run openssl genrsa -out "/etc/lemper/ssl/${HOSTNAME}/privkey.pem" "${KEY_HASH_LENGTH}" && \
+
+        # Generate Certificate Signing Request (CSR) using Server Private Key.
+        run openssl req -new -key "/etc/lemper/ssl/${HOSTNAME}/privkey.pem" \
+        -out "/etc/lemper/ssl/${HOSTNAME}/csr.pem" -config /etc/lemper/ssl/csr.conf
+
+        # Generate SSL certificate With self signed CA.
+        run openssl x509 -req -sha256 -days 365000 -CAcreateserial \
+        -CA /etc/lemper/ssl/lemperCA.crt -CAkey /etc/lemper/ssl/lemperCA.key \
+        -in "/etc/lemper/ssl/${HOSTNAME}/csr.pem" -out "/etc/lemper/ssl/${HOSTNAME}/cert.pem" \
+        -extfile /etc/lemper/ssl/cert.conf
+
+        # Create chain file.
+        run cat /etc/lemper/ssl/lemperCA.crt "/etc/lemper/ssl/${HOSTNAME}/cert.pem" > \
+        "/etc/lemper/ssl/${HOSTNAME}/chain.pem"
+
+        if [ -f "/etc/lemper/ssl/${HOSTNAME}/cert.pem" ]; then
+        success "Self-signed SSL certificate has been successfully generated."
+        else
+        fail "An error occurred when generating self-signed SSL certificate."
+        fi
     fi
 }
 

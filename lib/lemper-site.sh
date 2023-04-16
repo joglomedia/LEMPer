@@ -33,12 +33,10 @@ fi
 
 function site_subcmd_help() {
     cmd_help
-    exit 0
 }
 
 function site_subcmd_version() {
     cmd_version
-    exit 0
 }
 
 ##

@@ -24,9 +24,8 @@ function init_vsftpd_removal() {
     if [[ $(pgrep -c vsftpd) -gt 0 ]]; then
         echo "Stopping vsftpd..."
         run systemctl stop vsftpd
+        run systemctl disable vsftpd
     fi
-
-    run systemctl disable vsftpd
 
     if dpkg-query -l | awk '/vsftpd/ { print $2 }' | grep -qwE "^vsftpd$"; then
         echo "Found FTP server (VSFTPD) package installation. Removing..."

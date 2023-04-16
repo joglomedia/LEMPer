@@ -35,8 +35,8 @@ YELLOW=93
 # Helper Functions.
 ##
 function begin_color() {
-    color="${1}"
-    echo -e -n "\e[${color}m"
+    local COLOR="${1}"
+    echo -e -n "\e[${COLOR}m"
 }
 
 function end_color() {
@@ -44,9 +44,9 @@ function end_color() {
 }
 
 function echo_color() {
-    color="${1}"
+    local COLOR="${1}"
     shift
-    begin_color "${color}"
+    begin_color "${COLOR}"
     echo "$@"
     end_color
 }
@@ -175,7 +175,7 @@ EOL
 # Show version.
 ##
 function cmd_version() {
-    echo "${PROG_NAME} version $PROG_VER"
+    echo "${PROG_NAME} version ${PROG_VER}"
 }
 
 ##
@@ -187,7 +187,7 @@ function init_lemper_cli() {
         CMD="${1}"
         shift # Pass the remaining arguments as sub-command options (parameters).
 
-        case ${CMD} in
+        case "${CMD}" in
             help | -h | --help)
                 cmd_help
                 exit 0

@@ -706,7 +706,7 @@ chdir = /home/${POOLNAME}
 ;catch_workers_output = yes
 ;decorate_workers_output = no
 
-security.limit_extensions = .php .php5 .php7 .php${PHPv//./}
+security.limit_extensions = .php .php7 .php8 .php${PHPv//./}
 
 ; Custom PHP ini settings for LEMPer Stack.
 php_admin_value[open_basedir] = /home/${POOLNAME}

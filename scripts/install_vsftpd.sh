@@ -38,6 +38,11 @@ function init_vsftpd_install() {
         done
     fi
 
+    # Fallback installer to repo due to OpenSSL 3 compatibility issue.
+    if [[ "${RELEASE_NAME}" == "jammy" || "${RELEASE_NAME}" == "jammy" ]]; then
+        SELECTED_INSTALLER="repo"
+    fi
+
     if [[ ${DO_INSTALL_FTP_SERVER} == y* || ${DO_INSTALL_FTP_SERVER} == Y* ]]; then
         echo "Available VSFTPD installation method:"
         echo "  1). Install from Repository (repo)"
@@ -63,11 +68,11 @@ function init_vsftpd_install() {
                         case "${RELEASE_NAME}" in
                             stretch)
                                 run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
-                                    libcap-dev libcap2 libtirpc-dev libtirpc1
+                                    libcap-dev libcap2 libtirpc-dev libtirpc1 libmbedtls-dev
                             ;;
                             buster | bullseye)
                                 run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
-                                    libcap-dev libcap2 libtirpc-common libtirpc-dev libtirpc3
+                                    libcap-dev libcap2 libtirpc-common libtirpc-dev libtirpc3 libmbedtls-dev
                             ;;
                             *)
                                 fail "Unsupported Debian release: ${RELEASE_NAME^}."
@@ -78,11 +83,11 @@ function init_vsftpd_install() {
                         case "${RELEASE_NAME}" in
                             bionic)
                                 run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
-                                    libcap-dev libcap2 libtirpc-dev libtirpc1
+                                    libcap-dev libcap2 libtirpc-dev libtirpc1 libmbedtls-dev
                             ;;
                             focal | jammy)
                                 run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
-                                    libcap-dev libcap2 libtirpc-common libtirpc-dev libtirpc3
+                                    libcap-dev libcap2 libtirpc-common libtirpc-dev libtirpc3 libmbedtls-dev
                             ;;
                             *)
                                 fail "Unsupported Ubuntu release: ${RELEASE_NAME^}."
