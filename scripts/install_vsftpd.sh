@@ -40,7 +40,7 @@ function init_vsftpd_install() {
 
     # Fallback installer to repo due to OpenSSL 3 compatibility issue.
     if [[ "${RELEASE_NAME}" == "jammy" ]]; then
-        FTP_SERVER_INSTALLER="repo"
+        SELECTED_INSTALLER="repo"
     fi
 
     if [[ ${DO_INSTALL_FTP_SERVER} == y* || ${DO_INSTALL_FTP_SERVER} == Y* ]]; then
