@@ -34,9 +34,6 @@ function add_nginx_repo_ondrej() {
         local NGINX_REPO="nginx"
     fi
 
-    #local ALTERNATIVE_REPO=false
-    #[[ "${RELEASE_NAME}" == "jessie" || "${RELEASE_NAME}" == "xenial" ]] && ALTERNATIVE_REPO=true
-
     case "${DISTRIB_NAME}" in
         debian)
             if [[ ! -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
@@ -87,6 +84,7 @@ function add_nginx_repo_myguard() {
             if [[ ! -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
                 run touch "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl ${RELEASE_NAME} main' > /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
+                run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl/openssl3 ${RELEASE_NAME} main' > /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run wget -qO "/etc/apt/trusted.gpg.d/deb.myguard.nl.gpg" "https://deb.myguard.nl/pool/deb.myguard.nl.gpg"
                 run apt-get update -q -y
             else
@@ -138,7 +136,7 @@ function init_nginx_install() {
 
             #if [[ "${NGINX_INSTALLER}" == "repo" ]]; then
                 # MyGuard repo only support mainline version.
-                echo "Switch Nginx to the mainline/latest version."
+                echo "Switch Nginx repo to the mainline/latest version."
 
                 SELECTED_INSTALLER="repo"
                 SELECTED_REPO="myguard"
@@ -156,7 +154,7 @@ function init_nginx_install() {
                     add_nginx_repo_ondrej
                 fi
 
-                echo "Installing Nginx from package repository..."
+                echo "Installing Nginx from ${SELECTED_REPO} repository..."
 
                 #if hash apt-get 2>/dev/null; then
                     if [[ -n "${NGINX_PKG}" ]]; then
