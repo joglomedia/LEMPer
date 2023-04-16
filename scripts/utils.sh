@@ -383,14 +383,14 @@ function get_release_name() {
 
                 # TODO for Debian install
                 case ${MAJOR_RELEASE_VERSION} in
-                    9)
-                        RELEASE_NAME="stretch"
-                    ;;
                     10)
                         RELEASE_NAME="buster"
                     ;;
                     11)
                         RELEASE_NAME="bullseye"
+                    ;;
+                    12)
+                        RELEASE_NAME="bookworm"
                     ;;
                     *)
                         RELEASE_NAME="unsupported"
