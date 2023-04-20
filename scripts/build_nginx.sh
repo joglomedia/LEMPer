@@ -607,6 +607,7 @@ Not deleting $directory; name is suspiciously short.  Something is wrong."
     # existing git checkout.
     #nps_module_dir="$PWD"
     nps_module_dir="$BUILDDIR/incubator-pagespeed-ngx"
+    np_submodules_dir="$nps_module_dir/testing-dependencies"
     install_dir="$nps_module_dir"
     if "$ALREADY_CHECKED_OUT"; then
       run cd "$nps_module_dir"
@@ -617,11 +618,15 @@ Not deleting $directory; name is suspiciously short.  Something is wrong."
         run rm -fr "$nps_module_dir"
       fi
       run git clone https://github.com/apache/incubator-pagespeed-ngx.git "$nps_module_dir"
+      run git config --global --add safe.directory "$nps_module_dir"
       run cd "$nps_module_dir"
       run git checkout "$tag_name"
+      run wget -qO "$nps_module_dir/.gitmodules" \
+        https://raw.githubusercontent.com/apache/incubator-pagespeed-ngx/master/.gitmodules
+      run mkdir -p "$np_submodules_dir/mod_pagespeed"
     fi
-    submodules_dir="$nps_module_dir/testing-dependencies"
-    if "$DEVEL"; then
+
+    if [[ "$DEVEL" == true || "$PSOL_FROM_SOURCE" == true ]]; then
       status "Downloading dependencies..."
       run git submodule update --init --recursive
       if [[ "$CONTINUOUS_INTEGRATION" != true ]]; then
@@ -716,10 +721,10 @@ Not deleting $directory; name is suspiciously short.  Something is wrong."
   if "$DEVEL"; then
     configure_args=("${configure_args[@]}"
                     "--prefix=$install_dir/nginx"
-                    "--add-module=$submodules_dir/ngx_cache_purge"
-                    "--add-module=$submodules_dir/ngx_devel_kit"
-                    "--add-module=$submodules_dir/set-misc-nginx-module"
-                    "--add-module=$submodules_dir/headers-more-nginx-module"
+                    "--add-module=$np_submodules_dir/ngx_cache_purge"
+                    "--add-module=$np_submodules_dir/ngx_devel_kit"
+                    "--add-module=$np_submodules_dir/set-misc-nginx-module"
+                    "--add-module=$np_submodules_dir/headers-more-nginx-module"
                     "--with-ipv6"
                     "--with-http_v2_module")
     if [ "$BUILD_TYPE" = "Debug" ]; then
@@ -753,7 +758,7 @@ Not deleting $directory; name is suspiciously short.  Something is wrong."
   else
     if "$DEVEL"; then
       # Use the nginx we loaded as a submodule
-      nginx_dir="$submodules_dir/nginx"
+      nginx_dir="$np_submodules_dir/nginx"
       configure_location="auto"
     else
       # Download and build the specified nginx version.

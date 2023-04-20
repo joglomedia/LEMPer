@@ -40,11 +40,11 @@ function add_nginx_repo_ondrej() {
                 run touch "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb https://packages.sury.org/${NGINX_REPO}/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
-                run apt-get update -q -y
             else
                 info "${NGINX_REPO} repository already exists."
             fi
 
+            run apt-get update -q -y
             NGINX_PKG="nginx-core"
         ;;
         ubuntu)
@@ -53,7 +53,6 @@ function add_nginx_repo_ondrej() {
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
             run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}"
             run apt-get update -q -y
-
             NGINX_PKG="nginx-core"
         ;;
         *)
@@ -84,13 +83,13 @@ function add_nginx_repo_myguard() {
             if [[ ! -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
                 run touch "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl ${RELEASE_NAME} main' > /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
-                run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl/openssl3 ${RELEASE_NAME} main' > /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
+                run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl/openssl3 ${RELEASE_NAME} main' >> /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
                 run wget -qO "/etc/apt/trusted.gpg.d/deb.myguard.nl.gpg" "https://deb.myguard.nl/pool/deb.myguard.nl.gpg"
-                run apt-get update -q -y
             else
                 info "${NGINX_REPO} repository already exists."
             fi
 
+            run apt-get update -q -y
             NGINX_PKG="nginx-core"
         ;;
         *)
@@ -134,15 +133,15 @@ function init_nginx_install() {
         if [[ "${NGX_PAGESPEED}" == true ]]; then
             info "NGX_PAGESPEED module requires Nginx to be installed from source or MyGuard repo."
 
-            #if [[ "${NGINX_INSTALLER}" == "repo" ]]; then
+            if [[ "${NGINX_INSTALLER}" == "repo" ]]; then
                 # MyGuard repo only support mainline version.
                 echo "Switch Nginx repo to the mainline/latest version."
 
                 SELECTED_INSTALLER="repo"
                 SELECTED_REPO="myguard"
-            #else
-            #    SELECTED_INSTALLER="source"
-            #fi
+            else
+                SELECTED_INSTALLER="source"
+            fi
         fi
 
         case "${SELECTED_INSTALLER}" in
@@ -1153,7 +1152,7 @@ function init_nginx_install() {
 
                 # Workaround for NPS issue https://github.com/apache/incubator-pagespeed-ngx/issues/1752
                 if ! version_older_than "${NGINX_RELEASE_VERSION}" "1.22.99"; then
-                    NGX_PAGESPEED_VERSION="master"
+                    NGX_PAGESPEED_VERSION="latest-stable"
                     # --psol-from-source
                     NGX_BUILD_EXTRA_ARGS+=("-s" "-t Release")
                 fi
