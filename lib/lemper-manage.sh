@@ -898,6 +898,7 @@ function generate_selfsigned_ssl() {
     # Create chain file.
     run cat "/etc/lemper/ssl/${DOMAIN}/cert.pem" "${CA_CRT_FILE}" >> \
         "/etc/lemper/ssl/${DOMAIN}/fullchain.pem"
+    #run ln -s "/etc/lemper/ssl/${DOMAIN}/cert.pem" "/etc/lemper/ssl/${HOSTNAME}/fullchain.pem"
 
     if [ -f "/etc/lemper/ssl/${DOMAIN}/cert.pem" ]; then
         success "Self-signed SSL certificate has been successfully generated."

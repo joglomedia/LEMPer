@@ -1822,8 +1822,9 @@ function generate_hostname_cert() {
             -extfile /etc/lemper/ssl/cert.conf
 
         # Create chain file.
-        run cat /etc/lemper/ssl/lemperCA.crt "/etc/lemper/ssl/${HOSTNAME}/cert.pem" > \
+        run cat "/etc/lemper/ssl/${HOSTNAME}/cert.pem" /etc/lemper/ssl/lemperCA.crt > \
             "/etc/lemper/ssl/${HOSTNAME}/fullchain.pem"
+        #run ln -s "/etc/lemper/ssl/${HOSTNAME}/cert.pem" "/etc/lemper/ssl/${HOSTNAME}/fullchain.pem"
 
         if [ -f "/etc/lemper/ssl/${HOSTNAME}/cert.pem" ]; then
             HOSTNAME_CERT_PATH="/etc/lemper/ssl/${HOSTNAME}"
