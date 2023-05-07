@@ -13,11 +13,29 @@ if [ -f /etc/default/mysql ]; then
   . /etc/default/mysql
 fi
 
-MYSQL="/usr/bin/mysql --defaults-file=/etc/mysql/debian.cnf"
-MYADMIN="/usr/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"
+#MYSQL="/usr/bin/mysql --defaults-file=/etc/mysql/debian.cnf"
+#MYADMIN="/usr/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"
 # Don't run full mysql_upgrade on every server restart, use --version-check to do it only once
-MYUPGRADE="/usr/bin/mysql_upgrade --defaults-extra-file=/etc/mysql/debian.cnf --version-check"
-MYCHECK="/usr/bin/mysqlcheck --defaults-file=/etc/mysql/debian.cnf"
+#MYUPGRADE="/usr/bin/mysql_upgrade --defaults-extra-file=/etc/mysql/debian.cnf --version-check"
+#MYCHECK="/usr/bin/mysqlcheck --defaults-file=/etc/mysql/debian.cnf"
+
+# LEMPer Stack mod.
+if [ -f /etc/lemper/lemper.conf ]; then
+  source <(grep -v '^#' /etc/lemper/lemper.conf | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+fi
+
+if [ -n "${MYSQL_ROOT_PASSWORD}" ]; then
+  MYSQL="/usr/bin/mysql -p${MYSQL_ROOT_PASSWORD} --defaults-file=/etc/mysql/debian.cnf"
+  MYADMIN="/usr/bin/mysqladmin -p${MYSQL_ROOT_PASSWORD} --defaults-file=/etc/mysql/debian.cnf"
+  MYUPGRADE="/usr/bin/mysql_upgrade -p${MYSQL_ROOT_PASSWORD} --version-check"
+  MYCHECK="/usr/bin/mysqlcheck -p${MYSQL_ROOT_PASSWORD} --defaults-file=/etc/mysql/debian.cnf"
+else
+  MYSQL="/usr/bin/mysql --defaults-file=/etc/mysql/debian.cnf"
+  MYADMIN="/usr/bin/mysqladmin --defaults-file=/etc/mysql/debian.cnf"
+  MYUPGRADE="/usr/bin/mysql_upgrade --version-check"
+  MYCHECK="/usr/bin/mysqlcheck --defaults-file=/etc/mysql/debian.cnf"
+fi
+
 MYCHECK_SUBJECT="WARNING: mysqlcheck has found corrupt tables"
 MYCHECK_PARAMS="--all-databases --fast --silent"
 MYCHECK_RCPT="${MYCHECK_RCPT:-root}"
