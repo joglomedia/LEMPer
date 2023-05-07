@@ -36,15 +36,15 @@ function install_postfix() {
         done
     fi
 
-    if [[ ${DO_INSTALL_POSTFIX} == y* || ${DO_INSTALL_POSTFIX} == Y* ]]; then
+    if [[ "${DO_INSTALL_POSTFIX}" == y* || "${DO_INSTALL_POSTFIX}" == Y* ]]; then
         echo "Installing Postfix Mail-Transfer Agent..."
 
-        if [[ -n $(command -v sendmail) ]]; then
-            echo "Remove existing sendmail install..."
-            run service sendmail stop && \
-            run update-rc.d -f sendmail remove && \
-            run apt-get remove -q -y sendmail
-        fi
+        #if [[ -n $(command -v sendmail) ]]; then
+        #    echo "Remove existing sendmail install..."
+        #    run service sendmail stop && \
+        #    run update-rc.d -f sendmail remove && \
+        #    run apt-get remove -q -y sendmail
+        #fi
 
         run apt-get install -q -y mailutils postfix
 
@@ -127,13 +127,13 @@ EOL
 
         # Installation status.
         if [[ "${DRYRUN}" != true ]]; then
-            if [[ $(pgrep -c postfix) -gt 0 ]]; then
+            if [[ $(pgrep -c master) -gt 0 ]]; then
                 run systemctl reload postfix
                 success "Postfix reloaded successfully."
             elif [[ -n $(command -v postfix) ]]; then
                 run systemctl start postfix
 
-                if [[ $(pgrep -c postfix) -gt 0 ]]; then
+                if [[ $(pgrep -c master) -gt 0 ]]; then
                     success "Postfix started successfully."
                 else
                     error "Something goes wrong with Postfix installation."
@@ -164,7 +164,7 @@ function install_dovecot() {
         done
     fi
 
-    if [[ ${DO_INSTALL_DOVECOT} == y* || ${DO_INSTALL_DOVECOT} == Y* ]]; then
+    if [[ "${DO_INSTALL_DOVECOT}" == y* || "${DO_INSTALL_DOVECOT}" == Y* ]]; then
         echo "Installing Dovecot IMAP & POP3 Server..."
 
         run apt-get install -q -y dovecot-core dovecot-common dovecot-imapd dovecot-pop3d
@@ -321,7 +321,7 @@ function install_spf_dkim() {
         done
     fi
 
-    if [[ ${DO_INSTALL_SPFDKIM} == y* || ${DO_INSTALL_SPFDKIM} == Y* ]]; then
+    if [[ "${DO_INSTALL_SPFDKIM}" == y* || "${DO_INSTALL_SPFDKIM}" == Y* ]]; then
         echo "Installing Postfix Policy Agent and OpenDKIM..."
 
         run apt-get install -q -y postfix-policyd-spf-python opendkim opendkim-tools
@@ -414,10 +414,12 @@ EOL
         # Create the key table.
         [ ! -f /etc/opendkim/key.table ] && run touch /etc/opendkim/key.table
 
-        #DOMAIN_KEY="default._domainkey.your-domain.com     your-domain.com:default:/etc/opendkim/keys/your-domain.com/default.private"
+        #DOMAIN_KEY_TABLE="default._domainkey.your-domain.com     your-domain.com:default:/etc/opendkim/keys/your-domain.com/default.private"
+        DOMAIN_KEY="lemper._domainkey.${SENDER_DOMAIN}"
+
         if [[ $(validate_fqdn "${SENDER_DOMAIN}") == true ]]; then
-            DOMAIN_KEY="lemper._domainkey.${SENDER_DOMAIN}    ${SENDER_DOMAIN}:lemper:/etc/opendkim/keys/${SENDER_DOMAIN}/lemper.private"
-            run bash -c "echo '${DOMAIN_KEY}' > /etc/opendkim/key.table"
+            DOMAIN_KEY_TABLE="${DOMAIN_KEY}    ${SENDER_DOMAIN}:lemper:/etc/opendkim/keys/${SENDER_DOMAIN}/lemper.private"
+            run bash -c "echo '${DOMAIN_KEY_TABLE}' > /etc/opendkim/key.table"
         fi
 
         # Create trusted hosts.
@@ -447,12 +449,16 @@ EOL
                 DKIM_KEY="Example DKIM Key"
             fi
 
+            SPF_RECORD="v=spf1 ip4:${SERVER_IP} include:${SENDER_DOMAIN} mx ~all"
+            
+            export DOMAIN_KEY
             export DKIM_KEY
+            export SPF_RECORD
 
-            echo -e "Add this DKIM key to your DNS TXT record!\nDKIM Key: ${DKIM_KEY}"
+            echo -e "Add this DKIM & SPF key to your DNS TXT record!\nDOMAIN_Key: ${DOMAIN_KEY}\nDKIM Record: ${DKIM_KEY}\nSPF Record: ${SPF_RECORD}"
 
             # Save log.
-            save_log -e "DKIM Key for ${SENDER_DOMAIN}:\n${DKIM_KEY}"
+            save_log -e "Domain Key for ${SENDER_DOMAIN}: ${DOMAIN_KEY}\nDKIM Key for ${SENDER_DOMAIN}: ${DKIM_KEY}\nSPF Record for ${SENDER_DOMAIN}: ${SPF_RECORD}"
 
             # Test DKIM Key.
             #run opendkim-testkey -d "${SENDER_DOMAIN}" -s lemper -vvv
@@ -488,16 +494,16 @@ EOL
 # Initialize the mail server installation.
 ##
 function init_mailer_install() {
-    if [[ $(validate_fqdn "${SENDER_DOMAIN}") == false || "${SENDER_DOMAIN}" == "mail.example.com" ]]; then
+    if [[ $(validate_fqdn "${SENDER_DOMAIN}") == false || "${SENDER_DOMAIN}" == "mail.example.com" || -z "${SENDER_DOMAIN}" ]]; then
         # Hostname TLD.
         #SENDER_DOMAIN=$(echo "${HOSTNAME}" | rev | cut -d "." -f1-2 | rev)
-        SENDER_DOMAIN="${HOSTNAME}"
+        SENDER_DOMAIN="${SERVER_HOSTNAME}"
     fi
 
     # Generating Let's Encrypt certificates.
     export MAILER_CERT_PATH
 
-    if [[ "${ENVIRONMENT}" == "production" && "${DRYRUN}" != true ]]; then
+    if [[ "${ENVIRONMENT}" == prod* && "${DRYRUN}" != true ]]; then
         # Stop webserver first.
         run systemctl stop nginx
 
@@ -518,7 +524,7 @@ function init_mailer_install() {
 
             MAILER_CERT_PATH="/etc/letsencrypt/live/${HOSTNAME}"
         else
-            MAILER_CERT_PATH=""
+            MAILER_CERT_PATH="${HOSTNAME_CERT_PATH}"
         fi
 
         # Re-start webserver.
