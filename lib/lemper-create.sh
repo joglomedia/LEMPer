@@ -736,7 +736,7 @@ php_value[session.save_handler] = files
 php_value[session.save_path] = /home/${POOLNAME}/.lemper/php/sessions
 php_value[soap.wsdl_cache_dir]  = /home/${POOLNAME}/.lemper/php/wsdlcache
 php_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/php/opcache
-php_value[opcache.error_log] = /home/lemper/logs/php/php${PHPv}-opcache_error.log
+php_value[opcache.error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-opcache_error.log
 EOL
 }
 
@@ -1052,23 +1052,26 @@ function init_lemper_create() {
                 PHP_BIN=$(command -v "php${PHP_VERSION}")
                 PHP_COMPOSER_BIN=$(command -v "composer")
 
-                # Additional check - if FPM user's pool already exist.
+                # Additional check - if FPM user's pool doesn't exist.
                 if [[ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]]; then
                     info "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."
                     echo "Creating new PHP-FPM pool '${USERNAME}' configuration..."
 
                     # Create PHP FPM pool conf.
                     create_fpm_pool_conf "${USERNAME}" "${PHP_VERSION}" > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
-                    run touch "/var/log/php${PHP_VERSION}-fpm_slow.${USERNAME}.log"
 
-                    # Create default directories.
+                    # Create default directories & log files.
                     run mkdir -p "/home/${USERNAME}/.lemper/tmp"
                     run mkdir -p "/home/${USERNAME}/.lemper/php/opcache"
                     run mkdir -p "/home/${USERNAME}/.lemper/php/sessions"
                     run mkdir -p "/home/${USERNAME}/.lemper/php/wsdlcache"
                     run mkdir -p "/home/${USERNAME}/cgi-bin"
-                    run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.lemper/" "/home/${USERNAME}/cgi-bin/"
-#
+                    run mkdir -p "/home/${USERNAME}/logs/php"
+                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_slow.log"
+                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_error.log"
+                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-opcache_error.log"
+                    run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.lemper" "/home/${USERNAME}/cgi-bin" "/home/${USERNAME}/logs"
+
                     # Restart PHP FPM.
                     echo "Restart php${PHP_VERSION}-fpm configuration..."
 

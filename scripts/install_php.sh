@@ -508,13 +508,17 @@ EOL
         fi
     fi
 
-    # Create default directories.
+    # Create default directories & log files.
     run mkdir -p "/home/${POOLNAME}/.lemper/tmp"
+    run mkdir -p "/home/${POOLNAME}/.lemper/php/opcache"
     run mkdir -p "/home/${POOLNAME}/.lemper/php/sessions"
     run mkdir -p "/home/${POOLNAME}/.lemper/php/wsdlcache"
-    run mkdir -p "/home/${POOLNAME}/.lemper/php/opcache"
     run mkdir -p "/home/${POOLNAME}/cgi-bin"
-    run chown -hR "${POOLNAME}:${POOLNAME}" "/home/${POOLNAME}"
+    run mkdir -p "/home/${POOLNAME}/logs/php"
+    run touch "/home/${POOLNAME}/logs/php/php${PHPv}-fpm_slow.log"
+    run touch "/home/${POOLNAME}/logs/php/php${PHPv}-fpm_error.log"
+    run touch "/home/${POOLNAME}/logs/php/php${PHPv}-opcache_error.log"
+    run chown -hR "${POOLNAME}:${POOLNAME}" "/home/${POOLNAME}/.lemper" "/home/${POOLNAME}/cgi-bin" "/home/${POOLNAME}/logs"
 
     # Fix cgi.fix_pathinfo (for PHP older than 5.3).
     #sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
@@ -530,7 +534,7 @@ function add_php_logrotate() {
     fi
 
     run touch "/etc/logrotate.d/php${PHPv}-fpm"
-    cat >> "/etc/logrotate.d/php${PHPv}-fpm" <<EOL
+    cat > "/etc/logrotate.d/php${PHPv}-fpm" <<EOL
 /var/log/php${PHPv}-fpm.log /var/log/php/php${PHPv}-fpm_*.*.log /home/*/logs/php/php${PHPv}-fpm_*.log {
     rotate 12
     weekly
