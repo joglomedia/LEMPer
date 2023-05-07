@@ -268,8 +268,8 @@ enabled = true
 port = http,https
 filter = ${FRAMEWORK}
 action = iptables-multiport[name=webapps, port="http,https", protocol=tcp]
-logpath = ${WEBROOT}/access_log
-bantime = 30d
+logpath = ${WEBROOT}/logs/nginx/access_log
+bantime = 7d
 findtime = 5m
 maxretry = 3
 EOL
@@ -492,11 +492,11 @@ function enable_ssl() {
 
             # Change listening port to 443.
             if grep -qwE "^\    listen\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b:80" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-                run sed -i "s/\:80/\:443 ssl http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+                run sed -i "s/\:80/\:443\ ssl\ http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             else
                 run sed -i "s/listen\ 80/listen\ 443\ ssl\ http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             fi
-            
+
             run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443\ ssl\ http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
 
             # Enable SSL configs.
@@ -519,12 +519,12 @@ function enable_ssl() {
             # Append redirection block.
             cat >> "/etc/nginx/sites-available/${DOMAIN}.conf" <<EOL
 
-# HTTP to HTTPS redirection.
+## HTTP to HTTPS redirection.
 server {
     listen 80;
     listen [::]:80;
 
-    ## Make site accessible from world web.
+    ## Make site accessible from world wide.
     server_name ${1};
 
     ## Automatically redirect site to HTTPS protocol.
@@ -897,7 +897,7 @@ function generate_selfsigned_ssl() {
 
     # Create chain file.
     run cat "/etc/lemper/ssl/${DOMAIN}/cert.pem" "${CA_CRT_FILE}" >> \
-        "/etc/lemper/ssl/${DOMAIN}/chain.pem"
+        "/etc/lemper/ssl/${DOMAIN}/fullchain.pem"
 
     if [ -f "/etc/lemper/ssl/${DOMAIN}/cert.pem" ]; then
         success "Self-signed SSL certificate has been successfully generated."

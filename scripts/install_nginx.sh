@@ -1559,29 +1559,6 @@ function init_nginx_install() {
                         MOD_STREAM_ENABLED=true
                     fi
                 fi
-
-                # Nginx init script.
-                if [ ! -f /etc/init.d/nginx ]; then
-                    run cp etc/init.d/nginx /etc/init.d/
-                    run chmod ugo+x /etc/init.d/nginx
-                fi
-
-                # Nginx systemd script.
-                [ ! -f /lib/systemd/system/nginx.service ] && \
-                run cp etc/systemd/nginx.service /lib/systemd/system/
-
-                [ ! -f /etc/systemd/system/multi-user.target.wants/nginx.service ] && \
-                run ln -s /lib/systemd/system/nginx.service \
-                    /etc/systemd/system/multi-user.target.wants/nginx.service
-
-                # Try reloading daemon.
-                run systemctl daemon-reload
-
-                # Enable in start up.
-                run systemctl enable nginx.service
-
-                # Masked (?).
-                run systemctl unmask nginx.service
             ;;
             *)
                 # Skip installation.
@@ -1615,16 +1592,6 @@ function init_nginx_install() {
         # Create Nginx http vhost directory.
         [ ! -d /etc/nginx/sites-available ] && run mkdir -p /etc/nginx/sites-available
         [ ! -d /etc/nginx/sites-enabled ] && run mkdir -p /etc/nginx/sites-enabled
-
-        # Copy custom default vhost.
-        [ -f /etc/nginx/sites-available/default ] && \
-        run mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default~
-        run cp -f etc/nginx/sites-available/default /etc/nginx/sites-available/
-
-        # Enable default vhost (mandatory).
-        [ -f /etc/nginx/sites-enabled/default ] && run unlink /etc/nginx/sites-enabled/default
-        [ -f /etc/nginx/sites-enabled/00-default ] && run unlink /etc/nginx/sites-enabled/00-default
-        run ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/00-default
 
         # TODO: Add stream support.
 
@@ -1660,8 +1627,9 @@ EOL
         [ -d /var/cache/nginx ] && run chown -hR www-data:www-data /var/cache/nginx
 
         # Nginx Logrotate.
-        run cp -f etc/logrotate.d/nginx /etc/logrotate.d/ && \
-        run chmod 0644 /etc/logrotate.d/nginx
+        #run cp -f etc/logrotate.d/nginx /etc/logrotate.d/ && \
+        #run chmod 0644 /etc/logrotate.d/nginx
+        add_nginx_logrotate
 
         # Adjust nginx to meet hardware resources.
         echo "Customize Nginx configuration..."
@@ -1726,8 +1694,47 @@ EOL
         # Generate default hostname SSL cert.
         generate_hostname_cert
 
+        # Nginx init script.
+        if [ ! -f /etc/init.d/nginx ]; then
+            run cp etc/init.d/nginx /etc/init.d/
+            run chmod ugo+x /etc/init.d/nginx
+        fi
+
+        # Nginx systemd script.
+        [ ! -f /lib/systemd/system/nginx.service ] && \
+        run cp etc/systemd/nginx.service /lib/systemd/system/
+
+        [ ! -f /etc/systemd/system/multi-user.target.wants/nginx.service ] && \
+        run ln -s /lib/systemd/system/nginx.service \
+            /etc/systemd/system/multi-user.target.wants/nginx.service
+
+        # Try reloading daemon.
+        run systemctl daemon-reload
+
+        # Masked (?).
+        run systemctl unmask nginx.service
+
+        # Enable in start up.
+        run systemctl enable nginx.service
+
         # Final test.
         if [[ "${DRYRUN}" != true ]]; then
+            # Copy custom default vhost.
+            [ -f /etc/nginx/sites-available/default ] && \
+            run mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default~
+
+            if [[ -n "${HOSTNAME_CERT_PATH}" && -f "${HOSTNAME_CERT_PATH}/fullchain.pem" ]]; then
+                run cp -f etc/nginx/sites-available/default-ssl /etc/nginx/sites-available/default
+                run sed -i "s|HOSTNAME_CERT_PATH|${HOSTNAME_CERT_PATH}|g" "/etc/nginx/sites-available/default"
+            else
+                run cp -f etc/nginx/sites-available/default /etc/nginx/sites-available/default
+            fi
+
+            # Enable default vhost (mandatory).
+            [ -f /etc/nginx/sites-enabled/default ] && run unlink /etc/nginx/sites-enabled/default
+            [ -f /etc/nginx/sites-enabled/00-default ] && run unlink /etc/nginx/sites-enabled/00-default
+            run ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/00-default
+
             # Make default server accessible from hostname or IP address.
             if [[ $(dig "${HOSTNAME}" +short) == "${SERVER_IP}" ]]; then
                 run sed -i "s/localhost.localdomain/${HOSTNAME}/g" /etc/nginx/sites-available/default
@@ -1773,16 +1780,16 @@ EOL
 
 function generate_hostname_cert() {
     # Generate a new certificate for the hostname domain.
-    if [[ "${ENVIRONMENT}" == prod* ]]; then
+    if [[ "${ENVIRONMENT}" == prod* && $(dig "${HOSTNAME}" +short) == "${SERVER_IP}" ]]; then
         # Stop webserver first.
         run systemctl stop nginx.service
 
-        if [[ $(dig "${HOSTNAME}" +short) == "${SERVER_IP}" ]]; then
-        run certbot certonly --standalone --agree-tos --preferred-challenges http \
-            --webroot-path=/usr/share/nginx/html -d "${HOSTNAME}"
-        export HOSTNAME_CERT_PATH && \
-        HOSTNAME_CERT_PATH="/etc/letsencrypt/live/${HOSTNAME}"
+        if [[ ! -e "/etc/letsencrypt/live/${HOSTNAME}/fullchain.pem" ]]; then
+            run certbot certonly --standalone --agree-tos --preferred-challenges http \
+                --webroot-path=/usr/share/nginx/html -d "${HOSTNAME}"
         fi
+
+        HOSTNAME_CERT_PATH="/etc/letsencrypt/live/${HOSTNAME}"
 
         # Re-start webserver.
         run systemctl start nginx.service
@@ -1798,32 +1805,59 @@ function generate_hostname_cert() {
 
         # Create Certificate Authority (CA).
         run openssl req -x509 -sha256 -days 365000 -nodes -newkey "rsa:${KEY_HASH_LENGTH}" \
-        -keyout /etc/lemper/ssl/lemperCA.key -out /etc/lemper/ssl/lemperCA.crt \
-        -config /etc/lemper/ssl/ca.conf && \
+            -keyout /etc/lemper/ssl/lemperCA.key -out /etc/lemper/ssl/lemperCA.crt \
+            -config /etc/lemper/ssl/ca.conf && \
 
         # Create Server Private Key.
         run openssl genrsa -out "/etc/lemper/ssl/${HOSTNAME}/privkey.pem" "${KEY_HASH_LENGTH}" && \
 
         # Generate Certificate Signing Request (CSR) using Server Private Key.
         run openssl req -new -key "/etc/lemper/ssl/${HOSTNAME}/privkey.pem" \
-        -out "/etc/lemper/ssl/${HOSTNAME}/csr.pem" -config /etc/lemper/ssl/csr.conf
+            -out "/etc/lemper/ssl/${HOSTNAME}/csr.pem" -config /etc/lemper/ssl/csr.conf
 
         # Generate SSL certificate With self signed CA.
         run openssl x509 -req -sha256 -days 365000 -CAcreateserial \
-        -CA /etc/lemper/ssl/lemperCA.crt -CAkey /etc/lemper/ssl/lemperCA.key \
-        -in "/etc/lemper/ssl/${HOSTNAME}/csr.pem" -out "/etc/lemper/ssl/${HOSTNAME}/cert.pem" \
-        -extfile /etc/lemper/ssl/cert.conf
+            -CA /etc/lemper/ssl/lemperCA.crt -CAkey /etc/lemper/ssl/lemperCA.key \
+            -in "/etc/lemper/ssl/${HOSTNAME}/csr.pem" -out "/etc/lemper/ssl/${HOSTNAME}/cert.pem" \
+            -extfile /etc/lemper/ssl/cert.conf
 
         # Create chain file.
         run cat /etc/lemper/ssl/lemperCA.crt "/etc/lemper/ssl/${HOSTNAME}/cert.pem" > \
-        "/etc/lemper/ssl/${HOSTNAME}/chain.pem"
+            "/etc/lemper/ssl/${HOSTNAME}/fullchain.pem"
 
         if [ -f "/etc/lemper/ssl/${HOSTNAME}/cert.pem" ]; then
-        success "Self-signed SSL certificate has been successfully generated."
+            HOSTNAME_CERT_PATH="/etc/lemper/ssl/${HOSTNAME}"
+            success "Self-signed SSL certificate has been successfully generated."
         else
-        fail "An error occurred when generating self-signed SSL certificate."
+            fail "An error occurred when generating self-signed SSL certificate."
         fi
     fi
+}
+
+function add_nginx_logrotate() {
+    run touch "/etc/logrotate.d/nginx"
+    cat >> "/etc/logrotate.d/nginx" <<EOL
+/var/log/nginx/*.log /home/*/logs/nginx/*_log {
+    daily
+    rotate 3
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 www-data adm
+    sharedscripts
+    prerotate
+        if [ -d /etc/logrotate.d/httpd-prerotate ]; then
+            run-parts /etc/logrotate.d/httpd-prerotate;
+        fi
+    endscript
+    postrotate
+        invoke-rc.d nginx rotate >/dev/null 2>&1
+    endscript
+}
+EOL
+
+    run chmod 0644 "/etc/logrotate.d/nginx"
 }
 
 echo "[Nginx HTTP (Web) Server Installation]"
