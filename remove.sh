@@ -103,10 +103,10 @@ if [ -f ./scripts/remove_memcached.sh ]; then
     . ./scripts/remove_memcached.sh
 fi
 
-### Remove Certbot ###
-if [ -f ./scripts/remove_certbotle.sh ]; then
+### Mail server installation ###
+if [ -f ./scripts/remove_mailer.sh ]; then
     echo ""
-    . ./scripts/remove_certbotle.sh
+    . ./scripts/remove_mailer.sh
 fi
 
 ### Remove FTP installation ###
@@ -126,6 +126,12 @@ fi
 if [ -f ./scripts/remove_fail2ban.sh ]; then
     echo ""
     . ./scripts/remove_fail2ban.sh
+fi
+
+### Remove Certbot ###
+if [ -f ./scripts/remove_certbotle.sh ]; then
+    echo ""
+    . ./scripts/remove_certbotle.sh
 fi
 
 ### Remove server security setup ###

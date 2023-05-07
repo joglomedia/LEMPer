@@ -263,9 +263,9 @@ Default Mail service:
     IMAP Port    : 143, 993 (SSL/TLS)
     POP3 Port    : 110, 995 (SSL/TLS)
 
-    Domain Key   : lemper._domainkey.${SENDER_DOMAIN}
+    Domain Key   : ${DOMAIN_KEY}
     DKIM Key     : ${DKIM_KEY}
-    SPF Record   : v=spf1 ip4:${SERVER_IP} include:${SENDER_DOMAIN} mx ~all
+    SPF Record   : ${SPF_RECORD}
 
     Use your default LEMPer stack admin account for Mail login."
         fi

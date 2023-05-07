@@ -80,41 +80,48 @@ function init_mariadb_install() {
             if [[ -n $(command -v mysql) ]]; then
                 if [[ ! -d /etc/mysql/conf.d ]]; then
                     run mkdir -p /etc/mysql/conf.d
-                    run cp -fr etc/mysql/conf.d etc/mysql/
+                    run cp -fr etc/mysql/conf.d /etc/mysql/
                 fi
 
                 if [[ ! -d /etc/mysql/mariadb.conf.d ]]; then
                     run mkdir -p /etc/mysql/mariadb.conf.d
-                    run cp -fr etc/mysql/mariadb.conf.d etc/mysql/
+                    run cp -fr etc/mysql/mariadb.conf.d /etc/mysql/
                 fi
 
                 [[ ! -f /etc/mysql/mariadb.cnf ]] && run cp -f etc/mysql/mariadb.cnf /etc/mysql/
                 [[ ! -f /etc/mysql/my.cnf ]] && run ln -s /etc/mysql/mariadb.cnf /etc/mysql/my.cnf
-                #[[ ! -f /etc/mysql/debian.cnf ]] && run cp -f etc/mysql/debian.cnf /etc/mysql/
+                [[ ! -f /etc/mysql/debian.cnf ]] && run cp -f etc/mysql/debian.cnf /etc/mysql/
 
-                if [[ ! -f /etc/mysql/debian-start ]]; then
+                # Debian start service.
+                if [[ ! -f /etc/mysql/debian-start || "${MYSQL_SECURE_INSTALL}" == true ]]; then
                     run cp -f etc/mysql/debian-start /etc/mysql/
-                    run chmod +x /etc/mysql/debian-start
+                    run chmod ugo+x /etc/mysql/debian-start
                 fi
 
-                # init script.
+                # Init script.
                 if [[ ! -f /etc/init.d/mysql ]]; then
                     run cp etc/init.d/mysql /etc/init.d/
                     run chmod ugo+x /etc/init.d/mysql
                 fi
 
-                # systemd script.
+                # Systemd script.
                 [[ ! -f /lib/systemd/system/mariadb.service ]] && \
                     run cp etc/systemd/mariadb.service /lib/systemd/system/
 
                 [[ ! -f /etc/systemd/system/multi-user.target.wants/mariadb.service && -f /lib/systemd/system/mariadb.service ]] && \
                     run ln -s /lib/systemd/system/mariadb.service /etc/systemd/system/multi-user.target.wants/mariadb.service
-                
+
                 [[ ! -f /etc/systemd/system/mysqld.service && -f /lib/systemd/system/mariadb.service ]] && \
                     run ln -s /lib/systemd/system/mariadb.service /etc/systemd/system/mysqld.service
-                
+
                 [[ ! -f /etc/systemd/system/mysql.service && -f /lib/systemd/system/mariadb.service ]] && \
                     run ln -s /lib/systemd/system/mariadb.service /etc/systemd/system/mysql.service
+
+                # Install default table.
+                if [[ -n $(command -v mysql_install_db) ]]; then
+                    run mysql_install_db && \
+                    run chown -hR mysql:mysql /var/lib/mysql
+                fi
 
                 # Trying to reload daemon.
                 run systemctl daemon-reload
@@ -186,7 +193,7 @@ function init_mariadb_install() {
                 fi
             fi
 
-            if [[ $(pgrep -c mysql) -gt 0 || -n $(command -v mysql) ]]; then
+            if [[ $(pgrep -c mariadb) -gt 0 || -n $(command -v mysql) ]]; then
                 success "MariaDB server installed successfully."
 
                 # Allow remote client access
@@ -197,15 +204,14 @@ function init_mariadb_install() {
 
                 # Restart MariaDB (MySQL)
                 run systemctl restart mariadb.service
-                sleep 3
 
-                if [[ $(pgrep -c mysql) -gt 0 ]]; then
+                if [[ $(pgrep -c mariadb) -gt 0 ]]; then
                     success "MariaDB server configured successfully."
                 elif [[ -n $(command -v mysql) || -n $(command -v mariadb) ]]; then
                     # Server died? try to start it.
                     run systemctl start mariadb.service
 
-                    if [[ $(pgrep -c mysql) -gt 0 ]]; then
+                    if [[ $(pgrep -c mariadb) -gt 0 ]]; then
                         success "MariaDB server configured successfully."
                     else
                         info "Something went wrong with MariaDB server configuration."

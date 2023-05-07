@@ -1,4 +1,4 @@
-# [L]inux [E]ngine-X [M]ariaDB [P]HP Install[ER]
+# [L]inux [E]ngine-X [M]ariaDB [P]HP Install[er]
 
 <p align="center">
   <img src="/.github/assets/lemper-logo.svg?raw=true" alt="Served by LEMPer Stack © @joglomedia"/>
@@ -149,13 +149,13 @@ http://YOUR_IP_ADDRESS:8082/lcp/
 Adminer (Web-based SQL database manager)
 
 ```bash
-http://YOUR_DOMAIN_NAME:8082/lcp/dbadmin
+http://YOUR_IP_ADDRESS:8082/lcp/dbadmin/
 ```
 
 TinyFileManager (Web-based file manager)
 
 ```bash
-http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
+http://YOUR_IP_ADDRESS:8082/lcp/filemanager/
 ```
 
 ## TODOs
@@ -165,10 +165,10 @@ http://YOUR_DOMAIN_NAME:8082/lcp/filemanager
 * [x] Add network security (iptable rules, firewall configurator, else?)
 * [x] Add database backup tool (Mariabackup, Percona Xtrabackup, else?)
 * [x] Add PostgreSQL database (SQL object-relational database system)
+* [x] Add Pure-FTPd installation as an alternative option to VSFTPD
 * [x] Add enhanced security (AppArmor, cgroups, jailkit (chrooted/jail users), fail2ban, else?)
 * [ ] Add CrowdSec a modern Host-based Intrusion Prevention System (modern-replacement for Fail2ban)
 * [ ] Add NodeJS installation to support modern web frontend development
-* [x] Add Pure-FTPd installation as an alternative option to VSFTPD
 * [ ] Add file backup tool (Borg, Duplicati, Rclone, Restic, Rsnapshot, else?)
 * [ ] Add server monitoring (Amplify, Monit, Nagios, else?)
 * [ ] Add user account & hosting package management

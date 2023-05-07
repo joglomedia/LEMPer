@@ -33,7 +33,7 @@ function init_fail2ban_removal() {
         run dpkg --purge fail2ban
     else
         info "Fail2ban package not found, possibly installed from source."
-        run rm -f /usr/local/bin/fail2ban-*
+        run rm -f /usr/bin/fail2ban-*
     fi
 
     [ -f /etc/systemd/system/multi-user.target.wants/fail2ban.service ] && \
