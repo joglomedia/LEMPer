@@ -736,6 +736,7 @@ php_value[session.save_handler] = files
 php_value[session.save_path] = /home/${POOLNAME}/.lemper/php/sessions
 php_value[soap.wsdl_cache_dir]  = /home/${POOLNAME}/.lemper/php/wsdlcache
 php_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/php/opcache
+php_value[opcache.error_log] = /home/lemper/logs/php/php${PHPv}-opcache_error.log
 EOL
 }
 

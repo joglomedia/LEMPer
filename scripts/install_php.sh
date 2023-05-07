@@ -414,6 +414,7 @@ php_value[session.save_handler] = files
 php_value[session.save_path] = /usr/share/nginx/html/.lemper/php/sessions
 php_value[soap.wsdl_cache_dir] = /usr/share/nginx/html/.lemper/php/wsdlcache
 php_value[opcache.file_cache] = /usr/share/nginx/html/.lemper/php/opcache
+php_value[opcache.error_log] = /var/log/php/php${PHPv}-opcache_error.log
 EOL
         else
             info "Default FPM pool optimized in dry run mode."
@@ -500,6 +501,7 @@ php_value[session.save_handler] = files
 php_value[session.save_path] = /home/${POOLNAME}/.lemper/php/sessions
 php_value[soap.wsdl_cache_dir] = /home/${POOLNAME}/.lemper/php/wsdlcache
 php_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/php/opcache
+php_value[opcache.error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-opcache_error.log
 EOL
         else
             info "Custom FPM pool '${POOLNAME}' created in dry run mode."
