@@ -565,7 +565,7 @@ function preflight_system_check() {
     fi
 
     # Validate server's hostname for production stack.
-    if [[ "${ENVIRONMENT}" == "production" ]]; then
+    if [[ "${ENVIRONMENT}" == prod* ]]; then
         # Check if the hostname is valid.
         if [[ $(validate_fqdn "${HOSTNAME}") != true ]]; then
             error "Your server's hostname is not fully qualified domain name (FQDN)."
