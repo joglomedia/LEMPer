@@ -679,8 +679,8 @@ user = ${POOLNAME}
 group = ${POOLNAME}
 
 listen = /run/php/php${PHPv}-fpm.\$pool.sock
-listen.owner = ${POOLNAME}
-listen.group = ${POOLNAME}
+listen.owner = www-data
+listen.group = www-data
 listen.mode = 0660
 ;listen.allowed_clients = 127.1.0.1
 
@@ -713,7 +713,7 @@ php_admin_value[open_basedir] = /home/${POOLNAME}
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
-php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php8.0-fpm_error.log
+php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_error.log
 php_admin_value[sys_temp_dir] = /home/${POOLNAME}/.lemper/tmp
 php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.lemper/tmp
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
@@ -890,7 +890,7 @@ function init_lemper_create() {
     SERVERNAME=""
     WEBROOT=""
     FRAMEWORK="default"
-    PHP_VERSION="8.0"
+    PHP_VERSION="8.1"
     INSTALL_APP=false
     WPMS_SUBDOMAINS=""
     ENABLE_FASTCGI_CACHE=false
@@ -1067,7 +1067,7 @@ function init_lemper_create() {
                     run mkdir -p "/home/${USERNAME}/.lemper/php/wsdlcache"
                     run mkdir -p "/home/${USERNAME}/cgi-bin"
                     run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.lemper/" "/home/${USERNAME}/cgi-bin/"
-
+#
                     # Restart PHP FPM.
                     echo "Restart php${PHP_VERSION}-fpm configuration..."
 

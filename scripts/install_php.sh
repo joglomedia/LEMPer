@@ -391,7 +391,7 @@ php_admin_value[open_basedir] = /usr/share/nginx/html
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
-php_admin_value[error_log] = /var/log/php/${PHPv}-fpm.\$pool_error.log
+php_admin_value[error_log] = /var/log/php/${PHPv}-fpm_error.\$pool.log
 php_admin_value[sys_temp_dir] = /usr/share/nginx/html/.lemper/tmp
 php_admin_value[upload_tmp_dir] = /usr/share/nginx/html/.lemper/tmp
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
@@ -422,14 +422,15 @@ EOL
 
     # Copy the optimized-version of php fpm default lemper pool.
     local POOLNAME=${LEMPER_USERNAME:-"lemper"}
-    if [[ -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" && ${POOLNAME} == "lemper" ]]; then
+
+    if [[ "${POOLNAME}" == "lemper" && -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" ]]; then
         run cp -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
 
         # Update timezone.
         run sed -i "s|php_admin_value\[date\.timezone\]\ =\ UTC|php_admin_value\[date\.timezone\]\ =\ ${TIMEZONE}|g" \
             "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
     else
-        if [[ -f "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" && -z $(getent passwd "${POOLNAME}") ]]; then
+        if [[ -f "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" && -n $(getent passwd "${POOLNAME}") ]]; then
             run mv "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/lemper.conf~"
         fi
 
@@ -442,8 +443,8 @@ user = ${POOLNAME}
 group = ${POOLNAME}
 
 listen = /run/php/php${PHPv}-fpm.\$pool.sock
-listen.owner = ${POOLNAME}
-listen.group = ${POOLNAME}
+listen.owner = www-data
+listen.group = www-data
 listen.mode = 0660
 ;listen.allowed_clients = 127.1.0.1
 
@@ -476,7 +477,7 @@ php_admin_value[open_basedir] = /home/${POOLNAME}
 ;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
-php_admin_value[error_log] = /var/log/php/${PHPv}-fpm.\$pool_error.log
+php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_error.log
 php_admin_value[sys_temp_dir] = /home/${POOLNAME}/.lemper/tmp
 php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.lemper/tmp
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
@@ -528,7 +529,7 @@ function add_php_logrotate() {
 
     run touch "/etc/logrotate.d/php${PHPv}-fpm"
     cat >> "/etc/logrotate.d/php${PHPv}-fpm" <<EOL
-/var/log/php${PHPv}-fpm.log /home/*/logs/php/php${PHPv}-fpm.log {
+/var/log/php${PHPv}-fpm.log /var/log/php/php${PHPv}-fpm_*.*.log /home/*/logs/php/php${PHPv}-fpm_*.log {
     rotate 12
     weekly
     missingok
@@ -981,7 +982,7 @@ function init_php_install() {
             echo "  5). PHP 7.3 (EOL)"
             echo "  6). PHP 7.4 (EOL)"
             echo "  7). PHP 8.0 (SFO)"
-            echo "  8). PHP 8.1 (Latest)"
+            echo "  8). PHP 8.1 (Stable)"
             echo "  9). PHP 8.2 (Latest Stable)"
             echo "  10). All available versions"
             echo "--------------------------------------------"
