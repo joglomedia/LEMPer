@@ -26,6 +26,8 @@ RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
 
 # Fix broken install, first?
 if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
+    echo "Trying fix broken package install.."
+    run apt-get clean
     run dpkg --configure -a
     run apt-get install -q -y --fix-broken
 fi
