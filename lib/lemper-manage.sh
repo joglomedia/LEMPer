@@ -702,7 +702,7 @@ function enable_brotli() {
     local DOMAIN=${1}
     verify_vhost "${DOMAIN}"
 
-    if [[ -f "/etc/nginx/sites-available/${DOMAIN}.conf" && -f /etc/nginx/modules-enabled/30-mod-http-brotli-static.conf ]]; then
+    if [[ -f "/etc/nginx/sites-available/${DOMAIN}.conf" && -f /etc/nginx/modules-enabled/50-mod-http-brotli.conf ]]; then
         echo "Enable Nginx Brotli compression..."
 
         if grep -qwE "^\    include\ /etc/nginx/includes/compression_brotli.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then

@@ -1207,9 +1207,9 @@ function init_nginx_install() {
                 fi
 
                 if [[ -f /usr/lib/nginx/modules/ngx_http_brotli_static_module.so && \
-                    ! -f /etc/nginx/modules-available/mod-http-brotli-static.conf ]]; then
+                    ! -f /etc/nginx/modules-available/mod-http-brotli.conf ]]; then
                     run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_http_brotli_static_module.so\";' \
-                        > /etc/nginx/modules-available/mod-http-brotli-static.conf"
+                        > /etc/nginx/modules-available/mod-http-brotli.conf"
                 fi
 
                 if [[ -f /usr/lib/nginx/modules/ngx_http_cache_purge_module.so && \
@@ -1389,13 +1389,13 @@ function init_nginx_install() {
                     if [[ "${NGX_HTTP_BROTLI}" && \
                         -f /etc/nginx/modules-available/mod-http-brotli-filter.conf ]]; then
                         run ln -fs /etc/nginx/modules-available/mod-http-brotli-filter.conf \
-                            /etc/nginx/modules-enabled/30-mod-http-brotli-filter.conf
+                            /etc/nginx/modules-enabled/50-mod-http-brotli-filter.conf
                     fi
 
                     if [[ "${NGX_HTTP_BROTLI}" && \
-                        -f /etc/nginx/modules-available/mod-http-brotli-static.conf ]]; then
-                        run ln -fs /etc/nginx/modules-available/mod-http-brotli-static.conf \
-                            /etc/nginx/modules-enabled/30-mod-http-brotli-static.conf
+                        -f /etc/nginx/modules-available/mod-http-brotli.conf ]]; then
+                        run ln -fs /etc/nginx/modules-available/mod-http-brotli.conf \
+                            /etc/nginx/modules-enabled/50-mod-http-brotli.conf
                     fi
 
                     if [[ "${NGX_HTTP_CACHE_PURGE}" && \
