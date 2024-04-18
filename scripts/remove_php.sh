@@ -28,7 +28,7 @@ function remove_php_fpm() {
     local REMOVED_PHP_LOADER="${2}"
 
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
     fi
 
     # Stop default PHP FPM process.
@@ -104,7 +104,7 @@ function disable_ioncube_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
     fi
 
     echo "Disable ionCube loader for PHP ${PHPv}."
@@ -125,7 +125,7 @@ function remove_ioncube_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
     fi
 
     echo "Uninstalling ionCube loader for PHP ${PHPv}..."
@@ -147,7 +147,7 @@ function disable_sourceguardian_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
     fi
 
     echo "Disable SourceGuardian loader for PHP ${PHPv}."
@@ -168,7 +168,7 @@ function remove_sourceguardian_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
     fi
 
     echo "Uninstalling SourceGuardian loader for PHP ${PHPv}..."
@@ -191,7 +191,7 @@ function remove_php_loader() {
     local REMOVED_PHP_LOADER="${2}"
 
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
     fi
 
     if [[ -z "${REMOVED_PHP_LOADER}" ]]; then
@@ -302,14 +302,14 @@ function init_php_fpm_removal() {
         if [[ "${AUTO_REMOVE}" != true ]]; then
             echo "Which PHP version to be removed?"
             echo "Available PHP versions:"
-            echo "  1). PHP 5.6 (EOL)"
-            echo "  2). PHP 7.0 (EOL)"
-            echo "  3). PHP 7.1 (EOL)"
-            echo "  4). PHP 7.2 (EOL)"
-            echo "  5). PHP 7.3 (EOL)"
-            echo "  6). PHP 7.4 (SFO)"
-            echo "  7). PHP 8.0 (Stable)"
-            echo "  8). PHP 8.1 (Latest Stable)"
+            echo "  1). PHP 7.1 (EOL)"
+            echo "  2). PHP 7.2 (EOL)"
+            echo "  3). PHP 7.3 (EOL)"
+            echo "  4). PHP 7.4 (EOL)"
+            echo "  5). PHP 8.0 (EOL)"
+            echo "  6). PHP 8.1 (SFO)"
+            echo "  7). PHP 8.2 (Stable)"
+            echo "  8). PHP 8.3 (Latest Stable)"
             echo "  9). All installed versions"
             echo "  10). Do not remove!"
             echo "--------------------------------------------"
@@ -321,41 +321,42 @@ function init_php_fpm_removal() {
                     ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
                     ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && ${SELECTED_PHP} != "9" && \
                     ${SELECTED_PHP} != "10" && \
-                    ${SELECTED_PHP} != "5.6" && ${SELECTED_PHP} != "7.0" && ${SELECTED_PHP} != "7.1" && \
-                    ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && ${SELECTED_PHP} != "7.4" && \
-                    ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "8.1" && ${SELECTED_PHP} != "all" && \
-                    ${SELECTED_PHP} != "none" ]]; do
+                    ${SELECTED_PHP} != "7.1" && ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && \
+                    ${SELECTED_PHP} != "7.4" && ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "8.1" && \
+                    ${SELECTED_PHP} != "8.2" && ${SELECTED_PHP} != "8.3" && \
+                    ${SELECTED_PHP} != "all" && ${SELECTED_PHP} != "none"
+            ]]; do
                 read -rp "Enter a PHP version from an option above [1-9]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
             done
 
             case ${SELECTED_PHP} in
-                1 | "5.6")
-                    REMOVED_PHP_VERSIONS+=("5.6")
-                ;;
-                2 | "7.0")
-                    REMOVED_PHP_VERSIONS+=("7.0")
-                ;;
-                3 | "7.1")
+                1 | "7.1")
                     REMOVED_PHP_VERSIONS+=("7.1")
                 ;;
-                4 | "7.2")
+                2 | "7.2")
                     REMOVED_PHP_VERSIONS+=("7.2")
                 ;;
-                5 | "7.3")
+                3 | "7.3")
                     REMOVED_PHP_VERSIONS+=("7.3")
                 ;;
-                6 | "7.4")
+                4 | "7.4")
                     REMOVED_PHP_VERSIONS+=("7.4")
                 ;;
-                7 | "8.0")
+                5 | "8.0")
                     REMOVED_PHP_VERSIONS+=("8.0")
                 ;;
-                8 | "8.1")
+                6 | "8.1")
                     REMOVED_PHP_VERSIONS+=("8.1")
+                ;;
+                7 | "8.2")
+                    REMOVED_PHP_VERSIONS+=("8.2")
+                ;;
+                8 | "8.3")
+                    REMOVED_PHP_VERSIONS+=("8.3")
                 ;;
                 9 | "all")
                     # Select all PHP versions (except EOL & Beta).
-                    REMOVED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0" "8.1")
+                    REMOVED_PHP_VERSIONS=("7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2" "8.3")
                 ;;
                 10 | n*)
                     info "No PHP version will be removed."
@@ -371,7 +372,7 @@ function init_php_fpm_removal() {
     # If FORCE_REMOVE, then remove all installed PHP versions include the default.
     if [[ "${FORCE_REMOVE}" == true ]]; then
         # Also remove default LEMPer PHP.
-        DEFAULT_PHP_VERSION=${DEFAULT_PHP_VERSION:-"8.0"}
+        DEFAULT_PHP_VERSION=${DEFAULT_PHP_VERSION:-"8.2"}
         REMOVED_PHP_VERSIONS+=("${DEFAULT_PHP_VERSION}")
     fi
 
@@ -399,7 +400,7 @@ function init_php_fpm_removal() {
 
                 # Remove openswoole official repository.
                 if echo "${PHP_EXTENSIONS}" | grep -qwE "openswoole"; then
-                    run add-apt-repository -y ppa:openswoole/ppa
+                    run add-apt-repository -y --remove ppa:openswoole/ppa
                 fi
 
                 # Remove PHP repository.
@@ -422,16 +423,15 @@ function init_php_fpm_removal() {
 
 echo "Uninstalling PHP packages..."
 
-if [[ -n $(command -v php5.6) || \
-    -n $(command -v php7.0) || \
-    -n $(command -v php7.1) || \
+if [[ -n $(command -v php7.1) || \
     -n $(command -v php7.2) || \
     -n $(command -v php7.3) || \
     -n $(command -v php7.4) || \
     -n $(command -v php8.0) || \
     -n $(command -v php8.1) || \
-    -n $(command -v php8.2) ]]; then
-
+    -n $(command -v php8.2) || \
+    -n $(command -v php8.3) 
+]]; then
     if [[ "${AUTO_REMOVE}" == true ]]; then
         REMOVE_PHP="y"
     else
