@@ -69,9 +69,8 @@ function init_mariadb_install() {
         echo "Installing MariaDB (MySQL drop-in replacement) server..."
 
         # Install MariaDB
-        run apt-get install -q -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
-            "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
-            "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
+        run apt-get install -q -y libmariadb3 libmariadbclient18 mariadb-client mariadb-client-core \
+            mariadb-common mariadb-server mariadb-server-core mariadb-backup
 
         # Configure MySQL installation.
         if [[ "${DRYRUN}" == true ]]; then

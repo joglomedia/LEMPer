@@ -58,9 +58,8 @@ function init_mariadb_removal() {
         echo "Found MariaDB ${MYSQL_VERSION} packages installation, removing..."
 
         # Remove MariaDB server.
-        run apt-get purge -q -y libmariadb3 libmariadbclient18 "mariadb-client-${MYSQL_VERSION}" \
-            "mariadb-client-core-${MYSQL_VERSION}" mariadb-common mariadb-server "mariadb-server-${MYSQL_VERSION}" \
-            "mariadb-server-core-${MYSQL_VERSION}" mariadb-backup
+        run apt-get purge -q -y libmariadb3 libmariadbclient18 mariadb-client mariadb-client-core \
+            mariadb-common mariadb-server mariadb-server-core mariadb-backup
 
         # Remove config.
         mariadb_remove_config
@@ -74,7 +73,7 @@ function init_mariadb_removal() {
         echo "Found MySQL packages installation, removing..."
 
         # Remove MySQL server.
-        run apt-get purge -q -y mysql-server mysql-client mysql-common mysql-server-core-* mysql-client-core-*
+        run apt-get purge -q -y mysql-server mysql-client mysql-common mysql-server-core* mysql-client-core*
 
         # Remove config.
         mariadb_remove_config
