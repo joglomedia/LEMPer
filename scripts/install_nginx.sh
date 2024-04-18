@@ -171,12 +171,7 @@ function init_nginx_install() {
                             # Brotli compression
                             if "${NGX_HTTP_BROTLI}"; then
                                 echo "Adding ngx-http-brotli module..."
-
-                                if [[ "${SELECTED_REPO}" == "myguard" ]]; then
-                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-brotli")
-                                else
-                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-brotli")
-                                fi
+                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-brotli")
                             fi
 
                             # Cache Purge

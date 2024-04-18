@@ -428,7 +428,7 @@ function get_release_name() {
             ;;
             centos | fedora | rocky)
                 # CentOS
-                RELEASE_NAME="rhel"
+                RELEASE_NAME="unsupported"
 
                 # TODO for CentOS install
             ;;

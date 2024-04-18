@@ -671,7 +671,7 @@ function renew_ssl() {
                         --server https://acme-v02.api.letsencrypt.org/directory \
                         --manual-public-ip-logging-ok --webroot-path="${WEBROOT}" -d "${DOMAIN}" -d "*.${DOMAIN}"
                 else
-                    run certbot renew --cert-name "${DOMAIN}" --dry-run
+                    run certbot renew --cert-name "${DOMAIN}"
                 fi
             else
                 fail "Certbot executable binary not found. Install it first!"
@@ -679,7 +679,7 @@ function renew_ssl() {
         else
             # Re-generate self-signed certs.
             generate_selfsigned_ssl "${DOMAIN}"
-        
+
             if [[ ! -d "/etc/letsencrypt/live/${DOMAIN}" ]]; then
                 run mkdir -p "/etc/letsencrypt/live/${DOMAIN}"
                 run chmod 0700 /etc/letsencrypt/live
