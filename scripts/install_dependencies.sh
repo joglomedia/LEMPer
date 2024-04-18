@@ -53,7 +53,13 @@ echo "Installing Python..."
 case "${DISTRIB_NAME}" in
     debian)
         case "${RELEASE_NAME}" in
-            stretch | buster | bullseye)
+            bookworm)
+                run apt-get install -q -y python3-venv python3-launchpadlib && \
+                run update-alternatives --install /usr/bin/python python "$(command -v python3)" 3 && \
+                run update-alternatives --set python /usr/bin/python3
+            ;;
+            *)
+            #stretch | buster | bullseye)
                 run add-apt-repository ppa:deadsnakes/ppa -y && \
                 run apt-get update -q -y && \
                 run apt-get install -q -y python3.7 python3.7-dev python3.7-venv \
@@ -73,13 +79,6 @@ case "${DISTRIB_NAME}" in
         run update-alternatives --install /usr/bin/python python "$(command -v python3.7)" 37 && \
         run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
         run update-alternatives --set python /usr/bin/python3.7
-    ;;
-    centos | rocky*)
-        run dnf install -y python3 python3-libs python3-pip-wheel python3-setuptools-wheel \
-            python39 python39-libs python39-pip-wheel python39-setuptools-wheel && \
-        run update-alternatives --install /usr/bin/unversioned-python python "$(command -v python3)" 3 && \
-        run update-alternatives --install /usr/bin/unversioned-python python "$(command -v python3.9)" 39 && \
-        run update-alternatives --set python /usr/bin/python3
     ;;
 esac
 
