@@ -36,9 +36,21 @@ function add_php_repo() {
                 run wget -qO /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
 
                 # Add openswoole official repository.
-                if echo "${PHP_EXTENSIONS}" | grep -qwE "openswoole"; then
-                    run add-apt-repository -y ppa:openswoole/ppa
-                fi
+                case "${RELEASE_NAME}" in
+                    buster)
+                        OPENSWOOLE_PPA="bionic"
+                    ;;
+                    bullseye)
+                        OPENSWOOLE_PPA="focal"
+                    ;;
+                    bookworm)
+                        OPENSWOOLE_PPA="jammy"
+                    ;;
+                esac
+
+                run touch "/etc/apt/sources.list.d/openswoole-ubuntu-ppa-${OPENSWOOLE_PPA}.list" && \
+                run bash -c "echo 'deb https://ppa.launchpadcontent.net/openswoole/ppa/ubuntu/ ${OPENSWOOLE_PPA} main' > /etc/apt/sources.list.d/openswoole-ubuntu-ppa-${OPENSWOOLE_PPA}.list" && \
+                run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 73414442D33E80F9C7E15E7F1F00974B7E59CCAC
             else
                 info "PHP package repository already exists."
             fi
