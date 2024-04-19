@@ -531,7 +531,7 @@ function preflight_system_check() {
 
     # Set system architecture.
     export ARCH && \
-    ARCH=$(uname -p)
+    ARCH=$(uname -m)
 
     # Set default timezone.
     export TIMEZONE
