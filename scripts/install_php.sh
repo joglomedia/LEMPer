@@ -31,8 +31,9 @@ function add_php_repo() {
     case "${DISTRIB_NAME}" in
         debian)
             if [[ ! -f "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" ]]; then
-                run touch "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
-                run bash -c "echo 'deb https://packages.sury.org/php/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
+                run touch "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" && \
+                run bash -c "echo 'deb https://packages.sury.org/php/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" && \
+                run bash -c "echo 'deb-src https://packages.sury.org/php/ ${RELEASE_NAME} main' >> /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" && \
                 run wget -qO /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
 
                 # Add openswoole official repository.
@@ -48,8 +49,9 @@ function add_php_repo() {
                     ;;
                 esac
 
-                run touch "/etc/apt/sources.list.d/openswoole-ubuntu-ppa-${OPENSWOOLE_PPA}.list" && \
-                run bash -c "echo 'deb https://ppa.launchpadcontent.net/openswoole/ppa/ubuntu/ ${OPENSWOOLE_PPA} main' > /etc/apt/sources.list.d/openswoole-ubuntu-ppa-${OPENSWOOLE_PPA}.list" && \
+                run touch "/etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_PPA}.list" && \
+                run bash -c "echo 'deb https://ppa.launchpadcontent.net/openswoole/ppa/ubuntu/ ${OPENSWOOLE_PPA} main' > /etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_PPA}.list" && \
+                run bash -c "echo 'deb-src https://ppa.launchpadcontent.net/openswoole/ppa/ubuntu/ ${OPENSWOOLE_PPA} main' >> /etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_PPA}.list" && \
                 run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 73414442D33E80F9C7E15E7F1F00974B7E59CCAC
             else
                 info "PHP package repository already exists."
