@@ -26,17 +26,14 @@ function add_postgres_repo() {
     local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
     local POSTGRES_REPO_KEY=${POSTGRES_REPO_KEY:-"ACCC4CF8"}
 
-    case ${DISTRIB_NAME} in
+    case "${DISTRIB_NAME}" in
         debian | ubuntu)
             if [[ ! -f "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list" ]]; then
-                echo "Adding PostgreSQL repository key..."
-
-                run bash -c "wget --quiet -O - https://www.postgresql.org/media/keys/${POSTGRES_REPO_KEY}.asc | apt-key add -"
-
                 echo "Adding PostgreSQL repository..."
 
-                run touch "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list"
-                run bash -c "echo 'deb http://apt.postgresql.org/pub/repos/apt ${RELEASE_NAME}-pgdg main' > /etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list"
+                run touch "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list" && \
+                run bash -c "echo 'deb http://apt.postgresql.org/pub/repos/apt ${RELEASE_NAME}-pgdg main' > /etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list" && \
+                run bash -c "wget --quiet -O - https://www.postgresql.org/media/keys/${POSTGRES_REPO_KEY}.asc | apt-key add -" && \
                 run apt-get update -q -y
             else
                 info "PostgreSQL ${POSTGRES_VERSION} repository already exists."
