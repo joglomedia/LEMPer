@@ -20,13 +20,19 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 # Set MongoDB version.
-if [[ "${RELEASE_NAME}" == "bookworm" ]]; then
-    MONGODB_VERSION="7.0"
-elif [[ "${RELEASE_NAME}" == "jammy" && version_older_than "${MONGODB_VERSION}" "6.0" ]]; then
-    MONGODB_VERSION="6.0"
-else
-    MONGODB_VERSION=${MONGODB_VERSION:-"6.0"}
-fi
+case "${RELEASE_NAME}" in
+    bookworm)
+        MONGODB_VERSION="7.0"
+    ;;
+    jammy)
+        if version_older_than "${MONGODB_VERSION}" "6.0"; then
+            MONGODB_VERSION="6.0"
+        fi
+    ;;
+    *)
+        MONGODB_VERSION=${MONGODB_VERSION:-"6.0"}
+    ;;
+esac
 
 function remove_mongodb_repo() {
     echo "Removing MongoDB repository..."
