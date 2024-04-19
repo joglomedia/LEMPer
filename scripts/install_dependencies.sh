@@ -59,8 +59,18 @@ case "${DISTRIB_NAME}" in
                 run update-alternatives --set python /usr/bin/python3
             ;;
             *)
-            #stretch | buster | bullseye)
-                run add-apt-repository ppa:deadsnakes/ppa -y && \
+                # Add deadsnakes repository.
+                case "${RELEASE_NAME}" in
+                    buster | bullseye)
+                        DEADSNAKES_PPA="focal"
+                    ;;
+                esac
+
+                run touch "/etc/apt/sources.list.d/deadsnakes-ppa-ubuntu-${DEADSNAKES_PPA}.list" && \
+                run bash -c "echo 'deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu ${DEADSNAKES_PPA} main' > /etc/apt/sources.list.d/deadsnakes-ppa-ubuntu-${DEADSNAKES_PPA}.list" && \
+                run bash -c "echo 'deb-src https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu ${DEADSNAKES_PPA} main' >> /etc/apt/sources.list.d/deadsnakes-ppa-ubuntu-${DEADSNAKES_PPA}.list" && \
+                run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys F23C5A6CF475977595C89F51BA6932366A755776
+
                 run apt-get update -q -y && \
                 run apt-get install -q -y python3.7 python3.7-dev python3.7-venv \
                     python3.9 python3.9-dev python3.9-venv python3-pip && \
