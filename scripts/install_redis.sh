@@ -28,18 +28,15 @@ function add_redis_repo() {
     case "${DISTRIB_NAME}" in
         debian | ubuntu)
             if [[ ! -f "/etc/apt/sources.list.d/redis-${RELEASE_NAME}.list" ]]; then
-                run bash -c "curl -fsSL https://packages.redis.io/gpg | gpg --dearmor --yes -o /usr/share/keyrings/redis-archive-keyring.gpg"
-                run touch "/etc/apt/sources.list.d/redis-${RELEASE_NAME}.list"
-                run bash -c "echo 'deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb ${RELEASE_NAME} main' | tee /etc/apt/sources.list.d/redis-${RELEASE_NAME}.list"
+                run touch "/etc/apt/sources.list.d/redis-${RELEASE_NAME}.list" && \
+                run bash -c "echo 'deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb ${RELEASE_NAME} main' | tee /etc/apt/sources.list.d/redis-${RELEASE_NAME}.list" && \
+                run bash -c "curl -fsSL https://packages.redis.io/gpg | gpg --dearmor --yes -o /usr/share/keyrings/redis-archive-keyring.gpg" && \
+                run chmod 644 /usr/share/keyrings/redis-archive-keyring.gpg && \
                 run apt-get update -q -y
             else
                 info "Redis repository already exists."
             fi
         ;;
-        #ubuntu)
-        #    run add-apt-repository -y ppa:redislabs/redis && \
-        #    run apt-get update -q -y
-        #;;
         *)
             fail "Unable to add Redis repo, this GNU/Linux distribution is not supported."
         ;;
