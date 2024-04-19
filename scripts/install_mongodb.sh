@@ -20,10 +20,12 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 # Set MongoDB version.
-if [[ "${RELEASE_NAME}" == "jessie" || "${RELEASE_NAME}" == "xenial" ]]; then
-    MONGODB_VERSION="4.4"
+if [[ "${RELEASE_NAME}" == "bookworm" ]]; then
+    MONGODB_VERSION="7.0"
+elif [[ "${RELEASE_NAME}" == "jammy" && version_older_than "${MONGODB_VERSION}" "6.0" ]]; then
+    MONGODB_VERSION="6.0"
 else
-    MONGODB_VERSION=${MONGODB_VERSION:-"5.0"}
+    MONGODB_VERSION=${MONGODB_VERSION:-"6.0"}
 fi
 
 ##
@@ -49,17 +51,14 @@ function add_mongodb_repo() {
         ;;
     esac
 
-    case ${DISTRIB_NAME} in
+    case "${DISTRIB_NAME}" in
         debian)
             if [[ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" ]]; then
-                echo "Adding MongoDB repository key..."
-
-                run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -"
-
                 echo "Adding MongoDB repository..."
 
-                run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
-                run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/debian ${RELEASE_NAME}/mongodb-org/${MONGODB_VERSION} main' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
+                run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" && \
+                run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/debian ${RELEASE_NAME}/mongodb-org/${MONGODB_VERSION} main' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" && \
+                run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -" && \
                 run apt-get update -q -y
             else
                 info "MongoDB ${MONGODB_VERSION} repository already exists."
@@ -67,14 +66,11 @@ function add_mongodb_repo() {
         ;;
         ubuntu)
             if [[ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" ]]; then
-                echo "Adding MongoDB repository key..."
-
-                run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -"
-
                 echo "Adding MongoDB repository..."
 
-                run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
-                run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/ubuntu ${RELEASE_NAME}/mongodb-org/${MONGODB_VERSION} multiverse' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
+                run touch "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" && \
+                run bash -c "echo 'deb [ arch=${DISTRIB_ARCH} ] https://repo.mongodb.org/apt/ubuntu ${RELEASE_NAME}/mongodb-org/${MONGODB_VERSION} multiverse' > /etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" && \
+                run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key add -" && \
                 run apt-get update -q -y
             else
                 info "MongoDB ${MONGODB_VERSION} repository already exists."

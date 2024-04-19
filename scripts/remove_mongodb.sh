@@ -20,10 +20,12 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 # Set MongoDB version.
-if [[ "${RELEASE_NAME}" == "jessie" || "${RELEASE_NAME}" == "xenial" ]]; then
-    MONGODB_VERSION="4.4"
+if [[ "${RELEASE_NAME}" == "bookworm" ]]; then
+    MONGODB_VERSION="7.0"
+elif [[ "${RELEASE_NAME}" == "jammy" && version_older_than "${MONGODB_VERSION}" "6.0" ]]; then
+    MONGODB_VERSION="6.0"
 else
-    MONGODB_VERSION=${MONGODB_VERSION:-"5.0"}
+    MONGODB_VERSION=${MONGODB_VERSION:-"6.0"}
 fi
 
 function remove_mongodb_repo() {
