@@ -113,7 +113,7 @@ function requires_root() {
             exit 1
         else
             #echo "Switching to root user to run installer script."
-            sudo -E "$0" "$@"
+            sudo -E -H "$0" "$@"
             exit 0
         fi
     fi

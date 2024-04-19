@@ -33,7 +33,11 @@ function init_fail2ban_removal() {
         run dpkg --purge fail2ban
     else
         info "Fail2ban package not found, possibly installed from source."
-        run rm -f /usr/bin/fail2ban-*
+        run unlink /usr/local/bin/fail2ban-client && \
+        run unlink /usr/local/bin/fail2ban-server && \
+        run unlink /usr/local/bin/fail2ban-regex && \
+        run unlink /usr/local/bin/fail2ban-testcases && \
+        run unlink /usr/local/bin/fail2ban-python 
     fi
 
     [ -f /etc/systemd/system/multi-user.target.wants/fail2ban.service ] && \
@@ -57,7 +61,13 @@ function init_fail2ban_removal() {
     fi
 
     if [[ "${REMOVE_FAIL2BAN_CONFIG}" == y* || "${REMOVE_FAIL2BAN_CONFIG}" == Y* ]]; then
-        [ -d /etc/fail2ban/ ] && run rm -fr /etc/fail2ban/
+        if [ -d /etc/fail2ban/ ]; then
+            run rm -fr /etc/fail2ban/
+        fi
+
+        if [ -d /opt/fail2ban/ ]; then
+            run rm -fr /opt/fail2ban/
+        fi
 
         echo "All configuration files deleted permanently."
     fi

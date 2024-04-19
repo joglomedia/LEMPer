@@ -75,11 +75,19 @@ function init_fail2ban_install() {
                 if curl -sLI "${fail2ban_download_link}" | grep -q "HTTP/[.12]* [2].."; then
                     run wget "${fail2ban_download_link}" -O fail2ban.tar.gz  && \
                     run tar -zxf fail2ban.tar.gz && \
-                    run cd fail2ban-*/ && \
+                    run cd fail2ban-*/
+
                     # Convert to Python3 codebase
-                    run python -m pip install --upgrade 2to3 && \
-                    run ./fail2ban-2to3 && \
-                    run python setup.py install && \
+                    run python -m venv /opt/fail2ban/ && \
+                    run /opt/fail2ban/bin/pip install --upgrade pip setuptools cffi 2to3 && \
+                    #run ln -sf /opt/fail2ban/bin/2to3 /usr/local/bin/2to3 && \
+                    #run ./fail2ban-2to3 && \
+                    run /opt/fail2ban/bin/python setup.py install && \
+                    run ln -sf /opt/fail2ban/bin/fail2ban-client /usr/local/bin/fail2ban-client && \
+                    run ln -sf /opt/fail2ban/bin/fail2ban-server /usr/local/bin/fail2ban-server && \
+                    run ln -sf /opt/fail2ban/bin/fail2ban-regex /usr/local/bin/fail2ban-regex && \
+                    run ln -sf /opt/fail2ban/bin/fail2ban-testcases /usr/local/bin/fail2ban-testcases && \
+                    run ln -sf /opt/fail2ban/bin/python /usr/local/bin/fail2ban-python && \
                     run cp files/debian-initd /etc/init.d/fail2ban && \
                     run update-rc.d fail2ban defaults
                 fi
