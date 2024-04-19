@@ -40,7 +40,7 @@ run apt-get upgrade -q -y
 # Install dependencies.
 echo "Installing packages, be patient..."
 run apt-get install -q -y \
-    apt-transport-https apt-utils autoconf automake bash build-essential ca-certificates \
+    apt-transport-https apt-utils autoconf automake bash bc build-essential ca-certificates \
     cmake cron curl dmidecode dnsutils gcc gdb git gnupg2 htop iptables libc-bin libc6-dev \
     libcurl4-openssl-dev libgpgme11-dev libssl-dev libpcre3-dev libxml2-dev libxslt1-dev \
     libtool locales logrotate lsb-release make net-tools openssh-server openssl pkg-config \
@@ -54,7 +54,7 @@ case "${DISTRIB_NAME}" in
     debian)
         case "${RELEASE_NAME}" in
             bookworm)
-                run apt-get install -q -y python3-venv python3-launchpadlib && \
+                run apt-get install -q -y python3-launchpadlib python3-pip python3-venv && \
                 run update-alternatives --install /usr/bin/python python "$(command -v python3)" 3 && \
                 run update-alternatives --set python /usr/bin/python3
             ;;
