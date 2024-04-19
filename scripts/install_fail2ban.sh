@@ -80,8 +80,8 @@ function init_fail2ban_install() {
                     # Convert to Python3 codebase
                     run python -m venv /opt/fail2ban/ && \
                     run /opt/fail2ban/bin/pip install --upgrade pip setuptools cffi 2to3 && \
-                    #run ln -sf /opt/fail2ban/bin/2to3 /usr/local/bin/2to3 && \
-                    #run ./fail2ban-2to3 && \
+                    run ln -sf /opt/fail2ban/bin/2to3 /usr/local/bin/2to3 && \
+                    run ./fail2ban-2to3 && \
                     run /opt/fail2ban/bin/python setup.py install && \
                     run ln -sf /opt/fail2ban/bin/fail2ban-client /usr/local/bin/fail2ban-client && \
                     run ln -sf /opt/fail2ban/bin/fail2ban-server /usr/local/bin/fail2ban-server && \
