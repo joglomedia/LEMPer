@@ -145,8 +145,7 @@ function init_nginx_install() {
         fi
 
         case "${SELECTED_INSTALLER}" in
-            1|"repo")
-
+            1 | "repo")
                 if [[ "${SELECTED_REPO}" == "myguard" ]]; then
                     add_nginx_repo_myguard
                 else
@@ -354,7 +353,7 @@ function init_nginx_install() {
                 #fi
             ;;
 
-            2|"source")
+            2 | "source")
                 echo "Installing Nginx from source, please wait..."
 
                 # CPU core numbers, for building faster.
@@ -1149,23 +1148,27 @@ function init_nginx_install() {
                 if ! version_older_than "${NGINX_RELEASE_VERSION}" "1.22.99"; then
                     NGX_PAGESPEED_VERSION="latest-stable"
                     # --psol-from-source
-                    NGX_BUILD_EXTRA_ARGS+=("-s" "-t Release")
+                    NGX_BUILD_EXTRA_ARGS+=("-t Release")
                 fi
 
                 # Workaround for Building on newer glibc (eg. Ubuntu 21.10 and above)
                 # issue https://github.com/apache/incubator-pagespeed-ngx/issues/1743
-                if [[ "${RELEASE_NAME}" == "jammy" ]]; then
+                if [[ "${RELEASE_NAME}" == "bookworm" || "${RELEASE_NAME}" == "jammy" ]]; then
                     export PSOL_BINARY_URL && \
                         PSOL_BINARY_URL="https://www.tiredofit.nl/psol-jammy.tar.gz"
+                    NGX_BUILD_EXTRA_ARGS+=("--psol-binary-file=${PSOL_BINARY_URL}")
+                else
+                    NGX_BUILD_EXTRA_ARGS+=("--psol-from-source")
                 fi
 
+                [[ "${NGX_PAGESPEED}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--ngx-pagespeed=${NGX_PAGESPEED_VERSION}")
                 [[ "${NGINX_DYNAMIC_MODULE}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--dynamic-module")
                 [[ "${DRYRUN}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--dryrun")
 
                 # Build Nginx from source.
                 run bash "${BUILD_DIR}/build_nginx.sh" -y "${NGX_BUILD_EXTRA_ARGS[@]}" -b "${BUILD_DIR}" \
-                    --ngx-pagespeed-version="${NGX_PAGESPEED_VERSION}" --nginx-version="${NGINX_RELEASE_VERSION}" \
-                    --additional-nginx-configure-arguments="${NGX_CONFIGURE_ARGS}"
+                    --ngx-pagespeed-version="${NGX_PAGESPEED_VERSION}" \
+                    --nginx-version="${NGINX_RELEASE_VERSION}" --additional-nginx-configure-arguments="${NGX_CONFIGURE_ARGS}"
 
                 echo "Configuring Nginx extra modules..."
 
