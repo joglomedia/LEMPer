@@ -75,7 +75,7 @@ function init_fail2ban_install() {
                 if curl -sLI "${fail2ban_download_link}" | grep -q "HTTP/[.12]* [2].."; then
                     run wget "${fail2ban_download_link}" -O fail2ban.tar.gz  && \
                     run tar -zxf fail2ban.tar.gz && \
-                    run cd fail2ban-*/
+                    run cd fail2ban-*/ || return
 
                     # Convert to Python3 codebase
                     run python -m venv /opt/fail2ban/ && \
