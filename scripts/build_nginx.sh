@@ -709,6 +709,7 @@ function build_ngx_pagespeed() {
     fi
   fi # End of INSTALL_NPS
 
+
   configure_args=("$add_module" "${extra_flags[@]}")
 
   if "$DEVEL"; then
@@ -789,11 +790,11 @@ function build_ngx_pagespeed() {
     fi
 
     echo "About to configure nginx with:"
-    echo "   $(quote_arguments "${configure[@]}")"
+    echo "$(quote_arguments "${configure[@]}")"
     continue_or_exit "Does this look right?"
-    MOD_PAGESPEED_DIR="$MOD_PAGESPEED_DIR" \
-      PSOL_BINARY="$PSOL_BINARY" \
-      run "${configure[@]}"
+    MOD_PAGESPEED_DIR="$MOD_PAGESPEED_DIR"
+    PSOL_BINARY="$PSOL_BINARY"
+    run "${configure[@]}"
 
     if ! "$DEVEL"; then
       continue_or_exit "Build nginx?"
