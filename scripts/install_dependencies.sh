@@ -44,7 +44,7 @@ run apt-get install -q -y \
     cmake cron curl dmidecode dnsutils gcc gdb git gnupg2 htop iptables libc-bin libc6-dev \
     libcurl4-openssl-dev libgpgme11-dev libssl-dev libpcre3-dev libxml2-dev libxslt1-dev \
     libtool locales logrotate lsb-release make net-tools openssh-server openssl pkg-config \
-    re2c rsync software-properties-common sasl2-bin snmp sudo sysstat tar tzdata unzip wget \
+    re2c rsync software-properties-common sasl2-bin snap snmp sudo sysstat tar tzdata unzip wget \
     whois xz-utils zlib1g-dev geoip-bin geoip-database gettext libgeoip-dev libpthread-stubs0-dev uuid-dev
 
 # Install Python 3
