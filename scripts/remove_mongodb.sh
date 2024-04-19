@@ -48,6 +48,10 @@ function remove_mongodb_repo() {
 }
 
 function init_mongodb_removal() {
+    # Remove MongoDB default admin.
+    echo "Deleting default MongoDB admin account: '${MONGODB_ADMIN_USER}'"
+    run mongosh admin --eval "\"db.dropUser('${MONGODB_ADMIN_USER}');\""
+
     # Stop MongoDB server process.
     if [[ $(pgrep -c mongod) -gt 0 ]]; then
         echo "Stopping mongodb..."
