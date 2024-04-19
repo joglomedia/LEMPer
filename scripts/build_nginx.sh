@@ -309,9 +309,9 @@ function build_ngx_pagespeed() {
     fail "Your version of getopt is too old.  Exiting with no changes made."
   fi
 
-  opts=$(getopt -o v:n:mb:pslt:ya:dhi \
+  opts=$(getopt -o v:n:mb:pslt:ya:dhif: \
     --longoptions install-ngx-pagespeed,ngx-pagespeed-version:,nginx-version:,dynamic-module \
-    --longoptions buildir:,no-deps-check,psol-from-source,devel,build-type: \
+    --longoptions buildir:,no-deps-check,psol-from-source,devel,build-type:,psol-binary-file: \
     --longoptions assume-yes,additional-nginx-configure-arguments:,dryrun,help \
     -n "$(basename "$0")" -- "$@")
   if [ $? != 0 ]; then
@@ -575,6 +575,7 @@ function build_ngx_pagespeed() {
       run rm -rf "$directory"
     fi
   }
+
 
   ## Build NPS
   if [[ "${INSTALL_NPS}" == true ]]; then
