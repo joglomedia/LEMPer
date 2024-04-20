@@ -467,7 +467,7 @@ EOL
             sleep 3
         fi
 
-        # Enable Dovecot on startup.
+        # Enable OpenDKIM on startup.
         run systemctl enable opendkim
 
         # Installation status.
