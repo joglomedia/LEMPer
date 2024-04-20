@@ -60,7 +60,10 @@ test -x $WRAPPER || exit 0
 set -e
 
 if [ ! -e `dirname $PIDFILE` ];then
-       mkdir `dirname $PIDFILE`
+    mkdir `dirname $PIDFILE`
+
+    # label directory correctly on SE Linux systems (#980051)
+    [ -x /sbin/restorecon ] && /sbin/restorecon `dirname $PIDFILE`
 fi
 
 start_uploadscript() {
@@ -82,7 +85,7 @@ case "$1" in
   start)
 	test "$STANDALONE_OR_INETD" = standalone || exit 0
 	echo -n "Starting $DESC: "
-	 --start $SSDAEMONLOGOPTS --pidfile "$PIDFILE" \
+	start-stop-daemon --start $SSDAEMONLOGOPTS --pidfile "$PIDFILE" \
 		--exec $WRAPPER -- $SUFFIX
 	start_uploadscript Starting
 	;;
