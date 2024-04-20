@@ -575,7 +575,8 @@ function preflight_system_check() {
         fi
 
         # Check if the hostname is pointed to server IP address.
-        if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" && $(dig "${HOSTNAME}" +short) != "${SERVER_IP_LOCAL}" ]]; then
+        #if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" && $(dig "${HOSTNAME}" +short) != "${SERVER_IP_LOCAL}" ]]; then
+        if [[ $(host -4 "${HOSTNAME}" | awk '{print $NF}') != "${SERVER_IP}" && $(host -4 "${HOSTNAME}" | awk '{print $NF}') != "${SERVER_IP_LOCAL}" ]]; then
             error "It seems that your server's hostname '${HOSTNAME}' is not yet pointed to your server's public IP address."
             echo -n "In production environment you need to add an A record and point it to this IP address "; status -n "${SERVER_IP}"; echo " !"
             exit 1
