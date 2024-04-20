@@ -83,11 +83,11 @@ function init_fail2ban_install() {
                     run ln -sf /opt/fail2ban/bin/2to3 /usr/local/bin/2to3 && \
                     run ./fail2ban-2to3 && \
                     run /opt/fail2ban/bin/python setup.py install && \
-                    run ln -sf /opt/fail2ban/bin/fail2ban-client /usr/local/bin/fail2ban-client && \
-                    run ln -sf /opt/fail2ban/bin/fail2ban-server /usr/local/bin/fail2ban-server && \
-                    run ln -sf /opt/fail2ban/bin/fail2ban-regex /usr/local/bin/fail2ban-regex && \
-                    run ln -sf /opt/fail2ban/bin/fail2ban-testcases /usr/local/bin/fail2ban-testcases && \
-                    run ln -sf /opt/fail2ban/bin/python /usr/local/bin/fail2ban-python && \
+                    run ln -sf /opt/fail2ban/bin/fail2ban-client /usr/bin/fail2ban-client && \
+                    run ln -sf /opt/fail2ban/bin/fail2ban-server /usr/bin/fail2ban-server && \
+                    run ln -sf /opt/fail2ban/bin/fail2ban-regex /usr/bin/fail2ban-regex && \
+                    run ln -sf /opt/fail2ban/bin/fail2ban-testcases /usr/bin/fail2ban-testcases && \
+                    run ln -sf /opt/fail2ban/bin/python /usr/bin/fail2ban-python && \
                     run cp files/debian-initd /etc/init.d/fail2ban && \
                     run update-rc.d fail2ban defaults
                 fi
@@ -146,6 +146,12 @@ maxretry = 3
 EOL
             fi
         fi
+
+        # Add systemd service.  
+        [[ ! -f /lib/systemd/system/fail2ban.service ]] && \
+            run cp etc/systemd/fail2ban.service /lib/systemd/system/fail2ban.service
+        [[ ! -f /etc/systemd/system/multi-user.target.wants/fail2ban.service ]] && \
+            run ln -s /lib/systemd/system/fail2ban.service /etc/systemd/system/multi-user.target.wants/fail2ban.service
 
         # Restart Fail2ban daemon.
         echo "Starting Fail2ban server..."
