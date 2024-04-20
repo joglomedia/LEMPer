@@ -22,7 +22,6 @@ fi
 function init_server_optimization() {
     ### Create and enable swap ###
     if [[ "${ENABLE_SWAP}" == true ]]; then
-        echo ""
         enable_swap
     fi
 
