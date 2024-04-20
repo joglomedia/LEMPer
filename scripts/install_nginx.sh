@@ -45,7 +45,7 @@ function add_nginx_repo_ondrej() {
             fi
 
             run apt-get update -q -y
-            NGINX_PKG="nginx-core"
+            NGINX_PKGS=("nginx" "nginx-common")
         ;;
         ubuntu)
             # Nginx custom with ngx cache purge from Ondrej repo.
@@ -53,7 +53,7 @@ function add_nginx_repo_ondrej() {
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
             run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}"
             run apt-get update -q -y
-            NGINX_PKG="nginx-core"
+            NGINX_PKGS=("nginx" "nginx-common")
         ;;
         *)
             fail "Unable to add Nginx, this GNU/Linux distribution is not supported."
@@ -90,7 +90,7 @@ function add_nginx_repo_myguard() {
             fi
 
             run apt-get update -q -y
-            NGINX_PKG="nginx-core"
+            NGINX_PKGS=("nginx" "nginx-common")
         ;;
         *)
             fail "Unable to add Nginx, this GNU/Linux distribution is not supported."
@@ -130,8 +130,8 @@ function init_nginx_install() {
         done
 
         # NgxPageSpeed module currently available from source install or MyGuard repo.
-        if [[ "${NGX_PAGESPEED}" == true ]]; then
-            info "NGX_PAGESPEED module requires Nginx to be installed from source or MyGuard repo."
+        if [[ "${NGINX_REPO_SRC}" == "myguard" || "${NGX_PAGESPEED}" == true ]]; then
+            #info "NGX_PAGESPEED module requires Nginx to be installed from source or MyGuard repo."
 
             if [[ "${NGINX_INSTALLER}" == "repo" ]]; then
                 # MyGuard repo only support mainline version.
@@ -155,7 +155,7 @@ function init_nginx_install() {
                 echo "Installing Nginx from ${SELECTED_REPO} repository..."
 
                 #if hash apt-get 2>/dev/null; then
-                    if [[ -n "${NGINX_PKG}" ]]; then
+                    if [[ -n "${NGINX_PKGS[*]}" ]]; then
                         local EXTRA_MODULE_PKGS=()
 
                         if "${NGINX_EXTRA_MODULES}"; then
@@ -346,7 +346,7 @@ function init_nginx_install() {
                         fi
 
                         # Install Nginx and its modules.
-                        run apt-get install -q -y "${NGINX_PKG}" "${EXTRA_MODULE_PKGS[@]}"
+                        run apt-get install -q -y "${NGINX_PKGS[@]}" "${EXTRA_MODULE_PKGS[@]}"
                     fi
                 #else
                 #    fail "Unable to install Nginx, this GNU/Linux distribution is not supported."
