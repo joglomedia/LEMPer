@@ -23,8 +23,8 @@ function init_pureftpd_removal() {
     # Stop Pure-FTPd process.
     if [[ $(pgrep -c pure-ftpd) -gt 0 ]]; then
         echo "Stopping pure-ftpd..."
-        run systemctl stop pure-ftpd
-        run systemctl disable pure-ftpd
+        run systemctl stop pure-ftpd.service
+        run systemctl disable pure-ftpd.service
     fi
 
     if dpkg-query -l | awk '/pure-ftpd/ { print $2 }' | grep -qwE "^pure-ftpd$"; then
@@ -37,13 +37,30 @@ function init_pureftpd_removal() {
         PUREFTPD_BIN=$(command -v pure-ftpd)
         echo "Deleting Pure-FTPd binary executable: ${PUREFTPD_BIN}"
 
-        [[ -n $(command -v pure-ftpd) ]] && run rm -f "${PUREFTPD_BIN}"
+        if [[ -n $(command -v pure-ftpd) ]]; then
+            run rm -f "${PUREFTPD_BIN}"
+            run rm -f /usr/sbin/pure-*
+        fi
     fi
 
     [[ -f /etc/systemd/system/multi-user.target.wants/pure-ftpd.service ]] && \
         run unlink /etc/systemd/system/multi-user.target.wants/pure-ftpd.service
-    [[ -f /lib/systemd/system/pure-ftpd.service ]] && run rm /lib/systemd/system/pure-ftpd.service && \
-    [[ -x /etc/init.d/pure-ftpd ]] && run update-rc.d -f pure-ftpd remove
+
+    [[ -f /lib/systemd/system/pure-ftpd.service ]] && run rm /lib/systemd/system/pure-ftpd.service
+
+    [[ -f /run/systemd/generator.late/multi-user.target.wants/pure-ftpd.service ]] && \
+        run unlink /run/systemd/generator.late/multi-user.target.wants/pure-ftpd.service
+
+    [[ -f /run/systemd/generator.late/graphical.target.wants/pure-ftpd.service ]] && \
+        run unlink /run/systemd/generator.late/graphical.target.wants/pure-ftpd.service
+
+    [[ -f /run/systemd/generator.late/pure-ftpd.service ]] && \
+        run rm /run/systemd/generator.late/pure-ftpd.service
+
+    if [[ -x /etc/init.d/pure-ftpd ]]; then
+        run rm /etc/init.d/pure-ftpd
+        run update-rc.d -f pure-ftpd remove
+    fi
 
     # Remove Pure-FTPd config files.
     echo "Removing FTP server (Pure-FTPd) configuration..."
@@ -63,8 +80,8 @@ function init_pureftpd_removal() {
 
     if [[ "${REMOVE_PUREFTPD_CONFIG}" == y* || "${REMOVE_PUREFTPD_CONFIG}" == Y* ]]; then
         [[ -d /etc/pure-ftpd ]] && run rm -fr /etc/pure-ftpd
-        [[ -x /etc/init.d/pure-ftpd ]] && run update-rc.d -f pure-ftpd remove
-        [[ -f /usr/sbin/pure-ftpd-wrapper ]] && run rm -f /usr/sbin/pure-ftpd-wrapper
+        [[ -f /etc/pure-ftpd.conf ]] && run rm -f /etc/pure-ftpd.conf
+        [[ -f /etc/default/pure-ftpd-common ]] && run rm -f /etc/default/pure-ftpd-common
 
         echo "All configuration files deleted permanently."
     fi
