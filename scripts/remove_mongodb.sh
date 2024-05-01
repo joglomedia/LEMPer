@@ -34,19 +34,6 @@ case "${RELEASE_NAME}" in
     ;;
 esac
 
-function remove_mongodb_repo() {
-    echo "Removing MongoDB repository..."
-
-    if [[ -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" ]]; then
-        run rm -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
-        run apt-get update -q -y
-    fi
-
-    echo "Removing MongoDB repository key..."
-
-    run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key del -"
-}
-
 function init_mongodb_removal() {
     # Remove MongoDB default admin.
     echo "Deleting default MongoDB admin account: '${MONGODB_ADMIN_USER}'"
@@ -87,10 +74,11 @@ function init_mongodb_removal() {
             [ -f /etc/mongod.conf ] && run rm -f /etc/mongod.conf
             [ -d /var/lib/mongodb ] && run rm -fr /var/lib/mongodb
 
-            #echo "All your MongoDB database and configuration files deleted permanently."
+            # Remove repository.
+            run rm -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
+            run rm -f "/usr/share/keyrings/mongodb-server-${MONGODB_VERSION}.gpg"
 
-            # Remove MongoDB repository.
-            remove_mongodb_repo
+            echo "All your MongoDB database and configuration files deleted permanently."
         fi
     else
         echo "MongoDB package not found, possibly installed from source."

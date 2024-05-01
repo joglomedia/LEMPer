@@ -33,7 +33,6 @@ function add_postgres_repo() {
 
                 run touch "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list" && \
                 run bash -c "echo 'deb [ signed-by=/usr/share/keyrings/postgres-${RELEASE_NAME}.gpg ] http://apt.postgresql.org/pub/repos/apt ${RELEASE_NAME}-pgdg main' > /etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list" && \
-                #run bash -c "wget --quiet -O - https://www.postgresql.org/media/keys/${POSTGRES_REPO_KEY}.asc | apt-key add -" && \
                 run bash -c "curl -fsSL https://www.postgresql.org/media/keys/${POSTGRES_REPO_KEY}.asc | gpg --dearmor --yes -o /usr/share/keyrings/postgres-${RELEASE_NAME}.gpg" && \
                 run apt-get update -q -y
             else
