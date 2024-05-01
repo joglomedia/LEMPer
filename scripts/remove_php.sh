@@ -398,18 +398,30 @@ function init_php_fpm_removal() {
                 echo "Removing additional unused PHP packages..."
                 run apt-get purge -q -y dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
 
-                # Remove openswoole official repository.
-                if echo "${PHP_EXTENSIONS}" | grep -qwE "openswoole"; then
-                    run add-apt-repository -y --remove ppa:openswoole/ppa
-                fi
-
-                # Remove PHP repository.
-                run add-apt-repository -y --remove ppa:ondrej/php
-
                 # Remove all the rest of PHP lib files.
                 [ -d /usr/lib/php ] && run rm -fr /usr/lib/php
                 [ -d /usr/share/php ] && run rm -fr /usr/share/php
                 [ -d /var/lib/php ] && run rm -fr /var/lib/php
+
+                # Remove repository.
+                case "${DISTRIB_NAME}" in
+                    debian)
+                        if echo "${PHP_EXTENSIONS}" | grep -qwE "openswoole"; then
+                            run rm -f "/etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.list"
+                            run rm -f "/usr/share/keyrings/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.gpg"
+                        fi
+
+                        run rm -f "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
+                        run rm -f "/etc/apt/trusted.gpg.d/ondrej-php-${RELEASE_NAME}.gpg"
+                    ;;
+                    ubuntu)
+                        if echo "${PHP_EXTENSIONS}" | grep -qwE "openswoole"; then
+                            run add-apt-repository -y --remove ppa:openswoole/ppa
+                        fi
+
+                        run add-apt-repository -y --remove ppa:ondrej/php
+                    ;;
+                esac
 
                 success "All PHP package and it's extensions completely removed."
             fi

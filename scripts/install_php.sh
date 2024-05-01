@@ -31,35 +31,36 @@ function add_php_repo() {
     case "${DISTRIB_NAME}" in
         debian)
             if [[ ! -f "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" ]]; then
+                run wget -qO "/etc/apt/trusted.gpg.d/ondrej-php-${RELEASE_NAME}.gpg" https://packages.sury.org/php/apt.gpg && \
                 run touch "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" && \
                 run bash -c "echo 'deb https://packages.sury.org/php/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" && \
-                run bash -c "echo 'deb-src https://packages.sury.org/php/ ${RELEASE_NAME} main' >> /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" && \
-                run wget -qO /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
+                run bash -c "echo 'deb-src https://packages.sury.org/php/ ${RELEASE_NAME} main' >> /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
 
                 # Add openswoole official repository.
                 case "${RELEASE_NAME}" in
                     buster)
-                        OPENSWOOLE_PPA="bionic"
+                        OPENSWOOLE_RELEASE_NAME="bionic"
                     ;;
                     bullseye)
-                        OPENSWOOLE_PPA="focal"
+                        OPENSWOOLE_RELEASE_NAME="focal"
                     ;;
                     bookworm)
-                        OPENSWOOLE_PPA="jammy"
+                        OPENSWOOLE_RELEASE_NAME="jammy"
                     ;;
                 esac
 
-                run touch "/etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_PPA}.list" && \
-                run bash -c "echo 'deb https://ppa.launchpadcontent.net/openswoole/ppa/ubuntu/ ${OPENSWOOLE_PPA} main' > /etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_PPA}.list" && \
-                run bash -c "echo 'deb-src https://ppa.launchpadcontent.net/openswoole/ppa/ubuntu/ ${OPENSWOOLE_PPA} main' >> /etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_PPA}.list" && \
-                run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 73414442D33E80F9C7E15E7F1F00974B7E59CCAC
+                run gpg --lock-never --keyserver hkp://keyserver.ubuntu.com:80 --no-default-keyring --keyring "/usr/share/keyrings/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.gpg" --recv-keys 73414442D33E80F9C7E15E7F1F00974B7E59CCAC && \
+                run touch "/etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.list" && \
+                run bash -c "echo 'deb [signed-by=/usr/share/keyrings/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.gpg] https://ppa.launchpadcontent.net/openswoole/ppa/ubuntu/ ${OPENSWOOLE_RELEASE_NAME} main' > /etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.list" && \
+                run bash -c "echo 'deb-src [signed-by=/usr/share/keyrings/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.gpg] https://ppa.launchpadcontent.net/openswoole/ppa/ubuntu/ ${OPENSWOOLE_RELEASE_NAME} main' >> /etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.list"
             else
                 info "PHP package repository already exists."
             fi
         ;;
         ubuntu)
             if [[ ! -f "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" ]]; then
-                run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
+                #run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
+                run gpg --lock-never --keyserver hkp://keyserver.ubuntu.com:80 --no-default-keyring --keyring "/etc/apt/trusted.gpg.d/ondrej-php-${RELEASE_NAME}" --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C && \
                 run add-apt-repository -y ppa:ondrej/php
 
                 # Add openswoole official repository.
