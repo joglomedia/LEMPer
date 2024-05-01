@@ -37,9 +37,9 @@ function add_nginx_repo_ondrej() {
     case "${DISTRIB_NAME}" in
         debian)
             if [[ ! -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
-                run touch "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
+                run wget -qO "/etc/apt/trusted.gpg.d/ondrej-${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg" && \
+                run touch "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list" && \
                 run bash -c "echo 'deb https://packages.sury.org/${NGINX_REPO}/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
-                run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
             else
                 info "${NGINX_REPO} repository already exists."
             fi
@@ -49,9 +49,9 @@ function add_nginx_repo_ondrej() {
         ;;
         ubuntu)
             # Nginx custom with ngx cache purge from Ondrej repo.
-            run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
-            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
-            run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}"
+            run wget -qO "/etc/apt/trusted.gpg.d/ondrej-${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg" && \
+            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C && \
+            run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}" && \
             run apt-get update -q -y
             NGINX_PKGS=("nginx" "nginx-common")
         ;;
@@ -81,10 +81,9 @@ function add_nginx_repo_myguard() {
     case "${DISTRIB_NAME}" in
         debian | ubuntu)
             if [[ ! -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
-                run touch "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
+                run wget -qO "/etc/apt/trusted.gpg.d/deb.myguard.nl.gpg" "https://deb.myguard.nl/pool/deb.myguard.nl.gpg" && \
+                run touch "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list" && \
                 run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl ${RELEASE_NAME} main' > /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
-                run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl/openssl3 ${RELEASE_NAME} main' >> /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
-                run wget -qO "/etc/apt/trusted.gpg.d/deb.myguard.nl.gpg" "https://deb.myguard.nl/pool/deb.myguard.nl.gpg"
             else
                 info "${NGINX_REPO} repository already exists."
             fi
@@ -739,7 +738,7 @@ function init_nginx_install() {
                         run mkdir -p /opt/geoip
 
                         # Download MaxMind GeoLite2 database.
-                        if [[ ! -f GeoLite2-City.tar.gz ]]; then
+                        if [[ ! -f GeoLite2-Country.tar.gz ]]; then
                             GEOLITE2_COUNTRY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
 
                             if curl -sLI "${GEOLITE2_COUNTRY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
@@ -748,6 +747,8 @@ function init_nginx_install() {
                                 run cd GeoLite2-Country_*/ && \
                                 run mv GeoLite2-Country.mmdb /opt/geoip/ && \
                                 run cd ../ || return 1
+                            else
+                                error "Unable to download MaxMind GeoLite2 Country database..."
                             fi
                         fi
 
@@ -759,6 +760,8 @@ function init_nginx_install() {
                                 run tar -xf GeoLite2-City.tar.gz && \
                                 run cd GeoLite2-City_*/ && \
                                 run mv GeoLite2-City.mmdb /opt/geoip/
+                            else
+                                error "Unable to download MaxMind GeoLite2 City database..."
                             fi
                         fi
 
