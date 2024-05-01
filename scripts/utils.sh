@@ -828,12 +828,12 @@ function footer_msg() {
     cat <<- EOL
 
 #==========================================================================#
-#             Thank's for installing LEMP Stack using LEMPer               #
+#              Thank's for installing LEMP Stack with LEMPer               #
 #        Found any bugs/errors, or suggestions? please let me know         #
 #       If useful, don't forget to buy me a cup of coffee or milk :D       #
 #   My PayPal is always open for donation, here https://paypal.me/masedi   #
 #                                                                          #
-#          (c) 2014-2023 | MasEDI.Net | https://masedi.net/lemper          #
+#         (c) 2014-2024 | MasEDI.Net | https://masedi.net/l/lemper         #
 #==========================================================================#
 EOL
 }

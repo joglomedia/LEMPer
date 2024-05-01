@@ -283,6 +283,9 @@ Please Save the above Credentials & Keep it Secure!
 
         status "${CREDENTIALS}"
 
+        # Send credentials to admin email.
+        run bash -c "echo '${CREDENTIALS}' | mail -s 'LEMPer Stack Credentials for ${SERVER_IP}' ${LEMPER_ADMIN_EMAIL}"
+
         # Save it to log file
         #save_log "${CREDENTIALS}"
 

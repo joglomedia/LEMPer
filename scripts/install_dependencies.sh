@@ -47,8 +47,45 @@ run apt-get install -q -y \
     re2c rsync software-properties-common sasl2-bin snap snmp sudo sysstat tar tzdata unzip wget \
     whois xz-utils zlib1g-dev geoip-bin geoip-database gettext libgeoip-dev libpthread-stubs0-dev uuid-dev
 
+if [[ ! -d /root/.gnupg ]]; then
+    run mkdir /root/.gnupg
+fi
+
+##
+# Install Python custom version
+##
+function install_python_from_source() {
+    local PYTHON_VERSION=${1}
+
+    if [[ -z "${PYTHON_VERSION}" ]]; then
+        PYTHON_VERSION=${DEFAULT_PYTHON_VERSION:-"3.9.19"}
+    fi
+
+    local CURRENT_DIR && \
+        CURRENT_DIR=$(pwd)
+
+    PYTHON_SRC="https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz"
+
+    if curl -sLI "${PYTHON_SRC}" | grep -q "HTTP/[.12]* [2].."; then
+        run run cd "${BUILD_DIR}" && \
+        run curl -sSL -o "Python-${PYTHON_VERSION}.tgz" "${PYTHON_SRC}" && \
+        run tar -xzf "Python-${PYTHON_VERSION}.tgz" && \
+        run cd "Python-${PYTHON_VERSION}" && \
+        run ./configure --enable-shared --enable-optimizations --prefix=/usr/local LDFLAGS="-Wl,--rpath=/usr/local/lib" && \
+        run make altinstall && \
+        run update-alternatives --install /usr/bin/python python /usr/local/bin/python3.9 39 && \
+        run update-alternatives --set python /usr/local/bin/python3.9 && \
+        run curl -sSL -o "get-pip.py" "https://bootstrap.pypa.io/get-pip.py" && \
+        run python get-pip.py && \
+        run python -m pip install --upgrade pip && \
+        run cd "${CURRENT_DIR}" || return 1
+    else
+        error "Unable to download Python-${PYTHON_VERSION} source..."
+    fi
+}
+
 # Install Python 3
-echo "Installing Python..."
+echo "Installing Python 3 package..."
 
 case "${DISTRIB_NAME}" in
     debian)
@@ -58,37 +95,49 @@ case "${DISTRIB_NAME}" in
                 run update-alternatives --install /usr/bin/python python "$(command -v python3)" 3 && \
                 run update-alternatives --set python /usr/bin/python3
             ;;
+            buster | bullseye)
+                #DEADSNAKES_PPA="focal"
+                #run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys F23C5A6CF475977595C89F51BA6932366A755776
+                #run gpg --lock-never --keyserver hkp://keyserver.ubuntu.com:80 --no-default-keyring --keyring "/etc/apt/trusted.gpg.d/deadsnakes-${RELEASE_NAME}" --recv-keys F23C5A6CF475977595C89F51BA6932366A755776 && \
+                #run touch "/etc/apt/sources.list.d/deadsnakes-ppa-ubuntu-${DEADSNAKES_PPA}.list" && \
+                #run bash -c "echo 'deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu ${DEADSNAKES_PPA} main' > /etc/apt/sources.list.d/deadsnakes-ppa-ubuntu-${DEADSNAKES_PPA}.list" && \
+                #run bash -c "echo 'deb-src https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu ${DEADSNAKES_PPA} main' >> /etc/apt/sources.list.d/deadsnakes-ppa-ubuntu-${DEADSNAKES_PPA}.list" && \
+                #run apt-get update -q -y && \
+                #run apt-get install -q -y python3.9 python3.9-dev python3.9-venv python3-pip && \
+                #run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
+                #run update-alternatives --set python /usr/bin/python3.9
+
+                # Install Python 3 from source.
+                install_python_from_source "3.9.19"
+            ;;
             *)
-                # Add deadsnakes repository.
-                case "${RELEASE_NAME}" in
-                    buster | bullseye)
-                        DEADSNAKES_PPA="focal"
-                    ;;
-                esac
-
-                run touch "/etc/apt/sources.list.d/deadsnakes-ppa-ubuntu-${DEADSNAKES_PPA}.list" && \
-                run bash -c "echo 'deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu ${DEADSNAKES_PPA} main' > /etc/apt/sources.list.d/deadsnakes-ppa-ubuntu-${DEADSNAKES_PPA}.list" && \
-                run bash -c "echo 'deb-src https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu ${DEADSNAKES_PPA} main' >> /etc/apt/sources.list.d/deadsnakes-ppa-ubuntu-${DEADSNAKES_PPA}.list" && \
-                run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys F23C5A6CF475977595C89F51BA6932366A755776
-
-                run apt-get update -q -y && \
-                run apt-get install -q -y python3.7 python3.7-dev python3.7-venv \
-                    python3.9 python3.9-dev python3.9-venv python3-pip && \
-                run update-alternatives --install /usr/bin/python python "$(command -v python3.7)" 37 && \
-                run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
-                run update-alternatives --set python /usr/bin/python3.7
+                fail "Unable to install Python dependencies, this GNU/Linux distribution is not supported."
             ;;
         esac
     ;;
     ubuntu)
         # Install Python
-        run add-apt-repository ppa:deadsnakes/ppa -y && \
-        run apt-get update -q -y && \
-        run apt-get install -q -y python3.7 python3.7-dev python3.7-venv \
-            python3.9 python3.9-dev python3.9-venv python3-pip && \
-        run update-alternatives --install /usr/bin/python python "$(command -v python3.7)" 37 && \
-        run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
-        run update-alternatives --set python /usr/bin/python3.7
+        # python3.7 will be dropped on next Certbot release
+        # deadsnake ppa only support Focal & Jammy
+        case "${RELEASE_NAME}" in
+            focal | jammy)
+                run add-apt-repository ppa:deadsnakes/ppa -y && \
+                run apt-get update -q -y && \
+                run apt-get install -q -y python3.9 python3.9-dev python3.9-venv python3-pip && \
+                run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
+                run update-alternatives --set python /usr/bin/python3.9
+                
+                # Install Python 3 from source.
+                #install_python_from_source "3.9.19"
+            ;;
+            bionic)
+                # Install Python 3 from source.
+                install_python_from_source "3.9.19"
+            ;;
+            *)
+                fail "Unable to install Python dependencies, this GNU/Linux distribution is not supported."
+            ;;
+        esac
     ;;
 esac
 
