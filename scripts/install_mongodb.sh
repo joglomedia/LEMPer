@@ -38,25 +38,6 @@ esac
 # Add MongoDB repository.
 ##
 function add_mongodb_repo() {
-    local DISTRIB_ARCH
-    case "${ARCH}" in
-        i386 | i486| i586 | i686)
-            DISTRIB_ARCH="i386"
-        ;;
-        x86_64 | amd64)
-            DISTRIB_ARCH="amd64"
-        ;;
-        arm64 | aarch* | armv8*)
-            DISTRIB_ARCH="arm64"
-        ;;
-        arm | armv7*)
-            DISTRIB_ARCH="arm"
-        ;;
-        *)
-            DISTRIB_ARCH="amd64,i386"
-        ;;
-    esac
-
     case "${DISTRIB_NAME}" in
         debian)
             if [[ ! -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" ]]; then
