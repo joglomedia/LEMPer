@@ -1,0 +1,518 @@
+#! /usr/bin/perl
+#
+# Copyright 2002,2003,2004,2005,2007,2009,2010,2011,2014,2019 by Stefan Hornburg (Racke) <racke@linuxia.de>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public
+# License along with this program; if not, write to the Free
+# Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+# MA  02111-1307  USA.
+
+use strict;
+use warnings;
+
+use File::Basename;
+use File::Spec;
+
+use Getopt::Long;
+
+# Process command line parameters
+my $whandler = $SIG{__WARN__};
+$SIG{__WARN__} = sub {print STDERR "$0: @_";};
+my %opts;
+unless (GetOptions (\%opts, 'show-options|s')) {
+    exit 1;
+}
+$SIG{__WARN__} = $whandler;
+
+my $daemon = '/usr/sbin/pure-ftpd';
+my @capabilities = @ARGV;
+
+if ($ARGV[0]) {
+	$daemon = "$daemon-$ARGV[0]";
+}
+
+# configuration schema
+#
+# fields of the array:
+# 0. option name
+# 1. parser
+# 2. priority
+#
+# SysLogFacility has the highest priority, because we want to
+# avoid to log to the wrong location (see pure-ftpd manpage).
+
+my %conf = ('AllowAnonymousFXP' => ['-W'],
+			'AllowDotFiles' => ['-z'],
+			'AllowUserFXP' => ['-w'],
+			'AltLog' => ['-O %s', \&parse_string],
+			'AnonymousBandwidth' => ['-t %s', \&parse_number_1_2],
+			'AnonymousCanCreateDirs' => ['-M'],
+			'AnonymousCantUpload' => ['-i'],
+			'AnonymousOnly', => ['-e'],
+			'AnonymousRatio' => ['-q %d:%d', \&parse_number_2],
+			'AntiWarez' => ['-s'],
+			'AutoRename' => ['-r'],
+			'Bind' => ['-S %s', \&parse_string],
+			'BrokenClientsCompatibility' => ['-b'],
+			'CallUploadScript' => ['-o'],
+			'ChrootEveryone' => ['-A'],
+			'CreateHomeDir' => ['-j'],
+			'CustomerProof' => ['-Z'],
+			'Daemonize' => ['-B'],
+			'DisplayDotFiles' => ['-D'],
+			'DontResolve' => ['-H'],
+			'ForcePassiveIP' => ['-P %s', \&parse_string],
+			'FortunesFile' => ['-F %s', \&parse_filename],
+			'FSCharset' => ['-8 %s', \&parse_skip],
+			'ClientCharset' => ['-9 %s', \&parse_skip],
+			'IPV4Only' => ['-4'],
+			'IPV6Only' => ['-6'],
+			'KeepAllFiles' => ['-K'],
+			'LimitRecursion' => ['-L %d:%d', \&parse_number_2_unlimited],
+			'LogPID' => ['-1'],
+			'MaxClientsNumber' => ['-c %d', \&parse_number_1],
+			'MaxClientsPerIP' => ['-C %d', \&parse_number_1],
+			'MaxDiskUsage' => ['-k %d', \&parse_number_1],
+			'MaxIdleTime' => ['-I %d', \&parse_number_1],
+			'MaxLoad' => ['-m %d', \&parse_number_1],
+			'MinUID' => ['-u %d', \&parse_number_1],
+			'NATmode' => ['-N'],
+			'NoAnonymous' => ['-E'],
+			'NoChmod' => ['-R'],
+			'NoRename' => ['-G'],
+			'NoTruncate' => ['-0'],
+			'PassivePortRange' => ['-p %d:%d', \&parse_number_2],
+			'PerUserLimits' => ['-y %d:%d', \&parse_number_2],
+			'ProhibitDotFilesRead' => ['-X'],
+			'ProhibitDotFilesWrite' => ['-x'],
+			'Quota' => ['-n %d:%d', \&parse_number_2],
+			'SyslogFacility' => ['-f %s', \&parse_word, 99],
+			'TLS' => ['-Y %d', \&parse_number_1],
+			'TLSCipherSuite' => ['-J %s', \&parse_string],
+			'TrustedGID' => ['-a %d', \&parse_number_1],
+			'TrustedIP' => ['-V %s', \&parse_ip],
+			'Umask' => ['-U %s:%s', \&parse_umask],
+			'UserBandwidth' => ['-T %s', \&parse_number_1_2],
+			'UserRatio' => ['-Q %d:%d', \&parse_number_2],
+			'VerboseLog' => ['-d'],
+		    );
+
+my %authconf = ('ExtAuth' => ['extauth:%s', \&parse_sockname],
+				'LDAPConfigFile' => ['ldap:%s', \&parse_filename, 0,
+										 'ldap'],
+				'MySQLConfigFile' => ['mysql:%s', \&parse_filename, 0,
+									  'mysql'],
+				'PGSQLConfigFile' => ['pgsql:%s', \&parse_filename, 0,
+									  'postgresql'],
+				'PAMAuthentication' => ['pam'],
+				'PureDB' => ['puredb:%s', \&parse_filename],
+				'UnixAuthentication' => ['unix'],
+			   );
+				
+# examine all configuration files in /etc/pure-ftpd/conf
+
+my @conffiles;
+
+opendir (ETCCONF, '/etc/pure-ftpd/conf') 
+	|| die "$0: Couldn't examine directory /etc/pure-ftpd/conf: $!\n";
+@conffiles = readdir (ETCCONF);
+closedir (ETCCONF);
+
+# examine authentication files in /etc/pure-ftpd/auth
+
+my @authfiles;
+
+opendir (ETCAUTH, '/etc/pure-ftpd/auth') 
+	|| die "$0: Couldn't examine directory /etc/pure-ftpd/auth: $!\n";
+@authfiles = sort (grep {-l "/etc/pure-ftpd/auth/$_"} readdir (ETCAUTH));
+closedir (ETCAUTH);
+
+my ($file, $cref, $name);
+my (@options, $option, $ret);
+
+for my $authname (@authfiles) {
+	# check if corresponding file exists
+	next unless $file = readlink("/etc/pure-ftpd/auth/$authname");
+	unless (File::Spec->file_name_is_absolute($file)) {
+		$file = File::Spec->catfile('/etc/pure-ftpd/auth',$file);
+	}
+	next unless -f $file;
+	
+	# check if configuration directive exists
+	$name = basename($file);
+
+	# check if we have the right capability for this authentication method
+	next if $authconf{$authname}->[3] && ! grep {$authconf{$authname}->[3] eq $_} @capabilities;
+	
+	if ($ret = parse_file(\%authconf, $file, $name)) {
+		$ret->[0] = "-l $ret->[0]";
+		push (@options, $ret);
+	}
+}
+
+
+for (@conffiles) {
+	# simply skip files with non-word/non-numeric characters
+	next unless /^[A-Za-z][A-Za-z0-9]+$/;
+
+	# skip authentication configuration files
+	next if exists $authconf{$_};
+	
+	$file = "/etc/pure-ftpd/conf/$_";
+	if ($ret = parse_file(\%conf, $file, $_)) {
+		push (@options, $ret);
+	}
+}
+
+@options = map {split(/ /, $_->[0], 2)} (sort {$b->[1] <=> $a->[1]} @options);
+
+if (exists $ENV{STANDALONE_OR_INETD} && $ENV{STANDALONE_OR_INETD} eq 'standalone') {
+	push (@options, '-B');
+	print "Running: $daemon ", join (' ', @options), "\n";
+}
+
+# force PID file to /var/run/pure-ftpd/pure-ftpd.pid
+push(@options, '-g', '/var/run/pure-ftpd/pure-ftpd.pid');
+
+if ($opts{'show-options'}) {
+    print join(' ', @options), "\n";
+    exit 0;
+}
+
+exec { $daemon } ($daemon, @options) or die "$0: Cannot exec $daemon: $!";
+
+sub parse_file {
+	my ($cref, $file, $option) = @_;
+	my @lines;
+
+	unless (exists $cref->{$option}) {
+		die "$0: Invalid configuration file $file: No corresponding directive\n";
+	}
+
+	open (FILE, $file)
+		|| die "$0: Couldn't open configuration file $file: $!\n";
+	while (<FILE>) {
+		next unless /\S/;
+		s/^\s+//;
+		s/\s+$//;
+		next if /^\#/;
+		push (@lines, $_);
+	}
+	close (FILE);
+	
+	# call parser
+	for my $line (@lines) {
+		my $buf = '';
+
+		if (defined $cref->{$option}->[1]) {
+			$ret = $cref->{$option}->[1]->(\$buf, $cref->{$option}->[0], $line);
+		} else {
+			$ret = parse_yesno(\$buf, $cref->{$option}->[0], $line);
+		}
+	
+		unless ($ret) {
+			die "$0: Invalid configuration file $file: $buf\n";
+		}
+
+		return [$buf, $cref->{$option}->[2] || 0] if length $buf;
+	}
+
+}
+
+sub parse_filename {
+	my ($buf, $fmt, $val) = @_;
+
+	unless (-f $val) {
+		$$buf = qq{"$val": No such file};
+		return;
+	}
+	$$buf = sprintf $fmt, $val;
+	return 1;
+}
+
+sub parse_ip {
+	my ($buf, $fmt, $val) = @_;
+
+	if ($val =~ /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
+		&& $1 < 256 && $2 < 256 && $3 < 256 && $4 < 256) {
+		$$buf = sprintf $fmt, $val;
+		return 1;
+	}
+
+	$$buf = qq{"$val": Invalid IP address};
+}
+
+sub parse_number_1 {
+	my ($buf, $fmt, $val) = @_;
+
+	if ($val =~ /\D/) {
+		$$buf = qq{"$val" not a number};
+		return;
+	}
+	
+	$$buf = sprintf $fmt, $val;
+	return 1;
+}
+
+sub parse_number_1_2 {
+	my ($buf, $fmt, $val) = @_;
+
+	if ($val =~ /^(\d+)(\s+|:)(\d+)$/) {
+		$$buf = sprintf $fmt, "$1:$3";
+		return 1;
+	}
+
+	if ($val =~ /^(:?\d+)$/ || $val =~ /^(\d+:)/) {
+		$$buf = sprintf $fmt, $1;
+		return 1;
+	}
+	
+	$$buf = qq{"$val" not one or two numbers};
+	return;
+}
+
+sub parse_number_2 {
+	my ($buf, $fmt, $val) = @_;
+
+	if ($val !~ /^(\d+)\s+(\d+)$/) {
+		$$buf = qq{"$val" not two numbers};
+		return;
+	}
+	
+	$$buf = sprintf $fmt, $1, $2;
+	return 1;
+}
+
+sub parse_number_2_unlimited {
+	my ($buf, $fmt, $val) = @_;
+
+	if ($val !~ /^(\-?\d+)\s+(\-?\d+)$/) {
+		$$buf = qq{"$val" not two numbers};
+		return;
+	}
+
+	if ($1 < -1 || $2 < -1) {
+		$$buf = qq{"$val" smaller than unlimited (-1)};
+		return;
+	}
+	
+	$$buf = sprintf $fmt, $1, $2;
+	return 1;
+}
+
+sub parse_sockname {
+	my ($buf, $fmt, $val) = @_;
+
+	unless (-S $val) {
+		$$buf = qq{"$val": No such socket};
+		return;
+	}
+	$$buf = sprintf $fmt, $val;
+	return 1;
+}
+
+sub parse_skip {
+    return 1;
+}
+
+sub parse_string {
+	my ($buf, $fmt, $val) = @_;
+
+	if ($val =~ /\s/) {
+		$$buf = qq{"$val" contains whitespace};
+		return;
+	}
+	
+	$$buf = sprintf $fmt, $val;
+	return 1;
+}
+
+sub parse_umask {
+	my ($buf, $fmt, $val) = @_;
+
+	if ($val !~ /^([0-7]{3,3})\s+([0-7]{3,3})$/) {
+		$$buf = qq{"$val" not two octal numbers};
+		return;
+	}
+	
+	$$buf = sprintf $fmt, $1, $2;
+	return 1;
+}
+
+sub parse_word {
+	my ($buf, $fmt, $val) = @_;
+
+	if ($val !~ /^(\w+)$/) {
+		$$buf = qq{"$val" contains non-word characters};
+		return;
+	}
+	
+	$$buf = sprintf $fmt, $1;
+	return 1;
+}
+
+sub parse_yesno {
+	my ($buf, $fmt, $val) = @_;
+	my @y = ('yes', 1, 'on');
+	my @n = ('no', 0, 'off');
+
+	if (grep {$_ eq lc($val)} @y) {
+		# result is 'yes'
+		$$buf = $fmt;
+		return 1;
+	}
+	if (grep {$_ eq lc($val)} @n) {
+		# result is 'no'
+		$$buf = '';
+		return 1;
+	}
+	# error
+	$$buf = qq{"$val" not convertible to true or false};
+	return;
+}
+
+__END__
+
+=head1 NAME
+
+pure-ftpd-wrapper - configures and starts Pure-FTPd daemon
+
+=head1 SYNOPSIS
+
+pure-ftpd-wrapper
+
+=head1 DESCRIPTION
+
+B<pure-ftpd-wrapper> reads the configuration for the Pure-FTPd daemon
+from files in the directory F</etc/pure-ftpd/conf>. Each file in this
+directory is related to a command line option. No more than one
+line with configuration values is allowed. Empty lines or lines
+starting with the comment character C<#> are discarded.
+
+The Pure-FTPd daemon allows one to use different authentication methods
+together. The authentication methods are tried in the order they are
+specified on the command line. In order to achieve the same flexibility
+with files in the F</etc/pure-ftpd> directory, B<pure-ftpd-wrapper>
+checks all valid symbolic links within the directory F</etc/pure-ftpd/auth>
+in alphabetical order. E.g., a link in this directory pointing to
+F</etc/pure-ftpd/conf/PureDB> would enable authentication against
+a PureDB database.
+
+There are no means to configure the I<PIDFile> setting, it is hardwired
+to /var/run/pure-ftpd/pure-ftpd.pid in this script.
+
+You can display the Pure-FTPd commandline options with C<-s> or
+C<--show-options>:
+
+    pure-ftpd-wrapper --show-options
+
+=head1 CONFIGURATION
+
+=head2 Boolean values
+
+The strings C<Yes>,C<1>,C<On> enable the corresponding commandline option
+(case doesn't matter). To disable the option use C<No>,C<0> or C<Off>.
+
+Configuration files containing boolean values are C<AllowAnonymousFXP>,
+C<AllowDotFiles>, C<AllowUserFXP>, C<AnonymousCanCreateDirs>,
+C<AnonymousCantUpload>, C<AnonymousOnly>, C<AntiWarez>, C<AutoRename>,
+C<BrokenClientsCompatibility>, C<CallUploadScript>, C<ChrootEveryone>,
+C<CreateHomeDir>, C<CustomerProof>, C<Daemonize>, C<DisplayDotFiles>,
+C<DontResolve>, C<IPV4Only>, C<IPV6Only>, C<KeepAllFiles>, C<LogPID>,
+C<NATmode>, C<NoAnonymous>, C<NoChmod>, C<NoRename>, C<NoTruncate>,
+C<PAMAuthentication>, C<ProhibitDotFilesRead>, C<ProhibitDotFilesWrite>,
+C<UnixAuthentication> and C<VerboseLog>.
+
+=head2 Numerical values
+
+There are several types of numerical values (one number, two numbers,
+one or two numbers, two octal numbers).
+
+=over 4
+
+=item One number
+
+C<MaxClientsNumber>, C<MaxClientsPerIP>, C<MaxDiskUsage>, C<MaxIdleTime>,
+C<MaxLoad>, C<MinUID>, C<TLS>, C<TrustedGID>.
+
+=item Two numbers
+
+C<AnonymousRatio>, C<LimitRecursion>, C<PassivePortRange>, 
+C<PerUserLimits>, C<Quota>, C<UserRatio>.
+
+=item Two numbers (with unlimited value)
+
+This allows -1 in addition to positive numbers indicating an unlimited
+values.
+
+C<LimitRecursion>.
+
+=item One or two numbers
+
+C<AnonymousBandwidth>, C<UserBandwidth>.
+
+=item Two octal numbers
+
+C<Umask>.
+
+=back
+
+=head2 String values
+
+=over
+
+=item Arbritrary strings
+
+C<AltLog>, C<Bind>, C<ForcePassiveIP>.
+
+=item Words
+
+C<SyslogFacility>.
+
+=back
+
+=head2 Character Sets
+
+C<FSCharset>, C<ClientCharset>.
+
+These options were removed from PureFTPd in release 1.0.48 and will be ignored by the wrapper.
+
+=head2 IP values
+
+C<TrustedIP>.
+
+=head2 File values
+
+These values designate an existing file or socket.
+
+=over
+
+=item File
+
+C<FortunesFile>, C<LDAPConfigFile>, C<MySQLConfigFile>, C<PGSQLConfigFile>, C<PureDB>.
+
+=item Socket
+
+C<ExtAuth>.
+
+=back
+
+=head1 AUTHOR
+
+This manual page was written by Stefan Hornburg (Racke) <racke@linuxia.de>
+for the Debian GNU/Linux system.
+
+
+
+
+

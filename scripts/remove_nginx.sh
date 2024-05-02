@@ -42,9 +42,10 @@ function init_nginx_removal() {
         run apt-get purge -q -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx")
 
         if [[ "${FORCE_REMOVE}" == true ]]; then
-            #run add-apt-repository -y --remove ppa:nginx/stable
-            run rm -f "/etc/apt/sources.list.d/ondrej-nginx-${RELEASE_NAME}.list"
-            run rm -f "/etc/apt/sources.list.d/myguard-nginx-${RELEASE_NAME}.list"
+            run rm -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
+            run rm -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
+            [ -f "/etc/apt/preferences.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.pref" ] && \
+                run rm -f "/etc/apt/preferences.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.pref"
         fi
     elif dpkg-query -l | awk '/nginx/ { print $2 }' | grep -qwE "^nginx-custom"; then
         echo "Found nginx-custom package installation, removing..."
@@ -62,9 +63,10 @@ function init_nginx_removal() {
         run apt-get purge -q -y $(dpkg-query -l | awk '/nginx/ { print $2 }' | grep -wE "^nginx") $(dpkg-query -l | awk '/libnginx/ { print $2 }' | grep -wE "^libnginx")
 
         if [[ "${FORCE_REMOVE}" == true ]]; then
-            #run add-apt-repository -y --remove "ppa:ondrej/${NGINX_REPO}"
             run rm -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
-            run rm -f "/etc/apt/sources.list.d/myguard-nginx-${RELEASE_NAME}.list"
+            run rm -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
+            [ -f "/etc/apt/preferences.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.pref" ] && \
+                run rm -f "/etc/apt/preferences.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.pref"
         fi
     else
         info "Nginx package not found, possibly installed from source."
@@ -79,7 +81,7 @@ function init_nginx_removal() {
             echo "Disable Nginx service."
             [ -f /etc/systemd/system/multi-user.target.wants/nginx.service ] && run systemctl disable nginx
             [ -f /etc/systemd/system/multi-user.target.wants/nginx.service ] && \
-            run unlink /etc/systemd/system/multi-user.target.wants/nginx.service
+                run unlink /etc/systemd/system/multi-user.target.wants/nginx.service
             [ -f /lib/systemd/system/nginx.service ] && run rm -f /lib/systemd/system/nginx.service
 
             # Remove Nginx files.

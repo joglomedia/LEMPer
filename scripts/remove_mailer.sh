@@ -147,11 +147,11 @@ function init_spfdkim_removal() {
         info "OpenDKIM + SPF package not found, possibly installed from source."
         echo "Remove it manually!!"
 
-        OPENDKIM_BIN=$(command -v opendkim)
+        #OPENDKIM_BIN=$(command -v opendkim)
 
-        echo "Deleting OpenDKIM executable: ${OPENDKIM_BIN}"
+        #echo "Deleting OpenDKIM executable: ${OPENDKIM_BIN}"
 
-        [[ -x $(command -v opendkim) ]] && run rm -f "${OPENDKIM_BIN}"
+        #[[ -x $(command -v opendkim) ]] && run rm -f "${OPENDKIM_BIN}"
     fi
 
     warning "!! This action is not reversible !!"

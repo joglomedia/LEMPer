@@ -37,23 +37,23 @@ function add_nginx_repo_ondrej() {
     case "${DISTRIB_NAME}" in
         debian)
             if [[ ! -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
-                run touch "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
+                run wget -qO "/etc/apt/trusted.gpg.d/ondrej-${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg" && \
+                run touch "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list" && \
                 run bash -c "echo 'deb https://packages.sury.org/${NGINX_REPO}/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
-                run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
             else
                 info "${NGINX_REPO} repository already exists."
             fi
 
             run apt-get update -q -y
-            NGINX_PKG="nginx-core"
+            NGINX_PKGS=("nginx" "nginx-common")
         ;;
         ubuntu)
             # Nginx custom with ngx cache purge from Ondrej repo.
-            run wget -qO "/etc/apt/trusted.gpg.d/${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg"
-            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
-            run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}"
+            run wget -qO "/etc/apt/trusted.gpg.d/ondrej-${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg" && \
+            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C && \
+            run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}" && \
             run apt-get update -q -y
-            NGINX_PKG="nginx-core"
+            NGINX_PKGS=("nginx" "nginx-common")
         ;;
         *)
             fail "Unable to add Nginx, this GNU/Linux distribution is not supported."
@@ -81,16 +81,15 @@ function add_nginx_repo_myguard() {
     case "${DISTRIB_NAME}" in
         debian | ubuntu)
             if [[ ! -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
-                run touch "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
+                run wget -qO "/etc/apt/trusted.gpg.d/deb.myguard.nl.gpg" "https://deb.myguard.nl/pool/deb.myguard.nl.gpg" && \
+                run touch "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list" && \
                 run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl ${RELEASE_NAME} main' > /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
-                run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl/openssl3 ${RELEASE_NAME} main' >> /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
-                run wget -qO "/etc/apt/trusted.gpg.d/deb.myguard.nl.gpg" "https://deb.myguard.nl/pool/deb.myguard.nl.gpg"
             else
                 info "${NGINX_REPO} repository already exists."
             fi
 
             run apt-get update -q -y
-            NGINX_PKG="nginx-core"
+            NGINX_PKGS=("nginx" "nginx-common")
         ;;
         *)
             fail "Unable to add Nginx, this GNU/Linux distribution is not supported."
@@ -130,8 +129,8 @@ function init_nginx_install() {
         done
 
         # NgxPageSpeed module currently available from source install or MyGuard repo.
-        if [[ "${NGX_PAGESPEED}" == true ]]; then
-            info "NGX_PAGESPEED module requires Nginx to be installed from source or MyGuard repo."
+        if [[ "${NGINX_REPO_SRC}" == "myguard" || "${NGX_PAGESPEED}" == true ]]; then
+            #info "NGX_PAGESPEED module requires Nginx to be installed from source or MyGuard repo."
 
             if [[ "${NGINX_INSTALLER}" == "repo" ]]; then
                 # MyGuard repo only support mainline version.
@@ -145,8 +144,7 @@ function init_nginx_install() {
         fi
 
         case "${SELECTED_INSTALLER}" in
-            1|"repo")
-
+            1 | "repo")
                 if [[ "${SELECTED_REPO}" == "myguard" ]]; then
                     add_nginx_repo_myguard
                 else
@@ -156,7 +154,7 @@ function init_nginx_install() {
                 echo "Installing Nginx from ${SELECTED_REPO} repository..."
 
                 #if hash apt-get 2>/dev/null; then
-                    if [[ -n "${NGINX_PKG}" ]]; then
+                    if [[ -n "${NGINX_PKGS[*]}" ]]; then
                         local EXTRA_MODULE_PKGS=()
 
                         if "${NGINX_EXTRA_MODULES}"; then
@@ -347,14 +345,14 @@ function init_nginx_install() {
                         fi
 
                         # Install Nginx and its modules.
-                        run apt-get install -q -y "${NGINX_PKG}" "${EXTRA_MODULE_PKGS[@]}"
+                        run apt-get install -q -y "${NGINX_PKGS[@]}" "${EXTRA_MODULE_PKGS[@]}"
                     fi
                 #else
                 #    fail "Unable to install Nginx, this GNU/Linux distribution is not supported."
                 #fi
             ;;
 
-            2|"source")
+            2 | "source")
                 echo "Installing Nginx from source, please wait..."
 
                 # CPU core numbers, for building faster.
@@ -740,7 +738,7 @@ function init_nginx_install() {
                         run mkdir -p /opt/geoip
 
                         # Download MaxMind GeoLite2 database.
-                        if [[ ! -f GeoLite2-City.tar.gz ]]; then
+                        if [[ ! -f GeoLite2-Country.tar.gz ]]; then
                             GEOLITE2_COUNTRY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
 
                             if curl -sLI "${GEOLITE2_COUNTRY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
@@ -749,6 +747,8 @@ function init_nginx_install() {
                                 run cd GeoLite2-Country_*/ && \
                                 run mv GeoLite2-Country.mmdb /opt/geoip/ && \
                                 run cd ../ || return 1
+                            else
+                                error "Unable to download MaxMind GeoLite2 Country database..."
                             fi
                         fi
 
@@ -760,6 +760,8 @@ function init_nginx_install() {
                                 run tar -xf GeoLite2-City.tar.gz && \
                                 run cd GeoLite2-City_*/ && \
                                 run mv GeoLite2-City.mmdb /opt/geoip/
+                            else
+                                error "Unable to download MaxMind GeoLite2 City database..."
                             fi
                         fi
 
@@ -1149,23 +1151,27 @@ function init_nginx_install() {
                 if ! version_older_than "${NGINX_RELEASE_VERSION}" "1.22.99"; then
                     NGX_PAGESPEED_VERSION="latest-stable"
                     # --psol-from-source
-                    NGX_BUILD_EXTRA_ARGS+=("-s" "-t Release")
+                    NGX_BUILD_EXTRA_ARGS+=("-t Release")
                 fi
 
                 # Workaround for Building on newer glibc (eg. Ubuntu 21.10 and above)
                 # issue https://github.com/apache/incubator-pagespeed-ngx/issues/1743
-                if [[ "${RELEASE_NAME}" == "jammy" ]]; then
+                if [[ "${RELEASE_NAME}" == "bookworm" || "${RELEASE_NAME}" == "jammy" ]]; then
                     export PSOL_BINARY_URL && \
                         PSOL_BINARY_URL="https://www.tiredofit.nl/psol-jammy.tar.gz"
+                    NGX_BUILD_EXTRA_ARGS+=("--psol-binary-file=${PSOL_BINARY_URL}")
+                else
+                    NGX_BUILD_EXTRA_ARGS+=("--psol-from-source")
                 fi
 
+                [[ "${NGX_PAGESPEED}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--ngx-pagespeed=${NGX_PAGESPEED_VERSION}")
                 [[ "${NGINX_DYNAMIC_MODULE}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--dynamic-module")
                 [[ "${DRYRUN}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--dryrun")
 
                 # Build Nginx from source.
                 run bash "${BUILD_DIR}/build_nginx.sh" -y "${NGX_BUILD_EXTRA_ARGS[@]}" -b "${BUILD_DIR}" \
-                    --ngx-pagespeed-version="${NGX_PAGESPEED_VERSION}" --nginx-version="${NGINX_RELEASE_VERSION}" \
-                    --additional-nginx-configure-arguments="${NGX_CONFIGURE_ARGS}"
+                    --ngx-pagespeed-version="${NGX_PAGESPEED_VERSION}" \
+                    --nginx-version="${NGINX_RELEASE_VERSION}" --additional-nginx-configure-arguments="${NGX_CONFIGURE_ARGS}"
 
                 echo "Configuring Nginx extra modules..."
 

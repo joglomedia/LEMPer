@@ -1,0 +1,10 @@
+# Configuration file for directory aliases
+#
+# To define alias/directory pairs, use alternating lines of alias
+# and directory (optional blank lines are allowed) like that:
+#
+# pictures
+# /usr/misc/pictures
+#
+# sources
+# /usr/src

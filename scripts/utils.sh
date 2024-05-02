@@ -113,7 +113,7 @@ function requires_root() {
             exit 1
         else
             #echo "Switching to root user to run installer script."
-            sudo -E "$0" "$@"
+            sudo -E -H "$0" "$@"
             exit 0
         fi
     fi
@@ -531,7 +531,7 @@ function preflight_system_check() {
 
     # Set system architecture.
     export ARCH && \
-    ARCH=$(uname -p)
+    ARCH=$(uname -m)
 
     # Set default timezone.
     export TIMEZONE
@@ -575,7 +575,8 @@ function preflight_system_check() {
         fi
 
         # Check if the hostname is pointed to server IP address.
-        if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" && $(dig "${HOSTNAME}" +short) != "${SERVER_IP_LOCAL}" ]]; then
+        #if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" && $(dig "${HOSTNAME}" +short) != "${SERVER_IP_LOCAL}" ]]; then
+        if [[ $(host -4 "${HOSTNAME}" | awk '{print $NF}') != "${SERVER_IP}" && $(host -4 "${HOSTNAME}" | awk '{print $NF}') != "${SERVER_IP_LOCAL}" ]]; then
             error "It seems that your server's hostname '${HOSTNAME}' is not yet pointed to your server's public IP address."
             echo -n "In production environment you need to add an A record and point it to this IP address "; status -n "${SERVER_IP}"; echo " !"
             exit 1
@@ -827,12 +828,12 @@ function footer_msg() {
     cat <<- EOL
 
 #==========================================================================#
-#             Thank's for installing LEMP Stack using LEMPer               #
+#              Thank's for installing LEMP Stack with LEMPer               #
 #        Found any bugs/errors, or suggestions? please let me know         #
 #       If useful, don't forget to buy me a cup of coffee or milk :D       #
 #   My PayPal is always open for donation, here https://paypal.me/masedi   #
 #                                                                          #
-#          (c) 2014-2023 | MasEDI.Net | https://masedi.net/lemper          #
+#         (c) 2014-2024 | MasEDI.Net | https://masedi.net/l/lemper         #
 #==========================================================================#
 EOL
 }

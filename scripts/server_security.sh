@@ -215,7 +215,7 @@ function install_ufw() {
         fi
 
         # Open FTP ports.
-        if [[ "${INSTALL_VSFTPD}" == true ]]; then
+        if [[ "${IINSTALL_FTP_SERVER}" == true ]]; then
             FTP_MIN_PORT=${FTP_MIN_PORT:-45000}
             FTP_MAX_PORT=${FTP_MAX_PORT:-45099}
 

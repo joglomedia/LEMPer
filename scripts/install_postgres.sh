@@ -26,17 +26,14 @@ function add_postgres_repo() {
     local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
     local POSTGRES_REPO_KEY=${POSTGRES_REPO_KEY:-"ACCC4CF8"}
 
-    case ${DISTRIB_NAME} in
+    case "${DISTRIB_NAME}" in
         debian | ubuntu)
             if [[ ! -f "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list" ]]; then
-                echo "Adding PostgreSQL repository key..."
-
-                run bash -c "wget --quiet -O - https://www.postgresql.org/media/keys/${POSTGRES_REPO_KEY}.asc | apt-key add -"
-
                 echo "Adding PostgreSQL repository..."
 
-                run touch "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list"
-                run bash -c "echo 'deb http://apt.postgresql.org/pub/repos/apt ${RELEASE_NAME}-pgdg main' > /etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list"
+                run bash -c "curl -fsSL https://www.postgresql.org/media/keys/${POSTGRES_REPO_KEY}.asc | gpg --dearmor --yes -o /usr/share/keyrings/postgres-${RELEASE_NAME}.gpg" && \
+                run touch "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list" && \
+                run bash -c "echo 'deb [signed-by=/usr/share/keyrings/postgres-${RELEASE_NAME}.gpg] http://apt.postgresql.org/pub/repos/apt ${RELEASE_NAME}-pgdg main' > /etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list" && \
                 run apt-get update -q -y
             else
                 info "PostgreSQL ${POSTGRES_VERSION} repository already exists."
@@ -66,10 +63,9 @@ function init_postgres_install() {
         done
     fi
 
-    #export POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER:-"postgres"}
-    POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER:-"postgres"}
-    POSTGRES_DB_USER=${POSTGRES_DB_USER:-"${LEMPER_USERNAME}"}
-    POSTGRES_DB_PASS=${POSTGRES_DB_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+    export POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER:-"postgres"}
+    export POSTGRES_DB_USER=${POSTGRES_DB_USER:-"${LEMPER_USERNAME}"}
+    export POSTGRES_DB_PASS=${POSTGRES_DB_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
 
     local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
     local POSTGRES_TEST_DB="${POSTGRES_DB_USER}db"
@@ -173,7 +169,7 @@ echo "[PostgreSQL Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(command -v postgres) && "${FORCE_INSTALL}" != true ]]; then
+if [[ -n $(command -v psql) && "${FORCE_INSTALL}" != true ]]; then
     info "PostgreSQL server already exists, installation skipped."
 else
     init_postgres_install "$@"

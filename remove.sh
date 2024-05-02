@@ -187,6 +187,10 @@ fi
 ### Remove unnecessary packages ###
 echo -e "\nCleaning up unnecessary packages..."
 
+if [[ "${FORCE_REMOVE}" == true ]]; then
+    [ -d /tmp/lemper ] && run rm -fr /tmp/lemper
+fi
+
 run apt-get autoremove -q -y && \
 run apt-get autoclean -q -y && \
 run apt-get clean -q -y

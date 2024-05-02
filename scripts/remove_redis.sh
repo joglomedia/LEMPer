@@ -33,14 +33,6 @@ function init_redis_removal() {
 
         # shellcheck disable=SC2046
         run apt-get purge -q -y $(dpkg-query -l | awk '/redis/ { print $2 }' | grep -wE "^redis")
-
-        if [[ "${FORCE_REMOVE}" == true ]]; then
-            #if [[ "${DISTRIB_NAME}" == "ubuntu" ]]; then
-            #    run add-apt-repository -y --remove ppa:redislabs/redis
-            #else
-                run rm -f "/etc/apt/sources.list.d/redis-${DISTRIB_NAME}.list"
-            #fi
-        fi
     else
         info "Redis package not found, possibly installed from source."
         echo "Remove it manually!!"
@@ -68,12 +60,13 @@ function init_redis_removal() {
     fi
 
     if [[ "${REMOVE_REDIS_CONFIG}" == Y* || "${REMOVE_REDIS_CONFIG}" == y* ]]; then
-        if [ -d /etc/redis ]; then
-            run rm -fr /etc/redis
-        fi
-        if [ -d /var/lib/redis ]; then
-            run rm -fr /var/lib/redis
-        fi
+        [ -d /etc/redis ] && run rm -fr /etc/redis
+        [ -d /var/lib/redis ] && run rm -fr /var/lib/redis
+
+        # Remove repository.
+        run rm -f "/etc/apt/sources.list.d/redis-${RELEASE_NAME}.list"
+        run rm -f "/usr/share/keyrings/redis-${RELEASE_NAME}.gpg"
+
         echo "All your Redis database and configuration files deleted permanently."
     fi
 

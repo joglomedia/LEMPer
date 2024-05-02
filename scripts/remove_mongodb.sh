@@ -20,26 +20,25 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 # Set MongoDB version.
-if [[ "${RELEASE_NAME}" == "jessie" || "${RELEASE_NAME}" == "xenial" ]]; then
-    MONGODB_VERSION="4.4"
-else
-    MONGODB_VERSION=${MONGODB_VERSION:-"5.0"}
-fi
-
-function remove_mongodb_repo() {
-    echo "Removing MongoDB repository..."
-
-    if [[ -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list" ]]; then
-        run rm -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
-        run apt-get update -q -y
-    fi
-
-    echo "Removing MongoDB repository key..."
-
-    run bash -c "wget -qO - 'https://www.mongodb.org/static/pgp/server-${MONGODB_VERSION}.asc' | apt-key del -"
-}
+case "${RELEASE_NAME}" in
+    bookworm)
+        MONGODB_VERSION="7.0"
+    ;;
+    jammy)
+        if version_older_than "${MONGODB_VERSION}" "6.0"; then
+            MONGODB_VERSION="6.0"
+        fi
+    ;;
+    *)
+        MONGODB_VERSION=${MONGODB_VERSION:-"6.0"}
+    ;;
+esac
 
 function init_mongodb_removal() {
+    # Remove MongoDB default admin.
+    echo "Deleting default MongoDB admin account: '${MONGODB_ADMIN_USER}'"
+    run mongosh admin --eval "\"db.dropUser('${MONGODB_ADMIN_USER}');\""
+
     # Stop MongoDB server process.
     if [[ $(pgrep -c mongod) -gt 0 ]]; then
         echo "Stopping mongodb..."
@@ -75,10 +74,11 @@ function init_mongodb_removal() {
             [ -f /etc/mongod.conf ] && run rm -f /etc/mongod.conf
             [ -d /var/lib/mongodb ] && run rm -fr /var/lib/mongodb
 
-            #echo "All your MongoDB database and configuration files deleted permanently."
+            # Remove repository.
+            run rm -f "/etc/apt/sources.list.d/mongodb-org-${MONGODB_VERSION}-${RELEASE_NAME}.list"
+            run rm -f "/usr/share/keyrings/mongodb-server-${MONGODB_VERSION}.gpg"
 
-            # Remove MongoDB repository.
-            remove_mongodb_repo
+            echo "All your MongoDB database and configuration files deleted permanently."
         fi
     else
         echo "MongoDB package not found, possibly installed from source."

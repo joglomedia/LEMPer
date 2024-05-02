@@ -50,11 +50,6 @@ function init_postgres_removal() {
 
         # Remove config.
         postgres_remove_config
-
-        # Remove repository.
-        if [[ "${FORCE_REMOVE}" == true ]]; then
-            run rm -f "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list"
-        fi
     else
         echo "No installed PostgreSQL ${POSTGRES_VERSION} or MySQL packages found."
         echo "Possibly installed from source? Remove it manually!"
@@ -97,6 +92,10 @@ function postgres_remove_config() {
         [ -d /var/run/postgresql ] && run rm -fr /var/run/postgresql
         [ -d "${PGDATA}" ] && run rm -fr "${PGDATA}"
         [ -d "/etc/postgresql/${POSTGRES_VERSION}" ] && run rm -fr "/etc/postgresql/${POSTGRES_VERSION}"
+
+        # Remove repository.
+        run rm -f "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list"
+        run rm -f "/usr/share/keyrings/postgres-${RELEASE_NAME}.gpg"
 
         echo "All database and configuration files deleted permanently."
     fi

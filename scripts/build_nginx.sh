@@ -17,8 +17,7 @@
 # under the License.
 
 function usage() {
-  echo "
-Usage: build_ngx_pagespeed.sh [options]
+  echo "Usage: build_ngx_pagespeed.sh [options]
 
   Installs ngx_pagespeed and its dependencies.  Can optionally build and install
   nginx as well.  Can be run either as:
@@ -32,7 +31,7 @@ Usage: build_ngx_pagespeed.sh [options]
      git checkout <branch>
      scripts/build_ngx_pagespeed.sh [options]
 
-Options:
+  Options:
   -v, --ngx-pagespeed-version <ngx_pagespeed version>
       What version of ngx_pagespeed to build.  Valid options include:
       * latest-beta
@@ -136,7 +135,6 @@ function fail() {
   exit 1
 }
 
-
 function status() {
   echo_color "$GREEN" "$@"
 }
@@ -198,10 +196,9 @@ function determine_latest_nginx_version() {
   # Scrape nginx's download page to try to find the most recent nginx version.
 
   nginx_download_url="https://nginx.org/en/download.html"
+
   function report_error() {
-    fail "
-Couldn't automatically determine the latest nginx version: failed to $@
-$nginx_download_url"
+    fail "Couldn't automatically determine the latest nginx version: failed to $@ $nginx_download_url"
   }
 
   nginx_download_page=$(curl -sS --fail "$nginx_download_url") || \
@@ -219,9 +216,7 @@ $nginx_download_url"
     report_error "determine latest version from"
 
   if version_older_than "$latest_version" "1.11.4"; then
-    fail "
-Expected the latest version of nginx to be at least 1.11.4 but found
-$latest_version on $nginx_download_url"
+    fail "Expected the latest version of nginx to be at least 1.11.4 but found $latest_version on $nginx_download_url"
   fi
 
   echo "$latest_version"
@@ -314,9 +309,9 @@ function build_ngx_pagespeed() {
     fail "Your version of getopt is too old.  Exiting with no changes made."
   fi
 
-  opts=$(getopt -o v:n:mb:pslt:ya:dh \
-    --longoptions ngx-pagespeed-version:,nginx-version:,dynamic-module \
-    --longoptions buildir:,no-deps-check,psol-from-source,devel,build-type: \
+  opts=$(getopt -o v:n:mb:pslt:ya:dhif: \
+    --longoptions install-ngx-pagespeed,ngx-pagespeed-version:,nginx-version:,dynamic-module \
+    --longoptions buildir:,no-deps-check,psol-from-source,devel,build-type:,psol-binary-file: \
     --longoptions assume-yes,additional-nginx-configure-arguments:,dryrun,help \
     -n "$(basename "$0")" -- "$@")
   if [ $? != 0 ]; then
@@ -337,6 +332,9 @@ function build_ngx_pagespeed() {
   DYNAMIC_MODULE=false
   while true; do
     case "$1" in
+      -i | --install-ngx-pagespeed) shift
+        INSTALL_NPS=true
+        ;;
       -v | --ngx-pagespeed-version) shift
         NPS_VERSION="$1"
         shift
@@ -410,8 +408,7 @@ function build_ngx_pagespeed() {
 
   if "$ALREADY_CHECKED_OUT"; then
     if [ "$NPS_VERSION" != "DEFAULT" ]; then
-      fail \
-"The --ngx-pagespeed-version argument doesn't make sense when running within an existing checkout."
+      fail "The --ngx-pagespeed-version argument doesn't make sense when running within an existing checkout."
     fi
   elif [ "$NPS_VERSION" = "DEFAULT" ]; then
     if "$DEVEL"; then
@@ -434,8 +431,7 @@ function build_ngx_pagespeed() {
     PSOL_FROM_SOURCE=true
     BUILD_NGINX=true
     if [ -n "$NGINX_VERSION" ]; then
-      fail \
-"The --devel argument conflicts with --nginx.  In devel mode we use the version of nginx that's included as a submodule."
+      fail "The --devel argument conflicts with --nginx.  In devel mode we use the version of nginx that's included as a submodule."
     fi
     if "$DYNAMIC_MODULE"; then
       fail "Can't currently build a dynamic module in --devel mode."
@@ -469,17 +465,14 @@ function build_ngx_pagespeed() {
     # moved from mandatory to optional to prohibited).
     if [[ "${NPS_VERSION#*[^0-9.]}" = "$NPS_VERSION" ]] &&
          version_older_than "$NPS_VERSION" "1.10.33.5"; then
-      fail "
-You're trying to build ngx_pagespeed $NPS_VERSION as a dynamic module, but
-ngx_pagespeed didn't add support for dynamic modules until 1.10.33.5."
+      fail "You're trying to build ngx_pagespeed $NPS_VERSION as a dynamic module, 
+        but ngx_pagespeed didn't add support for dynamic modules until 1.10.33.5."
     fi
 
     if [ ! -z "NGINX_VERSION" ]; then
       if version_older_than "$NGINX_VERSION" "1.9.13"; then
-        fail "
-You're trying to build nginx $NGINX_VERSION as a dynamic module but nginx didn't
-add support for dynamic modules in a way compatible with ngx_pagespeed until
-1.9.13."
+        fail "You're trying to build nginx $NGINX_VERSION as a dynamic module but nginx didn't
+          add support for dynamic modules in a way compatible with ngx_pagespeed until 1.9.13."
       fi
     fi
   fi
@@ -520,7 +513,6 @@ add support for dynamic modules in a way compatible with ngx_pagespeed until
         extra_flags=("--with-cc=/usr/lib/gcc-mozilla/bin/gcc" \
                      "--with-ld-opt=-static-libstdc++")
       fi
-
     elif [ -f /etc/redhat-release ]; then
       status "Detected redhat-based distro."
 
@@ -535,9 +527,8 @@ add support for dynamic modules in a way compatible with ngx_pagespeed until
           elif [ "$redhat_major_version" == 6 ]; then
             slc_version=6
           else
-            fail "
-Unexpected major version $redhat_major_version in /etc/redhat-release:
-$(cat /etc/redhat-release) Expected 5 or 6."
+            fail "Unexpected major version $redhat_major_version in /etc/redhat-release:
+              $(cat /etc/redhat-release) Expected 5 or 6."
           fi
 
           status "Detected that gcc is older than 4.8.  Scientific Linux"
@@ -563,10 +554,8 @@ $(cat /etc/redhat-release) Expected 5 or 6."
         extra_flags=("--with-cc=/opt/rh/devtoolset-2/root/usr/bin/gcc")
       fi
     else
-      fail "
-This doesn't appear to be a deb-based distro or an rpm-based one.  Not going to
-be able to install dependencies.  Please install dependencies manually and rerun
-with --no-deps-check."
+      fail "This doesn't appear to be a deb-based distro or an rpm-based one. Not going to
+        be able to install dependencies.  Please install dependencies manually and rerun with --no-deps-check."
     fi
     status "Operating system dependencies are all set."
   else
@@ -579,8 +568,7 @@ with --no-deps-check."
     local directory="$1"
     if [ -d "$directory" ]; then
       if [ ${#directory} -lt 8 ]; then
-        fail "
-Not deleting $directory; name is suspiciously short.  Something is wrong."
+        fail "Not deleting $directory; name is suspiciously short. Something is wrong."
       fi
 
       continue_or_exit "OK to delete $directory?"
@@ -588,134 +576,140 @@ Not deleting $directory; name is suspiciously short.  Something is wrong."
     fi
   }
 
-  # In general, the zip github builds for tag foo unzips to ngx_pagespeed-foo,
-  # but it looks like they special case vVERSION tags to ngx_pagespeed-VERSION
-  if [[ "$NPS_VERSION" =~ ^[0-9]*[.][0-9]*[.][0-9]*[.][0-9]*$ ]]; then
-    # We've been given a numeric version number.  This has an associated tag
-    # in the form vVERSION-beta.
-    tag_name="v${NPS_VERSION}-beta"
-    nps_downloaded_fname="ngx_pagespeed-${NPS_VERSION}-beta"
-  else
-    # We've been given a tag name, like latest-beta.  Download that directly.
-    tag_name="$NPS_VERSION"
-    nps_downloaded_fname="ngx_pagespeed-${NPS_VERSION}"
-  fi
 
-  install_dir="this-only-makes-sense-in-devel-mode"
-  if "$USE_GIT_CHECKOUT"; then
-    # We're either doing a --devel build, or someone is running us from an
-    # existing git checkout.
-    #nps_module_dir="$PWD"
-    nps_module_dir="$BUILDDIR/incubator-pagespeed-ngx"
-    np_submodules_dir="$nps_module_dir/testing-dependencies"
-    install_dir="$nps_module_dir"
-    if "$ALREADY_CHECKED_OUT"; then
-      run cd "$nps_module_dir"
+  ## Build NPS
+  if [[ "${INSTALL_NPS}" == true ]]; then
+    # In general, the zip github builds for tag foo unzips to ngx_pagespeed-foo,
+    # but it looks like they special case vVERSION tags to ngx_pagespeed-VERSION
+    if [[ "$NPS_VERSION" =~ ^[0-9]*[.][0-9]*[.][0-9]*[.][0-9]*$ ]]; then
+      # We've been given a numeric version number.  This has an associated tag
+      # in the form vVERSION-beta.
+      tag_name="v${NPS_VERSION}-beta"
+      nps_downloaded_fname="ngx_pagespeed-${NPS_VERSION}-beta"
     else
-      status "Checking out ngx_pagespeed..."
-      #run git clone "git@github.com:pagespeed/ngx_pagespeed.git" "$nps_module_dir"
-      if [[ -d "$nps_module_dir" ]]; then
-        run rm -fr "$nps_module_dir"
-      fi
-      run git clone https://github.com/apache/incubator-pagespeed-ngx.git "$nps_module_dir"
-      run git config --global --add safe.directory "$nps_module_dir"
-      run cd "$nps_module_dir"
-      run git checkout "$tag_name"
-      run wget -qO "$nps_module_dir/.gitmodules" \
-        https://raw.githubusercontent.com/apache/incubator-pagespeed-ngx/master/.gitmodules
-      run mkdir -p "$np_submodules_dir/mod_pagespeed"
+      # We've been given a tag name, like latest-beta.  Download that directly.
+      tag_name="$NPS_VERSION"
+      nps_downloaded_fname="ngx_pagespeed-${NPS_VERSION}"
     fi
 
-    if [[ "$DEVEL" == true || "$PSOL_FROM_SOURCE" == true ]]; then
-      status "Downloading dependencies..."
-      run git submodule update --init --recursive
-      if [[ "$CONTINUOUS_INTEGRATION" != true ]]; then
-        status "Switching submodules over to git protocol."
-        # This lets us push to github by public key.
-        for config in $(find .git/ -name config) ; do
-          run sed -i s~https://github.com/~git@github.com:~ $config ;
-        done
-      fi
-    fi
-  else
-    nps_baseurl="https://github.com/apache/incubator-pagespeed-ngx/archive"
-    nps_downloaded="$TEMPDIR/$nps_downloaded_fname.zip"
-    status "Downloading ngx_pagespeed..."
-    run wget "$nps_baseurl/$tag_name.zip" -O "$nps_downloaded"
-    # Read the directory name from the zip, the first line is expected to have it.
-    nps_module_dir=$(unzip -qql "$nps_downloaded" | head -n1 | tr -s ' ' | cut -d' ' -f5-)
-    nps_module_dir="$BUILDDIR/${nps_module_dir::-1}"
-    delete_if_already_exists "$nps_module_dir"
-    status "Extracting ngx_pagespeed..."
-    run unzip -q "$nps_downloaded" -d "$BUILDDIR"
-    run cd "$nps_module_dir"
-  fi
-
-  MOD_PAGESPEED_DIR=""
-  PSOL_BINARY=""
-  if "$PSOL_FROM_SOURCE"; then
-    MOD_PAGESPEED_DIR="$PWD/testing-dependencies/mod_pagespeed"
-    git submodule update --init --recursive -- "$MOD_PAGESPEED_DIR"
-    run pushd "$MOD_PAGESPEED_DIR"
-
-    if "$DEVEL"; then
-      if [ ! -d "$HOME/apache2" ]; then
-        run install/build_development_apache.sh 2.2 prefork
-      fi
-      cd devel
-      run make apache_debug_psol
-      PSOL_BINARY="$MOD_PAGESPEED_DIR/out/$BUILD_TYPE/pagespeed_automatic.a"
-    else
-      if "$DO_DEPS_CHECK"; then
-        skip_deps_arg=""
+    install_dir="this-only-makes-sense-in-devel-mode"
+    if "$USE_GIT_CHECKOUT"; then
+      # We're either doing a --devel build, or someone is running us from an
+      # existing git checkout.
+      #nps_module_dir="$PWD"
+      nps_module_dir="$BUILDDIR/incubator-pagespeed-ngx"
+      np_submodules_dir="$nps_module_dir/testing-dependencies"
+      install_dir="$nps_module_dir"
+      if "$ALREADY_CHECKED_OUT"; then
+        run cd "$nps_module_dir"
       else
-        skip_deps_arg="--skip_deps"
+        status "Checking out ngx_pagespeed..."
+        #run git clone "git@github.com:pagespeed/ngx_pagespeed.git" "$nps_module_dir"
+        if [[ -d "$nps_module_dir" ]]; then
+          run rm -fr "$nps_module_dir"
+        fi
+        run git clone https://github.com/apache/incubator-pagespeed-ngx.git "$nps_module_dir"
+        run git config --global --add safe.directory "$nps_module_dir"
+        run cd "$nps_module_dir"
+        run git checkout "$tag_name"
+        run wget -qO "$nps_module_dir/.gitmodules" \
+          https://raw.githubusercontent.com/apache/incubator-pagespeed-ngx/master/.gitmodules
+        run mkdir -p "$np_submodules_dir/mod_pagespeed"
       fi
 
-      run install/build_psol.sh --skip_tests --skip_packaging "$skip_deps_arg"
-      PSOL_BINARY="$MOD_PAGESPEED_DIR/pagespeed/automatic/pagespeed_automatic.a"
-    fi
-    run popd
-  else
-    # Now we need to figure out what precompiled version of PSOL to build
-    # ngx_pagespeed against.
-    if "$DRYRUN"; then
-      psol_url="https://psol.example.com/cant-get-psol-version-in-dry-run.tar.gz"
-    elif [ -e PSOL_BINARY_URL ]; then
-      # Releases after 1.11.33.4 there is a PSOL_BINARY_URL file that tells us
-      # where to look.
-      psol_url="$(scripts/format_binary_url.sh PSOL_BINARY_URL)"
-      if [[ "$psol_url" != https://* ]]; then
-        fail "Got bad psol binary location information: $psol_url"
-      fi
-    else
-      # Modified
-      if [[ -n "${PSOL_BINARY_URL}" ]]; then
-        psol_url="${PSOL_BINARY_URL}"
-      else
-        # For past releases we have to grep it from the config file.  The url has
-        # always looked like this, and the config file has contained it since
-        # before we started tagging our ngx_pagespeed releases.
-        psol_url="$(grep -o \
-            "https://dl.google.com/dl/page-speed/psol/[0-9.]*.tar.gz" config)"
-        if [ -z "$psol_url" ]; then
-          fail "Couldn't find PSOL url in $PWD/config"
+      if [[ "$DEVEL" == true || "$PSOL_FROM_SOURCE" == true ]]; then
+        status "Downloading dependencies..."
+        run git submodule update --init --recursive
+        if [[ "$CONTINUOUS_INTEGRATION" != true ]]; then
+          status "Switching submodules over to git protocol."
+          # This lets us push to github by public key.
+          for config in $(find .git/ -name config) ; do
+            run sed -i s~https://github.com/~git@github.com:~ $config ;
+          done
         fi
       fi
+    else
+      nps_baseurl="https://github.com/apache/incubator-pagespeed-ngx/archive"
+      nps_downloaded="$TEMPDIR/$nps_downloaded_fname.zip"
+      status "Downloading ngx_pagespeed..."
+      run wget "$nps_baseurl/$tag_name.zip" -O "$nps_downloaded"
+      # Read the directory name from the zip, the first line is expected to have it.
+      nps_module_dir=$(unzip -qql "$nps_downloaded" | head -n1 | tr -s ' ' | cut -d' ' -f5-)
+      nps_module_dir="$BUILDDIR/${nps_module_dir::-1}"
+      delete_if_already_exists "$nps_module_dir"
+      status "Extracting ngx_pagespeed..."
+      run unzip -q "$nps_downloaded" -d "$BUILDDIR"
+      run cd "$nps_module_dir"
     fi
 
-    status "Downloading PSOL binary..."
-    run wget "$psol_url"
+    MOD_PAGESPEED_DIR=""
+    PSOL_BINARY=""
+    if "$PSOL_FROM_SOURCE"; then
+      MOD_PAGESPEED_DIR="$PWD/testing-dependencies/mod_pagespeed"
+      git submodule update --init --recursive -- "$MOD_PAGESPEED_DIR"
+      run pushd "$MOD_PAGESPEED_DIR"
 
-    status "Extracting PSOL..."
-    run tar -xzf $(basename "$psol_url")  # extracts to psol/
-  fi
+      if "$DEVEL"; then
+        if [ ! -d "$HOME/apache2" ]; then
+          run install/build_development_apache.sh 2.2 prefork
+        fi
+        cd devel
+        run make apache_debug_psol
+        PSOL_BINARY="$MOD_PAGESPEED_DIR/out/$BUILD_TYPE/pagespeed_automatic.a"
+      else
+        if "$DO_DEPS_CHECK"; then
+          skip_deps_arg=""
+        else
+          skip_deps_arg="--skip_deps"
+        fi
 
-  if "$DYNAMIC_MODULE"; then
-    add_module="--add-dynamic-module=$nps_module_dir"
-  else
-    add_module="--add-module=$nps_module_dir"
-  fi
+        run install/build_psol.sh --skip_tests --skip_packaging "$skip_deps_arg"
+        PSOL_BINARY="$MOD_PAGESPEED_DIR/pagespeed/automatic/pagespeed_automatic.a"
+      fi
+      run popd
+    else
+      # Now we need to figure out what precompiled version of PSOL to build
+      # ngx_pagespeed against.
+      if "$DRYRUN"; then
+        psol_url="https://psol.example.com/cant-get-psol-version-in-dry-run.tar.gz"
+      elif [ -e PSOL_BINARY_URL ]; then
+        # Releases after 1.11.33.4 there is a PSOL_BINARY_URL file that tells us
+        # where to look.
+        psol_url="$(scripts/format_binary_url.sh PSOL_BINARY_URL)"
+        if [[ "$psol_url" != https://* ]]; then
+          fail "Got bad psol binary location information: $psol_url"
+        fi
+      else
+        # Modified
+        if [[ -n "${PSOL_BINARY_URL}" ]]; then
+          psol_url="${PSOL_BINARY_URL}"
+        else
+          # For past releases we have to grep it from the config file.  The url has
+          # always looked like this, and the config file has contained it since
+          # before we started tagging our ngx_pagespeed releases.
+          psol_url="$(grep -o \
+              "https://dl.google.com/dl/page-speed/psol/[0-9.]*.tar.gz" config)"
+          if [ -z "$psol_url" ]; then
+            fail "Couldn't find PSOL url in $PWD/config"
+          fi
+        fi
+      fi
+
+      status "Downloading PSOL binary..."
+      run wget "$psol_url"
+
+      status "Extracting PSOL..."
+      run tar -xzf $(basename "$psol_url")  # extracts to psol/
+    fi
+
+    if "$DYNAMIC_MODULE"; then
+      add_module="--add-dynamic-module=$nps_module_dir"
+    else
+      add_module="--add-module=$nps_module_dir"
+    fi
+  fi # End of INSTALL_NPS
+
+
   configure_args=("$add_module" "${extra_flags[@]}")
 
   if "$DEVEL"; then
@@ -791,16 +785,16 @@ Not deleting $directory; name is suspiciously short.  Something is wrong."
     if [ -n "$additional_configure_args" ]; then
       # Split additional_configure_args respecting any internal quotation.
       # Otherwise things like --with-cc-opt='-foo -bar' won't work.
-      eval additional_configure_args=("$additional_configure_args")
+      eval additional_configure_args=("${additional_configure_args}")
       configure=("${configure[@]}" "${additional_configure_args[@]}")
     fi
 
     echo "About to configure nginx with:"
-    echo "   $(quote_arguments "${configure[@]}")"
+    echo "$(quote_arguments "${configure[@]}")"
     continue_or_exit "Does this look right?"
-    MOD_PAGESPEED_DIR="$MOD_PAGESPEED_DIR" \
-      PSOL_BINARY="$PSOL_BINARY" \
-      run "${configure[@]}"
+    MOD_PAGESPEED_DIR="$MOD_PAGESPEED_DIR"
+    PSOL_BINARY="$PSOL_BINARY"
+    run "${configure[@]}"
 
     if ! "$DEVEL"; then
       continue_or_exit "Build nginx?"

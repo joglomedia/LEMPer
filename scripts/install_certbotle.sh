@@ -19,7 +19,9 @@ if [[ "$(type -t run)" != "function" ]]; then
     preflight_system_check
 fi
 
+##
 # Install Certbot Let's Encrypt.
+##
 function init_certbotle_install() {
     if [[ "${AUTO_INSTALL}" == true ]]; then
         if [[ "${INSTALL_CERTBOT}" == true ]]; then
@@ -57,11 +59,6 @@ function init_certbotle_install() {
             ;;
             ubuntu)
                 install_certbot_pip
-            ;;
-            centos | rocky*)
-                run dnf install-q -y epel-release && run dnf update -q -y  && \
-                run dnf install-q -y certbot
-                #install_certbot_pip
             ;;
             *)
                 error "Unable to add Certbot, unsupported distribution release: ${DISTRIB_NAME^} ${RELEASE_NAME^}."
@@ -124,6 +121,9 @@ EOL
     fi
 }
 
+##
+# Install Python Venv for Certbot.
+##
 function install_certbot_pip() {
     run python -m venv /opt/certbot/ && \
     run /opt/certbot/bin/pip install --upgrade pip setuptools cffi && \
