@@ -350,7 +350,7 @@ echo "[MariaDB (MySQL drop-in replacement) Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(command -v mariadb) && -n $(command -v mysqld) && "${FORCE_INSTALL}" != true ]]; then
+if [[ -n $(command -v mariadb) && -n $(command -v mariadbd) && "${FORCE_INSTALL}" != true ]]; then
     info "MariaDB server already exists, installation skipped."
 else
     init_mariadb_install "$@"

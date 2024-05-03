@@ -104,7 +104,7 @@ function init_mariadb_removal() {
 
 echo "Uninstalling MariaDB server..."
 
-if [[ -n $(command -v mariadb) || -n $(command -v mysqld) ]]; then
+if [[ -n $(command -v mariadb) || -n $(command -v mariadbd) ]]; then
     if [[ "${AUTO_REMOVE}" == true ]]; then
         REMOVE_MARIADB="y"
     else
