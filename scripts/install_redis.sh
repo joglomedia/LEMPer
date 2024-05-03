@@ -32,7 +32,7 @@ function add_redis_repo() {
                 run chmod 644 "/usr/share/keyrings/redis-${RELEASE_NAME}.gpg" && \
                 run touch "/etc/apt/sources.list.d/redis-${RELEASE_NAME}.list" && \
                 run bash -c "echo 'deb [signed-by=/usr/share/keyrings/redis-${RELEASE_NAME}.gpg] https://packages.redis.io/deb ${RELEASE_NAME} main' | tee /etc/apt/sources.list.d/redis-${RELEASE_NAME}.list" && \
-                run apt-get update -q -y
+                run apt-get update --allow-releaseinfo-change -q -y
             else
                 info "Redis repository already exists."
             fi

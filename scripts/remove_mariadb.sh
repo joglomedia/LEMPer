@@ -66,8 +66,10 @@ function init_mariadb_removal() {
 
         # Remove repository.
         if [[ "${FORCE_REMOVE}" == true ]]; then
-            #run rm -f /etc/apt/sources.list.d/mariadb-*.list
-            run rm -f /etc/apt/sources.list.d/mariadb.list
+            [ -f /etc/apt/preferences.d/mariadb-enterprise.pref ] && \
+                run rm -f /etc/apt/preferences.d/mariadb-enterprise.pref
+            [ -f /etc/apt/sources.list.d/mariadb.list ] && \
+                run rm -f /etc/apt/sources.list.d/mariadb.list
         fi
     elif dpkg-query -l | awk '/mysql/ { print $2 }' | grep -qwE "^mysql"; then
         echo "Found MySQL packages installation, removing..."
@@ -102,7 +104,7 @@ function init_mariadb_removal() {
 
 echo "Uninstalling MariaDB server..."
 
-if [[ -n $(command -v mysql) || -n $(command -v mysqld) ]]; then
+if [[ -n $(command -v mariadb) || -n $(command -v mariadbd) ]]; then
     if [[ "${AUTO_REMOVE}" == true ]]; then
         REMOVE_MARIADB="y"
     else

@@ -26,22 +26,47 @@ function add_mariadb_repo() {
     echo "Adding MariaDB repository..."
 
     MYSQL_SERVER=${MYSQL_SERVER:-"mariadb"}
-    MYSQL_VERSION=${MYSQL_VERSION:-"10.6"}
+    MYSQL_VERSION=${MYSQL_VERSION:-"11.1"}
 
-    # Fallback to oldest version if version is not supported.
-    [ "${RELEASE_NAME}" == "jessie" ] && MYSQL_VERSION="10.5"
+    # Fallback to oldest version if OS release is not supported.
+    case "${RELEASE_NAME}" in
+        jessie)
+            MYSQL_VERSION="10.5"
+        ;;
+        bionic)
+           MYSQL_VERSION="11.1"
+        ;;
+    esac
 
-    # Add MariaDB official repo.
-    # Ref: https://mariadb.com/kb/en/library/mariadb-package-repository-setup-and-usage/
-    MARIADB_REPO_SETUP_URL="https://downloads.mariadb.com/MariaDB/mariadb_repo_setup"
+    if [[ "${MYSQL_REPO_MIRROR_URL}x" == "x" ]]; then
+        # Add MariaDB official repo.
+        MARIADB_REPO_SETUP_URL="https://downloads.mariadb.com/MariaDB/mariadb_repo_setup"
 
-    if curl -sLI "${MARIADB_REPO_SETUP_URL}" | grep -q "HTTP/[.12]* [2].."; then
-        run curl -sSL -o "${BUILD_DIR}/mariadb_repo_setup" "${MARIADB_REPO_SETUP_URL}" && \
-        run bash "${BUILD_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
-            --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}" && \
-        run apt-get update -q -y
+        if curl -sLI "${MARIADB_REPO_SETUP_URL}" | grep -q "HTTP/[.12]* [2].."; then
+            run curl -sSL -o "${BUILD_DIR}/mariadb_repo_setup" "${MARIADB_REPO_SETUP_URL}" && \
+            run bash "${BUILD_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
+                --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}" --skip-maxscale --skip-tools && \
+            run apt-get update -q -y
+        else
+            info "MariaDB repo installer not found, trying to use pre-downloaded script."
+            run bash "${BASE_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
+                --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}" --skip-maxscale --skip-tools && \
+            run apt-get update -q -y
+        fi
     else
-        error "MariaDB repo installer not found."
+        # Add MariaDB mirror repo.
+        local MARIADB_REPO_URL="${MYSQL_REPO_MIRROR_URL}/repo/${MYSQL_VERSION}/${DISTRIB_NAME}"
+
+        if curl -sLI "${MARIADB_REPO_URL}/dists/${RELEASE_NAME}/Release" | grep -q "HTTP/[.12]* [2].."; then
+            run bash -c "curl -fsSL https://mariadb.org/mariadb_release_signing_key.pgp | gpg --dearmor --yes -o /usr/share/keyrings/mariadb-keyring.gpg" && \
+            run chmod 644 "/usr/share/keyrings/mariadb-keyring.gpg" && \
+            run touch "/etc/apt/sources.list.d/mariadb.list" && \
+            run bash -c "echo 'deb [signed-by=/usr/share/keyrings/mariadb-keyring.gpg] ${MARIADB_REPO_URL} ${RELEASE_NAME} main' > /etc/apt/sources.list.d/mariadb.list" && \
+            run bash -c "echo '#deb-src [signed-by=/usr/share/keyrings/mariadb-keyring.gpg] ${MARIADB_REPO_URL} ${RELEASE_NAME} main' >> /etc/apt/sources.list.d/mariadb.list" && \
+            run apt-get update --allow-releaseinfo-change -q -y
+        else
+            error "MariaDB ${MYSQL_VERSION} release at mirror ${MYSQL_REPO_MIRROR_URL} not found."
+        fi
     fi
 }
 
@@ -167,7 +192,7 @@ function init_mariadb_install() {
                                 FLUSH PRIVILEGES;"
 
                         # Root password is blank for newly installed MariaDB (MySQL).
-                        if mysql --user=root --password="${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"; then
+                        if mariadb --user=root --password="${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"; then
                             success "Securing MariaDB server installation has been done."
                         else
                             error "Unable to secure MariaDB server installation."
@@ -246,12 +271,12 @@ function enable_mariabackup() {
     export MYSQL_ROOT_PASSWORD
 
     # Create default LEMPer database user if not exists.
-    if ! mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT User FROM mysql.user;" | grep -q "${MARIABACKUP_USER}"; then
+    if ! mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT User FROM mysql.user;" | grep -q "${MARIABACKUP_USER}"; then
         # Create mariabackup user.
         SQL_QUERY="CREATE USER '${MARIABACKUP_USER}'@'localhost' IDENTIFIED BY '${MARIABACKUP_PASS}';
                 GRANT RELOAD, PROCESS, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${MARIABACKUP_USER}'@'localhost';"
 
-        run mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"
+        run mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"
 
         # Update my.cnf
         MARIABACKUP_CNF="###################################
@@ -325,7 +350,7 @@ echo "[MariaDB (MySQL drop-in replacement) Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(command -v mysql) && -n $(command -v mysqld) && "${FORCE_INSTALL}" != true ]]; then
+if [[ -n $(command -v mariadb) && -n $(command -v mariadbd) && "${FORCE_INSTALL}" != true ]]; then
     info "MariaDB server already exists, installation skipped."
 else
     init_mariadb_install "$@"
