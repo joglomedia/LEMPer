@@ -38,7 +38,7 @@ function add_mariadb_repo() {
         ;;
     esac
 
-    if [[ "${MYQL_REPO_MIRROR_URL}x" == "x" ]]; then
+    if [[ "${MYSQL_REPO_MIRROR_URL}x" == "x" ]]; then
         # Add MariaDB official repo.
         MARIADB_REPO_SETUP_URL="https://downloads.mariadb.com/MariaDB/mariadb_repo_setup"
 
@@ -55,7 +55,7 @@ function add_mariadb_repo() {
         fi
     else
         # Add MariaDB mirror repo.
-        local MARIADB_REPO_URL="${MYQL_REPO_MIRROR_URL}/repo/${MYSQL_VERSION}/${DISTRIB_NAME}"
+        local MARIADB_REPO_URL="${MYSQL_REPO_MIRROR_URL}/repo/${MYSQL_VERSION}/${DISTRIB_NAME}"
 
         if curl -sLI "${MARIADB_REPO_URL}/dists/${RELEASE_NAME}/Release" | grep -q "HTTP/[.12]* [2].."; then
             run bash -c "curl -fsSL https://mariadb.org/mariadb_release_signing_key.pgp | gpg --dearmor --yes -o /usr/share/keyrings/mariadb-keyring.gpg" && \
@@ -65,7 +65,7 @@ function add_mariadb_repo() {
             run bash -c "echo '#deb-src [signed-by=/usr/share/keyrings/mariadb-keyring.gpg] ${MARIADB_REPO_URL} ${RELEASE_NAME} main' >> /etc/apt/sources.list.d/mariadb.list" && \
             run apt-get update --allow-releaseinfo-change -q -y
         else
-            error "MariaDB ${MYSQL_VERSION} release at mirror ${MYQL_REPO_MIRROR_URL} not found."
+            error "MariaDB ${MYSQL_VERSION} release at mirror ${MYSQL_REPO_MIRROR_URL} not found."
         fi
     fi
 }
