@@ -22,7 +22,7 @@ CMD_PARENT="lemper-cli"
 CMD_NAME="create"
 
 # Make sure only root can access and not direct access.
-if ! declare -F "requires_root" &>/dev/null; then
+if [[ "$(type -t requires_root)" != "function" ]]; then
     echo "Direct access to this script is not permitted."
     exit 1
 fi
@@ -120,6 +120,7 @@ function create_vhost_default() {
 server {
     listen 80;
     listen [::]:80;
+    http2 off;
 
     server_name ${SERVERNAME};
 
@@ -239,6 +240,7 @@ function create_vhost_drupal() {
 server {
     listen 80;
     listen [::]:80;
+    http2 off;
 
     server_name ${SERVERNAME};
 
@@ -352,6 +354,7 @@ function create_vhost_laravel() {
 server {
     listen 80;
     listen [::]:80;
+    http2 off;
 
     server_name ${SERVERNAME};
 
@@ -466,6 +469,7 @@ function create_vhost_phalcon() {
 server {
     listen 80;
     listen [::]:80;
+    http2 off;
 
     server_name ${SERVERNAME};
 
