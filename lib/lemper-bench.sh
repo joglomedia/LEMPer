@@ -29,10 +29,10 @@ echo ""
 # Network speed test benchmark.
 echo "### Network Speedtest Benchmark ###"
 
-cachefly=$( wget -q -O /dev/null http://cachefly.cachefly.net/100mb.test 2>&1 | awk '/\/dev\/null/ {speed=$3 $4} END {gsub(/\(|\)/,"",speed); print speed}' )
+cachefly=$( wget -q -O /dev/null https://cachefly.cachefly.net/100mb.test 2>&1 | awk '/\/dev\/null/ {speed=$3 $4} END {gsub(/\(|\)/,"",speed); print speed}' )
 echo "Download speed from CacheFly: $cachefly "
-leaseweb=$( wget -q -O /dev/null http://mirror.leaseweb.com/speedtest/100mb.bin 2>&1 | awk '/\/dev\/null/ {speed=$3 $4} END {gsub(/\(|\)/,"",speed); print speed}' )
-echo "Download speed from Leaseweb, Haarlem, NL: $leaseweb "
+ovh=$( wget -q -O /dev/null https://proof.ovh.net/files/100Mb.dat 2>&1 | awk '/\/dev\/null/ {speed=$3 $4} END {gsub(/\(|\)/,"",speed); print speed}' )
+echo "Download speed from OVH: $ovh "
 
 linodeatl=$( wget -q -O /dev/null http://speedtest.atlanta.linode.com/100MB-atlanta.bin 2>&1 | awk '/\/dev\/null/ {speed=$3 $4} END {gsub(/\(|\)/,"",speed); print speed}' )
 echo "Download speed from Linode, Atlanta, GA: $linodeatl "
@@ -49,13 +49,5 @@ echo "Download speed from Linode, Tokyo, JP: $linodejp "
 linodesgp=$( wget -q -O /dev/null http://speedtest.singapore.linode.com/100MB-singapore.bin 2>&1 | awk '/\/dev\/null/ {speed=$3 $4} END {gsub(/\(|\)/,"",speed); print speed}' )
 echo "Download speed from Linode, Singapore, SGP: $linodesgp "
 
-slsea=$( wget -q -O /dev/null http://speedtest.sea01.softlayer.com/downloads/test100.zip 2>&1 | awk '/\/dev\/null/ {speed=$3 $4} END {gsub(/\(|\)/,"",speed); print speed}' )
-echo "Download speed from Softlayer, Seattle, WA: $slsea "
-slsjc=$( wget -q -O /dev/null http://speedtest.sjc01.softlayer.com/downloads/test100.zip 2>&1 | awk '/\/dev\/null/ {speed=$3 $4} END {gsub(/\(|\)/,"",speed); print speed}' )
-echo "Download speed from Softlayer, San Jose, CA: $slsjc "
-sldal=$( wget -q -O /dev/null http://speedtest.dal05.softlayer.com/downloads/test100.zip 2>&1 | awk '/\/dev\/null/ {speed=$3 $4} END {gsub(/\(|\)/,"",speed); print speed}' )
-echo "Download speed from Softlayer, Dallas, TX: $sldal "
-slwdc=$( wget -q -O /dev/null http://speedtest.wdc01.softlayer.com/downloads/test100.zip 2>&1 | awk '/\/dev\/null/ {speed=$3 $4} END {gsub(/\(|\)/,"",speed); print speed}' )
-echo "Download speed from Softlayer, Washington, DC: $slwdc "
-slsng=$( wget -q -O /dev/null http://speedtest.sng01.softlayer.com/downloads/test100.zip 2>&1 | awk '/\/dev\/null/ {speed=$3 $4} END {gsub(/\(|\)/,"",speed); print speed}' )
-echo "Download speed from Softlayer, Singapore: $slsng "
+vodafone=$( wget -q -O /dev/null http://212.183.159.230/100MB.zip 2>&1 | awk '/\/dev\/null/ {speed=$3 $4} END {gsub(/\(|\)/,"",speed); print speed}' )
+echo "Download speed from Vodafone: $vodafone "
