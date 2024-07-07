@@ -821,7 +821,7 @@ function install_sourceguardian_loader() {
 
     if curl -sLI "${SG_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
         run wget "${SG_ZIP_URL}" && \
-        run tar -xzf "${SG_ZIP_FILENAME}" && \
+        run tar -xf "${SG_ZIP_FILENAME}" && \
         run mv -f "${BUILD_DIR}/sourceguardian" /usr/lib/php/loaders/
     else
         error "Cannot download SourceGuardian PHP loader: 'sourceguardian_loaders.linux-${SG_ARCH}.tar.gz'."
