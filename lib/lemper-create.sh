@@ -1065,15 +1065,16 @@ function init_lemper_create() {
                     create_fpm_pool_conf "${USERNAME}" "${PHP_VERSION}" > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
 
                     # Create default directories & log files.
-                    run mkdir -p "/home/${USERNAME}/.lemper/tmp"
-                    run mkdir -p "/home/${USERNAME}/.lemper/php/opcache"
-                    run mkdir -p "/home/${USERNAME}/.lemper/php/sessions"
-                    run mkdir -p "/home/${USERNAME}/.lemper/php/wsdlcache"
-                    run mkdir -p "/home/${USERNAME}/cgi-bin"
-                    run mkdir -p "/home/${USERNAME}/logs/php"
-                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_slow.log"
-                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_error.log"
-                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-opcache_error.log"
+                    run mkdir -p "/home/${USERNAME}/.lemper/tmp" && \
+                    run mkdir -p "/home/${USERNAME}/.lemper/php/opcache" && \
+                    run mkdir -p "/home/${USERNAME}/.lemper/php/sessions" && \
+                    run mkdir -p "/home/${USERNAME}/.lemper/php/wsdlcache" && \
+                    run mkdir -p "/home/${USERNAME}/cgi-bin" && \
+                    run mkdir -p "/home/${USERNAME}/logs/php" && \
+                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_slow.log" && \
+                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_error.log" && \
+                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-opcache_error.log" && \
+                    run chmod 644 "/home/${USERNAME}" && \
                     run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.lemper" "/home/${USERNAME}/cgi-bin" "/home/${USERNAME}/logs"
 
                     # Restart PHP FPM.
