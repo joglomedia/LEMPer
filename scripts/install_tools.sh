@@ -234,9 +234,9 @@ EOL
     # Assign ownership properly.
     run chown -hR www-data:www-data /usr/share/nginx/html
 
-    #if [[ -x /usr/local/bin/lemper-cli && -d /usr/share/nginx/html/lcp ]]; then
-    #    success "LEMPer CLI & web tools successfully installed."
-    #fi
+    if [[ -x /usr/local/bin/lemper-cli && -d /usr/share/nginx/html/lcp ]]; then
+        success "LEMPer CLI & web tools successfully installed."
+    fi
 }
 
 echo "[LEMPer CLI & Web Tools Installation]"
