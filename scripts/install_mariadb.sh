@@ -133,13 +133,13 @@ function init_mariadb_install() {
                     run cp etc/systemd/mariadb.service /lib/systemd/system/
 
                 [[ ! -f /etc/systemd/system/multi-user.target.wants/mariadb.service && -f /lib/systemd/system/mariadb.service ]] && \
-                    run ln -s /lib/systemd/system/mariadb.service /etc/systemd/system/multi-user.target.wants/mariadb.service
+                    run ln -sf /lib/systemd/system/mariadb.service /etc/systemd/system/multi-user.target.wants/mariadb.service
 
                 [[ ! -f /etc/systemd/system/mysqld.service && -f /lib/systemd/system/mariadb.service ]] && \
-                    run ln -s /lib/systemd/system/mariadb.service /etc/systemd/system/mysqld.service
+                    run ln -sf /lib/systemd/system/mariadb.service /etc/systemd/system/mysqld.service
 
                 [[ ! -f /etc/systemd/system/mysql.service && -f /lib/systemd/system/mariadb.service ]] && \
-                    run ln -s /lib/systemd/system/mariadb.service /etc/systemd/system/mysql.service
+                    run ln -sf /lib/systemd/system/mariadb.service /etc/systemd/system/mysql.service
 
                 # Install default table.
                 if [[ -n $(command -v mysql_install_db) ]]; then
