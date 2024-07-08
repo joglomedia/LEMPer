@@ -1074,7 +1074,7 @@ function init_lemper_create() {
                     run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_slow.log" && \
                     run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_error.log" && \
                     run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-opcache_error.log" && \
-                    run chmod 644 "/home/${USERNAME}" && \
+                    run chmod 755 "/home/${USERNAME}" && \
                     run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.lemper" "/home/${USERNAME}/cgi-bin" "/home/${USERNAME}/logs"
 
                     # Restart PHP FPM.
