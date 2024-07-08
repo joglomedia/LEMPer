@@ -53,6 +53,15 @@ function init_tools_install() {
     run cp -f lib/lemper-db.sh /etc/lemper/cli-plugins/lemper-db && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-db
 
+    run cp -f lib/lemper-sslgen.sh /etc/lemper/cli-plugins/lemper-selfssl && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-selfssl
+
+    run cp -f lib/lemper-fixpermission.sh /etc/lemper/cli-plugins/lemper-fixpermission && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-fixpermission
+
+    run cp -f lib/lemper-bench.sh /etc/lemper/cli-plugins/lemper-bench && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-bench
+
     # Remove old LEMPer CLI tool.
     [ -d /usr/local/lib/lemper ] && run rm -fr /usr/local/lib/lemper/lemper-*
 
@@ -72,7 +81,6 @@ function init_tools_install() {
 
     # Install PHP Info
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php'
-    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php56'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php70'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php71'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php72'
@@ -81,6 +89,7 @@ function init_tools_install() {
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php80'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php81'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php82'
+    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php83'
 
     # Install Adminer for Web-based MySQL Administration Tool.
     [ ! -d /usr/share/nginx/html/lcp/dbadmin ] && run mkdir -p /usr/share/nginx/html/lcp/dbadmin
@@ -225,9 +234,9 @@ EOL
     # Assign ownership properly.
     run chown -hR www-data:www-data /usr/share/nginx/html
 
-    #if [[ -x /usr/local/bin/lemper-cli && -d /usr/share/nginx/html/lcp ]]; then
-    #    success "LEMPer CLI & web tools successfully installed."
-    #fi
+    if [[ -x /usr/local/bin/lemper-cli && -d /usr/share/nginx/html/lcp ]]; then
+        success "LEMPer CLI & web tools successfully installed."
+    fi
 }
 
 echo "[LEMPer CLI & Web Tools Installation]"

@@ -22,7 +22,7 @@ CMD_PARENT="lemper-cli"
 CMD_NAME="manage"
 
 # Make sure only root can access and not direct access.
-if ! declare -F "requires_root" &>/dev/null; then
+if [[ "$(type -t requires_root)" != "function" ]]; then
     echo "Direct access to this script is not permitted."
     exit 1
 fi
@@ -485,14 +485,14 @@ function enable_ssl() {
     # Update vhost config.
     if [[ "${DRYRUN}" != true ]]; then
         # Ensure there is no HTTPS enabled server block.
-        if ! grep -qwE "^\    listen\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b:443\ ssl\ http2" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+        if ! grep -qwE "^\    listen\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b:443\ ssl" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
 
             # Make backup first.
             run cp -f "/etc/nginx/sites-available/${DOMAIN}.conf" "/etc/nginx/sites-available/${DOMAIN}.nonssl-conf"
 
             # Change listening port to 443.
             if grep -qwE "^\    listen\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b:80" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-                run sed -i "s/\:80/\:443\ ssl\ http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+                run sed -i "s/\:80/\:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             else
                 run sed -i "s/listen\ 80/listen\ 443\ ssl\ http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             fi
@@ -500,6 +500,7 @@ function enable_ssl() {
             run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443\ ssl\ http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
 
             # Enable SSL configs.
+            run sed -i "s/http2\ off/http2\ on/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             run sed -i "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             run sed -i "s/#ssl_certificate_key/ssl_certificate_key/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             run sed -i "s/#ssl_trusted_certificate/ssl_trusted_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
@@ -989,22 +990,22 @@ function init_lemper_manage() {
             ;;
             -s | --enable-ssl)
                 enable_ssl "${2}"
-                exit
+                exit 0
                 shift 2
             ;;
             --disable-ssl)
                 disable_ssl "${2}"
-                exit
+                exit 0
                 shift 2
             ;;
             --remove-ssl)
                 remove_ssl "${2}"
-                exit
+                exit 0
                 shift 2
             ;;
             --renew-ssl)
                 renew_ssl "${2}"
-                exit
+                exit 0
                 shift 2
             ;;
             -b | --enable-brotli)

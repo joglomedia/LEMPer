@@ -821,7 +821,7 @@ function install_sourceguardian_loader() {
 
     if curl -sLI "${SG_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
         run wget "${SG_ZIP_URL}" && \
-        run tar -xzf "${SG_ZIP_FILENAME}" && \
+        run tar -xf "${SG_ZIP_FILENAME}" && \
         run mv -f "${BUILD_DIR}/sourceguardian" /usr/lib/php/loaders/
     else
         error "Cannot download SourceGuardian PHP loader: 'sourceguardian_loaders.linux-${SG_ARCH}.tar.gz'."
@@ -1050,7 +1050,7 @@ function init_php_install() {
                 ;;
                 9 | "all")
                     # Select all PHP versions (except EOL & Beta).
-                    SELECTED_PHP_VERSIONS=("5.6" "7.0" "7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2")
+                    SELECTED_PHP_VERSIONS=("7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2" "8.3")
                 ;;
                 *)
                     error "Your selected PHP version ${SELECTED_PHP} is not supported yet."

@@ -22,7 +22,7 @@ CMD_PARENT="lemper-cli"
 CMD_NAME="create"
 
 # Make sure only root can access and not direct access.
-if ! declare -F "requires_root" &>/dev/null; then
+if [[ "$(type -t requires_root)" != "function" ]]; then
     echo "Direct access to this script is not permitted."
     exit 1
 fi
@@ -120,6 +120,7 @@ function create_vhost_default() {
 server {
     listen 80;
     listen [::]:80;
+    http2 off;
 
     server_name ${SERVERNAME};
 
@@ -239,6 +240,7 @@ function create_vhost_drupal() {
 server {
     listen 80;
     listen [::]:80;
+    http2 off;
 
     server_name ${SERVERNAME};
 
@@ -352,6 +354,7 @@ function create_vhost_laravel() {
 server {
     listen 80;
     listen [::]:80;
+    http2 off;
 
     server_name ${SERVERNAME};
 
@@ -466,6 +469,7 @@ function create_vhost_phalcon() {
 server {
     listen 80;
     listen [::]:80;
+    http2 off;
 
     server_name ${SERVERNAME};
 
@@ -1061,15 +1065,16 @@ function init_lemper_create() {
                     create_fpm_pool_conf "${USERNAME}" "${PHP_VERSION}" > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
 
                     # Create default directories & log files.
-                    run mkdir -p "/home/${USERNAME}/.lemper/tmp"
-                    run mkdir -p "/home/${USERNAME}/.lemper/php/opcache"
-                    run mkdir -p "/home/${USERNAME}/.lemper/php/sessions"
-                    run mkdir -p "/home/${USERNAME}/.lemper/php/wsdlcache"
-                    run mkdir -p "/home/${USERNAME}/cgi-bin"
-                    run mkdir -p "/home/${USERNAME}/logs/php"
-                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_slow.log"
-                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_error.log"
-                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-opcache_error.log"
+                    run mkdir -p "/home/${USERNAME}/.lemper/tmp" && \
+                    run mkdir -p "/home/${USERNAME}/.lemper/php/opcache" && \
+                    run mkdir -p "/home/${USERNAME}/.lemper/php/sessions" && \
+                    run mkdir -p "/home/${USERNAME}/.lemper/php/wsdlcache" && \
+                    run mkdir -p "/home/${USERNAME}/cgi-bin" && \
+                    run mkdir -p "/home/${USERNAME}/logs/php" && \
+                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_slow.log" && \
+                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_error.log" && \
+                    run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-opcache_error.log" && \
+                    run chmod 755 "/home/${USERNAME}" && \
                     run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.lemper" "/home/${USERNAME}/cgi-bin" "/home/${USERNAME}/logs"
 
                     # Restart PHP FPM.

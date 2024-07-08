@@ -693,6 +693,7 @@ function create_account() {
             run chmod 700 "/home/${LEMPER_USERNAME}/.ssh" && \
             run touch "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" && \
             run chmod 600 "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" && \
+            run chmod 755 "/home/${LEMPER_USERNAME}" && \
             run chown -hR "${LEMPER_USERNAME}:${LEMPER_USERNAME}" "/home/${LEMPER_USERNAME}"
 
             # Add account credentials to /srv/.htpasswd.
