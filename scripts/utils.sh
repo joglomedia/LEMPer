@@ -340,9 +340,11 @@ function validate_fqdn() {
 function get_distrib_name() {
     if [ -f /etc/os-release ]; then
         # Export os-release vars.
+        # shellcheck disable=SC1091
         . /etc/os-release
 
         # Export lsb-release vars.
+        # shellcheck disable=SC1091
         [ -f /etc/lsb-release ] && . /etc/lsb-release
 
         # Get distribution name.
@@ -361,9 +363,11 @@ function get_distrib_name() {
 function get_release_name() {
     if [ -f /etc/os-release ]; then
         # Export os-release vars.
+        # shellcheck disable=SC1091
         . /etc/os-release
 
         # Export lsb-release vars.
+        # shellcheck disable=SC1091
         [ -f /etc/lsb-release ] && . /etc/lsb-release
 
         # Get distribution name.
@@ -450,9 +454,11 @@ function get_release_name() {
 function get_release_version() {
     if [ -f /etc/os-release ]; then
         # Export os-release vars.
+        # shellcheck disable=SC1091
         . /etc/os-release
 
         # Export lsb-release vars.
+        # shellcheck disable=SC1091
         [ -f /etc/lsb-release ] && . /etc/lsb-release
 
         # Get distribution release / version ID.
@@ -593,12 +599,21 @@ function preflight_system_check() {
 
 # Get physical RAM size.
 function get_ram_size() {
-    local RAM_SIZE
+    local _RAM_SIZE
+    local RAM_SIZE_IN_MB
 
     # Calculate RAM size in MB.
-    RAM_SIZE=$(dmidecode -t 17 | awk '( /Size/ && $2 ~ /^[0-9]+$/ ) { x+=$2 } END{ print x}')
+    _RAM_SIZE=$(dmidecode -t 17 | awk '( /Size/ && $2 ~ /^[0-9]+$/ ) { x+=$2 } END{ print x}')
 
-    echo "${RAM_SIZE}"
+    # Hack for calculating RAM size in MiB.
+    if [[ ${_RAM_SIZE} -le 128 ]]; then
+        # If RAM size less than / equal 128, assume that the size is in GB.
+        RAM_SIZE_IN_MB=$((_RAM_SIZE * 1024))
+    else
+        RAM_SIZE_IN_MB=$((_RAM_SIZE * 1))
+    fi
+
+    echo "${RAM_SIZE_IN_MB}"
 }
 
 # Create custom Swap.
@@ -611,11 +626,11 @@ function create_swap() {
         # If machine RAM less than / equal 2GiB, set swap to 2x of RAM size.
         local SWAP_SIZE=$((RAM_SIZE * 2))
     elif [[ ${RAM_SIZE} -gt 2048 && ${RAM_SIZE} -le 32768 ]]; then
-        # If machine RAM less than / equal 8GiB and greater than 2GiB, set swap equal to RAM size + 1x.
+        # If machine RAM less than / equal 32GiB and greater than 2GiB, set swap equal to RAM size + 1x.
         local SWAP_SIZE=$((4096 + (RAM_SIZE - 2048)))
     else
-        # Otherwise, set swap to max of the physical / allocated memory.
-        local SWAP_SIZE="${RAM_SIZE}"
+        # Otherwise, set swap to max of 1x of the physical / allocated memory.
+        local SWAP_SIZE=$((RAM_SIZE * 1))
     fi
 
     echo "Creating ${SWAP_SIZE}MiB swap..."

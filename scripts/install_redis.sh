@@ -143,10 +143,10 @@ function init_redis_install {
             local RAM_SIZE && \
             RAM_SIZE=$(get_ram_size)
 
-            if [[ ${RAM_SIZE} -le 1024 ]]; then
-                # If machine RAM less than / equal 1GiB, set Redis max mem to 1/8 of RAM size.
+            if [[ ${RAM_SIZE} -le 2048 ]]; then
+                # If machine RAM less than / equal 2GiB, set Redis max mem to 1/8 of RAM size.
                 local REDISMEM_SIZE=$((RAM_SIZE / 8))
-            elif [[ ${RAM_SIZE} -gt 1024 && ${RAM_SIZE} -le 8192 ]]; then
+            elif [[ ${RAM_SIZE} -gt 2048 && ${RAM_SIZE} -le 8192 ]]; then
                 # If machine RAM less than / equal 8GiB and greater than 2GiB, 
                 # set Redis max mem to 1/4 of RAM size.
                 local REDISMEM_SIZE=$((RAM_SIZE / 4))
