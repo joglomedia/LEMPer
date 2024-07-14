@@ -74,6 +74,8 @@ Options:
       Remove virtual host configuration.
   -s, --enable-ssl <vhost domain name>
       Enable HTTP over SSL with Let's Encrypt.
+  -w, --enforce-non-www <vhost domain name>
+      Redirect www to non www host.
   --disable-ssl <vhost domain name>
       Disable HTTP over SSL.
   --remove-ssl <vhost domain name>
@@ -494,10 +496,10 @@ function enable_ssl() {
             if grep -qwE "^\    listen\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b:80" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
                 run sed -i "s/\:80/\:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             else
-                run sed -i "s/listen\ 80/listen\ 443\ ssl\ http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+                run sed -i "s/listen\ 80/listen\ 443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             fi
 
-            run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443\ ssl\ http2/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
 
             # Enable SSL configs.
             run sed -i "s/http2\ off/http2\ on/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
