@@ -122,10 +122,16 @@ function init_mariadb_install() {
                     run chmod ugo+x /etc/mysql/debian-start
                 fi
 
-                # Init script.
+                # MySQL init script.
                 if [[ ! -f /etc/init.d/mysql ]]; then
                     run cp etc/init.d/mysql /etc/init.d/
                     run chmod ugo+x /etc/init.d/mysql
+                fi
+
+                # MariaDB init script.
+                if [[ ! -f /etc/init.d/mariadb ]]; then
+                    run cp etc/init.d/mariadb /etc/init.d/
+                    run chmod ugo+x /etc/init.d/mariadb
                 fi
 
                 # Systemd script.
@@ -142,9 +148,14 @@ function init_mariadb_install() {
                     run ln -sf /lib/systemd/system/mariadb.service /etc/systemd/system/mysql.service
 
                 # Install default table.
-                if [[ -n $(command -v mysql_install_db) ]]; then
+                if [[ -n $(command -v mariadb-install-db) ]]; then
+                    run mariadb-install-db && \
+                    run chown -hR mysql:mysql /var/lib/mysql
+                elif [[ -n $(command -v mysql_install_db) ]]; then
                     run mysql_install_db && \
                     run chown -hR mysql:mysql /var/lib/mysql
+                else
+                    error "Unable to secure MariaDB installation."
                 fi
 
                 # Trying to reload daemon.
@@ -205,10 +216,10 @@ function init_mariadb_install() {
                         done
 
                         if [[ "${DO_MYSQL_SECURE_INSTALL}" == y* || "${DO_MYSQL_SECURE_INSTALL}" == Y* ]]; then
-                            if [[ -n $(command -v mysql_secure_installation) ]]; then
-                                run mysql_secure_installation
-                            elif [[ -n $(command -v mariadb-secure-installation) ]]; then
+                            if [[ -n $(command -v mariadb-secure-installation) ]]; then
                                 run mariadb-secure-installation
+                            elif [[ -n $(command -v mysql_secure_installation) ]]; then
+                                run mysql_secure_installation
                             else
                                 error "Unable to secure MariaDB installation."
                             fi
