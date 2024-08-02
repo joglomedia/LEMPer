@@ -58,7 +58,7 @@ function init_fail2ban_install() {
             2 | "source")
                 echo "Installing Fail2ban from source..."
 
-                FAIL2BAN_VERSION=${FAIL2BAN_VERSION:-"1.0.2"}
+                FAIL2BAN_VERSION=${FAIL2BAN_VERSION:-"1.1.0"}
 
                 if [[ "${FAIL2BAN_VERSION}" == "latest" ]]; then
                     FAIL2BAN_VERSION="master"
