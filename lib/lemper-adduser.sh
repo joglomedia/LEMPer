@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # +-------------------------------------------------------------------------+
-# | Lemper Create - Simple LEMP Virtual Host Creator                        |
+# | LEMPer CLI - Adduser Wrapper                                            |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2022 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2024 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |

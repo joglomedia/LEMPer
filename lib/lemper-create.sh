@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # +-------------------------------------------------------------------------+
-# | Lemper Create - Simple LEMP Virtual Host Creator                        |
+# | LEMPer CLI - Virtual Host (Site) Generator                              |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2022 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2024 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -131,7 +131,7 @@ server {
     #include /etc/nginx/includes/ssl.conf;
 
     ## Log Settings.
-    access_log /home/${USERNAME}/logs/nginx/access_log combined buffer=32k;
+    access_log /home/${USERNAME}/logs/nginx/access_log lp_cache buffer=32k;
     error_log /home/${USERNAME}/logs/nginx/error_log error;
 
     ## Virtual host root directory.
@@ -251,7 +251,7 @@ server {
     #include /etc/nginx/includes/ssl.conf;
 
     ## Log Settings.
-    access_log /home/${USERNAME}/logs/nginx/access_log combined buffer=32k;
+    access_log /home/${USERNAME}/logs/nginx/access_log lp_cache buffer=32k;
     error_log /home/${USERNAME}/logs/nginx/error_log error;
 
     ## Virtual host root directory.
@@ -365,7 +365,7 @@ server {
     #include /etc/nginx/includes/ssl.conf;
 
     ## Log Settings.
-    access_log /home/${USERNAME}/logs/nginx/access_log combined buffer=32k;
+    access_log /home/${USERNAME}/logs/nginx/access_log lp_cache buffer=32k;
     error_log /home/${USERNAME}/logs/nginx/error_log error;
 
     ## Virtual host root directory.
@@ -480,7 +480,7 @@ server {
     #include /etc/nginx/includes/ssl.conf;
 
     ## Log Settings.
-    access_log /home/${USERNAME}/logs/nginx/access_log combined buffer=32k;
+    access_log /home/${USERNAME}/logs/nginx/access_log lp_cache buffer=32k;
     error_log /home/${USERNAME}/logs/nginx/error_log error;
 
     ## Virtual host root directory.
@@ -1638,9 +1638,10 @@ EOL
 
                 # Enable HTTPS.
                 if [[ ${ENABLE_SSL} == true ]]; then
-                    echo ""
-                    echo "You can enable HTTPS from lemper-cli after this setup!"
-                    echo "command: lemper-cli manage --enable-ssl ${SERVERNAME}"
+                    echo "Enable HTTPS protocol utilizing Let's Encrypt SSL for ${SERVERNAME}..."
+                    #echo "You can enable HTTPS from lemper-cli after this setup!"
+                    #echo "command: lemper-cli site mod --enable-ssl ${SERVERNAME}"
+                    run lemper-cli site mod --enable-ssl "${SERVERNAME}"
                 fi
 
                 # WordPress MS notice.

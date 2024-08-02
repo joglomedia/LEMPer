@@ -1,10 +1,19 @@
 #!/usr/bin/env bash
 
-# Fix file permission
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 07/07/2024
-# Author            : MasEDI.Net (me@masedi.net)
-# Since Version     : 1.0.0
+# +-------------------------------------------------------------------------+
+# | LEMPer CLI - Fix File & Directory Permission                            |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2024 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
 # Make sure only root can access and not direct access.
 if [[ "$(type -t requires_root)" != "function" ]]; then
