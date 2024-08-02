@@ -162,9 +162,12 @@ Usage: ${PROG_NAME} [--version] [--help]
        <command> [<options>]
 
 These are common ${PROG_NAME} commands used in various situations:
-  create    Create new virtual host (add new domain to LEMPer stack).
-  db        Wrapper for managing SQL database (MySQL and MariaDB).
-  manage    Manage existing virtual host (enable, disable, delete, etc).
+  create        Create new virtual host (add new domain to LEMPer stack).
+  add           An aliases of 'create' sub command.
+  database      Wrapper for managing SQL database (MySQL and MariaDB).
+  db            An aliases of 'databases' sub command.
+  manage        Manage existing virtual host (enable, disable, delete, etc).
+  mod           An aliases of 'manage' sub command.
 
 For help with each command run:
 ${PROG_NAME} <command> -h | --help

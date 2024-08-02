@@ -78,6 +78,7 @@ These are common ${CMD_PARENT} ${CMD_NAME} subcommands used in various situation
   drop          Deletes the database.
   export        Exports a database to a file or to STDOUT.
   import        Imports a database from a file or from STDIN.
+  list          An aliases of databases sub command.
   optimize      Optimizes the database.
   query         Executes a SQL query against the database.
   repair        Repairs the database.
@@ -206,6 +207,10 @@ function cmd_user() {
 
 # Aliases of cmd database.
 function cmd_show() {
+    cmd_databases "$@"
+}
+
+function cmd_list() {
     cmd_databases "$@"
 }
 
@@ -612,7 +617,7 @@ function db_ops() {
             done
         fi
 
-        # Ensure mariadb / "${MYSQLCLI}" command is available before performing database operations.
+        # Ensure mariadb / mysql command is available before performing database operations.
         if [[ -n $(command -v mariadb) ]]; then
             MYSQLCLI=$(command -v mariadb)
         elif [[ -n $(command -v mysql) ]]; then
