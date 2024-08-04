@@ -1092,17 +1092,6 @@ function init_php_install() {
         install_php "${DEFAULT_PHP_VERSION}"
         install_php_loader "${DEFAULT_PHP_VERSION}" "${OPT_PHP_LOADER}"
         restart_php_fpm "${DEFAULT_PHP_VERSION}"
-
-        # Set default PHP.
-        if [[ -n $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
-            echo "Set default PHP command line to version ${DEFAULT_PHP_VERSION}..."
-
-            run update-alternatives --set php "$(command -v "php${DEFAULT_PHP_VERSION}")"
-            run update-alternatives --set phar "$(command -v "phar${DEFAULT_PHP_VERSION}")"
-            run update-alternatives --set phar.phar "$(command -v "phar.phar${DEFAULT_PHP_VERSION}")"
-            run update-alternatives --set php-config "$(command -v "php-config${DEFAULT_PHP_VERSION}")"
-            run update-alternatives --set phpize "$(command -v "phpize${DEFAULT_PHP_VERSION}")"
-        fi
     fi
 
     # Install PHP composer.
@@ -1114,3 +1103,14 @@ echo "[PHP & Extensions Installation]"
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 init_php_install "$@"
+
+# Set default PHP.
+if [[ -n $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
+    echo "Set default PHP command line to version ${DEFAULT_PHP_VERSION}..."
+
+    run update-alternatives --set php "$(command -v "php${DEFAULT_PHP_VERSION}")"
+    run update-alternatives --set phar "$(command -v "phar${DEFAULT_PHP_VERSION}")"
+    run update-alternatives --set phar.phar "$(command -v "phar.phar${DEFAULT_PHP_VERSION}")"
+    run update-alternatives --set php-config "$(command -v "php-config${DEFAULT_PHP_VERSION}")"
+    run update-alternatives --set phpize "$(command -v "phpize${DEFAULT_PHP_VERSION}")"
+fi
