@@ -1072,9 +1072,13 @@ function init_php_install() {
 
         if [[ "${IS_PKG_AVAIL}" -gt 0 ]]; then
             # Install PHP + default extensions.
-            install_php "${PHPV}"
-            install_php_loader "${PHPV}" "${OPT_PHP_LOADER}"
-            restart_php_fpm "${PHPV}"
+            if [[ -z $(command -v "php${PHPV}") ]]; then
+                install_php "${PHPV}"
+                install_php_loader "${PHPV}" "${OPT_PHP_LOADER}"
+                restart_php_fpm "${PHPV}"
+            else
+                info "PHP version ${PHPV} and it's extensions already exists, installation skipped."
+            fi
         else
             error "PHP ${PHPV} package is not available for your operating system."
         fi
@@ -1098,25 +1102,15 @@ echo "[PHP & Extensions Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-if [[ -n $(command -v php7.1) || \
-    -n $(command -v php7.2) || \
-    -n $(command -v php7.3) || \
-    -n $(command -v php7.4) || \
-    -n $(command -v php8.0) || \
-    -n $(command -v php8.1) || \
-    -n $(command -v php8.2) || \
-    -n $(command -v php8.3) 
-]]; then
-    info "All available PHP version already exists, installation skipped."
-else
-    init_php_install "$@"
+init_php_install "$@"
 
-    # Set default PHP.
-    if [[ -n $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
-        run update-alternatives --set php "$(command -v "php${DEFAULT_PHP_VERSION}")"
-        run update-alternatives --set phar "$(command -v "phar${DEFAULT_PHP_VERSION}")"
-        run update-alternatives --set phar.phar "$(command -v "phar.phar${DEFAULT_PHP_VERSION}")"
-        run update-alternatives --set php-config "$(command -v "php-config${DEFAULT_PHP_VERSION}")"
-        run update-alternatives --set phpize "$(command -v "phpize${DEFAULT_PHP_VERSION}")"
-    fi
+# Set default PHP.
+if [[ -n $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
+    echo "Set default PHP command line to version ${DEFAULT_PHP_VERSION}..."
+
+    run update-alternatives --set php "$(command -v "php${DEFAULT_PHP_VERSION}")"
+    run update-alternatives --set phar "$(command -v "phar${DEFAULT_PHP_VERSION}")"
+    run update-alternatives --set phar.phar "$(command -v "phar.phar${DEFAULT_PHP_VERSION}")"
+    run update-alternatives --set php-config "$(command -v "php-config${DEFAULT_PHP_VERSION}")"
+    run update-alternatives --set phpize "$(command -v "phpize${DEFAULT_PHP_VERSION}")"
 fi

@@ -45,7 +45,7 @@ run apt-get install -q -y \
     libcurl4-openssl-dev libgpgme11-dev libssl-dev libpcre3-dev libxml2-dev libxslt1-dev \
     libtool locales logrotate lsb-release make net-tools openssh-server openssl pkg-config \
     re2c rsync software-properties-common sasl2-bin snap snmp sudo sysstat tar tzdata unzip wget \
-    whois xz-utils zlib1g-dev geoip-bin geoip-database gettext libgeoip-dev libpthread-stubs0-dev uuid-dev
+    whois xz-utils zlib1g-dev geoip-bin geoip-database gettext gettext-base libgeoip-dev libpthread-stubs0-dev uuid-dev
 
 if [[ ! -d /root/.gnupg ]]; then
     run mkdir /root/.gnupg

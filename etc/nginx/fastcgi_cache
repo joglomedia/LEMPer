@@ -1,13 +1,16 @@
 ## Include this file if you want to use fastcgi_cache across many sites.
 # Designed to be included in /etc/nginx/nginx.conf http {} block.
 
-fastcgi_cache_path /var/cache/nginx/fastcgi_cache levels=1:2 keys_zone=LEMPERCACHE:200m max_size=10g inactive=2h;
+# TODO: move fastcgi_cache_path to fastcgi_cache_path.config (for multi vhost cache path key).
+#fastcgi_cache_path /var/cache/nginx/fastcgi_cache levels=1:2 keys_zone=LEMPERCACHE:100m max_size=1g inactive=60m use_temp_path=off;
+include /etc/nginx/includes/fastcgi_cache_path.conf;
+
 fastcgi_cache_key "$scheme$request_method$host$request_uri";
 fastcgi_cache_revalidate on;
-fastcgi_cache_background_update on;
+fastcgi_cache_use_stale error timeout invalid_header updating http_500 http_503;
 
-# FastCGI Log Format
-log_format cache '$remote_addr - $upstream_cache_status [$time_local] '
+# FastCGI Log Format.
+log_format lp_cache '$remote_addr - X-FastCGI-Cache $upstream_cache_status [$time_local] '
                  '"$request" $status $body_bytes_sent '
                  '"$http_referer" "$http_user_agent"';
 
@@ -15,15 +18,17 @@ log_format cache '$remote_addr - $upstream_cache_status [$time_local] '
 ## Initialize default caching conditions. ##
 
 # Purge cache for request method.
+# Ref: https://github.com/nginx-modules/ngx_cache_purge?tab=readme-ov-file#uwsgi_cache_purge
 map $request_method $purge_method {
-    default 0;
-    PURGE 1;
+    default off;
+    PURGE on;
 }
 
 # Skip caching for request method.
 map $request_method $skip_cache {
     default 0;
     POST 1;
+    PURGE 1;
 }
 
 # Skip caching for mobile device.
@@ -39,4 +44,5 @@ map $http_user_agent $is_mobile {
 map $request_method $cache_uri {
     default $request_uri;
     POST "null cache";
+    PURGE "null cache";
 }

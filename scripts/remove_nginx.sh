@@ -124,11 +124,20 @@ function init_nginx_removal() {
     fi
 
     if [[ "${REMOVE_NGX_CONFIG}" == Y* || "${REMOVE_NGX_CONFIG}" == y* ]]; then
-        run rm -fr /etc/nginx
         run rm -fr /var/cache/nginx
         run rm -fr /usr/share/nginx
+        run rm -fr /usr/lib/nginx
+        run rm -fr /etc/nginx
 
-        echo "All your Nginx configuration files deleted permanently."
+        echo "All your Nginx installation and configuration files deleted permanently."
+    else
+        run rm -fr /var/cache/nginx
+        run rm -fr /usr/share/nginx
+        run rm -fr /usr/lib/nginx
+        run rm -fr /etc/nginx/modules-enabled/*
+        run rm -fr /etc/nginx/modules-available/*
+
+        echo "All your Nginx installation files deleted permanently, configuration file preserved."
     fi
 
     # Final test.

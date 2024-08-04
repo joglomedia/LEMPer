@@ -768,7 +768,12 @@ function build_ngx_pagespeed() {
     fi
     run cd "$nginx_dir"
 
-    configure=("$configure_location/configure" "${configure_args[@]}")
+    if [[ ${configure_args[@]} ]]; then
+      configure=("$configure_location/configure" "${configure_args[@]}")
+    else
+      configure=("$configure_location/configure")
+    fi
+
     additional_configure_args=""
     if [ -z "${ADDITIONAL_NGINX_CONFIGURE_ARGUMENTS+x}" ]; then
       if ! "$ASSUME_YES"; then
@@ -779,13 +784,13 @@ function build_ngx_pagespeed() {
         read -p "> " additional_configure_args
       fi
     else
-      additional_configure_args="$ADDITIONAL_NGINX_CONFIGURE_ARGUMENTS"
+      additional_configure_args="${ADDITIONAL_NGINX_CONFIGURE_ARGUMENTS}"
     fi
 
     if [ -n "$additional_configure_args" ]; then
       # Split additional_configure_args respecting any internal quotation.
       # Otherwise things like --with-cc-opt='-foo -bar' won't work.
-      eval additional_configure_args=("${additional_configure_args}")
+      eval additional_configure_args=(${additional_configure_args})
       configure=("${configure[@]}" "${additional_configure_args[@]}")
     fi
 

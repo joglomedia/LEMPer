@@ -6,12 +6,13 @@ server {
 
     server_name localhost.localdomain;
 
-    #include /etc/nginx/includes/ssl.conf;
+    ## SSL configuration.
     #ssl_certificate /etc/letsencrypt/live/localhost.localdomain/fullchain.pem;
     #ssl_certificate_key /etc/letsencrypt/live/localhost.localdomain/privkey.pem;
     #ssl_trusted_certificate /etc/letsencrypt/live/localhost.localdomain/fullchain.pem;
+    #include /etc/nginx/includes/ssl.conf;
 
-    access_log /var/log/nginx/localhost.access.log combined buffer=32k;
+    access_log /var/log/nginx/localhost.access.log lp_cache buffer=32k;
     error_log /var/log/nginx/localhost.error.log error;
 
     root /usr/share/nginx/html;
@@ -44,6 +45,17 @@ server {
         auth_basic_user_file /srv/.htpasswd;
         access_log off;
         log_not_found off;
+    }
+
+    location ~ \.php83$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_index index.php;
+        include /etc/nginx/fastcgi_params;
+        include /etc/nginx/includes/fastcgi.conf;
+        # Uncomment to Enable PHP FastCGI cache.
+        #include /etc/nginx/includes/fastcgi_cache.conf;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
     }
 
     location ~ \.php82$ {
@@ -154,7 +166,7 @@ server {
     index index.php index.html index.htm;
 
     # Log Settings.
-    access_log /var/log/nginx/localhost.access.log combined buffer=32k;
+    access_log /var/log/nginx/localhost.access.log lp_cache buffer=32k;
     error_log /var/log/nginx/localhost.error.log error;
 
     location /lcp {

@@ -32,28 +32,34 @@ function init_tools_install() {
 
     [ ! -d /etc/lemper/cli-plugins ] && run mkdir -p /etc/lemper/cli-plugins
 
+    run cp -f lib/lemper-account.sh /etc/lemper/cli-plugins/lemper-account && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-account
+
     run cp -f lib/lemper-adduser.sh /etc/lemper/cli-plugins/lemper-adduser && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-adduser
 
     run cp -f lib/lemper-site.sh /etc/lemper/cli-plugins/lemper-site && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-site
 
-    #run cp -f lib/lemper-create.sh /etc/lemper/cli-plugins/lemper-create && \
-    #run chmod ugo+x /etc/lemper/cli-plugins/lemper-create && \
+    run cp -f lib/lemper-create.sh /etc/lemper/cli-plugins/lemper-site-create && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-create
 
-    run cp -f lib/lemper-create.sh /etc/lemper/cli-plugins/lemper-site-add && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-add
+    [ -f /etc/lemper/cli-plugins/lemper-site-create ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-site-create /etc/lemper/cli-plugins/lemper-site-add
 
-    #run cp -f lib/lemper-manage.sh /etc/lemper/cli-plugins/lemper-manage && \
-    #run chmod ugo+x /etc/lemper/cli-plugins/lemper-manage
+    run cp -f lib/lemper-manage.sh /etc/lemper/cli-plugins/lemper-site-manage && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-manage
 
-    run cp -f lib/lemper-manage.sh /etc/lemper/cli-plugins/lemper-site-mod && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-mod
+    [ -f /etc/lemper/cli-plugins/lemper-site-manage ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-site-manage /etc/lemper/cli-plugins/lemper-site-mod
 
     run cp -f lib/lemper-db.sh /etc/lemper/cli-plugins/lemper-db && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-db
 
-    run cp -f lib/lemper-sslgen.sh /etc/lemper/cli-plugins/lemper-selfssl && \
+    [ -f /etc/lemper/cli-plugins/lemper-site-db ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-site-db /etc/lemper/cli-plugins/lemper-site-database
+
+    run cp -f lib/lemper-selfssl.sh /etc/lemper/cli-plugins/lemper-selfssl && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-selfssl
 
     run cp -f lib/lemper-fixpermission.sh /etc/lemper/cli-plugins/lemper-fixpermission && \
@@ -116,7 +122,6 @@ function init_tools_install() {
         local CURRENT_DIR && \
         CURRENT_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/filemanager && \
-        #run git pull
         run wget -q https://raw.githubusercontent.com/joglomedia/tinyfilemanager/lemperfm_1.3.0/index.php \
             -O /usr/share/nginx/html/lcp/filemanager/index.php && \
         run cd "${CURRENT_DIR}" || return 1
@@ -150,7 +155,7 @@ function init_tools_install() {
         CURRENT_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/memcadmin && \
         run git config --global --add safe.directory /usr/share/nginx/html/lcp/memcadmin && \
-        run git pull && \
+        run git pull -q && \
         run cd "${CURRENT_DIR}" || return 1
     fi
 
@@ -224,6 +229,7 @@ EOL
         fi
     else
         run cd redisadmin && \
+        run mv composer.lock composer.lock~
         run "${COMPOSER_BIN}" -q update
     fi
 
