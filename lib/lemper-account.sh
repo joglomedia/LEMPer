@@ -76,4 +76,4 @@ function create_account() {
     fi
 }
 
-create_account $@
+create_account "$@"
