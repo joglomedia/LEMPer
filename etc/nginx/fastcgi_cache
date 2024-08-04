@@ -28,6 +28,7 @@ map $request_method $purge_method {
 map $request_method $skip_cache {
     default 0;
     POST 1;
+    PURGE 1;
 }
 
 # Skip caching for mobile device.
@@ -43,4 +44,5 @@ map $http_user_agent $is_mobile {
 map $request_method $cache_uri {
     default $request_uri;
     POST "null cache";
+    PURGE "null cache";
 }
