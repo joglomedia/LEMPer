@@ -28,7 +28,7 @@ jobs:
           sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
           sed -i "s/LEMPER_ADMIN_EMAIL=\"mail@example.com\"/LEMPER_ADMIN_EMAIL=\"me@masedi.net\"/g" .env
           sed -i "s/NGINX_INSTALLER=\"source\"/NGINX_INSTALLER=\"repo\"/g" .env
-      #    sed -i "s/NGX_PAGESPEED=false/NGX_PAGESPEED=true/g" .env
+          sed -i "s/NGX_PAGESPEED=true/NGX_PAGESPEED=false/g" .env
           sed -i "s/INSTALL_PHP_LOADER=false/INSTALL_PHP_LOADER=true/g" .env
           sed -i "s/PHP_LOADER=\"none\"/PHP_LOADER=\"ioncube\"/g" .env
           sed -i "s/IMAGEMAGICK_INSTALLER=\"source\"/IMAGEMAGICK_INSTALLER=\"repo\"/g" .env
@@ -94,7 +94,7 @@ jobs:
           sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
           sed -i "s/LEMPER_ADMIN_EMAIL=\"mail@example.com\"/LEMPER_ADMIN_EMAIL=\"me@masedi.net\"/g" .env
           sed -i "s/NGINX_INSTALLER=\"source\"/NGINX_INSTALLER=\"repo\"/g" .env
-      #    sed -i "s/NGX_PAGESPEED=false/NGX_PAGESPEED=true/g" .env
+          sed -i "s/NGX_PAGESPEED=true/NGX_PAGESPEED=false/g" .env
           sed -i "s/INSTALL_PHP_LOADER=false/INSTALL_PHP_LOADER=true/g" .env
           sed -i "s/PHP_LOADER=\"none\"/PHP_LOADER=\"ioncube\"/g" .env
           sed -i "s/IMAGEMAGICK_INSTALLER=\"source\"/IMAGEMAGICK_INSTALLER=\"repo\"/g" .env
