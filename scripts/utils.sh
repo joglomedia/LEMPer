@@ -523,6 +523,29 @@ function get_ip_public() {
     fi
 }
 
+# Get server private IPv6 Address.
+function get_ipv6_private() {
+    local SERVER_IPV6_PRIVATE && \
+    SERVER_IPV6_PRIVATE=$(ip addr | grep 'inet6' | \
+        grep -oE '(::)?[0-9a-fA-F]{1,4}(::?[0-9a-fA-F]{1,4}){1,7}(::)?' | head -1)
+
+    echo "${SERVER_IPV6_PRIVATE}"
+}
+
+# Get server public IPv6 Address.
+function get_ipv6_public() {
+    local SERVER_IPV6_PRIVATE && SERVER_IPV6_PRIVATE=$(get_ipv6_private)
+    local SERVER_IPV6_PUBLIC && \
+    SERVER_IPV6_PUBLIC=$(curl -sk --ipv6 --connect-timeout 10 --retry 3 --retry-delay 0 https://ipecho.net/plain)
+
+    # Ugly hack to detect aws-lightsail public IP address.
+    if [[ "${SERVER_IPV6_PRIVATE}" == "${SERVER_IPV6_PUBLIC}" ]]; then
+        echo "${SERVER_IPV6_PRIVATE}"
+    else
+        echo "${SERVER_IPV6_PUBLIC}"
+    fi
+}
+
 # Make sure only supported distribution can run LEMPer script.
 function preflight_system_check() {
     # Set system distro version.

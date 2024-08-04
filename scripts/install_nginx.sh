@@ -1822,8 +1822,18 @@ EOL
                 /etc/nginx/nginx.conf
         fi
 
-        # Allow server IP to fastCGI cache purge rule.
-        run sed -i "s/#allow\ SERVER_IP/allow\ ${SERVER_IP}/g" /etc/nginx/includes/rules_fastcgi_cache.conf
+        # Allow server IP to fastCGI cache purge remotely.
+        ALLOWED_SERVER_IP=$(get_ip_private)
+        run sed -i "s|#allow\ SERVER_IPV4|allow\ ${ALLOWED_SERVER_IP}|g" /etc/nginx/includes/rules_fastcgi_cache.conf
+
+        ALLOWED_SERVER_IPV6=$(get_ipv6_private)
+        if [[ "${ALLOWED_SERVER_IPV6}x" != "x" ]]; then
+            run sed -i "s|#allow\ SERVER_IPV6|allow\ ${ALLOWED_SERVER_IPV6}|g" /etc/nginx/includes/rules_fastcgi_cache.conf
+            ALLOWED_SERVER_IP="${ALLOWED_SERVER_IP} ${ALLOWED_SERVER_IPV6}"
+        fi
+
+        run sed -i "s|allow_SERVER_IP|${ALLOWED_SERVER_IP}|g" /etc/nginx/includes/rules_fastcgi_cache.conf
+        run sed -i "s|#fastcgi_cache_purge\ PURGE|fastcgi_cache_purge\ PURGE|g" /etc/nginx/includes/rules_fastcgi_cache.conf
 
         # Generate Diffie-Hellman parameters.
         local DH_LENGTH=${KEY_HASH_LENGTH:-2048}
