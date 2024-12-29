@@ -714,7 +714,7 @@ security.limit_extensions = .php .php7 .php8 .php${PHPv//./}
 
 ; Custom PHP ini settings for LEMPer Stack.
 php_admin_value[open_basedir] = /home/${POOLNAME}
-;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
+php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
 php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_error.log
@@ -1034,7 +1034,6 @@ function init_lemper_create() {
         if [[ -z "${SERVERNAME}" ]]; then
             fail -e "Domain name parameter shouldn't be empty.\n       -d or --domain-name parameter is required!"
         else
-            #if ! grep -qP "(?=^.{4,253}\.?$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)" <<< "${SERVERNAME}"; then
             if [[ $(validate_fqdn "${SERVERNAME}") == false ]]; then
                 fail "Your Domain name is not valid 'Fully Qualified Domain Name (FQDN)' format!"
             fi
