@@ -47,11 +47,11 @@ function init_tools_install() {
     [ -f /etc/lemper/cli-plugins/lemper-site-create ] && \
         run ln -fs /etc/lemper/cli-plugins/lemper-site-create /etc/lemper/cli-plugins/lemper-site-add
 
-    run cp -f lib/lemper-manage.sh /etc/lemper/cli-plugins/lemper-site-manage && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-manage
+    run cp -f lib/lemper-manage.sh /etc/lemper/cli-plugins/lemper-site-update && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-update
 
-    [ -f /etc/lemper/cli-plugins/lemper-site-manage ] && \
-        run ln -fs /etc/lemper/cli-plugins/lemper-site-manage /etc/lemper/cli-plugins/lemper-site-mod
+    [ -f /etc/lemper/cli-plugins/lemper-site-update ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-site-update /etc/lemper/cli-plugins/lemper-site-mod
 
     run cp -f lib/lemper-db.sh /etc/lemper/cli-plugins/lemper-db && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-db
@@ -78,8 +78,7 @@ function init_tools_install() {
 
 
     # Install Database Adminer.
-    echo -n "Installing database adminer..."
-
+    
     [ ! -d /usr/share/nginx/html/lcp ] && run mkdir -p /usr/share/nginx/html/lcp
 
     # Copy default index file.
@@ -98,13 +97,14 @@ function init_tools_install() {
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php83'
 
     # Install Adminer for Web-based MySQL Administration Tool.
+    echo -n "Installing database AdminerEVO..."
     [ ! -d /usr/share/nginx/html/lcp/dbadmin ] && run mkdir -p /usr/share/nginx/html/lcp/dbadmin
 
     # Overwrite existing files.
-    run wget -q https://github.com/vrana/adminer/releases/download/v4.8.1/adminer-4.8.1.php \
-        -O /usr/share/nginx/html/lcp/dbadmin/index.php 
-    run wget -q https://github.com/vrana/adminer/releases/download/v4.8.1/editor-4.8.1.php \
-        -O /usr/share/nginx/html/lcp/dbadmin/editor.php
+    run curl -sSL -o /usr/share/nginx/html/lcp/dbadmin/index.php \
+        https://github.com/adminerevo/adminerevo/releases/download/v4.8.4/adminer-4.8.4.php 
+    run curl -sSL -o /usr/share/nginx/html/lcp/dbadmin/editor.php \
+        https://github.com/adminerevo/adminerevo/releases/download/v4.8.4/editor-4.8.4.php \
 
     [ -f /usr/share/nginx/html/lcp/dbadmin/index.php ] && echo_ok "OK"
 
@@ -112,8 +112,7 @@ function init_tools_install() {
     # Install File Manager.
     # Experimental: Tinyfilemanager https://github.com/joglomedia/tinyfilemanager
     # Clone custom TinyFileManager.
-
-    echo -n "Installing file manager..."
+    echo -n "Installing file manager TinyFileManager..."
 
     if [ ! -d /usr/share/nginx/html/lcp/filemanager/config ]; then
         run git clone -q --depth=1 --branch=lemperfm_1.3.0 https://github.com/joglomedia/tinyfilemanager.git \
@@ -122,8 +121,8 @@ function init_tools_install() {
         local CURRENT_DIR && \
         CURRENT_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/filemanager && \
-        run wget -q https://raw.githubusercontent.com/joglomedia/tinyfilemanager/lemperfm_1.3.0/index.php \
-            -O /usr/share/nginx/html/lcp/filemanager/index.php && \
+        run curl -sSL -o /usr/share/nginx/html/lcp/filemanager/index.php \
+            https://raw.githubusercontent.com/joglomedia/tinyfilemanager/lemperfm_1.3.0/index.php && \
         run cd "${CURRENT_DIR}" || return 1
     fi
 
@@ -136,12 +135,11 @@ function init_tools_install() {
     [[ -f /usr/share/nginx/html/lcp/filemanager/index.php && -x /etc/lemper/cli-plugins/lemper-tfm ]] && \
         echo_ok "OK"
 
-
     # Install Zend OpCache Web Admin.
     echo -n "Installing phpOpCacheStatus panel..."
 
-    run wget -q https://raw.github.com/rlerdorf/opcache-status/master/opcache.php \
-        -O /usr/share/nginx/html/lcp/opcache.php
+    run curl -sSL -o /usr/share/nginx/html/lcp/opcache.php \
+        https://raw.github.com/rlerdorf/opcache-status/master/opcache.php
     [ -f /usr/share/nginx/html/lcp/opcache.php ] && echo_ok "OK"
 
     # Install phpMemcachedAdmin Web Admin.

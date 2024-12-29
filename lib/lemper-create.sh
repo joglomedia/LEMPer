@@ -798,6 +798,19 @@ function validate_ipv6() {
 }
 
 ##
+# Validate FQDN domain.
+##
+function validate_fqdn() {
+    local FQDN=${1}
+
+    if grep -qP "(?=^.{4,253}\.?$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)" <<< "${FQDN}"; then
+        echo true # success
+    else
+        echo false # error
+    fi
+}
+
+##
 # Workaround for local domain (e.g. example.test)
 # working on Local/Dev environment.
 #
@@ -847,8 +860,7 @@ function install_wordpress() {
         if [ ! -f "${WEBROOT}/wp-includes/class-wp.php" ]; then
             if [[ -z $(command -v "wp-cli") ]]; then
                 info "WP CLI command not found, trying to install it first."
-                run wget https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
-                     -O /usr/local/bin/wp-cli  && \
+                run curl -sSL -o /usr/local/bin/wp-cli https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
                 run chmod ugo+x /usr/local/bin/wp-cli && \
                 run ln -sf /usr/local/bin/wp-cli /usr/bin/wp-cli
             fi
@@ -1022,8 +1034,9 @@ function init_lemper_create() {
         if [[ -z "${SERVERNAME}" ]]; then
             fail -e "Domain name parameter shouldn't be empty.\n       -d or --domain-name parameter is required!"
         else
-            if ! grep -qP "(?=^.{4,253}\.?$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)" <<< "${SERVERNAME}"; then
-                fail -e "Domain name parameter must be a valid FQDN!"
+            #if ! grep -qP "(?=^.{4,253}\.?$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)" <<< "${SERVERNAME}"; then
+            if [[ $(validate_fqdn "${SERVERNAME}") == false ]]; then
+                fail "Your Domain name is not valid 'Fully Qualified Domain Name (FQDN)' format!"
             fi
         fi
 
@@ -1167,8 +1180,7 @@ function init_lemper_create() {
                             echo "Downloading Drupal latest skeleton files..."
 
                             if curl -sLI https://www.drupal.org/download-latest/zip | grep -q "HTTP/[.12]* [2].."; then
-                                run wget https://www.drupal.org/download-latest/zip \
-                                    -O "${TMPDIR}/drupal.zip"  && \
+                                run curl -sSL -o "${TMPDIR}/drupal.zip" https://www.drupal.org/download-latest/zip && \
                                 run unzip -q "${TMPDIR}/drupal.zip" -d "${TMPDIR}" && \
                                 run rsync -rq ${TMPDIR}/drupal-*/ "${WEBROOT}" && \
                                 run rm -f "${TMPDIR}/drupal.zip" && \
@@ -1307,7 +1319,7 @@ function init_lemper_create() {
                                 run composer create-project --prefer-dist symfony/website-skeleton "${WEBROOT}"
                             else
                                 warning "Symfony CLI not found, trying to install it first..."
-                                run wget https://get.symfony.com/cli/installer -O - | bash
+                                run bash -c "curl -sSL https://get.symfony.com/cli/installer -o - | bash"
 
                                 if [[ -f "${HOME}/.symfony/bin/symfony" ]]; then
                                     run cp -f "${HOME}/.symfony/bin/symfony" /usr/local/bin/symfony
@@ -1351,7 +1363,7 @@ function init_lemper_create() {
                             --admin_user="${APP_ADMIN_USER}" --admin_password="${APP_ADMIN_PASS}" \
                             --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
                         run sudo -u "${USERNAME}" -i -- wp-cli plugin install \
-                            akismet autoptimize cache-enabler classic-editor nginx-helper redis-cache --activate --path="${WEBROOT}"
+                            akismet autoptimize nginx-helper redis-cache --activate --path="${WEBROOT}"
                     fi
 
                     # Install WooCommerce.
@@ -1364,7 +1376,7 @@ function init_lemper_create() {
                                 run sudo -u "${USERNAME}" -i -- wp-cli plugin install woocommerce --activate --path="${WEBROOT}"
                                 run sudo -u "${USERNAME}" -i -- wp-cli theme install storefront --activate --path="${WEBROOT}"
                             else
-                                if wget -q -O "${TMPDIR}/woocommerce.zip" \
+                                if curl -sSL -o "${TMPDIR}/woocommerce.zip" \
                                     https://downloads.wordpress.org/plugin/woocommerce.zip; then
                                     run unzip -q "${TMPDIR}/woocommerce.zip" -d "${WEBROOT}/wp-content/plugins/"
                                     run rm -f "${TMPDIR}/woocommerce.zip"
@@ -1396,7 +1408,7 @@ function init_lemper_create() {
                             --title="WordPress Multisite Managed by LEMPer Stack" --admin_user="${APP_ADMIN_USER}" \
                             --admin_password="${APP_ADMIN_PASS}" --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
                         run sudo -u "${USERNAME}" -i -- wp-cli plugin install \
-                            akismet autoptimize cache-enabler classic-editor nginx-helper redis-cache --activate-network --path="${WEBROOT}"
+                            akismet autoptimize nginx-helper redis-cache --activate-network --path="${WEBROOT}"
                     fi
 
                     # Mercator domain mapping.
@@ -1436,23 +1448,26 @@ EOL
                     fi
                 ;;
 
-                filerun)
-                    echo "Setting up FileRun virtual host..."
+                owncloud)
+                    echo "Setting up OwnCloud virtual host..."
 
-                    # Install FileRun skeleton.
+                    # Install OwnCloud skeleton.
                     if [[ ${INSTALL_APP} == true ]]; then
-                        # Clone new Filerun files.
-                        if [ ! -f "${WEBROOT}/system/classes/filerun.php" ]; then
-                            echo "Downloading FileRun skeleton files..."
-                            
-                            if wget -q -O "${TMPDIR}/FileRun.zip" http://www.filerun.com/download-latest; then
-                                run unzip -q "${TMPDIR}/FileRun.zip" -d "${WEBROOT}"
-                                run rm -f "${TMPDIR}/FileRun.zip"
+                        # Clone new OwnCloud files.
+                        if [[ ! -f "${WEBROOT}/occ" ]]; then
+                            echo "Downloading OwnCloud skeleton files..."
+
+                            OWNCLOUD_DOWNLOAD_URL="https://download.owncloud.com/server/stable/owncloud-complete-latest.zip"
+
+                            if curl -sLI "${OWNCLOUD_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
+                                run curl -sSL -o "${TMPDIR}/owncloud.zip" "${OWNCLOUD_DOWNLOAD_URL}" && \
+                                run unzip -q "${TMPDIR}/owncloud.zip" -d "${WEBROOT}"
+                                run rm -f "${TMPDIR}/owncloud.zip"
                             else
-                                error "Something went wrong while downloading FileRun files."
+                                error "Something went wrong while downloading OwnCloud files."
                             fi
                         else
-                            info "FileRun skeleton files already exists."
+                            info "OwnCloud skeleton files already exists."
                         fi
                     else
                         # Create default index file.
@@ -1462,7 +1477,7 @@ EOL
                             create_index_file > "${WEBROOT}/index.html"
                         fi
                     fi
-                    
+
                     # Fix ownership.
                     run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
@@ -1600,9 +1615,8 @@ EOL
                     fi
                 fi
 
-                echo "Fix files ownership and permission..."
-
                 # Fix document root ownership.
+                echo "Fix file ownership and permissions..."
                 run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
                 # Fix document root permission.
@@ -1614,7 +1628,7 @@ EOL
                 info "New domain ${SERVERNAME} added in dry run mode."
             fi
 
-            echo "Enable ${SERVERNAME} virtual host."
+            echo "Enable the ${SERVERNAME} virtual host."
 
             # Enable site.
             if [[ ! -f "/etc/nginx/sites-enabled/${SERVERNAME}.conf" ]]; then
@@ -1628,32 +1642,35 @@ EOL
             # Validate config, reload when validated.
             if nginx -t 2>/dev/null > /dev/null; then
                 run systemctl restart nginx
-                echo "Nginx server reloaded with new configuration."
+                echo "Nginx server reloaded with the new configuration."
             else
-                info "Something went wrong with Nginx configuration."
+                info "Something went wrong with the Nginx configuration."
             fi
 
             if [[ -f "/etc/nginx/sites-enabled/${SERVERNAME}.conf" && -e /var/run/nginx.pid ]]; then
-                success "Your ${SERVERNAME} successfully added to Nginx virtual host."
+                success "Your ${SERVERNAME} was successfully added to the Nginx virtual host."
 
                 # Enable HTTPS.
+                APP_HTTP_PROTO="http"
+
                 if [[ ${ENABLE_SSL} == true ]]; then
-                    echo "Enable HTTPS protocol utilizing Let's Encrypt SSL for ${SERVERNAME}..."
+                    echo "Enabling HTTPS protocol using Let's Encrypt SSL for ${SERVERNAME}..."
                     #echo "You can enable HTTPS from lemper-cli after this setup!"
                     #echo "command: lemper-cli site mod --enable-ssl ${SERVERNAME}"
-                    run lemper-cli site mod --enable-ssl "${SERVERNAME}"
+                    run lemper-cli site mod --enable-ssl "${SERVERNAME}" && \
+                    APP_HTTP_PROTO="https"
                 fi
 
                 # WordPress MS notice.
                 if [[ "${FRAMEWORK}" == "wordpress-ms" ]]; then
-                    echo ""
-                    info -e "You're installing Wordpress Multisite.\nYou should activate Nginx Helper plugin to work properly."
+                    info -e "\nYou're installing Wordpress Multisite.\nYou should activate the Nginx Helper plugin for it to work properly."
                 fi
 
                 # Save app installation details.
                 if [[ ${INSTALL_APP} == true ]]; then
-                    echo -e "\nYour application login details:\nAdmin user: ${APP_ADMIN_USER}\nAdmin pass: ${APP_ADMIN_PASS}\nAdmin email: ${APP_ADMIN_EMAIL}"
-                    echo -e "Database user: ${APP_DB_USER}\nDatabase pass: ${APP_DB_PASS}\nDatabase name: ${APP_DB_NAME}"
+                    echo -e "\nYour application's login details:\nAdmin Username: ${APP_ADMIN_USER}\nAdmin Password: ${APP_ADMIN_PASS}\nAdmin Email   : ${APP_ADMIN_EMAIL}"
+                    echo -e "DB Username: ${APP_DB_USER}\nDB Password: ${APP_DB_PASS}\nDB Name    : ${APP_DB_NAME}"
+                    echo -e "Site Address: ${APP_HTTP_PROTO}://${SERVERNAME}"
                     cat > "/etc/lemper/vhost.d/${SERVERNAME}.conf" <<EOL
 [${SERVERNAME}]
 APP_UID="${APP_UID}"
@@ -1670,13 +1687,13 @@ EOL
                 fi
             else
                 if [[ ${DRYRUN} == true ]]; then
-                    info "Your ${SERVERNAME} successfully added in dry run mode."
+                    info "Your ${SERVERNAME} was successfully added in dry run mode."
                 else
-                    fail "An error occurred when adding ${SERVERNAME} to Nginx virtual host."
+                    fail "An error occurred while adding ${SERVERNAME} to the Nginx virtual host."
                 fi
             fi
         else
-            error "Virtual host config file for ${SERVERNAME} is already exists. Aborting..."
+            error "The virtual host config file for ${SERVERNAME} already exists. Aborting..."
         fi
     else
         echo "${PROG_NAME}: missing required arguments."

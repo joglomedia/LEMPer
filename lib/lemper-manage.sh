@@ -436,7 +436,7 @@ function enable_ssl() {
     local DOMAIN=${1}
     verify_vhost "${DOMAIN}"
 
-    if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
+    #if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
         if [[ "${ENVIRONMENT}" == prod* ]]; then
             echo "Certbot: Get Let's Encrypt certificate..."
 
@@ -448,11 +448,11 @@ function enable_ssl() {
             if [[ -n $(command -v certbot) ]]; then
                 # Is it wildcard vhost?
                 if grep -qwE "${DOMAIN}\ \*.${DOMAIN}" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-                    run certbot certonly --manual --manual-public-ip-logging-ok --preferred-challenges dns \
-                        --server https://acme-v02.api.letsencrypt.org/directory --agree-tos \
+                    run certbot certonly --force-renewal --manual --noninteractive --manual-public-ip-logging-ok \
+                        --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory --agree-tos \
                         --webroot-path="${WEBROOT}" -d "${DOMAIN}" -d "*.${DOMAIN}"
                 else
-                    run certbot certonly --webroot --preferred-challenges http --agree-tos \
+                    run certbot certonly --force-renewal --webroot --noninteractive --preferred-challenges http --agree-tos \
                         --webroot-path="${WEBROOT}" -d "${DOMAIN}"
                 fi
             else
@@ -480,9 +480,9 @@ function enable_ssl() {
             run openssl dhparam -out /etc/nginx/ssl/dhparam-2048.pem 2048
             #run openssl dhparam -out /etc/nginx/ssl/dhparam-4096.pem 4096
         fi
-    else
-        info "SSL certificates is already exists for ${DOMAIN}."
-    fi
+    #else
+    #    info "SSL certificates is already exists for ${DOMAIN}."
+    #fi
 
     # Update vhost config.
     if [[ "${DRYRUN}" != true ]]; then
@@ -495,10 +495,9 @@ function enable_ssl() {
             # Change listening port to 443.
             if grep -qwE "^\    listen\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b:80" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
                 run sed -i "s/\:80/\:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            else
-                run sed -i "s/listen\ 80/listen\ 443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             fi
-
+            
+            run sed -i "s/listen\ 80/listen\ 443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
 
             # Enable SSL configs.
@@ -519,7 +518,7 @@ function enable_ssl() {
             #        "/etc/nginx/sites-available/${DOMAIN}.conf"
             #fi
 
-            # Append redirection block.
+            # Append HTTP <=> HTTPS redirection block.
             cat >> "/etc/nginx/sites-available/${DOMAIN}.conf" <<EOL
 
 ## HTTP to HTTPS redirection.
@@ -957,80 +956,92 @@ function init_lemper_manage() {
             -e | --enable)
                 enable_vhost "${2}"
                 shift 2
+                exit 0
             ;;
             -d | --disable)
                 disable_vhost "${2}"
                 shift 2
+                exit 0
             ;;
             -r | --remove)
                 remove_vhost "${2}"
                 shift 2
+                exit 0
             ;;
             -c | --enable-fastcgi-cache)
                 enable_fastcgi_cache "${2}"
                 shift 2
+                exit 0
             ;;
             --disable-fastcgi-cache)
                 disable_fastcgi_cache "${2}"
                 shift 2
+                exit 0
             ;;
             -f | --enable-fail2ban)
                 enable_fail2ban "${2}"
                 shift 2
+                exit 0
             ;;
             --disable-fail2ban)
                 disable_fail2ban "${2}"
                 shift 2
+                exit 0
             ;;
             -p | --enable-pagespeed)
                 enable_mod_pagespeed "${2}"
                 shift 2
+                exit 0
             ;;
             --disable-pagespeed)
                 disable_mod_pagespeed "${2}"
                 shift 2
+                exit 0
             ;;
             -s | --enable-ssl)
                 enable_ssl "${2}"
-                exit 0
                 shift 2
+                exit 0
             ;;
             --disable-ssl)
                 disable_ssl "${2}"
-                exit 0
                 shift 2
+                exit 0
             ;;
             --remove-ssl)
                 remove_ssl "${2}"
-                exit 0
                 shift 2
+                exit 0
             ;;
             --renew-ssl)
                 renew_ssl "${2}"
-                exit 0
                 shift 2
+                exit 0
             ;;
             -b | --enable-brotli)
                 enable_brotli "${2}"
                 shift 2
+                exit 0
             ;;
             -g | --enable-gzip)
                 enable_gzip "${2}"
                 shift 2
+                exit 0
             ;;
             --disable-compression)
                 disable_compression "${2}"
                 shift 2
+                exit 0
             ;;
             -h | --help)
                 show_usage
-                exit 0
                 shift 2
+                exit 0
             ;;
             -v | --version)
                 echo "${PROG_NAME} version ${PROG_VER}"
-                exit 0
                 shift 2
+                exit 0
             ;;
             --) shift
                 break
