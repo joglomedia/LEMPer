@@ -41,7 +41,8 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
   * Supported PHP Framework and CMS:
     * Vanilla PHP: default,
     * Framework: codeigniter, laravel, lumen, phalcon, symfony,
-    * CMS: drupal, mautic, roundcube, sendy, wordpress, wordpress-ms (multi-site), and
+    * Content Management: drupal, wordpress, wordpress-ms (multi-site),
+    * Web Application: mautic, owncloud, roundcube, sendy, and
     * more coming soon.
   * PHP Zend OPcache.
   * PHP Loader, ionCube & SourceGuardian.
@@ -115,19 +116,19 @@ lemper-cli site add --help
 Example, enable SSL
 
 ```bash
-sudo lemper-cli manage --enable-ssl example.test
+sudo lemper-cli site mod --enable-ssl example.test
 ```
 
 Example, enable FastCGI cache
 
 ```bash
-sudo lemper-cli manage --enable-fastcgi-cache example.test
+sudo lemper-cli site mod --enable-fastcgi-cache example.test
 ```
 
 For more info
 
 ```bash
-sudo lemper-cli manage --help
+sudo lemper-cli site mod --help
 ```
 
 ##### for more help
@@ -136,7 +137,7 @@ sudo lemper-cli manage --help
 sudo lemper-cli help
 ```
 
-Note: LEMPer CLI automagically add a new PHP-FPM user's pool configuration if it doesn't exists. You must add the user account first.
+Note: LEMPer CLI automagically create new PHP-FPM user's pool configuration if it doesn't exists. You must add the user account first.
 
 ### Web-based Administration
 
