@@ -1,6 +1,6 @@
 /var/log/nginx/*.log /home/*/logs/nginx/*_log {
     daily
-    rotate 3
+    rotate 14
     compress
     delaycompress
     missingok
