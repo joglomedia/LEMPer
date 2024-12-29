@@ -39,7 +39,7 @@ function add_nginx_repo_ondrej() {
     case "${DISTRIB_NAME}" in
         debian)
             if [[ ! -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
-                run wget -qO "/etc/apt/trusted.gpg.d/ondrej-${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg" && \
+                run curl -sSL -o "/etc/apt/trusted.gpg.d/ondrej-${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg" && \
                 run touch "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list" && \
                 run bash -c "echo 'deb https://packages.sury.org/${NGINX_REPO}/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
             else
@@ -51,7 +51,7 @@ function add_nginx_repo_ondrej() {
         ;;
         ubuntu)
             # Nginx custom with ngx cache purge from Ondrej repo.
-            run wget -qO "/etc/apt/trusted.gpg.d/ondrej-${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg" && \
+            run curl -sSL -o "/etc/apt/trusted.gpg.d/ondrej-${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg" && \
             run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C && \
             run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}" && \
             run apt-get update -q -y
@@ -83,7 +83,7 @@ function add_nginx_repo_myguard() {
     case "${DISTRIB_NAME}" in
         debian | ubuntu)
             if [[ ! -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
-                run wget -qO "/etc/apt/trusted.gpg.d/deb.myguard.nl.gpg" "https://deb.myguard.nl/pool/deb.myguard.nl.gpg" && \
+                run curl -sSL -o "/etc/apt/trusted.gpg.d/deb.myguard.nl.gpg" "https://deb.myguard.nl/pool/deb.myguard.nl.gpg" && \
                 run touch "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list" && \
                 run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl ${RELEASE_NAME} main' > /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
             else
@@ -171,7 +171,11 @@ function init_nginx_install() {
                             # Brotli compression
                             if "${NGX_HTTP_BROTLI}"; then
                                 echo "Adding ngx-http-brotli module..."
-                                EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-brotli")
+                                if [[ "${SELECTED_REPO}" == "myguard" ]]; then
+                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-brotli")
+                                else
+                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-brotli")
+                                fi
                             fi
 
                             # Cache Purge
@@ -423,7 +427,7 @@ function init_nginx_install() {
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
 
-                run cd "${BUILD_DIR}" && \
+                run cd "${BUILD_DIR}" || return 1
 
                 # Build with custom OpenSSL.
                 if "${NGINX_WITH_CUSTOMSSL}"; then
@@ -434,22 +438,28 @@ function init_nginx_install() {
 
                     # OpenSSL
                     if grep -iq openssl <<<"${NGINX_CUSTOMSSL_VERSION}"; then
-                        OPENSSL_SOURCE_URL="https://www.openssl.org/source/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
-                        #OPENSSL_SOURCE_URL="https://github.com/openssl/openssl/archive/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                        if grep -iq quic <<<"${NGINX_CUSTOMSSL_VERSION}"; then
+                            OPENSSL_SOURCE_URL="https://github.com/quictls/openssl/archive/refs/tags/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                        else
+                            OPENSSL_SOURCE_URL="https://github.com/openssl/openssl/archive/refs/tags/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                        fi
 
                         if curl -sLI "${OPENSSL_SOURCE_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                            run wget -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${OPENSSL_SOURCE_URL}" && \
-                            run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
+                            run curl -sSL -o "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${OPENSSL_SOURCE_URL}" && \
+                            run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz" && \
+                            run cd "${NGINX_CUSTOMSSL_VERSION}" && \
+                            run ./config --prefix=./build no-shared && \
+                            run make && run make install_sw && \
+                            run cd "${BUILD_DIR}" || return 1
 
                             if [[ -d "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" ]]; then
                                 NGX_CONFIGURE_ARGS=("${NGX_CONFIGURE_ARGS[@]}"
-                                    "--with-openssl=${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}"
-                                    "--with-openssl-opt=enable-ec_nistp_64_gcc_128"
-                                    "--with-openssl-opt=no-nextprotoneg"
-                                    "--with-openssl-opt=no-weak-ssl-ciphers")
+                                    "--with-cc-opt=\"-I${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/build/include\""
+                                    "--with-ld-opt=\"-L${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/build/lib\""
+                                    "--with-http_v3_module")
                             fi
                         else
-                            error "Unable to determine OpenSSL source page."
+                            error "Unable to determine the OpenSSL/QuicTLS source page."
                         fi
 
                     # LibreSSL
@@ -457,15 +467,16 @@ function init_nginx_install() {
                         LIBRESSL_SOURCE_URL="https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/${NGINX_CUSTOMSSL_VERSION}.tar.gz"
 
                         if curl -sLI "${LIBRESSL_SOURCE_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                            run wget -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${LIBRESSL_SOURCE_URL}" && \
+                            run curl -sSL -o "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${LIBRESSL_SOURCE_URL}" && \
                             run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz"
 
                             [[ -d "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" ]] && \
                                 NGX_CONFIGURE_ARGS=("${NGX_CONFIGURE_ARGS[@]}"
                                     "--with-openssl=${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}"
-                                    "--with-openssl-opt=no-weak-ssl-ciphers")
+                                    "--with-openssl-opt=no-weak-ssl-ciphers"
+                                    "--with-http_v3_module")
                         else
-                            error "Unable to determine LibreSSL source page."
+                            error "Unable to determine the LibreSSL source page."
                         fi
 
                     # BoringSSL
@@ -481,7 +492,7 @@ function init_nginx_install() {
                                     GOLANG_DOWNLOAD_URL="https://go.dev/dl/go${GOLANG_VER}.linux-${DISTRIB_ARCH}.tar.gz"
 
                                     if curl -sLI "${GOLANG_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                                        run wget -O golang.tar.gz "${GOLANG_DOWNLOAD_URL}" && \
+                                        run curl -sSL -o golang.tar.gz "${GOLANG_DOWNLOAD_URL}" && \
                                         run tar -C /usr/local -zxf golang.tar.gz && \
                                         run bash -c "echo -e '\nexport PATH=\"\$PATH:/usr/local/go/bin\"' >> ~/.profile" && \
                                         run source ~/.profile
@@ -509,7 +520,7 @@ function init_nginx_install() {
                         BORINGSSL_SOURCE_URL="https://boringssl.googlesource.com/boringssl/+archive/refs/heads/${BORINGSSL_VERSION}.tar.gz"
 
                         if curl -sLI "${BORINGSSL_SOURCE_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                            run wget -O "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${BORINGSSL_SOURCE_URL}" && \
+                            run curl -sSL -o "${NGINX_CUSTOMSSL_VERSION}.tar.gz" "${BORINGSSL_SOURCE_URL}" && \
                             run mkdir -p "${NGINX_CUSTOMSSL_VERSION}" && \
                             run tar -zxf "${NGINX_CUSTOMSSL_VERSION}.tar.gz" -C "${NGINX_CUSTOMSSL_VERSION}" && \
                             run cd "${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}" && \
@@ -533,13 +544,14 @@ function init_nginx_install() {
 
                             NGX_CONFIGURE_ARGS=("${NGX_CONFIGURE_ARGS[@]}"
                                 "--with-cc-opt=\"-I${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/include\""
-                                "--with-ld-opt=\"-L${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/lib\"")
+                                "--with-ld-opt=\"-L${BUILD_DIR}/${NGINX_CUSTOMSSL_VERSION}/.openssl/lib\""
+                                "--with-http_v3_module")
                         else
-                            info "Unable to determine BoringSSL source page."
+                            info "Unable to determine the BoringSSL source page."
                         fi
                     else
-                        error "Unable to determine CustomSSL version."
-                        echo "Revert back to use default system's OpenSSL..."
+                        error "Unable to determine the CustomSSL version."
+                        echo "Falling back to the default system's OpenSSL..."
                     fi
                 fi
 
@@ -552,7 +564,7 @@ function init_nginx_install() {
                     echo "Build Nginx with PCRE JIT ${NGINX_PCRE_VERSION}..."
 
                     if curl -sLI "${PCRE_SOURCE_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                        run wget -O "${NGINX_PCRE_VERSION}.tar.gz" "${PCRE_SOURCE_URL}" && \
+                        run curl -sSL -o "${NGINX_PCRE_VERSION}.tar.gz" "${PCRE_SOURCE_URL}" && \
                         run tar -zxf "${NGINX_PCRE_VERSION}.tar.gz"
 
                         if [ -d "${BUILD_DIR}/${NGINX_PCRE_VERSION}" ]; then
@@ -793,7 +805,7 @@ function init_nginx_install() {
                             GEOLITE2_COUNTRY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
 
                             if curl -sLI "${GEOLITE2_COUNTRY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
-                                run wget "${GEOLITE2_COUNTRY_SRC}" -O GeoLite2-Country.tar.gz && \
+                                run curl -sSL -o GeoLite2-Country.tar.gz "${GEOLITE2_COUNTRY_SRC}" && \
                                 run tar -xf GeoLite2-Country.tar.gz && \
                                 run cd GeoLite2-Country_*/ && \
                                 run mv GeoLite2-Country.mmdb /opt/geoip/ && \
@@ -807,7 +819,7 @@ function init_nginx_install() {
                             GEOLITE2_CITY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
 
                             if curl -sLI "${GEOLITE2_CITY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
-                                run wget "${GEOLITE2_CITY_SRC}" -O GeoLite2-City.tar.gz && \
+                                run curl -sSL -o GeoLite2-City.tar.gz "${GEOLITE2_CITY_SRC}" && \
                                 run tar -xf GeoLite2-City.tar.gz && \
                                 run cd GeoLite2-City_*/ && \
                                 run mv GeoLite2-City.mmdb /opt/geoip/
@@ -1273,7 +1285,7 @@ function init_nginx_install() {
                         NGX_BUILD_URL="https://raw.githubusercontent.com/apache/incubator-pagespeed-ngx/master/scripts/build_ngx_pagespeed.sh"
 
                         if curl -sLI "${NGX_BUILD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                            run curl -sS -o "${BUILD_DIR}/build_nginx.sh" "${NGX_BUILD_URL}"
+                            run curl -sSL -o "${BUILD_DIR}/build_nginx.sh" "${NGX_BUILD_URL}"
                         else
                             fail "Nginx from source installer not found."
                         fi
@@ -1991,11 +2003,15 @@ function generate_hostname_cert() {
 }
 
 function add_nginx_logrotate() {
+    if [[ -f /etc/logrotate.d/nginx ]]; then
+        run rm -f /etc/logrotate.d/nginx
+    fi
+
     run touch "/etc/logrotate.d/nginx"
     cat >> "/etc/logrotate.d/nginx" <<EOL
 /var/log/nginx/*.log /home/*/logs/nginx/*_log {
-    daily
-    rotate 3
+    weekly
+    rotate 12
     compress
     delaycompress
     missingok

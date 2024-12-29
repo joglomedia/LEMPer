@@ -548,7 +548,7 @@ function build_ngx_pagespeed() {
           repo_url="https://linux.web.cern.ch/linux/scientific${slc_version}/"
           repo_url+="/docs/repository/cern/devtoolset/"
           repo_url+="slc${slc_version}-devtoolset.repo"
-          run sudo wget -O "$repo_fname" "$repo_url"
+          run sudo curl -sSL -o "$repo_fname" "$repo_url"
           run sudo yum install ${INSTALL_FLAGS} devtoolset-2-gcc-c++ devtoolset-2-binutils
         fi
         extra_flags=("--with-cc=/opt/rh/devtoolset-2/root/usr/bin/gcc")
@@ -612,7 +612,7 @@ function build_ngx_pagespeed() {
         run git config --global --add safe.directory "$nps_module_dir"
         run cd "$nps_module_dir"
         run git checkout "$tag_name"
-        run wget -qO "$nps_module_dir/.gitmodules" \
+        run curl -sSL -o "$nps_module_dir/.gitmodules" \
           https://raw.githubusercontent.com/apache/incubator-pagespeed-ngx/master/.gitmodules
         run mkdir -p "$np_submodules_dir/mod_pagespeed"
       fi

@@ -115,7 +115,7 @@ function install_phalcon() {
     CPHALCON_SOURCE="https://github.com/phalcon/cphalcon/archive/v${PHALCON_VERSION}.tar.gz"
 
     if curl -sLI "${CPHALCON_SOURCE}" | grep -q "HTTP/[.12]* [2].."; then
-        run wget -O "cphalcon-${PHALCON_VERSION}.tar.gz" "${CPHALCON_SOURCE}" && \
+        run curl -sSL -o "cphalcon-${PHALCON_VERSION}.tar.gz" "${CPHALCON_SOURCE}" && \
         run tar -zxf "cphalcon-${PHALCON_VERSION}.tar.gz" && \
         run cd "cphalcon-${PHALCON_VERSION}/build" || return 1
     elif curl -sLI "https://raw.githubusercontent.com/phalcon/cphalcon/${PHALCON_VERSION}/README.md" \

@@ -302,7 +302,7 @@ function init_vsftpd_install() {
                     echo "Downloading VSFTPD source code..."
 
                     if curl -sLI "${VSFTPD_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                        run wget "${VSFTPD_ZIP_URL}"
+                        run curl -sSL -o "${VSFTPD_FILENAME}" "${VSFTPD_ZIP_URL}"
                     else
                         error "Cannot download VSFTPD source: '${VSFTPD_FILENAME}'."
                     fi
