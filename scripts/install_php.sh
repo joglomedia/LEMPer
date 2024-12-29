@@ -31,7 +31,7 @@ function add_php_repo() {
     case "${DISTRIB_NAME}" in
         debian)
             if [[ ! -f "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" ]]; then
-                run wget -qO "/etc/apt/trusted.gpg.d/ondrej-php-${RELEASE_NAME}.gpg" https://packages.sury.org/php/apt.gpg && \
+                run curl -sSL -o "/etc/apt/trusted.gpg.d/ondrej-php-${RELEASE_NAME}.gpg" https://packages.sury.org/php/apt.gpg && \
                 run touch "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" && \
                 run bash -c "echo 'deb https://packages.sury.org/php/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" && \
                 run bash -c "echo 'deb-src https://packages.sury.org/php/ ${RELEASE_NAME} main' >> /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
@@ -90,7 +90,7 @@ function install_php() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
     fi
 
     # Checking if PHP already installed.
@@ -127,10 +127,10 @@ function install_php() {
 
             # Search extension from repository or PECL.
             if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "php${PHPv}-${EXT_NAME}" > /dev/null; then
-                echo "[php${PHPv}-${EXT_NAME}]"
+                echo "[php${PHPv}-${EXT_NAME}] ✅"
                 PHP_REPO_EXTS+=("php${PHPv}-${EXT_NAME}")
             elif apt-cache search "php-${EXT_NAME}" | grep -c "php-${EXT_NAME}" > /dev/null; then
-                echo "[php${PHPv}-${EXT_NAME}]"
+                echo "[php${PHPv}-${EXT_NAME}] ✅"
                 PHP_REPO_EXTS+=("php-${EXT_NAME}")
             else
                 # Fix PECL Sodium ext name.
@@ -140,8 +140,7 @@ function install_php() {
 
                 # Check PECL extension is available.
                 if curl -sLI "https://pecl.php.net/rest/r/${EXT_NAME}/allreleases.xml" | grep -q "HTTP/[.12]* [2].."; then
-                #if pecl list | grep -c "${EXT_NAME}" > /dev/null; then
-                    echo "[pecl-${EXT_NAME}]"
+                    echo "[pecl-${EXT_NAME}] ✅"
                     PHP_PECL_EXTS+=("${EXT_NAME}")
 
                     if [[ "${EXT_NAME}" == "openswoole" ]]; then
@@ -179,10 +178,6 @@ function install_php() {
             run pecl -d "php_suffix=${PHPv}" install"${PHP_PECL_FLAG}" "${PHP_PECL_EXTS[@]}"
         fi
 
-        # Install additional PHP extensions.
-        [[ "${INSTALL_MEMCACHED}" == true ]] && install_php_memcached "${PHPv}"
-        #[[ "${INSTALL_MONGODB}" == true ]] && install_php_mongodb "${PHPv}"
-
         if [[ -n $(command -v "php${PHPv}") ]]; then
             TOTAL_EXTS=$((${#PHP_EXTS[@]} + ${#PHP_PECL_EXTS[@]}))
             success "PHP ${PHPv} along with ${TOTAL_EXTS} extensions installed."
@@ -191,7 +186,12 @@ function install_php() {
         # Unset PHP extensions variables.
         run unset PHP_EXTS PHP_REPO_EXTS PHP_PECL_EXTS PHP_PECL_FLAG
 
-        # Enable GeoIP module.
+        # Enable additional PHP extensions.
+        [[ "${INSTALL_MEMCACHED}" == true ]] && enable_php_memcached "${PHPv}"
+        [[ "${INSTALL_MONGODB}" == true ]] && enable_php_mongodb "${PHPv}"
+        [[ "${INSTALL_REDIS}" == true ]] && enable_php_redis "${PHPv}"
+
+        # Enable GeoIP extension.
         if [[ "${PHP_PECL_EXTS[*]}" =~ "geoip" ]]; then
             echo "Updating PHP ini file with GeoIP extension..."
 
@@ -210,7 +210,7 @@ function install_php() {
             fi
         fi
 
-        # Enable Mcrypt module.
+        # Enable Mcrypt extension.
         if [[ "${PHP_PECL_EXTS[*]}" =~ "mcrypt" ]]; then
             echo "Updating PHP ini file with Mcrypt extension..."
 
@@ -253,7 +253,7 @@ function restart_php_fpm() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
     fi
 
     echo "Restarting PHP-FPM service..."
@@ -284,7 +284,7 @@ function optimize_php_fpm() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
     fi
 
     echo "Optimizing PHP ${PHPv} & FPM configuration..."
@@ -403,7 +403,7 @@ EOL
             cat >> "/etc/php/${PHPv}/fpm/pool.d/www.conf" <<EOL
 ; Custom PHP ini settings for LEMPer Stack.
 php_admin_value[open_basedir] = /usr/share/nginx/html
-;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
+php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
 php_admin_value[error_log] = /var/log/php/${PHPv}-fpm_error.\$pool.log
@@ -490,7 +490,7 @@ security.limit_extensions = .php .php7 .php8 .php${PHPv//./}
 
 ; Custom PHP ini settings for LEMPer Stack.
 php_admin_value[open_basedir] = /home/${POOLNAME}
-;php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
+php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
 php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_error.log
@@ -534,25 +534,24 @@ EOL
     run touch "/home/${POOLNAME}/logs/php/php${PHPv}-fpm_error.log"
     run touch "/home/${POOLNAME}/logs/php/php${PHPv}-opcache_error.log"
     run chown -hR "${POOLNAME}:${POOLNAME}" "/home/${POOLNAME}/.lemper" "/home/${POOLNAME}/cgi-bin" "/home/${POOLNAME}/logs"
-
-    # Fix cgi.fix_pathinfo (for PHP older than 5.3).
-    #sed -i "s/cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g" /etc/php/${PHPv}/fpm/php.ini
-    #sed -i "s/php_flag[cgi.fix_pathinfo]\ =\ 1/php_flag[cgi.fix_pathinfo]\ =\ 0/g" \
-    #    /etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf
 }
 
 function add_php_logrotate() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+    fi
+
+    if [[ -f "/etc/logrotate.d/php${PHPv}-fpm" ]]; then
+        run rm -f "/etc/logrotate.d/php${PHPv}-fpm"
     fi
 
     run touch "/etc/logrotate.d/php${PHPv}-fpm"
     cat > "/etc/logrotate.d/php${PHPv}-fpm" <<EOL
 /var/log/php${PHPv}-fpm.log /var/log/php/php${PHPv}-fpm_*.*.log /home/*/logs/php/php${PHPv}-fpm_*.log {
-    rotate 12
     weekly
+    rotate 12
     missingok
     notifempty
     compress
@@ -569,71 +568,16 @@ EOL
 }
 
 ##
-# Install PHP MongoDB extension.
+# Enable PHP Memcached extension.
 ##
-function install_php_mongodb() {
+function enable_php_memcached() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
     fi
 
-    #echo -e "\nInstalling PHP ${PHPv} MongoDB extension..."
-
-    #run apt-get install -q -y "php${PHPv}-mongodb"
-
-    #local CURRENT_DIR && \
-    #CURRENT_DIR=$(pwd)
-
-    #run cd "${BUILD_DIR}" || return 1
-
-    #if [[ ! -d "${BUILD_DIR}/php-${PHPv}-mongodb" ]]; then
-    #    run git clone --depth=1 -q https://github.com/mongodb/mongo-php-driver.git
-    #fi
-
-    #run cd mongo-php-driver && \
-    #run git submodule update --init
-
-    #if [[ -n $(command -v "php${PHPv}") ]]; then
-    #    run "/usr/bin/phpize${PHPv}" && \
-    #    run ./configure --with-php-config="/usr/bin/php-config${PHPv}"
-    #else
-    #    run /usr/bin/phpize && \
-    #    run ./configure
-    #fi
-
-    #run make all && \
-    #run make install
-
-    PHP_LIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
-
-    if [ -f "${PHP_LIB_DIR}/mongodb.so" ]; then
-        success "MongoDB module sucessfully installed at ${PHP_LIB_DIR}/mongodb.so."
-        run chmod 0644 "${PHP_LIB_DIR}/mongodb.so"
-    fi
-
-    #run cd "${CURRENT_DIR}" || return 1
-}
-
-##
-# Install PHP Memcached extension.
-##
-function install_php_memcached() {
-    # PHP version.
-    local PHPv="${1}"
-    if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
-    fi
-
-    # Install PHP memcached module.
-#    echo "Installing PHP ${PHPv} memcached extension..."
-
-#    if [[ "${DRYRUN}" != true ]]; then
-#        run apt-get install -q -y "php${PHPv}-memcache" "php${PHPv}-memcached"
-#    else
-#        info "PHP ${PHPv} Memcached extension installed in dry run mode."
-#    fi
-
+    # Enable PHP memcached module.
     echo "Optimizing PHP ${PHPv} memcached extension..."
 
     # Optimize PHP memcache extension.
@@ -666,13 +610,101 @@ EOL
 }
 
 ##
+# Enable PHP MongoDB extension.
+##
+function enable_php_mongodb() {
+    # PHP version.
+    local PHPv="${1}"
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+    fi
+
+    PHP_LIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+    MONGODB_EXT_PATH="${PHP_LIB_DIR}/mongodb.so"
+
+    if [[ "${DRYRUN}" != true ]]; then
+        if [[ -f "${MONGODB_EXT_PATH}" ]]; then
+            #run chmod 0644 "${MONGODB_EXT_PATH}"
+
+            if "php${PHPv}" -m | grep -q 'mongodb'; then
+                echo "Updating PHP ini file with MongoDB extension..."
+
+                [[ ! -f "/etc/php/${PHPv}/mods-available/mongodb.ini" ]] && \
+                run touch "/etc/php/${PHPv}/mods-available/mongodb.ini"
+                run bash -c "echo extension=${MONGODB_EXT_PATH} > /etc/php/${PHPv}/mods-available/mongodb.ini"
+
+                if [[ ! -f "/etc/php/${PHPv}/cli/conf.d/30-mongodb.ini" ]]; then
+                    run ln -s "/etc/php/${PHPv}/mods-available/mongodb.ini" \
+                        "/etc/php/${PHPv}/cli/conf.d/30-mongodb.ini"
+                fi
+
+                if [[ ! -f "/etc/php/${PHPv}/fpm/conf.d/30-mongodb.ini" ]]; then
+                    run ln -s "/etc/php/${PHPv}/mods-available/mongodb.ini" \
+                        "/etc/php/${PHPv}/fpm/conf.d/30-mongodb.ini"
+                fi
+            else
+                info "MongoDB extension already enabled, please confirm it manually"
+            fi
+        else
+            error "MongoDB extension file could not be found, you could install it manually"
+        fi
+    else
+        info "PHP ${PHPv} MongoDB extension optimized in dry run mode."
+    fi
+}
+
+##
+# Enable PHP Redis extension.
+##
+function enable_php_redis() {
+    # PHP version.
+    local PHPv="${1}"
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+    fi
+
+    PHP_LIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+    REDIS_EXT_PATH="${PHP_LIB_DIR}/redis.so"
+
+    if [[ "${DRYRUN}" != true ]]; then
+        if [[ -f "${REDIS_EXT_PATH}" ]]; then
+            #run chmod 0644 "${REDIS_EXT_PATH}"
+
+            if "php${PHPv}" -m | grep -q 'redis'; then
+                echo "Updating PHP ini file with Redis extension..."
+
+                [[ ! -f "/etc/php/${PHPv}/mods-available/redis.ini" ]] && \
+                run touch "/etc/php/${PHPv}/mods-available/redis.ini"
+                run bash -c "echo extension=${REDIS_EXT_PATH} > /etc/php/${PHPv}/mods-available/redis.ini"
+
+                if [[ ! -f "/etc/php/${PHPv}/cli/conf.d/30-redis.ini" ]]; then
+                    run ln -s "/etc/php/${PHPv}/mods-available/redis.ini" \
+                        "/etc/php/${PHPv}/cli/conf.d/30-redis.ini"
+                fi
+
+                if [[ ! -f "/etc/php/${PHPv}/fpm/conf.d/30-redis.ini" ]]; then
+                    run ln -s "/etc/php/${PHPv}/mods-available/redis.ini" \
+                        "/etc/php/${PHPv}/fpm/conf.d/30-redis.ini"
+                fi
+            else
+                info "Redis extension already enabled, please confirm it manually"
+            fi
+        else
+            error "Redis extension file could not be found, you could install it manually"
+        fi
+    else
+        info "PHP ${PHPv} Redis extension optimized in dry run mode."
+    fi
+}
+
+##
 # Install PHP Composer.
 ##
 function install_php_composer() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
     fi
 
     # Checking if php composer already installed.
@@ -693,7 +725,7 @@ function install_php_composer() {
 
             if [[ -n $(command -v "php${PHPv}") ]]; then
                 PHP_BIN=$(command -v "php${PHPv}")
-                EXPECTED_SIGNATURE="$(wget -q -O - https://composer.github.io/installer.sig)"
+                EXPECTED_SIGNATURE="$(curl -sSL -o - https://composer.github.io/installer.sig)"
                 run "${PHP_BIN}" -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
                 ACTUAL_SIGNATURE="$(${PHP_BIN} -r "echo hash_file('sha384', 'composer-setup.php');")"
 
@@ -749,7 +781,7 @@ function install_ioncube_loader() {
     IC_ZIP_URL="https://raw.githubusercontent.com/joglomedia/php-loaders/main/${IC_ZIP_FILENAME}"
 
     if curl -sLI "${IC_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
-        run wget "${IC_ZIP_URL}" && \
+        run curl -sSL -o "${IC_ZIP_FILENAME}" "${IC_ZIP_URL}" && \
         run tar -xzf "${IC_ZIP_FILENAME}" && \
         run mv -f ioncube /usr/lib/php/loaders/
     else
@@ -766,7 +798,7 @@ function enable_ioncube_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
     fi
 
     echo "Enable ionCube loader for PHP ${PHPv}."
@@ -820,7 +852,7 @@ function install_sourceguardian_loader() {
     SG_ZIP_URL="https://raw.githubusercontent.com/joglomedia/php-loaders/main/${SG_ZIP_FILENAME}"
 
     if curl -sLI "${SG_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
-        run wget "${SG_ZIP_URL}" && \
+        run curl -sSL -o "${SG_ZIP_FILENAME}" "${SG_ZIP_URL}" && \
         run tar -xf "${SG_ZIP_FILENAME}" && \
         run mv -f "${BUILD_DIR}/sourceguardian" /usr/lib/php/loaders/
     else
@@ -837,7 +869,7 @@ function enable_sourceguardian_loader() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
     fi
 
     echo "Enable SourceGuardian loader for PHP ${PHPv}."
@@ -874,7 +906,7 @@ function install_php_loader() {
     local SELECTED_PHP_LOADER="${2}"
 
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.2"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
     fi
 
     if [[ -z "${SELECTED_PHP_LOADER}" ]]; then
@@ -1002,10 +1034,11 @@ function init_php_install() {
             echo "  4). PHP 7.4 (EOL)"
             echo "  5). PHP 8.0 (EOL)"
             echo "  6). PHP 8.1 (SFO)"
-            echo "  7). PHP 8.2 (Stable)"
-            echo "  8). PHP 8.3 (Latest Stable)"
-            echo "  9). All installed versions"
-            echo "  10). Do not remove!"
+            echo "  7). PHP 8.2 (SFO)"
+            echo "  8). PHP 8.3 (Stable)"
+            echo "  9). PHP 8.4 (Latest Stable)"
+            echo "  10). All available versions"
+            echo "  11). Do not install!"
             echo "--------------------------------------------"
 
             [[ -n "${DEFAULT_PHP_VERSION}" ]] && \
@@ -1014,13 +1047,13 @@ function init_php_install() {
             while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                 ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
                 ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && ${SELECTED_PHP} != "9" && \
-                ${SELECTED_PHP} != "10" && \
+                ${SELECTED_PHP} != "10" && ${SELECTED_PHP} != "11" && \
                 ${SELECTED_PHP} != "7.1" && ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && \
                 ${SELECTED_PHP} != "7.4" && ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "8.1" && \
-                ${SELECTED_PHP} != "8.2" && ${SELECTED_PHP} != "8.3" && \
+                ${SELECTED_PHP} != "8.2" && ${SELECTED_PHP} != "8.3" && ${SELECTED_PHP} != "8.4" && \
                 ${SELECTED_PHP} != "all" && ${SELECTED_PHP} != "none"
             ]]; do
-                read -rp "Enter a PHP version from an option above [1-10]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
+                read -rp "Enter a PHP version from an option above [1-11]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
             done
 
             case "${SELECTED_PHP}" in
@@ -1048,9 +1081,12 @@ function init_php_install() {
                 8 | "8.3")
                     SELECTED_PHP_VERSIONS+=("8.3")
                 ;;
-                9 | "all")
+                9 | "8.4")
+                    SELECTED_PHP_VERSIONS+=("8.4")
+                ;;
+                10 | "all")
                     # Select all PHP versions (except EOL & Beta).
-                    SELECTED_PHP_VERSIONS=("7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2" "8.3")
+                    SELECTED_PHP_VERSIONS=("7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2" "8.3" "8.4")
                 ;;
                 *)
                     error "Your selected PHP version ${SELECTED_PHP} is not supported yet."
