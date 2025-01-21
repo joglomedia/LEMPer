@@ -16,9 +16,7 @@
 # +-------------------------------------------------------------------------+
 
 # Version control.
-PROG_NAME=$(basename "$0")
-PROG_VER="2.x.x"
-CMD_PARENT="lemper-cli"
+CMD_PARENT="${PROG_NAME}"
 CMD_NAME="create"
 
 # Make sure only root can access and not direct access.
@@ -52,8 +50,9 @@ fi
 #
 function show_usage {
     cat <<- EOL
-${CMD_PARENT} ${CMD_NAME} ${PROG_VER}
-Creates Nginx virtual host (vHost) configuration file.
+${CMD_PARENT} ${CMD_NAME} ${PROG_VERSION}
+LEMPer Stack virtual host (vhost) configurator,
+creates Nginx vhost configuration file on Debian/Ubuntu server.
 
 Requirements:
   * LEMP stack setup uses [LEMPer](https://github.com/joglomedia/LEMPer)
@@ -91,8 +90,6 @@ Options:
       Auto install application for selected framework.
   -s, --enable-ssl
       Enable HTTPS with Let's Encrypt free SSL certificate.
-  -P, --enable-pagespeed
-      Enable Nginx mod_pagespeed.
   -W, --wildcard-domain
       Enable wildcard (*) domain.
 
@@ -142,37 +139,6 @@ server {
     # Enable Compression.
     # gzip (default) or brotli (requires Nginx installed with brotli module).
     #include /etc/nginx/includes/compression_gzip.conf;
-
-    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
-    #include /etc/nginx/includes/mod_pagespeed.conf;
-
-    # Authorizing domain.
-    #pagespeed Domain ${SERVERNAME};
-    #pagespeed Domain *.${SERVERNAME};
-
-    # Authorize CDN host below here!
-    ##pagespeed Domain your-cdn-host;
-
-    # Map CDN host below here!
-    ##pagespeed MapOriginDomain https://your-cdn-address https://${SERVERNAME};
-
-    # Rewrite CDN host below here!
-    ##pagespeed MapRewriteDomain https://your-cdn-address https://${SERVERNAME};
-
-    # PageSpeed should be disabled on the WP admin/dashboard 
-    # adjust manually to suit your custom admin URLs.
-    #pagespeed Disallow "*/admin/*";
-    #pagespeed Disallow "*/account/*";
-    #pagespeed Disallow "*/dashboard/*";
-    #pagespeed Disallow "*/wp-admin/*";
-    #pagespeed Disallow "*/wp-login*";
-
-    ## Access control Cross-origin Resource Sharing (CORS).
-    set \$cors "${SERVERNAME},*.${SERVERNAME}";
-
-    # PageSpeed CORS support.
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "${SERVERNAME}";
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "*.${SERVERNAME}";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -226,7 +192,7 @@ server {
 }
 EOL
     else
-        info "Vhost created in dry run mode, no data written."
+        info "Virtual host created in dry run mode, no data written."
     fi
 }
 
@@ -262,33 +228,6 @@ server {
     # Enable Compression.
     # gzip (default) or brotli (requires Nginx installed with brotli module).
     #include /etc/nginx/includes/compression_gzip.conf;
-
-    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
-    #include /etc/nginx/includes/mod_pagespeed.conf;
-
-    # Authorizing domain.
-    #pagespeed Domain ${SERVERNAME};
-    #pagespeed Domain *.${SERVERNAME};
-
-    # Authorize CDN host below here!
-    ##pagespeed Domain your-cdn-host;
-
-    # Map CDN host below here!
-    ##pagespeed MapOriginDomain https://your-cdn-address https://${SERVERNAME};
-
-    # Rewrite CDN host below here!
-    ##pagespeed MapRewriteDomain https://your-cdn-address https://${SERVERNAME};
-
-    # PageSpeed should be disabled on the user panel (adjust to suit custom admin URLs).
-    #pagespeed Disallow "*/user/*";
-    #pagespeed Disallow "*/account/*";
-
-    ## Access control Cross-origin Resource Sharing (CORS).
-    set \$cors "${SERVERNAME},*.${SERVERNAME}";
-
-    # PageSpeed CORS support.
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "${SERVERNAME}";
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "*.${SERVERNAME}";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -340,7 +279,7 @@ server {
 }
 EOL
     else
-        info "Vhost created in dry run mode, no data written."
+        info "Virtual host created in dry run mode, no data written."
     fi
 }
 
@@ -376,34 +315,6 @@ server {
     # Enable Compression.
     # gzip (default) or brotli (requires Nginx installed with brotli module).
     #include /etc/nginx/includes/compression_gzip.conf;
-
-    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
-    #include /etc/nginx/includes/mod_pagespeed.conf;
-
-    # Authorizing domain.
-    #pagespeed Domain ${SERVERNAME};
-    #pagespeed Domain *.${SERVERNAME};
-
-    # Authorize CDN host below here!
-    ##pagespeed Domain your-cdn-host;
-
-    # Map CDN host below here!
-    ##pagespeed MapOriginDomain https://your-cdn-address https://${SERVERNAME};
-
-    # Rewrite CDN host below here!
-    ##pagespeed MapRewriteDomain https://your-cdn-address https://${SERVERNAME};
-
-    # PageSpeed should be disabled on the admin (adjust to suit custom admin URLs).
-    #pagespeed Disallow "*/account/*";
-    #pagespeed Disallow "*/dashboard/*";
-    #pagespeed Disallow "*/admin/*";
-
-    ## Access control Cross-origin Resource Sharing (CORS).
-    set \$cors "${SERVERNAME},*.${SERVERNAME}";
-
-    # PageSpeed CORS support.
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "${SERVERNAME}";
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "*.${SERVERNAME}";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -455,7 +366,7 @@ server {
 }
 EOL
     else
-        info "Vhost created in dry run mode, no data written."
+        info "Virtual host created in dry run mode, no data written."
     fi
 }
 
@@ -491,34 +402,6 @@ server {
     # Enable Compression.
     # gzip (default) or brotli (requires Nginx installed with brotli module).
     #include /etc/nginx/includes/compression_gzip.conf;
-
-    ## Uncomment to enable Mod PageSpeed (Nginx must be installed with mod PageSpeed).
-    #include /etc/nginx/includes/mod_pagespeed.conf;
-
-    # Authorizing domain.
-    #pagespeed Domain ${SERVERNAME};
-    #pagespeed Domain *.${SERVERNAME};
-
-    # Authorize CDN host below here!
-    ##pagespeed Domain your-cdn-host;
-
-    # Map CDN host below here!
-    ##pagespeed MapOriginDomain https://your-cdn-address https://${SERVERNAME};
-
-    # Rewrite CDN host below here!
-    ##pagespeed MapRewriteDomain https://your-cdn-address https://${SERVERNAME};
-
-    # PageSpeed should be disabled on the admin (adjust to suit custom admin URLs).
-    #pagespeed Disallow "*/account/*";
-    #pagespeed Disallow "*/dashboard/*";
-    #pagespeed Disallow "*/admin/*";
-
-    ## Access control Cross-origin Resource Sharing (CORS).
-    set \$cors "${SERVERNAME},*.${SERVERNAME}";
-
-    # PageSpeed CORS support.
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "${SERVERNAME}";
-    #pagespeed AddResourceHeader "Access-Control-Allow-Origin" "*.${SERVERNAME}";
 
     ## Global directives configuration.
     include /etc/nginx/includes/rules_security.conf;
@@ -573,7 +456,7 @@ server {
 }
 EOL
     else
-        info "Vhost created in dry run mode, no data written."
+        info "Virtual host created in dry run mode, no data written."
     fi
 }
 
@@ -893,9 +776,9 @@ function install_wordpress() {
 #
 function init_lemper_create() {
     # Command line arguments.
-    OPTS=$(getopt -o u:d:e:f:4:6:w:p:iScPsFWDhv \
+    OPTS=$(getopt -o u:d:e:f:4:6:w:p:iScsFWDhv \
       -l username:,domain-name:,admin-email:,framework:,ipv4:,ipv6:,webroot:,php-version:,install-app,subdomains \
-      -l enable-fastcgi-cache,enable-pagespeed,enable-ssl,enable-fail2ban,wildcard-domain,dryrun,help,version \
+      -l enable-fastcgi-cache,enable-ssl,enable-fail2ban,wildcard-domain,dryrun,help,version \
       -n "${PROG_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
@@ -911,7 +794,6 @@ function init_lemper_create() {
     INSTALL_APP=false
     WPMS_SUBDOMAINS=""
     ENABLE_FASTCGI_CACHE=false
-    ENABLE_PAGESPEED=false
     ENABLE_SSL=false
     ENABLE_WILDCARD_DOMAIN=false
     ENABLE_FAIL2BAN=false
@@ -982,11 +864,7 @@ function init_lemper_create() {
                 shift
                 ENABLE_FAIL2BAN=true
             ;;
-            -h | --help)
-                shift
-                show_usage
-                exit 0
-            ;;
+            
             -i | --install-app)
                 shift
                 INSTALL_APP=true
@@ -995,22 +873,23 @@ function init_lemper_create() {
                 shift
                 WPMS_SUBDOMAINS="--subdomains"
             ;;
-            -P | --enable-pagespeed)
-                shift
-                ENABLE_PAGESPEED=true
-            ;;
             -s | --enable-ssl)
                 shift
                 ENABLE_SSL=true
             ;;
-            -v | --version)
-                shift
-                echo "${PROG_NAME} version ${PROG_VER}"
-                exit 0
-            ;;
             -W | --wildcard-domain)
                 shift
                 ENABLE_WILDCARD_DOMAIN=true
+            ;;
+            -h | --help)
+                shift
+                show_usage
+                exit 0
+            ;;
+            -v | --version)
+                shift
+                echo "${PROG_NAME} version ${PROG_VERSION}"
+                exit 0
             ;;
             --)
                 # End of all options, shift to the next (non getopt) argument as $1. 
@@ -1574,22 +1453,6 @@ EOL
                     fi
                 fi
 
-                # Enable PageSpeed.
-                if [[ ${ENABLE_PAGESPEED} == true ]]; then
-                    echo "Enable Mod PageSpeed for ${SERVERNAME}..."
-
-                    if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/60-mod-pagespeed.conf ]]; then
-                        # enable mod pagespeed
-                        run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" /etc/nginx/nginx.conf
-                        run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" "${VHOST_FILE}"
-                        run sed -i "s|#pagespeed\ EnableFilters|pagespeed\ EnableFilters|g" "${VHOST_FILE}"
-                        run sed -i "s|#pagespeed\ Disallow|pagespeed\ Disallow|g" "${VHOST_FILE}"
-                        run sed -i "s|#pagespeed\ Domain|pagespeed\ Domain|g" "${VHOST_FILE}"
-                    else
-                        info "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module."
-                    fi
-                fi
-
                 # Enable fail2ban filter
                 if [[ "${ENABLE_FAIL2BAN}" == true ]]; then
                     echo "Enable Fail2ban ${FRAMEWORK^} filter for ${SERVERNAME}..."
@@ -1695,8 +1558,8 @@ EOL
             error "The virtual host config file for ${SERVERNAME} already exists. Aborting..."
         fi
     else
-        echo "${PROG_NAME}: missing required arguments."
-        echo "See '${PROG_NAME} --help' for more information."
+        echo "${CMD_PARENT} ${CMD_NAME}: missing required arguments."
+        echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information."
     fi
 }
 

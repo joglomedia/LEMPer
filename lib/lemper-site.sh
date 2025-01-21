@@ -15,17 +15,15 @@
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
+# Version control.
+CMD_PARENT="${PROG_NAME}"
+CMD_NAME="site"
+
 # Make sure only root can access and not direct access.
 if [[ "$(type -t requires_root)" != "function" ]]; then
     echo "Direct access to this script is not permitted."
     exit 1
 fi
-
-# Version control.
-#PROG_NAME=$(basename "$0")
-#PROG_VER="2.x.x"
-CMD_PARENT="lemper-cli"
-CMD_NAME="site"
 
 if [ -z "${CLI_PLUGINS_DIR}" ]; then
     CLI_PLUGINS_DIR="/etc/lemper/cli-plugins"

@@ -16,9 +16,7 @@
 # +-------------------------------------------------------------------------+
 
 # Version control.
-#PROG_NAME=$(basename "$0")
-#PROG_VER="2.x.x"
-#CMD_PARENT="lemper-cli"
+#CMD_PARENT="${PROG_NAME}"
 #CMD_NAME="adduser"
 
 # Make sure only root can access and not direct access.
