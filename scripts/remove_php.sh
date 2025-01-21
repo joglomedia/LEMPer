@@ -22,7 +22,7 @@ fi
 ##
 # Remove PHP & FPM installation from system.
 ##
-function remove_php_fpm() {
+function remove_php() {
     # PHP version.
     local PHPv="${1}"
     local REMOVED_PHP_LOADER="${2}"
@@ -253,14 +253,14 @@ function remove_php_loader() {
 ##
 # Initialize PHP & FPM removal.
 ##
-function init_php_fpm_removal() {
+function init_php_removal() {
     local REMOVED_PHP_VERSIONS=()
     local OPT_PHP_VERSIONS=()
     local OPT_PHP_LOADER=${PHP_LOADER:-"ioncube"}
 
     OPTS=$(getopt -o p:l: \
         -l php-version:,php-loader: \
-        -n "init_php_fpm_removal" -- "$@")
+        -n "init_php_removal" -- "$@")
 
     eval set -- "${OPTS}"
 
@@ -268,12 +268,7 @@ function init_php_fpm_removal() {
         case "${1}" in
             -p | --php-version) 
                 shift
-                if [[ "${1}" == "all" ]]; then
-                    # Include versions from config file.
-                    read -r -a OPT_PHP_VERSIONS <<< "${PHP_VERSIONS}"
-                else
-                    OPT_PHP_VERSIONS+=("${1}")
-                fi
+                OPT_PHP_VERSIONS+=("${1}")
                 shift
             ;;
             -l | --php-loader) 
@@ -292,14 +287,14 @@ function init_php_fpm_removal() {
         esac
     done
 
-    # Include versions from config file.
-    read -r -a REMOVED_PHP_VERSIONS <<< "${PHP_VERSIONS}"
-
     if [[ "${#OPT_PHP_VERSIONS[@]}" -gt 0 ]]; then
         REMOVED_PHP_VERSIONS+=("${OPT_PHP_VERSIONS[@]}")
     else
-        # Manually select PHP version in interactive mode.
-        if [[ "${AUTO_REMOVE}" != true ]]; then
+        if [[ "${AUTO_REMOVE}" == true ]]; then
+            # Include versions from config file.
+            read -r -a REMOVED_PHP_VERSIONS <<< "${PHP_VERSIONS}"
+        else
+            # Manually select PHP version in interactive mode.
             echo "Which PHP version to be removed?"
             echo "Available PHP versions:"
             echo "  1). PHP 7.1 (EOL)"
@@ -360,10 +355,10 @@ function init_php_fpm_removal() {
                 ;;
                 10 | "all")
                     # Select all PHP versions (except EOL & Beta).
-                    REMOVED_PHP_VERSIONS=("7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2" "8.3")
+                    REMOVED_PHP_VERSIONS=("7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2" "8.3" "8.4")
                 ;;
                 11 | n*)
-                    info "No PHP version will be removed."
+                    info "No selected PHP version will be removed."
                     return
                 ;;
                 *)
@@ -374,11 +369,11 @@ function init_php_fpm_removal() {
     fi
 
     # If FORCE_REMOVE, then remove all installed PHP versions include the default.
-    if [[ "${FORCE_REMOVE}" == true ]]; then
+    #if [[ "${FORCE_REMOVE}" == true ]]; then
         # Also remove default LEMPer PHP.
-        DEFAULT_PHP_VERSION=${DEFAULT_PHP_VERSION:-"8.3"}
-        REMOVED_PHP_VERSIONS+=("${DEFAULT_PHP_VERSION}")
-    fi
+    #    DEFAULT_PHP_VERSION=${DEFAULT_PHP_VERSION:-"8.3"}
+    #    REMOVED_PHP_VERSIONS+=("${DEFAULT_PHP_VERSION}")
+    #fi
 
     # Remove all selected PHP versions.
     if [[ "${#REMOVED_PHP_VERSIONS[@]}" -gt 0 ]]; then
@@ -387,7 +382,11 @@ function init_php_fpm_removal() {
         REMOVED_PHP_VERSIONS=($(printf "%s\n" "${REMOVED_PHP_VERSIONS[@]}" | sort -u | tr '\n' ' '))
 
         for PHP_VER in "${REMOVED_PHP_VERSIONS[@]}"; do
-            remove_php_fpm "${PHP_VER}" "${OPT_PHP_LOADER}"
+            if [[ -n $(command -v "php${PHPv}") && -n $(command -v "php-fpm${PHPv}") ]]; then
+                remove_php "${PHP_VER}" "${OPT_PHP_LOADER}"
+            else
+                info "PHP ${PHPv} packages installation not found, uninstall skipped."
+            fi
         done
 
         # Final clean up (executed only if no PHP version installed).
@@ -439,29 +438,16 @@ function init_php_fpm_removal() {
 
 echo "Uninstalling PHP packages..."
 
-if [[ -n $(command -v php7.1) || \
-    -n $(command -v php7.2) || \
-    -n $(command -v php7.3) || \
-    -n $(command -v php7.4) || \
-    -n $(command -v php8.0) || \
-    -n $(command -v php8.1) || \
-    -n $(command -v php8.2) || \
-    -n $(command -v php8.3) || \
-    -n $(command -v php8.4)  
-]]; then
-    if [[ "${AUTO_REMOVE}" == true ]]; then
-        REMOVE_PHP="y"
-    else
-        while [[ "${REMOVE_PHP}" != "y" && "${REMOVE_PHP}" != "n" ]]; do
-            read -rp "Are you sure to remove PHP package? [y/n]: " -e REMOVE_PHP
-        done
-    fi
-
-    if [[ "${REMOVE_PHP}" == Y* || "${REMOVE_PHP}" == y* ]]; then
-        init_php_fpm_removal "$@"
-    else
-        echo "Found PHP packages, but not removed."
-    fi
+if [[ "${AUTO_REMOVE}" == true ]]; then
+    REMOVE_PHP="y"
 else
-    info "Oops, PHP packages installation not found."
+    while [[ "${REMOVE_PHP}" != "y" && "${REMOVE_PHP}" != "n" ]]; do
+        read -rp "Are you sure to remove PHP package? [y/n]: " -e REMOVE_PHP
+    done
+fi
+
+if [[ "${REMOVE_PHP}" == Y* || "${REMOVE_PHP}" == y* ]]; then
+    init_php_removal "$@"
+else
+    echo "PHP packages uninstallation skipped."
 fi

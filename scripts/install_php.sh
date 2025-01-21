@@ -85,7 +85,7 @@ function add_php_repo() {
 # Install PHP and extensions.
 ##
 function install_php() {
-    export PHP_IS_INSTALLED="no"
+    #local PHP_IS_INSTALLED="no"
 
     # PHP version.
     local PHPv="${1}"
@@ -95,8 +95,8 @@ function install_php() {
 
     # Checking if PHP already installed.
     if [[ -n $(command -v "php${PHPv}") && -n $(command -v "php-fpm${PHPv}") ]]; then
-        PHP_IS_INSTALLED="yes"
-        info "PHP ${PHPv} and it's extensions already exists."
+        #PHP_IS_INSTALLED="yes"
+        info "PHP ${PHPv} and it's extensions already exists, installation skipped."
     else
         echo "Preparing PHP ${PHPv} installation..."
 
@@ -127,10 +127,10 @@ function install_php() {
 
             # Search extension from repository or PECL.
             if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "php${PHPv}-${EXT_NAME}" > /dev/null; then
-                echo "[php${PHPv}-${EXT_NAME}] ✅"
+                echo "[php${PHPv}-${EXT_NAME}]"
                 PHP_REPO_EXTS+=("php${PHPv}-${EXT_NAME}")
             elif apt-cache search "php-${EXT_NAME}" | grep -c "php-${EXT_NAME}" > /dev/null; then
-                echo "[php${PHPv}-${EXT_NAME}] ✅"
+                echo "[php${PHPv}-${EXT_NAME}]"
                 PHP_REPO_EXTS+=("php-${EXT_NAME}")
             else
                 # Fix PECL Sodium ext name.
@@ -140,7 +140,7 @@ function install_php() {
 
                 # Check PECL extension is available.
                 if curl -sLI "https://pecl.php.net/rest/r/${EXT_NAME}/allreleases.xml" | grep -q "HTTP/[.12]* [2].."; then
-                    echo "[pecl-${EXT_NAME}] ✅"
+                    echo "[pecl-${EXT_NAME}]"
                     PHP_PECL_EXTS+=("${EXT_NAME}")
 
                     if [[ "${EXT_NAME}" == "openswoole" ]]; then
@@ -182,9 +182,6 @@ function install_php() {
             TOTAL_EXTS=$((${#PHP_EXTS[@]} + ${#PHP_PECL_EXTS[@]}))
             success "PHP ${PHPv} along with ${TOTAL_EXTS} extensions installed."
         fi
-
-        # Unset PHP extensions variables.
-        run unset PHP_EXTS PHP_REPO_EXTS PHP_PECL_EXTS PHP_PECL_FLAG
 
         # Enable additional PHP extensions.
         [[ "${INSTALL_MEMCACHED}" == true ]] && enable_php_memcached "${PHPv}"
@@ -389,7 +386,7 @@ EOL
 
         # Enable FPM status.
         run sed -i "/^;pm.status_path\ =.*/a pm.status_path\ =\ \/status" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
-        
+
         # Enable chdir.
         run sed -i "/^;chdir\ =.*/a chdir\ =\ \/usr\/share\/nginx\/html" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
@@ -619,7 +616,7 @@ function enable_php_mongodb() {
         PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
     fi
 
-    PHP_LIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+    PHP_LIB_DIR=$("php${PHPv}" -i | grep "extension_dir" | awk '{print $3}')
     MONGODB_EXT_PATH="${PHP_LIB_DIR}/mongodb.so"
 
     if [[ "${DRYRUN}" != true ]]; then
@@ -663,7 +660,7 @@ function enable_php_redis() {
         PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
     fi
 
-    PHP_LIB_DIR=$("php-config${PHPv}" | grep -wE "\--extension-dir" | cut -d'[' -f2 | cut -d']' -f1)
+    PHP_LIB_DIR=$("php${PHPv}" -i | grep "extension_dir" | awk '{print $3}')
     REDIS_EXT_PATH="${PHP_LIB_DIR}/redis.so"
 
     if [[ "${DRYRUN}" != true ]]; then
@@ -1018,14 +1015,14 @@ function init_php_install() {
         esac
     done
 
-    # Include versions from config file.
-    read -r -a SELECTED_PHP_VERSIONS <<< "${PHP_VERSIONS}"
-
     if [[ "${#OPT_PHP_VERSIONS[@]}" -gt 0 ]]; then
         SELECTED_PHP_VERSIONS+=("${OPT_PHP_VERSIONS[@]}")
     else
-        # Manually select PHP version in interactive mode.
-        if [[ "${AUTO_INSTALL}" != true ]]; then
+        if [[ "${AUTO_INSTALL}" == true ]]; then
+            # Include versions from config file.
+            read -r -a SELECTED_PHP_VERSIONS <<< "${PHP_VERSIONS}"
+        else
+            # Manually select PHP version in interactive mode.
             echo "Which PHP version to be installed?"
             echo "Available PHP versions:"
             echo "  1). PHP 7.1 (EOL)"
@@ -1088,6 +1085,10 @@ function init_php_install() {
                     # Select all PHP versions (except EOL & Beta).
                     SELECTED_PHP_VERSIONS=("7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2" "8.3" "8.4")
                 ;;
+                11 | n*)
+                    info "No selected PHP version will be installed."
+                    return
+                ;;
                 *)
                     error "Your selected PHP version ${SELECTED_PHP} is not supported yet."
                 ;;
@@ -1103,20 +1104,20 @@ function init_php_install() {
     add_php_repo
 
     # Install all selected PHP versions and extensions.
-    for PHPV in "${SELECTED_PHP_VERSIONS[@]}"; do
-        IS_PKG_AVAIL=$(apt-cache search "php${PHPV}" | grep -c "${PHPV}")
+    for PHPv in "${SELECTED_PHP_VERSIONS[@]}"; do
+        IS_PKG_AVAIL=$(apt-cache search "php${PHPv}" | grep -c "${PHPv}")
 
         if [[ "${IS_PKG_AVAIL}" -gt 0 ]]; then
             # Install PHP + default extensions.
-            if [[ -z $(command -v "php${PHPV}") ]]; then
-                install_php "${PHPV}"
-                install_php_loader "${PHPV}" "${OPT_PHP_LOADER}"
-                restart_php_fpm "${PHPV}"
+            if [[ -n $(command -v "php${PHPv}") && -n $(command -v "php-fpm${PHPv}") ]]; then
+                info "PHP version ${PHPv} and it's extensions already exists, installation skipped."
             else
-                info "PHP version ${PHPV} and it's extensions already exists, installation skipped."
+                install_php "${PHPv}"
+                install_php_loader "${PHPv}" "${OPT_PHP_LOADER}"
+                restart_php_fpm "${PHPv}"
             fi
         else
-            error "PHP ${PHPV} package is not available for your operating system."
+            error "PHP ${PHPv} package is not available for your operating system."
         fi
     done
 
