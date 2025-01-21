@@ -436,7 +436,7 @@ function enable_ssl() {
     local DOMAIN=${1}
     verify_vhost "${DOMAIN}"
 
-    #if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
+    if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
         if [[ "${ENVIRONMENT}" == prod* ]]; then
             echo "Certbot: Get Let's Encrypt certificate..."
 
@@ -480,9 +480,10 @@ function enable_ssl() {
             run openssl dhparam -out /etc/nginx/ssl/dhparam-2048.pem 2048
             #run openssl dhparam -out /etc/nginx/ssl/dhparam-4096.pem 4096
         fi
-    #else
-    #    info "SSL certificates is already exists for ${DOMAIN}."
-    #fi
+    else
+        info "SSL certificates is already exists for ${DOMAIN}, trying to renew."
+        renew_ssl "${DOMAIN}"
+    fi
 
     # Update vhost config.
     if [[ "${DRYRUN}" != true ]]; then
@@ -863,6 +864,7 @@ function generate_selfsigned_ssl() {
 
     [ ! -d "/etc/lemper/ssl/${DOMAIN}" ] && run mkdir -p "/etc/lemper/ssl/${DOMAIN}"
 
+    run sed -i "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/ca.conf && \
     run sed -i "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
     run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
     run sed -i "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
@@ -871,18 +873,12 @@ function generate_selfsigned_ssl() {
     run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
 
     # Create Certificate Authority (CA).
-    if [[ ! -f /etc/lemper/ssl/lemperCA.key || ! -f /etc/lemper/ssl/lemperCA.crt ]]; then
-        run openssl req -x509 -sha256 -days 365000 -nodes -newkey rsa:2048 \
-            -keyout "/etc/lemper/ssl/${DOMAIN}-ca.key" -out "/etc/lemper/ssl/${DOMAIN}-ca.crt" \
-            -config /etc/lemper/ssl/ca.conf
-            #-subj "/CN=${HOSTNAME}/C=ID/L=Jakarta"
+    run openssl req -x509 -sha256 -days 365000 -nodes -newkey rsa:2048 \
+        -keyout "/etc/lemper/ssl/${DOMAIN}/ca.key" -out "/etc/lemper/ssl/${DOMAIN}/ca.crt" \
+        -config /etc/lemper/ssl/ca.conf
 
-        CA_KEY_FILE="/etc/lemper/ssl/${DOMAIN}-ca.key"
-        CA_CRT_FILE="/etc/lemper/ssl/${DOMAIN}-ca.crt"
-    else
-        CA_KEY_FILE="/etc/lemper/ssl/lemperCA.key"
-        CA_CRT_FILE="/etc/lemper/ssl/lemperCA.crt"
-    fi
+    CA_KEY_FILE="/etc/lemper/ssl/${DOMAIN}/ca.key"
+    CA_CRT_FILE="/etc/lemper/ssl/${DOMAIN}/ca.crt"
 
     # Create Server Private Key.
     run openssl genrsa -out "/etc/lemper/ssl/${DOMAIN}/privkey.pem" 2048 && \
