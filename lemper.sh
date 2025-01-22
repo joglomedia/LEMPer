@@ -565,7 +565,7 @@ function init_lemper_install() {
     # Set getopt options.
     OPTS=$(getopt -o e:h:i:dgpDBF \
         -l admin-email:,debug,development,dry-run,fix-broken-install,force,guided,hostname:,ipv4:,production,unattended \
-        -l with-nginx:,with-nginx-installer:,with-nginx-custom-ssl:,with-nginx-lua,with-nginx-pagespeed,with-nginx-passenger \
+        -l with-nginx:,with-nginx-installer:,with-nginx-custom-ssl:,with-nginx-lua,with-nginx-passenger \
         -l with-nginx-pcre:,with-nginx-rtmp,with-php:,with-php-extensions:,with-php-loader:,with-mysql-server: \
         -l with-ftp-server:,with-memcached:,with-memcached-installer:,with-mongodb:,with-mongodb-admin:,with-redis: \
         -l with-redis-installer:,with-redis-requirepass:,with-ssh-passwordless,with-ssh-port:,with-ssh-pub-key: \
@@ -610,10 +610,6 @@ function init_lemper_install() {
             ;;
             --with-nginx-lua)
                 sed -i "s/NGX_HTTP_LUA=[a-zA-Z]*/NGX_HTTP_LUA=true/g" .env
-                shift
-            ;;
-            --with-nginx-pagespeed)
-                sed -i "s/NGX_PAGESPEED=[a-zA-Z]*/NGX_PAGESPEED=true/g" .env
                 shift
             ;;
             --with-nginx-passenger)

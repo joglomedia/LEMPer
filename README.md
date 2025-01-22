@@ -20,7 +20,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 ## Features
 
 * Nginx - A high performance web server and a reverse proxy server.
-  * Community package from [Ondrej repo](https://launchpad.net/~ondrej/+archive/ubuntu/nginx) or @eilandert's [MyGuard repo](https://deb.myguard.nl/nginx-modules/) with built-in PageSpeed module.
+  * Community package from [Ondrej repo](https://launchpad.net/~ondrej/+archive/ubuntu/nginx) or @eilandert's [MyGuard repo](https://deb.myguard.nl/nginx-modules/) with built-in modules.
   * Custom build from [source](https://github.com/nginx/nginx) featured with :
     * [Brotli module](https://github.com/google/ngx_brotli.git) an alternative compression to Gzip
     * [Lua Nginx module](https://github.com/openresty/lua-nginx-module) with LuaJIT 2 library
