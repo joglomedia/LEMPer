@@ -1,0 +1,20 @@
+# Sample rules file for default vhost.
+
+#LearningMode;
+SecRulesEnabled;
+#SecRulesDisabled;
+LibInjectionSql;
+LibInjectionXss;
+
+DeniedUrl "/RequestDenied";
+
+## Check rules
+CheckRule "$SQL >= 8" BLOCK; # SQL injection action (unrelated to libinjection)
+CheckRule "$XSS >= 8" BLOCK; # XSS action (unrelated to libinjection)
+CheckRule "$RFI >= 8" BLOCK; # Remote File Inclusion action
+CheckRule "$UWA >= 8" BLOCK; # Unwanted Access action
+CheckRule "$EVADE >= 8" BLOCK; # Evade action (some tools may try to avoid detection).
+CheckRule "$UPLOAD >= 5" BLOCK; # Malicious upload action
+CheckRule "$TRAVERSAL >= 5" BLOCK; # Traversal access action
+CheckRule "$LIBINJECTION_XSS >= 8" BLOCK; # libinjection XSS action
+CheckRule "$LIBINJECTION_SQL >= 8" BLOCK; # libinjection SQLi action

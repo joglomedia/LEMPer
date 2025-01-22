@@ -145,6 +145,10 @@ server {
     include /etc/nginx/includes/rules_staticfiles.conf;
     include /etc/nginx/includes/rules_restriction.conf;
 
+    ## Naxsi WAF rules.
+    #set \$naxsi_json_log 1;
+	#include /etc/nginx/includes/naxsi_core.rules;
+
     ## Default vhost directives configuration.
     #include /etc/nginx/includes/rules_fastcgi_cache.conf;
     include /etc/nginx/vhost/site_${FRAMEWORK}.conf;
@@ -234,6 +238,10 @@ server {
     include /etc/nginx/includes/rules_staticfiles.conf;
     include /etc/nginx/includes/rules_restriction.conf;
 
+    ## Naxsi WAF rules.
+    #set \$naxsi_json_log 1;
+	#include /etc/nginx/includes/naxsi_core.rules;
+
     ## Default vhost directives configuration.
     #include /etc/nginx/includes/rules_fastcgi_cache.conf;
     include /etc/nginx/vhost/site_drupal.conf;
@@ -321,6 +329,10 @@ server {
     include /etc/nginx/includes/rules_staticfiles.conf;
     include /etc/nginx/includes/rules_restriction.conf;
 
+    ## Naxsi WAF rules.
+    #set \$naxsi_json_log 1;
+	#include /etc/nginx/includes/naxsi_core.rules;
+
     ## Default vhost directives configuration.
     #include /etc/nginx/includes/rules_fastcgi_cache.conf;
     include /etc/nginx/vhost/site_laravel.conf;
@@ -407,6 +419,10 @@ server {
     include /etc/nginx/includes/rules_security.conf;
     include /etc/nginx/includes/rules_staticfiles.conf;
     include /etc/nginx/includes/rules_restriction.conf;
+
+    ## Naxsi WAF rules.
+    #set \$naxsi_json_log 1;
+	#include /etc/nginx/includes/naxsi_core.rules;
 
     ## Default vhost directives configuration.
     #include /etc/nginx/includes/rules_fastcgi_cache.conf;
