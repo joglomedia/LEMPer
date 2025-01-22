@@ -239,14 +239,12 @@ function init_nginx_install() {
 
                             # Nginx Memc - An extended version of the standard memcached module.
                             if "${NGX_HTTP_MEMCACHED}"; then
-                                echo "Adding ngx-http-memcached module..."
-                                #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-memcached")
+                                warning "ngx-http-memcached module is not supported."
                             fi
 
                             # NGX_HTTP_NAXSI is an open-source, high performance, low rules maintenance WAF for NGINX.
                             if "${NGX_HTTP_NAXSI}"; then
                                 echo "Adding ngx-http-naxsi (Web Application Firewall) module..."
-                                #EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-naxsi")
                                 if [[ "${SELECTED_REPO}" == "myguard" ]]; then
                                     EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-http-naxsi")
                                 fi
@@ -327,21 +325,21 @@ function init_nginx_install() {
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-mail")
                             fi
 
-                            # Nchan, pub/sub queuing server
+                            # Nchan, pub/sub queuing server.
                             if "${NGX_NCHAN}"; then
                                 echo "Adding ngx-nchan (Pub/Sub) module..."
                                 EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-nchan")
                             fi
 
                             # Nginx mod PageSpeed.
-                            if "${NGX_PAGESPEED}"; then
-                                echo "Adding ngx-pagespeed module..."
-                                if [[ "${SELECTED_REPO}" == "myguard" ]]; then
-                                    EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-pagespeed")
-                                else
-                                    error "{$SELECTED_REPO} doesn't have libnginx-mod-pagespeed module. Skipped..."
-                                fi
-                            fi
+                            #if "${NGX_PAGESPEED}"; then
+                            #    echo "Adding ngx-pagespeed module..."
+                            #    if [[ "${SELECTED_REPO}" == "myguard" ]]; then
+                            #        EXTRA_MODULE_PKGS=("${EXTRA_MODULE_PKGS[@]}" "libnginx-mod-pagespeed")
+                            #    else
+                            #        error "{$SELECTED_REPO} doesn't have libnginx-mod-pagespeed module. Skipped..."
+                            #    fi
+                            #fi
 
                             # NGINX-based Media Streaming Server.
                             if "${NGX_RTMP}"; then
@@ -1292,33 +1290,32 @@ function init_nginx_install() {
                     fi
                 fi
 
-                NGX_PAGESPEED_VERSION=${NGX_PAGESPEED_VERSION:-"latest-stable"}
+                #NGX_PAGESPEED_VERSION=${NGX_PAGESPEED_VERSION:-"latest-stable"}
                 NGX_BUILD_EXTRA_ARGS=()
 
                 # Workaround for NPS issue https://github.com/apache/incubator-pagespeed-ngx/issues/1752
-                if ! version_older_than "${NGINX_RELEASE_VERSION}" "1.22.99"; then
-                    NGX_PAGESPEED_VERSION="latest-stable"
+                #if ! version_older_than "${NGINX_RELEASE_VERSION}" "1.22.99"; then
+                #    NGX_PAGESPEED_VERSION="latest-stable"
                     # --psol-from-source
-                    NGX_BUILD_EXTRA_ARGS+=("-t Release")
-                fi
+                #    NGX_BUILD_EXTRA_ARGS+=("-t Release")
+                #fi
 
                 # Workaround for Building on newer glibc (eg. Ubuntu 21.10 and above)
                 # issue https://github.com/apache/incubator-pagespeed-ngx/issues/1743
-                if [[ "${RELEASE_NAME}" == "bookworm" || "${RELEASE_NAME}" == "jammy" ]]; then
-                    export PSOL_BINARY_URL && \
-                        PSOL_BINARY_URL="https://www.tiredofit.nl/psol-jammy.tar.gz"
-                    NGX_BUILD_EXTRA_ARGS+=("--psol-binary-file=${PSOL_BINARY_URL}")
-                else
-                    NGX_BUILD_EXTRA_ARGS+=("--psol-from-source")
-                fi
+                #if [[ "${RELEASE_NAME}" == "bookworm" || "${RELEASE_NAME}" == "jammy" ]]; then
+                #    export PSOL_BINARY_URL && \
+                #        PSOL_BINARY_URL="https://www.tiredofit.nl/psol-jammy.tar.gz"
+                #    NGX_BUILD_EXTRA_ARGS+=("--psol-binary-file=${PSOL_BINARY_URL}")
+                #else
+                #    NGX_BUILD_EXTRA_ARGS+=("--psol-from-source")
+                #fi
 
-                [[ "${NGX_PAGESPEED}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--ngx-pagespeed=${NGX_PAGESPEED_VERSION}")
-                [[ "${NGINX_DYNAMIC_MODULE}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--dynamic-module")
-                [[ "${DRYRUN}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--dryrun")
+                #[[ "${NGX_PAGESPEED}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--ngx-pagespeed=${NGX_PAGESPEED_VERSION}")
+                #[[ "${NGINX_DYNAMIC_MODULE}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--dynamic-module")
+                #[[ "${DRYRUN}" == true ]] && NGX_BUILD_EXTRA_ARGS+=("--dryrun")
 
                 # Build Nginx from source.
                 run bash "${BUILD_DIR}/build_nginx.sh" -y "${NGX_BUILD_EXTRA_ARGS[@]}" -b "${BUILD_DIR}" \
-                    --ngx-pagespeed-version="${NGX_PAGESPEED_VERSION}" \
                     --nginx-version="${NGINX_RELEASE_VERSION}" --additional-nginx-configure-arguments="${NGX_CONFIGURE_ARGS[*]}"
 
                 echo "Configuring Nginx extra modules..."
@@ -1481,11 +1478,11 @@ function init_nginx_install() {
                         > /etc/nginx/modules-available/mod-nchan.conf"
                 fi
 
-                if [[ -f /usr/lib/nginx/modules/ngx_pagespeed.so && \
-                    ! -f /etc/nginx/modules-available/mod-pagespeed.conf ]]; then
-                    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_pagespeed.so\";' \
-                        > /etc/nginx/modules-available/mod-pagespeed.conf"
-                fi
+                #if [[ -f /usr/lib/nginx/modules/ngx_pagespeed.so && \
+                #    ! -f /etc/nginx/modules-available/mod-pagespeed.conf ]]; then
+                #    run bash -c "echo 'load_module \"/usr/lib/nginx/modules/ngx_pagespeed.so\";' \
+                #        > /etc/nginx/modules-available/mod-pagespeed.conf"
+                #fi
 
                 #if [[ -f /usr/lib/nginx/modules/ngx_rtmp_module.so && \
                 #    ! -f /etc/nginx/modules-available/mod-rtmp.conf ]]; then
@@ -1679,11 +1676,11 @@ function init_nginx_install() {
                             /etc/nginx/modules-enabled/60-mod-nchan.conf
                     fi
 
-                    if [[ "${NGX_PAGESPEED}" && \
-                        -f /etc/nginx/modules-available/mod-pagespeed.conf ]]; then
-                        run ln -fs /etc/nginx/modules-available/mod-pagespeed.conf \
-                            /etc/nginx/modules-enabled/60-mod-pagespeed.conf
-                    fi
+                    #if [[ "${NGX_PAGESPEED}" && \
+                    #    -f /etc/nginx/modules-available/mod-pagespeed.conf ]]; then
+                    #    run ln -fs /etc/nginx/modules-available/mod-pagespeed.conf \
+                    #        /etc/nginx/modules-enabled/60-mod-pagespeed.conf
+                    #fi
 
                     local MOD_STREAM_ENABLED=false
 
@@ -1828,11 +1825,11 @@ EOL
         fi
 
         # Enable PageSpeed config.
-        if [[ "${NGX_PAGESPEED}" == true && \
-            -f /etc/nginx/modules-enabled/60-mod-pagespeed.conf ]]; then
-            run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" \
-                /etc/nginx/nginx.conf
-        fi
+        #if [[ "${NGX_PAGESPEED}" == true && \
+        #    -f /etc/nginx/modules-enabled/60-mod-pagespeed.conf ]]; then
+        #    run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" \
+        #        /etc/nginx/nginx.conf
+        #fi
 
         # Allow server IP to fastCGI cache purge remotely.
         ALLOWED_SERVER_IP=$(get_ip_private)

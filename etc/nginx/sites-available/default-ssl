@@ -180,8 +180,8 @@ server {
     location /lcp {
         try_files $uri $uri/ /index.php?$args;
 
-        # Uncomment to enable naxsi on this location
-        #include /etc/nginx/naxsi.rules;
+        # Uncomment to enable naxsi WAF.
+        #include /etc/nginx/includes/naxsi.rules;
 
         # Uncomment to enable auto index
         #autoindex on;
