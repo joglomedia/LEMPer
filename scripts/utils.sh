@@ -247,8 +247,7 @@ function version_sort() {
 }
 
 # Compare two numeric versions in the form "A.B.C".    Works with version numbers
-# having up to four components, since that's enough to handle both nginx (3) and
-# ngx_pagespeed (4).
+# having up to four components, since that's enough to handle nginx (3)
 function version_older_than() {
     local test_version && \
     test_version=$(echo "$@" | tr ' ' '\n' | version_sort | head -n 1)
