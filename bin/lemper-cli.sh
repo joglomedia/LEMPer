@@ -172,6 +172,8 @@ These are common ${PROG_NAME} commands used in various situations:
 For help with each command run:
 ${PROG_NAME} <command> -h | --help
 EOL
+
+exit 0
 }
 
 ## 
@@ -179,6 +181,7 @@ EOL
 ##
 function cmd_version() {
     echo "${PROG_NAME} version ${PROG_VERSION}"
+    exit 0
 }
 
 ##
@@ -193,11 +196,9 @@ function init_lemper_cli() {
         case "${CMD}" in
             help | -h | --help)
                 cmd_help
-                exit 0
             ;;
             version | -v | --version)
                 cmd_version
-                exit 0
             ;;
             *)
                 if [[ -x "${CLI_PLUGINS_DIR}/lemper-${CMD}" ]]; then

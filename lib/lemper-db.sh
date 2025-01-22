@@ -82,10 +82,13 @@ These are common ${CMD_PARENT} ${CMD_NAME} account subcommands used in various s
 For help with each command run:
 ${CMD_PARENT} ${CMD_NAME} account <command> -h|--help
 EOL
+
+exit 0
 }
 
 function cmd_account_version() {
     echo "${CMD_PARENT} ${CMD_NAME} account version ${PROG_VERSION}"
+    exit 0
 }
 
 # Grant access privileges.
@@ -105,10 +108,11 @@ function cmd_account_access() {
     if "${MYSQLCLI}" -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
         echo "Grants database '${DBNAME}' privileges to '${DBUSER}'@'${DBHOST}'"
         run "${MYSQLCLI}" -u root -p"${MYSQL_ROOT_PASSWORD}" -e "GRANT ${DBPRIVILEGES} ON ${DBNAME}.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
-        exit 0
     else
         fail "The specified database '${DBNAME}' does not exist."
     fi
+
+    exit 0
 }
 
 # Creates a new account.
@@ -127,12 +131,17 @@ function cmd_account_create() {
 
             if "${MYSQLCLI}" -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
                 success "MySQL account ${DBUSER} has been created."
-                [[ ${VERBOSE} == true ]] && echo -e "Below the account details:\nUsername: ${DBUSER}\nPassword: ${DBPASS}\nHost: ${DBHOST}"
+                
+                if [[ ${VERBOSE} == true ]]; then
+                    echo -e "Below the account details:\nUsername: ${DBUSER}\nPassword: ${DBPASS}\nHost: ${DBHOST}"
+                fi
             fi
         fi
     else
         fail "Root user is already exist. Please use another one!"
     fi
+
+    exit 0
 }
 
 # Deletes an existing account.
@@ -156,6 +165,8 @@ function cmd_account_delete() {
             info "SQL query: \"${SQL_QUERY}\""
         fi
     fi
+
+    exit 0
 }
 
 # Update password.
@@ -183,6 +194,8 @@ function cmd_account_passwd() {
     else
         info "SQL query: \"${SQL_QUERY}\""
     fi
+
+    exit 0
 }
 
 # Rename an existing account.
@@ -216,6 +229,8 @@ function cmd_account_rename() {
     else
         info "SQL query: \"${SQL_QUERY}\""
     fi
+
+    exit 0
 }
 
 # List all database users
@@ -227,6 +242,8 @@ function cmd_account_users() {
     echo "List all existing database users."
 
     run "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" -e "SELECT user,host FROM mysql.user;"
+
+    exit 0
 }
 
 # Aliases to create.
@@ -255,11 +272,9 @@ function init_cmd_account() {
         case "${SUBCOMMAND}" in
             help | -h | --help)
                 cmd_account_help
-                exit 0
             ;;
             version | -v | --version)
                 cmd_account_version
-                exit 0
             ;;
             *)
                 if declare -F "cmd_account_${SUBCOMMAND}" &>/dev/null; then
@@ -473,11 +488,12 @@ function db_operations() {
                 run "${MYSQLCLI}" -u root -p"${DBPASS}" -e "${SQL_QUERY}"
 
                 if "${MYSQLCLI}" -u root -p"${DBPASS}" -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -qwE "${DBNAME}"; then
-                    success "MySQL database '${DBNAME}' has been created."
-                    exit 0
+                    success "MySQL database '${DBNAME}' has been created and granted to '${DBUSER}'@'${DBHOST}'."
                 else
                     fail "Failed creating database '${DBNAME}'."
                 fi
+
+                exit 0
             ;;
 
             # List all databases.
@@ -500,7 +516,7 @@ function db_operations() {
                     DBS=(${DATABASES})
                     IFS=${SAVEIFS} # Restore IFS
 
-                    echo "There are ${#DBS[@]} databases granted to '${DBUSER}'."
+                    success "There are ${#DBS[@]} databases granted to '${DBUSER}'."
                     echo "+-------------------------------------+"
                     echo "|         'database'@'host'           |"
                     echo "+-------------------------------------+"
@@ -513,8 +529,10 @@ function db_operations() {
 
                     echo "+-------------------------------------+"
                 else
-                    echo "No database found."
+                    info "There is no database granted to '${DBUSER}'."
                 fi
+
+                exit 0
             ;;
 
             # Drope / delete database.
@@ -535,11 +553,13 @@ function db_operations() {
                     if ! "${MYSQLCLI}" -u root -p"${DBPASS}" -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -qwE "${DBNAME}"; then
                         success "Database '${DBNAME}' has been dropped."
                     else
-                        fail "Failed deleting database '${DBNAME}'."
+                        fail "Failed deropping database '${DBNAME}'."
                     fi
                 else
                     fail "The specified database '${DBNAME}' does not exist."
                 fi
+
+                exit 0
             ;;
 
             # Export / dump database to file.
@@ -572,6 +592,8 @@ function db_operations() {
                 else
                     fial "Mysqldump is required to export database, but it is not available in your current stack. Please install it first."
                 fi
+
+                exit 0
             ;;
 
             # Import database from file.
@@ -590,13 +612,15 @@ function db_operations() {
 
                     if "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
                         run "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" "${DBNAME}" < "${DBFILE}"
-                        echo "Database file '${DBFILE}' has been successfully imported to '${DBNAME}'."
+                        success "Database file '${DBFILE}' has been successfully imported to '${DBNAME}'."
                     else
                         fail "The specified database '${DBNAME}' does not exist."
                     fi
                 else
                     fail "Please specifiy the database file (.sql) to import using --dbfile parameter."
                 fi
+
+                exit 0
             ;;
 
             # Perform SQL query.
@@ -622,6 +646,8 @@ function db_operations() {
                 else
                     info "SQL query: \"${SQL_QUERY}\""
                 fi
+
+                exit 0
             ;;
 
             *)
@@ -797,10 +823,13 @@ Example:
 For help with each command run:
 ${CMD_PARENT} ${CMD_NAME} <command> -h|--help
 EOL
+
+exit 0
 }
 
 function cmd_version() {
     echo "${CMD_PARENT} ${CMD_NAME} version ${PROG_VERSION}"
+    exit 0
 }
 
 ##
@@ -815,11 +844,9 @@ function init_lemper_db() {
         case ${SUBCMD} in
             help | -h | --help)
                 cmd_help
-                exit 0
             ;;
             version | -v | --version)
                 cmd_version
-                exit 0
             ;;
             *)
                 if declare -F "cmd_${SUBCMD}" &>/dev/null; then

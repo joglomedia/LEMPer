@@ -906,15 +906,15 @@ function init_lemper_create() {
     if [[ "${MAIN_ARGS}" -ge 1 ]]; then
         # Additional Check - ensure that Nginx's configuration meets the requirements.
         if [[ ! -d /etc/nginx/sites-available && ! -d /etc/nginx/vhost ]]; then
-            fail "It seems that your Nginx installation doesn't meet LEMPer requirements. Aborting..."
+            fail "Your Nginx installation does not meet the LEMPer stack requirements. The installation has been aborted."
         fi
 
         # Check domain parameter.
         if [[ -z "${SERVERNAME}" ]]; then
-            fail -e "Domain name parameter shouldn't be empty.\n       -d or --domain-name parameter is required!"
+            fail -e "The domain name parameter should not be empty. \n       -d or --domain-name parameter is required!"
         else
             if [[ $(validate_fqdn "${SERVERNAME}") == false ]]; then
-                fail "Your Domain name is not valid 'Fully Qualified Domain Name (FQDN)' format!"
+                fail "Invalid input: '${SERVERNAME}' is not a valid FQDN. Expected format: example.com."
             fi
         fi
 
@@ -928,17 +928,17 @@ function init_lemper_create() {
 
         # Check if vhost not exists.
         if [[ ! -f "${VHOST_FILE}" ]]; then
-            echo "Add new domain name '${SERVERNAME}' to virtual host."
+            echo "Adding domain ${SERVERNAME} to the Nginx virtual host configuration."
 
             # Check for username.
             if [[ -z "${USERNAME}" ]]; then
-                info "Username parameter is empty. Attempt to use default '${LEMPER_USERNAME}' account."
+                info "Username parameter is empty. Using default account: '${LEMPER_USERNAME}'."
                 USERNAME=${LEMPER_USERNAME:-"lemper"}
             fi
 
             # Additional Check - are user account exist?
             if [[ -z $(getent passwd "${USERNAME}") ]]; then
-                fail "User account '${USERNAME}' does not exist. Please add new account first! Aborting..."
+                fial "User account '${USERNAME}' does not exist. Create the account first. Aborting..."
             fi
 
             # Check PHP runtime version is exists.
@@ -949,8 +949,8 @@ function init_lemper_create() {
 
                 # Additional check - if FPM user's pool doesn't exist.
                 if [[ ! -f "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf" ]]; then
-                    info "The PHP${PHP_VERSION} FPM pool configuration for user ${USERNAME} doesn't exist."
-                    echo "Creating new PHP-FPM pool '${USERNAME}' configuration..."
+                    info "PHP ${PHP_VERSION} FPM pool configuration for user '${USERNAME}' does not exist."
+                    echo "Creating new PHP ${PHP_VERSION} FPM pool configuration for '${USERNAME}'..."
 
                     # Create PHP FPM pool conf.
                     create_fpm_pool_conf "${USERNAME}" "${PHP_VERSION}" > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
@@ -969,25 +969,23 @@ function init_lemper_create() {
                     run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.lemper" "/home/${USERNAME}/cgi-bin" "/home/${USERNAME}/logs"
 
                     # Restart PHP FPM.
-                    echo "Restart php${PHP_VERSION}-fpm configuration..."
-
+                    echo "Restarting php${PHP_VERSION}-fpm configuration..."
                     run systemctl restart "php${PHP_VERSION}-fpm"
-
-                    success "New php${PHP_VERSION}-fpm pool [${USERNAME}] has been created."
+                    success "PHP ${PHP_VERSION} FPM pool '[${USERNAME}]' has been created."
                 fi
             else
-                fail "Oops, PHP ${PHP_VERSION} runtime not found. Please install it first! Aborting..."
+                fail "PHP ${PHP_VERSION} is not installed. Install it before proceeding. Aborting..."
             fi
 
             # Check web root parameter.
             if [[ -z "${WEBROOT}" ]]; then
                 WEBROOT="/home/${USERNAME}/webapps/${SERVERNAME}"
-                info "Webroot parameter is empty. Set to default web root '${WEBROOT}'."
+                info "Web root path parameter is empty. Using default path: '${WEBROOT}'."
             fi
 
             # Creates document root.
             if [[ ! -d "${WEBROOT}" ]]; then
-                echo "Creating web root directory '${WEBROOT}'..."
+                echo "Creating web root directory: '${WEBROOT}'."
 
                 run mkdir -p "${WEBROOT}" && \
                 run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}" && \
@@ -1006,10 +1004,10 @@ function init_lemper_create() {
             # Check framework parameter.
             if [[ -z "${FRAMEWORK}" ]]; then
                 FRAMEWORK="default"
-                info "Framework parameter is empty. Set to default framework '${FRAMEWORK}'."
+                info "Framework parameter is empty. Using default: '${FRAMEWORK}'."
             fi
 
-            echo "Selecting '${FRAMEWORK^}' framework..."
+            echo "Configuring '${FRAMEWORK^}' framework..."
 
             # Ugly hacks for custom framework-specific configs + Skeleton auto installer.
             case "${FRAMEWORK}" in
