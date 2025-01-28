@@ -16,9 +16,7 @@
 # +-------------------------------------------------------------------------+
 
 # Version control.
-PROG_NAME=$(basename "$0")
-PROG_VER="2.x.x"
-CMD_PARENT="lemper-cli"
+CMD_PARENT="${PROG_NAME}"
 CMD_NAME="manage"
 
 # Make sure only root can access and not direct access.
@@ -37,9 +35,9 @@ fi
 ##
 function show_usage() {
 cat <<- EOL
-${CMD_PARENT} ${CMD_NAME} ${PROG_VER}
-Simple Nginx virtual host (vHost) manager,
-enable/disable/remove Nginx vHost on Debian/Ubuntu Server.
+${CMD_PARENT} ${CMD_NAME} ${PROG_VERSION}
+LEMPer Stack virtual host (vhost) manager, 
+enable, disable, remove Nginx vhost on Debian/Ubuntu server.
 
 Requirements:
   * LEMP stack setup uses [LEMPer](https://github.com/joglomedia/LEMPer)
@@ -66,10 +64,6 @@ Options:
       Enable Gzip compression.
   --disable-compression  <vhost domain name>
       Disable Gzip/Brotli compression.
-  -p, --enable-pagespeed <vhost domain name>
-      Enable Mod PageSpeed.
-  --disable-pagespeed <vhost domain name>
-      Disable Mod PageSpeed.
   -r, --remove <vhost domain name>
       Remove virtual host configuration.
   -s, --enable-ssl <vhost domain name>
@@ -358,77 +352,6 @@ function disable_fastcgi_cache() {
 }
 
 ##
-# Enable Nginx's Mod PageSpeed.
-##
-function enable_mod_pagespeed() {
-    # Verify user input hostname (domain name)
-    local DOMAIN=${1}
-    verify_vhost "${DOMAIN}"
-
-    echo "Enabling Mod PageSpeed for ${DOMAIN}..."
-
-    if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
-        # Enable mod pagespeed.
-        run sed -i "s|#include\ /etc/nginx/mod_pagespeed|include\ /etc/nginx/mod_pagespeed|g" /etc/nginx/nginx.conf
-        run sed -i "s|#include\ /etc/nginx/includes/mod_pagespeed.conf|include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
-            "/etc/nginx/sites-available/${DOMAIN}.conf"
-        run sed -i "s|#pagespeed\ EnableFilters|pagespeed\ EnableFilters|g" \
-            "/etc/nginx/sites-available/${DOMAIN}.conf"
-        run sed -i "s|#pagespeed\ Disallow|pagespeed\ Disallow|g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-        run sed -i "s|#pagespeed\ Domain|pagespeed\ Domain|g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-
-        # If SSL enabled, ensure to also enable PageSpeed related vars.
-        #if grep -qwE "^\    include\ /etc/nginx/includes/ssl.conf" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-        #    run sed -i "s/#pagespeed\ FetchHttps/pagespeed\ FetchHttps/g" \
-        #        "/etc/nginx/sites-available/${DOMAIN}.conf"
-        #    run sed -i "s/#pagespeed\ MapOriginDomain/pagespeed\ MapOriginDomain/g" \
-        #        "/etc/nginx/sites-available/${DOMAIN}.conf"
-        #fi
-
-        # Reload Nginx.
-        reload_nginx
-    else
-        info "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module."
-        exit 1
-    fi
-}
-
-##
-# Disable Nginx's Mod PageSpeed.
-##
-function disable_mod_pagespeed() {
-    # Verify user input hostname (domain name)
-    local DOMAIN=${1}
-    verify_vhost "${DOMAIN}"
-
-    echo "Disabling Mod PageSpeed for ${DOMAIN}..."
-
-    if [[ -f /etc/nginx/includes/mod_pagespeed.conf && -f /etc/nginx/modules-enabled/50-mod-pagespeed.conf ]]; then
-        # Disable mod pagespeed
-        #run sed -i "s|^\    include\ /etc/nginx/mod_pagespeed|\    #include\ /etc/nginx/mod_pagespeed|g" /etc/nginx/nginx.conf
-        run sed -i "s|^\    include\ /etc/nginx/includes/mod_pagespeed.conf|\    #include\ /etc/nginx/includes/mod_pagespeed.conf|g" \
-            "/etc/nginx/sites-available/${DOMAIN}.conf"
-        run sed -i "s|^\    pagespeed\ EnableFilters|\    #pagespeed\ EnableFilters|g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-        run sed -i "s|^\    pagespeed\ Disallow|\    #pagespeed\ Disallow|g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-        run sed -i "s|^\    pagespeed\ Domain|\    #pagespeed\ Domain|g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-
-        # If SSL enabled, ensure to also disable PageSpeed related vars.
-        #if grep -qwE "\    include /etc/nginx/includes/ssl.conf" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-        #    run sed -i "s/^\    pagespeed\ FetchHttps/\    #pagespeed\ FetchHttps/g" \
-        #        "/etc/nginx/sites-available/${DOMAIN}.conf"
-        #    run sed -i "s/^\    pagespeed\ MapOriginDomain/\    #pagespeed\ MapOriginDomain/g" \
-        #        "/etc/nginx/sites-available/${DOMAIN}.conf"
-        #fi
-
-        # Reload Nginx.
-        reload_nginx
-    else
-        info "Mod PageSpeed is not enabled. Nginx must be installed with PageSpeed module."
-        exit 1
-    fi
-}
-
-##
 # Enable HTTPS (HTTP over SSL).
 ##
 function enable_ssl() {
@@ -448,11 +371,11 @@ function enable_ssl() {
             if [[ -n $(command -v certbot) ]]; then
                 # Is it wildcard vhost?
                 if grep -qwE "${DOMAIN}\ \*.${DOMAIN}" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-                    run certbot certonly --manual --manual-public-ip-logging-ok --preferred-challenges dns \
-                        --server https://acme-v02.api.letsencrypt.org/directory --agree-tos \
+                    run certbot certonly --force-renewal --manual --noninteractive --manual-public-ip-logging-ok \
+                        --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory --agree-tos \
                         --webroot-path="${WEBROOT}" -d "${DOMAIN}" -d "*.${DOMAIN}"
                 else
-                    run certbot certonly --webroot --preferred-challenges http --agree-tos \
+                    run certbot certonly --force-renewal --webroot --noninteractive --preferred-challenges http --agree-tos \
                         --webroot-path="${WEBROOT}" -d "${DOMAIN}"
                 fi
             else
@@ -481,7 +404,8 @@ function enable_ssl() {
             #run openssl dhparam -out /etc/nginx/ssl/dhparam-4096.pem 4096
         fi
     else
-        info "SSL certificates is already exists for ${DOMAIN}."
+        info "SSL certificates is already exists for ${DOMAIN}, trying to renew."
+        renew_ssl "${DOMAIN}"
     fi
 
     # Update vhost config.
@@ -495,10 +419,9 @@ function enable_ssl() {
             # Change listening port to 443.
             if grep -qwE "^\    listen\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b:80" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
                 run sed -i "s/\:80/\:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            else
-                run sed -i "s/listen\ 80/listen\ 443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             fi
-
+            
+            run sed -i "s/listen\ 80/listen\ 443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
 
             # Enable SSL configs.
@@ -509,17 +432,7 @@ function enable_ssl() {
             run sed -i "s|#include\ /etc/nginx/includes/ssl.conf|include\ /etc/nginx/includes/ssl.conf|g" \
                 "/etc/nginx/sites-available/${DOMAIN}.conf"
 
-            # Adjust PageSpeed if enabled.
-            #if grep -qwE "^\    include\ /etc/nginx/includes/mod_pagespeed.conf" \
-            #    "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-            #    echo "Adjusting PageSpeed configuration..."
-            #    run sed -i "s/#pagespeed\ FetchHttps/pagespeed\ FetchHttps/g" \
-            #        "/etc/nginx/sites-available/${DOMAIN}.conf"
-            #    run sed -i "s/#pagespeed\ MapOriginDomain/pagespeed\ MapOriginDomain/g" \
-            #        "/etc/nginx/sites-available/${DOMAIN}.conf"
-            #fi
-
-            # Append redirection block.
+            # Append HTTP <=> HTTPS redirection block.
             cat >> "/etc/nginx/sites-available/${DOMAIN}.conf" <<EOL
 
 ## HTTP to HTTPS redirection.
@@ -799,7 +712,7 @@ function disable_compression() {
 function verify_vhost() {
     if [[ -z "${1}" ]]; then
         error "Virtual host (vhost) or domain name is required."
-        echo "See '${PROG_NAME} --help' for more information."
+        echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information."
         exit 1
     fi
 
@@ -862,8 +775,11 @@ function generate_selfsigned_ssl() {
     local SERVER_IP=${2:-$(get_ip_public)}
     verify_vhost "${DOMAIN}"
 
-    [ ! -d "/etc/lemper/ssl/${DOMAIN}" ] && run mkdir -p "/etc/lemper/ssl/${DOMAIN}"
+    if [ ! -d "/etc/lemper/ssl/${DOMAIN}" ]; then
+        run mkdir -p "/etc/lemper/ssl/${DOMAIN}"
+    fi
 
+    run sed -i "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/ca.conf && \
     run sed -i "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
     run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
     run sed -i "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
@@ -872,18 +788,12 @@ function generate_selfsigned_ssl() {
     run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
 
     # Create Certificate Authority (CA).
-    if [[ ! -f /etc/lemper/ssl/lemperCA.key || ! -f /etc/lemper/ssl/lemperCA.crt ]]; then
-        run openssl req -x509 -sha256 -days 365000 -nodes -newkey rsa:2048 \
-            -keyout "/etc/lemper/ssl/${DOMAIN}-ca.key" -out "/etc/lemper/ssl/${DOMAIN}-ca.crt" \
-            -config /etc/lemper/ssl/ca.conf
-            #-subj "/CN=${HOSTNAME}/C=ID/L=Jakarta"
+    run openssl req -x509 -sha256 -days 365000 -nodes -newkey rsa:2048 \
+        -keyout "/etc/lemper/ssl/${DOMAIN}/ca.key" -out "/etc/lemper/ssl/${DOMAIN}/ca.crt" \
+        -config /etc/lemper/ssl/ca.conf
 
-        CA_KEY_FILE="/etc/lemper/ssl/${DOMAIN}-ca.key"
-        CA_CRT_FILE="/etc/lemper/ssl/${DOMAIN}-ca.crt"
-    else
-        CA_KEY_FILE="/etc/lemper/ssl/lemperCA.key"
-        CA_CRT_FILE="/etc/lemper/ssl/lemperCA.crt"
-    fi
+    CA_KEY_FILE="/etc/lemper/ssl/${DOMAIN}/ca.key"
+    CA_CRT_FILE="/etc/lemper/ssl/${DOMAIN}/ca.crt"
 
     # Create Server Private Key.
     run openssl genrsa -out "/etc/lemper/ssl/${DOMAIN}/privkey.pem" 2048 && \
@@ -901,12 +811,11 @@ function generate_selfsigned_ssl() {
     # Create chain file.
     run cat "/etc/lemper/ssl/${DOMAIN}/cert.pem" "${CA_CRT_FILE}" >> \
         "/etc/lemper/ssl/${DOMAIN}/fullchain.pem"
-    #run ln -s "/etc/lemper/ssl/${DOMAIN}/cert.pem" "/etc/lemper/ssl/${HOSTNAME}/fullchain.pem"
 
     if [ -f "/etc/lemper/ssl/${DOMAIN}/cert.pem" ]; then
         success "Self-signed SSL certificate has been successfully generated."
     else
-        fail "An error occurred when generating self-signed SSL certificate."
+        fail "An error occurred while generating self-signed SSL certificate."
     fi
 }
 
@@ -943,10 +852,9 @@ function get_ip_public() {
 # Main Manage CLI Wrapper
 ##
 function init_lemper_manage() {
-    OPTS=$(getopt -o c:d:e:f:p:r:s:bghv \
+    OPTS=$(getopt -o c:d:e:f:r:s:bghv \
       -l enable:,disable:,remove:,enable-fail2ban:,disable-fail2ban:,enable-fastcgi-cache:,disable-fastcgi-cache: \
-      -l enable-pagespeed:,disable-pagespeed:,enable-ssl:,disable-ssl:,remove-ssl:,renew-ssl: \
-      -l enable-brotli:,enable-gzip:,disable-compression:,help,version \
+      -l enable-ssl:,disable-ssl:,remove-ssl:,renew-ssl:,enable-brotli:,enable-gzip:,disable-compression:,help,version \
       -n "${PROG_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
@@ -957,82 +865,86 @@ function init_lemper_manage() {
             -e | --enable)
                 enable_vhost "${2}"
                 shift 2
+                exit 0
             ;;
             -d | --disable)
                 disable_vhost "${2}"
                 shift 2
+                exit 0
             ;;
             -r | --remove)
                 remove_vhost "${2}"
                 shift 2
+                exit 0
             ;;
             -c | --enable-fastcgi-cache)
                 enable_fastcgi_cache "${2}"
                 shift 2
+                exit 0
             ;;
             --disable-fastcgi-cache)
                 disable_fastcgi_cache "${2}"
                 shift 2
+                exit 0
             ;;
             -f | --enable-fail2ban)
                 enable_fail2ban "${2}"
                 shift 2
+                exit 0
             ;;
             --disable-fail2ban)
                 disable_fail2ban "${2}"
                 shift 2
-            ;;
-            -p | --enable-pagespeed)
-                enable_mod_pagespeed "${2}"
-                shift 2
-            ;;
-            --disable-pagespeed)
-                disable_mod_pagespeed "${2}"
-                shift 2
+                exit 0
             ;;
             -s | --enable-ssl)
                 enable_ssl "${2}"
-                exit 0
                 shift 2
+                exit 0
             ;;
             --disable-ssl)
                 disable_ssl "${2}"
-                exit 0
                 shift 2
+                exit 0
             ;;
             --remove-ssl)
                 remove_ssl "${2}"
-                exit 0
                 shift 2
+                exit 0
             ;;
             --renew-ssl)
                 renew_ssl "${2}"
-                exit 0
                 shift 2
+                exit 0
             ;;
             -b | --enable-brotli)
                 enable_brotli "${2}"
                 shift 2
+                exit 0
             ;;
             -g | --enable-gzip)
                 enable_gzip "${2}"
                 shift 2
+                exit 0
             ;;
             --disable-compression)
                 disable_compression "${2}"
                 shift 2
+                exit 0
             ;;
             -h | --help)
                 show_usage
-                exit 0
                 shift 2
+                exit 0
             ;;
             -v | --version)
-                echo "${PROG_NAME} version ${PROG_VER}"
-                exit 0
+                echo "${PROG_NAME} version ${PROG_VERSION}"
                 shift 2
+                exit 0
             ;;
-            --) shift
+            --)
+                # End of all options, shift to the next (non getopt) argument as $1.
+                shift
                 break
             ;;
             *)
@@ -1042,8 +954,8 @@ function init_lemper_manage() {
         esac
     done
 
-    echo "${PROG_NAME}: missing required argument"
-    echo "See '${PROG_NAME} --help' for more information."
+    echo "${CMD_PARENT} ${CMD_NAME}: missing required argument"
+    echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information."
 }
 
 # Start running things from a call at the end so if this script is executed

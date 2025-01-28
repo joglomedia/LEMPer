@@ -73,13 +73,13 @@ function init_memcached_install() {
                 # Install Libevent from source.
                 #LIBEVENT_DOWNLOAD_URL="https://github.com/libevent/libevent/releases/download/release-2.1.11-stable/libevent-2.1.11-stable.tar.gz"
                 #if curl -sLI "${LIBEVENT_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                #    run wget -O libevent.tar.gz "${LIBEVENT_DOWNLOAD_URL}"
-                #    run tar -zxf libevent.tar.gz
-                #    run cd libevent-*
-                #    run ./configure --prefix=/usr/local/libevent
-                #    run make
-                #    run make install
-                #    run cd "${BUILD_DIR}"
+                #    run curl -sSL -o libevent.tar.gz "${LIBEVENT_DOWNLOAD_URL}" && \
+                #    run tar -zxf libevent.tar.gz && \
+                #    run cd libevent-* && \
+                #    run ./configure --prefix=/usr/local/libevent && \
+                #    run make && \
+                #    run make install && \
+                #    run cd "${BUILD_DIR}" || return 1
                 #fi
 
                 # Memcached source.
@@ -90,7 +90,7 @@ function init_memcached_install() {
                 fi
 
                 if curl -sLI "${MEMCACHED_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                    run wget "${MEMCACHED_DOWNLOAD_URL}" -O memcached.tar.gz && \
+                    run curl -sSL -o memcached.tar.gz "${MEMCACHED_DOWNLOAD_URL}" && \
                     run tar -zxf memcached.tar.gz && \
                     run cd memcached-* && \
 

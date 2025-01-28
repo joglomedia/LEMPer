@@ -224,7 +224,7 @@ function init_pureftpd_install() {
 
                 if [ ! -f "${PUREFTPD_FILENAME}" ]; then
                     if curl -sLI "${PUREFTPD_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                        run wget "${PUREFTPD_ZIP_URL}"
+                        run curl -sSL -o "${PUREFTPD_FILENAME}" "${PUREFTPD_ZIP_URL}"
                     else
                         error "Cannot download PureFTPd source: '${PUREFTPD_FILENAME}'."
                     fi

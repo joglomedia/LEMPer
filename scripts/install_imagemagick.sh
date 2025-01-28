@@ -71,7 +71,7 @@ function init_imagemagick_install() {
 
                 if curl -sLI "${IMAGEMAGICK_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
                     run cd "${BUILD_DIR}" && \
-                    run wget "${IMAGEMAGICK_ZIP_URL}" && \
+                    run curl -sSL -o "${IMAGEMAGICK_FILENAME}" "${IMAGEMAGICK_ZIP_URL}" && \
                     run tar -xf "${IMAGEMAGICK_FILENAME}" && \
                     run cd ImageMagick-*/ && \
                     run ./configure && \

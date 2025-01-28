@@ -68,6 +68,7 @@ function init_postgres_install() {
     export POSTGRES_DB_PASS=${POSTGRES_DB_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
 
     local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
+    local POSTGRES_PORT=${POSTGRES_PORT:-"5432"}
     local POSTGRES_TEST_DB="${POSTGRES_DB_USER}db"
     #local PGDATA=${POSTGRES_PGDATA:-"/var/lib/postgresql/data"}
     local POSTGRES_PKGS=()
@@ -108,6 +109,10 @@ function init_postgres_install() {
         if [[ "${DRYRUN}" == true ]]; then
             info "PostgreSQL server installed in dry run mode."
         else
+            if [[ -f "/etc/postgresql/${POSTGRES_VERSION}/main/postgresql.conf" ]]; then
+                sed -i "s/port\ =\ [0-9]*/port\ =\ ${POSTGRES_PORT}/g" "/etc/postgresql/${POSTGRES_VERSION}/main/postgresql.conf"
+            fi
+
             if [[ -f "/lib/systemd/system/postgresql@${POSTGRES_VERSION}-main.service" ]]; then
                 # Trying to reload daemon.
                 run systemctl daemon-reload
@@ -115,8 +120,9 @@ function init_postgres_install() {
                 # Enable PostgreSQL on startup.
                 run systemctl enable "postgresql@${POSTGRES_VERSION}-main.service"
 
-                # Restart PostgreSQL service daemon.
-                #run systemctl restart "postgresql@${POSTGRES_VERSION}-main.service"
+                # Start PostgreSQL service daemon.
+                run systemctl start "postgresql@${POSTGRES_VERSION}-main.service"
+                sleep 2
             fi
 
             if [[ $(pgrep -c postgres) -gt 0 || -n $(command -v psql) ]]; then
@@ -127,16 +133,17 @@ function init_postgres_install() {
                 if [[ -n $(command -v psql) && "${SERVER_HOSTNAME}" != "gh-ci.lemper.cloud" ]]; then
                     echo "Creating PostgreSQL user '${POSTGRES_DB_USER}' and database '${POSTGRES_TEST_DB}'."
 
+                    run systemctl restart "postgresql@${POSTGRES_VERSION}-main.service"
+                    sleep 3
+
                     run sudo -i -u "${POSTGRES_SUPERUSER}" -- psql -v ON_ERROR_STOP=1 <<-PGSQL
-                        CREATE ROLE ${POSTGRES_DB_USER} LOGIN PASSWORD '${POSTGRES_DB_PASS}';
+                        CREATE USER ${POSTGRES_DB_USER} WITH PASSWORD '${POSTGRES_DB_PASS}';
                         CREATE DATABASE ${POSTGRES_TEST_DB};
+                        CREATE DATABASE ${POSTGRES_TEST_DB} WITH ENCODING 'UTF8' LC_COLLATE='en_US.UTF-8' LC_CTYPE='en_US.UTF-8' TEMPLATE=template0 OWNER=${POSTGRES_DB_USER};
                         GRANT ALL PRIVILEGES ON DATABASE ${POSTGRES_TEST_DB} TO ${POSTGRES_DB_USER};
+                        ALTER USER ${POSTGRES_DB_USER} CREATEDB;
 PGSQL
                 fi
-
-                # Restart Postgres
-                run systemctl restart "postgresql@${POSTGRES_VERSION}-main.service"
-                sleep 3
 
                 if [[ $(pgrep -c postgres) -gt 0 ]]; then
                     success "PostgreSQL server configured successfully."

@@ -90,7 +90,7 @@ EOL
     if [[ ${INSTALL_REDIS} == true ]]; then
         echo "Kernel optimization for Redis..."
 
-        run bash -c "echo never > /sys/kernel/mm/transparent_hugepage/enabled"
+        #run bash -c "echo 'never' > /sys/kernel/mm/transparent_hugepage/enabled"
 
         if [[ ! -f /etc/rc.local ]]; then
             run touch /etc/rc.local
@@ -101,7 +101,7 @@ EOL
 ###################################################################
 # Custom optimization for LEMPer
 #
-echo never > /sys/kernel/mm/transparent_hugepage/enabled
+#echo 'never' > /sys/kernel/mm/transparent_hugepage/enabled
 EOL
     fi
 

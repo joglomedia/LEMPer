@@ -123,17 +123,18 @@ EOL
         run postconf -e "virtual_alias_domains=/etc/postfix/virtual/domains"
 
         # Enable Postfix on startup.
+        run systemctl enable postfix.service
         run systemctl enable postfix@-.service
 
         # Installation status.
         if [[ "${DRYRUN}" != true ]]; then
-            if [[ $(pgrep -c master) -gt 0 ]]; then
-                run systemctl reload postfix
+            if [[ $(systemctl is-active postfix) == "active" ]]; then
+                run systemctl reload postfix.service
                 success "Postfix reloaded successfully."
             elif [[ -n $(command -v postfix) ]]; then
-                run systemctl start postfix
+                run systemctl start postfix.service
 
-                if [[ $(pgrep -c master) -gt 0 ]]; then
+                if [[ $(systemctl is-active postfix) == "active" ]]; then
                     success "Postfix started successfully."
                 else
                     error "Something goes wrong with Postfix installation."

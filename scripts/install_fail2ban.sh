@@ -73,7 +73,7 @@ function init_fail2ban_install() {
                 fail2ban_download_link="https://github.com/fail2ban/fail2ban/archive/${FAIL2BAN_VERSION}.tar.gz"
 
                 if curl -sLI "${fail2ban_download_link}" | grep -q "HTTP/[.12]* [2].."; then
-                    run wget "${fail2ban_download_link}" -O fail2ban.tar.gz  && \
+                    run curl -sSL -o fail2ban.tar.gz "${fail2ban_download_link}" && \
                     run tar -zxf fail2ban.tar.gz && \
                     run cd fail2ban-*/ || return
 

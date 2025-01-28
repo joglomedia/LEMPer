@@ -15,6 +15,16 @@
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
+# Version control.
+#CMD_PARENT="${PROG_NAME}"
+#CMD_NAME="account"
+
+# Make sure only root can access and not direct access.
+if [[ "$(type -t requires_root)" != "function" ]]; then
+    echo "Direct access to this script is not permitted."
+    exit 1
+fi
+
 # Create default system account.
 function create_account() {
     export USERNAME=${1:-"lemper"}

@@ -298,7 +298,7 @@ function install_csf() {
 
     echo "Installing CSF+LFD firewall..."
     if curl -sLI https://download.configserver.com/csf.tgz | grep -q "HTTP/[.12]* [2].."; then
-        run wget https://download.configserver.com/csf.tgz && \
+        run curl -sSL -o csf.tgz https://download.configserver.com/csf.tgz && \
         run tar -xzf csf.tgz && \
         run cd csf/ && \
         run sh install.sh && \
@@ -408,7 +408,7 @@ function install_apf() {
 
     if curl -sLI "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
     | grep -q "HTTP/[.12]* [2].."; then
-        run wget "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" && \
+        run curl -sSL -o "${APF_VERSION}.tar.gz" "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" && \
         run tar -xf "${APF_VERSION}.tar.gz" && \
         run cd advanced-policy-firewall-*/ && \
         run bash install.sh && \

@@ -20,11 +20,10 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 ## Features
 
 * Nginx - A high performance web server and a reverse proxy server.
-  * Community package from [Ondrej repo](https://launchpad.net/~ondrej/+archive/ubuntu/nginx) or @eilandert's [MyGuard repo](https://deb.myguard.nl/nginx-modules/) with built-in PageSpeed module.
+  * Community package from [Ondrej repo](https://launchpad.net/~ondrej/+archive/ubuntu/nginx) or @eilandert's [MyGuard repo](https://deb.myguard.nl/nginx-modules/) with built-in modules.
   * Custom build from [source](https://github.com/nginx/nginx) featured with :
     * [Brotli module](https://github.com/google/ngx_brotli.git) an alternative compression to Gzip
     * [Lua Nginx module](https://github.com/openresty/lua-nginx-module) with LuaJIT 2 library
-    * [PageSpeed module](https://github.com/apache/incubator-pagespeed-ngx) an automatic PageSpeed optimization
     * FastCGI [cache purge module](https://github.com/nginx-modules/ngx_cache_purge.git) for atomic cache purging
     * Customizable SSL library: OpenSSL (default), LibreSSL, and BoringSSL
     * and much more useful 3rd-party modules.
@@ -35,13 +34,14 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
   * Get an A+ grade on several SSL Security Test ([Qualys SSL Labs](https://www.ssllabs.com/ssltest/analyze.html?d=masedi.net), [ImmuniWeb](https://www.immuniweb.com/ssl/?id=bVrykFnK), and Wormly).
 * PHP - Most used language that [powers 78.9% of all websites](https://w3techs.com/technologies/details/pl-php) around the universe.
   * Community package from [Ondrej's PHP repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
-  * Multiple PHP versions ~7.1 [EOL]~, ~7.2 [EOL]~, ~7.3 [EOL]~, ~7.4 [EOL]~, ~8.0 [EOL]~, 8.1 [SFO], 8.2 [Stable], 8.3 [Latest].
+  * Multiple PHP versions ~7.1 [EOL]~, ~7.2 [EOL]~, ~7.3 [EOL]~, ~7.4 [EOL]~, ~8.0 [EOL]~, 8.1 [SFO], 8.2 [SFO], 8.3 [Stable], 8.4 [Latest].
   * Run PHP as user who own the file (Multi-user isolation via FPM pool).
   * Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
   * Supported PHP Framework and CMS:
     * Vanilla PHP: default,
     * Framework: codeigniter, laravel, lumen, phalcon, symfony,
-    * CMS: drupal, mautic, roundcube, sendy, wordpress, wordpress-ms (multi-site), and
+    * Content Management: drupal, wordpress, wordpress-ms (multi-site),
+    * Web Application: mautic, owncloud, roundcube, sendy, and
     * more coming soon.
   * PHP Zend OPcache.
   * PHP Loader, ionCube & SourceGuardian.
@@ -115,19 +115,19 @@ lemper-cli site add --help
 Example, enable SSL
 
 ```bash
-sudo lemper-cli manage --enable-ssl example.test
+sudo lemper-cli site mod --enable-ssl example.test
 ```
 
 Example, enable FastCGI cache
 
 ```bash
-sudo lemper-cli manage --enable-fastcgi-cache example.test
+sudo lemper-cli site mod --enable-fastcgi-cache example.test
 ```
 
 For more info
 
 ```bash
-sudo lemper-cli manage --help
+sudo lemper-cli site mod --help
 ```
 
 ##### for more help
@@ -136,7 +136,7 @@ sudo lemper-cli manage --help
 sudo lemper-cli help
 ```
 
-Note: LEMPer CLI automagically add a new PHP-FPM user's pool configuration if it doesn't exists. You must add the user account first.
+Note: LEMPer CLI automagically create new PHP-FPM user's pool configuration if it doesn't exists. You must add the user account first.
 
 ### Web-based Administration
 

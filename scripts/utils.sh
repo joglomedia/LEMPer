@@ -247,8 +247,7 @@ function version_sort() {
 }
 
 # Compare two numeric versions in the form "A.B.C".    Works with version numbers
-# having up to four components, since that's enough to handle both nginx (3) and
-# ngx_pagespeed (4).
+# having up to four components, since that's enough to handle nginx (3)
 function version_older_than() {
     local test_version && \
     test_version=$(echo "$@" | tr ' ' '\n' | version_sort | head -n 1)
@@ -348,7 +347,11 @@ function get_distrib_name() {
         [ -f /etc/lsb-release ] && . /etc/lsb-release
 
         # Get distribution name.
-        [[ "${ID_LIKE}" == "ubuntu" ]] && DISTRIB_NAME="ubuntu" || DISTRIB_NAME=${ID:-"unsupported"}
+        if [[ "${ID_LIKE}" == "ubuntu" ]]; then
+            DISTRIB_NAME="ubuntu"
+        else
+            DISTRIB_NAME=${ID:-"unsupported"}
+        fi
     elif [[ -e /etc/system-release ]]; then
     	DISTRIB_NAME="unsupported"
     else
@@ -407,34 +410,22 @@ function get_release_name() {
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
 
                 case "${DISTRIB_RELEASE}" in
-                    "18.04"|"LM19")
-                        # Ubuntu release 18.04, LinuxMint 19
-                        RELEASE_NAME=${UBUNTU_CODENAME:-"bionic"}
-                    ;;
-                    "20.04"|"LM20")
+                    "20.04" | "LM20")
                         # Ubuntu release 20.04, LinuxMint 20
                         RELEASE_NAME=${UBUNTU_CODENAME:-"focal"}
                     ;;
-                    "22.04"|"LM21")
+                    "22.04" | "LM21")
                         # Ubuntu release 22.04, LinuxMint 21
                         RELEASE_NAME=${UBUNTU_CODENAME:-"jammy"}
+                    ;;
+                    "24.04" | "LM22")
+                        # Ubuntu release 24.04, LinuxMint 24
+                        RELEASE_NAME=${UBUNTU_CODENAME:-"noble"}
                     ;;
                     *)
                         RELEASE_NAME="unsupported"
                     ;;
                 esac
-            ;;
-            amzn)
-                # Amazon based on RHEL/CentOS
-                RELEASE_NAME="unsupported"
-
-                # TODO for Amzn install
-            ;;
-            centos | fedora | rocky)
-                # CentOS
-                RELEASE_NAME="unsupported"
-
-                # TODO for CentOS install
             ;;
             *)
                 RELEASE_NAME="unsupported"
@@ -604,10 +595,11 @@ function preflight_system_check() {
         fi
 
         # Check if the hostname is pointed to server IP address.
-        #if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" && $(dig "${HOSTNAME}" +short) != "${SERVER_IP_LOCAL}" ]]; then
-        if [[ $(host -4 "${HOSTNAME}" | awk '{print $NF}') != "${SERVER_IP}" && $(host -4 "${HOSTNAME}" | awk '{print $NF}') != "${SERVER_IP_LOCAL}" ]]; then
-            error "It seems that your server's hostname '${HOSTNAME}' is not yet pointed to your server's public IP address."
-            echo -n "In production environment you need to add an A record and point it to this IP address "; status -n "${SERVER_IP}"; echo " !"
+        sleep 2
+
+        if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" && $(dig "${HOSTNAME}" +short) != "${SERVER_IP_LOCAL}" ]]; then
+            error "Your hostname '${V_DOMAIN}' doesn't appear to be currently pointed to this server's public IP address."
+            echo -n "In a production environment, you'll need to add an A record pointing to this IP address "; status -n "${SERVER_IP}"; echo " !"
             exit 1
         fi
     fi
@@ -623,57 +615,59 @@ function preflight_system_check() {
 # Get physical RAM size.
 function get_ram_size() {
     local _RAM_SIZE
+    local _RAM_UNIT
     local RAM_SIZE_IN_MB
 
     # Calculate RAM size in MB.
-    _RAM_SIZE=$(dmidecode -t 17 | awk '( /Size/ && $2 ~ /^[0-9]+$/ ) { x+=$2 } END{ print x}')
+    #_RAM_SIZE=$(dmidecode -t 17 | awk '( /Size/ && $2 ~ /^[0-9]+$/ ) { x+=$2 } END{ print x}')
+    _RAM_SIZE=$(dmidecode -t 17 | awk '( /Size/ && $2 ~ /^[0-9]+$/ ) { print $2}')
+    _RAM_UNIT=$(dmidecode -t 17 | awk '( /Size/ && $2 ~ /^[0-9]+$/ ) { print $3}')
 
-    # Hack for calculating RAM size in MiB.
-    if [[ ${_RAM_SIZE} -le 128 ]]; then
-        # If RAM size less than / equal 128, assume that the size is in GB.
-        RAM_SIZE_IN_MB=$((_RAM_SIZE * 1024))
-    else
-        RAM_SIZE_IN_MB=$((_RAM_SIZE * 1))
-    fi
+    case "${_RAM_UNIT}" in
+        "GB")
+            RAM_SIZE_IN_MB=$((_RAM_SIZE * 1024))
+        ;;
+        *)
+            RAM_SIZE_IN_MB=$((_RAM_SIZE * 1))
+        ;;
+    esac
 
     echo "${RAM_SIZE_IN_MB}"
 }
 
-# Create custom Swap.
+# Create custom swap space for low end box.
 function create_swap() {
     local SWAP_FILE="/swapfile"
+    local SWAP_SIZE=1024
     local RAM_SIZE && \
     RAM_SIZE=$(get_ram_size)
 
     if [[ ${RAM_SIZE} -le 2048 ]]; then
         # If machine RAM less than / equal 2GiB, set swap to 2x of RAM size.
-        local SWAP_SIZE=$((RAM_SIZE * 2))
+        SWAP_SIZE=$((RAM_SIZE * 2))
     elif [[ ${RAM_SIZE} -gt 2048 && ${RAM_SIZE} -le 32768 ]]; then
         # If machine RAM less than / equal 32GiB and greater than 2GiB, set swap equal to RAM size + 1x.
-        local SWAP_SIZE=$((4096 + (RAM_SIZE - 2048)))
+        SWAP_SIZE=$((4096 + (RAM_SIZE - 2048)))
     else
         # Otherwise, set swap to max of 1x of the physical / allocated memory.
-        local SWAP_SIZE=$((RAM_SIZE * 1))
+        SWAP_SIZE=$((RAM_SIZE * 1))
     fi
 
-    echo "Creating ${SWAP_SIZE}MiB swap..."
+    echo "Creating ${SWAP_SIZE}MiB swap space..."
 
     # Create swap.
-    run fallocate -l "${SWAP_SIZE}M" ${SWAP_FILE} && \
-    run chmod 600 ${SWAP_FILE} && \
-    run chown root:root ${SWAP_FILE} && \
-    run mkswap ${SWAP_FILE} && \
-    run swapon ${SWAP_FILE}
+    fallocate -l "${SWAP_SIZE}M" "${SWAP_FILE}" && \
+    chmod 600 "${SWAP_FILE}" && \
+    chown root:root "${SWAP_FILE}" && \
+    mkswap "${SWAP_FILE}" && \
+    swapon "${SWAP_FILE}"
 
     # Make the change permanent.
-    if [[ ${DRYRUN} != true ]]; then
-        if grep -qwE "#${SWAP_FILE}" /etc/fstab; then
-            run sed -i "s|#${SWAP_FILE}|${SWAP_FILE}|g" /etc/fstab
-        else
-            run echo "${SWAP_FILE} swap swap defaults 0 0" >> /etc/fstab
-        fi
+    if grep -qwE "#${SWAP_FILE}" /etc/fstab; then
+        sed -i "s|#${SWAP_FILE}|${SWAP_FILE}|g" /etc/fstab
     else
-        echo "Add persistent swap to fstab in dry run mode."
+        echo "${SWAP_FILE} swap swap defaults 0 0" >> /etc/fstab
+        success "Swap space created and enabled at '${SWAP_FILE}'."
     fi
 }
 
@@ -688,7 +682,7 @@ function remove_swap() {
 
         echo "Swap file removed."
     else
-        info "Unable to remove swap."
+        info "Unable to remove swap file."
     fi
 }
 
@@ -697,13 +691,11 @@ function enable_swap() {
     echo "Checking swap..."
 
     if free | awk '/^Swap:/ {exit !$2}'; then
-        local SWAP_SIZE && \
-        SWAP_SIZE=$(free -m | awk '/^Swap:/ { print $2 }')
+        local SWAP_SIZE && SWAP_SIZE=$(free -m | awk '/^Swap:/ { print $2 }')
         info "Swap size ${SWAP_SIZE}MiB."
     else
         info "No swap detected."
         create_swap
-        success "Swap created and enabled."
     fi
 }
 
@@ -720,6 +712,8 @@ function create_account() {
             run useradd -d "/home/${LEMPER_USERNAME}" -m -s /bin/bash "${LEMPER_USERNAME}"
             run echo "${LEMPER_USERNAME}:${LEMPER_PASSWORD}" | chpasswd
             run usermod -aG sudo "${LEMPER_USERNAME}"
+            run touch /etc/sudoers.d/90-lemper-users && \
+            run echo "${LEMPER_USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/90-lemper-users
 
             # Create default directories.
             run mkdir -p "/home/${LEMPER_USERNAME}/webapps" && \

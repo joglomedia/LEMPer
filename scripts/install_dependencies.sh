@@ -44,7 +44,7 @@ run apt-get install -q -y \
     cmake cron curl dmidecode dnsutils gcc gdb git gnupg2 htop iptables libc-bin libc6-dev \
     libcurl4-openssl-dev libgpgme11-dev libssl-dev libpcre3-dev libxml2-dev libxslt1-dev \
     libtool locales logrotate lsb-release make net-tools openssh-server openssl pkg-config \
-    re2c rsync software-properties-common sasl2-bin snap snmp sudo sysstat tar tzdata unzip wget \
+    re2c rsync software-properties-common sasl2-bin snap snmp sqlite3 sudo sysstat tar tzdata unzip wget \
     whois xz-utils zlib1g-dev geoip-bin geoip-database gettext gettext-base libgeoip-dev libpthread-stubs0-dev uuid-dev
 
 if [[ ! -d /root/.gnupg ]]; then
@@ -58,7 +58,7 @@ function install_python_from_source() {
     local PYTHON_VERSION=${1}
 
     if [[ -z "${PYTHON_VERSION}" ]]; then
-        PYTHON_VERSION=${DEFAULT_PYTHON_VERSION:-"3.9.19"}
+        PYTHON_VERSION=${DEFAULT_PYTHON_VERSION:-"3.13.0"}
     fi
 
     local CURRENT_DIR && \
@@ -73,8 +73,8 @@ function install_python_from_source() {
         run cd "Python-${PYTHON_VERSION}" && \
         run ./configure --enable-shared --enable-optimizations --prefix=/usr/local LDFLAGS="-Wl,--rpath=/usr/local/lib" && \
         run make altinstall && \
-        run update-alternatives --install /usr/bin/python python /usr/local/bin/python3.9 39 && \
-        run update-alternatives --set python /usr/local/bin/python3.9 && \
+        run update-alternatives --install /usr/bin/python python /usr/local/bin/python3.13 313 && \
+        run update-alternatives --set python /usr/local/bin/python3.13 && \
         run curl -sSL -o "get-pip.py" "https://bootstrap.pypa.io/get-pip.py" && \
         run python get-pip.py && \
         run python -m pip install --upgrade pip && \
@@ -96,19 +96,8 @@ case "${DISTRIB_NAME}" in
                 run update-alternatives --set python /usr/bin/python3
             ;;
             buster | bullseye)
-                #DEADSNAKES_PPA="focal"
-                #run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys F23C5A6CF475977595C89F51BA6932366A755776
-                #run gpg --lock-never --keyserver hkp://keyserver.ubuntu.com:80 --no-default-keyring --keyring "/etc/apt/trusted.gpg.d/deadsnakes-${RELEASE_NAME}" --recv-keys F23C5A6CF475977595C89F51BA6932366A755776 && \
-                #run touch "/etc/apt/sources.list.d/deadsnakes-ppa-ubuntu-${DEADSNAKES_PPA}.list" && \
-                #run bash -c "echo 'deb https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu ${DEADSNAKES_PPA} main' > /etc/apt/sources.list.d/deadsnakes-ppa-ubuntu-${DEADSNAKES_PPA}.list" && \
-                #run bash -c "echo 'deb-src https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu ${DEADSNAKES_PPA} main' >> /etc/apt/sources.list.d/deadsnakes-ppa-ubuntu-${DEADSNAKES_PPA}.list" && \
-                #run apt-get update -q -y && \
-                #run apt-get install -q -y python3.9 python3.9-dev python3.9-venv python3-pip && \
-                #run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
-                #run update-alternatives --set python /usr/bin/python3.9
-
                 # Install Python 3 from source.
-                install_python_from_source "3.9.19"
+                install_python_from_source "3.13.0"
             ;;
             *)
                 fail "Unable to install Python dependencies, this GNU/Linux distribution is not supported."
@@ -118,21 +107,18 @@ case "${DISTRIB_NAME}" in
     ubuntu)
         # Install Python
         # python3.7 will be dropped on next Certbot release
-        # deadsnake ppa only support Focal & Jammy
+        # deadsnake ppa only support Focal, Jammy & Noble
         case "${RELEASE_NAME}" in
-            focal | jammy)
+            noble | focal | jammy)
                 run add-apt-repository ppa:deadsnakes/ppa -y && \
                 run apt-get update -q -y && \
-                run apt-get install -q -y python3.9 python3.9-dev python3.9-venv python3-pip && \
-                run update-alternatives --install /usr/bin/python python "$(command -v python3.9)" 39 && \
-                run update-alternatives --set python /usr/bin/python3.9
-                
-                # Install Python 3 from source.
-                #install_python_from_source "3.9.19"
+                run apt-get install -q -y python3.13 python3.13-dev python3.13-venv && \
+                run update-alternatives --install /usr/bin/python python "$(command -v python3.13)" 313 && \
+                run update-alternatives --set python /usr/bin/python3.13
             ;;
             bionic)
                 # Install Python 3 from source.
-                install_python_from_source "3.9.19"
+                install_python_from_source "3.13.0"
             ;;
             *)
                 fail "Unable to install Python dependencies, this GNU/Linux distribution is not supported."
@@ -141,7 +127,14 @@ case "${DISTRIB_NAME}" in
     ;;
 esac
 
-# Update locale
+# Self-signed OpenSSL cert config.
+echo "Add self-signed SSL config".
+run mkdir -p "/etc/lemper/ssl/${HOSTNAME}" && \
+run cp -f etc/openssl/ca.conf /etc/lemper/ssl/ca.conf && \
+run cp -f etc/openssl/csr.conf /etc/lemper/ssl/csr.conf && \
+run cp -f etc/openssl/cert.conf /etc/lemper/ssl/cert.conf
+
+# Update locale config.
 echo "Reconfigure locale..."
 
 run locale-gen --purge en_US.UTF-8 id_ID.UTF-8
