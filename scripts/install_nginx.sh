@@ -9,24 +9,33 @@
 # Include helper functions
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellcheck source=./utils.sh
+    # shellcheck source=scripts/utils.sh
     . "${BASE_DIR}/utils.sh"
 fi
 
 # Must be root to run this script
 requires_root "$@"
 
-# Ensure we're running from the project directory
+# Ensure we're running from the project directory (used by nginx modules)
+export CURRENT_DIR
 CURRENT_DIR=$(pwd)
 
 # Include nginx modules
+# shellcheck source=scripts/nginx/nginx_common.sh
 . "${BASE_DIR}/nginx/nginx_common.sh"
+# shellcheck source=scripts/nginx/nginx_repo.sh
 . "${BASE_DIR}/nginx/nginx_repo.sh"
+# shellcheck source=scripts/nginx/nginx_ssl_builders.sh
 . "${BASE_DIR}/nginx/nginx_ssl_builders.sh"
+# shellcheck source=scripts/nginx/nginx_extra_modules.sh
 . "${BASE_DIR}/nginx/nginx_extra_modules.sh"
+# shellcheck source=scripts/nginx/nginx_module_config.sh
 . "${BASE_DIR}/nginx/nginx_module_config.sh"
+# shellcheck source=scripts/nginx/nginx_post_install.sh
 . "${BASE_DIR}/nginx/nginx_post_install.sh"
+# shellcheck source=scripts/nginx/nginx_ssl_cert.sh
 . "${BASE_DIR}/nginx/nginx_ssl_cert.sh"
+# shellcheck source=scripts/nginx/nginx_build.sh
 . "${BASE_DIR}/nginx/nginx_build.sh"
 
 ##
