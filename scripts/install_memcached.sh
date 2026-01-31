@@ -105,8 +105,7 @@ function init_memcached_install() {
                     run make && \
                     run make install
 
-                    # Create memcache user. 
-                    # TODO: not realy used, due to LEMPer will run memcached as www-data for Nginx PageSpeed module.
+                    # Create memcache user.
                     if [[ -z $(getent passwd memcache) ]]; then
                         if [[ "${DRYRUN}" != true ]]; then
                             run groupadd -r memcache
