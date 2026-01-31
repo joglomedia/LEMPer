@@ -514,6 +514,27 @@ function get_ip_public() {
     fi
 }
 
+# Get server IP address (public preferred, fallback to private, then localhost).
+# Used by SSL certificate generation and other scripts.
+function get_ip() {
+    local IP
+
+    # Try public IP first
+    IP=$(get_ip_public 2>/dev/null)
+
+    # Fallback to private IP
+    if [[ -z "${IP}" ]]; then
+        IP=$(get_ip_private 2>/dev/null)
+    fi
+
+    # Fallback to localhost for CI/CD or isolated environments
+    if [[ -z "${IP}" ]]; then
+        IP="127.0.0.1"
+    fi
+
+    echo "${IP}"
+}
+
 # Get server private IPv6 Address.
 function get_ipv6_private() {
     local SERVER_IPV6_PRIVATE && \
