@@ -58,6 +58,61 @@ function add_postgres_repo() {
 }
 
 ##
+# PostgreSQL service control helper.
+# Tries multiple methods to start/stop/restart PostgreSQL:
+# 1. systemctl (for systems with systemd running)
+# 2. pg_ctlcluster (Debian/Ubuntu wrapper - works in containers)
+# 3. service (legacy SysV init fallback)
+##
+function postgres_ctl() {
+    local action="${1}"  # start, stop, restart, reload, status, enable, disable, daemon-reload
+    local version="${2:-${POSTGRES_VERSION:-17}}"
+    local cluster="${3:-main}"
+
+    # Handle systemd-specific actions (only work with systemctl)
+    case "${action}" in
+        daemon-reload)
+            if command -v systemctl &>/dev/null && systemctl is-system-running &>/dev/null 2>&1; then
+                systemctl daemon-reload 2>/dev/null && return 0
+            fi
+            return 0  # Non-fatal if systemd not available
+        ;;
+        enable|disable)
+            if command -v systemctl &>/dev/null && systemctl is-system-running &>/dev/null 2>&1; then
+                systemctl "${action}" "postgresql@${version}-${cluster}.service" 2>/dev/null && return 0
+            fi
+            return 0  # Non-fatal if systemd not available
+        ;;
+    esac
+
+    # Try systemctl first (for systems with systemd running)
+    if command -v systemctl &>/dev/null; then
+        # Check if systemd is actually running (not just installed)
+        if systemctl is-system-running &>/dev/null 2>&1; then
+            if systemctl "${action}" "postgresql@${version}-${cluster}.service" 2>/dev/null; then
+                return 0
+            fi
+        fi
+    fi
+
+    # Fallback to pg_ctlcluster (Debian/Ubuntu - works in containers!)
+    if command -v pg_ctlcluster &>/dev/null; then
+        if sudo -u postgres pg_ctlcluster "${version}" "${cluster}" "${action}" 2>/dev/null; then
+            return 0
+        fi
+    fi
+
+    # Fallback to service command (legacy SysV init)
+    if command -v service &>/dev/null; then
+        if service postgresql "${action}" 2>/dev/null; then
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
+##
 # Install Postgres.
 ##
 function init_postgres_install() {
@@ -124,16 +179,15 @@ function init_postgres_install() {
                 sed -i "s/port\ =\ [0-9]*/port\ =\ ${POSTGRES_PORT}/g" "/etc/postgresql/${POSTGRES_VERSION}/main/postgresql.conf"
             fi
 
-            if [[ -f "/lib/systemd/system/postgresql@${POSTGRES_VERSION}-main.service" ]]; then
-                # Trying to reload daemon.
-                run systemctl daemon-reload
+            # Start PostgreSQL service if cluster is available.
+            if [[ -d "/etc/postgresql/${POSTGRES_VERSION}/main" ]]; then
+                # Reload systemd daemon and enable service on startup.
+                postgres_ctl daemon-reload "${POSTGRES_VERSION}" main
+                postgres_ctl enable "${POSTGRES_VERSION}" main
 
-                # Enable PostgreSQL on startup.
-                run systemctl enable "postgresql@${POSTGRES_VERSION}-main.service"
-
-                # Start PostgreSQL service daemon (non-fatal to allow CI/container environments).
-                if ! systemctl start "postgresql@${POSTGRES_VERSION}-main.service" 2>/dev/null; then
-                    info "Could not start PostgreSQL service via systemctl (may be in container/CI environment)."
+                # Start PostgreSQL service using helper (tries systemctl, pg_ctlcluster, service).
+                if ! postgres_ctl start "${POSTGRES_VERSION}" main; then
+                    info "Could not start PostgreSQL service (may be in container/CI environment)."
                 fi
                 sleep 2
             fi
@@ -146,9 +200,9 @@ function init_postgres_install() {
                 if [[ -n $(command -v psql) && "${SERVER_HOSTNAME}" != "gh-ci.lemper.cloud" ]]; then
                     echo "Creating PostgreSQL user '${POSTGRES_DB_USER}' and database '${POSTGRES_TEST_DB}'."
 
-                    # Restart PostgreSQL service (non-fatal to allow CI/container environments).
-                    if ! systemctl restart "postgresql@${POSTGRES_VERSION}-main.service" 2>/dev/null; then
-                        info "Could not restart PostgreSQL service via systemctl."
+                    # Restart PostgreSQL service using helper.
+                    if ! postgres_ctl restart "${POSTGRES_VERSION}" main; then
+                        info "Could not restart PostgreSQL service."
                     fi
                     sleep 3
 
@@ -163,9 +217,9 @@ PGSQL
                 if pg_isready -q 2>/dev/null || [[ $(pgrep -c postgres) -gt 0 ]]; then
                     success "PostgreSQL server configured successfully."
                 else
-                    # Server died? try to start it (non-fatal).
-                    if ! systemctl start "postgresql@${POSTGRES_VERSION}-main.service" 2>/dev/null; then
-                        info "Could not start PostgreSQL service via systemctl."
+                    # Server died? try to start it using helper.
+                    if ! postgres_ctl start "${POSTGRES_VERSION}" main; then
+                        info "Could not start PostgreSQL service."
                     fi
 
                     if pg_isready -q 2>/dev/null || [[ $(pgrep -c postgres) -gt 0 ]]; then
