@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # PostgreSQL server uninstaller
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 08/04/2023
+# Min. Requirement  : GNU/Linux Ubuntu 20.04
+# Last Build        : 02/01/2026
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 2.6.6
 
@@ -19,19 +19,73 @@ if [[ "$(type -t run)" != "function" ]]; then
     preflight_system_check
 fi
 
+##
+# PostgreSQL service control helper.
+# Tries multiple methods to start/stop/restart PostgreSQL:
+# 1. systemctl (for systems with systemd running)
+# 2. pg_ctlcluster (Debian/Ubuntu wrapper - works in containers)
+# 3. service (legacy SysV init fallback)
+##
+function postgres_ctl() {
+    local action="${1}"  # start, stop, restart, reload, status, enable, disable, daemon-reload
+    local version="${2:-${POSTGRES_VERSION:-17}}"
+    local cluster="${3:-main}"
+
+    # Handle systemd-specific actions (only work with systemctl)
+    case "${action}" in
+        daemon-reload)
+            if command -v systemctl &>/dev/null && systemctl is-system-running &>/dev/null 2>&1; then
+                systemctl daemon-reload 2>/dev/null && return 0
+            fi
+            return 0  # Non-fatal if systemd not available
+        ;;
+        enable|disable)
+            if command -v systemctl &>/dev/null && systemctl is-system-running &>/dev/null 2>&1; then
+                systemctl "${action}" "postgresql@${version}-${cluster}.service" 2>/dev/null && return 0
+            fi
+            return 0  # Non-fatal if systemd not available
+        ;;
+    esac
+
+    # Try systemctl first (for systems with systemd running)
+    if command -v systemctl &>/dev/null; then
+        if systemctl is-system-running &>/dev/null 2>&1; then
+            if systemctl "${action}" "postgresql@${version}-${cluster}.service" 2>/dev/null; then
+                return 0
+            fi
+        fi
+    fi
+
+    # Fallback to pg_ctlcluster (Debian/Ubuntu - works in containers!)
+    if command -v pg_ctlcluster &>/dev/null; then
+        if sudo -u postgres pg_ctlcluster "${version}" "${cluster}" "${action}" 2>/dev/null; then
+            return 0
+        fi
+    fi
+
+    # Fallback to service command (legacy SysV init)
+    if command -v service &>/dev/null; then
+        if service postgresql "${action}" 2>/dev/null; then
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
 function init_postgres_removal() {
-    local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
+    local POSTGRES_VERSION=${POSTGRES_VERSION:-"17"}
     local POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER:-"postgres"}
     #local POSTGRES_PKGS=()
 
-    # Stop PostgreSQL mysql server process.
-    if [[ $(pgrep -c postgres) -gt 0 ]]; then
+    # Stop PostgreSQL server process.
+    if pg_isready -q 2>/dev/null || [[ $(pgrep -c postgres) -gt 0 ]]; then
         echo "Stopping postgres..."
-        run systemctl stop "postgresql@${POSTGRES_VERSION}-main.service"
-        run systemctl disable "postgresql@${POSTGRES_VERSION}-main.service"
-    fi
+        postgres_ctl stop "${POSTGRES_VERSION}" main
 
-    #run systemctl disable "postgresql@${POSTGRES_VERSION}-main.service"
+        # Disable service on startup.
+        postgres_ctl disable "${POSTGRES_VERSION}" main
+    fi
 
     if dpkg-query -l | awk '/postgresql/ { print $2 }' | grep -qwE "^postgresql"; then
         echo "Found PostgreSQL ${POSTGRES_VERSION} packages installation, removing..."
@@ -68,7 +122,7 @@ function init_postgres_removal() {
 }
 
 function postgres_remove_config() {
-    local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
+    local POSTGRES_VERSION=${POSTGRES_VERSION:-"17"}
     local PGDATA=${POSTGRES_PGDATA:-"/var/lib/postgresql/data"}
 
     # Remove PostgreSQL server config files.
@@ -93,9 +147,11 @@ function postgres_remove_config() {
         [ -d "${PGDATA}" ] && run rm -fr "${PGDATA}"
         [ -d "/etc/postgresql/${POSTGRES_VERSION}" ] && run rm -fr "/etc/postgresql/${POSTGRES_VERSION}"
 
-        # Remove repository.
+        # Remove repository (legacy and new locations).
         run rm -f "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list"
         run rm -f "/usr/share/keyrings/postgres-${RELEASE_NAME}.gpg"
+        run rm -f "/etc/apt/sources.list.d/pgdg.list"
+        run rm -rf /usr/share/postgresql-common/pgdg
 
         echo "All database and configuration files deleted permanently."
     fi

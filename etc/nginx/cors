@@ -1,0 +1,12 @@
+# CORS origin mapping (used by includes/cors.conf).
+# Default is empty (blocks all cross-origin). Override in server{} block for specific origins.
+# Example to allow specific domain:
+#   map $http_origin $cors {
+#       default "";
+#       "~^https?://(www\.)?yourdomain\.com$" "$http_origin";
+#   }
+map $http_origin $cors {
+    default "";  # Block all cross-origin by default (secure)
+    # Uncomment to allow all origins (NOT recommended for production):
+    # default "*";
+}
