@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # PostgreSQL server installer
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 08/04/2023
+# Min. Requirement  : GNU/Linux Ubuntu 20.04
+# Last Build        : 02/01/2026
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 2.6.6
 
@@ -21,22 +21,32 @@ fi
 
 ##
 # Add PostgreSQL Repository.
+# Uses official PGDG repository setup method.
+# Ref: https://wiki.postgresql.org/wiki/Apt
 ##
 function add_postgres_repo() {
-    local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
-    local POSTGRES_REPO_KEY=${POSTGRES_REPO_KEY:-"ACCC4CF8"}
+    local POSTGRES_REPO_KEY_URL="https://www.postgresql.org/media/keys/ACCC4CF8.asc"
+    local POSTGRES_REPO_KEY_PATH="/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc"
+    local POSTGRES_REPO_FILE="/etc/apt/sources.list.d/pgdg.list"
 
     case "${DISTRIB_NAME}" in
         debian | ubuntu)
-            if [[ ! -f "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list" ]]; then
-                echo "Adding PostgreSQL repository..."
+            if [[ ! -f "${POSTGRES_REPO_FILE}" ]]; then
+                echo "Adding PostgreSQL PGDG repository..."
 
-                run bash -c "curl -fsSL https://www.postgresql.org/media/keys/${POSTGRES_REPO_KEY}.asc | gpg --dearmor --yes -o /usr/share/keyrings/postgres-${RELEASE_NAME}.gpg" && \
-                run touch "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list" && \
-                run bash -c "echo 'deb [signed-by=/usr/share/keyrings/postgres-${RELEASE_NAME}.gpg] http://apt.postgresql.org/pub/repos/apt ${RELEASE_NAME}-pgdg main' > /etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list" && \
+                # Create directory for the key.
+                run install -d /usr/share/postgresql-common/pgdg
+
+                # Download and install the repository signing key.
+                run curl -fsSL -o "${POSTGRES_REPO_KEY_PATH}" "${POSTGRES_REPO_KEY_URL}"
+
+                # Add the repository to sources list.
+                run bash -c "echo 'deb [signed-by=${POSTGRES_REPO_KEY_PATH}] https://apt.postgresql.org/pub/repos/apt ${RELEASE_NAME}-pgdg main' > ${POSTGRES_REPO_FILE}"
+
+                # Update package lists.
                 run apt-get update -q -y
             else
-                info "PostgreSQL ${POSTGRES_VERSION} repository already exists."
+                info "PostgreSQL PGDG repository already exists."
             fi
         ;;
         *)
@@ -65,9 +75,9 @@ function init_postgres_install() {
 
     export POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER:-"postgres"}
     export POSTGRES_DB_USER=${POSTGRES_DB_USER:-"${LEMPER_USERNAME}"}
-    export POSTGRES_DB_PASS=${POSTGRES_DB_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+    export POSTGRES_DB_PASS=${POSTGRES_DB_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9!@#%^&*' | fold -w 32 | head -n 1)}
 
-    local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
+    local POSTGRES_VERSION=${POSTGRES_VERSION:-"17"}
     local POSTGRES_PORT=${POSTGRES_PORT:-"5432"}
     local POSTGRES_TEST_DB="${POSTGRES_DB_USER}db"
     #local PGDATA=${POSTGRES_PGDATA:-"/var/lib/postgresql/data"}
@@ -88,12 +98,13 @@ function init_postgres_install() {
         #    run chown -hR "${POSTGRES_SUPERUSER}":"${POSTGRES_SUPERUSER}" /var/lib/postgresql
         #fi
 
-        # Install Postgres
+        # Install Postgres packages.
         if [[ "${POSTGRES_VERSION}" == "latest" || "${POSTGRES_VERSION}" == "stable" ]]; then
-            POSTGRES_PKGS+=("postgresql" "postgresql-client" "postgresql-client-common" "postgresql-common")
+            POSTGRES_PKGS+=("postgresql" "postgresql-client" "postgresql-contrib" \
+                "postgresql-client-common" "postgresql-common")
         else
             POSTGRES_PKGS+=("postgresql-${POSTGRES_VERSION}" "postgresql-client-${POSTGRES_VERSION}" \
-                "postgresql-client-common" "postgresql-common")
+                "postgresql-contrib-${POSTGRES_VERSION}" "postgresql-client-common" "postgresql-common")
         fi
 
         run apt-get install -q -y "${POSTGRES_PKGS[@]}"
@@ -120,12 +131,14 @@ function init_postgres_install() {
                 # Enable PostgreSQL on startup.
                 run systemctl enable "postgresql@${POSTGRES_VERSION}-main.service"
 
-                # Start PostgreSQL service daemon.
-                run systemctl start "postgresql@${POSTGRES_VERSION}-main.service"
+                # Start PostgreSQL service daemon (non-fatal to allow CI/container environments).
+                if ! systemctl start "postgresql@${POSTGRES_VERSION}-main.service" 2>/dev/null; then
+                    info "Could not start PostgreSQL service via systemctl (may be in container/CI environment)."
+                fi
                 sleep 2
             fi
 
-            if [[ $(pgrep -c postgres) -gt 0 || -n $(command -v psql) ]]; then
+            if pg_isready -q 2>/dev/null || [[ $(pgrep -c postgres) -gt 0 ]] || [[ -n $(command -v psql) ]]; then
                 success "PostgreSQL server installed successfully."
 
                 # Create default PostgreSQL role and database test.
@@ -133,25 +146,29 @@ function init_postgres_install() {
                 if [[ -n $(command -v psql) && "${SERVER_HOSTNAME}" != "gh-ci.lemper.cloud" ]]; then
                     echo "Creating PostgreSQL user '${POSTGRES_DB_USER}' and database '${POSTGRES_TEST_DB}'."
 
-                    run systemctl restart "postgresql@${POSTGRES_VERSION}-main.service"
+                    # Restart PostgreSQL service (non-fatal to allow CI/container environments).
+                    if ! systemctl restart "postgresql@${POSTGRES_VERSION}-main.service" 2>/dev/null; then
+                        info "Could not restart PostgreSQL service via systemctl."
+                    fi
                     sleep 3
 
                     run sudo -i -u "${POSTGRES_SUPERUSER}" -- psql -v ON_ERROR_STOP=1 <<-PGSQL
                         CREATE USER ${POSTGRES_DB_USER} WITH PASSWORD '${POSTGRES_DB_PASS}';
-                        CREATE DATABASE ${POSTGRES_TEST_DB};
                         CREATE DATABASE ${POSTGRES_TEST_DB} WITH ENCODING 'UTF8' LC_COLLATE='en_US.UTF-8' LC_CTYPE='en_US.UTF-8' TEMPLATE=template0 OWNER=${POSTGRES_DB_USER};
                         GRANT ALL PRIVILEGES ON DATABASE ${POSTGRES_TEST_DB} TO ${POSTGRES_DB_USER};
                         ALTER USER ${POSTGRES_DB_USER} CREATEDB;
 PGSQL
                 fi
 
-                if [[ $(pgrep -c postgres) -gt 0 ]]; then
+                if pg_isready -q 2>/dev/null || [[ $(pgrep -c postgres) -gt 0 ]]; then
                     success "PostgreSQL server configured successfully."
                 else
-                    # Server died? try to start it.
-                    run systemctl start "postgresql@${POSTGRES_VERSION}-main.service"
+                    # Server died? try to start it (non-fatal).
+                    if ! systemctl start "postgresql@${POSTGRES_VERSION}-main.service" 2>/dev/null; then
+                        info "Could not start PostgreSQL service via systemctl."
+                    fi
 
-                    if [[ $(pgrep -c postgres) -gt 0 ]]; then
+                    if pg_isready -q 2>/dev/null || [[ $(pgrep -c postgres) -gt 0 ]]; then
                         success "PostgreSQL server configured successfully."
                     else
                         info "Something went wrong with PostgreSQL server configuration."

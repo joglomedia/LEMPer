@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # PostgreSQL server uninstaller
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 08/04/2023
+# Min. Requirement  : GNU/Linux Ubuntu 20.04
+# Last Build        : 02/01/2026
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 2.6.6
 
@@ -20,7 +20,7 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 function init_postgres_removal() {
-    local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
+    local POSTGRES_VERSION=${POSTGRES_VERSION:-"17"}
     local POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER:-"postgres"}
     #local POSTGRES_PKGS=()
 
@@ -68,7 +68,7 @@ function init_postgres_removal() {
 }
 
 function postgres_remove_config() {
-    local POSTGRES_VERSION=${POSTGRES_VERSION:-"15"}
+    local POSTGRES_VERSION=${POSTGRES_VERSION:-"17"}
     local PGDATA=${POSTGRES_PGDATA:-"/var/lib/postgresql/data"}
 
     # Remove PostgreSQL server config files.
@@ -93,9 +93,11 @@ function postgres_remove_config() {
         [ -d "${PGDATA}" ] && run rm -fr "${PGDATA}"
         [ -d "/etc/postgresql/${POSTGRES_VERSION}" ] && run rm -fr "/etc/postgresql/${POSTGRES_VERSION}"
 
-        # Remove repository.
+        # Remove repository (legacy and new locations).
         run rm -f "/etc/apt/sources.list.d/postgres-${RELEASE_NAME}.list"
         run rm -f "/usr/share/keyrings/postgres-${RELEASE_NAME}.gpg"
+        run rm -f "/etc/apt/sources.list.d/pgdg.list"
+        run rm -rf /usr/share/postgresql-common/pgdg
 
         echo "All database and configuration files deleted permanently."
     fi
