@@ -635,25 +635,29 @@ function preflight_system_check() {
 
 # Get physical RAM size.
 function get_ram_size() {
-    local _RAM_SIZE
-    local _RAM_UNIT
-    local RAM_SIZE_IN_MB
+    local RAM_SIZE_IN_MB=0
 
-    # Calculate RAM size in MB.
-    #_RAM_SIZE=$(dmidecode -t 17 | awk '( /Size/ && $2 ~ /^[0-9]+$/ ) { x+=$2 } END{ print x}')
-    _RAM_SIZE=$(dmidecode -t 17 | awk '( /Size/ && $2 ~ /^[0-9]+$/ ) { print $2}')
-    _RAM_UNIT=$(dmidecode -t 17 | awk '( /Size/ && $2 ~ /^[0-9]+$/ ) { print $3}')
+    # Calculate total RAM size in MB by summing all memory modules.
+    # dmidecode may return multiple lines for systems with multiple RAM modules.
+    while read -r size unit; do
+        if [[ "${size}" =~ ^[0-9]+$ ]]; then
+            case "${unit}" in
+                "GB")
+                    RAM_SIZE_IN_MB=$((RAM_SIZE_IN_MB + size * 1024))
+                ;;
+                "MB")
+                    RAM_SIZE_IN_MB=$((RAM_SIZE_IN_MB + size))
+                ;;
+            esac
+        fi
+    done < <(dmidecode -t 17 2>/dev/null | awk '/Size/ && $2 ~ /^[0-9]+$/ { print $2, $3 }')
 
-    case "${_RAM_UNIT}" in
-        "GB")
-            RAM_SIZE_IN_MB=$((_RAM_SIZE * 1024))
-        ;;
-        *)
-            RAM_SIZE_IN_MB=$((_RAM_SIZE * 1))
-        ;;
-    esac
+    # Fallback to /proc/meminfo if dmidecode returns 0 or fails
+    if [[ "${RAM_SIZE_IN_MB}" -eq 0 ]]; then
+        RAM_SIZE_IN_MB=$(awk '/MemTotal/ { printf "%.0f", $2/1024 }' /proc/meminfo 2>/dev/null)
+    fi
 
-    echo "${RAM_SIZE_IN_MB}"
+    echo "${RAM_SIZE_IN_MB:-0}"
 }
 
 # Create custom swap space for low end box.
