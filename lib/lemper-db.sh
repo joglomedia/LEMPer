@@ -305,7 +305,7 @@ function sub_cmd_account() {
 ##
 function db_operations() {
     OPTS=$(getopt -o a:H:P:u:p:n:b:C:g:f:q:x:DrhVv \
-      -l action:,dbhost:,dbport:,dbuser:,dbpass:,dbname:,dbprefix:,dbcollation:,dbprivileges:,dbfile:,dbquery:,extra-args: \
+      -l action:,dbhost:,dbport:,dbuser:,dbpass:,dbname:,dbprefix:,dbcollation:,dbprivileges:,dbfile:,dbquery:,dbschedule:,extra-args: \
       -l dry-run,root,help,verbose,version \
       -n "${PROG_NAME}" -- "$@")
 
@@ -380,6 +380,11 @@ function db_operations() {
                 EXTRA_ARGS="${1}"
                 shift
             ;;
+            --dbschedule) 
+                shift
+                DBSCHEDULE="${1}"
+                shift
+            ;;
 
             -D | --dry-run) 
                 shift
@@ -427,6 +432,7 @@ function db_operations() {
         DBPRIVILEGES=${DBPRIVILEGES:-""}
         DBFILE=${DBFILE:-""}
         DBQUERY=${DBQUERY:-""}
+        DBSCHEDULE=${DBSCHEDULE:-""}
         DRYRUN=${DRYRUN:-false}
         USEROOT=${USEROOT:-false}
 
@@ -464,6 +470,118 @@ function db_operations() {
             # Database account operations.
             "account")
                 sub_cmd_account "$@" "${BYPASSED_ARGS}"
+            ;;
+
+            # Backup database with timestamped dump + optional scheduling.
+            "backup")
+                if [[ -z "${DBNAME}" ]]; then
+                    fail "Please specify the database name using the --dbname parameter."
+                fi
+
+                DBUSER=${DBUSER:-"root"}
+                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
+
+                # Determine dump tool (mariadb-dump or mysqldump).
+                local DUMP_TOOL=""
+                if [[ -n $(command -v mariadb-dump) ]]; then
+                    DUMP_TOOL=$(command -v mariadb-dump)
+                elif [[ -n $(command -v mysqldump) ]]; then
+                    DUMP_TOOL=$(command -v mysqldump)
+                else
+                    fail "mysqldump/mariadb-dump is required to backup database, but it is not available. Please install it first."
+                fi
+
+                # Backup directory.
+                local BACKUP_DIR="${DBFILE:-/var/backups/lemper}"
+                if [[ ! -d "${BACKUP_DIR}" ]]; then
+                    run mkdir -p "${BACKUP_DIR}"
+                fi
+
+                # Timestamped backup file.
+                local BACKUP_FILE
+                BACKUP_FILE="${BACKUP_DIR}/${DBNAME}_$(date '+%Y%m%d_%H%M%S').sql.gz"
+
+                echo "Backing up database '${DBNAME}' to '${BACKUP_FILE}'..."
+
+                if "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+                    run bash -c "${DUMP_TOOL} -u '${DBUSER}' -p'${DBPASS}' --databases '${DBNAME}' | gzip > '${BACKUP_FILE}'"
+
+                    if [[ -f "${BACKUP_FILE}" ]]; then
+                        success "Database '${DBNAME}' has been successfully backed up to '${BACKUP_FILE}'."
+                        echo "    Size: $(du -h "${BACKUP_FILE}" | cut -f1)"
+                        echo "    Path: ${BACKUP_FILE}"
+                    else
+                        fail "Failed to backup database '${DBNAME}'."
+                    fi
+                else
+                    fail "The specified database '${DBNAME}' does not exist."
+                fi
+
+                exit 0
+            ;;
+
+            # Restore database from a SQL dump file.
+            "restore")
+                if [[ -z "${DBNAME}" ]]; then
+                    fail "Please specify the database name using the --dbname parameter."
+                fi
+
+                if [[ -z "${DBFILE}" ]]; then
+                    fail "Please specify the backup file using the --dbfile parameter."
+                fi
+
+                if [[ ! -f "${DBFILE}" ]]; then
+                    fail "Backup file not found: '${DBFILE}'"
+                fi
+
+                DBUSER=${DBUSER:-"root"}
+                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
+
+                echo "Restoring database '${DBNAME}' from '${DBFILE}'..."
+
+                if "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+                    if [[ "${DBFILE}" == *.gz ]]; then
+                        run bash -c "gunzip -c '${DBFILE}' | ${MYSQLCLI} -u '${DBUSER}' -p'${DBPASS}' '${DBNAME}'"
+                    else
+                        run "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" "${DBNAME}" < "${DBFILE}"
+                    fi
+
+                    success "Database '${DBNAME}' has been successfully restored from '${DBFILE}'."
+                else
+                    fail "The specified database '${DBNAME}' does not exist."
+                fi
+
+                exit 0
+            ;;
+
+            # Schedule database backup via cron.
+            "backup-schedule")
+                if [[ -z "${DBNAME}" ]]; then
+                    fail "Please specify the database name using the --dbname parameter."
+                fi
+
+                DBUSER=${DBUSER:-"root"}
+                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
+
+                local SCHEDULE="${DBSCHEDULE:-"0 2 * * *"}"
+
+                # Cron command to run the backup.
+                local CRON_CMD="/usr/local/bin/lemper-cli db backup --dbname=${DBNAME} --dbpass=${DBPASS}"
+
+                # Remove existing entry for this database (if any).
+                local TMP_CRON
+                TMP_CRON=$(mktemp)
+                # shellcheck disable=SC2016
+                crontab -l 2>/dev/null | grep -v "lemper-cli db backup.*dbname=${DBNAME}" > "${TMP_CRON}" 2>/dev/null || true
+                echo "${SCHEDULE} ${CRON_CMD}" >> "${TMP_CRON}"
+                run crontab "${TMP_CRON}"
+                run rm -f "${TMP_CRON}"
+
+                success "Scheduled backup for database '${DBNAME}' with cron schedule: '${SCHEDULE}'"
+                echo "    Command: ${CRON_CMD}"
+                echo "    Next run: $(crontab -l 2>/dev/null | grep "dbname=${DBNAME}" | head -1 | awk '{print $1, $2, $3, $4, $5}')"
+
+                exit 0
             ;;
 
             # Create / add new database.
@@ -695,6 +813,18 @@ function cmd_import() {
     db_operations "--action=import" "$@"
 }
 
+function cmd_backup() {
+    db_operations "--action=backup" "$@"
+}
+
+function cmd_restore() {
+    db_operations "--action=restore" "$@"
+}
+
+function cmd_backup_schedule() {
+    db_operations "--action=backup-schedule" "$@"
+}
+
 function cmd_optimize() {
     echo "Optimizes the database."
     db_operations "--action=optimize" "$@"
@@ -768,6 +898,9 @@ These are common ${CMD_PARENT} ${CMD_NAME} subcommands used in various situation
   databases     Lists the databases.
   drop          Deletes the database.
   export        Exports a database to a file or to STDOUT.
+  backup        Creates a timestamped backup of a database.
+  restore       Restores a database from a backup file.
+  backup-schedule  Schedules automatic database backups via cron.
   import        Imports a database from a file or from STDIN.
   list          An aliases of databases sub command.
   optimize      Optimizes the database.
@@ -812,6 +945,10 @@ GLOBAL PARAMETERS
 
   --dbquery=<SQL_query>
       A set of SQL query.
+
+  --dbschedule=<cron_schedule>
+      Cron schedule for automated backups (default: "0 2 * * *").
+      Used with backup-schedule subcommand.
 
   --extra-args=<arguments>
       Passes extra arguments to the command or subcommand operations.

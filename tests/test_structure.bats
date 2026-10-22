@@ -129,3 +129,14 @@ setup() {
 @test "lemper-cli.sh help lists site command" {
     grep -q 'site' "${BASE_DIR}/bin/lemper-cli.sh"
 }
+
+@test "lemper-db.sh has backup, restore, backup-schedule commands" {
+    grep -q 'function cmd_backup' "${BASE_DIR}/lib/lemper-db.sh"
+    grep -q 'function cmd_restore' "${BASE_DIR}/lib/lemper-db.sh"
+    grep -q 'function cmd_backup_schedule' "${BASE_DIR}/lib/lemper-db.sh"
+}
+
+@test "lemper-db.sh help documents backup and restore subcommands" {
+    grep -q 'backup' "${BASE_DIR}/lib/lemper-db.sh"
+    grep -q 'restore' "${BASE_DIR}/lib/lemper-db.sh"
+}
