@@ -1,6 +1,9 @@
 # LEMPer — Roadmap & Improvement Plan
 
-> **Version:** 3.3.0 (in progress)
+> **Version:** 3.4.0 (in progress)
+> **Last Updated:** 2026-10-22
+> **Status:** All 5 phases complete — Phases 0–4 implemented and tested. Phase 5 complete.
+>
 > **Last Updated:** 2026-10-22
 > **Status:** Phase 3 complete — Bun.js, Valkey, site list/show, DB backup/restore, CrowdSec, and ACME DNS-01 wildcard implemented and tested.
 >
@@ -590,12 +593,12 @@ ModSecurity v3 with OWASP CRS.
 
 ---
 
-### Phase 5: Security Infrastructure (v3.0.0)
+### Phase 5: Security Infrastructure (v3.4.0)
 
-| # | Task | Priority | Effort | Estimated Time |
-|---|---|---|---|---|
-| 2.10 | Enable encrypted config at rest | High | High | 20h |
-| 2.29 | Modernize WAF (ModSecurity v3) | Medium | High | 16h |
+| # | Task | Priority | Effort | Estimated Time | Status |
+|---|---|---|---|---|---|
+| 2.10 | Enable encrypted config at rest | High | High | 20h | ✅ v3.4.0 |
+| 2.29 | Modernize WAF (ModSecurity v3) | Medium | High | 16h | ✅ v3.4.0 |
 
 **Total estimated time:** ~36 hours
 
@@ -625,7 +628,7 @@ ModSecurity v3 with OWASP CRS.
 | **v3.1.0** | CLI enhancement | `site list`, `site show`, DB backup/restore, Bun.js runtime |
 | **v3.2.0** | Integration | CrowdSec HIPS, Valkey, ACME DNS-01 wildcard |
 | **v3.3.0** | UI/UX | Progress indicators, improved help |
-| **v3.4.0** | Advanced | ModSecurity v3, optional TUI dashboard |
+| **v3.4.0** | Advanced | ModSecurity v3 WAF, encrypted config at rest, optional TUI dashboard |
 
 ---
 
