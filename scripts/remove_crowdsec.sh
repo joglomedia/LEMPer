@@ -46,7 +46,7 @@ function init_crowdsec_remove() {
         # Remove CrowdSec bouncer from nginx config.
         if [[ -f /etc/nginx/nginx.conf ]]; then
             if grep -q 'crowdsec-bouncer' /etc/nginx/nginx.conf; then
-                run sed -i '/crowdsec-nginx.conf/d' /etc/nginx/nginx.conf
+                sed_inplace '/crowdsec-nginx.conf/d' /etc/nginx/nginx.conf
             fi
         fi
 

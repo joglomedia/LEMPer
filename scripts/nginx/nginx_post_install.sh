@@ -102,7 +102,7 @@ function configure_nginx_performance() {
 
     # Adjust worker processes
     if [[ "${CPU_CORES}" -gt 1 ]]; then
-        run sed -i "s/worker_processes\ auto/worker_processes\ ${CPU_CORES}/g" /etc/nginx/nginx.conf
+        sed_inplace "s/worker_processes\ auto/worker_processes\ ${CPU_CORES}/g" /etc/nginx/nginx.conf
     fi
 
     # Adjust worker connections based on CPU cores
@@ -113,24 +113,24 @@ function configure_nginx_performance() {
         *)       NGX_CONNECTIONS=4096 ;;
     esac
 
-    run sed -i "s/worker_connections\ 4096/worker_connections\ ${NGX_CONNECTIONS}/g" /etc/nginx/nginx.conf
+    sed_inplace "s/worker_connections\ 4096/worker_connections\ ${NGX_CONNECTIONS}/g" /etc/nginx/nginx.conf
 
     # Configure rate limiting if enabled
     if [[ "${NGINX_RATE_LIMITING:-false}" == true ]]; then
-        run sed -i "s|#limit_|limit_|g" /etc/nginx/nginx.conf
-        run sed -i "s|rate=10r\/s|rate=${NGINX_RATE_LIMIT_REQUESTS:-10}r\/s|g" /etc/nginx/nginx.conf
+        sed_inplace "s|#limit_|limit_|g" /etc/nginx/nginx.conf
+        sed_inplace "s|rate=10r\/s|rate=${NGINX_RATE_LIMIT_REQUESTS:-10}r\/s|g" /etc/nginx/nginx.conf
     fi
 
     # Enable Headers More if available
     if [[ "${NGX_HTTP_HEADERS_MORE:-false}" == true && \
           -f /etc/nginx/modules-enabled/50-mod-http-headers-more-filter.conf ]]; then
-        run sed -i "s|#more_set_headers|more_set_headers|g" /etc/nginx/nginx.conf
+        sed_inplace "s|#more_set_headers|more_set_headers|g" /etc/nginx/nginx.conf
     fi
 
     # Enable Lua package path if available
     if [[ "${NGX_HTTP_LUA:-false}" == true && \
           -f /etc/nginx/modules-enabled/40-mod-http-lua.conf ]]; then
-        run sed -i "s|#lua_package_path|lua_package_path|g" /etc/nginx/nginx.conf
+        sed_inplace "s|#lua_package_path|lua_package_path|g" /etc/nginx/nginx.conf
     fi
 
     # Configure FastCGI cache purge access
@@ -144,18 +144,18 @@ function configure_fastcgi_cache_access() {
     local ALLOWED_SERVER_IP
     ALLOWED_SERVER_IP=$(get_ip_private)
 
-    run sed -i "s|#allow\ SERVER_IPV4|allow\ ${ALLOWED_SERVER_IP}|g" /etc/nginx/includes/rules_fastcgi_cache.conf
+    sed_inplace "s|#allow\ SERVER_IPV4|allow\ ${ALLOWED_SERVER_IP}|g" /etc/nginx/includes/rules_fastcgi_cache.conf
 
     local ALLOWED_SERVER_IPV6
     ALLOWED_SERVER_IPV6=$(get_ipv6_private)
 
     if [[ -n "${ALLOWED_SERVER_IPV6}" ]]; then
-        run sed -i "s|#allow\ SERVER_IPV6|allow\ ${ALLOWED_SERVER_IPV6}|g" /etc/nginx/includes/rules_fastcgi_cache.conf
+        sed_inplace "s|#allow\ SERVER_IPV6|allow\ ${ALLOWED_SERVER_IPV6}|g" /etc/nginx/includes/rules_fastcgi_cache.conf
         ALLOWED_SERVER_IP="${ALLOWED_SERVER_IP} ${ALLOWED_SERVER_IPV6}"
     fi
 
-    run sed -i "s|allow_SERVER_IP|${ALLOWED_SERVER_IP}|g" /etc/nginx/includes/rules_fastcgi_cache.conf
-    run sed -i "s|#fastcgi_cache_purge\ PURGE|fastcgi_cache_purge\ PURGE|g" /etc/nginx/includes/rules_fastcgi_cache.conf
+    sed_inplace "s|allow_SERVER_IP|${ALLOWED_SERVER_IP}|g" /etc/nginx/includes/rules_fastcgi_cache.conf
+    sed_inplace "s|#fastcgi_cache_purge\ PURGE|fastcgi_cache_purge\ PURGE|g" /etc/nginx/includes/rules_fastcgi_cache.conf
 }
 
 ##
@@ -217,7 +217,7 @@ function configure_default_vhost() {
     # Copy appropriate default vhost (SSL or non-SSL)
     if [[ -n "${HOSTNAME_CERT_PATH}" && -f "${HOSTNAME_CERT_PATH}/fullchain.pem" ]]; then
         run cp -f "${SOURCE_DIR}/etc/nginx/sites-available/default-ssl" /etc/nginx/sites-available/default
-        run sed -i "s|HOSTNAME_CERT_PATH|${HOSTNAME_CERT_PATH}|g" /etc/nginx/sites-available/default
+        sed_inplace "s|HOSTNAME_CERT_PATH|${HOSTNAME_CERT_PATH}|g" /etc/nginx/sites-available/default
     else
         run cp -f "${SOURCE_DIR}/etc/nginx/sites-available/default" /etc/nginx/sites-available/default
     fi
@@ -232,9 +232,9 @@ function configure_default_vhost() {
     SERVER_IP=$(get_ip)
 
     if [[ $(dig "${HOSTNAME}" +short 2>/dev/null) == "${SERVER_IP}" ]]; then
-        run sed -i "s/localhost.localdomain/${HOSTNAME}/g" /etc/nginx/sites-available/default
+        sed_inplace "s/localhost.localdomain/${HOSTNAME}/g" /etc/nginx/sites-available/default
     else
-        run sed -i "s/localhost.localdomain/${SERVER_IP}/g" /etc/nginx/sites-available/default
+        sed_inplace "s/localhost.localdomain/${SERVER_IP}/g" /etc/nginx/sites-available/default
     fi
 }
 

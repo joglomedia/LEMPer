@@ -53,7 +53,7 @@ function init_modsec_remove() {
 
         # Remove nginx include from vhosts that reference it.
         if [[ -d /etc/nginx/sites-enabled ]]; then
-            run sed -i '/modsecurity_rules_file/d' /etc/nginx/sites-enabled/* 2>/dev/null || true
+            sed_inplace '/modsecurity_rules_file/d' /etc/nginx/sites-enabled/* 2>/dev/null || true
         fi
 
         # Remove ModSecurity packages.

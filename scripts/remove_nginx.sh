@@ -135,7 +135,7 @@ function remove_nginx_from_source() {
     # Delete default account credential from server .htpasswd
     if [ -f /srv/.htpasswd ]; then
         local LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
-        run sed -i "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
+        sed_inplace "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
     fi
 
     return 0

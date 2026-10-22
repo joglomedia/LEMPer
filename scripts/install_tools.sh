@@ -237,7 +237,7 @@ EOL
         run cp includes/config.sample.inc.php includes/config.inc.php
 
         if [[ "${REDIS_REQUIRE_PASSWORD}" == true ]]; then
-            run sed -i "s|//'auth'\ =>\ 'redispasswordhere'|'auth'\ =>\ '${REDIS_PASSWORD}'|g" includes/config.inc.php
+            sed_inplace "s|//'auth'\ =>\ 'redispasswordhere'|'auth'\ =>\ '${REDIS_PASSWORD}'|g" includes/config.inc.php
         fi
     else
         run cd redisadmin && \

@@ -75,9 +75,9 @@ function set_dryrun_mode() {
     DRYRUN=${1}
 
     if [[ "${DRYRUN}" == true ]]; then
-        sed -i "s/DRYRUN=[a-zA-Z]*/DRYRUN=true/g" .env
+        sed_inplace "s/DRYRUN=[a-zA-Z]*/DRYRUN=true/g" .env
     else
-        sed -i "s/DRYRUN=[a-zA-Z]*/DRYRUN=false/g" .env
+        sed_inplace "s/DRYRUN=[a-zA-Z]*/DRYRUN=false/g" .env
     fi
 }
 
@@ -177,8 +177,8 @@ function init_lemper_install() {
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 NGINX_VERSION=${1}
-                sed -i "s/INSTALL_NGINX=[a-zA-Z]*/INSTALL_NGINX=true/g" .env
-                sed -i "s/NGINX_VERSION=\"[a-zA-Z0-9\ ._-]*\"/NGINX_VERSION=\"${NGINX_VERSION}\"/g" .env
+                sed_inplace "s/INSTALL_NGINX=[a-zA-Z]*/INSTALL_NGINX=true/g" .env
+                sed_inplace "s/NGINX_VERSION=\"[a-zA-Z0-9\ ._-]*\"/NGINX_VERSION=\"${NGINX_VERSION}\"/g" .env
                 shift
             ;;
             # Usage: --with-nginx-installer <repo | source>
@@ -188,10 +188,10 @@ function init_lemper_install() {
                 NGINX_INSTALLER=${1}
                 case "${NGINX_INSTALLER}" in
                     source)
-                        sed -i "s/NGINX_INSTALLER=\"[a-zA-Z]*\"/NGINX_INSTALLER=\"source\"/g" .env
+                        sed_inplace "s/NGINX_INSTALLER=\"[a-zA-Z]*\"/NGINX_INSTALLER=\"source\"/g" .env
                     ;;
                     *)
-                        sed -i "s/NGINX_INSTALLER=\"[a-zA-Z]*\"/NGINX_INSTALLER=\"repo\"/g" .env
+                        sed_inplace "s/NGINX_INSTALLER=\"[a-zA-Z]*\"/NGINX_INSTALLER=\"repo\"/g" .env
                     ;;
                 esac
                 shift
@@ -200,28 +200,28 @@ function init_lemper_install() {
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 NGINX_CUSTOMSSL_VERSION=${1-"openssl-1.1.1l"}
-                sed -i "s/NGINX_WITH_CUSTOMSSL=[a-zA-Z]*/NGINX_WITH_CUSTOMSSL=true/g" .env
-                sed -i "s/NGINX_CUSTOMSSL_VERSION=\"[a-zA-Z0-9\ ._-]*\"/NGINX_CUSTOMSSL_VERSION=\"${NGINX_CUSTOMSSL_VERSION}\"/g" .env
+                sed_inplace "s/NGINX_WITH_CUSTOMSSL=[a-zA-Z]*/NGINX_WITH_CUSTOMSSL=true/g" .env
+                sed_inplace "s/NGINX_CUSTOMSSL_VERSION=\"[a-zA-Z0-9\ ._-]*\"/NGINX_CUSTOMSSL_VERSION=\"${NGINX_CUSTOMSSL_VERSION}\"/g" .env
                 shift
             ;;
             --with-nginx-lua)
-                sed -i "s/NGX_HTTP_LUA=[a-zA-Z]*/NGX_HTTP_LUA=true/g" .env
+                sed_inplace "s/NGX_HTTP_LUA=[a-zA-Z]*/NGX_HTTP_LUA=true/g" .env
                 shift
             ;;
             --with-nginx-passenger)
-                sed -i "s/NGX_HTTP_PASSENGER=[a-zA-Z]*/NGX_HTTP_PASSENGER=true/g" .env
+                sed_inplace "s/NGX_HTTP_PASSENGER=[a-zA-Z]*/NGX_HTTP_PASSENGER=true/g" .env
                 shift
             ;;
             --with-nginx-pcre)
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 NGINX_PCRE_VERSION=${1-"8.45"}
-                sed -i "s/NGINX_WITH_PCRE=[a-zA-Z]*/NGINX_WITH_PCRE=true/g" .env
-                sed -i "s/NGINX_PCRE_VERSION=\"[a-zA-Z0-9\ ._-]*\"/NGINX_PCRE_VERSION=\"${NGINX_PCRE_VERSION}\"/g" .env
+                sed_inplace "s/NGINX_WITH_PCRE=[a-zA-Z]*/NGINX_WITH_PCRE=true/g" .env
+                sed_inplace "s/NGINX_PCRE_VERSION=\"[a-zA-Z0-9\ ._-]*\"/NGINX_PCRE_VERSION=\"${NGINX_PCRE_VERSION}\"/g" .env
                 shift
             ;;
             --with-nginx-rtmp)
-                sed -i "s/NGX_RTMP=[a-zA-Z]*/NGX_RTMP=true/g" .env
+                sed_inplace "s/NGX_RTMP=[a-zA-Z]*/NGX_RTMP=true/g" .env
                 shift
             ;;
             # Usage: --with-php <php-version>
@@ -229,8 +229,8 @@ function init_lemper_install() {
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 PHP_VERSIONS=${1}
-                sed -i "s/INSTALL_PHP=[a-zA-Z]*/INSTALL_PHP=true/g" .env
-                sed -i "s/PHP_VERSIONS=\"[a-zA-Z0-9\ ._-]*\"/PHP_VERSIONS=\"${PHP_VERSIONS}\"/g" .env
+                sed_inplace "s/INSTALL_PHP=[a-zA-Z]*/INSTALL_PHP=true/g" .env
+                sed_inplace "s/PHP_VERSIONS=\"[a-zA-Z0-9\ ._-]*\"/PHP_VERSIONS=\"${PHP_VERSIONS}\"/g" .env
                 shift
             ;;
             # Usage: --with-php-extensions=<ext-name1 ext-name2 ext-name>
@@ -238,28 +238,28 @@ function init_lemper_install() {
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 PHP_EXTENSIONS=$( echo "${1}" | tr '[:upper:]' '[:lower:]' )
-                sed -i "s/PHP_EXTENSIONS=\"[0-9a-zA-Z\ ,._-]*\"/PHP_EXTENSIONS=\"${PHP_EXTENSIONS}\"/g" .env
+                sed_inplace "s/PHP_EXTENSIONS=\"[0-9a-zA-Z\ ,._-]*\"/PHP_EXTENSIONS=\"${PHP_EXTENSIONS}\"/g" .env
                 shift
             ;;
             # Usage: --with-php-loader <ioncube | sourceguardian>
             --with-php-loader)
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
-                sed -i "s/INSTALL_PHP_LOADER=[a-zA-Z]*/INSTALL_PHP_LOADER=true/g" .env
+                sed_inplace "s/INSTALL_PHP_LOADER=[a-zA-Z]*/INSTALL_PHP_LOADER=true/g" .env
                 PHP_LOADER=$( echo "${1}" | tr '[:upper:]' '[:lower:]' )
                 case "${PHP_LOADER}" in
                     all)
-                        sed -i "s/PHP_LOADER=\"[a-zA-Z]*\"/PHP_LOADER=\"all\"/g" .env
+                        sed_inplace "s/PHP_LOADER=\"[a-zA-Z]*\"/PHP_LOADER=\"all\"/g" .env
                     ;;
                     ic | ioncube)
-                        sed -i "s/PHP_LOADER=\"[a-zA-Z]*\"/PHP_LOADER=\"ioncube\"/g" .env
+                        sed_inplace "s/PHP_LOADER=\"[a-zA-Z]*\"/PHP_LOADER=\"ioncube\"/g" .env
                     ;;
                     sg | sourceguardian)
-                        sed -i "s/PHP_LOADER=\"[a-zA-Z]*\"/PHP_LOADER=\"sourceguardian\"/g" .env
+                        sed_inplace "s/PHP_LOADER=\"[a-zA-Z]*\"/PHP_LOADER=\"sourceguardian\"/g" .env
                     ;;
                     *)
                         echo "Selected PHP Loader: ${PHP_LOADER} is not supported."
-                        sed -i "s/INSTALL_PHP_LOADER=[a-zA-Z]*/INSTALL_PHP_LOADER=false/g" .env
+                        sed_inplace "s/INSTALL_PHP_LOADER=[a-zA-Z]*/INSTALL_PHP_LOADER=false/g" .env
                     ;;
                 esac
                 shift
@@ -268,7 +268,7 @@ function init_lemper_install() {
             --with-mysql-server)
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
-                sed -i "s/INSTALL_MYSQL=[a-zA-Z]*/INSTALL_MYSQL=true/g" .env
+                sed_inplace "s/INSTALL_MYSQL=[a-zA-Z]*/INSTALL_MYSQL=true/g" .env
                 MYSQL_SERVER=$( echo "${1}" | tr '[:upper:]' '[:lower:]' )
                 # Reserve default IFS
                 _IFS=${IFS}
@@ -279,18 +279,18 @@ function init_lemper_install() {
                 IFS=${_IFS}
                 case "${MYSQL_SERVER_NAME}" in
                     mysql | mysql-server)
-                        sed -i "s/MYSQL_SERVER=\"[a-zA-Z]*\"/MYSQL_SERVER=\"mysql\"/g" .env
+                        sed_inplace "s/MYSQL_SERVER=\"[a-zA-Z]*\"/MYSQL_SERVER=\"mysql\"/g" .env
                     ;;
                     mariadb)
-                        sed -i "s/MYSQL_SERVER=\"[a-zA-Z]*\"/MYSQL_SERVER=\"mariadb\"/g" .env
+                        sed_inplace "s/MYSQL_SERVER=\"[a-zA-Z]*\"/MYSQL_SERVER=\"mariadb\"/g" .env
                     ;;
                     *)
                         echo "Selected MySQL Server: ${MYSQL_SERVER} is not supported, fallback to MariaDB Server."
-                        sed -i "s/MYSQL_SERVER=\"[a-zA-Z]*\"/MYSQL_SERVER=\"mariadb\"/g" .env
+                        sed_inplace "s/MYSQL_SERVER=\"[a-zA-Z]*\"/MYSQL_SERVER=\"mariadb\"/g" .env
                     ;;
                 esac
                 if [ -n "${MYSQL_SERVER_VER}" ]; then
-                    sed -i "s/MYSQL_VERSION=\"[a-zA-Z0-9\ ._-]*\"/MYSQL_VERSION=\"${MYSQL_SERVER_VER}\"/g" .env
+                    sed_inplace "s/MYSQL_VERSION=\"[a-zA-Z0-9\ ._-]*\"/MYSQL_VERSION=\"${MYSQL_SERVER_VER}\"/g" .env
                 fi
                 shift
             ;;
@@ -299,8 +299,8 @@ function init_lemper_install() {
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 MEMCACHED_VERSION=${1}
-                sed -i "s/INSTALL_MEMCACHED=[a-zA-Z]*/INSTALL_MEMCACHED=true/g" .env
-                sed -i "s/MEMCACHED_VERSION=\"[a-zA-Z0-9\ ._-]*\"/MEMCACHED_VERSION=\"${MEMCACHED_VERSION}\"/g" .env
+                sed_inplace "s/INSTALL_MEMCACHED=[a-zA-Z]*/INSTALL_MEMCACHED=true/g" .env
+                sed_inplace "s/MEMCACHED_VERSION=\"[a-zA-Z0-9\ ._-]*\"/MEMCACHED_VERSION=\"${MEMCACHED_VERSION}\"/g" .env
                 shift
             ;;
             # Usage: --with-memcached-installer <source | repo>
@@ -310,10 +310,10 @@ function init_lemper_install() {
                 MEMCACHED_INSTALLER=${1}
                 case "${MEMCACHED_INSTALLER}" in
                     source)
-                        sed -i "s/MEMCACHED_INSTALLER=\"[a-zA-Z]*\"/MEMCACHED_INSTALLER=\"source\"/g" .env
+                        sed_inplace "s/MEMCACHED_INSTALLER=\"[a-zA-Z]*\"/MEMCACHED_INSTALLER=\"source\"/g" .env
                     ;;
                     *)
-                        sed -i "s/MEMCACHED_INSTALLER=\"[a-zA-Z]*\"/MEMCACHED_INSTALLER=\"repo\"/g" .env
+                        sed_inplace "s/MEMCACHED_INSTALLER=\"[a-zA-Z]*\"/MEMCACHED_INSTALLER=\"repo\"/g" .env
                     ;;
                 esac
                 shift
@@ -323,8 +323,8 @@ function init_lemper_install() {
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 MONGODB_VERSION=${1}
-                sed -i "s/INSTALL_MONGODB=[a-zA-Z]*/INSTALL_MONGODB=true/g" .env
-                sed -i "s/MONGODB_VERSION=\"[a-zA-Z0-9\ ._-]*\"/MONGODB_VERSION=\"${MONGODB_VERSION}\"/g" .env
+                sed_inplace "s/INSTALL_MONGODB=[a-zA-Z]*/INSTALL_MONGODB=true/g" .env
+                sed_inplace "s/MONGODB_VERSION=\"[a-zA-Z0-9\ ._-]*\"/MONGODB_VERSION=\"${MONGODB_VERSION}\"/g" .env
                 shift
             ;;
             # Usage: --with-mongodb-admin <username:password>
@@ -339,8 +339,8 @@ function init_lemper_install() {
                 MONGODB_ADMIN_PASS="${MONGODB_ADMIN_AUTH[1]}"
                 # Restore default IFS
                 IFS=${_IFS}
-                sed -i "s/MONGODB_ADMIN_USER=\"[a-zA-Z0-9._-]*\"/MONGODB_ADMIN_USER=\"${MONGODB_ADMIN_USER}\"/g" .env
-                sed -i "s/MONGODB_ADMIN_PASSWORD=\"[a-zA-Z0-9\ ._-]*\"/MONGODB_ADMIN_PASSWORD=\"${MONGODB_ADMIN_PASS}\"/g" .env
+                sed_inplace "s/MONGODB_ADMIN_USER=\"[a-zA-Z0-9._-]*\"/MONGODB_ADMIN_USER=\"${MONGODB_ADMIN_USER}\"/g" .env
+                sed_inplace "s/MONGODB_ADMIN_PASSWORD=\"[a-zA-Z0-9\ ._-]*\"/MONGODB_ADMIN_PASSWORD=\"${MONGODB_ADMIN_PASS}\"/g" .env
                 shift
             ;;
             # Usage: --with-redis <latest | stable | redis-version>
@@ -349,8 +349,8 @@ function init_lemper_install() {
                 shift
                 REDIS_VERSION=${1}
                 if [ -z "${REDIS_VERSION}" ]; then REDIS_VERSION="stable"; fi
-                sed -i "s/INSTALL_REDIS=[a-zA-Z]*/INSTALL_REDIS=true/g" .env
-                sed -i "s/REDIS_VERSION=\"[a-zA-Z0-9\ ._-]*\"/REDIS_VERSION=\"${REDIS_VERSION}\"/g" .env
+                sed_inplace "s/INSTALL_REDIS=[a-zA-Z]*/INSTALL_REDIS=true/g" .env
+                sed_inplace "s/REDIS_VERSION=\"[a-zA-Z0-9\ ._-]*\"/REDIS_VERSION=\"${REDIS_VERSION}\"/g" .env
                 shift
             ;;
             # Usage: --with-redis-installer <source | repo>
@@ -360,10 +360,10 @@ function init_lemper_install() {
                 REDIS_INSTALLER=${1}
                 case "${REDIS_INSTALLER}" in
                     source)
-                        sed -i "s/REDIS_INSTALLER=\"[a-zA-Z]*\"/REDIS_INSTALLER=\"source\"/g" .env
+                        sed_inplace "s/REDIS_INSTALLER=\"[a-zA-Z]*\"/REDIS_INSTALLER=\"source\"/g" .env
                     ;;
                     *)
-                        sed -i "s/REDIS_INSTALLER=\"[a-zA-Z]*\"/REDIS_INSTALLER=\"repo\"/g" .env
+                        sed_inplace "s/REDIS_INSTALLER=\"[a-zA-Z]*\"/REDIS_INSTALLER=\"repo\"/g" .env
                     ;;
                 esac
                 shift
@@ -373,14 +373,14 @@ function init_lemper_install() {
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 REDIS_PASSWORD=${1}
-                sed -i "s/REDIS_REQUIRE_PASSWORD=[a-zA-Z]*/REDIS_REQUIRE_PASSWORD=true/g" .env
-                sed -i "s/REDIS_PASSWORD=\"[a-zA-Z0-9._-](.*)\"/REDIS_PASSWORD=\"${REDIS_PASSWORD}\"/g" .env
+                sed_inplace "s/REDIS_REQUIRE_PASSWORD=[a-zA-Z]*/REDIS_REQUIRE_PASSWORD=true/g" .env
+                sed_inplace "s/REDIS_PASSWORD=\"[a-zA-Z0-9._-](.*)\"/REDIS_PASSWORD=\"${REDIS_PASSWORD}\"/g" .env
                 shift
             ;;
             --with-ftp-server)
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
-                sed -i "s/INSTALL_FTP_SERVER=[a-zA-Z]*/INSTALL_FTP_SERVER=true/g" .env
+                sed_inplace "s/INSTALL_FTP_SERVER=[a-zA-Z]*/INSTALL_FTP_SERVER=true/g" .env
                 FTP_SERVER=$( echo "${1}" | tr '[:upper:]' '[:lower:]' )
                 # Reserve default IFS
                 _IFS=${IFS}
@@ -391,30 +391,30 @@ function init_lemper_install() {
                 IFS=${_IFS}
                 case "${FTP_SERVER_NAME}" in
                     pureftpd | pure-ftpd)
-                        sed -i "s/FTP_SERVER_NAME=\"[a-zA-Z]*\"/FTP_SERVER_NAME=\"pureftpd\"/g" .env
+                        sed_inplace "s/FTP_SERVER_NAME=\"[a-zA-Z]*\"/FTP_SERVER_NAME=\"pureftpd\"/g" .env
                     ;;
                     vsftpd)
-                        sed -i "s/FTP_SERVER_NAME=\"[a-zA-Z]*\"/FTP_SERVER_NAME=\"vsftpd\"/g" .env
+                        sed_inplace "s/FTP_SERVER_NAME=\"[a-zA-Z]*\"/FTP_SERVER_NAME=\"vsftpd\"/g" .env
                     ;;
                     *)
                         echo "Selected MySQL Server: ${FTP_SERVER_NAME} is not supported, fallback to VSFTPD."
-                        sed -i "s/FTP_SERVER_NAME=\"[a-zA-Z0-9._-]*\"/FTP_SERVER_NAME=\"vsftpd\"/g" .env
+                        sed_inplace "s/FTP_SERVER_NAME=\"[a-zA-Z0-9._-]*\"/FTP_SERVER_NAME=\"vsftpd\"/g" .env
                     ;;
                 esac
                 if [ -n "${FTP_SERVER_VER}" ]; then
-                    sed -i "s/FTP_SERVER_VERSION=\"[a-zA-Z0-9\ ._-]*\"/FTP_SERVER_VERSION=\"${FTP_SERVER_VER}\"/g" .env
+                    sed_inplace "s/FTP_SERVER_VERSION=\"[a-zA-Z0-9\ ._-]*\"/FTP_SERVER_VERSION=\"${FTP_SERVER_VER}\"/g" .env
                 fi
                 shift
             ;;
             --with-mailer)
-                sed -i "s/INSTALL_MAILER=[a-zA-Z]*/INSTALL_MAILER=true/g" .env
+                sed_inplace "s/INSTALL_MAILER=[a-zA-Z]*/INSTALL_MAILER=true/g" .env
                 shift
             ;;
             --with-mail-sender-domain)
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 MAIL_SENDER_DOMAIN=${1}
-                sed -i "s/SENDER_DOMAIN=\"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]\"/SENDER_DOMAIN=\"${MAIL_SENDER_DOMAIN}\"/g" .env
+                sed_inplace "s/SENDER_DOMAIN=\"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]\"/SENDER_DOMAIN=\"${MAIL_SENDER_DOMAIN}\"/g" .env
                 shift
             ;;
             --with-ssh-port)
@@ -422,37 +422,37 @@ function init_lemper_install() {
                 shift
                 SSH_PORT=${1}
                 if [[ ${SSH_PORT} =~ ^[0-9]+$ ]]; then
-                    sed -i "s/SSH_PORT=[0-9]*/SSH_PORT=${SSH_PORT}/g" .env
+                    sed_inplace "s/SSH_PORT=[0-9]*/SSH_PORT=${SSH_PORT}/g" .env
                 else
-                    sed -i "s/SSH_PORT=[0-9]*/SSH_PORT=2269/g" .env
+                    sed_inplace "s/SSH_PORT=[0-9]*/SSH_PORT=2269/g" .env
                 fi
                 shift
             ;;
             --with-ssh-passwordless)
-                sed -i "s/SSH_ROOT_LOGIN=[a-zA-Z]*/SSH_ROOT_LOGIN=false/g" .env
-                sed -i "s/SSH_PASSWORDLESS=[a-zA-Z]*/SSH_PASSWORDLESS=true/g" .env
+                sed_inplace "s/SSH_ROOT_LOGIN=[a-zA-Z]*/SSH_ROOT_LOGIN=false/g" .env
+                sed_inplace "s/SSH_PASSWORDLESS=[a-zA-Z]*/SSH_PASSWORDLESS=true/g" .env
                 shift
             ;;
             --with-ssh-pub-key)
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 SSH_PUB_KEY=${1}
-                sed -i "s/SSH_PUB_KEY=\"[a-zA-Z0-9._-](.*)\"/SSH_PUB_KEY=\"${SSH_PUB_KEY}\"/g" .env
+                sed_inplace "s/SSH_PUB_KEY=\"[a-zA-Z0-9._-](.*)\"/SSH_PUB_KEY=\"${SSH_PUB_KEY}\"/g" .env
                 shift
             ;;
             -e | --admin-email)
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 LEMPER_ADMIN_EMAIL=${1}
-                sed -i "s/LEMPER_ADMIN_EMAIL=\"[a-zA-Z0-9._-](.*)\@[a-zA-Z0-9._-](.*)\"/LEMPER_ADMIN_EMAIL=\"${LEMPER_ADMIN_EMAIL}\"/g" .env
+                sed_inplace "s/LEMPER_ADMIN_EMAIL=\"[a-zA-Z0-9._-](.*)\@[a-zA-Z0-9._-](.*)\"/LEMPER_ADMIN_EMAIL=\"${LEMPER_ADMIN_EMAIL}\"/g" .env
                 shift
             ;;
             -B | --fix-broken-install)
-                sed -i "s/FIX_BROKEN_INSTALL=[a-zA-Z]*/FIX_BROKEN_INSTALL=true/g" .env
+                sed_inplace "s/FIX_BROKEN_INSTALL=[a-zA-Z]*/FIX_BROKEN_INSTALL=true/g" .env
                 shift
             ;;
             -d | --development)
-                sed -i "s/ENVIRONMENT=\"[a-zA-Z]*\"/ENVIRONMENT=\"development\"/g" .env
+                sed_inplace "s/ENVIRONMENT=\"[a-zA-Z]*\"/ENVIRONMENT=\"development\"/g" .env
                 shift
             ;;
             -D | --debug)
@@ -461,35 +461,35 @@ function init_lemper_install() {
             ;;
             --dry-run)
                 DRYRUN=true
-                sed -i "s/DRYRUN=[a-zA-Z]*/DRYRUN=true/g" .env
+                sed_inplace "s/DRYRUN=[a-zA-Z]*/DRYRUN=true/g" .env
                 shift
             ;;
             -F | --force)
-                sed -i "s/FORCE_INSTALL=[a-zA-Z]*/FORCE_INSTALL=true/g" .env
-                sed -i "s/FORCE_REMOVE=[a-zA-Z]*/FORCE_REMOVE=true/g" .env
+                sed_inplace "s/FORCE_INSTALL=[a-zA-Z]*/FORCE_INSTALL=true/g" .env
+                sed_inplace "s/FORCE_REMOVE=[a-zA-Z]*/FORCE_REMOVE=true/g" .env
                 shift
             ;;
             -g | --guided | --unattended)
-                sed -i "s/AUTO_INSTALL=[a-zA-Z]*/AUTO_INSTALL=false/g" .env
-                sed -i "s/AUTO_REMOVE=[a-zA-Z]*/AUTO_REMOVE=false/g" .env
+                sed_inplace "s/AUTO_INSTALL=[a-zA-Z]*/AUTO_INSTALL=false/g" .env
+                sed_inplace "s/AUTO_REMOVE=[a-zA-Z]*/AUTO_REMOVE=false/g" .env
                 shift
             ;;
             -h | --hostname)
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 SERVER_HOSTNAME=${1}
-                sed -i "s/SERVER_HOSTNAME=\"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]\"/SERVER_HOSTNAME=\"${SERVER_HOSTNAME}\"/g" .env
+                sed_inplace "s/SERVER_HOSTNAME=\"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]\"/SERVER_HOSTNAME=\"${SERVER_HOSTNAME}\"/g" .env
                 shift
             ;;
             -i | --ipv4)
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
                 SERVER_IP=${1}
-                sed -i "s/SERVER_IP=\"[0-9.]*\"/SERVER_IP=\"${SERVER_IP}\"/g" .env
+                sed_inplace "s/SERVER_IP=\"[0-9.]*\"/SERVER_IP=\"${SERVER_IP}\"/g" .env
                 shift
             ;;
             -p | --production)
-                sed -i "s/ENVIRONMENT=\"[a-zA-Z]*\"/ENVIRONMENT=\"production\"/g" .env
+                sed_inplace "s/ENVIRONMENT=\"[a-zA-Z]*\"/ENVIRONMENT=\"production\"/g" .env
                 shift
             ;;
             --)

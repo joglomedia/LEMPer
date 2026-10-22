@@ -129,7 +129,7 @@ function init_redis_install {
                     echo "Installing Valkey server from repository..."
 
                     # Install Valkey (Redis-compatible).
-                    run apt-get install -q -y valkey-server valkey-tools
+                    run_spinner "Installing Valkey" apt-get install -q -y valkey-server valkey-tools
                 else
                     # Add Redis repos.
                     add_redis_repo
@@ -137,7 +137,7 @@ function init_redis_install {
                     echo "Installing Redis server from repository..."
 
                     # Install Redis.
-                    run apt-get install -q -y redis redis-server redis-tools
+                    run_spinner "Installing Redis" apt-get install -q -y redis redis-server redis-tools
                 fi
             ;;
             2 | "source")
@@ -158,8 +158,8 @@ function init_redis_install {
                         run curl -sSL -o valkey.tar.gz "${VALKEY_DOWNLOAD_URL}" && \
                         run tar -zxf valkey.tar.gz && \
                         run cd valkey-* && \
-                        run make && \
-                        run make install
+                        run_spinner "Compiling Valkey" make && \
+                        run_spinner "Installing Valkey" make install
 
                         # Create Valkey user.
                         if [[ -z $(getent passwd valkey) ]]; then
@@ -202,8 +202,8 @@ function init_redis_install {
                         run curl -sSL -o redis.tar.gz "${REDIS_DOWNLOAD_URL}" && \
                         run tar -zxf redis.tar.gz && \
                         run cd redis-* && \
-                        run make && \
-                        run make install
+                        run_spinner "Compiling Redis" make && \
+                        run_spinner "Installing Redis" make install
 
                         # Create Redis user. 
                         if [[ -z $(getent passwd redis) ]]; then

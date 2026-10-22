@@ -191,7 +191,7 @@ EOL
                     run saslpasswd2 -p -a memcached -f /etc/sasl2/memcached-sasldb2 -c "${MEMCACHED_USERNAME}" <<<"${MEMCACHED_PASSWORD}"
                     run chown memcache:memcache /etc/sasl2/memcached-sasldb2
                     run echo -e "\n# Enable SASL auth\n-S" >> /etc/memcached_memcache.conf
-                    run sed -i "/#\ -vv/a -vv" /etc/memcached_memcache.conf
+                    sed_inplace "/#\ -vv/a -vv" /etc/memcached_memcache.conf
 
                     # Save config.
                     save_config -e "MEMCACHED_SASL=${MEMCACHED_SASL}\nMEMCACHED_USERNAME=${MEMCACHED_USERNAME}\nMEMCACHED_PASSWORD=${MEMCACHED_PASSWORD}\nMEMCACHED_INSTANCE=memcache"
@@ -219,8 +219,8 @@ EOL
                 local MEMCACHED_SIZE=2048
             fi
 
-            run sed -i "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached_memcache.conf
-            run sed -i "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached_www-data.conf
+            sed_inplace "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached_memcache.conf
+            sed_inplace "s/-m 64/-m ${MEMCACHED_SIZE}/g" /etc/memcached_www-data.conf
         fi
 
         # Installation status.

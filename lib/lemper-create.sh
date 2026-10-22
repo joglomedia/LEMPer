@@ -754,7 +754,7 @@ function create_app_db() {
     APP_DB_PASS=${2:-"$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"}
     APP_DB_NAME=${3:-"app_${APP_UID}"}
 
-    run lemper-cli db account create --dbuser="${APP_DB_USER}" --dbpass="${APP_DB_PASS}" && \
+    LEMPER_DB_PASSWORD="${APP_DB_PASS}" run lemper-cli db account create --dbuser="${APP_DB_USER}" && \
     run lemper-cli db create --dbname="${APP_DB_NAME}" --dbuser="${APP_DB_USER}"
 }
 
@@ -780,8 +780,17 @@ function install_wordpress() {
             # create_app_db [app_db_username] [app_db_password] [app_db_name]
             create_app_db "${APP_DB_USER}" "${APP_DB_PASS}" "${APP_DB_NAME}"
 
+            # wp-cli only accepts the password as an argument, so write a
+            # placeholder and substitute it in the generated file to keep the
+            # secret out of the process list.
             run sudo -u "${USERNAME}" -i -- wp-cli config create --dbname="${APP_DB_NAME}" \
-                --dbuser="${APP_DB_USER}" --dbpass="${APP_DB_PASS}" --dbprefix=ls_ --path="${WEBROOT}"
+                --dbuser="${APP_DB_USER}" --dbpass="__LEMPER_DB_PASS__" --dbprefix=ls_ --path="${WEBROOT}"
+
+            if [[ "${DRYRUN}" != true && -f "${WEBROOT}/wp-config.php" ]]; then
+                sed_inplace "s|__LEMPER_DB_PASS__|$(sanitize_sed_replacement "${APP_DB_PASS}")|g" "${WEBROOT}/wp-config.php"
+                run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/wp-config.php"
+                run chmod 640 "${WEBROOT}/wp-config.php"
+            fi
         else
             info "It seems that WordPress files already exists."
         fi
@@ -1324,7 +1333,7 @@ require WPMU_PLUGIN_DIR . '/mercator/mercator.php';
 EOL
 
                     # Enable sunrise. (insert new line before match)
-                    run sed -i "/\/*\ That/i define( 'SUNRISE', true );\n" "${WEBROOT}/wp-config.php"
+                    sed_inplace "/\/*\ That/i define( 'SUNRISE', true );\n" "${WEBROOT}/wp-config.php"
 
                     # Pre-populate blog id mapping, used by Nginx vhost config.
                     if [[ ! -d "${WEBROOT}/wp-content/uploads/nginx-helper" ]]; then
@@ -1345,7 +1354,7 @@ EOL
 
                     # Enable wildcard host.
                     if grep -qwE "server_name\ ${SERVERNAME};$" "${VHOST_FILE}"; then
-                        run sed -i "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" \
+                        sed_inplace "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" \
                             "${VHOST_FILE}"
                     fi
                 ;;
@@ -1412,6 +1421,12 @@ EOL
             esac
 
             if [[ ${DRYRUN} != true ]]; then
+                # Enable ModSecurity automatically when installed.
+                if [[ "${INSTALL_MODSEC}" == true ]] && [[ -f /etc/nginx/includes/modsec.conf ]]; then
+                    sed_inplace "/^[[:space:]]*server_name[[:space:]]/a\\    include /etc/nginx/includes/modsec.conf;" "${VHOST_FILE}"
+                    info "ModSecurity enabled for ${SERVERNAME}."
+                fi
+
                 # Confirm virtual host.
                 if grep -qwE "server_name ${SERVERNAME}" "${VHOST_FILE}"; then
                     success "New domain ${SERVERNAME} successfuly added to virtual host."
@@ -1435,7 +1450,7 @@ EOL
                     echo "Assigning IPv4 ${IPv4} to ${SERVERNAME}..."
 
                     if grep -qwE "listen\ 80" "${VHOST_FILE}"; then
-                        run sed -i "s/^\    listen\ 80/\    listen ${IPv4}:80/g" "${VHOST_FILE}"
+                        sed_inplace "s/^\    listen\ 80/\    listen ${IPv4}:80/g" "${VHOST_FILE}"
 
                         # Add local domain (e.g. example.test) to hosts file.
                         add_local_domain "${IPv4}" "${SERVERNAME}"
@@ -1447,7 +1462,7 @@ EOL
                     echo "Assigning IPv6 ${IPv6} to ${SERVERNAME}..."
 
                     if grep -qwE "listen\ \[::\]:80" "${VHOST_FILE}"; then
-                        run sed -i "s/^\    listen\ \[::\]:80/\    listen [${IPv6}]:80/g" "${VHOST_FILE}"
+                        sed_inplace "s/^\    listen\ \[::\]:80/\    listen [${IPv6}]:80/g" "${VHOST_FILE}"
 
                         # Add local domain (e.g. example.test) to hosts file.
                         add_local_domain "${IPv6}" "${SERVERNAME}"
@@ -1459,7 +1474,7 @@ EOL
                     echo "Enable wildcard domain for ${SERVERNAME}..."
 
                     if grep -qwE "server_name\ ${SERVERNAME};$" "${VHOST_FILE}"; then
-                        run sed -i "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" "${VHOST_FILE}"
+                        sed_inplace "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" "${VHOST_FILE}"
                     fi
                 fi
 
@@ -1469,9 +1484,9 @@ EOL
 
                     if [[ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]]; then
                         # enable cached directives
-                        run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" "${VHOST_FILE}"
+                        sed_inplace "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" "${VHOST_FILE}"
                         # enable fastcgi_cache conf
-                        run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" "${VHOST_FILE}"
+                        sed_inplace "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" "${VHOST_FILE}"
                     else
                         info "FastCGI cache is not enabled due to no cached version of ${FRAMEWORK^} directive."
                     fi

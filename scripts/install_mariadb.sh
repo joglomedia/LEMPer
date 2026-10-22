@@ -94,7 +94,7 @@ function init_mariadb_install() {
         echo "Installing MariaDB (MySQL drop-in replacement) server..."
 
         # Install MariaDB
-        run apt-get install -q -y libmariadb-dev libmariadb3 libmariadbclient18 mariadb-client mariadb-client-core \
+        run_spinner "Installing MariaDB" apt-get install -q -y libmariadb-dev libmariadb3 libmariadbclient18 mariadb-client mariadb-client-core \
             mariadb-common mariadb-server mariadb-server-core mariadb-backup
 
         # Configure MySQL installation.
@@ -203,7 +203,8 @@ function init_mariadb_install() {
                                 FLUSH PRIVILEGES;"
 
                         # Root password is blank for newly installed MariaDB (MySQL).
-                        if mariadb --user=root --password="${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"; then
+                        # Feed the statements via stdin so credentials stay out of argv.
+                        if printf '%s\n' "${SQL_QUERY}" | MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mariadb --user=root; then
                             success "Securing MariaDB server installation has been done."
                         else
                             error "Unable to secure MariaDB server installation."
@@ -282,12 +283,12 @@ function enable_mariabackup() {
     export MYSQL_ROOT_PASSWORD
 
     # Create default LEMPer database user if not exists.
-    if ! mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT User FROM mysql.user;" | grep -q "${MARIABACKUP_USER}"; then
+    if ! MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mariadb -u root -e "SELECT User FROM mysql.user;" | grep -q "${MARIABACKUP_USER}"; then
         # Create mariabackup user.
         SQL_QUERY="CREATE USER '${MARIABACKUP_USER}'@'localhost' IDENTIFIED BY '${MARIABACKUP_PASS}';
                 GRANT RELOAD, PROCESS, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${MARIABACKUP_USER}'@'localhost';"
 
-        run mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"
+        printf '%s\n' "${SQL_QUERY}" | MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" run mariadb -u root
 
         # Update my.cnf
         MARIABACKUP_CNF="###################################

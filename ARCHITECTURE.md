@@ -321,7 +321,7 @@ and the dotenv-sourced environment variables being in scope.
 |---|---|---|---|---|
 | SEC-01 | `cgi.fix_pathinfo = 1` allows path traversal | High | All PHP pool configs | ✅ **Mitigated** — set to `0` in all pool configs |
 | SEC-02 | NOPASSWD:ALL sudo for `lemper` user | Critical | `utils.sh` sudoers | ⚠️ **Open** — flagged for v3.5.0 |
-| SEC-03 | Passwords passed as CLI args (`ps` visible) | Medium | `lemper-create.sh`, `lemper-db.sh` | ⚠️ **Open** — flagged for v3.5.0 |
+| SEC-03 | Passwords passed as CLI args (`ps` visible) | Medium | `lemper-create.sh`, `lemper-db.sh` | ✅ **Fixed** — `MYSQL_PWD` env, stdin-fed SQL, `--dbpass-file`, password-free cron entries |
 | SEC-04 | `cgi.fix_pathinfo` set to 1 in default PHP pools | High | `www.conf` templates | ✅ **Mitigated** — set to `0` |
 | SEC-05 | Self-signed SSL uses 2048-bit RSA | Medium | `nginx_ssl_cert.sh`, `lemper-selfssl.sh` | ✅ **Fixed** — upgraded to RSA 4096 |
 | SEC-06 | `eval`-based dotenv loading (injection risk) | High | `utils.sh:31`, `lemper-cli.sh:55` | ⚠️ **Partial** — `load_config()` in `lemper-encrypt.sh` still uses eval |

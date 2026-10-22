@@ -176,7 +176,7 @@ function init_postgres_install() {
             info "PostgreSQL server installed in dry run mode."
         else
             if [[ -f "/etc/postgresql/${POSTGRES_VERSION}/main/postgresql.conf" ]]; then
-                sed -i "s/port\ =\ [0-9]*/port\ =\ ${POSTGRES_PORT}/g" "/etc/postgresql/${POSTGRES_VERSION}/main/postgresql.conf"
+                sed_inplace "s/port\ =\ [0-9]*/port\ =\ ${POSTGRES_PORT}/g" "/etc/postgresql/${POSTGRES_VERSION}/main/postgresql.conf"
             fi
 
             # Start PostgreSQL service if cluster is available.

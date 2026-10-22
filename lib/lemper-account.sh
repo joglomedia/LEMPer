@@ -61,13 +61,13 @@ function create_account() {
             # Generate password hash.
             if [[ -n $(command -v mkpasswd) ]]; then
                 PASSWORD_HASH=$(mkpasswd --method=sha-256 "${PASSWORD}")
-                sed -i "/^${USERNAME}:/d" /srv/.htpasswd
+                sed_inplace "/^${USERNAME}:/d" /srv/.htpasswd
                 echo "${USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             elif [[ -n $(command -v htpasswd) ]]; then
-                htpasswd -b /srv/.htpasswd "${USERNAME}" "${PASSWORD}"
+                printf '%s\n' "${PASSWORD}" | htpasswd -i /srv/.htpasswd "${USERNAME}"
             else
-                PASSWORD_HASH=$(openssl passwd -1 "${PASSWORD}")
-                sed -i "/^${USERNAME}:/d" /srv/.htpasswd
+                PASSWORD_HASH=$(printf '%s\n' "${PASSWORD}" | openssl passwd -1 -stdin)
+                sed_inplace "/^${USERNAME}:/d" /srv/.htpasswd
                 echo "${USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             fi
 

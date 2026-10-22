@@ -156,7 +156,7 @@ function install_php() {
         echo "Installing PHP ${PHPv} and it's extensions..."
 
         if [[ "${#PHP_REPO_EXTS[@]}" -gt 0 ]]; then
-            run apt-get install -q -y "php${PHPv}" "${PHP_REPO_EXTS[@]}" \
+            run_spinner "Installing PHP ${PHPv}" apt-get install -q -y "php${PHPv}" "${PHP_REPO_EXTS[@]}" \
                 dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
         fi
 
@@ -333,34 +333,34 @@ EOL
     else
         if [[ "${DRYRUN}" != true ]]; then
             if grep -qwE "^error_log\ =\ \/var\/log\/php${PHPv}-fpm.log" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
-                run sed -i "s|^error_log\ =\ /var/log/php${PHPv}-fpm.log|error_log\ =\ /var/log/php/php${PHPv}-fpm.log/g" \
+                sed_inplace "s|^error_log\ =\ /var/log/php${PHPv}-fpm.log|error_log\ =\ /var/log/php/php${PHPv}-fpm.log/g" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             else
-                run sed -i "/^;error_log/a error_log\ =\ \/var\/log\/php\/php${PHPv}-fpm.log" \
+                sed_inplace "/^;error_log/a error_log\ =\ \/var\/log\/php\/php${PHPv}-fpm.log" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             fi
 
             if grep -qwE "^emergency_restart_threshold\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
-                run sed -i "s/^emergency_restart_threshold\ =\ [0-9]*/emergency_restart_threshold\ =\ 10/g" \
+                sed_inplace "s/^emergency_restart_threshold\ =\ [0-9]*/emergency_restart_threshold\ =\ 10/g" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             else
-                run sed -i "/^;emergency_restart_threshold/a emergency_restart_threshold\ =\ 10" \
+                sed_inplace "/^;emergency_restart_threshold/a emergency_restart_threshold\ =\ 10" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             fi
 
             if grep -qwE "^emergency_restart_interval\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
-                run sed -i "s/^emergency_restart_interval\ =\ [0-9]*/emergency_restart_interval\ =\ 60/g" \
+                sed_inplace "s/^emergency_restart_interval\ =\ [0-9]*/emergency_restart_interval\ =\ 60/g" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             else
-                run sed -i "/^;emergency_restart_interval/a emergency_restart_interval\ =\ 60" \
+                sed_inplace "/^;emergency_restart_interval/a emergency_restart_interval\ =\ 60" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             fi
 
             if grep -qwE "^process_control_timeout\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
-                run sed -i "s/^process_control_timeout\ =\ [0-9]*/process_control_timeout\ =\ 10/g" \
+                sed_inplace "s/^process_control_timeout\ =\ [0-9]*/process_control_timeout\ =\ 10/g" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             else
-                run sed -i "/^;process_control_timeout/a process_control_timeout\ =\ 10" \
+                sed_inplace "/^;process_control_timeout/a process_control_timeout\ =\ 10" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             fi
         else
@@ -378,21 +378,21 @@ EOL
         run cp -f "etc/php/${PHPv}/fpm/pool.d/www.conf" "/etc/php/${PHPv}/fpm/pool.d/"
 
         # Update timezone.
-        run run sed -i "s|php_admin_value\[date\.timezone\]\ =\ UTC|php_admin_value\[date\.timezone\]\ =\ ${TIMEZONE}|g" \
+        sed_inplace "s|php_admin_value\[date\.timezone\]\ =\ UTC|php_admin_value\[date\.timezone\]\ =\ ${TIMEZONE}|g" \
             "/etc/php/${PHPv}/fpm/pool.d/www.conf"
     else
         # Enable FPM ping service.
-        run sed -i "/^;ping.path\ =.*/a ping.path\ =\ \/ping" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
+        sed_inplace "/^;ping.path\ =.*/a ping.path\ =\ \/ping" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
         # Enable FPM status.
-        run sed -i "/^;pm.status_path\ =.*/a pm.status_path\ =\ \/status" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
+        sed_inplace "/^;pm.status_path\ =.*/a pm.status_path\ =\ \/status" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
         # Enable chdir.
-        run sed -i "/^;chdir\ =.*/a chdir\ =\ \/usr\/share\/nginx\/html" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
+        sed_inplace "/^;chdir\ =.*/a chdir\ =\ \/usr\/share\/nginx\/html" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
         # Add custom php extension (ex .php70, .php71)
         PHPExt=".php${PHPv//.}"
-        run sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/g" \
+        sed_inplace "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/g" \
             "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
         # Customize php ini settings.
@@ -440,7 +440,7 @@ EOL
         run cp -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
 
         # Update timezone.
-        run sed -i "s|php_admin_value\[date\.timezone\]\ =\ UTC|php_admin_value\[date\.timezone\]\ =\ ${TIMEZONE}|g" \
+        sed_inplace "s|php_admin_value\[date\.timezone\]\ =\ UTC|php_admin_value\[date\.timezone\]\ =\ ${TIMEZONE}|g" \
             "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
     else
         if [[ -f "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" && -n $(getent passwd "${POOLNAME}") ]]; then

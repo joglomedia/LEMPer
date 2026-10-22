@@ -89,7 +89,7 @@ EOL
                 echo "Restricting SSH root login..."
 
                 if grep -qwE "^PermitRootLogin\ [a-z]*" /etc/ssh/sshd_config; then
-                    run sed -i "s/^PermitRootLogin\ [a-z]*/PermitRootLogin\ no/g" /etc/ssh/sshd_config
+                    sed_inplace "s/^PermitRootLogin\ [a-z]*/PermitRootLogin\ no/g" /etc/ssh/sshd_config
                 else
                     #run sed -i "/^#PermitRootLogin/a PermitRootLogin\ no" /etc/ssh/sshd_config
                     run bash -c "echo 'PermitRootLogin no' >> /etc/ssh/sshd_config"
@@ -98,7 +98,7 @@ EOL
 
             # Enable RSA key authentication.
             if grep -qwE "^RSAAuthentication\ no" /etc/ssh/sshd_config; then
-                run sed -i "s/^RSAAuthentication\ no/RSAAuthentication\ yes/g" /etc/ssh/sshd_config
+                sed_inplace "s/^RSAAuthentication\ no/RSAAuthentication\ yes/g" /etc/ssh/sshd_config
             else
                 #run sed -i "/^#RSAAuthentication/a RSAAuthentication\ yes" /etc/ssh/sshd_config
                 run bash -c "echo 'RSAAuthentication yes' >> /etc/ssh/sshd_config"
@@ -106,7 +106,7 @@ EOL
 
             # Enable pub key authentication.
             if grep -qwE "^PubkeyAuthentication\ no" /etc/ssh/sshd_config; then
-                run sed -i "s/^PubkeyAuthentication\ no/PubkeyAuthentication\ yes/g" /etc/ssh/sshd_config
+                sed_inplace "s/^PubkeyAuthentication\ no/PubkeyAuthentication\ yes/g" /etc/ssh/sshd_config
             else
                 #run sed -i "/^#PubkeyAuthentication/a PubkeyAuthentication\ yes" /etc/ssh/sshd_config
                 run bash -c "echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config"
@@ -114,21 +114,21 @@ EOL
 
             # Disable password authentication for password-less login using key.
             if grep -qwE "^PasswordAuthentication\ [a-z]*" /etc/ssh/sshd_config; then
-                run sed -i "s/^PasswordAuthentication\ [a-z]*/PasswordAuthentication\ no/g" /etc/ssh/sshd_config
+                sed_inplace "s/^PasswordAuthentication\ [a-z]*/PasswordAuthentication\ no/g" /etc/ssh/sshd_config
             else
                 #run sed -i "/^#PasswordAuthentication/a PasswordAuthentication\ no" /etc/ssh/sshd_config
                 run bash -c "echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config"
             fi
 
             if grep -qwE "^ClientAliveInterval\ [0-9]*" /etc/ssh/sshd_config; then
-                run sed -i "s/^ClientAliveInterval\ [0-9]*/ClientAliveInterval\ 600/g" /etc/ssh/sshd_config
+                sed_inplace "s/^ClientAliveInterval\ [0-9]*/ClientAliveInterval\ 600/g" /etc/ssh/sshd_config
             else
                 #run sed -i "/^#ClientAliveInterval/a ClientAliveInterval\ 600" /etc/ssh/sshd_config
                 run bash -c "echo 'ClientAliveInterval 600' >> /etc/ssh/sshd_config"
             fi
 
             if grep -qwE "^ClientAliveCountMax\ [0-9]*" /etc/ssh/sshd_config; then
-                run sed -i "s/^ClientAliveCountMax\ [0-9]*/ClientAliveCountMax\ 3/g" /etc/ssh/sshd_config
+                sed_inplace "s/^ClientAliveCountMax\ [0-9]*/ClientAliveCountMax\ 3/g" /etc/ssh/sshd_config
             else
                 #run sed -i "/^#ClientAliveCountMax/a ClientAliveCountMax\ 3" /etc/ssh/sshd_config
                 run bash -c "echo 'ClientAliveCountMax 3' >> /etc/ssh/sshd_config"
@@ -146,14 +146,14 @@ EOL
 
     if [[ ${SSH_PORT} =~ ^[0-9]+$ ]]; then
         if grep -qwE "^Port\ [0-9]*" /etc/ssh/sshd_config; then
-            run sed -i "s/^Port\ [0-9]*/Port\ ${SSH_PORT}/g" /etc/ssh/sshd_config
+            sed_inplace "s/^Port\ [0-9]*/Port\ ${SSH_PORT}/g" /etc/ssh/sshd_config
         else
-            run sed -i "/^#Port\ [0-9]*/a Port\ ${SSH_PORT}" /etc/ssh/sshd_config
+            sed_inplace "/^#Port\ [0-9]*/a Port\ ${SSH_PORT}" /etc/ssh/sshd_config
         fi
 
         # Save config.
         #save_config -e "HOSTNAME=${HOSTNAME}\nSERVER_IP=${SERVER_IP}\nSSH_PORT=${SSH_PORT}"
-        run sudo sed -i "s|^SERVER_SSH_PORT=[0-9]*|SERVER_SSH_PORT=${SSH_PORT}|g" /etc/lemper/lemper.conf
+        sed_inplace "s|^SERVER_SSH_PORT=[0-9]*|SERVER_SSH_PORT=${SSH_PORT}|g" /etc/lemper/lemper.conf
 
         # Save log.
         save_log "Default SSH port updated to ${SSH_PORT}."
@@ -313,7 +313,7 @@ function install_csf() {
         echo "Configuring CSF+LFD firewall rules..."
 
         # Enable CSF.
-        run sed -i 's/^TESTING\ =\ "1"/TESTING\ =\ "0"/g' /etc/csf/csf.conf
+        sed_inplace 's/^TESTING\ =\ "1"/TESTING\ =\ "0"/g' /etc/csf/csf.conf
 
         # Allowed ports.
         CSF_ALLOW_PORTS="53,80,8081,8082,8083,8443,25,465,587,110,143,993,995"
@@ -331,10 +331,10 @@ function install_csf() {
         fi
 
         # Allowed incoming TCP ports.
-        run sed -i "s/^TCP_IN\ =\ \"[0-9_,]*\"/TCP_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+        sed_inplace "s/^TCP_IN\ =\ \"[0-9_,]*\"/TCP_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
 
         # Allowed outgoing TCP ports.
-        run sed -i "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+        sed_inplace "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
 
         # IPv6 support (requires ip6tables).
         if [[ -n $(command -v ip6tables) ]]; then
@@ -343,13 +343,13 @@ function install_csf() {
                 echo "Configuring CSF+LFD for IPv6..."
 
                 # Enable IPv6 support.
-                run sed -i 's/^IPV6\ =\ "0"/IPV6\ =\ "1"/g' /etc/csf/csf.conf
+                sed_inplace 's/^IPV6\ =\ "0"/IPV6\ =\ "1"/g' /etc/csf/csf.conf
 
                 # Allowed incoming TCP ports for IPv6.
-                run sed -i "s/^TCP6_IN\ =\ \"[0-9_,]*\"/TCP6_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+                sed_inplace "s/^TCP6_IN\ =\ \"[0-9_,]*\"/TCP6_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
 
                 # Allowed outgoing TCP ports for IPv6.
-                run sed -i "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+                sed_inplace "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
             else
                 info "ip6tables version greater than 1.4.3 required for IPv6 support."
             fi
@@ -419,16 +419,16 @@ function install_apf() {
         echo "Configuring APF+BFD firewall rules..."
 
         # Enable APF.
-        run sed -i "s/^DEVEL_MODE=\"1\"/DEVEL_MODE=\"0\"/g" /etc/apf/conf.apf
+        sed_inplace "s/^DEVEL_MODE=\"1\"/DEVEL_MODE=\"0\"/g" /etc/apf/conf.apf
 
         # Get ethernet interface.
         IFACE=${IFACE:-$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)}
 
         # Set ethernet interface to monitor.
-        run sed -i "s/^IFACE_UNTRUSTED=\"[0-9a-zA-Z]*\"/IFACE_UNTRUSTED=\"${IFACE}\"/g" /etc/apf/conf.apf
+        sed_inplace "s/^IFACE_UNTRUSTED=\"[0-9a-zA-Z]*\"/IFACE_UNTRUSTED=\"${IFACE}\"/g" /etc/apf/conf.apf
 
         # Enable fast load.
-        run sed -i 's/^SET_FASTLOAD="0"/SET_FASTLOAD="1"/g' /etc/apf/conf.apf
+        sed_inplace 's/^SET_FASTLOAD="0"/SET_FASTLOAD="1"/g' /etc/apf/conf.apf
     fi
 
     # Clean up installation files.

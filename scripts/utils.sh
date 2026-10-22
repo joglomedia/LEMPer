@@ -189,9 +189,9 @@ function spinner_stop() {
         kill "${SPINNER_PID}" 2>/dev/null
         wait "${SPINNER_PID}" 2>/dev/null
         SPINNER_PID=""
+        # Clear spinner character.
+        echo -ne "\b \b"
     fi
-    # Clear spinner character.
-    echo -ne "\b \b"
 }
 
 ##
@@ -203,8 +203,21 @@ function run_spinner() {
     shift
 
     spinner_start "${description}"
-    run "$@"
+
+    local status=0
+    if [[ "${DRYRUN}" == true ]]; then
+        echo_color "${YELLOW}" -n "would run "
+        echo "$@"
+    else
+        "$@" || status=$?
+    fi
+
     spinner_stop
+
+    if [[ "${status}" -ne 0 ]]; then
+        error "Failure running '$*', exiting."
+        exit 1
+    fi
 
     if [[ "${DRYRUN}" != true ]]; then
         success "${description} — done"
@@ -220,15 +233,61 @@ function run_spinner() {
 # Usage:
 #   sed_inplace "s/old/new/g" /path/to/file
 #   sed_inplace "s/old/new/g" file1 file2 file3
+#   sed_inplace -E "s/(old|older)/new/g" /path/to/file
+#   sed_inplace -b "s/old/new/g" /path/to/file   # keep a .bak backup
 ##
 function sed_inplace() {
+    local backup_suffix=""
+    local extra_opts=()
+
+    while [[ $# -gt 0 ]]; do
+        case "${1}" in
+            -E|-r)
+                extra_opts+=("${1}")
+                shift
+            ;;
+            -b|--backup)
+                backup_suffix=".bak"
+                shift
+            ;;
+            --)
+                shift
+                break
+            ;;
+            -*)
+                error "sed_inplace: unsupported option '${1}'."
+                return 2
+            ;;
+            *)
+                break
+            ;;
+        esac
+    done
+
+    if [[ $# -lt 2 ]]; then
+        error "Usage: sed_inplace [-E|-r] [-b] 'script' file [file...]"
+        return 2
+    fi
+
     local script="${1}"
     shift
-    local file
+
+    if [[ "${DRYRUN}" == true ]]; then
+        echo_color "${YELLOW}" -n "would run "
+        echo "sed -i${backup_suffix} ${extra_opts[*]} '${script}' $*"
+        return 0
+    fi
+
+    local status=0
     if [[ "$(uname -s)" == "Darwin" ]]; then
-        sed -i '' "${script}" "$@"
+        sed -i "${backup_suffix}" "${extra_opts[@]}" "${script}" "$@" || status=$?
     else
-        sed -i "${script}" "$@"
+        sed -i"${backup_suffix}" "${extra_opts[@]}" "${script}" "$@" || status=$?
+    fi
+
+    if [[ "${status}" -ne 0 ]]; then
+        error "Failure running sed in-place on: $*"
+        return 1
     fi
 }
 
@@ -770,7 +829,7 @@ function preflight_system_check() {
         run bash -c "echo '${SERVER_HOSTNAME}' > /etc/hostname"
 
         if grep -q "${SERVER_HOSTNAME}" /etc/hosts; then
-            run sed -i".bak" "/${SERVER_HOSTNAME}/d" /etc/hosts
+            sed_inplace -b "/${SERVER_HOSTNAME}/d" /etc/hosts
             run bash -c "echo -e '${SERVER_IP}\t${SERVER_HOSTNAME}' >> /etc/hosts"
         else
             run bash -c "echo -e '\n# LEMPer local hosts\n${SERVER_IP}\t${SERVER_HOSTNAME}' >> /etc/hosts"
@@ -864,7 +923,7 @@ function create_swap() {
 
     # Make the change permanent.
     if grep -qwE "#${SWAP_FILE}" /etc/fstab; then
-        sed -i "s|#${SWAP_FILE}|${SWAP_FILE}|g" /etc/fstab
+        sed_inplace "s|#${SWAP_FILE}|${SWAP_FILE}|g" /etc/fstab
     else
         echo "${SWAP_FILE} swap swap defaults 0 0" >> /etc/fstab
         success "Swap space created and enabled at '${SWAP_FILE}'."
@@ -877,7 +936,7 @@ function remove_swap() {
 
     if [ -f "${SWAP_FILE}" ]; then
         run swapoff ${SWAP_FILE} && \
-        run sed -i "s|${SWAP_FILE}|#\ ${SWAP_FILE}|g" /etc/fstab && \
+        sed_inplace "s|${SWAP_FILE}|#\ ${SWAP_FILE}|g" /etc/fstab && \
         run rm -f ${SWAP_FILE}
 
         echo "Swap file removed."
@@ -957,13 +1016,13 @@ SUDOERS_EOF
             # Generate password hash.
             if [[ -n $(command -v mkpasswd) ]]; then
                 PASSWORD_HASH=$(mkpasswd --method=sha-256 "${LEMPER_PASSWORD}")
-                run sed -i "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
+                sed_inplace "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
                 run echo "${LEMPER_USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             elif [[ -n $(command -v htpasswd) ]]; then
-                run htpasswd -b /srv/.htpasswd "${LEMPER_USERNAME}" "${LEMPER_PASSWORD}"
+                printf '%s\n' "${LEMPER_PASSWORD}" | run htpasswd -i /srv/.htpasswd "${LEMPER_USERNAME}"
             else
-                PASSWORD_HASH=$(openssl passwd -1 "${LEMPER_PASSWORD}")
-                run sed -i "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
+                PASSWORD_HASH=$(printf '%s\n' "${LEMPER_PASSWORD}" | openssl passwd -1 -stdin)
+                sed_inplace "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
                 run echo "${LEMPER_USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             fi
 
@@ -995,7 +1054,7 @@ function delete_account() {
             run userdel -r "${LEMPER_USERNAME}"
 
             if [ -f "/srv/.htpasswd" ]; then
-                run sed -i "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
+                sed_inplace "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
             fi
 
             success "Account ${LEMPER_USERNAME} deleted."

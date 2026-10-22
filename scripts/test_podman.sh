@@ -63,9 +63,9 @@ case "${MODE}" in
             "${IMAGE}" bash -c "
                 apt-get update -qq && \
                 cp .env.dist .env && \
-                sed -i 's/AUTO_INSTALL=false/AUTO_INSTALL=true/' .env && \
-                sed -i 's/INSTALL_NGINX=true/INSTALL_NGINX=false/' .env && \
-                sed -i 's/INSTALL_PHP=true/INSTALL_PHP=false/' .env && \
+                sed_inplace 's/AUTO_INSTALL=false/AUTO_INSTALL=true/' .env && \
+                sed_inplace 's/INSTALL_NGINX=true/INSTALL_NGINX=false/' .env && \
+                sed_inplace 's/INSTALL_PHP=true/INSTALL_PHP=false/' .env && \
                 DRYRUN=true bash install.sh
             "
         ;;

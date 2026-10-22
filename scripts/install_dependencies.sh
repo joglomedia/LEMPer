@@ -39,7 +39,7 @@ run apt-get upgrade -q -y
 
 # Install dependencies.
 echo "Installing packages, be patient..."
-run apt-get install -q -y \
+run_spinner "Installing base packages" apt-get install -q -y \
     apt-transport-https apt-utils autoconf automake bash bc build-essential ca-certificates \
     cmake cron curl dmidecode dnsutils gcc gdb git gnupg2 htop iptables libc-bin libc6-dev \
     libcurl4-openssl-dev libgpgme11-dev libssl-dev libpcre3-dev libxml2-dev libxslt1-dev \

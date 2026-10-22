@@ -36,7 +36,7 @@ function init_server_optimization() {
 
         if [[ $(cat /proc/sys/vm/swappiness) -gt 10 ]]; then
             if [[ ${DRYRUN} != true ]]; then
-                run sed -i "s/vm.swappiness/#vm.swappiness/" /etc/sysctl.conf
+                sed_inplace "s/vm.swappiness/#vm.swappiness/" /etc/sysctl.conf
                 cat >> /etc/sysctl.conf <<EOL
 ###################################################################
 # Custom optimization for LEMPer

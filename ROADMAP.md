@@ -843,7 +843,7 @@ systemd-resolved ACME integration
 | -------- | --------------------------------------------------- | ------------------------------------------------------------- | ---------- |
 | SEC-01   | `cgi.fix_pathinfo = 1` enables path traversal       | `etc/php/*/fpm/pool.d/*.conf`, `lib/lemper-create.sh`         | Phase 0 ✅  |
 | SEC-02   | NOPASSWD:ALL sudo for lemper user                   | `scripts/utils.sh:create_account()`                           | Phase 6 ✅  |
-| SEC-03   | Passwords passed as CLI args                        | `lib/lemper-create.sh`, `lib/lemper-db.sh`                    | Phase 1 ⚠️ |
+| SEC-03   | Passwords passed as CLI args                        | `lib/lemper-create.sh`, `lib/lemper-db.sh`                    | Phase 1 ✅  |
 | SEC-04   | `cgi.fix_pathinfo=1` in [www.conf](http://www.conf) | `etc/php/*/fpm/pool.d/www.conf`                               | Phase 0 ✅  |
 | SEC-05   | Self-signed SSL uses RSA-2048                       | `nginx_ssl_cert.sh`, `lemper-selfssl.sh`, `lemper-manage.sh`  | Phase 1 ✅  |
 | SEC-06   | `eval`-based config loading                         | `scripts/utils.sh`, `bin/lemper-cli.sh`                       | Phase 6 ✅  |

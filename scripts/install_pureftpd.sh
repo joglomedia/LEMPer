@@ -100,11 +100,11 @@ EOL
 
         # Enable passv mode.
         if [[ "${FTP_PASV_MODE}" == true ]]; then
-            run sed -i "s|^#\ PassivePortRange|PassivePortRange|g" /etc/pure-ftpd/pure-ftpd.conf
+            sed_inplace "s|^#\ PassivePortRange|PassivePortRange|g" /etc/pure-ftpd/pure-ftpd.conf
 
             # If we are behind NAT (such as AWS, GCP, Azure), set the Public IP.
             if [[ "${SERVER_IP}" != "$(get_ip_private)" ]]; then
-                run sed -i "s|^#\ ForcePassiveIP|ForcePassiveIP|g" /etc/pure-ftpd/pure-ftpd.conf
+                sed_inplace "s|^#\ ForcePassiveIP|ForcePassiveIP|g" /etc/pure-ftpd/pure-ftpd.conf
             fi
         fi
 

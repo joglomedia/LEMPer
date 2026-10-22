@@ -61,7 +61,7 @@ function init_bunjs_install() {
                 run bash -c "curl -fsSL https://bun.sh/bun.key | gpg --dearmor --yes -o /usr/share/keyrings/bun-archive-keyring.gpg" && \
                 run bash -c "echo 'deb [signed-by=/usr/share/keyrings/bun-archive-keyring.gpg] https://bun.sh/apt stable main' | tee /etc/apt/sources.list.d/bun.list" && \
                 run apt-get update --allow-releaseinfo-change -q -y && \
-                run apt-get install -q -y bun
+                run_spinner "Installing Bun.js" apt-get install -q -y bun
             ;;
             2 | "source")
                 echo "Installing Bun.js from official binary release..."

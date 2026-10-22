@@ -148,6 +148,21 @@ setup() {
     grep -q 'restore' "${BASE_DIR}/lib/lemper-db.sh"
 }
 
+@test "database passwords are not passed as mysql CLI arguments" {
+    grep -q 'MYSQL_PWD=' "${BASE_DIR}/lib/lemper-db.sh"
+    ! grep -rqE '(mariadb|mysql|mysqldump)[^|]*(-p"|--password=)' "${BASE_DIR}/lib" "${BASE_DIR}/scripts"
+}
+
+@test "scheduled database backups keep passwords out of crontab" {
+    grep -q -- '--dbpass-file=' "${BASE_DIR}/lib/lemper-db.sh"
+    ! grep -q 'CRON_CMD=.*--dbpass=' "${BASE_DIR}/lib/lemper-db.sh"
+}
+
+@test "installer supplies app database password via environment" {
+    grep -q 'LEMPER_DB_PASSWORD=' "${BASE_DIR}/lib/lemper-create.sh"
+    ! grep -q 'db account create.*--dbpass=' "${BASE_DIR}/lib/lemper-create.sh"
+}
+
 @test "install_crowdsec.sh and remove_crowdsec.sh exist" {
     [ -f "${BASE_DIR}/scripts/install_crowdsec.sh" ]
     [ -f "${BASE_DIR}/scripts/remove_crowdsec.sh" ]

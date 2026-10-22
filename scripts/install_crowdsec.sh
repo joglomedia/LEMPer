@@ -82,7 +82,7 @@ function init_crowdsec_install() {
 
                     # Build from source.
                     run apt-get install -q -y golang-go libsqlite3-dev
-                    run make release
+                    run_spinner "Building CrowdSec" make release
                     run ./crowdsec install --exclude ./cmd/crowdsec-cli
                     run ln -sf "${BUILD_DIR}/crowdsec-*/bin/crowdsec" /usr/local/bin/crowdsec
                     run ln -sf "${BUILD_DIR}/crowdsec-*/bin/crowdsec-cli" /usr/local/bin/crowdsec-cli
@@ -119,7 +119,7 @@ function init_crowdsec_install() {
             if [[ -f /etc/nginx/nginx.conf ]]; then
                 # Add CrowdSec bouncer include to nginx http block.
                 if ! grep -q 'crowdsec-bouncer' /etc/nginx/nginx.conf; then
-                    run sed -i '/http {/a \    include /etc/crowdsec/crowdsec-nginx.conf;' /etc/nginx/nginx.conf
+                    sed_inplace '/http {/a \    include /etc/crowdsec/crowdsec-nginx.conf;' /etc/nginx/nginx.conf
                 fi
             fi
 
@@ -283,7 +283,7 @@ EOF
 
     # Update nginx.conf to include the webapp WAF config in the http block.
     if [[ -f /etc/nginx/nginx.conf ]] && ! grep -q 'crowdsec-webapp' /etc/nginx/nginx.conf; then
-        run sed -i '/http {/a \    include /etc/lemper/waf/crowdsec-webapp.conf;' /etc/nginx/nginx.conf
+        sed_inplace '/http {/a \    include /etc/lemper/waf/crowdsec-webapp.conf;' /etc/nginx/nginx.conf
     fi
 
     success "CrowdSec WAF nginx rules configured for PHP web apps."

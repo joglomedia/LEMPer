@@ -52,7 +52,7 @@ function init_modsec_install() {
         if [[ ! -d "${CRS_DIR}" ]]; then
             # Clone CRS from GitHub.
             local CRS_VERSION="${MODSEC_CRS_VERSION:-"v3.3.5"}"
-            run git clone --depth 1 --branch "${CRS_VERSION}" \
+            run_spinner "Downloading OWASP CRS" git clone --depth 1 --branch "${CRS_VERSION}" \
                 "https://github.com/coreruleset/coreruleset.git" "${CRS_DIR}"
         fi
 

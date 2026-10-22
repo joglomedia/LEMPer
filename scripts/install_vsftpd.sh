@@ -69,14 +69,14 @@ EOL
 
         # Enable passv mode.
         if [[ "${FTP_PASV_MODE}" == true ]]; then
-            run sed -i 's/pasv_enable=NO/pasv_enable=YES/g' /etc/vsftpd.conf
-            run sed -i 's/\#pasv_min_port/pasv_min_port/g' /etc/vsftpd.conf
-            run sed -i 's/\#pasv_max_port/pasv_max_port/g' /etc/vsftpd.conf
+            sed_inplace 's/pasv_enable=NO/pasv_enable=YES/g' /etc/vsftpd.conf
+            sed_inplace 's/\#pasv_min_port/pasv_min_port/g' /etc/vsftpd.conf
+            sed_inplace 's/\#pasv_max_port/pasv_max_port/g' /etc/vsftpd.conf
 
             # If using elastic IP (such as AWS EC2), set the server IP.
             if [[ "${ENVIRONMENT}" == prod* && "${SERVER_IP}" != "$(get_ip_private)" ]]; then
-                run sed -i "s|^#pasv_address=.*|pasv_address=${SERVER_IP}|g" /etc/vsftpd.conf
-                run sed -i "s|^#pasv_addr_resolve=.*|pasv_addr_resolve=YES|g" /etc/vsftpd.conf
+                sed_inplace "s|^#pasv_address=.*|pasv_address=${SERVER_IP}|g" /etc/vsftpd.conf
+                sed_inplace "s|^#pasv_addr_resolve=.*|pasv_addr_resolve=YES|g" /etc/vsftpd.conf
             fi
         fi
 
@@ -316,7 +316,7 @@ function init_vsftpd_install() {
 
                     # If SSL Enabled, modify the builddefs.h file.
                     if [[ "${FTP_SSL_ENABLE}" == true ]]; then
-                        run sed -i 's/\#undef\ VSF_BUILD_SSL/\#define\ VSF_BUILD_SSL/g' ./builddefs.h
+                        sed_inplace 's/\#undef\ VSF_BUILD_SSL/\#define\ VSF_BUILD_SSL/g' ./builddefs.h
                     fi
 
                     # Fix error install: cannot create regular file.

@@ -81,10 +81,10 @@ function compile_nginx() {
     run cd "${NGINX_SRC_DIR}" || return 1
 
     echo "Compiling Nginx (using ${NB_PROC} cores)..."
-    run make -j"${NB_PROC}"
+    run_spinner "Compiling Nginx" make -j"${NB_PROC}"
 
     echo "Installing Nginx..."
-    run make install
+    run_spinner "Installing Nginx" make install
 
     # Create nginx symlink if not exists
     if [[ ! -f /usr/sbin/nginx && -f /etc/nginx/sbin/nginx ]]; then
@@ -216,9 +216,9 @@ function install_nginx_from_repo() {
     # Install nginx and modules
     if [[ -n "${EXTRA_PKGS}" ]]; then
         # shellcheck disable=SC2086
-        run apt-get install -q -y "${NGINX_PKGS[@]}" ${EXTRA_PKGS}
+        run_spinner "Installing Nginx modules" apt-get install -q -y "${NGINX_PKGS[@]}" ${EXTRA_PKGS}
     else
-        run apt-get install -q -y "${NGINX_PKGS[@]}"
+        run_spinner "Installing Nginx modules" apt-get install -q -y "${NGINX_PKGS[@]}"
     fi
 
     success "Nginx installed from repository successfully!"

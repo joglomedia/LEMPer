@@ -105,9 +105,9 @@ function cmd_account_access() {
         DBPRIVILEGES="ALL PRIVILEGES"
     fi
 
-    if "${MYSQLCLI}" -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+    if MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
         echo "Grants database '${DBNAME}' privileges to '${DBUSER}'@'${DBHOST}'"
-        run "${MYSQLCLI}" -u root -p"${MYSQL_ROOT_PASSWORD}" -e "GRANT ${DBPRIVILEGES} ON ${DBNAME}.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
+        MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" run "${MYSQLCLI}" -u root -e "GRANT ${DBPRIVILEGES} ON ${DBNAME}.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
     else
         fail "The specified database '${DBNAME}' does not exist."
     fi
@@ -122,18 +122,25 @@ function cmd_account_create() {
         DBPASS=${DBPASS:-"$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"}
 
         # Create database account.
-        if "${MYSQLCLI}" -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
+        if MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
             fail "MySQL account ${DBUSER} is already exist. Please use another one!"
         else
-            echo "Creating new MySQL account '${DBUSER}'@'${DBHOST}' using password ${DBPASS}..."
+            echo "Creating new MySQL account '${DBUSER}'@'${DBHOST}'..."
 
-            run "${MYSQLCLI}" -u root -p"${MYSQL_ROOT_PASSWORD}" -e "CREATE USER '${DBUSER}'@'${DBHOST}' IDENTIFIED BY '${DBPASS}';"
+            # Pass the statement through stdin so the password never shows
+            # up in the mysql process arguments.
+            if [[ "${DRYRUN}" == true ]]; then
+                info "Would create MySQL account '${DBUSER}'@'${DBHOST}'."
+            elif ! printf '%s\n' "CREATE USER '${DBUSER}'@'${DBHOST}' IDENTIFIED BY '${DBPASS}';" \
+                | MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root; then
+                fail "Unable to create MySQL account '${DBUSER}'@'${DBHOST}'."
+            fi
 
-            if "${MYSQLCLI}" -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
+            if MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
                 success "MySQL account ${DBUSER} has been created."
                 
                 if [[ ${VERBOSE} == true ]]; then
-                    echo -e "Below the account details:\nUsername: ${DBUSER}\nPassword: ${DBPASS}\nHost: ${DBHOST}"
+                    echo -e "Below the account details:\nUsername: ${DBUSER}\nPassword: ********\nHost: ${DBHOST}"
                 fi
             fi
         fi
@@ -156,7 +163,7 @@ function cmd_account_delete() {
         local SQL_QUERY="DROP USER '${DBUSER}'@'${DBHOST}';"
 
         if [[ "${DRYRUN}" != true ]]; then
-            if "${MYSQLCLI}" -u root -p"${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"; then
+            if MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root -e "${SQL_QUERY}"; then
                 success "The database's account '${DBUSER}'@'${DBHOST}' has been deleted."
             else
                 fail "Unable to delete database account '${DBUSER}'@'${DBHOST}'."
@@ -186,13 +193,13 @@ function cmd_account_passwd() {
     local SQL_QUERY="UPDATE mysql.user SET Password=PASSWORD('${DBPASS2}') WHERE USER='${DBUSER}' AND Host='${DBHOST}';"
 
     if [[ "${DRYRUN}" != true ]]; then
-        if "${MYSQLCLI}" -u root -p"${MYSQL_ROOT_PASSWORD}" -e "${SQL_QUERY}"; then
-            success "Password for account '${DBUSER}'@'${DBHOST}' has been updated to '${DBPASS2}'."
+        if printf '%s\n' "${SQL_QUERY}" | MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root; then
+            success "Password for account '${DBUSER}'@'${DBHOST}' has been updated."
         else
             fail "Unable to update password for '${DBUSER}'@'${DBHOST}'."
         fi
     else
-        info "SQL query: \"${SQL_QUERY}\""
+        info "Would update the password for account '${DBUSER}'@'${DBHOST}'."
     fi
 
     exit 0
@@ -220,7 +227,7 @@ function cmd_account_rename() {
         if [[ "${DBUSER}" = "root" || "${DBUSER}" = "lemper" ]]; then
             fail "You are not allowed to rename this account."
         else
-            if "${MYSQLCLI}" -u root -p"${DBROOT_PASS}" -e "${SQL_QUERY}"; then
+            if MYSQL_PWD="${DBROOT_PASS}" "${MYSQLCLI}" -u root -e "${SQL_QUERY}"; then
                 success "Database account '${DBUSER}'@'${DBHOST}' has been renamed to '${DBUSER2}'@'${DBHOST2}'."
             else
                 fail "Unable to rename database account '${DBUSER}'@'${DBHOST}'."
@@ -241,7 +248,7 @@ function cmd_account_users() {
                 
     echo "List all existing database users."
 
-    run "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" -e "SELECT user,host FROM mysql.user;"
+    MYSQL_PWD="${DBPASS}" run "${MYSQLCLI}" -u "${DBUSER}" -e "SELECT user,host FROM mysql.user;"
 
     exit 0
 }
@@ -305,7 +312,7 @@ function sub_cmd_account() {
 ##
 function db_operations() {
     OPTS=$(getopt -o a:H:P:u:p:n:b:C:g:f:q:x:DrhVv \
-      -l action:,dbhost:,dbport:,dbuser:,dbpass:,dbname:,dbprefix:,dbcollation:,dbprivileges:,dbfile:,dbquery:,dbschedule:,extra-args: \
+      -l action:,dbhost:,dbport:,dbuser:,dbpass:,dbpass-file:,dbname:,dbprefix:,dbcollation:,dbprivileges:,dbfile:,dbquery:,dbschedule:,extra-args: \
       -l dry-run,root,help,verbose,version \
       -n "${PROG_NAME}" -- "$@")
 
@@ -358,6 +365,11 @@ function db_operations() {
             -p | --dbpass) 
                 shift
                 DBPASS="${1}"
+                shift
+            ;;
+            --dbpass-file)
+                shift
+                DBPASS_FILE="${1}"
                 shift
             ;;
             -P | --dbport) 
@@ -426,6 +438,7 @@ function db_operations() {
         DBPORT=${DBPORT:-"3306"}
         DBUSER=${DBUSER:-""}
         DBPASS=${DBPASS:-""}
+        DBPASS_FILE=${DBPASS_FILE:-""}
         DBNAME=${DBNAME:-""}
         DBPREFIX=${DBPREFIX:-""}
         DBCOLLATION=${DBCOLLATION:-"utf8_unicode_ci"}
@@ -435,6 +448,18 @@ function db_operations() {
         DBSCHEDULE=${DBSCHEDULE:-""}
         DRYRUN=${DRYRUN:-false}
         USEROOT=${USEROOT:-false}
+
+        # Resolve the password from a root-only file or an environment
+        # variable, so it never needs to appear in process arguments.
+        if [[ -z "${DBPASS}" && -n "${DBPASS_FILE}" ]]; then
+            if [[ ! -r "${DBPASS_FILE}" ]]; then
+                fail "Cannot read database password file: ${DBPASS_FILE}"
+            fi
+            DBPASS=$(head -n 1 "${DBPASS_FILE}")
+        fi
+        if [[ -z "${DBPASS}" && -n "${LEMPER_DB_PASSWORD}" ]]; then
+            DBPASS="${LEMPER_DB_PASSWORD}"
+        fi
 
         # Parse and export extra arguments.
         EXTRA_ARGS=${EXTRA_ARGS:-""}
@@ -503,8 +528,8 @@ function db_operations() {
 
                 echo "Backing up database '${DBNAME}' to '${BACKUP_FILE}'..."
 
-                if "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
-                    run bash -c "${DUMP_TOOL} -u '${DBUSER}' -p'${DBPASS}' --databases '${DBNAME}' | gzip > '${BACKUP_FILE}'"
+                if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+                    MYSQL_PWD="${DBPASS}" run bash -c "${DUMP_TOOL} -u '${DBUSER}' --databases '${DBNAME}' | gzip > '${BACKUP_FILE}'"
 
                     if [[ -f "${BACKUP_FILE}" ]]; then
                         success "Database '${DBNAME}' has been successfully backed up to '${BACKUP_FILE}'."
@@ -539,11 +564,11 @@ function db_operations() {
 
                 echo "Restoring database '${DBNAME}' from '${DBFILE}'..."
 
-                if "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+                if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
                     if [[ "${DBFILE}" == *.gz ]]; then
-                        run bash -c "gunzip -c '${DBFILE}' | ${MYSQLCLI} -u '${DBUSER}' -p'${DBPASS}' '${DBNAME}'"
+                        MYSQL_PWD="${DBPASS}" run bash -c "gunzip -c '${DBFILE}' | ${MYSQLCLI} -u '${DBUSER}' '${DBNAME}'"
                     else
-                        run "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" "${DBNAME}" < "${DBFILE}"
+                        MYSQL_PWD="${DBPASS}" run "${MYSQLCLI}" -u "${DBUSER}" "${DBNAME}" < "${DBFILE}"
                     fi
 
                     success "Database '${DBNAME}' has been successfully restored from '${DBFILE}'."
@@ -564,9 +589,30 @@ function db_operations() {
                 [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
 
                 local SCHEDULE="${DBSCHEDULE:-"0 2 * * *"}"
+                local CRON_CMD="/usr/local/bin/lemper-cli db backup --dbname=${DBNAME}"
 
-                # Cron command to run the backup.
-                local CRON_CMD="/usr/local/bin/lemper-cli db backup --dbname=${DBNAME} --dbpass=${DBPASS}"
+                # Root backups read MYSQL_ROOT_PASSWORD from the config file.
+                # Other accounts get a root-only password file, keeping the
+                # secret out of the crontab and the process list.
+                if [[ "${DBUSER}" != "root" ]]; then
+                    if [[ -z "${DBPASS}" ]]; then
+                        fail "Please specify the account password using --dbpass or --dbpass-file."
+                    fi
+
+                    local SAFE_DBNAME=${DBNAME//[^A-Za-z0-9_.-]/_}
+                    local SAFE_DBUSER=${DBUSER//[^A-Za-z0-9_.-]/_}
+                    local DBPASS_FILE_PATH="/etc/lemper/db-backup-${SAFE_DBNAME}-${SAFE_DBUSER}.pass"
+
+                    if [[ "${DRYRUN}" != true ]]; then
+                        if [[ ! -d /etc/lemper ]]; then
+                            run install -d -m 0700 /etc/lemper
+                        fi
+                        ( umask 077 && printf '%s\n' "${DBPASS}" > "${DBPASS_FILE_PATH}" )
+                        run chmod 0600 "${DBPASS_FILE_PATH}"
+                    fi
+
+                    CRON_CMD+=" --dbuser=${DBUSER} --dbpass-file=${DBPASS_FILE_PATH}"
+                fi
 
                 # Remove existing entry for this database (if any).
                 local TMP_CRON
@@ -596,16 +642,16 @@ function db_operations() {
                 # Create database name.
                 echo "Creating new MySQL database '${DBNAME}' grants access to '${DBUSER}'@'${DBHOST}'..."
 
-                until ! "${MYSQLCLI}" -u root -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; do
+                until ! MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; do
                     echo "Database '${DBNAME}' already exist, try another one..."
                     DBNAME="${LEMPER_USERNAME}_db$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | fold -w 6 | head -n 1)"
                     echo "New auto-generated MySQL database '${DBNAME}'"
                 done
 
                 local SQL_QUERY="CREATE DATABASE ${DBNAME}; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
-                run "${MYSQLCLI}" -u root -p"${DBPASS}" -e "${SQL_QUERY}"
+                MYSQL_PWD="${DBPASS}" run "${MYSQLCLI}" -u root -e "${SQL_QUERY}"
 
-                if "${MYSQLCLI}" -u root -p"${DBPASS}" -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -qwE "${DBNAME}"; then
+                if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -qwE "${DBNAME}"; then
                     success "MySQL database '${DBNAME}' has been created and granted to '${DBUSER}'@'${DBHOST}'."
                 else
                     fail "Failed creating database '${DBNAME}'."
@@ -621,9 +667,9 @@ function db_operations() {
 
                 if [[ -z "${DBPASS}" || "${USEROOT}" == true ]]; then
                     [[ -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
-                    DATABASES=$("${MYSQLCLI}" -u root -p"${DBPASS}" -h "${DBHOST}" -P "${DBPORT}" -e "SELECT Db,Host FROM mysql.db WHERE User='${DBUSER}';")
+                    DATABASES=$(MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -h "${DBHOST}" -P "${DBPORT}" -e "SELECT Db,Host FROM mysql.db WHERE User='${DBUSER}';")
                 else
-                    DATABASES=$("${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" -h "${DBHOST}" -P "${DBPORT}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
+                    DATABASES=$(MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -h "${DBHOST}" -P "${DBPORT}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
                 fi
 
                 if [[ -n "${DATABASES}" ]]; then
@@ -663,12 +709,12 @@ function db_operations() {
 
                 [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
 
-                if "${MYSQLCLI}" -u root -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+                if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
                     echo "Deleting database ${DBNAME}..."
 
-                    run "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" -e "DROP DATABASE ${DBNAME};"
+                    MYSQL_PWD="${DBPASS}" run "${MYSQLCLI}" -u "${DBUSER}" -e "DROP DATABASE ${DBNAME};"
 
-                    if ! "${MYSQLCLI}" -u root -p"${DBPASS}" -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -qwE "${DBNAME}"; then
+                    if ! MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -qwE "${DBNAME}"; then
                         success "Database '${DBNAME}' has been dropped."
                     else
                         fail "Failed deropping database '${DBNAME}'."
@@ -696,8 +742,8 @@ function db_operations() {
                 echo "Exporting database ${DBNAME}'s tables..."
 
                 if [[ -n $(command -v mysqldump) ]]; then
-                    if "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
-                        run mysqldump -u "${DBUSER}" -p"${DBPASS}" --databases "${DBNAME}" > "${DBFILE}"
+                    if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+                        MYSQL_PWD="${DBPASS}" run mysqldump -u "${DBUSER}" --databases "${DBNAME}" > "${DBFILE}"
 
                         if [[ -f "${DBFILE}" ]]; then
                             success "Database '${DBNAME}' has been successfully exported to '${DBFILE}'."
@@ -728,8 +774,8 @@ function db_operations() {
                 if [[ -n "${DBFILE}" && -e "${DBFILE}" ]]; then
                     echo "Importing database ${DBNAME}'s tables..."
 
-                    if "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
-                        run "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" "${DBNAME}" < "${DBFILE}"
+                    if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+                        MYSQL_PWD="${DBPASS}" run "${MYSQLCLI}" -u "${DBUSER}" "${DBNAME}" < "${DBFILE}"
                         success "Database file '${DBFILE}' has been successfully imported to '${DBNAME}'."
                     else
                         fail "The specified database '${DBNAME}' does not exist."
@@ -756,7 +802,7 @@ function db_operations() {
                 local SQL_QUERY=${DBQUERY:-""}
 
                 if [[ "${DRYRUN}" != true ]]; then
-                    if "${MYSQLCLI}" -u "${DBUSER}" -p"${DBPASS}" -D "${DBNAME}" -e "${SQL_QUERY}"; then
+                    if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -D "${DBNAME}" -e "${SQL_QUERY}"; then
                         success "The SQL query was applied to '${DBNAME}' using the account '${DBUSER}'@'${DBHOST}'."
                     else
                         fail "Failed to execute the SQL query on '${DBNAME}' using the account '${DBUSER}'@'${DBHOST}'."
@@ -928,6 +974,11 @@ GLOBAL PARAMETERS
   --dbpass=<password>
       MySQL database account password.
 
+  --dbpass-file=<path>
+      Read the database account password from the first line of a file.
+      Prefer this (or the LEMPER_DB_PASSWORD environment variable) over
+      --dbpass, which is visible to other users in the process list.
+
   --dbname=<database_name>
       Selected database that will be used for operations.
 
@@ -955,7 +1006,7 @@ GLOBAL PARAMETERS
 
 
 Example:
-  ${CMD_PARENT} ${CMD_NAME} account create --dbuser=user --dbpass=secret
+  ${CMD_PARENT} ${CMD_NAME} account create --dbuser=user --dbpass-file=/root/app-db.pass
 
 For help with each command run:
 ${CMD_PARENT} ${CMD_NAME} <command> -h|--help

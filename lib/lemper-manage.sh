@@ -62,6 +62,10 @@ Options:
       Disable fail2ban jail.
   -g, --enable-gzip <vhost domain name>
       Enable Gzip compression.
+  --enable-modsec <vhost domain name>
+      Enable ModSecurity v3 WAF.
+  --disable-modsec <vhost domain name>
+      Disable ModSecurity v3 WAF.
   --disable-compression  <vhost domain name>
       Disable Gzip/Brotli compression.
   -r, --remove <vhost domain name>
@@ -210,9 +214,9 @@ function remove_vhost() {
         echo "+-------------------------------+"
 
         # Show user's databases
-        #run mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema"
+        #MYSQL_PWD="${MYSQL_PASS}" mysql -u "${MYSQL_USER}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema"
         local DATABASES && \
-        DATABASES=$(mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
+        DATABASES=$(MYSQL_PWD="${MYSQL_PASS}" mysql -u "${MYSQL_USER}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
 
         if [[ -n "${DATABASES}" ]]; then
             printf '%s\n' "${DATABASES}"
@@ -228,7 +232,7 @@ function remove_vhost() {
 
         if [[ -d "/var/lib/mysql/${DBNAME}" ]]; then
             echo "Deleting database ${DBNAME}..."
-            run mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "DROP DATABASE ${DBNAME}"
+            run env MYSQL_PWD="${MYSQL_PASS}" mysql -u "${MYSQL_USER}" -e "DROP DATABASE ${DBNAME}"
             success "Database '${DBNAME}' dropped."
         else
             info "Sorry, database ${DBNAME} not found. Skipped..."
@@ -311,11 +315,11 @@ function enable_fastcgi_cache() {
 
     if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]; then
         # enable cached directives
-        run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" \
+        sed_inplace "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
 
         # enable fastcgi_cache conf
-        run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
+        sed_inplace "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
 
         # Reload Nginx.
@@ -338,11 +342,11 @@ function disable_fastcgi_cache() {
 
     if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]; then
         # enable cached directives
-        run sed -i "s|^\    include\ /etc/nginx/includes/rules_fastcgi_cache.conf|\    #include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" \
+        sed_inplace "s|^\    include\ /etc/nginx/includes/rules_fastcgi_cache.conf|\    #include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
 
         # enable fastcgi_cache conf
-        run sed -i "s|^\        include\ /etc/nginx/includes/fastcgi_cache.conf|\        #include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
+        sed_inplace "s|^\        include\ /etc/nginx/includes/fastcgi_cache.conf|\        #include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
 
         # Reload Nginx.
@@ -420,18 +424,18 @@ function enable_ssl() {
 
             # Change listening port to 443.
             if grep -qwE "^\    listen\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b:80" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-                run sed -i "s/\:80/\:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+                sed_inplace "s/\:80/\:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             fi
             
-            run sed -i "s/listen\ 80/listen\ 443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            sed_inplace "s/listen\ 80/listen\ 443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            sed_inplace "s/listen\ \[::\]:80/listen\ \[::\]:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
 
             # Enable SSL configs.
-            run sed -i "s/http2\ off/http2\ on/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            run sed -i "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            run sed -i "s/#ssl_certificate_key/ssl_certificate_key/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            run sed -i "s/#ssl_trusted_certificate/ssl_trusted_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            run sed -i "s|#include\ /etc/nginx/includes/ssl.conf|include\ /etc/nginx/includes/ssl.conf|g" \
+            sed_inplace "s/http2\ off/http2\ on/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            sed_inplace "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            sed_inplace "s/#ssl_certificate_key/ssl_certificate_key/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            sed_inplace "s/#ssl_trusted_certificate/ssl_trusted_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            sed_inplace "s|#include\ /etc/nginx/includes/ssl.conf|include\ /etc/nginx/includes/ssl.conf|g" \
                 "/etc/nginx/sites-available/${DOMAIN}.conf"
 
             # Append HTTP <=> HTTPS redirection block.
@@ -629,12 +633,12 @@ function enable_brotli() {
         elif grep -qwE "^\    include\ /etc/nginx/includes/compression_gzip.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             echo "Found Gzip compression enabled, updating to Brotli..."
 
-            run sed -i "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_brotli.conf;|g" \
+            sed_inplace "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_brotli.conf;|g" \
                 "/etc/nginx/sites-available/${DOMAIN}.conf"
         elif grep -qwE "^\    #include\ /etc/nginx/includes/compression_[a-z]*\.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             echo "Enabling Brotli compression module..."
 
-            run sed -i "s|#include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_brotli.conf;|g" \
+            sed_inplace "s|#include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_brotli.conf;|g" \
                 "/etc/nginx/sites-available/${DOMAIN}.conf"
         else
             error "Sorry, we couldn't find any compression module section."
@@ -667,12 +671,12 @@ function enable_gzip() {
         elif grep -qwE "^\    include\ /etc/nginx/includes/compression_brotli.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             echo "Found Brotli compression enabled, updating to Gzip..."
 
-            run sed -i "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_gzip.conf;|g" \
+            sed_inplace "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_gzip.conf;|g" \
                 "/etc/nginx/sites-available/${DOMAIN}.conf"
         elif grep -qwE "^\    #include\ /etc/nginx/includes/compression_[a-z]*\.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             echo "Enabling Gzip compression module..."
 
-            run sed -i "s|#include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_gzip.conf;|g" \
+            sed_inplace "s|#include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_gzip.conf;|g" \
                 "/etc/nginx/sites-available/${DOMAIN}.conf"
         else
             error "Sorry, we couldn't find any compression module section."
@@ -698,7 +702,7 @@ function disable_compression() {
     echo "Disabling compression module..."
 
     if grep -qwE "^\    include\ /etc/nginx/includes/compression_[a-z]*\.conf" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-        run sed -i "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|#include\ /etc/nginx/includes/compression_gzip.conf;|g" \
+        sed_inplace "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|#include\ /etc/nginx/includes/compression_gzip.conf;|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
     else
         error "Sorry, we couldn't find any enabled compression module."
@@ -706,6 +710,63 @@ function disable_compression() {
     fi
 
     reload_nginx
+}
+
+##
+# Enable ModSecurity v3 WAF for a virtual host.
+##
+function enable_modsec() {
+    local DOMAIN=${1}
+    verify_vhost "${DOMAIN}"
+
+    local VHOST_FILE="/etc/nginx/sites-available/${DOMAIN}.conf"
+    local MODSEC_CONF="/etc/nginx/includes/modsec.conf"
+
+    if [[ ! -f "${MODSEC_CONF}" ]]; then
+        error "ModSecurity is not installed."
+        echo "Reinstall with INSTALL_MODSEC=true, or run 'bash scripts/install_modsec.sh'."
+        exit 1
+    fi
+
+    if grep -qE '^[[:space:]]*include[[:space:]]+/etc/nginx/includes/modsec\.conf;' "${VHOST_FILE}"; then
+        info "ModSecurity is already enabled for ${DOMAIN}."
+        exit 0
+    fi
+
+    echo "Enabling ModSecurity for ${DOMAIN}..."
+    sed_inplace "/^[[:space:]]*server_name[[:space:]]/a\\    include /etc/nginx/includes/modsec.conf;" "${VHOST_FILE}"
+
+    if grep -qE '^[[:space:]]*include[[:space:]]+/etc/nginx/includes/modsec\.conf;' "${VHOST_FILE}"; then
+        success "ModSecurity has been enabled for ${DOMAIN}."
+        reload_nginx
+    else
+        fail "Failed to enable ModSecurity for ${DOMAIN}."
+    fi
+}
+
+##
+# Disable ModSecurity v3 WAF for a virtual host.
+##
+function disable_modsec() {
+    local DOMAIN=${1}
+    verify_vhost "${DOMAIN}"
+
+    local VHOST_FILE="/etc/nginx/sites-available/${DOMAIN}.conf"
+
+    if ! grep -qE '^[[:space:]]*include[[:space:]]+/etc/nginx/includes/modsec\.conf;' "${VHOST_FILE}"; then
+        info "ModSecurity is not enabled for ${DOMAIN}."
+        exit 0
+    fi
+
+    echo "Disabling ModSecurity for ${DOMAIN}..."
+    sed_inplace '\#^[[:space:]]*include[[:space:]]*/etc/nginx/includes/modsec\.conf;#d' "${VHOST_FILE}"
+
+    if ! grep -qE '^[[:space:]]*include[[:space:]]+/etc/nginx/includes/modsec\.conf;' "${VHOST_FILE}"; then
+        success "ModSecurity has been disabled for ${DOMAIN}."
+        reload_nginx
+    else
+        fail "Failed to disable ModSecurity for ${DOMAIN}."
+    fi
 }
 
 ##
@@ -839,13 +900,13 @@ function generate_selfsigned_ssl() {
         run mkdir -p "/etc/lemper/ssl/${DOMAIN}"
     fi
 
-    run sed -i "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/ca.conf && \
-    run sed -i "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -i "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -r -i "s|^IP.1\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.1\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -r -i "s|^IP.2\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.2\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
+    sed_inplace "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/ca.conf && \
+    sed_inplace "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace -r "s|^IP.1\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.1\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace -r "s|^IP.2\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.2\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
 
     # Create Certificate Authority (CA).
     run openssl req -x509 -sha256 -days 365000 -nodes -newkey rsa:4096 \
@@ -914,7 +975,7 @@ function get_ip_public() {
 function init_lemper_manage() {
     OPTS=$(getopt -o c:d:e:f:r:s:bghv \
       -l enable:,disable:,remove:,enable-fail2ban:,disable-fail2ban:,enable-fastcgi-cache:,disable-fastcgi-cache: \
-      -l enable-ssl:,disable-ssl:,remove-ssl:,renew-ssl:,enable-brotli:,enable-gzip:,disable-compression:,help,version \
+      -l enable-ssl:,disable-ssl:,remove-ssl:,renew-ssl:,enable-brotli:,enable-gzip:,disable-compression:,enable-modsec:,disable-modsec:,help,version \
       -n "${PROG_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
@@ -984,6 +1045,16 @@ function init_lemper_manage() {
             ;;
             -g | --enable-gzip)
                 enable_gzip "${2}"
+                shift 2
+                exit 0
+            ;;
+            --enable-modsec)
+                enable_modsec "${2}"
+                shift 2
+                exit 0
+            ;;
+            --disable-modsec)
+                disable_modsec "${2}"
                 shift 2
                 exit 0
             ;;
