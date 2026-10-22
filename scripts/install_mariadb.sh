@@ -26,7 +26,7 @@ function add_mariadb_repo() {
     echo "Adding MariaDB repository..."
 
     MYSQL_SERVER=${MYSQL_SERVER:-"mariadb"}
-    MYSQL_VERSION=${MYSQL_VERSION:-"11.1"}
+    MYSQL_VERSION=${MYSQL_VERSION:-"11.4"}
 
     # Fallback to oldest version if OS release is not supported.
     case "${RELEASE_NAME}" in
@@ -34,7 +34,7 @@ function add_mariadb_repo() {
             MYSQL_VERSION="10.5"
         ;;
         bionic)
-           MYSQL_VERSION="11.1"
+           MYSQL_VERSION="11.4"
         ;;
     esac
 

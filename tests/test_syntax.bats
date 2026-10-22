@@ -19,6 +19,9 @@ _get_script_files() {
     for f in "${BASE_DIR}"/lib/lemper-*.sh; do
         echo "${f}"
     done
+    for f in "${BASE_DIR}"/lib/core/*.sh; do
+        echo "${f}"
+    done
     for f in "${BASE_DIR}"/scripts/*.sh; do
         echo "${f}"
     done

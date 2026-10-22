@@ -156,22 +156,45 @@ function run() {
 function cmd_help() {
     cat <<- EOL
 ${PROG_NAME} ${PROG_VERSION}
-Command line management tool for LEMPer Stack.
+Command line management tool for LEMPer Stack (Linux, Nginx, MySQL/MariaDB, PHP).
 
-Usage: ${PROG_NAME} [--version] [--help]
-       <command> [<options>]
+Usage: ${PROG_NAME} [command] [subcommand] [options]
 
-These are common ${PROG_NAME} commands used in various situations:
-  create        Create new virtual host (add new domain to LEMPer stack).
-  add           An aliases of 'create' sub command.
-  site          Virtual host management (list, show, enable, disable, etc).
-  database      Wrapper for managing SQL database (MySQL and MariaDB).
-  db            An aliases of 'databases' sub command.
-  manage        Manage existing virtual host (enable, disable, delete, etc).
-  mod           An aliases of 'manage' sub command.
+LEMP Stack Management:
+  create          Create a new virtual host (add a domain).
+  add             Alias of 'create'.
+  site            Virtual host management.
+                        site list [options]          List all vhosts (table or JSON).
+                        site show <domain> [options] Show detailed vhost config.
+                        site enable <domain>         Enable a vhost.
+                        site disable <domain>        Disable a vhost.
+  manage          Manage existing virtual hosts (mod/ssl/rewrite).
+  mod             Alias of 'manage'.
 
-For help with each command run:
-${PROG_NAME} <command> -h | --help
+Database Management:
+  db              MySQL/MariaDB database manager.
+                        db create [options]          Create a new database.
+                        db drop <name>               Delete a database.
+                        db export [options]          Export a database to SQL.
+                        db backup [options]          Create a timestamped backup (.sql.gz).
+                        db restore [options]         Restore from a backup file.
+                        db backup-schedule [options] Schedule automated backups via cron.
+                        db account [subcommand]      Manage database user accounts.
+
+System Administration:
+  account         Interactive system user/account creator.
+  adduser         Alias of 'account'.
+  selfssl         Generate self-signed SSL certificates.
+  fixpermission   Fix file/directory permissions for web root.
+  bench           Run server benchmark checks.
+
+Options:
+  --version, -v   Show version and exit.
+  --help, -h      Show this help message.
+
+For detailed help on a specific command:
+  ${PROG_NAME} <command> --help
+  ${PROG_NAME} <command> <subcommand> --help
 EOL
 
 exit 0

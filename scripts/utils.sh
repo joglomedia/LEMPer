@@ -44,6 +44,7 @@ TIMEZONE=${TIMEZONE:-"UTC"}
 RED=31
 GREEN=32
 YELLOW=33
+BLUE=34
 
 function begin_color() {
     color="${1}"
@@ -132,6 +133,77 @@ function run() {
             error "Failure running '${CMDSTR}', exiting."
             exit 1
         fi
+    fi
+}
+
+##
+# Progress indicator — shows a step counter (e.g. [3/10]).
+##
+PROGRESS_TOTAL=${PROGRESS_TOTAL:-0}
+PROGRESS_CURRENT=${PROGRESS_CURRENT:-0}
+
+function progress() {
+    local description="${1}"
+    PROGRESS_CURRENT=$((PROGRESS_CURRENT + 1))
+    if [[ "${PROGRESS_TOTAL}" -gt 0 ]]; then
+        echo_color "${BLUE}" -n "[${PROGRESS_CURRENT}/${PROGRESS_TOTAL}] "
+    else
+        echo_color "${BLUE}" -n "▸ "
+    fi
+    echo "${description}"
+}
+
+##
+# Spinner — shows an animated spinner while a command runs.
+# Only activates in interactive TTY mode (not in CI/dry-run).
+##
+SPINNER_PID=""
+
+function spinner_start() {
+    local message="${1}"
+    # Only show spinner if we have a TTY and not in dry-run mode.
+    if [[ "${DRYRUN}" == true ]] || [[ ! -t 1 ]]; then
+        return 0
+    fi
+
+    echo -n "${message} "
+    local spinner_chars='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local i=0
+    (
+        while true; do
+            local idx=$((i % ${#spinner_chars}))
+            echo -ne "\b${spinner_chars:${idx}:1}"
+            sleep 0.1
+            i=$((i + 1))
+        done
+    ) &
+    SPINNER_PID=$!
+}
+
+function spinner_stop() {
+    if [[ -n "${SPINNER_PID}" ]] && kill -0 "${SPINNER_PID}" 2>/dev/null; then
+        kill "${SPINNER_PID}" 2>/dev/null
+        wait "${SPINNER_PID}" 2>/dev/null
+        SPINNER_PID=""
+    fi
+    # Clear spinner character.
+    echo -ne "\b \b"
+}
+
+##
+# Run a command with a progress spinner and description.
+# Usage: run_spinner "Description" command args...
+##
+function run_spinner() {
+    local description="${1}"
+    shift
+
+    spinner_start "${description}"
+    run "$@"
+    spinner_stop
+
+    if [[ "${DRYRUN}" != true ]]; then
+        success "${description} — done"
     fi
 }
 
