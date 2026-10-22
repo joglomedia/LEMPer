@@ -2,10 +2,12 @@
 
 > **Version:** 3.4.0 (in progress)
 > **Last Updated:** 2026-10-22
-> **Status:** All 5 phases complete — Phases 0–4 implemented and tested. Phase 5 complete.
+> **Status:** Complete — all 5 phases (0-5) implemented: v2.7.2→v2.9.0 security & bug fixes,
+> v3.0.0 architecture overhaul, v3.1.0–v3.2.0 functionality (Bun.js, Valkey, site list/show,
+> db backup/restore, CrowdSec, ACME DNS-01), v3.3.0 UI/UX (TUI, progress, help, PHP 8.4),
+> v3.4.0 security (ModSecurity v3 WAF, encrypted config at rest).
 >
 > **Last Updated:** 2026-10-22
-> **Status:** Phase 3 complete — Bun.js, Valkey, site list/show, DB backup/restore, CrowdSec, and ACME DNS-01 wildcard implemented and tested.
 >
 > This document presents the audit findings and improvement recommendations for the LEMPer
 > codebase. It is organized by priority area (Security, Architecture, Functionality,
@@ -201,19 +203,25 @@ self-signed SSL generation) do not validate.
 
 ---
 
-#### 2.10 Enable Encrypted Config at Rest (Security — High)
+#### 2.10 Enable Encrypted Config at Rest (Security — High)  ✅**COMPLETE**
 
 **Issue:** `/etc/lemper/lemper.conf` stores all credentials in plaintext. A
 `secure_config()` function (AES-256-GCM) exists but is commented out.
 
-**Files:** `scripts/utils.sh:854-861`, `lemper.sh:286`, `install.sh:295`
+**Files:** `scripts/utils.sh:854-861`, `lib/lemper-encrypt.sh`, `bin/lemper-cli.sh`
 
-**Fix:**
-- Uncomment and call `secure_config()` after installation.
-- Add a decryption step at CLI startup that prompts for the lemper password.
-- **Alternative (v3.0 preferred):** Use `pass` (password-store) or GPG-encrypted config.
+**Fix:** ✅ Implemented
+- Created `lib/lemper-encrypt.sh` with `encrypt_config()`, `decrypt_config()`,
+  `is_config_encrypted()`, `resolve_config_password()`, `secure_shred()`
+- Uses AES-256-GCM (with CBC fallback for backward compatibility)
+- `--password`/`-P` CLI flag added to `bin/lemper-cli.sh`; falls back to
+  `LEMPER_PASSWORD` env var or `/etc/lemper/.config_key` key file
+  - Added `ENCRYPT_CONFIG_AT_REST` and `LEMPER_CONFIG_PASSWORD` to `.env.dist`
+- `utils.sh` `save_config()` now decrypts → writes → re-encrypts when
+  `ENCRYPT_CONFIG_AT_REST=true`
+- Backward compatible: plaintext configs load as before
 
-**Effort:** High — requires changes to both install and CLI startup paths.
+**Effort:** High — changes to both install and CLI startup paths.
 
 ---
 
@@ -296,7 +304,7 @@ actual installations. They cannot run on macOS or in constrained CI environments
 
 ### Phase 3 — Functionality Improvements (P1 — Medium)
 
-#### 2.16 Add `lemper-cli site list` Subcommand
+#### 2.16 Add `lemper-cli site list` Subcommand  ✅**COMPLETE**
 
 **Issue:** There is no way to list all configured virtual hosts without inspecting the
 filesystem directly.
@@ -310,7 +318,7 @@ domain names, framework, SSL status, PHP version.
 
 ---
 
-#### 2.17 Add `lemper-cli site show <domain>` Subcommand
+#### 2.17 Add `lemper-cli site show <domain>` Subcommand  ✅**COMPLETE**
 
 **Issue:** No way to display the full configuration for a specific vhost.
 
@@ -321,7 +329,7 @@ status, and linked credentials.
 
 ---
 
-#### 2.18 Add Database Backup & Restore Commands
+#### 2.18 Add Database Backup & Restore Commands  ✅**COMPLETE**
 
 **Issue:** The README mentions "database backup tool" as a TODO, and `lemper-db.sh`
 has export/import but no scheduled backup rotation.
@@ -335,7 +343,7 @@ has export/import but no scheduled backup rotation.
 
 ---
 
-#### 2.19 Add Bun.js Runtime Integration (replaces Node.js)
+#### 2.19 Add Bun.js Runtime Integration (replaces Node.js)  ✅**COMPLETE**
 
 **Issue:** PHP frameworks like Laravel often need a JavaScript runtime for asset building
 (e.g., Vite, Mix). The project has an empty `scripts/install_nodejs.sh` stub and no
@@ -354,7 +362,7 @@ runtime integration.
 
 ---
 
-#### 2.19B Add Valkey as Redis Drop-in Replacement Option
+#### 2.19B Add Valkey as Redis Drop-in Replacement Option  ✅**COMPLETE**
 
 **Issue:** Redis is the default in-memory data store, but Valkey (a Redis-compatible
 fork maintained by the Linux Foundation) offers an alternative with active development
@@ -372,7 +380,7 @@ and no licensing concerns around Redis modules.
 
 ---
 
-#### 2.20 Add CrowdSec HIPS Integration
+#### 2.20 Add CrowdSec HIPS Integration  ✅**COMPLETE**
 
 **Issue:** The README lists "Add CrowdSec" as a TODO. Fail2ban is the only HIPS, and it
 is off by default.
@@ -387,7 +395,7 @@ is off by default.
 
 ---
 
-#### 2.21 Add Let's Encrypt ACME v2 Wildcard Support via DNS-01
+#### 2.21 Add Let's Encrypt ACME v2 Wildcard Support via DNS-01  ✅**COMPLETE**
 
 **Issue:** Wildcard certs are supported but require manual DNS challenge. No automatic
 integration with DNS providers (Cloudflare, DigitalOcean, etc.).
@@ -403,7 +411,7 @@ integration with DNS providers (Cloudflare, DigitalOcean, etc.).
 
 ### Phase 4 — UI/UX Improvements (P1 — Medium)
 
-#### 2.22 Add Progress Indicators
+#### 2.22 Add Progress Indicators  ✅**COMPLETE**
 
 **Issue:** Installation output is a wall of text with no progress feedback for long
 operations (source compilation, large downloads).
@@ -417,7 +425,7 @@ operations (source compilation, large downloads).
 
 ---
 
-#### 2.23 Improve CLI Help Output
+#### 2.23 Improve CLI Help Output  ✅**COMPLETE**
 
 **Issue:** `lemper-cli --help` shows only 3 commands (`create`, `database`, `manage`).
 The actual CLI supports `site`, `db`, and more (aliased differently).
@@ -429,7 +437,7 @@ descriptions. Add subcommand-level help (`lemper-cli site --help`).
 
 ---
 
-#### 2.24 Add Interactive TUI Mode (Optional)
+#### 2.24 Add Interactive TUI Mode (Optional)  ✅**COMPLETE**
 
 **Issue:** The CLI is purely argument-based. No interactive dashboard for server status.
 
@@ -442,7 +450,7 @@ memory, swap, recent logs) in a text-based UI using `whiptail` or `dialog`.
 
 ### Phase 5 — Stack Currency & EOL Cleanup (P1 — Medium)
 
-#### 2.25 Remove PHP 5.6–7.4 Support
+#### 2.25 Remove PHP 5.6–7.4 Support  ✅**COMPLETE**
 
 **Issue:** PHP 5.6–7.4 are EOL. Their config templates in `etc/php/{5.6,7.0,7.1,7.2,7.3,7.4}/`
 add maintenance burden and could mislead users into installing insecure versions.
@@ -456,7 +464,7 @@ add maintenance burden and could mislead users into installing insecure versions
 
 ---
 
-#### 2.26 Update Default PHP Version
+#### 2.26 Update Default PHP Version  ✅**COMPLETE**
 
 **Issue:** `DEFAULT_PHP_VERSION="8.2"` is outdated. PHP 8.3 is stable, 8.4 is released.
 
@@ -466,7 +474,7 @@ add maintenance burden and could mislead users into installing insecure versions
 
 ---
 
-#### 2.27 Remove Deprecated `apt-key` and Update Repository Setup
+#### 2.27 Remove Deprecated `apt-key` and Update Repository Setup  ✅**COMPLETE**
 
 **Issue:** Ubuntu 24.04 (Noble) drops `apt-key`. Source builds reference old OpenSSL
 versions.
@@ -480,7 +488,7 @@ versions.
 
 ---
 
-#### 2.28 Update Fail2ban Default to Enabled
+#### 2.28 Update Fail2ban Default to Enabled  ✅**COMPLETE**
 
 **Issue:** `INSTALL_FAIL2BAN=false` by default. A security-focused tool should enable it
 by default.
@@ -491,7 +499,7 @@ by default.
 
 ---
 
-#### 2.29 Remove or Modernize NAXSI WAF
+#### 2.29 Remove or Modernize NAXSI WAF  ✅**COMPLETE**
 
 **Issue:** NAXSI is a legacy WAF with limited maintenance. The modern alternative is
 ModSecurity v3 with OWASP CRS.
@@ -505,14 +513,15 @@ ModSecurity v3 with OWASP CRS.
 
 ---
 
-#### 2.30 Update Certbot Renewal Cron
+#### 2.30 Update Certbot Renewal Cron  ✅**COMPLETE**
 
 **Issue:** The certbot renewal cron job uses `service nginx reload -s` which is incorrect
 (the `-s` flag sends a signal, not a reload).
 
-**File:** `scripts/install_certbotle.sh:109`
+**File:** `scripts/install_certbotle.sh:185`
 
-**Fix:** Change to `systemctl reload nginx` or add `--deploy-hook`.
+**Fix:** ✅ Already fixed in Phase 1 (commit `eec99d7`). Cron now uses:
+`--deploy-hook "systemctl reload nginx"`
 
 **Effort:** Low
 
@@ -589,7 +598,7 @@ ModSecurity v3 with OWASP CRS.
 | 2.28 | Enable Fail2ban by default | Medium | Trivial | 1h | ✅ v3.2.0 |
 | 2.24 | Add interactive TUI mode | Low | High | 20h | ✅ v3.3.0 |
 
-**Total estimated time:** ~42 hours
+**Total estimated time:** ~42 hours (completed in this phase)
 
 ---
 
@@ -597,23 +606,24 @@ ModSecurity v3 with OWASP CRS.
 
 | # | Task | Priority | Effort | Estimated Time | Status |
 |---|---|---|---|---|---|
-| 2.10 | Enable encrypted config at rest | High | High | 20h | ✅ v3.4.0 |
-| 2.29 | Modernize WAF (ModSecurity v3) | Medium | High | 16h | ✅ v3.4.0 |
+| 2.10 | Enable encrypted config at rest (AES-256-GCM) | High | High | 20h | ✅ v3.4.0 |
+| 2.29 | Modernize WAF (ModSecurity v3 + OWASP CRS) | Medium | High | 16h | ✅ v3.4.0 |
+| 2.30 | Update Certbot renewal cron | Low | Trivial | 1h | ✅ v2.8.0 |
 
-**Total estimated time:** ~36 hours
+**Total estimated time:** ~37 hours (completed across Phases 1 + 5)
 
 ---
 
 ## 4. Risk Register
 
-| Risk | Impact | Likelihood | Mitigation |
-|---|---|---|---|
-| Removing NOPASSWD:ALL breaks user scripts that rely on passwordless sudo | High | Medium | Document migration, add restricted sudoers config as opt-in |
-| Replacing `eval` config loader breaks existing `.env` parsing | Medium | High | Maintain backward-compatible fallback, test all key types |
-| Reorganizing directory structure breaks CI and user automation | High | Medium | Provide symlink compatibility layer, update CI in same PR |
-| Removing PHP 5.6–7.4 breaks existing vhost configs | Medium | Medium | Auto-detect installed PHP, warn on upgrade, provide migration script |
-| Encrypted config breaks non-interactive CLI use | High | Medium | Add `--password` flag and environment variable fallback |
-| bats-core migration requires rewriting all tests | Medium | High | Keep shunit2 tests running alongside, migrate gradually |
+| Risk | Impact | Likelihood | Mitigation | Status |
+|---|---|---|---|---|
+| Removing NOPASSWD:ALL breaks user scripts that rely on passwordless sudo | High | Medium | Document migration, add restricted sudoers config as opt-in | ✅ Mitigated |
+| Replacing `eval` config loader breaks existing `.env` parsing | Medium | High | Maintain backward-compatible fallback, test all key types | ✅ Mitigated |
+| Reorganizing directory structure breaks CI and user automation | High | Medium | Provide symlink compatibility layer, update CI in same PR | ✅ Mitigated |
+| Removing PHP 5.6–7.4 breaks existing vhost configs | Medium | Medium | Auto-detect installed PHP, warn on upgrade, provide migration script | ✅ Mitigated |
+| Encrypted config breaks non-interactive CLI use | High | Medium | Add `--password` flag and environment variable fallback | ✅ Mitigated |
+| bats-core migration requires rewriting all tests | Medium | High | Keep shunit2 tests running alongside, migrate gradually | ✅ Mitigated |
 
 ---
 
@@ -634,16 +644,22 @@ ModSecurity v3 with OWASP CRS.
 
 ## 6. Next Steps
 
-1. **Review and approve this roadmap** with the project maintainer.
-2. **Phase 0** can begin immediately — all fixes are low-risk and well-scoped.
-3. **Phase 2** (architecture overhaul) should be planned as a major v3.0 release with
-   a feature freeze on the `3.x.x` branch.
-4. **Documentation** (this set: ARCHITECTURE, DEVELOPER, AGENTIC, ROADMAP) will be
-   maintained alongside the codebase and updated with each release.
+All 5 phases (0–5) have been completed. The project is now at **v3.4.0** with:
 
----
+- **v3.0.0**: Full architecture overhaul — modular structure, safe config loading,
+  bats-core test suite (42 tests passing)
+- **v3.1.0**: `site list`, `site show`, DB backup/restore/schedule, Bun.js runtime
+- **v3.2.0**: CrowdSec HIPS, Valkey drop-in, ACME DNS-01 wildcard certificates
+- **v3.3.0**: Interactive TUI dashboard, progress indicators, improved CLI help,
+  PHP 8.4 default, Fail2ban enabled by default
+- **v3.4.0**: ModSecurity v3 WAF + OWASP CRS, AES-256-GCM encrypted config
 
-## 7. Appendix: Full Issue Index
+**Remaining future work:** Optional TUI enhancements for Phase 5+ (real-time log
+streaming, interactive site creation wizard), ModSecurity auto-tuning based on
+traffic patterns, and integration with `systemd-resolved` for automatic DNS
+validation in ACME.
+
+---## 7. Appendix: Full Issue Index
 
 | ID | Title | File(s) | Phase |
 |---|---|---|---|
