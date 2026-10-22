@@ -42,17 +42,127 @@ function requires_root() {
 
 requires_root "$@"
 
-# Export LEMPer Stack configuration.
-if [[ -f "/etc/lemper/lemper.conf" ]]; then
-    # Clean environemnt first.
-    # shellcheck source=/etc/lemper/lemper.conf
-    # shellcheck disable=SC2046
-    unset $(grep -v '^#' /etc/lemper/lemper.conf | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+# Pre-parse --password / -P flag before loading config (may need it for decryption).
+# Scans all args, extracts password, and rebuilds args list without it.
+LEMPER_CONFIG_PASSWORD=""
+new_args=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --password=*)
+            LEMPER_CONFIG_PASSWORD="${1#--password=}"
+            shift
+            ;;
+        --password)
+            LEMPER_CONFIG_PASSWORD="${2:-}"
+            shift 2
+            ;;
+        -P=*)
+            LEMPER_CONFIG_PASSWORD="${1#-P=}"
+            shift
+            ;;
+        -P)
+            LEMPER_CONFIG_PASSWORD="${2:-}"
+            shift 2
+            ;;
+        *)
+            new_args+=("$1")
+            shift
+            ;;
+    esac
+done
+if [[ ${#new_args[@]} -gt 0 ]]; then
+    set -- "${new_args[@]}"
+fi
 
-    # shellcheck source=/etc/lemper/lemper.conf
-    # shellcheck disable=SC1094
-    # shellcheck disable=SC1091
-    source <(grep -v '^#' /etc/lemper/lemper.conf | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+# Encryption helpers (also available in lib/lemper-encrypt.sh).
+ENCRYPT_CONFIG_AT_REST=${ENCRYPT_CONFIG_AT_REST:-false}
+
+function is_config_encrypted() {
+    local file="${1}"
+    [[ -f "${file}" ]] && head -1 "${file}" | grep -q "^Salted__"
+}
+
+function secure_shred() {
+    local file="${1}"
+    [[ -f "${file}" ]] || return 0
+    if command -v shred &>/dev/null; then
+        shred -u -z -n 3 "${file}" 2>/dev/null || rm -f "${file}"
+    else
+        rm -f "${file}"
+    fi
+}
+
+function resolve_config_password() {
+    if [[ -n "${LEMPER_CONFIG_PASSWORD}" ]]; then
+        printf '%s' "${LEMPER_CONFIG_PASSWORD}"
+        return 0
+    fi
+    if [[ -n "${LEMPER_PASSWORD}" ]]; then
+        printf '%s' "${LEMPER_PASSWORD}"
+        return 0
+    fi
+    # Stored key file (generated at install time, mode 0600, root-only).
+    if [[ -f /etc/lemper/.config_key ]]; then
+        cat /etc/lemper/.config_key
+        return 0
+    fi
+    return 1
+}
+
+function decrypt_config_file() {
+    local encrypted_file="${1}"
+    local output_file="${2:-}"
+    local password
+    password=$(resolve_config_password) || return 1
+
+    if [[ -z "${output_file}" ]]; then
+        output_file=$(mktemp /tmp/lemper_config.XXXXXX)
+    fi
+
+    if ! openssl enc -aes-256-gcm -d -a -salt -md sha256 \
+        -k "${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
+        if ! openssl enc -aes-256-cbc -d -a -salt -md sha256 \
+            -k "${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
+            secure_shred "${output_file}"
+            return 1
+        fi
+    fi
+    echo "${output_file}"
+}
+
+# Export LEMPer Stack configuration.
+CONFIG_FILE="/etc/lemper/lemper.conf"
+if [[ -f "${CONFIG_FILE}" ]]; then
+    source_file="${CONFIG_FILE}"
+    temp_decrypted=""
+
+    # Check if config is encrypted.
+    if is_config_encrypted "${CONFIG_FILE}"; then
+        if [[ "${ENCRYPT_CONFIG_AT_REST}" != true ]]; then
+            echo "Config is encrypted but ENCRYPT_CONFIG_AT_REST is not enabled. Cannot load." >&2
+            echo "Set ENCRYPT_CONFIG_AT_REST=true in config or provide --password." >&2
+            exit 1
+        fi
+
+        temp_decrypted=$(decrypt_config_file "${CONFIG_FILE}")
+        if [[ -z "${temp_decrypted}" ]]; then
+            echo "Failed to decrypt configuration." >&2
+            exit 1
+        fi
+        source_file="${temp_decrypted}"
+    fi
+
+    # Clean environment first.
+    # shellcheck disable=SC2046
+    unset $(grep -v '^#' "${source_file}" | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+
+    # shellcheck disable=SC1090,SC2046
+    source <(grep -v '^#' "${source_file}" | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+
+    # Securely clean up temp decrypted file.
+    if [[ -n "${temp_decrypted}" ]]; then
+        secure_shred "${temp_decrypted}"
+    fi
 else
     echo "LEMPer Stack configuration required, but the file doesn't exist."
     echo "It should be created during installation process and placed under '/etc/lemper/lemper.conf'."
@@ -192,6 +302,8 @@ System Administration:
 Options:
   --version, -v   Show version and exit.
   --help, -h      Show this help message.
+  --password=xxx  Decrypt encrypted config (also: -P xxx).
+                  Falls back to LEMPER_PASSWORD or /etc/lemper/.config_key.
 
 For detailed help on a specific command:
   ${PROG_NAME} <command> --help

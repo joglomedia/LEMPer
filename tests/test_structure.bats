@@ -180,3 +180,23 @@ setup() {
     grep -q 'modsecurity' "${BASE_DIR}/scripts/install_modsec.sh"
     grep -q 'crs-setup.conf' "${BASE_DIR}/scripts/install_modsec.sh"
 }
+
+@test "lemper-encrypt.sh provides config encryption utilities" {
+    [ -f "${BASE_DIR}/lib/lemper-encrypt.sh" ]
+    grep -q 'function is_config_encrypted' "${BASE_DIR}/lib/lemper-encrypt.sh"
+    grep -q 'function decrypt_config' "${BASE_DIR}/lib/lemper-encrypt.sh"
+    grep -q 'function encrypt_config' "${BASE_DIR}/lib/lemper-encrypt.sh"
+    grep -q 'function resolve_config_password' "${BASE_DIR}/lib/lemper-encrypt.sh"
+    grep -q 'aes-256-gcm' "${BASE_DIR}/lib/lemper-encrypt.sh"
+}
+
+@test "bin/lemper-cli.sh supports --password flag for encrypted config" {
+    grep -q 'LEMPER_CONFIG_PASSWORD' "${BASE_DIR}/bin/lemper-cli.sh"
+    grep -q 'decrypt_config' "${BASE_DIR}/bin/lemper-cli.sh"
+    grep -q 'ENCRYPT_CONFIG_AT_REST' "${BASE_DIR}/bin/lemper-cli.sh"
+}
+
+@test ".env.dist has ENCRYPT_CONFIG_AT_REST config" {
+    grep -q 'ENCRYPT_CONFIG_AT_REST' "${BASE_DIR}/.env.dist"
+    grep -q 'LEMPER_CONFIG_PASSWORD' "${BASE_DIR}/.env.dist"
+}

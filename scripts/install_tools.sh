@@ -78,6 +78,10 @@ function init_tools_install() {
     run cp -f lib/lemper-tui.sh /etc/lemper/cli-plugins/lemper-tui && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-tui
 
+    # Install encryption library.
+    run cp -f lib/lemper-encrypt.sh /etc/lemper/cli-plugins/lemper-encrypt && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-encrypt
+
     # Remove old LEMPer CLI tool.
     [ -d /usr/local/lib/lemper ] && run rm -fr /usr/local/lib/lemper/lemper-*
 

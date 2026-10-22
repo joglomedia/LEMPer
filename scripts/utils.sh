@@ -957,25 +957,108 @@ function init_config() {
         run mkdir -p /etc/lemper/vhost.d && run chmod 0700 /etc/lemper/vhost.d
     fi
 
+    # Generate encryption key file for config at rest.
+    if [[ "${ENCRYPT_CONFIG_AT_REST}" == true ]] && [[ ! -f /etc/lemper/.config_key ]]; then
+        local config_key
+        config_key=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9')
+        echo "${config_key}" > /etc/lemper/.config_key
+        run chmod 0600 /etc/lemper/.config_key
+        success "Encrypted config key generated at /etc/lemper/.config_key"
+    fi
+
     save_log -e "# LEMPer configuration.\n# Edit here if you change your password manually, but do NOT delete!"
 }
 
 # Save configuration.
 function save_config() {
     if [[ ${DRYRUN} != true ]]; then
-        [ -f /etc/lemper/lemper.conf ] && \
-        echo "$@" >> /etc/lemper/lemper.conf
+        local config_file="/etc/lemper/lemper.conf"
+
+        if [[ "${ENCRYPT_CONFIG_AT_REST}" == true ]]; then
+            # Decrypt, write, re-encrypt.
+            local temp_dec
+            temp_dec=$(mktemp /tmp/lemper_save.XXXXXX)
+
+            if is_config_encrypted "${config_file}"; then
+                # Decrypt existing encrypted config.
+                local pw
+                pw=$(resolve_config_password) 2>/dev/null || pw="${LEMPER_PASSWORD}"
+                openssl enc -aes-256-cbc -d -a -salt -md sha256 \
+                    -k "${pw}" -in "${config_file}" -out "${temp_dec}" 2>/dev/null || true
+            elif [[ -f "${config_file}" ]]; then
+                cp "${config_file}" "${temp_dec}"
+            fi
+
+            echo "$@" >> "${temp_dec}"
+
+            # Re-encrypt.
+            local pw
+            pw=$(resolve_config_password) 2>/dev/null || pw="${LEMPER_PASSWORD}"
+            if [[ -n "${pw}" ]]; then
+                openssl enc -aes-256-gcm -a -salt -md sha256 \
+                    -k "${pw}" -in "${temp_dec}" -out "${config_file}"
+            else
+                cp "${temp_dec}" "${config_file}"
+            fi
+            secure_shred "${temp_dec}"
+        else
+            [ -f "${config_file}" ] && echo "$@" >> "${config_file}"
+        fi
     fi
 }
 
-# Encrypt configuration.
+# Encrypt configuration at rest.
 function secure_config() {
     if [[ ${DRYRUN} != true ]]; then
-        if [ -f /etc/lemper/lemper.conf ]; then
-            run openssl aes-256-gcm -a -salt -md sha256 -k "${LEMPER_PASSWORD}" \
-                -in /etc/lemper/lemper.conf -out /etc/lemper/lemper.cnf
+        local config_file="/etc/lemper/lemper.conf"
+        if [ -f "${config_file}" ] && [[ "${ENCRYPT_CONFIG_AT_REST}" == true ]]; then
+            local pw
+            pw=$(resolve_config_password) 2>/dev/null || pw="${LEMPER_PASSWORD}"
+            if [[ -n "${pw}" ]]; then
+                run openssl enc -aes-256-gcm -a -salt -md sha256 -k "${pw}" \
+                    -in "${config_file}" -out "${config_file}.enc"
+                secure_shred "${config_file}"
+                mv "${config_file}.enc" "${config_file}"
+            fi
         fi
     fi
+}
+
+# Check if config file is encrypted (starts with Salted__ header).
+function is_config_encrypted() {
+    local file="${1:-/etc/lemper/lemper.conf}"
+    [[ -f "${file}" ]] && head -1 "${file}" | grep -q "^Salted__"
+}
+
+# Securely delete a file.
+function secure_shred() {
+    local file="${1}"
+    [[ -f "${file}" ]] || return 0
+    if command -v shred &>/dev/null; then
+        shred -u -z -n 3 "${file}" 2>/dev/null || rm -f "${file}"
+    else
+        rm -f "${file}"
+    fi
+}
+
+# Resolve config encryption password from available sources.
+function resolve_config_password() {
+    if [[ -n "${LEMPER_CONFIG_PASSWORD}" ]]; then
+        printf '%s' "${LEMPER_CONFIG_PASSWORD}"
+        return 0
+    fi
+
+    if [[ -n "${LEMPER_PASSWORD}" ]]; then
+        printf '%s' "${LEMPER_PASSWORD}"
+        return 0
+    fi
+
+    if [[ -f /etc/lemper/.config_key ]]; then
+        cat /etc/lemper/.config_key
+        return 0
+    fi
+
+    return 1
 }
 
 # Header message.
