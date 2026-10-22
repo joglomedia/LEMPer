@@ -39,6 +39,9 @@ jobs:
           sed -i "s/SENDER_DOMAIN=\"example.com\"/SENDER_DOMAIN=\"lemper.test\"/g" .env
           sed -i "s/INSTALL_FAIL2BAN=false/INSTALL_FAIL2BAN=true/g" .env
           sed -i "s/REDIS_BACKEND=\"redis\"/REDIS_BACKEND=\"valkey\"/g" .env
+          sed -i "s/INSTALL_CROWDSEC=false/INSTALL_CROWDSEC=true/g" .env
+          sed -i "s/ACME_WILDCARD=false/ACME_WILDCARD=true/g" .env
+          sed -i "s/ACME_DNS_PROVIDER=\"cloudflare\"/ACME_DNS_PROVIDER=\"cloudflare\"/g" .env
       # Install Dependencies
       - name: Install testing dependencies
         run: |

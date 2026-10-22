@@ -80,6 +80,12 @@ function init_certbotle_install() {
 
                 add_certbot_cron
                 add_certbot_logrotate
+                add_dns01_credentials
+
+                # Request wildcard certificate if enabled.
+                if [[ "${ACME_WILDCARD}" == true ]]; then
+                    request_wildcard_certificate
+                fi
 
                 success "Certbot successfully installed."
             else
@@ -99,6 +105,76 @@ function install_certbot_pip() {
     run /opt/certbot/bin/pip install --upgrade pip setuptools cffi && \
     run /opt/certbot/bin/pip install --upgrade certbot certbot-nginx && \
     run ln -sf /opt/certbot/bin/certbot /usr/bin/certbot
+
+    # Install ACME v2 DNS-01 provider plugin for wildcard certificates.
+    if [[ "${ACME_WILDCARD}" == true && -n "${ACME_DNS_PROVIDER}" ]]; then
+        local dns_plugin="certbot-dns-${ACME_DNS_PROVIDER}"
+        echo "Installing DNS-01 provider plugin: ${dns_plugin}"
+        run /opt/certbot/bin/pip install --upgrade "${dns_plugin}"
+    fi
+}
+
+##
+# Configure ACME v2 DNS-01 DNS provider credentials.
+##
+function add_dns01_credentials() {
+    if [[ "${ACME_WILDCARD}" != true ]]; then
+        return 0
+    fi
+
+    if [[ -z "${ACME_DNS_PROVIDER}" ]]; then
+        info "ACME_DNS_PROVIDER is not set, skipping DNS-01 configuration."
+        return 0
+    fi
+
+    local creds_dir="/etc/lemper/acme"
+    run mkdir -p "${creds_dir}"
+    local creds_file="${creds_dir}/dns-${ACME_DNS_PROVIDER}.ini"
+
+    # Write DNS provider credentials.
+    cat > "${creds_file}" <<EOL
+dns_${ACME_DNS_PROVIDER}_api_token = ${ACME_DNS_API_TOKEN}
+EOL
+
+    run chmod 0600 "${creds_file}"
+    success "DNS-01 credentials configured at ${creds_file}"
+}
+
+##
+# Request a wildcard certificate via ACME v2 DNS-01 challenge.
+##
+function request_wildcard_certificate() {
+    if [[ "${ACME_WILDCARD}" != true ]]; then
+        return 0
+    fi
+
+    if [[ -z "${LEMPER_DOMAIN}" ]]; then
+        info "LEMPER_DOMAIN is not set, skipping wildcard certificate request."
+        return 0
+    fi
+
+    local domain="${LEMPER_DOMAIN}"
+    local creds_dir="/etc/lemper/acme"
+    local creds_file="${creds_dir}/dns-${ACME_DNS_PROVIDER}.ini"
+
+    echo "Requesting wildcard certificate for *.${domain} via DNS-01..."
+
+    if [[ -f "${creds_file}" ]]; then
+        run certbot certonly \
+            --dns-"${ACME_DNS_PROVIDER}" \
+            --dns-"${ACME_DNS_PROVIDER}"-credentials "${creds_file}" \
+            --dns-"${ACME_DNS_PROVIDER}"-propagation-seconds "${ACME_DNS_PROPAGATION_WAIT:-30}" \
+            --nginx \
+            -d "*.${domain}" \
+            -d "${domain}" \
+            --email "${LEMPER_ADMIN_EMAIL:-cert@lemper.cloud}" \
+            --agree-tos \
+            --no-eff-email \
+            --non-interactive \
+            --redirect
+    else
+        fail "DNS-01 credentials file not found: ${creds_file}"
+    fi
 }
 
 ##

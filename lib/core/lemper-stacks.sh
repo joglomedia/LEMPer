@@ -148,6 +148,12 @@ function lemper_install() {
         . "${BASE_DIR}/scripts/install_fail2ban.sh"
     fi
 
+    ### CrowdSec HIPS (Host Intrusion Prevention System). ###
+    if [ -f "${BASE_DIR}/scripts/install_crowdsec.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_crowdsec.sh"
+    fi
+
     ### LEMPer tools installation ###
     if [ -f "${BASE_DIR}/scripts/install_tools.sh" ]; then
         echo ""
@@ -372,6 +378,12 @@ function lemper_remove() {
     if [ -f "${BASE_DIR}/scripts/remove_fail2ban.sh" ]; then
         echo ""
         . "${BASE_DIR}/scripts/remove_fail2ban.sh"
+    fi
+
+    ### Remove CrowdSec HIPS ###
+    if [ -f "${BASE_DIR}/scripts/remove_crowdsec.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_crowdsec.sh"
     fi
 
     ### Remove Certbot ###

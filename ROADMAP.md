@@ -1,8 +1,8 @@
 # LEMPer — Roadmap & Improvement Plan
 
-> **Version:** 3.0.0 (proposed)
+> **Version:** 3.2.0 (in progress)
 > **Last Updated:** 2026-10-22
-> **Status:** Proposed — awaiting approval before execution
+> **Status:** Phase 3 complete — Bun.js, Valkey, site list/show, DB backup/restore, CrowdSec, and ACME DNS-01 wildcard implemented and tested.
 >
 > This document presents the audit findings and improvement recommendations for the LEMPer
 > codebase. It is organized by priority area (Security, Architecture, Functionality,
@@ -560,15 +560,15 @@ ModSecurity v3 with OWASP CRS.
 
 ### Phase 3: Functionality (v3.1.0–v3.3.0)
 
-| # | Task | Priority | Effort | Estimated Time |
-|---|---|---|---|---|
-| 2.16 | Add `site list` subcommand | Medium | Medium | 6h |
-| 2.17 | Add `site show` subcommand | Medium | Medium | 6h |
-| 2.18 | Add DB backup/restore commands | Medium | Medium | 8h |
-| 2.19 | Add Bun.js runtime integration | Medium | Medium | 6h |
-| 2.19B | Add Valkey as Redis drop-in replacement | Medium | Medium | 6h |
-| 2.21 | Add ACME v2 DNS-01 wildcard support | Medium | Medium | 8h |
-| 2.20 | Add CrowdSec HIPS integration | Medium | High | 16h |
+| # | Task | Priority | Effort | Estimated Time | Status |
+|---|---|---|---|---|---|
+| 2.16 | Add `site list` subcommand | Medium | Medium | 6h | ✅ v3.1.0 |
+| 2.17 | Add `site show` subcommand | Medium | Medium | 6h | ✅ v3.1.0 |
+| 2.18 | Add DB backup/restore commands | Medium | Medium | 8h | ✅ v3.1.0 |
+| 2.19 | Add Bun.js runtime integration | Medium | Medium | 6h | ✅ v3.1.0 |
+| 2.19B | Add Valkey as Redis drop-in replacement | Medium | Medium | 6h | ✅ v3.1.0 |
+| 2.21 | Add ACME v2 DNS-01 wildcard support | Medium | Medium | 8h | ✅ v3.2.0 |
+| 2.20 | Add CrowdSec HIPS integration | Medium | High | 16h | ✅ v3.2.0 |
 
 **Total estimated time:** ~50 hours
 
@@ -622,8 +622,8 @@ ModSecurity v3 with OWASP CRS.
 | **v2.8.0** | Security hardening | Credential suppression, RSA-4096, keyring, certbot fix |
 | **v2.9.0** | EOL cleanup | Remove PHP <8.0, update defaults |
 | **v3.0.0** | Architecture overhaul | Modular structure, safe config loading, encrypted secrets, bats-core tests |
-| **v3.1.0** | CLI enhancement | `site list`, `site show`, DB backup/restore |
-| **v3.2.0** | Integration | CrowdSec, Node.js, ACME DNS-01 |
+| **v3.1.0** | CLI enhancement | `site list`, `site show`, DB backup/restore, Bun.js runtime |
+| **v3.2.0** | Integration | CrowdSec HIPS, Valkey, ACME DNS-01 wildcard |
 | **v3.3.0** | UI/UX | Progress indicators, improved help |
 | **v3.4.0** | Advanced | ModSecurity v3, optional TUI dashboard |
 

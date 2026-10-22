@@ -140,3 +140,20 @@ setup() {
     grep -q 'backup' "${BASE_DIR}/lib/lemper-db.sh"
     grep -q 'restore' "${BASE_DIR}/lib/lemper-db.sh"
 }
+
+@test "install_crowdsec.sh and remove_crowdsec.sh exist" {
+    [ -f "${BASE_DIR}/scripts/install_crowdsec.sh" ]
+    [ -f "${BASE_DIR}/scripts/remove_crowdsec.sh" ]
+}
+
+@test "lemper-stacks.sh wires in CrowdSec install/remove" {
+    grep -q 'install_crowdsec.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
+    grep -q 'remove_crowdsec.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
+}
+
+@test "install_certbotle.sh supports DNS-01 wildcard certificates" {
+    grep -q 'ACME_DNS_PROVIDER' "${BASE_DIR}/scripts/install_certbotle.sh"
+    grep -q 'dns-01' "${BASE_DIR}/scripts/install_certbotle.sh" || \
+    grep -q 'DNS-01' "${BASE_DIR}/scripts/install_certbotle.sh"
+    grep -q 'request_wildcard_certificate' "${BASE_DIR}/scripts/install_certbotle.sh"
+}
