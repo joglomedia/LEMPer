@@ -126,8 +126,15 @@ setup() {
     [ -f "${BASE_DIR}/scripts/remove_bun.sh" ]
 }
 
-@test "lemper-cli.sh help lists site command" {
-    grep -q 'site' "${BASE_DIR}/bin/lemper-cli.sh"
+@test "lemper-cli.sh help lists tui command" {
+    grep -q 'tui' "${BASE_DIR}/bin/lemper-cli.sh"
+}
+
+@test "lemper-tui.sh provides interactive dashboard" {
+    [ -f "${BASE_DIR}/lib/lemper-tui.sh" ]
+    grep -q 'function init_lemper_tui' "${BASE_DIR}/lib/lemper-tui.sh"
+    grep -q 'tui_menu' "${BASE_DIR}/lib/lemper-tui.sh"
+    grep -q 'tui_system_status' "${BASE_DIR}/lib/lemper-tui.sh"
 }
 
 @test "lemper-db.sh has backup, restore, backup-schedule commands" {

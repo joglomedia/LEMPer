@@ -184,6 +184,7 @@ Database Management:
 System Administration:
   account         Interactive system user/account creator.
   adduser         Alias of 'account'.
+  tui             Launch interactive TUI dashboard.
   selfssl         Generate self-signed SSL certificates.
   fixpermission   Fix file/directory permissions for web root.
   bench           Run server benchmark checks.
@@ -223,6 +224,16 @@ function init_lemper_cli() {
             ;;
             version | -v | --version)
                 cmd_version
+            ;;
+            tui | --tui | -i | --interactive)
+                if [[ -x "${CLI_PLUGINS_DIR}/lemper-tui" ]]; then
+                    # shellcheck disable=SC1090,SC1091
+                    . "${CLI_PLUGINS_DIR}/lemper-tui" "$@"
+                else
+                    echo "${PROG_NAME}: TUI plugin not found."
+                    echo "See '${PROG_NAME} --help' for more information."
+                    exit 1
+                fi
             ;;
             *)
                 if [[ -x "${CLI_PLUGINS_DIR}/lemper-${CMD}" ]]; then
