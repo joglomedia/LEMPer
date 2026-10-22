@@ -164,6 +164,7 @@ Usage: ${PROG_NAME} [--version] [--help]
 These are common ${PROG_NAME} commands used in various situations:
   create        Create new virtual host (add new domain to LEMPer stack).
   add           An aliases of 'create' sub command.
+  site          Virtual host management (list, show, enable, disable, etc).
   database      Wrapper for managing SQL database (MySQL and MariaDB).
   db            An aliases of 'databases' sub command.
   manage        Manage existing virtual host (enable, disable, delete, etc).

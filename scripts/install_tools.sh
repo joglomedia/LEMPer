@@ -41,6 +41,12 @@ function init_tools_install() {
     run cp -f lib/lemper-site.sh /etc/lemper/cli-plugins/lemper-site && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-site
 
+    run cp -f lib/lemper-site-list.sh /etc/lemper/cli-plugins/lemper-site-list && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-list
+
+    run cp -f lib/lemper-site-show.sh /etc/lemper/cli-plugins/lemper-site-show && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-show
+
     run cp -f lib/lemper-create.sh /etc/lemper/cli-plugins/lemper-site-create && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-create
 

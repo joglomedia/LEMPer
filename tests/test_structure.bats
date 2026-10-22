@@ -87,9 +87,8 @@ setup() {
     grep -q 'remove_bun.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
 }
 
-@test "install_bun.sh and remove_bun.sh exist" {
-    [ -f "${BASE_DIR}/scripts/install_bun.sh" ]
-    [ -f "${BASE_DIR}/scripts/remove_bun.sh" ]
+@test "site-list plugin has validate_fqdn function" {
+    grep -q 'function validate_fqdn' "${BASE_DIR}/lib/lemper-site-list.sh"
 }
 
 @test "install_redis.sh supports Valkey backend" {
@@ -105,4 +104,28 @@ setup() {
     grep -q 'REDIS_BACKEND' "${BASE_DIR}/.env.dist"
     grep -q 'INSTALL_BUNJS' "${BASE_DIR}/.env.dist"
     grep -q 'BUNJS_VERSION' "${BASE_DIR}/.env.dist"
+}
+
+@test "site-list plugin exists and has list_vhosts function" {
+    [ -f "${BASE_DIR}/lib/lemper-site-list.sh" ]
+    grep -q 'function list_vhosts' "${BASE_DIR}/lib/lemper-site-list.sh"
+}
+
+@test "site-show plugin exists and has show_vhost_config function" {
+    [ -f "${BASE_DIR}/lib/lemper-site-show.sh" ]
+    grep -q 'function show_vhost_config' "${BASE_DIR}/lib/lemper-site-show.sh"
+}
+
+@test "install_tools.sh wires site-list and site-show plugins" {
+    grep -q 'lemper-site-list' "${BASE_DIR}/scripts/install_tools.sh"
+    grep -q 'lemper-site-show' "${BASE_DIR}/scripts/install_tools.sh"
+}
+
+@test "bunjs install and remove scripts exist" {
+    [ -f "${BASE_DIR}/scripts/install_bun.sh" ]
+    [ -f "${BASE_DIR}/scripts/remove_bun.sh" ]
+}
+
+@test "lemper-cli.sh help lists site command" {
+    grep -q 'site' "${BASE_DIR}/bin/lemper-cli.sh"
 }
