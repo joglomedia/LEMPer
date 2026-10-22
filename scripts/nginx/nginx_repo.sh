@@ -42,7 +42,7 @@ function add_nginx_repo_ondrej() {
         ubuntu)
             # Nginx custom with ngx cache purge from Ondrej repo.
             run curl -sSL -o "/etc/apt/trusted.gpg.d/ondrej-${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg" && \
-            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C && \
+            run gpg --lock-never --keyserver hkp://keyserver.ubuntu.com:80 --no-default-keyring --keyring "/etc/apt/trusted.gpg.d/ondrej-${NGINX_REPO}" --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C && \
             run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}" && \
             run apt-get update -q -y
             NGINX_PKGS=("nginx" "nginx-common")

@@ -775,8 +775,9 @@ function create_account() {
             save_config -e "ENVIRONMENT=${ENVIRONMENT}\nHOSTNAME=${HOSTNAME}\nSERVER_IP=${SERVER_IP}\nSERVER_SSH_PORT=${SSH_PORT}"
             save_config -e "LEMPER_USERNAME=${LEMPER_USERNAME}\nLEMPER_PASSWORD=${LEMPER_PASSWORD}\nLEMPER_ADMIN_EMAIL=${LEMPER_ADMIN_EMAIL}"
 
-            # Save data to log file.
-            save_log -e "Your default system account information:\nUsername: ${LEMPER_USERNAME}\nPassword: ${LEMPER_PASSWORD}"
+            # Do NOT log passwords to the installation log file.
+            # Credentials are saved securely to /etc/lemper/lemper.conf (mode 0600, root-only).
+            save_log -e "Default system account '${LEMPER_USERNAME}' has been created successfully."
 
             success "Username ${LEMPER_USERNAME} created."
         else

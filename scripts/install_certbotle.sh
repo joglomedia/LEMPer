@@ -106,7 +106,7 @@ function install_certbot_pip() {
 ##
 function add_certbot_cron() {
     export EDITOR=nano
-    CRONCMD='0 */6 * * * /usr/bin/certbot renew --quiet --renew-hook "/usr/sbin/service nginx reload -s"'
+    CRONCMD='0 */6 * * * /usr/bin/certbot renew --quiet --deploy-hook "systemctl reload nginx"'
     touch lemper.cron
     crontab -u root lemper.cron
     crontab -l > lemper.cron

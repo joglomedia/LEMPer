@@ -80,7 +80,7 @@ function validate_fqdn() {
 function generate_selfsigned_ssl() {
     DOMAIN=${1}
     SERVER_IP=${2:-$(hostname -I | awk '{print $1}')}
-    KEY_HASH_LENGTH=2048
+    KEY_HASH_LENGTH=4096
 
     if [ -z "${DOMAIN}" ]; then
         fail "Please specify domain name."
@@ -104,7 +104,7 @@ function generate_selfsigned_ssl() {
     run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
 
     # Create Certificate Authority (CA).
-    run openssl req -x509 -sha256 -days 365000 -nodes -newkey rsa:2048 \
+    run openssl req -x509 -sha256 -days 365000 -nodes -newkey "rsa:${KEY_HASH_LENGTH}" \
         -keyout "/etc/lemper/ssl/${DOMAIN}/ca.key" -out "/etc/lemper/ssl/${DOMAIN}/ca.crt" \
         -config /etc/lemper/ssl/ca.conf
 

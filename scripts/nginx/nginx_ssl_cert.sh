@@ -60,7 +60,7 @@ function generate_letsencrypt_cert() {
 function generate_selfsigned_cert() {
     local DOMAIN="$1"
     local SERVER_IP="${2:-$(get_ip)}"
-    local KEY_HASH_LENGTH="${KEY_HASH_LENGTH:-2048}"
+    local KEY_HASH_LENGTH="${KEY_HASH_LENGTH:-4096}"
 
     echo "Generating self-signed certificate for ${DOMAIN}..."
 

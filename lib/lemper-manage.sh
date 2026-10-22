@@ -788,7 +788,7 @@ function generate_selfsigned_ssl() {
     run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
 
     # Create Certificate Authority (CA).
-    run openssl req -x509 -sha256 -days 365000 -nodes -newkey rsa:2048 \
+    run openssl req -x509 -sha256 -days 365000 -nodes -newkey rsa:4096 \
         -keyout "/etc/lemper/ssl/${DOMAIN}/ca.key" -out "/etc/lemper/ssl/${DOMAIN}/ca.crt" \
         -config /etc/lemper/ssl/ca.conf
 
@@ -796,7 +796,7 @@ function generate_selfsigned_ssl() {
     CA_CRT_FILE="/etc/lemper/ssl/${DOMAIN}/ca.crt"
 
     # Create Server Private Key.
-    run openssl genrsa -out "/etc/lemper/ssl/${DOMAIN}/privkey.pem" 2048 && \
+    run openssl genrsa -out "/etc/lemper/ssl/${DOMAIN}/privkey.pem" 4096 && \
 
     # Generate Certificate Signing Request (CSR) using Server Private Key.
     run openssl req -new -key "/etc/lemper/ssl/${DOMAIN}/privkey.pem" \

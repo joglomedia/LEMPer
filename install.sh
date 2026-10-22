@@ -281,18 +281,11 @@ Please Save the above Credentials & Keep it Secure!
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~"
 
-        status "${CREDENTIALS}"
-
-        # Send credentials to admin email.
-        if [[ -n $(command -v mail) ]]; then
-            run bash -c "echo '${CREDENTIALS}' | mail -s 'LEMPer Stack Credentials for ${SERVER_IP}' ${LEMPER_ADMIN_EMAIL}"
-        fi
-
-        # Save it to log file
-        #save_log "${CREDENTIALS}"
-
-        # Securing LEMPer stack credentials.
-        #secure_config
+        # Credentials are saved securely to /etc/lemper/lemper.conf (mode 0600, root-only).
+        # They are NOT printed to stdout, emailed, or written to the log file
+        # to prevent exposure in terminal history, CI logs, or email inboxes.
+        info "Installation credentials have been saved to /etc/lemper/lemper.conf (root-only, mode 0600)."
+        info "To view them, run: sudo cat /etc/lemper/lemper.conf"
     fi
 else
     warning -e "\nLEMPer installation has been completed in dry-run mode."
@@ -303,7 +296,7 @@ See the log file (lemper.log) for more information.
 Now, you can reboot your server and enjoy it!
 "
 
-info "SECURITY PRECAUTION! Due to the log file contains some credential data,
-You SHOULD delete it after your stack completely installed."
+info "SECURITY: Credentials are stored in /etc/lemper/lemper.conf (mode 0600, root-only).
+Keep this file secure and delete the installation log after setup."
 
 footer_msg
