@@ -90,7 +90,12 @@ while [[ "${tambah}" != n* && "${tambah}" != N* ]]; do
         echo -n "Add user ${namauser} to sudoers? [y/n]: "
         read -r setsudoers
         if [[ "${setsudoers}" == y* ]]; then
-        	usermod -aG sudo "${namauser}"
+            # Use restricted sudoers instead of full sudo group membership.
+            cat > "/etc/sudoers.d/90-${namauser}" <<SUDOERS_EOF
+# Restricted sudoers for LEMPer admin user.
+${namauser} ALL=(root) NOPASSWD: /bin/systemctl reload nginx, /bin/systemctl reload php*, /bin/systemctl restart nginx, /bin/systemctl restart php*
+SUDOERS_EOF
+            chmod 0440 "/etc/sudoers.d/90-${namauser}"
         fi
     else
         echo -e "\nUser '${namauser}' already exits."

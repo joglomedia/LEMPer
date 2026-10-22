@@ -21,14 +21,18 @@ fi
 ENVFILE=$(echo "${BASE_DIR}/.env" | sed '$ s|\/scripts\/.env$|\/.env|')
 
 if [ -f "${ENVFILE}" ]; then
-    # Clean environemnt first.
+    # Clean environment first — unset existing vars from .env.
     # shellcheck source=.env.dist
-    # shellcheck disable=SC2046
-    unset $(grep -v '^#' "${ENVFILE}" | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+    while IFS=$'\t' read -r key _; do
+        unset "${key}" 2>/dev/null || true
+    done < <(safe_parse_dotenv "${ENVFILE}")
 
     # shellcheck source=.env.dist
-    # shellcheck disable=SC1094
-    source <(grep -v '^#' "${ENVFILE}" | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+    # Safe parser: avoids eval-based source <(...) which is an injection vector.
+    # Uses IFS-based line-by-line parsing with key name validation.
+    while IFS=$'\t' read -r key value; do
+        export "${key}=${value}"
+    done < <(safe_parse_dotenv "${ENVFILE}")
 else
     echo "Environment variables required, but the dotenv file doesn't exist. Copy .env.dist to .env first!"
     exit 1
@@ -205,6 +209,58 @@ function run_spinner() {
     if [[ "${DRYRUN}" != true ]]; then
         success "${description} — done"
     fi
+}
+
+##
+# Portable in-place sed wrapper.
+# On GNU/Linux (sed 4.x), `sed -i 's/.../.../' file` works without a backup suffix.
+# On macOS/BSD (sed), `sed -i` requires an empty string argument: `sed -i '' 's/.../.../' file`.
+# This wrapper detects the platform and uses the correct syntax.
+#
+# Usage:
+#   sed_inplace "s/old/new/g" /path/to/file
+#   sed_inplace "s/old/new/g" file1 file2 file3
+##
+function sed_inplace() {
+    local script="${1}"
+    shift
+    local file
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        sed -i '' "${script}" "$@"
+    else
+        sed -i "${script}" "$@"
+    fi
+}
+
+##
+# Parse a key=value line from a config file safely.
+# Reads a single line and splits on the first '=' using IFS, avoiding eval.
+# Returns: "key<TAB>value" or nothing if the line is a comment/blank/section.
+#
+# Usage:
+#   while IFS=$'\t' read -r key value; do
+#       export "${key}=${value}"
+#   done < <(safe_parse_dotenv /path/to/.env)
+##
+function safe_parse_dotenv() {
+    local envfile="${1}"
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        # Skip comments and section headers.
+        line="${line#"${line%%[![:space:]]*}"}"  # ltrim
+        [[ -z "${line}" || "${line}" == \#* || "${line}" == \[* ]] && continue
+        # Split on first =.
+        local key="${line%%=*}"
+        local value="${line#*=}"
+        # Strip surrounding quotes from value if present.
+        value="${value#\"}"
+        value="${value%\"}"
+        value="${value#\'}"
+        value="${value%\'}"
+        # Validate key name (prevent injection).
+        if [[ "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+            printf '%s\t%s\n' "${key}" "${value}"
+        fi
+    done < "${envfile}"
 }
 
 # Check if RedHat package (.rpm) is installed.
@@ -855,7 +911,28 @@ function create_account() {
         if [[ ${DRYRUN} != true ]]; then
             run useradd -d "/home/${LEMPER_USERNAME}" -m -s /bin/bash "${LEMPER_USERNAME}"
             run echo "${LEMPER_USERNAME}:${LEMPER_PASSWORD}" | chpasswd
-            run usermod -aG sudo "${LEMPER_USERNAME}"
+
+            # Restrict sudo access to specific systemctl service management.
+            # This replaces the old NOPASSWD:ALL approach which granted full root.
+            run mkdir -p /etc/sudoers.d
+            run touch "/etc/sudoers.d/90-${LEMPER_USERNAME}"
+            run chmod 0440 "/etc/sudoers.d/90-${LEMPER_USERNAME}"
+            run cat > "/etc/sudoers.d/90-${LEMPER_USERNAME}" <<SUDOERS_EOF
+# Restricted sudoers for LEMPer admin user.
+# Allows the lemper user to manage specific services without full root.
+%${LEMPER_USERNAME} ALL=(root) NOPASSWD: /bin/systemctl reload nginx, \\
+    /bin/systemctl reload php*, \\
+    /bin/systemctl restart nginx, \\
+    /bin/systemctl restart php*, \\
+    /bin/systemctl restart redis-server, \\
+    /bin/systemctl restart mariadb, \\
+    /bin/systemctl restart mysql, \\
+    /bin/systemctl status nginx, \\
+    /bin/systemctl status php*, \\
+    /bin/systemctl status redis-server, \\
+    /bin/systemctl status mariadb, \\
+    /bin/systemctl status mysql
+SUDOERS_EOF
 
             # Create default directories.
             run mkdir -p "/home/${LEMPER_USERNAME}/webapps" && \

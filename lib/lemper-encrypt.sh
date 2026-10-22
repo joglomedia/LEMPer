@@ -153,7 +153,7 @@ function encrypt_config() {
 
 ##
 # Load configuration from file, handling both plaintext and encrypted formats.
-# Sets up variables via eval (same pattern as original loader).
+# Uses safe_parse_dotenv() — no eval-based sourcing (SEC-06 mitigation).
 # Arguments: config_file
 ##
 function load_config() {
@@ -184,14 +184,17 @@ function load_config() {
         source_file="${temp_decrypted}"
     fi
 
-    # Load the configuration (same pattern as original).
-    # Clean environment first.
-    # shellcheck disable=SC2046
-    unset $(grep -v '^#' "${source_file}" | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+    # Load the configuration using safe parser (no eval).
+    # This replaces the original eval-based loader (SEC-06 mitigation).
+    # Clean environment first — unset existing vars from config file.
+    while IFS=$'\t' read -r key _; do
+        unset "${key}" 2>/dev/null || true
+    done < <(safe_parse_dotenv "${source_file}")
 
-    # shellcheck disable=SC1090
-    source <(grep -v '^#' "${source_file}" | grep -v '^\[' | \
-        sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+    # Safely load key=value pairs without eval.
+    while IFS=$'\t' read -r key value; do
+        export "${key}=${value}"
+    done < <(safe_parse_dotenv "${source_file}")
 
     # Securely clean up temp file if we decrypted one.
     if [[ -n "${temp_decrypted}" ]]; then

@@ -911,7 +911,7 @@ function install_php_loader() {
     fi
 
     # Install PHP loader.
-    if [[ "${PHPv}" != "unsupported" && ! $(version_older_than "${PHPv}" "8.0") ]]; then
+    if [[ "${PHPv}" != "unsupported" && ! $(version_older_than "${PHPv}" "8.1") ]]; then
         if [[ "${AUTO_INSTALL}" == true ]]; then
             if [[ "${INSTALL_PHP_LOADER}" == true ]]; then
                 DO_INSTALL_PHP_LOADER="y"

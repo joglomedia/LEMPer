@@ -200,95 +200,29 @@ function lemper_install() {
     if [[ "${DRYRUN}" != true ]]; then
         status -e "\nCongrats, your LEMPer Stack installation has been completed."
 
-        ### Recap ###
+        ### Recap (SEC-08: credentials NOT printed to stdout) ###
         if [[ -n "${LEMPER_PASSWORD}" ]]; then
-            CREDENTIALS="
-~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Default System Information:
-    Hostname : ${HOSTNAME}
-    Server IP: ${SERVER_IP}
-    SSH Port : ${SSH_PORT}
-
-LEMPer Stack Admin Account:
-    Username : ${LEMPER_USERNAME}
-    Password : ${LEMPER_PASSWORD}
-
-Database Administration (Adminer):
-    http://${SERVER_IP}:8082/lcp/dbadmin/
-
-    MySQL root password: ${MYSQL_ROOT_PASSWORD}
-
-Mariabackup user information:
-    DB Username: ${MARIABACKUP_USER}
-    DB Password: ${MARIABACKUP_PASS}"
-
-            if [[ "${INSTALL_POSTGRES}" == true ]]; then
-                CREDENTIALS="${CREDENTIALS}
-
-PostgreSQL user information:
-    Default Postgres User: ${POSTGRES_SUPERUSER}
-
-    PostgresSQL DB Username: ${POSTGRES_DB_USER}
-    PostgresSQL DB Password: ${POSTGRES_DB_PASS}"
-            fi
-
-            if [[ "${INSTALL_MONGODB}" == true ]]; then
-                CREDENTIALS="${CREDENTIALS}
-
-MongoDB Test Admin Login:
-    Username    : ${MONGODB_ADMIN_USER}
-    Password    : ${MONGODB_ADMIN_PASSWORD}"
-            fi
-
-            if [[ "${INSTALL_REDIS}" == true && "${REDIS_REQUIRE_PASSWORD}" == true ]]; then
-                CREDENTIALS="${CREDENTIALS}
-
-Redis required password enabled:
-    Password    : ${REDIS_PASSWORD}"
-            fi
-
-            if [[ "${INSTALL_MEMCACHED}" == true && "${MEMCACHED_SASL}" == true ]]; then
-                CREDENTIALS="${CREDENTIALS}
-
-Memcached SASL Login:
-    Username    : ${MEMCACHED_USERNAME}
-    Password    : ${MEMCACHED_PASSWORD}"
-            fi
-
-            if [[ "${INSTALL_MAILER}" == true ]]; then
-                CREDENTIALS="${CREDENTIALS}
-
-Default Mail Service:
-    Maildir      : /home/${LEMPER_USERNAME}/Maildir
-    Sender Domain: ${SENDER_DOMAIN}
-    Sender IP    : ${SERVER_IP}
-    IMAP Port    : 143, 993 (SSL/TLS)
-    POP3 Port    : 110, 995 (SSL/TLS)
-
-    Domain Key   : ${DOMAIN_KEY}
-    DKIM Key     : ${DKIM_KEY}
-    SPF Record   : ${SPF_RECORD}
-
-    Use your default LEMPer Stack admin account for Mail login."
-            fi
-
-            CREDENTIALS="${CREDENTIALS}
-
-File manager (TinyFileManager):
-    http://${SERVER_IP}:8082/lcp/filemanager/
-
-    Use your default LEMPer Stack admin account for Filemanager login.
-
-Please Save the above Credentials & Keep it Secure!
-
-~~~~~~~~~~~~~~~~~~~~~~~~~o0o~~~~~~~~~~~~~~~~~~~~~~~~~"
-
-            # Credentials are saved securely to /etc/lemper/lemper.conf (mode 0600, root-only).
-            # They are NOT printed to stdout, emailed, or written to the log file
-            # to prevent exposure in terminal history, CI logs, or email inboxes.
             info "Installation credentials have been saved to /etc/lemper/lemper.conf (root-only, mode 0600)."
             info "To view them, run: sudo cat /etc/lemper/lemper.conf"
+
+            echo ""
+            echo "LEMPer Stack installed successfully:"
+            echo "  Hostname: ${HOSTNAME}"
+            echo "  Server IP: ${SERVER_IP}"
+            echo "  SSH Port: ${SSH_PORT}"
+            echo "  Admin User: ${LEMPER_USERNAME}"
+            echo ""
+            echo "Service URLs:"
+            if [[ "${INSTALL_NGINX}" == true ]]; then
+                echo "  Web Server: http://${SERVER_IP}/ (Nginx)"
+            fi
+            if [[ "${INSTALL_ADMINER}" == true || "${INSTALL_PHPMYADMIN}" == true ]]; then
+                echo "  Database Admin: http://${SERVER_IP}:8082/lcp/dbadmin/"
+            fi
+            if [[ "${INSTALL_FILEMANAGER}" == true ]]; then
+                echo "  File Manager: http://${SERVER_IP}:8082/lcp/filemanager/"
+            fi
+            info "All sensitive credentials are in /etc/lemper/lemper.conf (root-only)."
         fi
     else
         warning -e "\nLEMPer installation has been completed in dry-run mode."

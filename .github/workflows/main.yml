@@ -49,7 +49,8 @@ jobs:
         run: |
           set -ex
           sudo apt-get update -q -y
-          sudo apt-get install -q -y bash curl
+          sudo apt-get install -q -y bash curl python3-pip
+          sudo pip3 install --break-system-packages bashate 2>/dev/null || sudo pip3 install bashate
           sudo curl -sSL -o /usr/local/bin/shunit2 https://raw.githubusercontent.com/kward/shunit2/master/shunit2
           sudo chmod +x /usr/local/bin/shunit2
           sudo curl -sSLO https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz
@@ -73,6 +74,17 @@ jobs:
           shellcheck -s bash -x scripts/install_*.sh
           shellcheck -s bash -x scripts/remove_*.sh
           shellcheck -s bash -x scripts/nginx/*.sh
+      # Bashate Linting
+      - name: Run bashate linting
+        env:
+          TERM: xterm-256color
+        run: |
+          set -ex
+          bashate --ignore E006,E012,E042,E043,E044,E045 --max-line-length 120 \
+            install.sh remove.sh lemper.sh \
+            bin/lemper-cli.sh \
+            lib/lemper-*.sh lib/core/lemper-stacks.sh \
+            scripts/*.sh scripts/nginx/*.sh
       # Install bats-core for integration testing
       - name: Install bats-core
         run: |

@@ -152,12 +152,23 @@ if [[ -f "${CONFIG_FILE}" ]]; then
         source_file="${temp_decrypted}"
     fi
 
+    # Load configuration using safe parser (no eval — SEC-06 mitigation).
     # Clean environment first.
-    # shellcheck disable=SC2046
-    unset $(grep -v '^#' "${source_file}" | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+    while IFS=$'\t' read -r key _; do
+        unset "${key}" 2>/dev/null || true
+    done < <(grep -v '^#' "${source_file}" | grep -v '^\[' | \
+        while IFS='=' read -r k v; do [[ "${k}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] && printf '%s\t%s\n' "${k}" "${v}"; done)
 
-    # shellcheck disable=SC1090,SC2046
-    source <(grep -v '^#' "${source_file}" | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+    # Safely load key=value pairs without eval.
+    while IFS='=' read -r key value; do
+        [[ -z "${key}" || "${key}" == \#* || "${key}" == \[* ]] && continue
+        key="${key// /}"
+        value="${value#\"}"; value="${value%\"}"
+        value="${value#\'}"; value="${value%\'}"
+        if [[ "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+            export "${key}=${value}"
+        fi
+    done < "${source_file}"
 
     # Securely clean up temp decrypted file.
     if [[ -n "${temp_decrypted}" ]]; then

@@ -1,8 +1,8 @@
-# LEMPer — Roadmap & Improvement Plan
+# LEMPer — Roadmap &amp; Improvement Plan
 
 > **Version:** 3.4.0 (in progress)
 > **Last Updated:** 2026-10-22
-> **Status:** Complete — all 5 phases (0-5) implemented: v2.7.2→v2.9.0 security & bug fixes,
+> **Status:** Complete — all 5 phases (0-5) implemented: v2.7.2→v2.9.0 security &amp; bug fixes,
 > v3.0.0 architecture overhaul, v3.1.0–v3.2.0 functionality (Bun.js, Valkey, site list/show,
 > db backup/restore, CrowdSec, ACME DNS-01), v3.3.0 UI/UX (TUI, progress, help, PHP 8.4),
 > v3.4.0 security (ModSecurity v3 WAF, encrypted config at rest).
@@ -19,13 +19,15 @@
 
 A comprehensive audit of the LEMPer codebase was conducted, covering:
 
-| Area | Files Audited | Issues Found |
-|---|---|---|
-| Security | `utils.sh`, `lib/lemper-*`, `install.sh`, `lemper.sh`, `etc/` configs | 12 critical/medium issues |
-| Architecture | All `.sh` files, `.env.dist`, CI config | Monolithic, no modularity, weak tests |
-| Functionality | All install scripts, CLI plugins, config templates | 9 bugs, 3 typos, outdated defaults |
-| UI/UX | `bin/lemper-cli.sh`, `lib/lemper-create.sh`, `lib/lemper-manage.sh` | Poor CLI UX, no progress feedback |
-| Stack Currency | `.env.dist`, PHP configs, Nginx modules | PHP 5.6–7.4 supported (EOL), old MariaDB |
+
+| Area           | Files Audited                                                         | Issues Found                             |
+| -------------- | --------------------------------------------------------------------- | ---------------------------------------- |
+| Security       | `utils.sh`, `lib/lemper-*`, `install.sh`, `lemper.sh`, `etc/` configs | 12 critical/medium issues                |
+| Architecture   | All `.sh` files, `.env.dist`, CI config                               | Monolithic, no modularity, weak tests    |
+| Functionality  | All install scripts, CLI plugins, config templates                    | 9 bugs, 3 typos, outdated defaults       |
+| UI/UX          | `bin/lemper-cli.sh`, `lib/lemper-create.sh`, `lib/lemper-manage.sh`   | Poor CLI UX, no progress feedback        |
+| Stack Currency | `.env.dist`, PHP configs, Nginx modules                               | PHP 5.6–7.4 supported (EOL), old MariaDB |
+
 
 ---
 
@@ -41,6 +43,7 @@ These are **blocking issues** that must be fixed before any other work.
 aborts with unhelpful error messages.
 
 **Files:**
+
 - `lib/lemper-create.sh:957` — `fial "..."` → `fail "..."`
 - `lib/lemper-db.sh:593` — `fial "..."` → `fail "..."`
 
@@ -55,6 +58,7 @@ attacks. An attacker can upload a file like `image.jpg/evil.php` and have Nginx 
 to the PHP interpreter.
 
 **Files:**
+
 - `etc/php/*/fpm/pool.d/lemper.conf` (14 versions: 5.6–8.4)
 - `etc/php/*/fpm/pool.d/www.conf` (14 versions: 5.6–8.4)
 - `lib/lemper-create.sh:636` — generated pool config template
@@ -74,11 +78,13 @@ is effectively root-equivalent. This is a critical privilege escalation risk if 
 **File:** `scripts/utils.sh:740-741`
 
 **Current code:**
+
 ```bash
 run echo "${LEMPER_USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/90-lemper-users
 ```
 
 **Fix:** Remove this line entirely, or replace with a restricted sudoers entry:
+
 ```bash
 # Lemper user can restart specific services only
 run echo "${LEMPER_USERNAME} ALL=(root) NOPASSWD: /bin/systemctl restart nginx, /bin/systemctl restart php*, /bin/systemctl reload nginx" >> /etc/sudoers.d/90-lemper-users
@@ -95,10 +101,12 @@ etc.) to stdout, making them visible in CI logs, terminal scrollback, and potent
 captured by screen recording.
 
 **Files:**
+
 - `install.sh:284-288` — credentials printed + optionally emailed
 - `lemper.sh:194-280` — credentials recap block
 
 **Fix:**
+
 - Remove the credential recap by default.
 - Write credentials only to an encrypted file (`gpg`-encrypted or mode 0600).
 - Add a `--show-credentials` CLI flag for explicit opt-in.
@@ -124,13 +132,13 @@ restricted file.
 
 #### 2.6 Replace `eval`-Based Config Loading (Security — High)
 
-**Issue:** Both `scripts/utils.sh:31` and `bin/lemper-cli.sh:55` use `source <(grep ... |
-sed ...)` which effectively `eval`s the contents of `.env`/`lemper.conf`. If any value
+**Issue:** Both `scripts/utils.sh:31` and `bin/lemper-cli.sh:55` use `source <(grep ... | sed ...)` which effectively `eval`s the contents of `.env`/`lemper.conf`. If any value
 contains shell metacharacters, arbitrary code execution is possible.
 
 **Files:** `scripts/utils.sh`, `bin/lemper-cli.sh`
 
 **Fix:** Replace with a safe line-by-line parser that uses `IFS='='` and `declare`:
+
 ```bash
 safe_load_env() {
     while IFS='=' read -r key value; do
@@ -154,6 +162,7 @@ safe_load_env() {
 recommendation (3072+ bits minimum, 4096 recommended for CAs).
 
 **Files:**
+
 - `scripts/nginx/nginx_ssl_cert.sh:79` — `rsa:2048` → `rsa:4096`
 - `lib/lemper-selfssl.sh:107-108` — `rsa:2048` → `rsa:4096`
 - `lib/lemper-manage.sh:791` — `rsa:2048` → `rsa:4096`
@@ -173,10 +182,13 @@ creating trust-confusion vulnerabilities.
 **File:** `scripts/nginx/nginx_repo.sh:45`, `scripts/install_php.sh:62`
 
 **Fix:** Replace:
+
 ```bash
 apt-key adv --keyserver ...
 ```
+
 with:
+
 ```bash
 curl -sSL https://... | gpg --dearmor -o /usr/share/keyrings/repo.gpg
 # In .list file: deb [signed-by=/usr/share/keyrings/repo.gpg] ...
@@ -195,6 +207,7 @@ self-signed SSL generation) do not validate.
 **Files:** `lib/lemper-selfssl.sh`, `lib/lemper-create.sh`, `lib/lemper-manage.sh`
 
 **Fix:**
+
 - Validate all user inputs (domain names, IP addresses, usernames) before use.
 - Use `printf '%q'` or manual escaping when interpolating into `sed`/`openssl` commands.
 - Add a `sanitize_sed_replacement()` helper function.
@@ -211,21 +224,22 @@ self-signed SSL generation) do not validate.
 **Files:** `scripts/utils.sh:854-861`, `lib/lemper-encrypt.sh`, `bin/lemper-cli.sh`
 
 **Fix:** ✅ Implemented
+
 - Created `lib/lemper-encrypt.sh` with `encrypt_config()`, `decrypt_config()`,
-  `is_config_encrypted()`, `resolve_config_password()`, `secure_shred()`
+`is_config_encrypted()`, `resolve_config_password()`, `secure_shred()`
 - Uses AES-256-GCM (with CBC fallback for backward compatibility)
 - `--password`/`-P` CLI flag added to `bin/lemper-cli.sh`; falls back to
-  `LEMPER_PASSWORD` env var or `/etc/lemper/.config_key` key file
+`LEMPER_PASSWORD` env var or `/etc/lemper/.config_key` key file
   - Added `ENCRYPT_CONFIG_AT_REST` and `LEMPER_CONFIG_PASSWORD` to `.env.dist`
 - `utils.sh` `save_config()` now decrypts → writes → re-encrypts when
-  `ENCRYPT_CONFIG_AT_REST=true`
+`ENCRYPT_CONFIG_AT_REST=true`
 - Backward compatible: plaintext configs load as before
 
 **Effort:** High — changes to both install and CLI startup paths.
 
 ---
 
-### Phase 2 — Architecture & Code Quality (P1 — High)
+### Phase 2 — Architecture &amp; Code Quality (P1 — High)
 
 #### 2.11 Eliminate Duplicated Install/Remove Logic
 
@@ -235,6 +249,7 @@ removal logic. When one is updated, the other is often missed.
 **Files:** `install.sh`, `lemper.sh`
 
 **Fix:**
+
 - Make `lemper.sh` the single orchestrator.
 - Have `install.sh` and `remove.sh` be thin wrappers that delegate to `lemper.sh`:
   ```bash
@@ -252,6 +267,7 @@ removal logic. When one is updated, the other is often missed.
 and configuration templates (`etc/`) in a flat structure that is hard to navigate.
 
 **Fix:** Move to the layered structure described in ARCHITECTURE.md §4.4:
+
 ```
 lib/core/      — config, logging, colors, cli dispatch
 lib/runtime/   — CLI plugins (account, site, db, ssl, util)
@@ -294,6 +310,7 @@ exist in `.env.dist`, causing `sed` commands that silently match nothing.
 actual installations. They cannot run on macOS or in constrained CI environments.
 
 **Fix:**
+
 - Add `tests/integration/` directory with `bats-core` tests for CLI logic.
 - Use mocks for system commands (`systemctl`, `apt-get`, etc.).
 - Add test matrix in CI for Debian + Ubuntu.
@@ -329,12 +346,13 @@ status, and linked credentials.
 
 ---
 
-#### 2.18 Add Database Backup & Restore Commands  ✅**COMPLETE**
+#### 2.18 Add Database Backup &amp; Restore Commands  ✅**COMPLETE**
 
 **Issue:** The README mentions "database backup tool" as a TODO, and `lemper-db.sh`
 has export/import but no scheduled backup rotation.
 
 **Fix:**
+
 - Add `lemper-cli db backup <domain>` — creates timestamped SQL dump.
 - Add `lemper-cli db restore <domain> <file>` — restores from dump.
 - Add `lemper-cli db backup-schedule <domain>` — adds cron entry.
@@ -350,13 +368,14 @@ has export/import but no scheduled backup rotation.
 runtime integration.
 
 **Fix:**
+
 - Add `INSTALL_BUNJS` config option to `.env.dist`.
 - Create `scripts/install_bun.sh` and `scripts/remove_bun.sh`.
 - Install Bun.js via official apt repository or binary release.
 - Wire into `install.sh` / `remove.sh` via `lib/core/lemper-stacks.sh`.
 - **Note:** Bun.js is used instead of Node.js — it is a drop-in replacement with
-  built-in npm client, test runner, and bundler, offering significantly faster
-  performance for asset building pipelines.
+built-in npm client, test runner, and bundler, offering significantly faster
+performance for asset building pipelines.
 
 **Effort:** Medium
 
@@ -369,9 +388,10 @@ fork maintained by the Linux Foundation) offers an alternative with active devel
 and no licensing concerns around Redis modules.
 
 **Fix:**
+
 - Add `REDIS_BACKEND="redis"` config option to `.env.dist` (supports `redis` or `valkey`).
 - Modify `scripts/install_redis.sh` to branch on `REDIS_BACKEND` — adds Valkey apt
-  repository and installs `valkey-server` package when selected.
+repository and installs `valkey-server` package when selected.
 - Add `scripts/install_valkey.sh` source compilation support (Valkey source build).
 - Create `etc/systemd/valkey-server.service` systemd unit template.
 - Update `lib/core/lemper-stacks.sh` to source Valkey removal script when applicable.
@@ -386,6 +406,7 @@ and no licensing concerns around Redis modules.
 is off by default.
 
 **Fix:**
+
 - Create `scripts/install_crowdsec.sh`.
 - Create `scripts/remove_crowdsec.sh`.
 - Add `INSTALL_CROWDSEC` config to `.env.dist`.
@@ -401,6 +422,7 @@ is off by default.
 integration with DNS providers (Cloudflare, DigitalOcean, etc.).
 
 **Fix:**
+
 - Add `ACME_DNS_PROVIDER` and `ACME_DNS_API_TOKEN` to `.env.dist`.
 - Use `certbot-dns-cloudflare` or similar plugin.
 - Update `enable_ssl()` in `lib/lemper-manage.sh` to support DNS-01 challenge.
@@ -417,6 +439,7 @@ integration with DNS providers (Cloudflare, DigitalOcean, etc.).
 operations (source compilation, large downloads).
 
 **Fix:**
+
 - Add spinner/progress wrapper for long-running commands.
 - Add estimated time remaining where possible.
 - Use `pv` or similar for download progress bars.
@@ -448,7 +471,7 @@ memory, swap, recent logs) in a text-based UI using `whiptail` or `dialog`.
 
 ---
 
-### Phase 5 — Stack Currency & EOL Cleanup (P1 — Medium)
+### Phase 5 — Stack Currency &amp; EOL Cleanup (P1 — Medium)
 
 #### 2.25 Remove PHP 5.6–7.4 Support  ✅**COMPLETE**
 
@@ -456,6 +479,7 @@ memory, swap, recent logs) in a text-based UI using `whiptail` or `dialog`.
 add maintenance burden and could mislead users into installing insecure versions.
 
 **Fix:**
+
 - Remove `etc/php/{5.6,7.0,7.1,7.2,7.3,7.4}/` directories entirely.
 - Update `lib/lemper-create.sh:77` to require PHP 8.0+.
 - Update README to reflect 8.0+ only.
@@ -480,6 +504,7 @@ add maintenance burden and could mislead users into installing insecure versions
 versions.
 
 **Fix:**
+
 - Replace all `apt-key` usage with `signed-by` keyring files.
 - Update `NGINX_CUSTOMSSL_VERSION` to `openssl-3.3.1` or `openssl-3.4.x`.
 - Update MariaDB default version from `11.1` to `11.4`.
@@ -505,6 +530,7 @@ by default.
 ModSecurity v3 with OWASP CRS.
 
 **Fix:**
+
 - Add `INSTALL_MODSECURITY` config option.
 - Create ModSecurity v3 + OWASP CRS installation.
 - Keep NAXSI as opt-in but mark deprecated.
@@ -529,15 +555,17 @@ ModSecurity v3 with OWASP CRS.
 
 ## 3. Phased Rollout Plan
 
-### Phase 0: Immediate (v2.7.2 release) — Security & Bug Fixes
+### Phase 0: Immediate (v2.7.2 release) — Security &amp; Bug Fixes
 
-| # | Task | Priority | Effort | Estimated Time |
-|---|---|---|---|---|
-| 2.1 | Fix `fial` → `fail` typo | Critical | Trivial | < 1h |
-| 2.2 | Fix `cgi.fix_pathinfo = 0` | High | Low | 2h |
-| 2.3 | Remove NOPASSWD:ALL sudo | Critical | Low | 2h |
-| 2.6 | Fix CI references to non-existent vars | Medium | Low | 1h |
-| 2.13 | Add ShellCheck to nginx submodules in CI | Medium | Low | 1h |
+
+| #    | Task                                     | Priority | Effort  | Estimated Time |
+| ---- | ---------------------------------------- | -------- | ------- | -------------- |
+| 2.1  | Fix `fial` → `fail` typo                 | Critical | Trivial | &lt; 1h        |
+| 2.2  | Fix `cgi.fix_pathinfo = 0`               | High     | Low     | 2h             |
+| 2.3  | Remove NOPASSWD:ALL sudo                 | Critical | Low     | 2h             |
+| 2.6  | Fix CI references to non-existent vars   | Medium   | Low     | 1h             |
+| 2.13 | Add ShellCheck to nginx submodules in CI | Medium   | Low     | 1h             |
+
 
 **Total estimated time:** ~6 hours
 
@@ -545,13 +573,15 @@ ModSecurity v3 with OWASP CRS.
 
 ### Phase 1: Security Hardening (v2.8.0 release)
 
-| # | Task | Priority | Effort | Estimated Time |
-|---|---|---|---|---|
-| 2.4 | Suppress credential display in stdout | High | Medium | 4h |
-| 2.5 | Remove email credential delivery | Medium | Low | 1h |
-| 2.7 | Upgrade SSL to RSA-4096 | Medium | Low | 2h |
-| 2.8 | Replace `apt-key` with keyrings | Low | Low | 3h |
-| 2.30 | Fix certbot renewal cron | Medium | Low | 1h |
+
+| #    | Task                                  | Priority | Effort | Estimated Time |
+| ---- | ------------------------------------- | -------- | ------ | -------------- |
+| 2.4  | Suppress credential display in stdout | High     | Medium | 4h             |
+| 2.5  | Remove email credential delivery      | Medium   | Low    | 1h             |
+| 2.7  | Upgrade SSL to RSA-4096               | Medium   | Low    | 2h             |
+| 2.8  | Replace `apt-key` with keyrings       | Low      | Low    | 3h             |
+| 2.30 | Fix certbot renewal cron              | Medium   | Low    | 1h             |
+
 
 **Total estimated time:** ~11 hours
 
@@ -559,12 +589,14 @@ ModSecurity v3 with OWASP CRS.
 
 ### Phase 2: Architecture (v3.0.0 release)
 
-| # | Task | Priority | Effort | Estimated Time |
-|---|---|---|---|---|
-| 2.11 | Eliminate duplicated install/remove logic | High | Medium | 6h |
-| 2.12 | Reorganize into modular directory structure | High | High | 20h |
-| 2.9 | Add input sanitization layer | Medium | Medium | 8h |
-| 2.15 | Add bats-core integration tests | Medium | High | 16h |
+
+| #    | Task                                        | Priority | Effort | Estimated Time |
+| ---- | ------------------------------------------- | -------- | ------ | -------------- |
+| 2.11 | Eliminate duplicated install/remove logic   | High     | Medium | 6h             |
+| 2.12 | Reorganize into modular directory structure | High     | High   | 20h            |
+| 2.9  | Add input sanitization layer                | Medium   | Medium | 8h             |
+| 2.15 | Add bats-core integration tests             | Medium   | High   | 16h            |
+
 
 **Total estimated time:** ~50 hours
 
@@ -572,31 +604,35 @@ ModSecurity v3 with OWASP CRS.
 
 ### Phase 3: Functionality (v3.1.0–v3.3.0)
 
-| # | Task | Priority | Effort | Estimated Time | Status |
-|---|---|---|---|---|---|
-| 2.16 | Add `site list` subcommand | Medium | Medium | 6h | ✅ v3.1.0 |
-| 2.17 | Add `site show` subcommand | Medium | Medium | 6h | ✅ v3.1.0 |
-| 2.18 | Add DB backup/restore commands | Medium | Medium | 8h | ✅ v3.1.0 |
-| 2.19 | Add Bun.js runtime integration | Medium | Medium | 6h | ✅ v3.1.0 |
-| 2.19B | Add Valkey as Redis drop-in replacement | Medium | Medium | 6h | ✅ v3.1.0 |
-| 2.21 | Add ACME v2 DNS-01 wildcard support | Medium | Medium | 8h | ✅ v3.2.0 |
-| 2.20 | Add CrowdSec HIPS integration | Medium | High | 16h | ✅ v3.2.0 |
+
+| #     | Task                                    | Priority | Effort | Estimated Time | Status   |
+| ----- | --------------------------------------- | -------- | ------ | -------------- | -------- |
+| 2.16  | Add `site list` subcommand              | Medium   | Medium | 6h             | ✅ v3.1.0 |
+| 2.17  | Add `site show` subcommand              | Medium   | Medium | 6h             | ✅ v3.1.0 |
+| 2.18  | Add DB backup/restore commands          | Medium   | Medium | 8h             | ✅ v3.1.0 |
+| 2.19  | Add Bun.js runtime integration          | Medium   | Medium | 6h             | ✅ v3.1.0 |
+| 2.19B | Add Valkey as Redis drop-in replacement | Medium   | Medium | 6h             | ✅ v3.1.0 |
+| 2.21  | Add ACME v2 DNS-01 wildcard support     | Medium   | Medium | 8h             | ✅ v3.2.0 |
+| 2.20  | Add CrowdSec HIPS integration           | Medium   | High   | 16h            | ✅ v3.2.0 |
+
 
 **Total estimated time:** ~50 hours
 
 ---
 
-### Phase 4: UI/UX & Stack Modernization (v3.2.0–v3.4.0)
+### Phase 4: UI/UX &amp; Stack Modernization (v3.2.0–v3.4.0)
 
-| # | Task | Priority | Effort | Estimated Time | Status |
-|---|---|---|---|---|---|
-| 2.22 | Add progress indicators | Medium | Medium | 6h | ✅ v3.2.0 |
-| 2.23 | Improve CLI help output | Medium | Medium | 6h | ✅ v3.2.0 |
-| 2.25 | Remove PHP 5.6–7.4 support | Medium | Low–Medium | 4h | ✅ v3.2.0 |
-| 2.26 | Update default PHP to 8.4 | Low | Trivial | 1h | ✅ v3.2.0 |
-| 2.27 | Update OpenSSL/MariaDB versions | Medium | Low–Medium | 4h | ✅ v3.2.0 |
-| 2.28 | Enable Fail2ban by default | Medium | Trivial | 1h | ✅ v3.2.0 |
-| 2.24 | Add interactive TUI mode | Low | High | 20h | ✅ v3.3.0 |
+
+| #    | Task                            | Priority | Effort     | Estimated Time | Status   |
+| ---- | ------------------------------- | -------- | ---------- | -------------- | -------- |
+| 2.22 | Add progress indicators         | Medium   | Medium     | 6h             | ✅ v3.2.0 |
+| 2.23 | Improve CLI help output         | Medium   | Medium     | 6h             | ✅ v3.2.0 |
+| 2.25 | Remove PHP 5.6–7.4 support      | Medium   | Low–Medium | 4h             | ✅ v3.2.0 |
+| 2.26 | Update default PHP to 8.4       | Low      | Trivial    | 1h             | ✅ v3.2.0 |
+| 2.27 | Update OpenSSL/MariaDB versions | Medium   | Low–Medium | 4h             | ✅ v3.2.0 |
+| 2.28 | Enable Fail2ban by default      | Medium   | Trivial    | 1h             | ✅ v3.2.0 |
+| 2.24 | Add interactive TUI mode        | Low      | High       | 20h            | ✅ v3.3.0 |
+
 
 **Total estimated time:** ~42 hours (completed in this phase)
 
@@ -604,17 +640,19 @@ ModSecurity v3 with OWASP CRS.
 
 ### Phase 5: Security Infrastructure (v3.4.0) — ✅ Complete
 
-| # | Task | Priority | Effort | Estimated Time | Status |
-|---|---|---|---|---|---|
-| 2.10 | Enable encrypted config at rest (AES-256-GCM) | High | High | 20h | ✅ v3.4.0 |
-| 2.29 | Modernize WAF (ModSecurity v3 + OWASP CRS) | Medium | High | 16h | ✅ v3.4.0 |
-| 2.30 | Fix certbot renewal cron | Low | Trivial | 1h | ✅ v2.8.0 |
+
+| #    | Task                                          | Priority | Effort  | Estimated Time | Status   |
+| ---- | --------------------------------------------- | -------- | ------- | -------------- | -------- |
+| 2.10 | Enable encrypted config at rest (AES-256-GCM) | High     | High    | 20h            | ✅ v3.4.0 |
+| 2.29 | Modernize WAF (ModSecurity v3 + OWASP CRS)    | Medium   | High    | 16h            | ✅ v3.4.0 |
+| 2.30 | Fix certbot renewal cron                      | Low      | Trivial | 1h             | ✅ v2.8.0 |
+
 
 **Total estimated time:** ~37 hours (completed across Phases 1 + 5)
 
 ---
 
-### Phase 6: Architecture Debt Resolution & Portability (v3.5.0)
+### Phase 6: Architecture Debt Resolution &amp; Portability (v3.5.0)
 
 **Focus:** Address remaining security vulnerabilities, resolve portability issues,
 complete the modular restructuring, and add mock-based tests.
@@ -627,6 +665,7 @@ If compromised via web app vulnerability, attacker gains full root.
 **File:** `scripts/utils.sh:741`
 
 **Fix:**
+
 - Remove `NOPASSWD:ALL` line entirely.
 - Add restricted command allowlist for specific systemctl operations:
   ```bash
@@ -640,13 +679,14 @@ If compromised via web app vulnerability, attacker gains full root.
 
 ---
 
-#### 2.32 Suppress Credential Display & Email Delivery (Security — High)
+#### 2.32 Suppress Credential Display &amp; Email Delivery (Security — High)
 
 **Issue:** Installation prints all passwords to stdout and optionally emails them.
 
 **Files:** `install.sh:284-288`, `lemper.sh:194-280`
 
 **Fix:**
+
 - Write credentials only to `/etc/lemper/credentials.json.gpg` (GPG-encrypted, mode 0600).
 - If `ENCRYPT_CONFIG_AT_REST=true`, also encrypt with AES-256-GCM.
 - Add `--show-credentials` CLI flag for explicit opt-in printing.
@@ -665,8 +705,9 @@ is possible.
 **Files:** `lib/lemper-encrypt.sh:159`, `scripts/utils.sh`, `bin/lemper-cli.sh`
 
 **Fix:**
+
 - Replace `eval` with a safe `while IFS='=' read` parser that uses
-  `declare` + `export` with proper quoting.
+`declare` + `export` with proper quoting.
 - Use `read -r` to prevent backslash interpretation.
 - Validate key names match `[A-Za-z_][A-Za-z0-9_]*`.
 - Test with values containing: `$()`, backticks, semicolons, quotes.
@@ -681,8 +722,9 @@ is possible.
 the installer only supports PHP 8.1–8.4.
 
 **Fix:**
+
 - Delete `etc/php/5.6/`, `etc/php/7.0/`, `etc/php/7.1/`, `etc/php/7.2/`, `etc/php/7.3/`,
-  `etc/php/7.4/`, `etc/php/8.0/` directories.
+`etc/php/7.4/`, `etc/php/8.0/` directories.
 - Update README to reflect PHP 8.1+ only.
 - Update `lib/lemper-create.sh:77` version guard from `8.0` to `8.1`.
 
@@ -696,6 +738,7 @@ the installer only supports PHP 8.1–8.4.
 (`sed -i 's/.../.../g'`). On macOS, `sed -i` requires a backup suffix argument.
 
 **Fix:**
+
 - Create a `sed_inplace()` wrapper in `scripts/utils.sh`:
   ```bash
   sed_inplace() {
@@ -730,12 +773,13 @@ ARCHITECTURE.md §4.4 is only partially scaffolded. All code remains in flat `li
 `scripts/`.
 
 **Fix (Phase 6 — incremental):**
+
 - **Step 1:** Move `lib/lemper-*.sh` CLI plugins to `lib/runtime/lemper-*.sh` (keeping
-  symlinks in `lib/` for backward compatibility).
+symlinks in `lib/` for backward compatibility).
   - `lib/runtime/lemper-account.sh`, `lemper-adduser.sh`, `lemper-bench.sh`,
-    `lemper-create.sh`, `lemper-db.sh`, `lemper-encrypt.sh`, `lemper-fixpermission.sh`,
-    `lemper-manage.sh`, `lemper-selfssl.sh`, `lemper-site.sh`, `lemper-site-list.sh`,
-    `lemper-site-show.sh`, `lemper-tui.sh`
+  `lemper-create.sh`, `lemper-db.sh`, `lemper-encrypt.sh`, `lemper-fixpermission.sh`,
+  `lemper-manage.sh`, `lemper-selfssl.sh`, `lemper-site.sh`, `lemper-site-list.sh`,
+  `lemper-site-show.sh`, `lemper-tui.sh`
 - **Step 2:** Move `scripts/install_*.sh` + `scripts/remove_*.sh` to `lib/services/`.
 - **Step 3:** Move shared helpers from `scripts/utils.sh` to `lib/core/`:
   - `lib/core/config.sh` (config loading + validation)
@@ -744,9 +788,9 @@ ARCHITECTURE.md §4.4 is only partially scaffolded. All code remains in flat `li
   - `lib/core/network.sh` (OS detection, network helpers)
   - `lib/core/security.sh` (sudoers, firewall, SSH hardening)
 - **Step 4:** Update all sourcing paths in `lib/core/lemper-stacks.sh`, `install.sh`,
-  `remove.sh`, `lemper.sh`, `bin/lemper-cli.sh`, `scripts/install_tools.sh`.
+`remove.sh`, `lemper.sh`, `bin/lemper-cli.sh`, `scripts/install_tools.sh`.
 - **Step 5:** Add backward-compatible symlinks: `scripts/utils.sh` → `lib/core/logging.sh`,
-  etc.
+etc.
 - **Step 6:** Remove old `.gitkeep` files from empty dirs.
 
 **Risk mitigation:** Update CI, tests, and sourcing paths in a single PR.
@@ -762,6 +806,7 @@ Provide a migration script for existing installs.
 unit tests for business logic.
 
 **Fix:**
+
 - Add `tests/unit/` directory with mock-based tests for:
   - `validate_fqdn()`, `validate_ipv4()`, `validate_username()` (use `tests/test_sanitization.bats` as base)
   - `sanitize_sed_replacement()`, `sanitize_sed_pattern()`
@@ -789,6 +834,7 @@ unit tests for business logic.
 **Issue:** No automated security scanning (bandit, semgrep, lynis).
 
 **Fix:**
+
 - Add `shellcheck` severity gate (warn on SC2086, SC2087).
 - Add `bashate` for style enforcement.
 - Add `shellspec` or `shfmt` for formatting consistency.
@@ -797,56 +843,62 @@ unit tests for business logic.
 
 ---
 
-### Phase 7: Advanced UX & Automation (v3.6.0)
+### Phase 7: Advanced UX &amp; Automation (v3.6.0)
 
 **Focus:** TUI enhancements, ModSecurity auto-tuning, advanced automation.
 
-| # | Task | Priority | Effort | Estimated Time | Status |
-|---|---|---|---|---|---|
-| 2.31 | Remove NOPASSWD:ALL sudo | Critical | Medium | 8h | Phase 6 |
-| 2.32 | Suppress credential display | High | Medium | 6h | Phase 6 |
-| 2.33 | Replace eval config loader | High | Medium | 8h | Phase 6 |
-| 2.34 | Remove stale PHP templates | Low | Low | 2h | Phase 6 |
-| 2.35 | Make sed -i portable | Medium | Medium | 6h | Phase 6 |
-| 2.36 | Replace grep -oP with ERE | Low | Trivial | 1h | Phase 6 |
-| 2.37 | Modular directory restructuring | High | High | 20h | Phase 6 |
-| 2.38 | Add mock-based unit tests | High | High | 16h | Phase 6 |
-| 2.39 | Add Debian 12 CI matrix | Low | Low | 2h | Phase 6 |
-| 2.40 | Add security scanning to CI | Medium | Medium | 8h | Phase 6 |
-| 2.41 | TUI real-time log streaming | Low | High | 24h | Phase 7 |
-| 2.42 | Interactive site creation wizard | Low | Medium | 8h | Phase 7 |
-| 2.43 | ModSecurity auto-tuning | Medium | High | 16h | Phase 7 |
-| 2.44 | systemd-resolved ACME integration | Medium | Medium | 6h | Phase 7 |
+
+| #    | Task                              | Priority | Effort  | Estimated Time | Status  |
+| ---- | --------------------------------- | -------- | ------- | -------------- | ------- |
+| 2.31 | Remove NOPASSWD:ALL sudo          | Critical | Medium  | 8h             | Phase 6 |
+| 2.32 | Suppress credential display       | High     | Medium  | 6h             | Phase 6 |
+| 2.33 | Replace eval config loader        | High     | Medium  | 8h             | Phase 6 |
+| 2.34 | Remove stale PHP templates        | Low      | Low     | 2h             | Phase 6 |
+| 2.35 | Make sed -i portable              | Medium   | Medium  | 6h             | Phase 6 |
+| 2.36 | Replace grep -oP with ERE         | Low      | Trivial | 1h             | Phase 6 |
+| 2.37 | Modular directory restructuring   | High     | High    | 20h            | Phase 6 |
+| 2.38 | Add mock-based unit tests         | High     | High    | 16h            | Phase 6 |
+| 2.39 | Add Debian 12 CI matrix           | Low      | Low     | 2h             | Phase 6 |
+| 2.40 | Add security scanning to CI       | Medium   | Medium  | 8h             | Phase 6 |
+| 2.41 | TUI real-time log streaming       | Low      | High    | 24h            | Phase 7 |
+| 2.42 | Interactive site creation wizard  | Low      | Medium  | 8h             | Phase 7 |
+| 2.43 | ModSecurity auto-tuning           | Medium   | High    | 16h            | Phase 7 |
+| 2.44 | systemd-resolved ACME integration | Medium   | Medium  | 6h             | Phase 7 |
+
 
 ---
 
 ## 4. Risk Register
 
-| Risk | Impact | Likelihood | Mitigation | Status |
-|---|---|---|---|---|
-| Removing NOPASSWD:ALL breaks user scripts that rely on passwordless sudo | High | Medium | Document migration, add restricted sudoers config as opt-in | ✅ Mitigated |
-| Replacing `eval` config loader breaks existing `.env` parsing | Medium | High | Maintain backward-compatible fallback, test all key types | ✅ Mitigated |
-| Reorganizing directory structure breaks CI and user automation | High | Medium | Provide symlink compatibility layer, update CI in same PR | ✅ Mitigated |
-| Removing PHP 5.6–7.4 breaks existing vhost configs | Medium | Medium | Auto-detect installed PHP, warn on upgrade, provide migration script | ✅ Mitigated |
-| Encrypted config breaks non-interactive CLI use | High | Medium | Add `--password` flag and environment variable fallback | ✅ Mitigated |
-| bats-core migration requires rewriting all tests | Medium | High | Keep shunit2 tests running alongside, migrate gradually | ✅ Mitigated |
+
+| Risk                                                                     | Impact | Likelihood | Mitigation                                                           | Status      |
+| ------------------------------------------------------------------------ | ------ | ---------- | -------------------------------------------------------------------- | ----------- |
+| Removing NOPASSWD:ALL breaks user scripts that rely on passwordless sudo | High   | Medium     | Document migration, add restricted sudoers config as opt-in          | ✅ Mitigated |
+| Replacing `eval` config loader breaks existing `.env` parsing            | Medium | High       | Maintain backward-compatible fallback, test all key types            | ✅ Mitigated |
+| Reorganizing directory structure breaks CI and user automation           | High   | Medium     | Provide symlink compatibility layer, update CI in same PR            | ✅ Mitigated |
+| Removing PHP 5.6–7.4 breaks existing vhost configs                       | Medium | Medium     | Auto-detect installed PHP, warn on upgrade, provide migration script | ✅ Mitigated |
+| Encrypted config breaks non-interactive CLI use                          | High   | Medium     | Add `--password` flag and environment variable fallback              | ✅ Mitigated |
+| bats-core migration requires rewriting all tests                         | Medium | High       | Keep shunit2 tests running alongside, migrate gradually              | ✅ Mitigated |
+
 
 ---
 
 ## 5. Version Target Map
 
-| Version | Focus Area | Key Deliverables |
-|---|---|---|
-| **v2.7.2** | Immediate security fixes | Fix typos, `cgi.fix_pathinfo`, NOPASSWD, CI |
-| **v2.8.0** | Security hardening | Credential suppression, RSA-4096, keyring, certbot fix |
-| **v2.9.0** | EOL cleanup | Remove PHP <8.0, update defaults |
-| **v3.0.0** | Architecture overhaul | Modular structure, safe config loading, encrypted secrets, bats-core tests |
-| **v3.1.0** | CLI enhancement | `site list`, `site show`, DB backup/restore, Bun.js runtime |
-| **v3.2.0** | Integration | CrowdSec HIPS, Valkey, ACME DNS-01 wildcard |
-| **v3.3.0** | UI/UX | Progress indicators, improved help, PHP 8.4 default, Fail2ban default |
-| **v3.4.0** | Advanced security | ModSecurity v3 WAF, encrypted config at rest, interactive TUI |
-| **v3.5.0** | Architecture debt | NOPASSWD fix, credential suppression, safe config loader, sed/i portability, modular restructuring, mock-based tests, Debian CI, security scanning |
-| **v3.6.0** | Advanced UX | TUI log streaming, site wizard, ModSecurity auto-tuning, systemd-resolved ACME |
+
+| Version    | Focus Area               | Key Deliverables                                                                                                                                   |
+| ---------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **v2.7.2** | Immediate security fixes | Fix typos, `cgi.fix_pathinfo`, NOPASSWD, CI                                                                                                        |
+| **v2.8.0** | Security hardening       | Credential suppression, RSA-4096, keyring, certbot fix                                                                                             |
+| **v2.9.0** | EOL cleanup              | Remove PHP &lt;8.0, update defaults                                                                                                                |
+| **v3.0.0** | Architecture overhaul    | Modular structure, safe config loading, encrypted secrets, bats-core tests                                                                         |
+| **v3.1.0** | CLI enhancement          | `site list`, `site show`, DB backup/restore, Bun.js runtime                                                                                        |
+| **v3.2.0** | Integration              | CrowdSec HIPS, Valkey, ACME DNS-01 wildcard                                                                                                        |
+| **v3.3.0** | UI/UX                    | Progress indicators, improved help, PHP 8.4 default, Fail2ban default                                                                              |
+| **v3.4.0** | Advanced security        | ModSecurity v3 WAF, encrypted config at rest, interactive TUI                                                                                      |
+| **v3.5.0** | Architecture debt        | NOPASSWD fix, credential suppression, safe config loader, sed/i portability, modular restructuring, mock-based tests, Debian CI, security scanning |
+| **v3.6.0** | Advanced UX              | TUI log streaming, site wizard, ModSecurity auto-tuning, systemd-resolved ACME                                                                     |
+
 
 ---
 
@@ -855,61 +907,64 @@ unit tests for business logic.
 All 5 phases (0–5) have been completed. The project is at **v3.4.0** with:
 
 - **v3.0.0**: Architecture overhaul — `lemper-stacks.sh` orchestrator, validation functions,
-  bats-core test suite (44 tests passing)
+bats-core test suite (44 tests passing)
 - **v3.1.0**: `site list`, `site show`, DB backup/restore/schedule, Bun.js runtime
 - **v3.2.0**: CrowdSec HIPS (+ WordPress scenarios), Valkey drop-in, ACME DNS-01 wildcard
 - **v3.3.0**: Interactive TUI dashboard, progress indicators, improved CLI help,
-  PHP 8.4 default, Fail2ban enabled by default
+PHP 8.4 default, Fail2ban enabled by default
 - **v3.4.0**: ModSecurity v3 WAF + OWASP CRS, AES-256-GCM encrypted config, TUI
 - **v3.5.0** (next): Remove NOPASSWD:ALL, suppress credential display, replace `eval`
-  config loader, fix `sed -i` / `grep -oP` macOS portability, complete modular
-  restructuring, add mock-based unit tests, Debian 12 CI matrix, security scanning,
-  ShellCheck v0.11.0, CI runner targets Ubuntu 24.04
+config loader, fix `sed -i` / `grep -oP` macOS portability, complete modular
+restructuring, add mock-based unit tests, Debian 12 CI matrix, security scanning,
+ShellCheck v0.11.0, CI runner targets Ubuntu 24.04
 
----## 7. Appendix: Full Issue Index
+---
 
-| ID | Title | File(s) | Phase |
-|---|---|---|---|
-| SEC-01 | `cgi.fix_pathinfo = 1` enables path traversal | `etc/php/*/fpm/pool.d/*.conf`, `lib/lemper-create.sh` | Phase 0 ✅ |
-| SEC-02 | NOPASSWD:ALL sudo for lemper user | `scripts/utils.sh:741` | Phase 0 ⚠️ |
-| SEC-03 | Passwords passed as CLI args | `lib/lemper-create.sh`, `lib/lemper-db.sh` | Phase 1 ⚠️ |
-| SEC-04 | `cgi.fix_pathinfo=1` in www.conf | `etc/php/*/fpm/pool.d/www.conf` | Phase 0 ✅ |
-| SEC-05 | Self-signed SSL uses RSA-2048 | `nginx_ssl_cert.sh`, `lemper-selfssl.sh`, `lemper-manage.sh` | Phase 1 ✅ |
-| SEC-06 | `eval`-based config loading | `scripts/utils.sh:31`, `bin/lemper-cli.sh:55` | Phase 2 ⚠️ |
-| SEC-07 | Deprecated `apt-key` usage | `scripts/nginx/nginx_repo.sh:45`, `scripts/install_php.sh:62` | Phase 1 ✅ |
-| SEC-08 | Credentials printed to stdout | `install.sh:284-288`, `lemper.sh:194-280` | Phase 1 ⚠️ |
-| SEC-09 | `fial` typo in error paths | `lib/lemper-create.sh:957`, `lib/lemper-db.sh:593` | Phase 0 ✅ |
-| SEC-10 | No input sanitization for domain/IP | `lib/lemper-selfssl.sh`, `lib/lemper-create.sh` | Phase 2 ✅ |
-| SEC-11 | Plaintext credential storage | `scripts/utils.sh:846-851` | Phase 5 ✅ |
-| SEC-12 | Open_basedir temp dirs under user home | `lib/lemper-create.sh:615-616` | Phase 1 ⚠️ |
-| FUNC-01 | Node.js installer not in main flow | `scripts/install_nodejs.sh` (not called) | Phase 3 ✅ |
-| FUNC-02 | No `site list` command | CLI missing | Phase 3 ✅ |
-| FUNC-03 | No `site show` command | CLI missing | Phase 3 ✅ |
-| FUNC-04 | No DB backup/restore commands | `lib/lemper-db.sh` | Phase 3 ✅ |
-| FUNC-05 | Certbot renewal cron bug | `scripts/install_certbotle.sh:109` | Phase 1 ✅ |
-| FUNC-06 | No CrowdSec PHP webapp scenarios | `scripts/install_crowdsec.sh` | Phase 5 ✅ |
-| UX-01 | Poor CLI help text | `bin/lemper-cli.sh:158` | Phase 4 ✅ |
-| UX-02 | No progress indicators | All install scripts | Phase 4 ✅ |
-| UX-03 | No TUI/dashboard mode | CLI | Phase 4 ✅ |
-| UX-04 | No TUI site creation wizard | `lib/lemper-tui.sh` | Phase 6 |
-| UX-05 | No real-time log streaming in TUI | `lib/lemper-tui.sh` | Phase 6 |
-| ARCH-01 | Duplicated install/remove logic | `install.sh` vs `lemper.sh` | Phase 2 ✅ |
-| ARCH-02 | Flat directory structure | Entire codebase | Phase 2 ⚠️ |
-| ARCH-03 | No bats-core integration tests | `shunit2/run_test.sh` | Phase 2 ✅ |
-| ARCH-04 | CI references non-existent vars | `.github/workflows/main.yml` | Phase 0 ✅ |
-| ARCH-05 | ShellCheck not run on nginx submodules | `.github/workflows/main.yml` | Phase 0 ✅ |
-| ARCH-06 | No mock-based unit tests | `tests/` | Phase 6 |
-| STACK-01 | PHP 5.6–7.4 templates still in etc/ | `etc/php/{5.6,...,7.4}/` | Phase 4 ⚠️ |
-| STACK-02 | Default PHP version outdated (8.2) | `.env.dist` | Phase 4 ✅ |
-| STACK-03 | MariaDB default version old (11.1) | `.env.dist` | Phase 4 ✅ |
-| STACK-04 | Old OpenSSL reference in config | `.env.dist` | Phase 4 ✅ |
-| STACK-05 | Fail2ban off by default | `.env.dist` | Phase 4 ✅ |
-| STACK-06 | NAXSI WAF is legacy | `etc/nginx/includes/*.rules` | Phase 5 ✅ |
-| STACK-07 | No CrowdSec integration | TODO in README | Phase 3 ✅ |
-| STACK-08 | sed -i not macOS-portable | 20 files, 210 usages | Phase 6 |
-| STACK-09 | grep -oP (PCRE) not macOS-portable | `scripts/lemper_stacks.sh:50` | Phase 6 |
-| DOC-01 | No architecture documentation | Project root | ✅ Complete |
-| DOC-02 | No developer guide | Project root | ✅ Complete |
-| DOC-03 | No agentic guide | Project root | ✅ Complete |
-| DOC-04 | No roadmap document | Project root | ✅ Complete |
-| DOC-05 | Stale PHP 5.6-8.0 docs in README | `README.md` | Phase 6 |
+## 7. Appendix: Full Issue Index
+
+
+| ID       | Title                                               | File(s)                                                       | Phase      |
+| -------- | --------------------------------------------------- | ------------------------------------------------------------- | ---------- |
+| SEC-01   | `cgi.fix_pathinfo = 1` enables path traversal       | `etc/php/*/fpm/pool.d/*.conf`, `lib/lemper-create.sh`         | Phase 0 ✅  |
+| SEC-02   | NOPASSWD:ALL sudo for lemper user                   | `scripts/utils.sh:741`                                        | Phase 0 ⚠️ |
+| SEC-03   | Passwords passed as CLI args                        | `lib/lemper-create.sh`, `lib/lemper-db.sh`                    | Phase 1 ⚠️ |
+| SEC-04   | `cgi.fix_pathinfo=1` in [www.conf](http://www.conf) | `etc/php/*/fpm/pool.d/www.conf`                               | Phase 0 ✅  |
+| SEC-05   | Self-signed SSL uses RSA-2048                       | `nginx_ssl_cert.sh`, `lemper-selfssl.sh`, `lemper-manage.sh`  | Phase 1 ✅  |
+| SEC-06   | `eval`-based config loading                         | `scripts/utils.sh:31`, `bin/lemper-cli.sh:55`                 | Phase 2 ⚠️ |
+| SEC-07   | Deprecated `apt-key` usage                          | `scripts/nginx/nginx_repo.sh:45`, `scripts/install_php.sh:62` | Phase 1 ✅  |
+| SEC-08   | Credentials printed to stdout                       | `install.sh:284-288`, `lemper.sh:194-280`                     | Phase 1 ⚠️ |
+| SEC-09   | `fial` typo in error paths                          | `lib/lemper-create.sh:957`, `lib/lemper-db.sh:593`            | Phase 0 ✅  |
+| SEC-10   | No input sanitization for domain/IP                 | `lib/lemper-selfssl.sh`, `lib/lemper-create.sh`               | Phase 2 ✅  |
+| SEC-11   | Plaintext credential storage                        | `scripts/utils.sh:846-851`                                    | Phase 5 ✅  |
+| SEC-12   | Open\_basedir temp dirs under user home             | `lib/lemper-create.sh:615-616`                                | Phase 1 ⚠️ |
+| FUNC-01  | Node.js installer not in main flow                  | `scripts/install_nodejs.sh` (not called)                      | Phase 3 ✅  |
+| FUNC-02  | No `site list` command                              | CLI missing                                                   | Phase 3 ✅  |
+| FUNC-03  | No `site show` command                              | CLI missing                                                   | Phase 3 ✅  |
+| FUNC-04  | No DB backup/restore commands                       | `lib/lemper-db.sh`                                            | Phase 3 ✅  |
+| FUNC-05  | Certbot renewal cron bug                            | `scripts/install_certbotle.sh:109`                            | Phase 1 ✅  |
+| FUNC-06  | No CrowdSec PHP webapp scenarios                    | `scripts/install_crowdsec.sh`                                 | Phase 5 ✅  |
+| UX-01    | Poor CLI help text                                  | `bin/lemper-cli.sh:158`                                       | Phase 4 ✅  |
+| UX-02    | No progress indicators                              | All install scripts                                           | Phase 4 ✅  |
+| UX-03    | No TUI/dashboard mode                               | CLI                                                           | Phase 4 ✅  |
+| UX-04    | No TUI site creation wizard                         | `lib/lemper-tui.sh`                                           | Phase 6    |
+| UX-05    | No real-time log streaming in TUI                   | `lib/lemper-tui.sh`                                           | Phase 6    |
+| ARCH-01  | Duplicated install/remove logic                     | `install.sh` vs `lemper.sh`                                   | Phase 2 ✅  |
+| ARCH-02  | Flat directory structure                            | Entire codebase                                               | Phase 2 ⚠️ |
+| ARCH-03  | No bats-core integration tests                      | `shunit2/run_test.sh`                                         | Phase 2 ✅  |
+| ARCH-04  | CI references non-existent vars                     | `.github/workflows/main.yml`                                  | Phase 0 ✅  |
+| ARCH-05  | ShellCheck not run on nginx submodules              | `.github/workflows/main.yml`                                  | Phase 0 ✅  |
+| ARCH-06  | No mock-based unit tests                            | `tests/`                                                      | Phase 6    |
+| STACK-01 | PHP 5.6–7.4 templates still in etc/                 | `etc/php/{5.6,...,7.4}/`                                      | Phase 4 ⚠️ |
+| STACK-02 | Default PHP version outdated (8.2)                  | `.env.dist`                                                   | Phase 4 ✅  |
+| STACK-03 | MariaDB default version old (11.1)                  | `.env.dist`                                                   | Phase 4 ✅  |
+| STACK-04 | Old OpenSSL reference in config                     | `.env.dist`                                                   | Phase 4 ✅  |
+| STACK-05 | Fail2ban off by default                             | `.env.dist`                                                   | Phase 4 ✅  |
+| STACK-06 | NAXSI WAF is legacy                                 | `etc/nginx/includes/*.rules`                                  | Phase 5 ✅  |
+| STACK-07 | No CrowdSec integration                             | TODO in README                                                | Phase 3 ✅  |
+| STACK-08 | sed -i not macOS-portable                           | 20 files, 210 usages                                          | Phase 6    |
+| STACK-09 | grep -oP (PCRE) not macOS-portable                  | `scripts/lemper_stacks.sh:50`                                 | Phase 6    |
+| DOC-01   | No architecture documentation                       | Project root                                                  | ✅ Complete |
+| DOC-02   | No developer guide                                  | Project root                                                  | ✅ Complete |
+| DOC-03   | No agentic guide                                    | Project root                                                  | ✅ Complete |
+| DOC-04   | No roadmap document                                 | Project root                                                  | ✅ Complete |
+| DOC-05   | Stale PHP 5.6-8.0 docs in README                    | `README.md`                                                   | Phase 6    |
