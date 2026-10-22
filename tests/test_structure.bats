@@ -158,6 +158,18 @@ setup() {
     grep -q 'remove_crowdsec.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
 }
 
+@test "CrowdSec install includes WordPress web app scenarios" {
+    grep -q 'install_crowdsec_webapp_support' "${BASE_DIR}/scripts/install_crowdsec.sh"
+    grep -q 'crowdsecurity/wordpress' "${BASE_DIR}/scripts/install_crowdsec.sh"
+    grep -q 'wordpress-xmlrpc' "${BASE_DIR}/scripts/install_crowdsec.sh"
+    grep -q 'wordpress-bruteforce' "${BASE_DIR}/scripts/install_crowdsec.sh"
+}
+
+@test ".env.dist has CrowdSec WordPress config" {
+    grep -q 'INSTALL_CROWDSEC_WORDPRESS' "${BASE_DIR}/.env.dist"
+    grep -q 'INSTALL_CROWDSEC_PHPAPPS' "${BASE_DIR}/.env.dist"
+}
+
 @test "install_certbotle.sh supports DNS-01 wildcard certificates" {
     grep -q 'ACME_DNS_PROVIDER' "${BASE_DIR}/scripts/install_certbotle.sh"
     grep -q 'dns-01' "${BASE_DIR}/scripts/install_certbotle.sh" || \

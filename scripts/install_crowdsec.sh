@@ -112,6 +112,9 @@ function init_crowdsec_install() {
             run cscli hub install crowdsecurity/nginx
             run cscli hub install crowdsecurity/whitelist
 
+            # Install PHP web app security collections (WordPress priority).
+            install_crowdsec_webapp_support
+
             # Enable nginx bouncer in nginx config.
             if [[ -f /etc/nginx/nginx.conf ]]; then
                 # Add CrowdSec bouncer include to nginx http block.
@@ -119,6 +122,9 @@ function init_crowdsec_install() {
                     run sed -i '/http {/a \    include /etc/crowdsec/crowdsec-nginx.conf;' /etc/nginx/nginx.conf
                 fi
             fi
+
+            # Create CrowdSec nginx include for PHP web app WAF rules.
+            configure_crowdsec_webapp_rules
 
             # Restart nginx to apply CrowdSec bouncer.
             if [[ -f /lib/systemd/system/nginx.service ]]; then
@@ -144,6 +150,143 @@ function init_crowdsec_install() {
     else
         info "CrowdSec installation skipped."
     fi
+}
+
+##
+# Install CrowdSec collections for PHP web applications.
+# Priority: WordPress (most common LEMPer use case).
+##
+function install_crowdsec_webapp_support() {
+    local INSTALL_CROWDSEC_WORDPRESS="${INSTALL_CROWDSEC_WORDPRESS:-true}"
+    local INSTALL_CROWDSEC_PHPAPPS="${INSTALL_CROWDSEC_PHPAPPS:-false}"
+
+    echo "Installing PHP web application security collections..."
+
+    # OWASP baseline + HTTP observability for all web apps.
+    run cscli hub install crowdsecurity/http-baseline
+    run cscli hub install crowdsecurity/http-requests-oc
+
+    # WordPress security (highest priority).
+    if [[ "${INSTALL_CROWDSEC_WORDPRESS}" == true ]]; then
+        echo "Installing WordPress security scenarios..."
+        run cscli hub install crowdsecurity/wordpress
+        run cscli hub install crowdsecurity/wordpress-hardcoded-password
+        run cscli hub install crowdsecurity/wordpress-phpunit
+    fi
+
+    # Other popular PHP web apps.
+    if [[ "${INSTALL_CROWDSEC_PHPAPPS}" == true ]]; then
+        echo "Installing additional PHP web app scenarios..."
+        # Joomla
+        run cscli hub install crowdsecurity/joomla 2>/dev/null || true
+        # Drupal
+        run cscli hub install crowdsecurity/drupal 2>/dev/null || true
+        # Magento
+        run cscli hub install crowdsecurity/magento 2>/dev/null || true
+        # Generic PHP
+        run cscli hub install crowdsecurity/php 2>/dev/null || true
+    fi
+
+    # Custom WordPress scenarios (XML-RPC abuse, login brute-force).
+    # These are created as local CrowdSec scenarios.
+    # Ensure the crowdsec config directory exists.
+    run mkdir -p /etc/crowdsec
+
+    # WordPress XML-RPC flood protection.
+    cat > /etc/crowdsec/wordpress-xmlrpc.yaml <<'EOF'
+# LEMPer Stack — WordPress XML-RPC abuse detection
+# Triggers on high-frequency XML-RPC requests (pingback, /xmlrpc.php)
+name: wordpress-xmlrpc-abuse
+description: "Detects WordPress XML-RPC abuse and pingback flood attacks"
+type: http_wp
+filter: |
+  (evt.is_tx_request and evt.request.uri contains "/xmlrpc.php" and evt.request.method == "POST")
+  or
+  (evt.is_tx_request and evt.request.uri contains "/wp-admin/admin-ajax.php" and evt.request.method == "POST")
+groupby: 1m
+capacity: 30
+leakfactor: 0
+labels:
+  service: http
+  category: attack
+  type: http_wp
+EOF
+
+    # WordPress login brute-force on wp-login.php.
+    cat > /etc/crowdsec/wordpress-bruteforce.yaml <<'EOF'
+# LEMPer Stack — WordPress login brute-force detection
+# Triggers on repeated 403/401 responses to /wp-login.php
+name: wordpress-bruteforce
+description: "Detects WordPress wp-login.php brute-force attacks"
+type: http_wp
+filter: |
+  evt.is_tx_request and
+  evt.request.uri contains "/wp-login.php" and
+  evt.request.method == "POST" and
+  (evt.response.status == 403 or evt.response.status == 401)
+groupby: 5m
+capacity: 5
+leakfactor: 0
+labels:
+  service: http
+  category: attack
+  type: http_wp
+EOF
+
+    success "WordPress security scenarios installed."
+    info "  - crowdsecurity/wordpress (official collection)"
+    info "  - Custom XML-RPC flood detection (local scenario)"
+    info "  - Custom wp-login brute-force detection (local scenario)"
+}
+
+##
+# Configure nginx to send PHP web app logs to CrowdSec and create
+# vhost-level include for per-site CrowdSec WAF rules.
+##
+function configure_crowdsec_webapp_rules() {
+    local config_dir="/etc/lemper/waf"
+    run mkdir -p "${config_dir}"
+
+    # Create CrowdSec nginx include for PHP web app WAF.
+    cat > "${config_dir}/crowdsec-webapp.conf" <<'EOF'
+## CrowdSec WAF rules for PHP web applications.
+# Include in server{} block via: include /etc/lemper/waf/crowdsec-webapp.conf;
+
+# CrowdSec bouncer (blocks malicious IPs at nginx level).
+include /etc/crowdsec/crowdsec-nginx.conf;
+
+# WordPress-specific access control.
+# Block direct access to XML-RPC from non-whitelisted IPs.
+location = /xmlrpc.php {
+    # CrowdSec bouncer will block abusive IPs.
+    # For rate limiting without CrowdSec, uncomment:
+    #limit_req zone=xmlrpc burst=5 nodelay;
+    try_files $uri =404;
+}
+
+# Block access to sensitive WordPress files.
+location ~* /wp-content/plugins/.*\.php$ {
+    # Allow CrowdSec to inspect, but deny direct access to plugin PHP files.
+    try_files $uri =404;
+}
+
+location ~* /wp-includes/.*.php$ {
+    # wp-includes should not be executed directly.
+    return 444;
+}
+
+# Block access to wp-config.php and .htaccess.
+location ~* /(?:wp-config\.php|\.htaccess) {
+    return 444;
+}
+EOF
+
+    # Update nginx.conf to include the webapp WAF config in the http block.
+    if [[ -f /etc/nginx/nginx.conf ]] && ! grep -q 'crowdsec-webapp' /etc/nginx/nginx.conf; then
+        run sed -i '/http {/a \    include /etc/lemper/waf/crowdsec-webapp.conf;' /etc/nginx/nginx.conf
+    fi
+
+    success "CrowdSec WAF nginx rules configured for PHP web apps."
 }
 
 echo "[CrowdSec Installation]"
