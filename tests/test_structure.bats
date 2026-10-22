@@ -212,3 +212,15 @@ setup() {
     grep -q 'ENCRYPT_CONFIG_AT_REST' "${BASE_DIR}/.env.dist"
     grep -q 'LEMPER_CONFIG_PASSWORD' "${BASE_DIR}/.env.dist"
 }
+
+@test "CI workflow targets Ubuntu 24.04" {
+    grep -q 'ubuntu-24.04' "${BASE_DIR}/.github/workflows/main.yml"
+}
+
+@test "CI workflow uses ShellCheck v0.11.0" {
+    grep -q 'shellcheck-v0.11.0' "${BASE_DIR}/.github/workflows/main.yml"
+}
+
+@test "Podman test script defaults to Ubuntu 24.04" {
+    grep -q 'ubuntu:24.04' "${BASE_DIR}/scripts/test_podman.sh"
+}

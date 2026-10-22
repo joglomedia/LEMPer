@@ -26,7 +26,7 @@
 
 ### 1.2 System Requirements (Target)
 
-- Debian 11/12 or Ubuntu 20.04/22.04/24.04 (amd64 or arm64)
+- Debian 12 or Ubuntu 22.04/24.04 (amd64 or arm64)
 - Root/sudo access for installation testing
 - At least 2GB RAM, 20GB disk (swap auto-created for low-RAM systems)
 
@@ -152,7 +152,7 @@ podman machine start
 podman run --rm \
     -v "${PWD}:/lemper:ro" \
     -w /lemper \
-    ubuntu:22.04 bash -c '
+    ubuntu:24.04 bash -c '
         apt-get update -qq && \
         apt-get install -qq -y shellcheck bats > /dev/null 2>&1 && \
         shellcheck -s bash -x \
@@ -172,7 +172,7 @@ podman run --rm \
 podman run --rm --privileged \
     -v "${PWD}:/lemper:rw" \
     -w /lemper \
-    ubuntu:22.04 bash -c '
+    ubuntu:24.04 bash -c '
         apt-get update -qq && apt-get install -qq -y shellcheck > /dev/null 2>&1 && \
         cp .env.dist .env && \
         sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/" .env && \
@@ -481,7 +481,7 @@ The CI pipeline runs on every push/PR to `2.x.x` and `master` branches:
 
 | Enhancement | Description |
 |---|---|
-| Multi-distro matrix | Test on Debian 11, 12 + Ubuntu 22.04, 24.04 |
+| Multi-distro matrix | Test on Debian 12 + Ubuntu 24.04 |
 | Security scanning | Add `shellspec` or `bandit` for shell security |
 | Dependency audit | Check for outdated package versions |
 | Release automation | Semantic versioning with git tags + changelog |
@@ -567,7 +567,7 @@ shellcheck -s bash -x install.sh remove.sh lemper.sh bin/lemper-cli.sh \
 bats tests/
 
 # Run in Podman container (macOS → Linux)
-podman run --rm -v "${PWD}:/lemper:ro" -w /lemper ubuntu:22.04 \
+podman run --rm -v "${PWD}:/lemper:ro" -w /lemper ubuntu:24.04 \
     bash -c 'apt-get update -qq && apt-get install -qq -y shellcheck bats && shellcheck -s bash install.sh scripts/*.sh scripts/nginx/*.sh && bats tests/'
 
 # Dry-run install in a container

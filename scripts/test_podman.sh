@@ -20,7 +20,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 MODE="${1:-all}"
-IMAGE="${TEST_IMAGE:-ubuntu:22.04}"
+IMAGE="${TEST_IMAGE:-ubuntu:24.04}"
 VOLUME="${PROJECT_ROOT}:/lemper:ro"
 WORKDIR="/lemper"
 

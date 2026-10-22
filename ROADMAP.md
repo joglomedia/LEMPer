@@ -768,7 +768,7 @@ unit tests for business logic.
   - `lemper_db.sh` backup/restore logic
   - `lemper_create.sh` config generation
 - Use `@realpath` mocking pattern (Bats `setup` + `PATH` shadowing).
-- Add test matrix in CI: Ubuntu 22.04 + Debian 12.
+- Add test matrix in CI: Ubuntu 24.04 + Debian 12.
 
 **Effort:** High — 16+ hours
 
@@ -863,7 +863,8 @@ All 5 phases (0–5) have been completed. The project is at **v3.4.0** with:
 - **v3.4.0**: ModSecurity v3 WAF + OWASP CRS, AES-256-GCM encrypted config, TUI
 - **v3.5.0** (next): Remove NOPASSWD:ALL, suppress credential display, replace `eval`
   config loader, fix `sed -i` / `grep -oP` macOS portability, complete modular
-  restructuring, add mock-based unit tests, Debian 12 CI matrix, security scanning
+  restructuring, add mock-based unit tests, Debian 12 CI matrix, security scanning,
+  ShellCheck v0.11.0, CI runner targets Ubuntu 24.04
 
 ---## 7. Appendix: Full Issue Index
 
