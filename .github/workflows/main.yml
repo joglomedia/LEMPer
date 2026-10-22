@@ -61,11 +61,24 @@ jobs:
           shellcheck -s bash -x remove.sh
           shellcheck -s bash -x bin/lemper-*.sh
           shellcheck -s bash -x lib/lemper-*.sh
+          shellcheck -s bash -x scripts/lemper_stacks.sh
           shellcheck -s bash -x scripts/utils.sh
           shellcheck -s bash -x scripts/server_*.sh
           shellcheck -s bash -x scripts/install_*.sh
           shellcheck -s bash -x scripts/remove_*.sh
           shellcheck -s bash -x scripts/nginx/*.sh
+      # Install bats-core for integration testing
+      - name: Install bats-core
+        run: |
+          set -ex
+          sudo apt-get install -y -q bats
+      # Bats Integration Tests
+      - name: Run bats integration tests
+        env:
+          TERM: xterm-256color
+        run: |
+          set -ex
+          bats tests/
       # Simple Unit Tests
       - name: Run unit testing
         env:

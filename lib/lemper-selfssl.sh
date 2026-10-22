@@ -63,15 +63,47 @@ EOL
 
 ##
 # Validate FQDN domain.
+# Uses ERE (grep -E) with a separate length check for portability.
 ##
 function validate_fqdn() {
     local FQDN=${1}
 
-    if grep -qP "(?=^.{4,253}\.?$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)" <<< "${FQDN}"; then
+    # Length check: 4-253 characters (RFC 1035 / RFC 1123).
+    if [[ ${#FQDN} -lt 4 || ${#FQDN} -gt 253 ]]; then
+        echo false # error
+        return
+    fi
+
+    # Validate format: labels of 1-63 chars separated by dots,
+    # no leading/trailing dashes, TLD is 2-63 letters, optional trailing dot.
+    if grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}\.?$' <<< "${FQDN}"; then
         echo true # success
     else
         echo false # error
     fi
+}
+
+##
+# Validate IPv4 address.
+##
+function validate_ipv4() {
+    local IP=${1}
+
+    if grep -qE '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$' <<< "${IP}"; then
+        echo true # success
+    else
+        echo false # error
+    fi
+}
+
+##
+# Sanitize a string for safe use in sed replacement patterns.
+# Escapes backslash, ampersand, and forward-slash to prevent injection
+# when interpolating user input into sed s/.../.../ commands.
+##
+function sanitize_sed_replacement() {
+    local INPUT=${1}
+    printf '%s' "${INPUT}" | sed -e 's/[\\&]/\\&/g' -e 's/\//\\\//g'
 }
 
 ##
@@ -88,6 +120,11 @@ function generate_selfsigned_ssl() {
 
     if [[ $(validate_fqdn "${DOMAIN}") == false ]]; then
         fail "Your Domain name is not valid 'Fully Qualified Domain Name (FQDN)' format!"
+    fi
+
+    # Validate IPv4 address when provided via CLI --ipv4 flag.
+    if [ -n "${SERVER_IP}" ] && [[ $(validate_ipv4 "${SERVER_IP}") == false ]]; then
+        fail "Invalid IPv4 address: '${SERVER_IP}' is not a valid IPv4 address."
     fi
 
     if [ ! -d "/etc/lemper/ssl/${DOMAIN}" ]; then

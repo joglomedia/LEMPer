@@ -325,14 +325,61 @@ function validate_nginx_config() {
 }
 
 # Validate FQDN domain.
+# Uses ERE (grep -E) with a separate length check for portability.
+# PCRE (grep -P) lookahead/lookbehind is not available on all platforms.
 function validate_fqdn() {
     local FQDN=${1}
 
-    if grep -qP "(?=^.{4,253}\.?$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)" <<< "${FQDN}"; then
+    # Length check: 4-253 characters (RFC 1035 / RFC 1123).
+    if [[ ${#FQDN} -lt 4 || ${#FQDN} -gt 253 ]]; then
+        echo false # error
+        return
+    fi
+
+    # Validate format: labels of 1-63 chars separated by dots,
+    # no leading/trailing dashes, TLD is 2-63 letters, optional trailing dot.
+    if grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}\.?$' <<< "${FQDN}"; then
         echo true # success
     else
         echo false # error
     fi
+}
+
+# Validate IPv4 address.
+function validate_ipv4() {
+    local IP=${1}
+
+    if grep -qE '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$' <<< "${IP}"; then
+        echo true # success
+    else
+        echo false # error
+    fi
+}
+
+# Validate Unix username (RFC 932 + POSIX: alphanumeric, dash, underscore; 1-32 chars, starts with letter).
+function validate_username() {
+    local USERNAME=${1}
+
+    if grep -qE '^[a-z_][a-z0-9_-]{0,31}$' <<< "${USERNAME}"; then
+        echo true # success
+    else
+        echo false # error
+    fi
+}
+
+# Sanitize a string for safe use in sed replacement patterns.
+# Escapes backslash, forward-slash, ampersand, and newline to prevent
+# injection when interpolating user input into sed s/.../.../ commands.
+function sanitize_sed_replacement() {
+    local INPUT=${1}
+    printf '%s' "${INPUT}" | sed -e 's/[\\&]/\\&/g' -e 's/\//\\\//g'
+}
+
+# Sanitize a string for safe use as a sed regex pattern (delimiter-aware).
+# Uses a different delimiter ([) to avoid issues with slashes in paths.
+function sanitize_sed_pattern() {
+    local INPUT=${1}
+    printf '%s' "${INPUT}" | sed -e 's/\[/\\[/g'
 }
 
 # Get general distribution name.

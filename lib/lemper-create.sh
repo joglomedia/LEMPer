@@ -698,11 +698,21 @@ function validate_ipv6() {
 
 ##
 # Validate FQDN domain.
+# Uses ERE (grep -E) with a separate length check for portability.
+# PCRE (grep -P) lookahead/lookbehind is not available on all platforms.
 ##
 function validate_fqdn() {
     local FQDN=${1}
 
-    if grep -qP "(?=^.{4,253}\.?$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)" <<< "${FQDN}"; then
+    # Length check: 4-253 characters (RFC 1035 / RFC 1123).
+    if [[ ${#FQDN} -lt 4 || ${#FQDN} -gt 253 ]]; then
+        echo false # error
+        return
+    fi
+
+    # Validate format: labels of 1-63 chars separated by dots,
+    # no leading/trailing dashes, TLD is 2-63 letters, optional trailing dot.
+    if grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}\.?$' <<< "${FQDN}"; then
         echo true # success
     else
         echo false # error

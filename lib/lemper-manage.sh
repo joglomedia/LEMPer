@@ -165,8 +165,10 @@ function remove_vhost() {
 
     # If we have local domain setup in hosts file, remove it.
     if grep -qwE "${DOMAIN}" "/etc/hosts"; then
-        info "Domain ${DOMAIN} found in your hosts file. Removing now...";
-        run sed -i".backup" "/${DOMAIN}/d" "/etc/hosts"
+        info "Domain ${DOMAIN} found in your hosts file. Removing now..."
+        run cp -p "/etc/hosts" "/etc/hosts.backup"
+        # Use grep -vF (fixed-string) instead of sed to prevent regex injection.
+        run grep -v -F "${DOMAIN}" "/etc/hosts" > "/etc/hosts.tmp" && run mv "/etc/hosts.tmp" "/etc/hosts"
     fi
 
     success "Virtual host configuration file removed."
@@ -707,6 +709,51 @@ function disable_compression() {
 }
 
 ##
+# Validate FQDN domain.
+# CLI plugins cannot access utils.sh, so each plugin that needs this
+# defines its own copy (kept in sync with scripts/utils.sh).
+# Uses ERE (grep -E) with a separate length check for portability.
+##
+function validate_fqdn() {
+    local FQDN=${1}
+
+    # Length check: 4-253 characters (RFC 1035 / RFC 1123).
+    if [[ ${#FQDN} -lt 4 || ${#FQDN} -gt 253 ]]; then
+        echo false # error
+        return
+    fi
+
+    # Validate format: labels of 1-63 chars separated by dots,
+    # no leading/trailing dashes, TLD is 2-63 letters, optional trailing dot.
+    if grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}\.?$' <<< "${FQDN}"; then
+        echo true # success
+    else
+        echo false # error
+    fi
+}
+
+##
+# Validate IPv4 address.
+##
+function validate_ipv4() {
+    local IP=${1}
+
+    if grep -qE '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$' <<< "${IP}"; then
+        echo true # success
+    else
+        echo false # error
+    fi
+}
+
+##
+# Sanitize a string for safe use in sed replacement patterns.
+##
+function sanitize_sed_replacement() {
+    local INPUT=${1}
+    printf '%s' "${INPUT}" | sed -e 's/[\\&]/\\&/g' -e 's/\//\\\//g'
+}
+
+##
 # Verify if virtual host exists.
 ##
 function verify_vhost() {
@@ -718,6 +765,13 @@ function verify_vhost() {
 
     if [[ "${1}" == "default" ]]; then
         error "Modify/delete default virtual host is prohibitted."
+        exit 1
+    fi
+
+    # Validate domain name is a proper FQDN before using it in file paths,
+    # sed patterns, and openssl commands — prevents injection attacks.
+    if [[ $(validate_fqdn "${1}") == false ]]; then
+        error "Invalid domain name: '${1}' is not a valid FQDN."
         exit 1
     fi
 
@@ -774,6 +828,12 @@ function generate_selfsigned_ssl() {
     local DOMAIN=${1}
     local SERVER_IP=${2:-$(get_ip_public)}
     verify_vhost "${DOMAIN}"
+
+    # Validate IPv4 address — get_ip_public() should return valid IPv4,
+    # but we check defensively in case the network source is compromised.
+    if [ -n "${SERVER_IP}" ] && [[ $(validate_ipv4 "${SERVER_IP}") == false ]]; then
+        fail "Invalid IPv4 address: '${SERVER_IP}' is not a valid IPv4 address."
+    fi
 
     if [ ! -d "/etc/lemper/ssl/${DOMAIN}" ]; then
         run mkdir -p "/etc/lemper/ssl/${DOMAIN}"
