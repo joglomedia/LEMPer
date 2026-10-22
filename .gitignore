@@ -17,3 +17,5 @@ bin/lemperography.php
 scripts/install_ffmpeg.sh
 scripts/createssl.sh
 scripts/mysqltuner.pl
+.DS_Store
+tests/.env.test
