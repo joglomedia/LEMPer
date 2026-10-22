@@ -44,11 +44,12 @@ LEMPer/
 │   ├── lemper-encrypt.sh          # Config at-rest encryption utilities
 │   ├── lemper-fixpermission.sh    # CLI plugin: fix file/directory permissions
 │   ├── lemper-manage.sh           # CLI plugin: vhost management (enable/disable/SSL)
+│   ├── lemper-modsec.sh           # CLI plugin: WAF status, reporting, CRS auto-tuning
 │   ├── lemper-selfssl.sh          # CLI plugin: self-signed SSL generator (RSA 4096)
 │   ├── lemper-site.sh             # CLI plugin: site dispatcher
 │   ├── lemper-site-list.sh        # CLI plugin: vhost listing (table + JSON)
 │   ├── lemper-site-show.sh        # CLI plugin: detailed vhost + FPM + SSL info
-│   ├── lemper-tui.sh              # Interactive TUI dashboard
+│   ├── lemper-tui.sh              # Interactive TUI (dashboard, site wizard, live logs)
 │   └── core/
 │       └── lemper-stacks.sh       # Installer/uninstaller orchestrator (shared)
 ├── scripts/
@@ -310,7 +311,10 @@ and the dotenv-sourced environment variables being in scope.
 - **✅ CrowdSec HIPS** installed (optional, off by default). Now includes WordPress +
   PHP web app scenarios.
 - **✅ Nginx WAF: ModSecurity v3 + OWASP CRS v3.3.5** (replaced legacy NAXSI).
+  CRS paranoia level and anomaly thresholds are tunable via
+  `lemper-cli modsec tune [--auto] --apply`.
 - **✅ SSL: Let's Encrypt (certbot)** with ACME v2 DNS-01 wildcard support.
+  Certbot deploy hooks reload Nginx and flush the systemd-resolved cache after renewal.
   Self-signed CA: **RSA 4096-bit**, SHA-256 (upgraded from 2048-bit).
 - No TLS for database connections by default.
 - No secrets rotation mechanism.

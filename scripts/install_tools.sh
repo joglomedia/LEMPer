@@ -74,6 +74,9 @@ function init_tools_install() {
     run cp -f lib/lemper-bench.sh /etc/lemper/cli-plugins/lemper-bench && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-bench
 
+    run cp -f lib/lemper-modsec.sh /etc/lemper/cli-plugins/lemper-modsec && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-modsec
+
     # Install TUI plugin.
     run cp -f lib/lemper-tui.sh /etc/lemper/cli-plugins/lemper-tui && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-tui

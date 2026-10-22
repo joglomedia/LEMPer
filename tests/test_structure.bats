@@ -192,6 +192,31 @@ setup() {
     grep -q 'request_wildcard_certificate' "${BASE_DIR}/scripts/install_certbotle.sh"
 }
 
+@test "install_certbotle.sh integrates with systemd-resolved" {
+    grep -q 'function flush_dns_cache' "${BASE_DIR}/scripts/install_certbotle.sh"
+    grep -q 'resolvectl flush-caches' "${BASE_DIR}/scripts/install_certbotle.sh"
+    grep -q 'renewal-hooks/deploy' "${BASE_DIR}/scripts/install_certbotle.sh"
+}
+
+@test "TUI provides live log streaming and site creation wizard" {
+    grep -q 'function tui_logs' "${BASE_DIR}/lib/lemper-tui.sh"
+    grep -q 'function tui_follow_log' "${BASE_DIR}/lib/lemper-tui.sh"
+    grep -q 'function tui_site_create_wizard' "${BASE_DIR}/lib/lemper-tui.sh"
+}
+
+@test "modsec plugin provides auto-tuning" {
+    [ -f "${BASE_DIR}/lib/lemper-modsec.sh" ]
+    grep -q 'function modsec_report' "${BASE_DIR}/lib/lemper-modsec.sh"
+    grep -q -- '--auto' "${BASE_DIR}/lib/lemper-modsec.sh"
+    grep -q 'lemper-modsec' "${BASE_DIR}/scripts/install_tools.sh"
+}
+
+@test "install_modsec.sh generates tuning config without placeholders" {
+    grep -q 'lemper-tuning.conf' "${BASE_DIR}/scripts/install_modsec.sh"
+    grep -q 'MODSEC_PARANOIA_LEVEL' "${BASE_DIR}/scripts/install_modsec.sh"
+    ! grep -q '{@SEC_BODY_LIMIT}' "${BASE_DIR}/scripts/install_modsec.sh"
+}
+
 @test "install_modsec.sh and remove_modsec.sh exist" {
     [ -f "${BASE_DIR}/scripts/install_modsec.sh" ]
     [ -f "${BASE_DIR}/scripts/remove_modsec.sh" ]

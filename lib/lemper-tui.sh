@@ -301,14 +301,7 @@ function tui_sites() {
                 read -r
             ;;
             3)
-                echo ""
-                tui_echo "${TUI_DIM}" "  Launching site creation wizard..."
-                echo ""
-                if [[ -x "${CLI_PLUGINS_DIR}/lemper-site" ]]; then
-                    "${CLI_PLUGINS_DIR}/lemper-site" create 2>&1 || true
-                fi
-                tui_echo "${TUI_DIM}" "  Press Enter to continue..."
-                read -r
+                tui_site_create_wizard
             ;;
             4)
                 local domain
@@ -331,6 +324,302 @@ function tui_sites() {
                 return
             ;;
         esac
+    done
+}
+
+##
+# Prompt for a yes/no answer.
+# Arguments: prompt, default (y or n)
+##
+function tui_confirm() {
+    local prompt="${1}"
+    local default="${2:-n}"
+    local answer
+
+    if [[ "${default}" == "y" ]]; then
+        read -rp "  ${prompt} [Y/n]: " answer
+        answer=${answer:-y}
+    else
+        read -rp "  ${prompt} [y/N]: " answer
+        answer=${answer:-n}
+    fi
+
+    [[ "${answer}" == [yY]* ]]
+}
+
+##
+# Pick the newest installed PHP version.
+##
+function tui_default_php_version() {
+    local versions="" dir
+
+    for dir in /etc/php/*/; do
+        [[ -d "${dir}" ]] || continue
+        versions+="$(basename "${dir}")"$'\n'
+    done
+
+    if [[ -n "${versions}" ]]; then
+        printf '%s' "${versions}" | sort -V | tail -n 1
+    else
+        printf '%s\n' "${DEFAULT_PHP_VERSION:-8.3}"
+    fi
+}
+
+##
+# Guided site creation wizard.
+##
+function tui_site_create_wizard() {
+    tui_clear
+    tui_echo "${TUI_BORDER}" "═══════════════════════════════════════════════════════════"
+    tui_echo "${TUI_BG}"
+    printf '  %-58s\n' " Create New Site — Wizard"
+    tui_echo "${TUI_BORDER}" "═══════════════════════════════════════════════════════════"
+    echo ""
+    tui_echo "${TUI_DIM}" "  Leave an answer empty to use the [default] or cancel."
+    echo ""
+
+    local domain
+    while true; do
+        read -rp "  Domain name: " domain
+
+        if [[ -z "${domain}" ]]; then
+            tui_echo "${TUI_DIM}" "  Site creation cancelled."
+            tui_echo "${TUI_DIM}" "  Press Enter to continue..."
+            read -r
+            return
+        fi
+
+        if [[ "$(validate_fqdn "${domain}")" == "true" ]]; then
+            break
+        fi
+
+        tui_echo "${RED}" "  '${domain}' is not a valid domain name."
+    done
+
+    # Framework selection.
+    local frameworks=(default wordpress wordpress-ms laravel symfony codeigniter drupal phalcon roundcube mautic sendy)
+    local framework_choice
+    framework_choice=$(tui_menu "Website Framework" "Select a framework:" \
+        "Vanilla PHP|Plain PHP application" \
+        "WordPress|WordPress CMS" \
+        "WordPress Multisite|WordPress network" \
+        "Laravel|Laravel framework" \
+        "Symfony|Symfony framework" \
+        "CodeIgniter|CodeIgniter framework" \
+        "Drupal|Drupal CMS" \
+        "Phalcon|Phalcon framework" \
+        "Roundcube|Webmail client" \
+        "Mautic|Marketing automation" \
+        "Sendy|Newsletter application" \
+        "Cancel|Back to site management")
+
+    if [[ "${framework_choice}" == "0" || "${framework_choice}" == "-1" || \
+          "${framework_choice}" -gt "${#frameworks[@]}" ]]; then
+        return
+    fi
+
+    local framework="${frameworks[$((framework_choice - 1))]}"
+
+    # System user.
+    local default_user="${LEMPER_USERNAME:-lemper}"
+    local username
+    read -rp "  System user [${default_user}]: " username
+    username=${username:-${default_user}}
+
+    if ! id -u "${username}" >/dev/null 2>&1; then
+        tui_echo "${YELLOW}" "  User '${username}' does not exist, using '${default_user}'."
+        username="${default_user}"
+    fi
+
+    # Web root.
+    local default_webroot="/home/${username}/webapps/${domain}"
+    local webroot
+    read -rp "  Web root [${default_webroot}]: " webroot
+    webroot=${webroot:-${default_webroot}}
+
+    if [[ "${webroot}" != /* ]]; then
+        tui_echo "${YELLOW}" "  Web root must be an absolute path, using '${default_webroot}'."
+        webroot="${default_webroot}"
+    fi
+
+    # PHP version.
+    local default_php
+    default_php=$(tui_default_php_version)
+    local php_version
+    read -rp "  PHP version [${default_php}]: " php_version
+    php_version=${php_version:-${default_php}}
+
+    if [[ ! "${php_version}" =~ ^[0-9]+\.[0-9]+$ ]]; then
+        tui_echo "${YELLOW}" "  Invalid PHP version, using '${default_php}'."
+        php_version="${default_php}"
+    fi
+
+    # Optional features.
+    local app_default="n"
+    case "${framework}" in
+        wordpress | wordpress-ms | laravel | symfony | codeigniter | drupal | phalcon | roundcube | mautic | sendy)
+            app_default="y"
+        ;;
+    esac
+
+    local install_app="n" enable_ssl="n" wildcard="n" fastcgi_cache="n" fail2ban="n"
+    tui_confirm "Install ${framework} application files?" "${app_default}" && install_app="y"
+    tui_confirm "Enable Let's Encrypt SSL?" "n" && enable_ssl="y"
+
+    if [[ "${enable_ssl}" == "y" ]]; then
+        tui_confirm "Issue a wildcard certificate (*.${domain}) via DNS-01?" "n" && wildcard="y"
+    fi
+
+    tui_confirm "Enable FastCGI cache?" "n" && fastcgi_cache="y"
+    tui_confirm "Enable Fail2ban filter?" "n" && fail2ban="y"
+
+    # Review.
+    tui_clear
+    tui_echo "${TUI_BORDER}" "═══════════════════════════════════════════════════════════"
+    tui_echo "${TUI_BG}"
+    printf '  %-58s\n' " Review Site Configuration"
+    tui_echo "${TUI_BORDER}" "═══════════════════════════════════════════════════════════"
+    echo ""
+    printf '  %-20s %s\n' "Domain:" "${domain}"
+    printf '  %-20s %s\n' "Framework:" "${framework}"
+    printf '  %-20s %s\n' "System user:" "${username}"
+    printf '  %-20s %s\n' "Web root:" "${webroot}"
+    printf '  %-20s %s\n' "PHP version:" "${php_version}"
+    printf '  %-20s %s\n' "Install app:" "${install_app}"
+    printf '  %-20s %s\n' "SSL:" "${enable_ssl}"
+    printf '  %-20s %s\n' "Wildcard SSL:" "${wildcard}"
+    printf '  %-20s %s\n' "FastCGI cache:" "${fastcgi_cache}"
+    printf '  %-20s %s\n' "Fail2ban:" "${fail2ban}"
+    echo ""
+
+    if ! tui_confirm "Create this site now?" "y"; then
+        tui_echo "${TUI_DIM}" "  Site creation cancelled."
+        tui_echo "${TUI_DIM}" "  Press Enter to continue..."
+        read -r
+        return
+    fi
+
+    local args=(create
+        --domain-name="${domain}"
+        --framework="${framework}"
+        --username="${username}"
+        --webroot="${webroot}"
+        --php-version="${php_version}")
+
+    [[ "${install_app}" == "y" ]] && args+=(--install-app)
+    [[ "${enable_ssl}" == "y" ]] && args+=(--enable-ssl)
+    [[ "${wildcard}" == "y" ]] && args+=(--wildcard-domain)
+    [[ "${fastcgi_cache}" == "y" ]] && args+=(--enable-fastcgi-cache)
+    [[ "${fail2ban}" == "y" ]] && args+=(--enable-fail2ban)
+
+    echo ""
+    if [[ -x "${CLI_PLUGINS_DIR}/lemper-site" ]]; then
+        "${CLI_PLUGINS_DIR}/lemper-site" "${args[@]}" 2>&1 || \
+            tui_echo "${RED}" "  Site creation failed."
+    else
+        tui_echo "${RED}" "  lemper-site plugin not found."
+    fi
+
+    echo ""
+    tui_echo "${TUI_DIM}" "  Press Enter to continue..."
+    read -r
+}
+
+##
+# Stream a log file in real time until a key is pressed.
+# Arguments: log file path, display label
+##
+function tui_follow_log() {
+    local log_file="${1}"
+    local label="${2:-${log_file}}"
+
+    if [[ ! -f "${log_file}" ]]; then
+        tui_clear
+        tui_echo "${YELLOW}" "  Log file not found: ${log_file}"
+        tui_echo "${TUI_DIM}" "  Press Enter to continue..."
+        read -r
+        return
+    fi
+
+    local rows visible
+    rows=$(tput lines 2>/dev/null || echo 24)
+    visible=$((rows - 7))
+    [[ "${visible}" -lt 5 ]] && visible=5
+
+    while true; do
+        tui_clear
+        tui_echo "${TUI_BORDER}" "═══════════════════════════════════════════════════════════"
+        tui_echo "${TUI_BG}"
+        printf '  %-58s\n' " Live Logs — ${label}"
+        tui_echo "${TUI_BORDER}" "═══════════════════════════════════════════════════════════"
+        tui_echo "${TUI_DIM}" "  ${log_file}"
+        tui_rule 60
+        tail -n "${visible}" "${log_file}" 2>/dev/null || true
+        tui_rule 60
+        tui_echo "${TUI_DIM}" "  Refreshing every second — press 'q' or any key to stop."
+
+        if read -r -s -n 1 -t 1 _; then
+            break
+        fi
+    done
+
+    tui_echo "${TUI_DIM}" "  Log stream stopped. Press Enter to continue..."
+    read -r
+}
+
+##
+# Display log streaming menu.
+##
+function tui_logs() {
+    local choice log_file label
+
+    while true; do
+        choice=$(tui_menu "Live Logs" "Select a log to stream:" \
+            "Nginx access|HTTP requests" \
+            "Nginx error|Web server errors" \
+            "PHP-FPM|PHP process manager log" \
+            "MariaDB/MySQL|Database server log" \
+            "Authentication|System login attempts" \
+            "Fail2ban|Intrusion prevention log" \
+            "Back to main menu|Return to dashboard")
+
+        log_file=""
+        label=""
+
+        case "${choice}" in
+            1) log_file="/var/log/nginx/access.log"; label="Nginx access" ;;
+            2) log_file="/var/log/nginx/error.log"; label="Nginx error" ;;
+            3)
+                # Pick the newest installed PHP-FPM log.
+                local php_logs=(/var/log/php*-fpm.log)
+                if [[ -e "${php_logs[0]}" ]]; then
+                    log_file=$(printf '%s\n' "${php_logs[@]}" | sort -V | tail -n 1)
+                fi
+                label="PHP-FPM"
+            ;;
+            4)
+                if [[ -f /var/log/mysql/error.log ]]; then
+                    log_file="/var/log/mysql/error.log"
+                else
+                    log_file="/var/log/mariadb/mariadb.log"
+                fi
+                label="MariaDB/MySQL"
+            ;;
+            5) log_file="/var/log/auth.log"; label="Authentication" ;;
+            6) log_file="/var/log/fail2ban.log"; label="Fail2ban" ;;
+            7 | 0) return ;;
+            -1) continue ;;
+            *) continue ;;
+        esac
+
+        if [[ -z "${log_file}" ]]; then
+            tui_echo "${YELLOW}" "  No log file found for ${label}."
+            tui_echo "${TUI_DIM}" "  Press Enter to continue..."
+            read -r
+            continue
+        fi
+
+        tui_follow_log "${log_file}" "${label}"
     done
 }
 
@@ -560,6 +849,7 @@ function init_lemper_tui() {
             "Database Management|MySQL/MariaDB databases" \
             "System Status|Services, disk, memory" \
             "Security & Firewall|Fail2ban, CrowdSec, SSL, firewall" \
+            "Live Logs|Stream service logs in real time" \
             "About|Show LEMPer version and configuration" \
             "Exit|Quit the application")
 
@@ -577,6 +867,9 @@ function init_lemper_tui() {
                 tui_security
             ;;
             5)
+                tui_logs
+            ;;
+            6)
                 tui_about
             ;;
             0)

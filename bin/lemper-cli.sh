@@ -309,6 +309,10 @@ System Administration:
   selfssl         Generate self-signed SSL certificates.
   fixpermission   Fix file/directory permissions for web root.
   bench           Run server benchmark checks.
+  modsec          ModSecurity WAF status, reporting, and auto-tuning.
+                        modsec status                Show engine and CRS status.
+                        modsec report                Summarize triggered rules.
+                        modsec tune [options]        Adjust paranoia/thresholds.
 
 Options:
   --version, -v   Show version and exit.

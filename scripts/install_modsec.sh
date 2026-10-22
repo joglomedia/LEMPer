@@ -60,6 +60,34 @@ function init_modsec_install() {
             # Create ModSecurity configuration directory.
             run mkdir -p /etc/modsecurity
 
+            # Tuning values (overridable from .env).
+            local MODSEC_ENGINE="${MODSEC_ENGINE:-DetectionOnly}"
+            local MODSEC_PARANOIA_LEVEL="${MODSEC_PARANOIA_LEVEL:-1}"
+            local MODSEC_INBOUND_THRESHOLD="${MODSEC_INBOUND_THRESHOLD:-5}"
+            local MODSEC_OUTBOUND_THRESHOLD="${MODSEC_OUTBOUND_THRESHOLD:-4}"
+            local MODSEC_BODY_LIMIT="${MODSEC_BODY_LIMIT:-20971520}"
+
+            [[ "${MODSEC_ENGINE}" =~ ^(On|Off|DetectionOnly)$ ]] || MODSEC_ENGINE="DetectionOnly"
+            [[ "${MODSEC_PARANOIA_LEVEL}" =~ ^[1-4]$ ]] || MODSEC_PARANOIA_LEVEL=1
+            [[ "${MODSEC_INBOUND_THRESHOLD}" =~ ^[0-9]+$ ]] || MODSEC_INBOUND_THRESHOLD=5
+            [[ "${MODSEC_OUTBOUND_THRESHOLD}" =~ ^[0-9]+$ ]] || MODSEC_OUTBOUND_THRESHOLD=4
+            [[ "${MODSEC_BODY_LIMIT}" =~ ^[0-9]+$ ]] || MODSEC_BODY_LIMIT=20971520
+
+            # Write the LEMPer CRS tuning file.
+            cat > /etc/modsecurity/lemper-tuning.conf <<EOL
+# LEMPer ModSecurity tuning
+# Adjust with: lemper-cli modsec tune [--auto] --apply
+
+SecRuleEngine ${MODSEC_ENGINE}
+
+SecAction "id:1000001,phase:1,nolog,pass,t:none,setvar:tx.paranoia_level=${MODSEC_PARANOIA_LEVEL}"
+SecAction "id:1000002,phase:1,nolog,pass,t:none,setvar:tx.executing_paranoia_level=${MODSEC_PARANOIA_LEVEL}"
+SecAction "id:1000003,phase:1,nolog,pass,t:none,setvar:tx.inbound_anomaly_score_threshold=${MODSEC_INBOUND_THRESHOLD}"
+SecAction "id:1000004,phase:1,nolog,pass,t:none,setvar:tx.outbound_anomaly_score_threshold=${MODSEC_OUTBOUND_THRESHOLD}"
+EOL
+
+            run chmod 0644 /etc/modsecurity/lemper-tuning.conf
+
             # Write main ModSecurity configuration.
             cat > /etc/modsecurity/modsecurity.conf <<EOL
 # ModSecurity v3 Main Configuration
@@ -68,12 +96,11 @@ function init_modsec_install() {
 # Include the recommended ModSecurity core configuration.
 Include /usr/share/modsecurity-crs/crs-setup.conf
 
+# LEMPer tuning overrides engine mode, paranoia level, and thresholds.
+Include /etc/modsecurity/lemper-tuning.conf
+
 # Include the OWASP CRS rules (enabled by default).
 Include /usr/share/modsecurity-crs/rules/*.conf
-
-# ModSecurity engine in detection-only mode by default.
-# Set to "On" to enable blocking mode.
-SecRuleEngine DetectionOnly
 
 # Request body access for POST inspection.
 SecRequestBodyAccess On
@@ -82,7 +109,7 @@ SecRequestBodyAccess On
 SecResponseBodyAccess On
 
 # Maximum request body size (matches nginx client_max_body_size).
-SecRequestBodyLimit {@SEC_BODY_LIMIT}
+SecRequestBodyLimit ${MODSEC_BODY_LIMIT}
 
 # Log format.
 SecAuditLogRelevantStatus "^(?:5|4(?!03|04))"
@@ -114,9 +141,9 @@ EOL
             fi
 
             success "ModSecurity v3 WAF installed with OWASP CRS."
-            info "ModSecurity is in DetectionOnly mode by default."
-            info "To enable blocking mode, edit /etc/modsecurity/modsecurity.conf"
-            info "  and change 'SecRuleEngine DetectionOnly' to 'SecRuleEngine On'"
+            info "ModSecurity is in ${MODSEC_ENGINE} mode with CRS paranoia level ${MODSEC_PARANOIA_LEVEL}."
+            info "To change modes or tune thresholds, run:"
+            info "  lemper-cli modsec tune --engine On --paranoia 1 --apply"
         else
             info "ModSecurity installed in dry run mode."
         fi

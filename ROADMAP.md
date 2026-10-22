@@ -768,17 +768,34 @@ planned for v3.6+ with symlink compatibility layer.
 
 ---
 
-### Phase 7: Advanced UX &amp; Automation (v3.6.0)
+### Phase 7: Advanced UX &amp; Automation (v3.6.0) — ✅ Complete
 
 **Focus:** TUI enhancements, ModSecurity auto-tuning, advanced automation.
 
 
 | #     | Task                              | Priority | Effort     | Estimated Time | Status  |
 | ----- | --------------------------------- | -------- | ---------- | -------------- | ------- |
-| 2.41  | TUI real-time log streaming       | Low      | High       | 24h            | Phase 7 |
-| 2.42  | Interactive site creation wizard  | Low      | Medium     | 8h             | Phase 7 |
-| 2.43  | ModSecurity auto-tuning           | Medium   | High       | 16h            | Phase 7 |
-| 2.44  | systemd-resolved ACME integration | Medium   | Medium     | 6h             | Phase 7 |
+| 2.41  | TUI real-time log streaming       | Low      | High       | 24h            | ✅ Complete |
+| 2.42  | Interactive site creation wizard  | Low      | Medium     | 8h             | ✅ Complete |
+| 2.43  | ModSecurity auto-tuning           | Medium   | High       | 16h            | ✅ Complete |
+| 2.44  | systemd-resolved ACME integration | Medium   | Medium     | 6h             | ✅ Complete |
+
+**Implementation notes:**
+
+- **2.41** — `lib/lemper-tui.sh`: Live Logs menu streams Nginx access/error,
+  PHP-FPM, MariaDB, auth, and Fail2ban logs with a one-second refresh loop;
+  any key returns to the TUI.
+- **2.42** — `lib/lemper-tui.sh`: guided wizard validates the domain, framework,
+  PHP version, system user, and web root, then invokes `lemper-site create` with
+  SSL, wildcard, FastCGI cache, Fail2ban, and app-install options.
+- **2.43** — `lib/lemper-modsec.sh`: new `lemper-cli modsec` plugin with
+  `status`, `report`, and `tune` commands. `tune --auto --apply` derives CRS
+  paranoia/thresholds from the audit log, writes `/etc/modsecurity/lemper-tuning.conf`,
+  validates with `nginx -t`, and rolls back on failure. Installer now respects
+  `MODSEC_ENGINE`, `MODSEC_PARANOIA_LEVEL`, thresholds, and body-limit config.
+- **2.44** — `scripts/install_certbotle.sh`: flushes the systemd-resolved cache
+  around DNS-01 issuance and installs a Certbot deploy hook that reloads Nginx
+  and flushes cached DNS records after renewal.
 
 
 ---
@@ -831,8 +848,9 @@ PHP 8.4 default, Fail2ban enabled by default
 - **v3.5.0**: Restricted sudoers (replaces NOPASSWD:ALL), credential display suppression,
 safe config loader (no eval), `sed_inplace()` portable wrapper, removed stale PHP 5.6-8.0
 templates, bashate linting, Debian 12 CI matrix, ShellCheck v0.11.0, Ubuntu 24.04 runner
-- **v3.6.0** (planned): TUI log streaming, site creation wizard, ModSecurity auto-tuning,
-systemd-resolved ACME integration
+- **v3.6.0**: TUI live log streaming, interactive site creation wizard,
+ModSecurity CRS auto-tuning (`lemper-cli modsec`), systemd-resolved ACME
+cache integration and renewal deploy hooks
 
 ---
 
@@ -862,8 +880,8 @@ systemd-resolved ACME integration
 | UX-01    | Poor CLI help text                                  | `bin/lemper-cli.sh:158`                                       | Phase 4 ✅  |
 | UX-02    | No progress indicators                              | All install scripts                                           | Phase 4 ✅  |
 | UX-03    | No TUI/dashboard mode                               | CLI                                                           | Phase 4 ✅  |
-| UX-04    | No TUI site creation wizard                         | `lib/lemper-tui.sh`                                           | Phase 7    |
-| UX-05    | No real-time log streaming in TUI                   | `lib/lemper-tui.sh`                                           | Phase 7    |
+| UX-04    | No TUI site creation wizard                         | `lib/lemper-tui.sh`                                           | Phase 7 ✅  |
+| UX-05    | No real-time log streaming in TUI                   | `lib/lemper-tui.sh`                                           | Phase 7 ✅  |
 | ARCH-01  | Duplicated install/remove logic                     | `install.sh` vs `lemper.sh`                                   | Phase 2 ✅  |
 | ARCH-02  | Flat directory structure                            | Entire codebase                                               | Phase 2 ⚠️ |
 | ARCH-03  | No bats-core integration tests                      | `shunit2/run_test.sh`                                         | Phase 2 ✅  |
