@@ -1,6 +1,6 @@
 # LEMPer — Roadmap & Improvement Plan
 
-> **Version:** 3.2.0 (in progress)
+> **Version:** 3.3.0 (in progress)
 > **Last Updated:** 2026-10-22
 > **Status:** Phase 3 complete — Bun.js, Valkey, site list/show, DB backup/restore, CrowdSec, and ACME DNS-01 wildcard implemented and tested.
 >
@@ -576,15 +576,15 @@ ModSecurity v3 with OWASP CRS.
 
 ### Phase 4: UI/UX & Stack Modernization (v3.2.0–v3.4.0)
 
-| # | Task | Priority | Effort | Estimated Time |
-|---|---|---|---|---|
-| 2.22 | Add progress indicators | Medium | Medium | 6h |
-| 2.23 | Improve CLI help output | Medium | Medium | 6h |
-| 2.25 | Remove PHP 5.6–7.4 support | Medium | Low–Medium | 4h |
-| 2.26 | Update default PHP to 8.4 | Low | Trivial | 1h |
-| 2.27 | Update OpenSSL/MariaDB versions | Medium | Low–Medium | 4h |
-| 2.28 | Enable Fail2ban by default | Medium | Trivial | 1h |
-| 2.24 | Add interactive TUI mode | Low | High | 20h |
+| # | Task | Priority | Effort | Estimated Time | Status |
+|---|---|---|---|---|---|
+| 2.22 | Add progress indicators | Medium | Medium | 6h | ✅ v3.2.0 |
+| 2.23 | Improve CLI help output | Medium | Medium | 6h | ✅ v3.2.0 |
+| 2.25 | Remove PHP 5.6–7.4 support | Medium | Low–Medium | 4h | ✅ v3.2.0 |
+| 2.26 | Update default PHP to 8.4 | Low | Trivial | 1h | ✅ v3.2.0 |
+| 2.27 | Update OpenSSL/MariaDB versions | Medium | Low–Medium | 4h | ✅ v3.2.0 |
+| 2.28 | Enable Fail2ban by default | Medium | Trivial | 1h | ✅ v3.2.0 |
+| 2.24 | Add interactive TUI mode | Low | High | 20h | ✅ v3.3.0 |
 
 **Total estimated time:** ~42 hours
 
