@@ -16,8 +16,13 @@
 | Git | 2.25+ | For source management |
 | ShellCheck | 0.10.0+ | Static analysis — **mandatory before commit** |
 | shunit2 | Latest | Unit testing framework |
-| bats-core | 1.5+ | Integration/CLI testing (planned v3.0) |
+| bats-core | 1.14.0 | Integration/CLI structural testing |
+| **Podman Machine** | 4.0+ | **Recommended for macOS** — see §3.4 for Linux container testing |
 | EditorConfig | — | See `.editorconfig` (to be added in v3.0) |
+
+> **macOS developers:** Use Podman Machine to test scripts in a real Linux environment.
+> macOS `sed -i` and `grep -P` behave differently from GNU/Linux. Podman eliminates
+> this gap (see [§3.4](#34-container-based-testing-with-podman-machine)).
 
 ### 1.2 System Requirements (Target)
 
@@ -126,6 +131,71 @@ git status --porcelain | grep '.env' && echo "ERROR: .env is tracked!" && exit 1
 
 > **Note:** The CI pipeline runs these checks automatically. A failing check blocks the PR.
 
+### 3.4 Container-Based Testing with Podman Machine (macOS)
+
+LEMPer is designed for Linux but many developers work on macOS. Use **Podman Machine**
+to validate scripts in a real Ubuntu/Debian environment:
+
+#### 3.4.1 Setup
+
+```bash
+# Install Podman (if not already installed)
+brew install podman
+podman machine init --cpus 4 --memory 4096 --disk-size 64
+podman machine start
+```
+
+#### 3.4.2 Run Full Validation (ShellCheck + Bats)
+
+```bash
+# From the LEMPer project root:
+podman run --rm \
+    -v "${PWD}:/lemper:ro" \
+    -w /lemper \
+    ubuntu:22.04 bash -c '
+        apt-get update -qq && \
+        apt-get install -qq -y shellcheck bats > /dev/null 2>&1 && \
+        shellcheck -s bash -x \
+            install.sh remove.sh lemper.sh \
+            bin/lemper-cli.sh \
+            lib/lemper-*.sh lib/core/lemper-stacks.sh \
+            scripts/install_*.sh scripts/remove_*.sh scripts/utils.sh \
+            scripts/server_*.sh scripts/nginx/*.sh \
+            tests/*.bats && \
+        bats tests/
+    '
+```
+
+#### 3.4.3 Run Full Installation (Dry-Run)
+
+```bash
+podman run --rm --privileged \
+    -v "${PWD}:/lemper:rw" \
+    -w /lemper \
+    ubuntu:22.04 bash -c '
+        apt-get update -qq && apt-get install -qq -y shellcheck > /dev/null 2>&1 && \
+        cp .env.dist .env && \
+        sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/" .env && \
+        sed -i "s/ENVIRONMENT=\"production\"/ENVIRONMENT=\"local\"/" .env && \
+        sed -i "s/INSTALL_NGINX=true/INSTALL_NGINX=false/" .env && \
+        sed -i "s/INSTALL_PHP=true/INSTALL_PHP=false/" .env && \
+        DRYRUN=true bash install.sh
+    '
+```
+
+#### 3.4.4 macOS vs Linux Portability Gotchas
+
+| Construct | macOS (BSD) | Linux (GNU) | Portable Alternative |
+|---|---|---|---|
+| `sed -i 's/x/y/g' file` | Requires `sed -i '' '...'` | `sed -i 's/x/y/g' file` | Wrap in `sed_inplace()` helper |
+| `grep -P 'pattern'` | Not supported | Supported | Use `grep -E` (ERE) or `perl` |
+| `date +%N` | Nanoseconds always 0 | Real nanoseconds | Use `gdate` from coreutils on macOS |
+| `stat -f` | BSD `stat -f` | GNU `stat -c` | Check `uname` or use `stat --format=` |
+
+> **Current status:** The codebase still uses GNU `sed -i` (210 usages across 20 files)
+> and was migrated from `grep -oP` to `grep -qE` (ERE) during Phase 2. The `sed -i`
+> portability is tracked as **STACK-08** / **Task 2.35** in the v3.5.0 roadmap.
+
 ---
 
 ## 4. Coding Standards
@@ -211,23 +281,29 @@ fi
 
 ### 5.1 Test Framework
 
-| Framework | Purpose |
-|---|---|
-| **shunit2** | Unit tests for individual functions |
-| **bats-core** | CLI integration tests (planned v3.0) |
+| Framework | Purpose | Tests |
+|---|---|---|
+| **bats-core** | Structural + syntax integration tests | **44 tests** (primary) |
+| **shunit2** | Legacy unit tests (still present) | `shunit2/run_test.sh` |
 
 ### 5.2 Running Tests
 
 ```bash
-# Unit tests (shunit2)
-bash shunit2/run_test.sh
+# Full test suite (bats)
+bats tests/
 
-# Full test suite (planned v3.0)
-cd tests
-./run_all.sh
+# ShellCheck on all scripts (must pass with exit 0)
+shellcheck -s bash -x \
+    install.sh remove.sh lemper.sh \
+    bin/lemper-cli.sh \
+    lib/lemper-*.sh lib/core/lemper-stacks.sh \
+    scripts/install_*.sh scripts/remove_*.sh scripts/utils.sh \
+    scripts/server_*.sh scripts/nginx/*.sh \
+    tests/*.bats
 
-# ShellCheck only
-shellcheck -s bash bin/lemper-cli.sh lib/lemper-*.sh scripts/*.sh scripts/nginx/*.sh
+# Or in one line:
+find . -name '*.sh' -not -path './.git/*' -not -path './etc/*' \
+    | xargs shellcheck -s bash -x
 ```
 
 ### 5.3 Writing Unit Tests
@@ -391,12 +467,15 @@ run chmod ugo+x /etc/lemper/cli-plugins/lemper-monitor
 
 ### 8.1 Current Pipeline (`.github/workflows/main.yml`)
 
-1. On push/PR to `2.x.x` or `master`:
-   - Checkout code
-   - Set up `.env` for CI
-   - Install ShellCheck v0.10.0 + shunit2
-   - Run ShellCheck on all scripts
-   - Run `server_cleanup.sh`, `install_dependencies.sh`, and `run_test.sh`
+The CI pipeline runs on every push/PR to `2.x.x` and `master` branches:
+
+1. **Setup:** Copies `.env.dist` → `.env`, adjusts config for CI environment.
+   Toggled for CI: `REDIS_BACKEND="valkey"`, `INSTALL_CROWDSEC=true`,
+   `ACME_WILDCARD=true`, `INSTALL_MODSEC=true`, `ENCRYPT_CONFIG_AT_REST=true`.
+2. **ShellCheck:** Runs `shellcheck -s bash -x` on every script file — **exit 0**.
+3. **Bats Tests:** Runs `bats tests/` — **44/44 tests pass**.
+
+**CI runs on `ubuntu-latest`** with ShellCheck v0.10.0 and bats-core 1.14.0.
 
 ### 8.2 Planned v3.0 Enhancements
 
@@ -415,8 +494,17 @@ run chmod ugo+x /etc/lemper/cli-plugins/lemper-monitor
 
 ### 9.1 `eval` in Configuration Loading
 
-Never use `eval` or `source <(...)` with user-controlled input. The current dotenv loader
-is flagged for replacement in v3.0.
+The config loader uses `eval` to source key=value pairs from `.env`/`.env.conf`:
+
+```bash
+source <(grep -v '^#' "${ENVFILE}" | grep -v '^\[' | \
+    sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+```
+
+> **⚠️ SECURITY:** This is a known injection vector if config values contain shell
+> metacharacters. **Status:** Partially addressed in v3.4.0 — `lib/lemper-encrypt.sh`
+> provides `load_config()` which adds decryption support but still uses `eval` internally.
+> **Planned fix (v3.5.0, Task 2.33):** Replace with a safe `while IFS='=' read` parser.
 
 ### 9.2 `exit` in Sourced Scripts
 
@@ -437,11 +525,9 @@ Always use `run` for commands that modify the system. The `run` function respect
 
 ### 9.5 The `fial` Typo
 
-There are two known instances of `fial` (typo for `fail`) in the codebase:
-- `lib/lemper-create.sh:957`
-- `lib/lemper-db.sh:593`
-
-These should be fixed as part of the v3.0 cleanup.
+> **✅ Fixed (v2.7.2):** The `fial` typo was corrected to `fail` in Phase 0
+> (commit `534c1cf`). The instances were in `lib/lemper-create.sh:957` and
+> `lib/lemper-db.sh:593`. This pitfall section is retained for historical reference.
 
 ---
 
@@ -472,19 +558,27 @@ LEMPer uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 ## 11. Useful Commands
 
 ```bash
-# Run shellcheck on all files
-find . -name '*.sh' -not -path './.git/*' | xargs shellcheck -s bash
+# Run shellcheck on all scripts
+shellcheck -s bash -x install.sh remove.sh lemper.sh bin/lemper-cli.sh \
+    lib/lemper-*.sh lib/core/lemper-stacks.sh scripts/*.sh \
+    scripts/nginx/*.sh tests/*.bats
 
-# Run only unit tests
-bash tests/unit/run_all.sh
+# Run all bats tests
+bats tests/
+
+# Run in Podman container (macOS → Linux)
+podman run --rm -v "${PWD}:/lemper:ro" -w /lemper ubuntu:22.04 \
+    bash -c 'apt-get update -qq && apt-get install -qq -y shellcheck bats && shellcheck -s bash install.sh scripts/*.sh scripts/nginx/*.sh && bats tests/'
 
 # Dry-run install in a container
-docker run -it --rm ubuntu:24.04 bash
-# ... inside container ...
-git clone https://github.com/joglomedia/LEMPer.git && cd LEMPer
-cp .env.dist .env
-sed -i 's/AUTO_INSTALL=true/AUTO_INSTALL=false/' .env
-DRYRUN=true ./install.sh
+podman run --rm --privileged \
+    -v "${PWD}:/lemper:rw" -w /lemper ubuntu:24.04 bash -c '
+        apt-get update -qq && \
+        cp .env.dist .env && \
+        sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/" .env && \
+        sed -i "s/INSTALL_NGINX=true/INSTALL_NGINX=false/" .env && \
+        DRYRUN=true bash install.sh
+    '
 ```
 
 ---
