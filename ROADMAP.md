@@ -332,15 +332,38 @@ has export/import but no scheduled backup rotation.
 
 ---
 
-#### 2.19 Add Node.js Version Manager (nvm) Integration
+#### 2.19 Add Bun.js Runtime Integration (replaces Node.js)
 
-**Issue:** `scripts/install_nodejs.sh` exists but is **not called** from `install.sh`
-or `lemper.sh`. PHP frameworks like Laravel often need Node.js for asset building.
+**Issue:** PHP frameworks like Laravel often need a JavaScript runtime for asset building
+(e.g., Vite, Mix). The project has an empty `scripts/install_nodejs.sh` stub and no
+runtime integration.
 
 **Fix:**
-- Add `INSTALL_NODEJS` config option to `.env.dist`.
-- Add sourcing call in `install.sh`.
-- Install Node.js LTS via NodeSource repository.
+- Add `INSTALL_BUNJS` config option to `.env.dist`.
+- Create `scripts/install_bun.sh` and `scripts/remove_bun.sh`.
+- Install Bun.js via official apt repository or binary release.
+- Wire into `install.sh` / `remove.sh` via `lib/core/lemper-stacks.sh`.
+- **Note:** Bun.js is used instead of Node.js — it is a drop-in replacement with
+  built-in npm client, test runner, and bundler, offering significantly faster
+  performance for asset building pipelines.
+
+**Effort:** Medium
+
+---
+
+#### 2.19B Add Valkey as Redis Drop-in Replacement Option
+
+**Issue:** Redis is the default in-memory data store, but Valkey (a Redis-compatible
+fork maintained by the Linux Foundation) offers an alternative with active development
+and no licensing concerns around Redis modules.
+
+**Fix:**
+- Add `REDIS_BACKEND="redis"` config option to `.env.dist` (supports `redis` or `valkey`).
+- Modify `scripts/install_redis.sh` to branch on `REDIS_BACKEND` — adds Valkey apt
+  repository and installs `valkey-server` package when selected.
+- Add `scripts/install_valkey.sh` source compilation support (Valkey source build).
+- Create `etc/systemd/valkey-server.service` systemd unit template.
+- Update `lib/core/lemper-stacks.sh` to source Valkey removal script when applicable.
 
 **Effort:** Medium
 
@@ -542,7 +565,8 @@ ModSecurity v3 with OWASP CRS.
 | 2.16 | Add `site list` subcommand | Medium | Medium | 6h |
 | 2.17 | Add `site show` subcommand | Medium | Medium | 6h |
 | 2.18 | Add DB backup/restore commands | Medium | Medium | 8h |
-| 2.19 | Add Node.js integration | Medium | Medium | 6h |
+| 2.19 | Add Bun.js runtime integration | Medium | Medium | 6h |
+| 2.19B | Add Valkey as Redis drop-in replacement | Medium | Medium | 6h |
 | 2.21 | Add ACME v2 DNS-01 wildcard support | Medium | Medium | 8h |
 | 2.20 | Add CrowdSec HIPS integration | Medium | High | 16h |
 

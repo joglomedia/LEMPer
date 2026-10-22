@@ -154,6 +154,12 @@ function lemper_install() {
         . "${BASE_DIR}/scripts/install_tools.sh"
     fi
 
+    ### Bun.js runtime installation ###
+    if [ -f "${BASE_DIR}/scripts/install_bun.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_bun.sh"
+    fi
+
     ### Basic server optimization ###
     if [ -f "${BASE_DIR}/scripts/server_optimization.sh" ]; then
         echo ""
@@ -372,6 +378,12 @@ function lemper_remove() {
     if [ -f "${BASE_DIR}/scripts/remove_certbotle.sh" ]; then
         echo ""
         . "${BASE_DIR}/scripts/remove_certbotle.sh"
+    fi
+
+    ### Remove Bun.js runtime ###
+    if [ -f "${BASE_DIR}/scripts/remove_bun.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_bun.sh"
     fi
 
     ### Remove server security setup ###

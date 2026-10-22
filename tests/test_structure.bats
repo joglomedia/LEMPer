@@ -81,3 +81,28 @@ setup() {
     grep -q 'install' "${BASE_DIR}/lemper.sh"
     grep -q 'remove' "${BASE_DIR}/lemper.sh"
 }
+
+@test "lemper-stacks.sh wires in Bun.js install/remove" {
+    grep -q 'install_bun.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
+    grep -q 'remove_bun.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
+}
+
+@test "install_bun.sh and remove_bun.sh exist" {
+    [ -f "${BASE_DIR}/scripts/install_bun.sh" ]
+    [ -f "${BASE_DIR}/scripts/remove_bun.sh" ]
+}
+
+@test "install_redis.sh supports Valkey backend" {
+    grep -q 'add_valkey_repo' "${BASE_DIR}/scripts/install_redis.sh"
+    grep -q 'REDIS_BACKEND' "${BASE_DIR}/scripts/install_redis.sh"
+}
+
+@test "valkey-server.service template exists" {
+    [ -f "${BASE_DIR}/etc/systemd/valkey-server.service" ]
+}
+
+@test ".env.dist has REDIS_BACKEND and BUNJS config" {
+    grep -q 'REDIS_BACKEND' "${BASE_DIR}/.env.dist"
+    grep -q 'INSTALL_BUNJS' "${BASE_DIR}/.env.dist"
+    grep -q 'BUNJS_VERSION' "${BASE_DIR}/.env.dist"
+}

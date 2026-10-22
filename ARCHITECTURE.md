@@ -52,7 +52,7 @@ LEMPer/
 │   ├── install_phalcon.sh         # Phalcon PHP framework
 │   ├── install_mariadb.sh         # MariaDB installer
 │   ├── install_postgres.sh        # PostgreSQL installer
-│   ├── install_redis.sh           # Redis installer
+│   ├── install_redis.sh           # Redis/Valkey installer
 │   ├── install_mongodb.sh         # MongoDB installer
 │   ├── install_memcached.sh       # Memcached installer
 │   ├── install_imagemagick.sh     # ImageMagick installer
@@ -61,8 +61,8 @@ LEMPer/
 │   ├── install_vsftpd.sh          # vsftpd installer
 │   ├── install_certbotle.sh       # Let's Encrypt certbot installer
 │   ├── install_fail2ban.sh        # Fail2ban installer
+│   ├── install_bun.sh             # Bun.js runtime installer
 │   ├── install_tools.sh           # CLI tool + web admin tools installer
-│   ├── install_nodejs.sh          # Node.js installer (not in main flow)
 │   ├── install_tools.sh           # Tools installation
 │   ├── server_cleanup.sh          # Pre-install service cleanup
 │   ├── server_optimization.sh     # Kernel parameter tuning
@@ -139,13 +139,14 @@ lemper.sh / install.sh
     │     install_phalcon.sh         → Phalcon PHP extension (optional)
     │     install_mariadb.sh         → MariaDB (official repo)
     │     install_postgres.sh        → PostgreSQL (optional)
-    │     install_redis.sh           → Redis
+    │     install_redis.sh           → Redis or Valkey (configurable via REDIS_BACKEND)
     │     install_mongodb.sh         → MongoDB (optional)
     │     install_memcached.sh       → Memcached (optional)
     │     install_imagemagick.sh     → ImageMagick
     │     install_mailer.sh          → Postfix + Dovecot + DKIM
     │     install_pureftpd.sh / install_vsftpd.sh
     │     install_fail2ban.sh        → Fail2ban
+    │     install_bun.sh             → Bun.js runtime (for asset building)
     │     install_tools.sh           → lemper-cli + web admin tools
     │     server_optimization.sh     → Swap, sysctl tuning
     │     server_security.sh         → SSH hardening, UFW/CSF/APF
@@ -375,10 +376,11 @@ LEMPer/
 │       ├── nginx.sh               # Nginx installer
 │       ├── php.sh                 # PHP-FPM installer
 │       ├── mariadb.sh             # MariaDB installer
-│       ├── redis.sh               # Redis installer
+│       ├── redis.sh               # Redis/Valkey installer
 │       ├── postgres.sh            # PostgreSQL installer
 │       ├── memcached.sh           # Memcached installer
 │       ├── mongodb.sh             # MongoDB installer
+│       ├── bun.sh                 # Bun.js runtime installer
 │       ├── ftp.sh                 # FTP server installer
 │       ├── certbot.sh             # Let's Encrypt installer
 │       ├── fail2ban.sh            # Fail2ban installer
@@ -411,7 +413,8 @@ LEMPer/
 | **Web server** | Nginx (repo or source) | Nginx (repo default, source optional) |
 | **PHP** | 5.6–8.4 (Ondřej's PPA) | 8.1–8.4 (Ondřej's PPA) |
 | **Database** | MariaDB 11.1, PostgreSQL 17 | MariaDB 11.4+, PostgreSQL 17 |
-| **Cache** | Redis, Memcached | Redis (ACL), Memcached (SASL) |
+| **Cache** | Redis, Memcached | Redis or Valkey, Memcached (SASL) |
+| **JS runtime** | (Node.js stub, unused) | Bun.js (for asset building) |
 | **FTP** | Pure-FTPd, vsftpd | Pure-FTPd (TLS) |
 | **SSL** | Let's Encrypt, self-signed RSA-2048 | Let's Encrypt, self-signed RSA-4096 |
 | **Firewall** | UFW, CSF, APF | UFW + nftables, CrowdSec optional |

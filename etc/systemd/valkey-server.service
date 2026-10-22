@@ -1,0 +1,43 @@
+[Unit]
+Description=Valkey key-value store (Redis-compatible) installed using LEMPer Stack
+After=network.target
+Documentation=https://valkey.io/documentation, man:valkey-server(1)
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/valkey-server /etc/valkey/valkey.conf
+ExecStop=/bin/kill -s TERM $MAINPID
+PIDFile=/var/run/valkey/valkey-server.pid
+TimeoutStopSec=0
+Restart=always
+User=valkey
+Group=valkey
+RuntimeDirectory=valkey
+RuntimeDirectoryMode=2755
+
+UMask=007
+PrivateTmp=yes
+LimitNOFILE=65535
+PrivateDevices=yes
+ProtectHome=yes
+ReadOnlyDirectories=/
+ReadWriteDirectories=-/var/lib/valkey
+ReadWriteDirectories=-/var/log/valkey
+ReadWriteDirectories=-/var/run/valkey
+
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_SETGID CAP_SETUID CAP_SYS_RESOURCE
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryDenyWriteExecute=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictNamespaces=true
+
+ProtectSystem=true
+ReadWriteDirectories=-/etc/valkey
+
+[Install]
+WantedBy=multi-user.target
+Alias=valkey.service
