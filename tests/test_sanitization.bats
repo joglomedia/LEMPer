@@ -44,7 +44,9 @@ load_utils() {
     load_utils
     [ "$(validate_fqdn 'example.com; rm -rf /')" = "false" ]
     [ "$(validate_fqdn 'foo.com/; echo hacked')" = "false" ]
+    # shellcheck disable=SC2016
     [ "$(validate_fqdn 'foo.com$(whoami)')" = "false" ]
+    # shellcheck disable=SC2016
     [ "$(validate_fqdn 'foo.com`id`')" = "false" ]
 }
 
@@ -74,6 +76,7 @@ load_utils() {
     [ "$(validate_ipv4 'foo.com')" = "false" ]
     [ "$(validate_ipv4 '256.256.256.256')" = "false" ]
     [ "$(validate_ipv4 '')" = "false" ]
+    # shellcheck disable=SC2016
     [ "$(validate_ipv4 '$(whoami)')" = "false" ]
 }
 

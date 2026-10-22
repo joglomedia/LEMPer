@@ -18,8 +18,8 @@ setup() {
     inline_count=$(grep -c 'function lemper_install()' "${BASE_DIR}/install.sh" 2>/dev/null || true)
     [ "${inline_count}" -eq 0 ]
 
-    # install.sh should source lemper_stacks.sh
-    grep -q 'lemper_stacks.sh' "${BASE_DIR}/install.sh"
+    # install.sh should source lemper-stacks.sh from lib/core/
+    grep -q 'lib/core/lemper-stacks.sh' "${BASE_DIR}/install.sh"
 
     # install.sh should call lemper_install
     grep -q 'lemper_install' "${BASE_DIR}/install.sh"
@@ -38,8 +38,8 @@ setup() {
     inline_count=$(grep -c 'function lemper_remove()' "${BASE_DIR}/remove.sh" 2>/dev/null || true)
     [ "${inline_count}" -eq 0 ]
 
-    # remove.sh should source lemper_stacks.sh
-    grep -q 'lemper_stacks.sh' "${BASE_DIR}/remove.sh"
+    # remove.sh should source lemper-stacks.sh from lib/core/
+    grep -q 'lib/core/lemper-stacks.sh' "${BASE_DIR}/remove.sh"
 
     # remove.sh should call lemper_remove
     grep -q 'lemper_remove' "${BASE_DIR}/remove.sh"
@@ -60,16 +60,16 @@ setup() {
     [ "${install_count}" -eq 0 ]
     [ "${remove_count}" -eq 0 ]
 
-    # lemper.sh should source lemper_stacks.sh
-    grep -q 'lemper_stacks.sh' "${BASE_DIR}/lemper.sh"
+    # lemper.sh should source lemper_stacks.sh from lib/core/
+    grep -q 'lib/core/lemper-stacks.sh' "${BASE_DIR}/lemper.sh"
 }
 
 @test "lemper_stacks.sh contains lemper_install function" {
-    grep -q 'function lemper_install()' "${BASE_DIR}/scripts/lemper_stacks.sh"
+    grep -q 'function lemper_install()' "${BASE_DIR}/lib/core/lemper-stacks.sh"
 }
 
 @test "lemper_stacks.sh contains lemper_remove function" {
-    grep -q 'function lemper_remove()' "${BASE_DIR}/scripts/lemper_stacks.sh"
+    grep -q 'function lemper_remove()' "${BASE_DIR}/lib/core/lemper-stacks.sh"
 }
 
 @test "lemper.sh preserves CLI argument parsing (init_lemper_install)" {

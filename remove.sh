@@ -43,7 +43,7 @@ requires_root "$@"
 preflight_system_check
 
 # Source shared install/remove functions (eliminates code duplication with lemper.sh).
-. "${BASE_DIR}/scripts/lemper_stacks.sh"
+. "${BASE_DIR}/lib/core/lemper-stacks.sh"
 
 # Main LEMPer Uninstaller
 header_msg

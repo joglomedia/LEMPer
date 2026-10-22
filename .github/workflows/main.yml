@@ -61,7 +61,7 @@ jobs:
           shellcheck -s bash -x remove.sh
           shellcheck -s bash -x bin/lemper-*.sh
           shellcheck -s bash -x lib/lemper-*.sh
-          shellcheck -s bash -x scripts/lemper_stacks.sh
+          shellcheck -s bash -x lib/core/lemper-stacks.sh
           shellcheck -s bash -x scripts/utils.sh
           shellcheck -s bash -x scripts/server_*.sh
           shellcheck -s bash -x scripts/install_*.sh

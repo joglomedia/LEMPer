@@ -38,9 +38,9 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 ##
 # Main LEMPer Installer & Uninstaller functions.
-# Shared with install.sh and remove.sh via scripts/lemper_stacks.sh
+# Shared with install.sh and remove.sh via lib/core/lemper-stacks.sh
 ##
-. ./scripts/lemper_stacks.sh
+. ./lib/core/lemper-stacks.sh
 
 ##
 # Check if the argument is empty.
