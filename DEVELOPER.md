@@ -111,6 +111,8 @@ shellcheck -s bash scripts/install_*.sh
 shellcheck -s bash scripts/remove_*.sh
 shellcheck -s bash scripts/server_*.sh
 shellcheck -s bash scripts/nginx/*.sh
+shellcheck -s bash scripts/install_crowdsec.sh scripts/remove_crowdsec.sh
+shellcheck -s bash lib/core/lemper-stacks.sh
 
 # 2. Shell formatting (bashate-style checks)
 # (In v3.0, a .editorconfig will enforce tab-vs-space, line length, etc.)
@@ -271,6 +273,39 @@ Tests that perform real installation should run in:
 - Local Vagrant/VM for interactive development
 
 Mock-based unit tests can run anywhere Bash is available.
+
+### 5.6 New Install/Remove Scripts
+
+To add a new component (e.g., `newtool`):
+
+1. **Create installer**: `scripts/install_newtool.sh` — follow the pattern in
+   `scripts/install_fail2ban.sh` or `scripts/install_crowdsec.sh`. Source
+   `utils.sh`, use `run` wrapper, guard with `AUTO_INSTALL` and
+   `FORCE_INSTALL` checks.
+2. **Create remover**: `scripts/remove_newtool.sh` — follow
+   `scripts/remove_crowdsec.sh`. Guard with `AUTO_REMOVE` and
+   `FORCE_REMOVE` checks.
+3. **Add config**: Add `[newtool]` section to `.env.dist` with
+   `INSTALL_NEWTOOL=false` default.
+4. **Wire into stacks**: Add sourcing blocks to
+   `lib/core/lemper-stacks.sh` in both `lemper_install()` and
+   `lemper_remove()`.
+5. **CI**: Add `sed` line in `.github/workflows/main.yml` to toggle the
+   flag for testing.
+
+### 5.7 Adding New CLI Subcommands
+
+To add a new CLI subcommand (e.g., `lemper-cli db backup`):
+
+1. **Create plugin file**: `lib/lemper-<command>-<subcmd>.sh` with
+   `init_lemper_<command>_<subcmd>()` function.
+2. **Register in dispatcher**: Add the subcommand to the case statement
+   in `lib/lemper-<command>.sh` (the dispatcher).
+3. **Install plugin**: Add to `scripts/install_tools.sh` copy list →
+   `/etc/lemper/cli-plugins/`.
+4. **Update help**: Add the subcommand to `cmd_help()` in the dispatcher.
+5. **Test**: Add structure test in `tests/test_structure.bats`.
+6. **Document**: Update help text in `bin/lemper-cli.sh`.
 
 ---
 

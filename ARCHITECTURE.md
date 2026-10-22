@@ -146,8 +146,9 @@ lemper.sh / install.sh
     │     install_mailer.sh          → Postfix + Dovecot + DKIM
     │     install_pureftpd.sh / install_vsftpd.sh
     │     install_fail2ban.sh        → Fail2ban
+    │     install_crowdsec.sh        → CrowdSec HIPS (optional, off by default)
     │     install_bun.sh             → Bun.js runtime (for asset building)
-    │     install_tools.sh           → lemper-cli + web admin tools
+    │     install_tools.sh           → lemper-cli + web admin tools (site list/show plugins)
     │     server_optimization.sh     → Swap, sysctl tuning
     │     server_security.sh         → SSH hardening, UFW/CSF/APF
     │
@@ -166,8 +167,10 @@ lemper-cli <command> [subcommand] [options]
     │     └──> Source plugin from /etc/lemper/cli-plugins/lemper-<command>
     │           ├──> site → lemper-site.sh
     │           │     ├──> add/create → lemper-create.sh (full vhost + framework setup)
-    │           │     └──> mod/manage → lemper-manage.sh (enable/disable SSL, cache, etc.)
-    │           ├──> db → lemper-db.sh (account/create/drop/import/export/query)
+    │           │     ├──> mod/manage → lemper-manage.sh (enable/disable SSL, cache, etc.)
+    │           │     ├──> list → lemper-site-list.sh (table/JSON listing of vhosts)
+    │           │     └──> show → lemper-site-show.sh (detailed vhost + FPM + SSL)
+    │           ├──> db → lemper-db.sh (account/create/drop/import/export/backup/restore)
     │           ├──> account → lemper-account.sh (interactive user creator)
     │           ├──> adduser → lemper-adduser.sh (interactive)
     │           ├──> selfssl → lemper-selfssl.sh (self-signed cert generation)
@@ -416,7 +419,7 @@ LEMPer/
 | **Cache** | Redis, Memcached | Redis or Valkey, Memcached (SASL) |
 | **JS runtime** | (Node.js stub, unused) | Bun.js (for asset building) |
 | **FTP** | Pure-FTPd, vsftpd | Pure-FTPd (TLS) |
-| **SSL** | Let's Encrypt, self-signed RSA-2048 | Let's Encrypt, self-signed RSA-4096 |
+| **SSL** | RSA 2048 self-signed, Let's Encrypt | RSA 4096, OCSP stapling, ACME v2 DNS-01 wildcard |
 | **Firewall** | UFW, CSF, APF | UFW + nftables, CrowdSec optional |
 | **Security** | Fail2ban | Fail2ban + CrowdSec |
 | **Config format** | .env (INI) | .env (structured) + JSON schema validation |
