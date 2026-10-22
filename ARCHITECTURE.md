@@ -29,85 +29,104 @@ virtual hosts, databases, SSL certificates, and supporting services.
 
 ## 2. Current Architecture
 
-### 2.1 Project Structure
+### 2.1 Project Structure (as of v3.4.0)
 
 ```
 LEMPer/
 ├── bin/
-│   └── lemper-cli.sh              # CLI entry point (symlinked to /usr/local/bin/lemper-cli)
+│   └── lemper-cli.sh              # CLI entry point
 ├── lib/
-│   ├── lemper-account.sh          # CLI plugin: system account creation (interactive)
+│   ├── lemper-account.sh          # CLI plugin: system account creation
 │   ├── lemper-adduser.sh          # CLI plugin: add user wrapper
 │   ├── lemper-bench.sh            # CLI plugin: hardware & network benchmark
 │   ├── lemper-create.sh           # CLI plugin: vhost creation & framework auto-installer
-│   ├── lemper-db.sh               # CLI plugin: MySQL/MariaDB database manager
+│   ├── lemper-db.sh               # CLI plugin: MySQL/MariaDB database manager (backup/restore)
+│   ├── lemper-encrypt.sh          # Config at-rest encryption utilities
 │   ├── lemper-fixpermission.sh    # CLI plugin: fix file/directory permissions
-│   ├── lemper-manage.sh           # CLI plugin: vhost management (enable/disable/SSL/etc.)
-│   └── lemper-selfssl.sh          # CLI plugin: self-signed SSL generator
+│   ├── lemper-manage.sh           # CLI plugin: vhost management (enable/disable/SSL)
+│   ├── lemper-selfssl.sh          # CLI plugin: self-signed SSL generator (RSA 4096)
+│   ├── lemper-site.sh             # CLI plugin: site dispatcher
+│   ├── lemper-site-list.sh        # CLI plugin: vhost listing (table + JSON)
+│   ├── lemper-site-show.sh        # CLI plugin: detailed vhost + FPM + SSL info
+│   ├── lemper-tui.sh              # Interactive TUI dashboard
+│   └── core/
+│       └── lemper-stacks.sh       # Installer/uninstaller orchestrator (shared)
 ├── scripts/
-│   ├── utils.sh                   # Core helper library (shared by all scripts)
-│   ├── install_dependencies.sh    # Base package & Python installation
-│   ├── install_nginx.sh           # Nginx installer (delegates to nginx/ submodules)
-│   ├── install_php.sh             # PHP + FPM installer
-│   ├── install_phalcon.sh         # Phalcon PHP framework
-│   ├── install_mariadb.sh         # MariaDB installer
-│   ├── install_postgres.sh        # PostgreSQL installer
-│   ├── install_redis.sh           # Redis/Valkey installer
-│   ├── install_mongodb.sh         # MongoDB installer
-│   ├── install_memcached.sh       # Memcached installer
-│   ├── install_imagemagick.sh     # ImageMagick installer
-│   ├── install_mailer.sh          # Postfix + Dovecot mailer
-│   ├── install_pureftpd.sh        # Pure-FTPd installer
-│   ├── install_vsftpd.sh          # vsftpd installer
-│   ├── install_certbotle.sh       # Let's Encrypt certbot installer
-│   ├── install_fail2ban.sh        # Fail2ban installer
-│   ├── install_bun.sh             # Bun.js runtime installer
-│   ├── install_tools.sh           # CLI tool + web admin tools installer
-│   ├── install_tools.sh           # Tools installation
-│   ├── server_cleanup.sh          # Pre-install service cleanup
-│   ├── server_optimization.sh     # Kernel parameter tuning
-│   ├── server_security.sh         # SSH hardening + firewall config
+│   ├── utils.sh                   # Core helper library (shared, 1021 lines)
+│   ├── install_dependencies.sh    # Base packages + Python
+│   ├── install_nginx.sh           # Nginx installer (delegates to nginx/)
+│   ├── install_php.sh             # PHP 8.1–8.4 only (EOL 5.6–8.0 removed)
+│   ├── install_mariadb.sh         # MariaDB 11.4
+│   ├── install_redis.sh           # Redis/Valkey (REDIS_BACKEND configurable)
+│   ├── install_postgres.sh        # PostgreSQL (optional)
+│   ├── install_memcached.sh       # Memcached
+│   ├── install_imagemagick.sh     # ImageMagick
+│   ├── install_mailer.sh          # Postfix + Dovecot
+│   ├── install_pureftpd.sh        # Pure-FTPd (TLS)
+│   ├── install_vsftpd.sh          # vsftpd
+│   ├── install_certbotle.sh       # Let's Encrypt ACME v2 (DNS-01 wildcard)
+│   ├── install_fail2ban.sh        # Fail2ban (enabled by default)
+│   ├── install_crowdsec.sh        # CrowdSec HIPS + WordPress scenarios
+│   ├── install_bun.sh             # Bun.js runtime (replaces Node.js)
+│   ├── install_modsec.sh          # ModSecurity v3 + OWASP CRS v3.3.5
+│   ├── install_tools.sh           # CLI tool + TUI + encrypt plugin
 │   ├── remove_*.sh                # Per-component removal scripts
-│   ├── nginx/                     # Nginx build sub-modules
+│   ├── server_cleanup.sh          # Pre-install service cleanup
+│   ├── server_optimization.sh     # Swap, sysctl tuning
+│   ├── server_security.sh         # SSH hardening + UFW/firewall
+│   ├── nginx/
 │   │   ├── nginx_common.sh        # Shared variables & helpers
-│   │   ├── nginx_repo.sh          # Repository-based install (ondrej/myguard)
-│   │   ├── nginx_ssl_builders.sh  # OpenSSL/LibreSSL/BoringSSL source builds
+│   │   ├── nginx_repo.sh          # Repository-based install
+│   │   ├── nginx_ssl_builders.sh  # OpenSSL 3.2.4 / LibreSSL source builds
 │   │   ├── nginx_extra_modules.sh # Third-party module compilation
 │   │   ├── nginx_module_config.sh # Dynamic module configuration
 │   │   ├── nginx_build.sh         # Source compilation orchestration
-│   │   ├── nginx_post_install.sh  # Post-install config file deployment
+│   │   ├── nginx_post_install.sh  # Post-install config deployment
 │   │   └── nginx_ssl_cert.sh      # Hostname SSL cert generation
-│   ├── mariadb_repo_setup         # MariaDB repo setup script (bundled binary)
-│   └── README.md                  # Minimal scripts readme
-├── etc/                           # Template configuration files (copied to target system)
-│   ├── nginx/                     # Nginx configs, includes, vhosts, error pages
-│   ├── php/{5.6,7.0,...,8.4}/     # PHP FPM configs per version
-│   ├── mysql/                     # MariaDB/MySQL configs
+│   └── README.md                  # Scripts documentation
+├── etc/
+│   ├── nginx/                     # Nginx configs, includes, vhosts
+│   │   ├── includes/
+│   │   │   ├── ssl.conf
+│   │   │   ├── fastcgi.conf
+│   │   │   ├── compression_brotli.conf
+│   │   │   ├── security_headers.conf
+│   │   │   ├── rules_security.conf
+│   │   │   └── modsec.conf          # ModSecurity v3 + OWASP CRS
+│   │   └── vhost/
+│   │       ├── README.md
+│   │       └── site_wordpress.conf  # ModSecurity (was NAXSI)
+│   ├── php/8.4/                   # PHP FPM configs (only 8.1–8.4 remain)
+│   │   ├── fpm/php-fpm.conf
+│   │   └── fpm/pool.d/lemper.conf  # cgi.fix_pathinfo=0
+│   ├── mysql/mariadb.conf.d/      # MariaDB 11.4 configs
 │   ├── redis/redis.conf           # Redis config
-│   ├── memcached/                 # Memcached configs
-│   ├── pure-ftpd/                 # Pure-FTPd configs
-│   ├── openssl/                   # CA/CSR/cert templates
-│   ├── fail2ban/                  # Fail2ban filters
-│   ├── systemd/                   # Systemd service files
+│   ├── systemd/
+│   │   ├── redis-server.service
+│   │   └── valkey-server.service  # Valkey backend
+│   ├── openssl/cert.conf          # RSA 4096 cert template
+│   ├── fail2ban/                  # Fail2ban configs
 │   └── init.d/                    # SysV init scripts
 ├── share/
-│   └── nginx/html/               # Static files (error pages, index page)
-│   └── memcached/scripts/         # Memcached tools
-├── shunit2/
-│   └── run_test.sh               # Unit test runner
-├── .github/
-│   ├── workflows/main.yml         # CI: shellcheck + integration tests
-│   ├── ISSUE_TEMPLATE/            # Issue templates
-│   └── assets/                    # Logo & favicon
+│   └── nginx/html/                # Static files (error pages, index)
 ├── .env.dist                      # Configuration template (INI format)
-├── .gitignore                     # Ignore .env, logs, compiled files
-├── CONTRIBUTING.md                # Minimal contribution guide
-├── LICENSE.md                     # GPLv3
-├── README.md                      # Project readme
-├── install.sh                     # Standalone installer entry point
-├── lemper.sh                      # Interactive installer/uninstaller with CLI args
-├── remove.sh                      # Standalone uninstaller entry point
-└── .env.dist                      # Configuration template
+├── .gitignore
+├── CONTRIBUTING.md
+├── DEVELOPER.md
+├── AGENTIC.md
+├── ARCHITECTURE.md
+├── ROADMAP.md
+├── LICENSE.md
+├── README.md
+├── install.sh                     # Standalone installer (~47 lines, wrapper)
+├── lemper.sh                      # Interactive installer (~551 lines, 551 lines)
+├── remove.sh                      # Standalone uninstaller (~48 lines, wrapper)
+├── tests/
+│   ├── test_helper.bash
+│   ├── test_sanitization.bats    # Input sanitization (9 tests)
+│   ├── test_structure.bats        # Structural integrity (35 tests)
+│   └── test_syntax.bats           # ShellCheck + bash -n (2 tests)
+└── .github/workflows/main.yml    # CI: ShellCheck + bats (44 tests)
 ```
 
 ### 2.2 Execution Flow
@@ -220,22 +239,28 @@ During installation, `install_tools.sh` copies library scripts from `lib/` to
 The CLI dispatches by sourcing the plugin file (not executing it), which means all plugin
 scripts share the same process and can access parent-scope functions/variables.
 
-### 2.5 CI/CD Pipeline
+### 2.5 CI/CD Pipeline (v3.4.0)
 
 The GitHub Actions workflow (`.github/workflows/main.yml`) runs on every push/PR to
 `2.x.x` and `master` branches:
 
 1. **Setup:** Copies `.env.dist` → `.env`, adjusts config for CI environment.
-2. **ShellCheck:** Runs `shellcheck -s bash -x` on every script file.
-3. **Unit Tests:** Runs `shunit2/run_test.sh` which sources and executes installation scripts
-   and checks for resulting binaries.
+   Toggled for CI: `REDIS_BACKEND="valkey"`, `INSTALL_CROWDSEC=true`,
+   `ACME_WILDCARD=true`, `INSTALL_MODSEC=true`, `ENCRYPT_CONFIG_AT_REST=true`.
+2. **ShellCheck:** Runs `shellcheck -s bash -x` on every script file — **exit 0**.
+3. **Bats Tests:** Runs `bats tests/` — **44/44 pass** across 4 test files.
+
+**Test coverage (44 tests):**
+- `test_sanitization.bats` — 9 tests (FQDN, IPv4, username, sed injection sanitization)
+- `test_structure.bats` — 35 tests (project structure, wiring, config flags)
+- `test_syntax.bats` — 2 tests (bash -n + shellcheck on all scripts)
 
 **Limitations:**
 - No code coverage reporting.
-- Tests run full installations (no mocking/isolation).
-- No lint gate on the `lib/` directory (though shellcheck does check it).
-- No security scanning (bandit, semgrep, etc.).
-- Only runs on `ubuntu-latest` (no Debian testing matrix).
+- Tests are structural (grep-based) + syntax — no mock-based unit tests.
+- No security scanning (bandit, semgrep, lynis as code).
+- Only runs on `ubuntu-latest` (no Debian matrix).
+- `sed -i` usage throughout codebase is not portable to macOS.
 
 ### 2.6 Dependency Model
 
@@ -261,44 +286,51 @@ and the dotenv-sourced environment variables being in scope.
 ### 3.1 Authentication & Authorization
 
 - The default `lemper` system account receives **NOPASSWD:ALL** sudo access via
-  `/etc/sudoers.d/90-lemper-users` — a significant privilege escalation risk.
+  `/etc/sudoers.d/90-lemper-users` — a critical privilege escalation risk.
+  **Status: ⚠️ Not yet addressed — flagged for v3.5.0.**
 - SSH hardening is implemented via `server_security.sh` (port change, key-only auth,
   root login disable).
 - FTP uses Pure-FTPd or vsftpd with TLS support.
 
 ### 3.2 Secrets Management
 
-- All passwords are stored in plaintext in `/etc/lemper/lemper.conf`.
-- A `secure_config()` function exists (AES-256-GCM encryption with the lemper password as key)
-  but is **commented out** and never called.
-- Credentials are printed to stdout at the end of installation.
-- The install log file (`lemper_install.log`) contains credential data.
+- Config at rest encryption: **✅ Implemented** (Phase 5 Task 2.10). `lib/lemper-encrypt.sh`
+  provides `encrypt_config()`, `decrypt_config()`, `load_config()`, `resolve_config_password()`,
+  and `secure_shred()`. `bin/lemper-cli.sh` pre-parses `--password`/`-P` flag, decrypts
+  config before loading, shreds temp file. `ENCRYPT_CONFIG_AT_REST=false` in `.env.dist`
+  (defaults to off for backward compatibility).
+- Credentials are printed to stdout at the end of installation. **Status: ⚠️ Still active.**
+- The install log file (`lemper_install.log`) may still contain credential data.
+  **Status: ⚠️ Still active — needs log scrubbing.**
 
 ### 3.3 Network Security
 
 - Firewall: UFW (default), CSF, or APF (user-selectable).
-- Fail2ban for intrusion prevention (optional, off by default).
-- Nginx WAF: NAXSI rules (optional, legacy).
-- SSL: Let's Encrypt (certbot) or self-signed CA (RSA 2048, SHA-256).
+- **✅ Fail2ban** enabled by default (`INSTALL_FAIL2BAN=true` in `.env.dist`).
+- **✅ CrowdSec HIPS** installed (optional, off by default). Now includes WordPress +
+  PHP web app scenarios.
+- **✅ Nginx WAF: ModSecurity v3 + OWASP CRS v3.3.5** (replaced legacy NAXSI).
+- **✅ SSL: Let's Encrypt (certbot)** with ACME v2 DNS-01 wildcard support.
+  Self-signed CA: **RSA 4096-bit**, SHA-256 (upgraded from 2048-bit).
 - No TLS for database connections by default.
 - No secrets rotation mechanism.
 
-### 3.4 Known Vulnerabilities
+### 3.4 Known Vulnerabilities (Audit Status)
 
-| ID | Issue | Severity | Location |
-|---|---|---|---|
-| SEC-01 | `cgi.fix_pathinfo = 1` allows path traversal to execute arbitrary PHP files | High | All PHP pool configs |
-| SEC-02 | NOPASSWD:ALL sudo for non-root `lemper` user | Critical | `utils.sh:741` |
-| SEC-03 | Passwords passed as CLI args (visible in `ps` output) | Medium | `lemper-create.sh`, `lemper-db.sh` |
-| SEC-04 | `cgi.fix_pathinfo` set to 1 in default PHP pools | High | `www.conf` templates |
-| SEC-05 | Self-signed SSL uses 2048-bit RSA (should be 4096) | Medium | `nginx_ssl_cert.sh`, `lemper-selfssl.sh` |
-| SEC-06 | `eval`-based dotenv loading (potential injection) | High | `utils.sh:31`, `lemper-cli.sh:55` |
-| SEC-07 | `apt-key` is deprecated and insecure | Low | `nginx_repo.sh:45` |
-| SEC-08 | Credentials printed to stdout and optionally emailed | High | `install.sh:288`, `lemper.sh:194-280` |
-| SEC-09 | `fial` typo (undefined function) in error paths | Medium | `lemper-create.sh:957`, `lemper-db.sh:593` |
-| SEC-10 | No input sanitization on domain → passed to `sed`, `openssl` | Medium | `lemper-selfssl.sh`, `lemper-create.sh` |
-| SEC-11 | Credentials stored in `/etc/lemper/lemper.conf` without encryption | High | `utils.sh:846-851` |
-| SEC-12 | Open_basedir set but tmp dirs under `~/.lemper` may leak | Medium | `lemper-create.sh:615-616` |
+| ID | Issue | Severity | Location | Status |
+|---|---|---|---|---|
+| SEC-01 | `cgi.fix_pathinfo = 1` allows path traversal | High | All PHP pool configs | ✅ **Mitigated** — set to `0` in all pool configs |
+| SEC-02 | NOPASSWD:ALL sudo for `lemper` user | Critical | `utils.sh` sudoers | ⚠️ **Open** — flagged for v3.5.0 |
+| SEC-03 | Passwords passed as CLI args (`ps` visible) | Medium | `lemper-create.sh`, `lemper-db.sh` | ⚠️ **Open** — flagged for v3.5.0 |
+| SEC-04 | `cgi.fix_pathinfo` set to 1 in default PHP pools | High | `www.conf` templates | ✅ **Mitigated** — set to `0` |
+| SEC-05 | Self-signed SSL uses 2048-bit RSA | Medium | `nginx_ssl_cert.sh`, `lemper-selfssl.sh` | ✅ **Fixed** — upgraded to RSA 4096 |
+| SEC-06 | `eval`-based dotenv loading (injection risk) | High | `utils.sh:31`, `lemper-cli.sh:55` | ⚠️ **Partial** — `load_config()` in `lemper-encrypt.sh` still uses eval |
+| SEC-07 | `apt-key` is deprecated and insecure | Low | `nginx_repo.sh:45` | ✅ **Fixed** — uses `signed-by` keyring files |
+| SEC-08 | Credentials printed to stdout | High | `install.sh`, `lemper.sh` | ⚠️ **Open** — flagged for v3.5.0 |
+| SEC-09 | `fial` typo (undefined function) | Medium | `lemper-create.sh`, `lemper-db.sh` | ✅ **Fixed** (Phase 0) |
+| SEC-10 | No input sanitization on domain → `sed`/`openssl` | Medium | `lemper-selfssl.sh`, `lemper-create.sh` | ✅ **Fixed** — `validate_fqdn()` + `sanitize_sed_replacement()` in `utils.sh` |
+| SEC-11 | Credentials stored in `/etc/lemper/lemper.conf` without encryption | High | `utils.sh:846-851` | ✅ **Partially fixed** — `ENCRYPT_CONFIG_AT_REST` option available (default off) |
+| SEC-12 | Open_basedir tmp dirs under `~/.lemper` may leak | Medium | `lemper-create.sh` | ⚠️ **Open** — noted, low immediate risk |
 
 ---
 
@@ -353,77 +385,92 @@ and the dotenv-sourced environment variables being in scope.
 | **Firewall** | UFW/CSF/APF | UFW + nftables backend, optional CrowdSec |
 | **SSL** | RSA 2048 self-signed | RSA 4096 or ed25519, OCSP stapling, ACME v2 |
 
-### 4.4 Module Decomposition (Planned)
+### 4.4 Module Decomposition (Planned → Partially Implemented)
 
-The current flat structure (`lib/lemper-*.sh`, `scripts/install_*.sh`) will be
-reorganized into clear functional modules:
+The current flat structure (`lib/lemper-*.sh`, `scripts/install_*.sh`) was intended to be
+reorganized into clear functional modules. **Status: scaffolds created but migration incomplete.**
 
 ```
 LEMPer/
 ├── bin/
 │   └── lemper-cli.sh              # CLI entry point
 ├── lib/
-│   ├── core/                      # Core framework
-│   │   ├── config.sh              # Configuration loading & validation
-│   │   ├── logging.sh             # Structured logging
-│   │   ├── colors.sh              # Terminal color helpers
-│   │   └── cli.sh                 # CLI dispatcher + arg parsing
-│   ├── runtime/                   # Runtime management CLI plugins
-│   │   ├── account.sh             # Account management
-│   │   ├── site_create.sh         # Vhost creation
-│   │   ├── site_manage.sh         # Vhost management
-│   │   ├── database.sh            # Database operations
-│   │   ├── ssl.sh                 # SSL certificate operations
-│   │   └── util.sh                # Utility commands (bench, fixperm)
-│   └── services/                  # Service installation modules
-│       ├── nginx.sh               # Nginx installer
-│       ├── php.sh                 # PHP-FPM installer
-│       ├── mariadb.sh             # MariaDB installer
-│       ├── redis.sh               # Redis/Valkey installer
-│       ├── postgres.sh            # PostgreSQL installer
-│       ├── memcached.sh           # Memcached installer
-│       ├── mongodb.sh             # MongoDB installer
-│       ├── bun.sh                 # Bun.js runtime installer
-│       ├── ftp.sh                 # FTP server installer
-│       ├── certbot.sh             # Let's Encrypt installer
-│       ├── fail2ban.sh            # Fail2ban installer
-│       ├── firewall.sh            # Firewall configurator
-│       ├── mailer.sh              # Mail server installer
-│       └── tools.sh               # Web admin tools + CLI tool
-├── scripts/                       # Legacy scripts (being migrated)
-├── etc/                           # Configuration templates
-├── share/                         # Static assets
-├── tests/                         # Unit & integration tests
-│   ├── unit/
-│   └── integration/
-└── docs/                          # Documentation
-    ├── ARCHITECTURE.md
-    ├── DEVELOPER.md
-    ├── AGENTIC.md
-    └── ROADMAP.md
+│   ├── core/                      # ✅ Scaffold created · ⚠️ Only lemper-stacks.sh present
+│   │   ├── lemper-stacks.sh       # ✅ Done: lemper_install() + lemper_remove() orchestrator
+│   │   ├── .gitkeep               # ✅ Dir marker (lib/core, runtime, services)
+│   │   ├── config.sh              # ❌ Not migrated — utils.sh still holds config logic
+│   │   ├── logging.sh             # ❌ Not migrated — utils.sh holds logging
+│   │   ├── colors.sh              # ❌ Not migrated — utils.sh holds colors
+│   │   └── cli.sh                 # ❌ Not migrated — bin/lemper-cli.sh holds dispatcher
+│   ├── runtime/                   # ⚠️ Scaffold only — all plugins still in lib/ (flat)
+│   │   ├── .gitkeep
+│   │   ├── account.sh             # ❌ lib/lemper-account.sh
+│   │   ├── site_create.sh         # ❌ lib/lemper-create.sh
+│   │   ├── site_manage.sh         # ❌ lib/lemper-manage.sh
+│   │   ├── database.sh            # ❌ lib/lemper-db.sh
+│   │   ├── ssl.sh                 # ❌ lib/lemper-selfssl.sh
+│   │   ├── util.sh                # ❌ lib/lemper-bench.sh, lemper-fixpermission.sh
+│   │   ├── site_list.sh           # ❌ lib/lemper-site-list.sh
+│   │   ├── site_show.sh           # ❌ lib/lemper-site-show.sh
+│   │   ├── site.sh                # ❌ lib/lemper-site.sh
+│   │   ├── tui.sh                 # ❌ lib/lemper-tui.sh
+│   │   └── encrypt.sh             # ❌ lib/lemper-encrypt.sh
+│   └── services/                  # ⚠️ Scaffold only — all installers still in scripts/
+│       ├── .gitkeep
+│       ├── nginx.sh               # ❌ scripts/install_nginx.sh
+│       ├── php.sh                 # ❌ scripts/install_php.sh
+│       ├── mariadb.sh             # ❌ scripts/install_mariadb.sh
+│       ├── redis.sh               # ❌ scripts/install_redis.sh
+│       ├── postgres.sh            # ❌ scripts/install_postgres.sh
+│       ├── memcached.sh           # ❌ scripts/install_memcached.sh
+│       ├── mongodb.sh             # ❌ scripts/install_mongodb.sh
+│       ├── bun.sh                 # ❌ scripts/install_bun.sh
+│       ├── ftp.sh                 # ❌ scripts/install_pureftpd.sh, install_vsftpd.sh
+│       ├── certbot.sh             # ❌ scripts/install_certbotle.sh
+│       ├── fail2ban.sh            # ❌ scripts/install_fail2ban.sh
+│       ├── firewall.sh            # ❌ scripts/server_security.sh
+│       ├── mailer.sh              # ❌ scripts/install_mailer.sh
+│       └── tools.sh               # ❌ scripts/install_tools.sh
+├── scripts/                       # ✅ Active — scripts sourced by lemper-stacks.sh
+├── etc/                           # ✅ Active — configuration templates
+├── share/                         # ✅ Active — static assets
+├── tests/                         # ✅ Active — bats test suite
+└── docs/                          # ⚠️ Docs in repo root (not docs/ subdir)
+    ├── ARCHITECTURE.md            # ✅ Root
+    ├── DEVELOPER.md               # ✅ Root
+    ├── AGENTIC.md                 # ✅ Root
+    └── ROADMAP.md                 # ✅ Root
 ```
+
+**Migration decision:** The proposed directory restructuring would require renaming and
+moving ~50+ script files while maintaining backward-compatible symlink/destination paths
+on target systems. Given the scope and risk, the project should prioritize the **functional
+improvements already delivered** (security, PHP 8.4, Valkey, Bun.js, CrowdSec, ModSecurity,
+encrypted config, TUI) over a purely structural refactor. The directory scaffolds remain
+in place as a future-enhancement path.
 
 ---
 
-## 5. Technology Stack Summary
+## 5. Technology Stack Summary (as of v3.4.0)
 
-| Component | Current | Target (v3.0) |
-|---|---|---|
-| **Language** | Bash 4+ | Bash 5+ |
-| **ShellCheck** | v0.10.0 | Latest |
-| **Test framework** | shunit2 | shunit2 + bats-core |
-| **CI** | GitHub Actions | GitHub Actions (enhanced) |
-| **Web server** | Nginx (repo or source) | Nginx (repo default, source optional) |
-| **PHP** | 5.6–8.4 (Ondřej's PPA) | 8.1–8.4 (Ondřej's PPA) |
-| **Database** | MariaDB 11.1, PostgreSQL 17 | MariaDB 11.4+, PostgreSQL 17 |
-| **Cache** | Redis, Memcached | Redis or Valkey, Memcached (SASL) |
-| **JS runtime** | (Node.js stub, unused) | Bun.js (for asset building) |
-| **FTP** | Pure-FTPd, vsftpd | Pure-FTPd (TLS) |
-| **SSL** | RSA 2048 self-signed, Let's Encrypt | RSA 4096, OCSP stapling, ACME v2 DNS-01 wildcard |
-| **Firewall** | UFW, CSF, APF | UFW + nftables, CrowdSec optional |
-| **Security** | Fail2ban | Fail2ban + CrowdSec |
-| **Config format** | .env (INI) | .env (structured) + JSON schema validation |
-| **Secrets** | Plaintext | Encrypted at rest |
+| Component | Current | Target (v3.0) | Status |
+|---|---|---|---|
+| **Language** | Bash 4+ | Bash 5+ | ✅ Achieved |
+| **ShellCheck** | v0.10.0 | Latest | ✅ v0.11.0 locally, v0.10.0 in CI — both exit 0 |
+| **Test framework** | shunit2 | shunit2 + bats-core | ✅ bats-core 1.14.0, 44 tests |
+| **CI** | GitHub Actions | GitHub Actions (enhanced) | ✅ ShellCheck + bats matrix |
+| **Web server** | Nginx (repo or source) | Nginx (repo default, source optional) | ✅ |
+| **PHP** | 5.6–8.4 (EOL versions in templates) | 8.1–8.4 (Ondřej's PPA) | ✅ EOL removed from installer, stale templates remain |
+| **Database** | MariaDB 11.1 | MariaDB 11.4 | ✅ Upgraded |
+| **Cache** | Redis | Redis or Valkey (configurable) | ✅ Valkey added (REDIS_BACKEND) |
+| **JS runtime** | (unused) | Bun.js | ✅ Bun.js installed |
+| **FTP** | Pure-FTPd, vsftpd | Pure-FTPd (TLS) | ✅ |
+| **SSL** | RSA 2048 self-signed | RSA 4096, ACME v2 DNS-01 wildcard | ✅ Both implemented |
+| **Firewall** | UFW, CSF, APF | UFW, CrowdSec | ✅ CrowdSec added |
+| **Security** | Fail2ban (optional) | Fail2ban (default) + CrowdSec | ✅ Fail2ban enabled by default |
+| **WAF** | NAXSI | ModSecurity v3 + OWASP CRS | ✅ Migrated |
+| **Config format** | .env (INI) | .env (INI) + schema validation | ⚠️ Encryption added, schema validation planned |
+| **Secrets** | Plaintext | Encrypted at rest | ✅ Available (default off) |
 
 ---
 
@@ -503,20 +550,22 @@ User runs: lemper-cli site add -d example.com -f wordpress
 
 ---
 
-## 7. Risk Assessment
+## 7. Risk Assessment (Updated v3.4.0)
 
-| Risk | Impact | Likelihood | Mitigation Planned |
-|---|---|---|---|
-| NOPASSWD sudo for lemper user | Critical | High | Remove NOPASSWD, use sudo group with restricted commands |
-| `cgi.fix_pathinfo=1` | High | Certain | Set to 0 in all pool configs |
-| Plaintext credential storage | High | Certain | Encrypt lemper.conf or use secret file references |
-| `eval`-based config loading | Medium | Medium | Replace with safe parser |
-| Credential email to admin | Medium | Certain | Remove email feature, require explicit copy |
-| Source-built Nginx with many 3rd-party modules | Medium | Low | Default to repo install, make source opt-in |
-| No test isolation | Medium | High | Mock-based unit tests |
-| Deprecated `apt-key` usage | Low | Certain | Use `signed-by` with keyring files |
-| Stale PHP 5.6–7.4 templates | Low | Certain | Remove EOL version support |
-| `fial` typo causing silent failures | Medium | Low | Fix to `fail` |
+| Risk | Impact | Likelihood | Mitigation Planned | Status |
+|---|---|---|---|---|
+| NOPASSWD sudo for lemper user | Critical | High | Remove NOPASSWD, use sudo group with restricted commands | ⚠️ Open — v3.5.0 |
+| `cgi.fix_pathinfo=1` | High | Certain | Set to 0 in all pool configs | ✅ Mitigated — pool configs set to 0 |
+| Plaintext credential storage | High | Certain | Encrypt lemper.conf or use secret file references | ✅ Partially — `ENCRYPT_CONFIG_AT_REST` available (default off) |
+| `eval`-based config loading | Medium | Medium | Replace with safe parser | ⚠️ Partial — `load_config()` still uses eval |
+| Credential display at install end | High | Certain | Suppress, require explicit recall | ⚠️ Open — v3.5.0 |
+| Source-built Nginx with 3rd-party modules | Medium | Low | Default to repo, make source opt-in | ✅ Resolved — repo default |
+| No test isolation | Medium | High | Mock-based unit tests | ⚠️ Open — bats structural tests in place |
+| Deprecated `apt-key` usage | Low | Certain | Use `signed-by` with keyring files | ✅ Fixed |
+| Stale PHP 5.6–7.4 templates | Low | Certain | Remove EOL version support | ⚠️ Partial — installer fixed, templates remain |
+| `fial` typo causing silent failures | Medium | Low | Fix to `fail` | ✅ Fixed (Phase 0) |
+| `sed -i` not macOS-portable | Low | Certain | Use portable sed pattern | ⚠️ Open — 210 usages across 20 files |
+| No input sanitization on domains | Medium | Certain | `validate_fqdn()` + `sanitize_sed_*` | ✅ Fixed
 
 ---
 
