@@ -154,6 +154,12 @@ function lemper_install() {
         . "${BASE_DIR}/scripts/install_crowdsec.sh"
     fi
 
+    ### ModSecurity v3 WAF (OWASP Core Rule Set). ###
+    if [ -f "${BASE_DIR}/scripts/install_modsec.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_modsec.sh"
+    fi
+
     ### LEMPer tools installation ###
     if [ -f "${BASE_DIR}/scripts/install_tools.sh" ]; then
         echo ""
@@ -384,6 +390,12 @@ function lemper_remove() {
     if [ -f "${BASE_DIR}/scripts/remove_crowdsec.sh" ]; then
         echo ""
         . "${BASE_DIR}/scripts/remove_crowdsec.sh"
+    fi
+
+    ### Remove ModSecurity v3 WAF ###
+    if [ -f "${BASE_DIR}/scripts/remove_modsec.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_modsec.sh"
     fi
 
     ### Remove Certbot ###

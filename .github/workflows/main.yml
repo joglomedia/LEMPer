@@ -42,6 +42,7 @@ jobs:
           sed -i "s/INSTALL_CROWDSEC=false/INSTALL_CROWDSEC=true/g" .env
           sed -i "s/ACME_WILDCARD=false/ACME_WILDCARD=true/g" .env
           sed -i "s/ACME_DNS_PROVIDER=\"cloudflare\"/ACME_DNS_PROVIDER=\"cloudflare\"/g" .env
+          sed -i "s/INSTALL_MODSEC=false/INSTALL_MODSEC=true/g" .env
       # Install Dependencies
       - name: Install testing dependencies
         run: |

@@ -164,3 +164,19 @@ setup() {
     grep -q 'DNS-01' "${BASE_DIR}/scripts/install_certbotle.sh"
     grep -q 'request_wildcard_certificate' "${BASE_DIR}/scripts/install_certbotle.sh"
 }
+
+@test "install_modsec.sh and remove_modsec.sh exist" {
+    [ -f "${BASE_DIR}/scripts/install_modsec.sh" ]
+    [ -f "${BASE_DIR}/scripts/remove_modsec.sh" ]
+}
+
+@test "lemper-stacks.sh wires in ModSecurity install/remove" {
+    grep -q 'install_modsec.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
+    grep -q 'remove_modsec.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
+}
+
+@test "ModSecurity nginx include and OWASP CRS config exist" {
+    [ -f "${BASE_DIR}/etc/nginx/includes/modsec.conf" ]
+    grep -q 'modsecurity' "${BASE_DIR}/scripts/install_modsec.sh"
+    grep -q 'crs-setup.conf' "${BASE_DIR}/scripts/install_modsec.sh"
+}
