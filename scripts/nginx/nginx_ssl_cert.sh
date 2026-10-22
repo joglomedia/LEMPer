@@ -47,6 +47,7 @@ function generate_letsencrypt_cert() {
             --webroot-path=/usr/share/nginx/html -d "${DOMAIN}"
     fi
 
+    # shellcheck disable=SC2034  # HOSTNAME_CERT_PATH is a return value for callers
     HOSTNAME_CERT_PATH="/etc/letsencrypt/live/${DOMAIN}"
 
     # Restart webserver
@@ -98,6 +99,7 @@ function generate_selfsigned_cert() {
         "/etc/lemper/ssl/${DOMAIN}/fullchain.pem"
 
     if [[ -f "/etc/lemper/ssl/${DOMAIN}/cert.pem" ]]; then
+        # shellcheck disable=SC2034  # HOSTNAME_CERT_PATH is a return value for callers
         HOSTNAME_CERT_PATH="/etc/lemper/ssl/${DOMAIN}"
         success "Self-signed SSL certificate has been successfully generated."
     else

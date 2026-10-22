@@ -17,11 +17,11 @@ fi
 NGINX_CONF_DIR="/etc/nginx"
 NGINX_MODULES_AVAILABLE="${NGINX_CONF_DIR}/modules-available"
 NGINX_MODULES_ENABLED="${NGINX_CONF_DIR}/modules-enabled"
-NGINX_SITES_AVAILABLE="${NGINX_CONF_DIR}/sites-available"
-NGINX_SITES_ENABLED="${NGINX_CONF_DIR}/sites-enabled"
+export NGINX_SITES_AVAILABLE="${NGINX_CONF_DIR}/sites-available"
+export NGINX_SITES_ENABLED="${NGINX_CONF_DIR}/sites-enabled"
 NGINX_LIB_MODULES="/usr/lib/nginx/modules"
-NGINX_SHARE_DIR="/usr/share/nginx"
-NGINX_CACHE_DIR="/var/cache/nginx"
+export NGINX_SHARE_DIR="/usr/share/nginx"
+export NGINX_CACHE_DIR="/var/cache/nginx"
 
 ##
 # Default build directory

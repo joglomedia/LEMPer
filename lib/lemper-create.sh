@@ -633,7 +633,7 @@ php_value[max_file_uploads] = 20
 php_value[default_socket_timeout] = 60
 php_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
 php_flag[display_errors] = on
-php_flag[cgi.fix_pathinfo] = 1
+php_flag[cgi.fix_pathinfo] = 0
 php_value[date.timezone] = UTC
 php_value[session.save_handler] = files
 php_value[session.save_path] = /home/${POOLNAME}/.lemper/php/sessions
@@ -954,7 +954,7 @@ function init_lemper_create() {
 
             # Additional Check - are user account exist?
             if [[ -z $(getent passwd "${USERNAME}") ]]; then
-                fial "User account '${USERNAME}' does not exist. Create the account first. Aborting..."
+                fail "User account '${USERNAME}' does not exist. Create the account first. Aborting..."
             fi
 
             # Check PHP runtime version is exists.

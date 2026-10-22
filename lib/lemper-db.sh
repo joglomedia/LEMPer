@@ -590,7 +590,7 @@ function db_operations() {
                         fail "The specified database '${DBNAME}' does not exist."
                     fi
                 else
-                    fial "Mysqldump is required to export database, but it is not available in your current stack. Please install it first."
+                    fail "Mysqldump is required to export database, but it is not available in your current stack. Please install it first."
                 fi
 
                 exit 0

@@ -737,8 +737,6 @@ function create_account() {
             run useradd -d "/home/${LEMPER_USERNAME}" -m -s /bin/bash "${LEMPER_USERNAME}"
             run echo "${LEMPER_USERNAME}:${LEMPER_PASSWORD}" | chpasswd
             run usermod -aG sudo "${LEMPER_USERNAME}"
-            run touch /etc/sudoers.d/90-lemper-users && \
-            run echo "${LEMPER_USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/90-lemper-users
 
             # Create default directories.
             run mkdir -p "/home/${LEMPER_USERNAME}/webapps" && \
