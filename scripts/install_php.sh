@@ -126,6 +126,12 @@ function install_php() {
             PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | grep -vx 'json' | tr '\n' ' '))
         fi
 
+        # Opcache is built into the PHP binary since 8.5 (no package or .so).
+        if [[ $(bc -l <<< "${PHPv//.} >= 85") == 1 ]]; then
+            #shellcheck disable=SC2207
+            PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | grep -vx 'opcache' | tr '\n' ' '))
+        fi
+
         # Resolve additional PHP extensions against the distribution repository.
         for EXT_NAME in "${PHP_EXTS[@]}"; do
             echo -n "Checking extension ${EXT_NAME}... "

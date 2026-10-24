@@ -89,6 +89,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   could abort the install on abandoned modules that no longer build. Extensions
   that resolve to no package are now listed in a warning with a pointer to PIE
   for manual installation.
+- The extension resolver skips `json` (PHP 8.0+) and `opcache` (PHP 8.5+,
+  where it is built into the PHP binary) instead of reporting them as missing
+  packages. PHP 8.5 has no `php8.5-opcache` package.
 - `geoip` and `mcrypt` were removed from the default `PHP_EXTENSIONS` list.
   Both are abandoned upstream and are not installed automatically.
 - Documented that PIE is the manual path, not an installer dependency:

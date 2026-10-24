@@ -510,6 +510,13 @@ refute_grep() {
     grep -qF 'https://github.com/php/pie' "${install}"
 }
 
+@test "bundled json and PHP 8.5 opcache are not resolved as packages" {
+    local install="${BASE_DIR}/scripts/install_php.sh"
+    grep -qF "grep -vx 'json'" "${install}"
+    grep -qF '${PHPv//.} >= 85' "${install}"
+    grep -qF "grep -vx 'opcache'" "${install}"
+}
+
 @test "deprecated PECL-only extensions are not in the default list" {
     local envfile="${BASE_DIR}/.env.dist"
     local exts
