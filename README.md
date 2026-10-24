@@ -27,14 +27,14 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
     * FastCGI [cache purge module](https://github.com/nginx-modules/ngx_cache_purge.git) for atomic cache purging
     * Customizable SSL library: OpenSSL (default), LibreSSL, and BoringSSL
     * and much more useful 3rd-party modules.
-  * Pre-configured optimization for low-end VPS/cloud server. Need reliable VPS/cloud server? Get one from [DigitalOcean](https://masedi.net/l/digitalocean/), [UpCloud](https://masedi.net/l/upcloud/), or [Vultr](https://masedi.net/l/vultr/).
+  * Pre-configured optimization for low-end VPS/cloud server, auto-tuned at install time from the host's RAM and CPU (`micro`, `small`, `medium`, `large` profiles). Need reliable VPS/cloud server? Get one from [DigitalOcean](https://masedi.net/l/digitalocean/), [UpCloud](https://masedi.net/l/upcloud/), or [Vultr](https://masedi.net/l/vultr/).
   * Nginx virtual host (vhost) configuration optimized for WordPress and several PHP Frameworks.
   * Support HTTP/2 natively for your secure website.
   * Free SSL certificates from [Let's Encrypt](https://letsencrypt.org/).
   * Get an A+ grade on several SSL Security Test ([Qualys SSL Labs](https://www.ssllabs.com/ssltest/analyze.html?d=masedi.net), [ImmuniWeb](https://www.immuniweb.com/ssl/?id=bVrykFnK), and Wormly).
 * PHP - Most used language that [powers 78.9% of all websites](https://w3techs.com/technologies/details/pl-php) around the universe.
   * Community package from [Ondrej's PHP repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
-  * Multiple PHP versions ~7.1 [EOL]~, ~7.2 [EOL]~, ~7.3 [EOL]~, ~7.4 [EOL]~, ~8.0 [EOL]~, 8.1 [SFO], 8.2 [SFO], 8.3 [Stable], 8.4 [Latest].
+  * Multiple PHP versions: 8.1 [EOL], 8.2 [Security], 8.3 [Stable], 8.4 [Latest, default].
   * Run PHP as user who own the file (Multi-user isolation via FPM pool).
   * Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
   * Supported PHP Framework and CMS:

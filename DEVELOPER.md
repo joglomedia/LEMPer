@@ -162,7 +162,7 @@ podman run --rm \
             scripts/install_*.sh scripts/remove_*.sh scripts/utils.sh \
             scripts/server_*.sh scripts/nginx/*.sh \
             tests/*.bats && \
-        bats tests/
+        bats tests/ tests/unit/
     '
 ```
 
@@ -283,14 +283,14 @@ fi
 
 | Framework | Purpose | Tests |
 |---|---|---|
-| **bats-core** | Structural + syntax integration tests | **44 tests** (primary) |
+| **bats-core** | Structural, syntax, and mock-based unit tests | **97 tests** (primary) |
 | **shunit2** | Legacy unit tests (still present) | `shunit2/run_test.sh` |
 
 ### 5.2 Running Tests
 
 ```bash
 # Full test suite (bats)
-bats tests/
+bats tests/ tests/unit/
 
 # ShellCheck on all scripts (must pass with exit 0)
 shellcheck -s bash -x \
@@ -308,25 +308,31 @@ find . -name '*.sh' -not -path './.git/*' -not -path './etc/*' \
 
 ### 5.3 Writing Unit Tests
 
-Tests live in `tests/unit/`. Each test file corresponds to a source file:
+Unit tests live in `tests/unit/` and use bats-core. Helpers under test run in a
+child shell so the Bats `run` helper stays available, and external commands are
+replaced with PATH-shadowing mocks:
 
 ```bash
-# tests/unit/test_utils.sh
-#!/usr/bin/env bash
-# shellcheck source=scripts/utils.sh
-. scripts/utils.sh
+# tests/unit/validators.bats
+#!/usr/bin/env bats
 
-test_validate_fqdn_valid() {
-    assertEquals "true" "$(validate_fqdn 'example.com')"
+load env_helper
+
+setup() {
+    unit_setup
 }
 
-test_validate_fqdn_invalid() {
-    assertEquals "false" "$(validate_fqdn 'not_a_domain')"
+@test "validate_fqdn accepts valid domains" {
+    run env BASE_DIR="${BASE_DIR}" bash -c \
+        'safe_parse_dotenv() { :; }; . "${REAL_BASE_DIR}/scripts/utils.sh"; validate_fqdn "$1"' \
+        _ example.com
+    [ "${output}" = "true" ]
 }
-
-# Load shunit2 at the end
-. /usr/local/bin/shunit2
 ```
+
+For command-level tests, create a temporary mock directory and prepend it to
+`PATH` — see `tests/unit/db_backup_restore.bats` (mocked `mariadb`) and
+`tests/unit/php_temp_dirs.bats` (mocked `mkdir`/`chmod`/`chown`).
 
 ### 5.4 Writing Integration Tests (bats-core)
 
@@ -405,16 +411,38 @@ LEMPER_PASSWORD=""  # Blank = auto-generated
 
 ### 6.2 Configuration Loading
 
-Configuration is loaded by `scripts/utils.sh` (for installer scripts) and
-`bin/lemper-cli.sh` (for CLI plugins) via the following pattern:
+Configuration is loaded by `scripts/utils.sh` through `safe_parse_dotenv()`. It skips
+comments/sections, splits each line on the first `=`, validates the key name, and exports
+the value without `eval`:
 
 ```bash
-source <(grep -v '^#' "${ENVFILE}" | grep -v '^\[' | \
-    sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+while IFS=$'\t' read -r key value; do
+    export "${key}=${value}"
+done < <(safe_parse_dotenv "${ENVFILE}")
 ```
 
-> **⚠️ SECURITY WARNING (v3.0 planned fix):** This `eval`-based loading is a known
-> injection vector. In v3.0, this will be replaced with a safe, non-eval parser.
+Because every key present in `.env` is re-exported, values in the file win over
+caller-supplied environment variables. Use variables that do not appear in `.env.dist`
+(such as `LEMPER_PROFILE` and `LEMPER_MEMORY_MB`) for one-off overrides.
+
+### 6.3 Resource Profile Knobs
+
+| Variable | Default | Effect |
+|---|---|---|
+| `SERVER_PROFILE` | `auto` | Forces `micro`, `small`, `medium`, or `large` |
+| `LEMPER_PROFILE` | unset | Environment-only override (beats `SERVER_PROFILE`) |
+| `PHP_FPM_MAX_CHILDREN` | unset | Explicit `pm.max_children` (skips RAM budget) |
+| `PHP_MEMORY_LIMIT` | `256M` | Per-request limit; drives worker-size estimate |
+| `OPCACHE_MEMORY_MB` | unset | Overrides profile-derived opcache size |
+| `NGINX_ETAG` | `off` | `on`/`off` for the `etag` directive |
+| `NGINX_RATE_LIMITING` | `false` | Enables `limit_req`/`limit_conn` on all vhosts |
+| `DENY_ARCHIVE_FILES` | `false` | Denies `.zip`/`.tar`/`.gz`/… in web roots |
+| `SESSION_COOKIE_SECURE` | `false` | Sets `session.cookie_secure` on all pools |
+
+The installer also writes `/etc/mysql/mariadb.conf.d/99-lemper-tuning.cnf` with an
+`innodb_buffer_pool_size`, `max_connections`, `table_open_cache`, and
+`performance_schema` value derived from the active profile (`calc_mariadb_sizing()`).
+Re-run the installer after changing `SERVER_PROFILE` to regenerate it.
 
 ### 6.3 Runtime Config
 
@@ -450,7 +478,7 @@ run cp -f lib/lemper-monitor.sh /etc/lemper/cli-plugins/lemper-monitor && \
 run chmod ugo+x /etc/lemper/cli-plugins/lemper-monitor
 ```
 
-5. Write unit tests in `tests/unit/test_monitor.sh`.
+5. Write unit tests in `tests/unit/monitor.bats` (see section 5.3).
 6. Add ShellCheck to CI config.
 
 ### 7.2 Adding a New Service Installer
@@ -473,7 +501,7 @@ The CI pipeline runs on every push/PR to `2.x.x` and `master` branches:
    Toggled for CI: `REDIS_BACKEND="valkey"`, `INSTALL_CROWDSEC=true`,
    `ACME_WILDCARD=true`, `INSTALL_MODSEC=true`, `ENCRYPT_CONFIG_AT_REST=true`.
 2. **ShellCheck:** Runs `shellcheck -s bash -x` on every script file — **exit 0**.
-3. **Bats Tests:** Runs `bats tests/` — **44/44 tests pass**.
+3. **Bats Tests:** Runs `bats tests/ tests/unit/` — **97/97 tests pass**.
 
 **CI runs on `ubuntu-latest`** with ShellCheck v0.10.0 and bats-core 1.14.0.
 
@@ -564,11 +592,11 @@ shellcheck -s bash -x install.sh remove.sh lemper.sh bin/lemper-cli.sh \
     scripts/nginx/*.sh tests/*.bats
 
 # Run all bats tests
-bats tests/
+bats tests/ tests/unit/
 
 # Run in Podman container (macOS → Linux)
 podman run --rm -v "${PWD}:/lemper:ro" -w /lemper ubuntu:24.04 \
-    bash -c 'apt-get update -qq && apt-get install -qq -y shellcheck bats && shellcheck -s bash install.sh scripts/*.sh scripts/nginx/*.sh && bats tests/'
+    bash -c 'apt-get update -qq && apt-get install -qq -y shellcheck bats && shellcheck -s bash install.sh scripts/*.sh scripts/nginx/*.sh && bats tests/ tests/unit/'
 
 # Dry-run install in a container
 podman run --rm --privileged \

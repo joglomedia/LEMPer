@@ -741,14 +741,19 @@ planned for v3.6+ with symlink compatibility layer.
 
 ---
 
-#### 2.38 Add Mock-Based Unit Tests (Testability — High)  ⏳ **Planned**
+#### 2.38 Add Mock-Based Unit Tests (Testability — High)  ✅ **COMPLETE**
 
 **Issue:** Tests are structural (grep-based) only.
 
-**Status:** ⏳ **Planned** — Add `tests/unit/` with PATH-shadowing mocks for
-`validate_fqdn()`, `validate_ipv4()`, `sanitize_sed_*`, db backup/restore.
+**Fix:** ✅ Implemented — Added `tests/unit/` (12 tests) with PATH-shadowing mocks:
+- `validators.bats` — `validate_fqdn()`, `validate_ipv4()`, `sanitize_sed_*`,
+  and `validate_nginx_config()` against a mocked nginx binary.
+- `php_temp_dirs.bats` — `create_php_temp_dirs()` with mocked `mkdir`/`chmod`/`chown`.
+- `db_backup_restore.bats` — extracted `db_backup_database()` /
+  `db_restore_database()` driven by mocked `mariadb` / `mariadb-dump`.
+- CI and `test_podman.sh` now run `bats tests/ tests/unit/`.
 
-**Effort:** High — ⏳ Planned
+**Effort:** ✅ Done
 
 ---
 
@@ -839,7 +844,7 @@ planned for v3.6+ with symlink compatibility layer.
 All 5 phases (0–5) have been completed. The project is at **v3.5.0** with:
 
 - **v3.0.0**: Architecture overhaul — `lemper-stacks.sh` orchestrator, validation functions,
-bats-core test suite (44 tests passing)
+bats-core test suite (97 tests passing)
 - **v3.1.0**: `site list`, `site show`, DB backup/restore/schedule, Bun.js runtime
 - **v3.2.0**: CrowdSec HIPS (+ WordPress scenarios), Valkey drop-in, ACME DNS-01 wildcard
 - **v3.3.0**: Interactive TUI dashboard, progress indicators, improved CLI help,
@@ -851,6 +856,10 @@ templates, bashate linting, Debian 12 CI matrix, ShellCheck v0.11.0, Ubuntu 24.0
 - **v3.6.0**: TUI live log streaming, interactive site creation wizard,
 ModSecurity CRS auto-tuning (`lemper-cli modsec`), systemd-resolved ACME
 cache integration and renewal deploy hooks
+- **Post-v3.6.0 audit**: adaptive resource profiles (`micro` → `large`) sizing
+PHP-FPM, opcache, and nginx from detected RAM/CPU; dedicated
+`nginx-lowend.conf` for sub-1 GiB hosts; opt-in rate limiting, archive deny,
+etag control, and secure session cookies; SEC-20 … SEC-26 fixes
 
 ---
 
@@ -870,7 +879,22 @@ cache integration and renewal deploy hooks
 | SEC-09   | `fial` typo in error paths                          | `lib/lemper-create.sh:957`, `lib/lemper-db.sh:593`            | Phase 0 ✅  |
 | SEC-10   | No input sanitization for domain/IP                 | `lib/lemper-selfssl.sh`, `lib/lemper-create.sh`               | Phase 2 ✅  |
 | SEC-11   | Plaintext credential storage                        | `scripts/utils.sh:846-851`                                    | Phase 5 ✅  |
-| SEC-12   | Open\_basedir temp dirs under user home             | `lib/lemper-create.sh:615-616`                                | Phase 1 ⚠️ |
+| SEC-12   | Open\_basedir temp dirs under user home             | `lib/lemper-create.sh:615-616`                                | Phase 6 ✅  |
+| SEC-13   | Hidden files (`.env`, `.git`, backups) served       | `etc/nginx/includes/rules_restriction.conf`                   | Audit ✅    |
+| SEC-14   | `display_errors = on` in all FPM pools              | `etc/php/*/fpm/pool.d/*.conf`, pool generators                | Audit ✅    |
+| SEC-15   | FastCGI cache ignored `Set-Cookie`/`Cache-Control`  | `etc/nginx/includes/fastcgi_cache.conf`                       | Audit ✅    |
+| SEC-16   | Session cookies missing `HttpOnly`/`SameSite`       | all FPM pools, `install_php.sh`                               | Audit ✅    |
+| SEC-17   | FPM status/ping reachable from any client           | vhost generators, `sites-available/default*`                  | Audit ✅    |
+| SEC-18   | `/lcp/phpinfo.php84` bypassed basic auth            | `etc/nginx/sites-available/default`, `default-ssl`            | Audit ✅    |
+| SEC-19   | HSTS preload/includeSubDomains enabled by default   | `etc/nginx/includes/ssl.conf`                                 | Audit ✅    |
+| SEC-20   | Admin vhosts (8082/8083) bypassed restriction rules | `etc/nginx/sites-available/default*`                          | Audit ✅    |
+| SEC-21   | `X-Powered-By` advertised the stack                 | `etc/nginx/includes/compression_gzip.conf`                    | Audit ✅    |
+| SEC-22   | Static cache dropped inherited security headers     | `etc/nginx/includes/cache_static.conf`                        | Audit ✅    |
+| SEC-23   | Backup/dump files served from web roots             | `etc/nginx/includes/rules_restriction.conf`                   | Audit ✅    |
+| SEC-24   | SVG served without sandboxing                       | `etc/nginx/includes/rules_staticfiles.conf`                   | Audit ✅    |
+| SEC-25   | `session.save_path` app-overridable (doc-root sessions) | `scripts/install_php.sh`, FPM pool templates              | Audit ✅    |
+| SEC-26   | `sess_*` session files served if left in web root   | `etc/nginx/includes/rules_restriction.conf`                   | Audit ✅    |
+| PERF-01  | Fixed FPM/opcache/nginx/MariaDB sizing on low-end VPSes | `scripts/utils.sh`, `nginx_post_install.sh`, `nginx-lowend.conf`, `install_mariadb.sh` | Audit ✅ |
 | FUNC-01  | Node.js installer not in main flow                  | `scripts/install_nodejs.sh` (not called)                      | Phase 3 ✅  |
 | FUNC-02  | No `site list` command                              | CLI missing                                                   | Phase 3 ✅  |
 | FUNC-03  | No `site show` command                              | CLI missing                                                   | Phase 3 ✅  |
@@ -887,7 +911,10 @@ cache integration and renewal deploy hooks
 | ARCH-03  | No bats-core integration tests                      | `shunit2/run_test.sh`                                         | Phase 2 ✅  |
 | ARCH-04  | CI references non-existent vars                     | `.github/workflows/main.yml`                                  | Phase 0 ✅  |
 | ARCH-05  | ShellCheck not run on nginx submodules              | `.github/workflows/main.yml`                                  | Phase 0 ✅  |
-| ARCH-06  | No mock-based unit tests                            | `tests/`                                                      | Phase 6 ⏳ |
+| ARCH-06  | No mock-based unit tests                            | `tests/`                                                      | Phase 6 ✅  |
+| PERF-01  | FastCGI buffers/timeouts oversized (16MB/300s)      | `etc/nginx/includes/fastcgi.conf`                             | Audit ✅    |
+| PERF-02  | Opcache never enabled for PHP 8.4 (static php.ini)  | `scripts/install_php.sh`                                      | Audit ✅    |
+| PERF-03  | 30 FPM children per pool on 1GB servers             | pool templates                                                | Audit ✅    |
 | STACK-01 | PHP 5.6–7.4 templates still in etc/                 | `etc/php/{5.6,...,7.4}/`                                      | Phase 6 ✅  |
 | STACK-02 | Default PHP version outdated (8.2)                  | `.env.dist`                                                   | Phase 4 ✅  |
 | STACK-03 | MariaDB default version old (11.1)                  | `.env.dist`                                                   | Phase 4 ✅  |
@@ -901,4 +928,4 @@ cache integration and renewal deploy hooks
 | DOC-02   | No developer guide                                  | Project root                                                  | ✅ Complete |
 | DOC-03   | No agentic guide                                    | Project root                                                  | ✅ Complete |
 | DOC-04   | No roadmap document                                 | Project root                                                  | ✅ Complete |
-| DOC-05   | Stale PHP 5.6-8.0 docs in README                    | `README.md`                                                   | Phase 6    |
+| DOC-05   | Stale PHP 5.6-8.0 docs in README                    | `README.md`                                                   | Phase 6 ✅  |

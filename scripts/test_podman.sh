@@ -37,7 +37,7 @@ SC_CMD="shellcheck -s bash -x \
     tests/*.bats"
 
 # Bats command.
-BATS_CMD="bats tests/"
+BATS_CMD="bats tests/ tests/unit/"
 
 case "${MODE}" in
     --lint)
@@ -56,17 +56,26 @@ case "${MODE}" in
         ;;
     --dry-run)
         echo "=== Running install.sh dry-run in ${IMAGE} ==="
-        # Use rw volume for dry-run since install.sh may attempt writes.
+        # Copy the tree so the dry run never overwrites a developer's .env
+        # (the dotenv loader overrides environment variables, so DRYRUN must
+        # be set in the file itself).
+        DRYRUN_DIR=$(mktemp -d)
+        trap 'rm -rf "${DRYRUN_DIR}"' EXIT
+        ( cd "${PROJECT_ROOT}" && tar --exclude=.git -cf - . ) | tar -C "${DRYRUN_DIR}" -xf -
         podman run --rm --privileged \
-            -v "${PROJECT_ROOT}:/lemper:rw" \
+            -v "${DRYRUN_DIR}:/lemper:rw" \
             -w "${WORKDIR}" \
             "${IMAGE}" bash -c "
                 apt-get update -qq && \
+                DEBIAN_FRONTEND=noninteractive apt-get install -qq -y iproute2 curl ca-certificates > /dev/null 2>&1 && \
+                export TERM=xterm && \
                 cp .env.dist .env && \
-                sed_inplace 's/AUTO_INSTALL=false/AUTO_INSTALL=true/' .env && \
-                sed_inplace 's/INSTALL_NGINX=true/INSTALL_NGINX=false/' .env && \
-                sed_inplace 's/INSTALL_PHP=true/INSTALL_PHP=false/' .env && \
-                DRYRUN=true bash install.sh
+                sed -i \
+                    -e 's/AUTO_INSTALL=false/AUTO_INSTALL=true/' \
+                    -e 's/INSTALL_NGINX=true/INSTALL_NGINX=false/' \
+                    -e 's/INSTALL_PHP=true/INSTALL_PHP=false/' \
+                    -e 's/DRYRUN=false/DRYRUN=true/' .env && \
+                bash install.sh
             "
         ;;
     all|"")

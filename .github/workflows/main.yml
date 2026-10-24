@@ -3,10 +3,12 @@ on:
   push:
     branches:
       - '2.x.x'
+      - '3.x.x'
       - 'master'
   pull_request:
     branches: 
       - '2.x.x'
+      - '3.x.x'
       - 'master'
   workflow_dispatch:
 jobs:
@@ -96,7 +98,7 @@ jobs:
           TERM: xterm-256color
         run: |
           set -ex
-          bats tests/
+          bats tests/ tests/unit/
       # Simple Unit Tests
       - name: Run unit testing
         env:
@@ -165,4 +167,4 @@ jobs:
           TERM: xterm-256color
         run: |
           set -ex
-          bats tests/
+          bats tests/ tests/unit/

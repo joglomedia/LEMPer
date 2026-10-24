@@ -308,6 +308,88 @@ function sub_cmd_account() {
 }
 
 ##
+# Back up a database to a timestamped gzip dump.
+##
+function db_backup_database() {
+    if [[ -z "${DBNAME}" ]]; then
+        fail "Please specify the database name using the --dbname parameter."
+    fi
+
+    DBUSER=${DBUSER:-"root"}
+    [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
+
+    # Determine dump tool (mariadb-dump or mysqldump).
+    local DUMP_TOOL=""
+    if [[ -n $(command -v mariadb-dump) ]]; then
+        DUMP_TOOL=$(command -v mariadb-dump)
+    elif [[ -n $(command -v mysqldump) ]]; then
+        DUMP_TOOL=$(command -v mysqldump)
+    else
+        fail "mysqldump/mariadb-dump is required to backup database, but it is not available. Please install it first."
+    fi
+
+    # Backup directory.
+    local BACKUP_DIR="${DBFILE:-/var/backups/lemper}"
+    if [[ ! -d "${BACKUP_DIR}" ]]; then
+        run mkdir -p "${BACKUP_DIR}"
+    fi
+
+    # Timestamped backup file.
+    local BACKUP_FILE
+    BACKUP_FILE="${BACKUP_DIR}/${DBNAME}_$(date '+%Y%m%d_%H%M%S').sql.gz"
+
+    echo "Backing up database '${DBNAME}' to '${BACKUP_FILE}'..."
+
+    if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+        MYSQL_PWD="${DBPASS}" run bash -c "${DUMP_TOOL} -u '${DBUSER}' --databases '${DBNAME}' | gzip > '${BACKUP_FILE}'"
+
+        if [[ -f "${BACKUP_FILE}" ]]; then
+            success "Database '${DBNAME}' has been successfully backed up to '${BACKUP_FILE}'."
+            echo "    Size: $(du -h "${BACKUP_FILE}" | cut -f1)"
+            echo "    Path: ${BACKUP_FILE}"
+        else
+            fail "Failed to backup database '${DBNAME}'."
+        fi
+    else
+        fail "The specified database '${DBNAME}' does not exist."
+    fi
+}
+
+##
+# Restore a database from a SQL or gzip SQL dump.
+##
+function db_restore_database() {
+    if [[ -z "${DBNAME}" ]]; then
+        fail "Please specify the database name using the --dbname parameter."
+    fi
+
+    if [[ -z "${DBFILE}" ]]; then
+        fail "Please specify the backup file using the --dbfile parameter."
+    fi
+
+    if [[ ! -f "${DBFILE}" ]]; then
+        fail "Backup file not found: '${DBFILE}'"
+    fi
+
+    DBUSER=${DBUSER:-"root"}
+    [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
+
+    echo "Restoring database '${DBNAME}' from '${DBFILE}'..."
+
+    if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+        if [[ "${DBFILE}" == *.gz ]]; then
+            MYSQL_PWD="${DBPASS}" run bash -c "gunzip -c '${DBFILE}' | ${MYSQLCLI} -u '${DBUSER}' '${DBNAME}'"
+        else
+            MYSQL_PWD="${DBPASS}" run "${MYSQLCLI}" -u "${DBUSER}" "${DBNAME}" < "${DBFILE}"
+        fi
+
+        success "Database '${DBNAME}' has been successfully restored from '${DBFILE}'."
+    else
+        fail "The specified database '${DBNAME}' does not exist."
+    fi
+}
+
+##
 # Database Operations.
 ##
 function db_operations() {
@@ -499,83 +581,13 @@ function db_operations() {
 
             # Backup database with timestamped dump + optional scheduling.
             "backup")
-                if [[ -z "${DBNAME}" ]]; then
-                    fail "Please specify the database name using the --dbname parameter."
-                fi
-
-                DBUSER=${DBUSER:-"root"}
-                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
-
-                # Determine dump tool (mariadb-dump or mysqldump).
-                local DUMP_TOOL=""
-                if [[ -n $(command -v mariadb-dump) ]]; then
-                    DUMP_TOOL=$(command -v mariadb-dump)
-                elif [[ -n $(command -v mysqldump) ]]; then
-                    DUMP_TOOL=$(command -v mysqldump)
-                else
-                    fail "mysqldump/mariadb-dump is required to backup database, but it is not available. Please install it first."
-                fi
-
-                # Backup directory.
-                local BACKUP_DIR="${DBFILE:-/var/backups/lemper}"
-                if [[ ! -d "${BACKUP_DIR}" ]]; then
-                    run mkdir -p "${BACKUP_DIR}"
-                fi
-
-                # Timestamped backup file.
-                local BACKUP_FILE
-                BACKUP_FILE="${BACKUP_DIR}/${DBNAME}_$(date '+%Y%m%d_%H%M%S').sql.gz"
-
-                echo "Backing up database '${DBNAME}' to '${BACKUP_FILE}'..."
-
-                if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
-                    MYSQL_PWD="${DBPASS}" run bash -c "${DUMP_TOOL} -u '${DBUSER}' --databases '${DBNAME}' | gzip > '${BACKUP_FILE}'"
-
-                    if [[ -f "${BACKUP_FILE}" ]]; then
-                        success "Database '${DBNAME}' has been successfully backed up to '${BACKUP_FILE}'."
-                        echo "    Size: $(du -h "${BACKUP_FILE}" | cut -f1)"
-                        echo "    Path: ${BACKUP_FILE}"
-                    else
-                        fail "Failed to backup database '${DBNAME}'."
-                    fi
-                else
-                    fail "The specified database '${DBNAME}' does not exist."
-                fi
-
+                db_backup_database
                 exit 0
             ;;
 
             # Restore database from a SQL dump file.
             "restore")
-                if [[ -z "${DBNAME}" ]]; then
-                    fail "Please specify the database name using the --dbname parameter."
-                fi
-
-                if [[ -z "${DBFILE}" ]]; then
-                    fail "Please specify the backup file using the --dbfile parameter."
-                fi
-
-                if [[ ! -f "${DBFILE}" ]]; then
-                    fail "Backup file not found: '${DBFILE}'"
-                fi
-
-                DBUSER=${DBUSER:-"root"}
-                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
-
-                echo "Restoring database '${DBNAME}' from '${DBFILE}'..."
-
-                if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
-                    if [[ "${DBFILE}" == *.gz ]]; then
-                        MYSQL_PWD="${DBPASS}" run bash -c "gunzip -c '${DBFILE}' | ${MYSQLCLI} -u '${DBUSER}' '${DBNAME}'"
-                    else
-                        MYSQL_PWD="${DBPASS}" run "${MYSQLCLI}" -u "${DBUSER}" "${DBNAME}" < "${DBFILE}"
-                    fi
-
-                    success "Database '${DBNAME}' has been successfully restored from '${DBFILE}'."
-                else
-                    fail "The specified database '${DBNAME}' does not exist."
-                fi
-
+                db_restore_database
                 exit 0
             ;;
 

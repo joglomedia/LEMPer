@@ -44,7 +44,7 @@ function create_account() {
             mkdir -p "/home/${USERNAME}/logs" && \
             mkdir -p "/home/${USERNAME}/logs/nginx" && \
             mkdir -p "/home/${USERNAME}/logs/php" && \
-            mkdir -p "/home/${USERNAME}/.lemper" && \
+            create_php_temp_dirs "${USERNAME}" && \
             mkdir -p "/home/${USERNAME}/.ssh" && \
             chmod 700 "/home/${USERNAME}/.ssh" && \
             touch "/home/${USERNAME}/.ssh/authorized_keys" && \

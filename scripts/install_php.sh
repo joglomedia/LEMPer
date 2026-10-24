@@ -286,6 +286,22 @@ function optimize_php_fpm() {
 
     echo "Optimizing PHP ${PHPv} & FPM configuration..."
 
+    # Size Opcache and FPM pools from the detected server resources.
+    local RESOURCE_PROFILE
+    RESOURCE_PROFILE=$(detect_resource_profile)
+
+    local OPCACHE_MEM OPCACHE_STRINGS OPCACHE_FILES
+    case "${RESOURCE_PROFILE}" in
+        micro)  OPCACHE_MEM=64;  OPCACHE_STRINGS=8;  OPCACHE_FILES=8000 ;;
+        small)  OPCACHE_MEM=128; OPCACHE_STRINGS=16; OPCACHE_FILES=16229 ;;
+        medium) OPCACHE_MEM=256; OPCACHE_STRINGS=32; OPCACHE_FILES=32531 ;;
+        *)      OPCACHE_MEM=512; OPCACHE_STRINGS=64; OPCACHE_FILES=32531 ;;
+    esac
+
+    if [[ "${OPCACHE_MEMORY_MB:-}" =~ ^[1-9][0-9]*$ ]]; then
+        OPCACHE_MEM=${OPCACHE_MEMORY_MB}
+    fi
+
     if [[ ! -d "/etc/php/${PHPv}/fpm" ]]; then
         run mkdir -p "/etc/php/${PHPv}/fpm"
     fi
@@ -294,8 +310,12 @@ function optimize_php_fpm() {
     if [[ -f "etc/php/${PHPv}/fpm/php.ini" ]]; then
         run mv "/etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/php.ini~"
         run cp -f "etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/"
-    else
-        if [[ "${DRYRUN}" != true ]]; then
+    fi
+
+    # Ensure production defaults are present even when the distro php.ini
+    # was kept. The marker keeps re-runs idempotent.
+    if [[ "${DRYRUN}" != true ]]; then
+        if ! grep -q "Custom Optimization for LEMPer" "/etc/php/${PHPv}/fpm/php.ini"; then
             if [[ "${ENVIRONMENT}" == prod* ]]; then
                 OVT="${OVT:-"0"}"
             else
@@ -311,19 +331,29 @@ function optimize_php_fpm() {
 [opcache]
 opcache.enable=1
 opcache.enable_cli=0
-opcache.memory_consumption=512
-opcache.interned_strings_buffer=64
-opcache.max_accelerated_files=32531
+opcache.memory_consumption=${OPCACHE_MEM}
+opcache.interned_strings_buffer=${OPCACHE_STRINGS}
+opcache.max_accelerated_files=${OPCACHE_FILES}
 opcache.max_wasted_percentage=5
 opcache.validate_timestamps=${OVT}
 opcache.revalidate_freq=600
 opcache.save_comments=1
-opcache.fast_shutdown=1
+opcache.file_update_protection=2
 opcache.error_log=/var/log/php/php${PHPv}-opcache_error.log
+
+; Session hardening (also enforced per pool via php_admin_value).
+session.use_strict_mode=1
+session.use_only_cookies=1
+session.cookie_httponly=1
+session.cookie_samesite=Lax
+session.sid_length=48
+session.sid_bits_per_character=5
+session.gc_probability=1
+session.gc_divisor=1000
 EOL
-        else
-            info "PHP opcache optimized in dry run mode."
         fi
+    else
+        info "PHP opcache optimized in dry run mode."
     fi
 
     # Copy the optimized-version of php-fpm config file.
@@ -399,13 +429,15 @@ EOL
         if [[ "${DRYRUN}" != true ]]; then
             cat >> "/etc/php/${PHPv}/fpm/pool.d/www.conf" <<EOL
 ; Custom PHP ini settings for LEMPer Stack.
-php_admin_value[open_basedir] = /usr/share/nginx/html
-php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
+request_terminate_timeout = 300s
+php_admin_value[open_basedir] = /usr/share/nginx/html:/var/lib/php/lemper/www-data
+php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,pcntl_unshare,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
 php_admin_value[error_log] = /var/log/php/${PHPv}-fpm_error.\$pool.log
-php_admin_value[sys_temp_dir] = /usr/share/nginx/html/.lemper/tmp
-php_admin_value[upload_tmp_dir] = /usr/share/nginx/html/.lemper/tmp
+php_admin_flag[expose_php] = off
+php_admin_value[sys_temp_dir] = /var/lib/php/lemper/www-data/tmp
+php_admin_value[upload_tmp_dir] = /var/lib/php/lemper/www-data/tmp
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
 
 ; Configuration below can be overwritten from PHP call 'ini_set'.
@@ -419,18 +451,36 @@ php_value[upload_max_filesize] = 50M
 php_value[max_file_uploads] = 20
 php_value[default_socket_timeout] = 60
 php_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
-php_flag[display_errors] = on
-php_flag[cgi.fix_pathinfo] = 0
+php_admin_flag[display_errors] = off
+php_admin_flag[display_startup_errors] = off
+php_flag[cgi.fix_pathinfo] = off
 php_value[date.timezone] = UTC
 php_value[session.save_handler] = files
-php_value[session.save_path] = /usr/share/nginx/html/.lemper/php/sessions
-php_value[soap.wsdl_cache_dir] = /usr/share/nginx/html/.lemper/php/wsdlcache
-php_value[opcache.file_cache] = /usr/share/nginx/html/.lemper/php/opcache
+; Keep session files out of the document root: ini_set() must not relocate them.
+php_admin_value[session.save_path] = /var/lib/php/lemper/www-data/sessions
+php_value[soap.wsdl_cache_dir] = /var/lib/php/lemper/www-data/wsdlcache
+php_value[opcache.file_cache] = /var/lib/php/lemper/www-data/opcache
 php_value[opcache.error_log] = /var/log/php/php${PHPv}-opcache_error.log
+
+; Session hardening (not overridable from application code).
+php_admin_value[session.use_strict_mode] = 1
+php_admin_value[session.use_only_cookies] = 1
+php_admin_value[session.cookie_httponly] = 1
+php_admin_value[session.cookie_secure] = 0
+php_admin_value[session.cookie_samesite] = Lax
+php_admin_value[session.sid_length] = 48
+php_admin_value[session.sid_bits_per_character] = 5
+php_admin_value[session.gc_probability] = 1
+php_admin_value[session.gc_divisor] = 1000
 EOL
         else
             info "Default FPM pool optimized in dry run mode."
         fi
+    fi
+
+    # Apply resource-aware worker sizing to the default pool.
+    if [[ "${DRYRUN}" != true ]]; then
+        tune_php_pool "/etc/php/${PHPv}/fpm/pool.d/www.conf" "${RESOURCE_PROFILE}"
     fi
 
     # Copy the optimized-version of php fpm default lemper pool.
@@ -463,11 +513,13 @@ listen.mode = 0660
 
 ; Custom PHP-FPM optimization, adjust here to meet your specs.
 ; Default value here is optimized for a single CPU with at least 1GB RAM.
+; Raise pm.max_children only after checking available memory:
+; pm.max_children * memory_limit is the worst-case RAM budget.
 pm = dynamic
-pm.max_children = 30
-pm.start_servers = 5
-pm.min_spare_servers = 5
-pm.max_spare_servers = 20
+pm.max_children = 10
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
 pm.process_idle_timeout = 30s
 pm.max_requests = 500
 
@@ -476,23 +528,29 @@ ping.path = /php-fpm_ping
 
 slowlog = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_slow.log
 request_slowlog_timeout = 10s
+; Kill runaway workers even if max_execution_time is bypassed.
+request_terminate_timeout = 300s
 
 ;chroot = /home/${POOLNAME}
 chdir = /home/${POOLNAME}
 
+; Do not leak the service environment into PHP.
+clear_env = yes
+
 ;catch_workers_output = yes
 ;decorate_workers_output = no
 
-security.limit_extensions = .php .php7 .php8 .php${PHPv//./}
+security.limit_extensions = .php .php${PHPv//./}
 
 ; Custom PHP ini settings for LEMPer Stack.
-php_admin_value[open_basedir] = /home/${POOLNAME}
-php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
+php_admin_value[open_basedir] = /home/${POOLNAME}:/var/lib/php/lemper/${POOLNAME}
+php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,pcntl_unshare,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
 php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_error.log
-php_admin_value[sys_temp_dir] = /home/${POOLNAME}/.lemper/tmp
-php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.lemper/tmp
+php_admin_flag[expose_php] = off
+php_admin_value[sys_temp_dir] = /var/lib/php/lemper/${POOLNAME}/tmp
+php_admin_value[upload_tmp_dir] = /var/lib/php/lemper/${POOLNAME}/tmp
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
 
 ; Configuration below can be overwritten from PHP call 'ini_set'.
@@ -506,31 +564,47 @@ php_value[upload_max_filesize] = 50M
 php_value[max_file_uploads] = 20
 php_value[default_socket_timeout] = 60
 php_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
-php_flag[display_errors] = on
-php_flag[cgi.fix_pathinfo] = 0
+php_admin_flag[display_errors] = off
+php_admin_flag[display_startup_errors] = off
+php_flag[cgi.fix_pathinfo] = off
 php_value[date.timezone] = UTC
 php_value[session.save_handler] = files
-php_value[session.save_path] = /home/${POOLNAME}/.lemper/php/sessions
-php_value[soap.wsdl_cache_dir] = /home/${POOLNAME}/.lemper/php/wsdlcache
-php_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/php/opcache
+; Keep session files out of the document root: ini_set() must not relocate them.
+php_admin_value[session.save_path] = /var/lib/php/lemper/${POOLNAME}/sessions
+php_value[soap.wsdl_cache_dir] = /var/lib/php/lemper/${POOLNAME}/wsdlcache
+php_value[opcache.file_cache] = /var/lib/php/lemper/${POOLNAME}/opcache
 php_value[opcache.error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-opcache_error.log
+
+; Session hardening (not overridable from application code).
+php_admin_value[session.use_strict_mode] = 1
+php_admin_value[session.use_only_cookies] = 1
+php_admin_value[session.cookie_httponly] = 1
+php_admin_value[session.cookie_secure] = 0
+php_admin_value[session.cookie_samesite] = Lax
+php_admin_value[session.sid_length] = 48
+php_admin_value[session.sid_bits_per_character] = 5
+php_admin_value[session.gc_probability] = 1
+php_admin_value[session.gc_divisor] = 1000
 EOL
         else
             info "Custom FPM pool '${POOLNAME}' created in dry run mode."
         fi
     fi
 
+    # Apply resource-aware worker sizing to the LEMPer pool.
+    if [[ "${DRYRUN}" != true ]]; then
+        tune_php_pool "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf" "${RESOURCE_PROFILE}"
+    fi
+
     # Create default directories & log files.
-    run mkdir -p "/home/${POOLNAME}/.lemper/tmp"
-    run mkdir -p "/home/${POOLNAME}/.lemper/php/opcache"
-    run mkdir -p "/home/${POOLNAME}/.lemper/php/sessions"
-    run mkdir -p "/home/${POOLNAME}/.lemper/php/wsdlcache"
+    create_php_temp_dirs "${POOLNAME}"
+    create_php_temp_dirs "www-data"
     run mkdir -p "/home/${POOLNAME}/cgi-bin"
     run mkdir -p "/home/${POOLNAME}/logs/php"
     run touch "/home/${POOLNAME}/logs/php/php${PHPv}-fpm_slow.log"
     run touch "/home/${POOLNAME}/logs/php/php${PHPv}-fpm_error.log"
     run touch "/home/${POOLNAME}/logs/php/php${PHPv}-opcache_error.log"
-    run chown -hR "${POOLNAME}:${POOLNAME}" "/home/${POOLNAME}/.lemper" "/home/${POOLNAME}/cgi-bin" "/home/${POOLNAME}/logs"
+    run chown -hR "${POOLNAME}:${POOLNAME}" "/home/${POOLNAME}/cgi-bin" "/home/${POOLNAME}/logs"
 }
 
 function add_php_logrotate() {
@@ -1082,7 +1156,7 @@ function init_php_install() {
 
     # Install all selected PHP versions and extensions.
     for PHPv in "${SELECTED_PHP_VERSIONS[@]}"; do
-        IS_PKG_AVAIL=$(apt-cache search "php${PHPv}" | grep -c "${PHPv}")
+        IS_PKG_AVAIL=$(apt-cache search "php${PHPv}" | grep -c "${PHPv}" || true)
 
         if [[ "${IS_PKG_AVAIL}" -gt 0 ]]; then
             # Install PHP + default extensions.

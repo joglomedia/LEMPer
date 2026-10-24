@@ -18,39 +18,43 @@ server {
 
     root /usr/share/nginx/html;
     index index.php index.html index.htm;
+    client_max_body_size 50m;
 
+    include /etc/nginx/includes/compression_gzip.conf;
     include /etc/nginx/includes/rules_security.conf;
-    include /etc/nginx/includes/rules_staticfiles.conf;
     include /etc/nginx/includes/rules_restriction.conf;
+    include /etc/nginx/includes/rules_staticfiles.conf;
     #include /etc/nginx/includes/rules_fastcgi_cache.conf;
 
     include /etc/nginx/vhost/site_default.conf;
 
     # Nginx basic status monitoring.
     location = /nginx_status {
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+
         stub_status;
-        allow all;
-        auth_basic "Denied";
-        auth_basic_user_file /srv/.htpasswd;
         access_log off;
         log_not_found off;
     }
 
-    # PHP-FPM status monitoring.
+    # PHP-FPM status monitoring (local only).
     location ~ ^/php-fpm_(status|ping)$ {
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+
         include /etc/nginx/fastcgi_params;
-        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $fastcgi_script_name;
-        allow all;
-        auth_basic "Denied";
-        auth_basic_user_file /srv/.htpasswd;
         access_log off;
         log_not_found off;
     }
 
-    # Default PHP handler (PHP 8.3)
+    # Default PHP handler (PHP 8.4)
     location ~ \.php$ {
-        set $php_version "8.3";
+        set $php_version "8.4";
         include /etc/nginx/includes/php_handler.conf;
     }
 
@@ -75,16 +79,6 @@ server {
         include /etc/nginx/includes/php_handler.conf;
     }
 
-    location ~ \.php80$ {
-        set $php_version "8.0";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
-    location ~ \.php74$ {
-        set $php_version "7.4";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
     #include /etc/nginx/includes/error_pages.conf;
     #include /etc/nginx/includes/fcgiwrap.conf;
 }
@@ -105,6 +99,12 @@ server {
 
     root /usr/share/nginx/html;
     index index.php index.html index.htm;
+    client_max_body_size 50m;
+
+    # Apply the same hardening as the public vhosts.
+    include /etc/nginx/includes/compression_gzip.conf;
+    include /etc/nginx/includes/rules_security.conf;
+    include /etc/nginx/includes/rules_restriction.conf;
 
     # Log Settings.
     access_log /var/log/nginx/localhost.access.log lp_cache buffer=32k;
@@ -122,14 +122,35 @@ server {
         auth_basic_user_file /srv/.htpasswd;
 
         location ~ \.php$ {
+            set $php_version "8.4";
+            include /etc/nginx/includes/php_handler.conf;
+        }
+
+        # Versioned handlers inherit this location's auth_basic protection.
+        location ~ \.php84$ {
+            set $php_version "8.4";
+            include /etc/nginx/includes/php_handler.conf;
+        }
+
+        location ~ \.php83$ {
             set $php_version "8.3";
+            include /etc/nginx/includes/php_handler.conf;
+        }
+
+        location ~ \.php82$ {
+            set $php_version "8.2";
+            include /etc/nginx/includes/php_handler.conf;
+        }
+
+        location ~ \.php81$ {
+            set $php_version "8.1";
             include /etc/nginx/includes/php_handler.conf;
         }
     }
 
     # Default PHP handler
     location ~ \.php$ {
-        set $php_version "8.3";
+        set $php_version "8.4";
         include /etc/nginx/includes/php_handler.conf;
     }
 
@@ -151,16 +172,6 @@ server {
 
     location ~ \.php81$ {
         set $php_version "8.1";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
-    location ~ \.php80$ {
-        set $php_version "8.0";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
-    location ~ \.php74$ {
-        set $php_version "7.4";
         include /etc/nginx/includes/php_handler.conf;
     }
 

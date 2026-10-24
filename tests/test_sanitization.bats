@@ -8,24 +8,23 @@
 
 setup() {
     export BASE_DIR="${BATS_TEST_DIRNAME}/.."
-    # utils.sh requires a .env file — copy from .env.dist if missing.
-    if [[ ! -f "${BASE_DIR}/.env" ]]; then
-        cp "${BASE_DIR}/.env.dist" "${BASE_DIR}/.env.test"
-        ln -sf "${BASE_DIR}/.env.dist" "${BASE_DIR}/.env"
-    fi
-}
-
-teardown() {
-    # Clean up test .env symlink if we created it.
-    if [[ -L "${BASE_DIR}/.env" ]]; then
-        rm -f "${BASE_DIR}/.env" "${BASE_DIR}/.env.test"
+    if [[ -f "${BASE_DIR}/.env" ]]; then
+        export UTILS_DIR="${BASE_DIR}"
+    else
+        # Keep read-only checkouts (e.g. container mounts) usable: copy the
+        # dotenv and utils.sh into a scratch tree instead of writing to BASE_DIR.
+        export UTILS_DIR="${BATS_TEST_TMPDIR}/lemper"
+        mkdir -p "${UTILS_DIR}/scripts"
+        cp "${BASE_DIR}/scripts/utils.sh" "${UTILS_DIR}/scripts/utils.sh"
+        cp "${BASE_DIR}/.env.dist" "${UTILS_DIR}/.env"
     fi
 }
 
 load_utils() {
-    # Source utils.sh — all validation functions are defined after the
-    # .env loading block, so they're available without side effects.
-    . "${BASE_DIR}/scripts/utils.sh"
+    # utils.sh re-derives BASE_DIR from its own path; drop the test-scoped
+    # value so the dotenv is resolved next to the copied utils.sh.
+    unset BASE_DIR
+    . "${UTILS_DIR}/scripts/utils.sh"
 }
 
 # ---------------------------------------------------------------------------

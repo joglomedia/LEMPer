@@ -3,6 +3,9 @@
 .env.bak
 .env.save
 .travis.yml
+.agents/
+.codex/
+.qoder/
 dev-notes.md
 install.log
 lemper.log

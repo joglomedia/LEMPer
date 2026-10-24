@@ -12,6 +12,12 @@ setup() {
     export BASE_DIR="${BATS_TEST_DIRNAME}/.."
 }
 
+# Assert that grep finds no match. Unlike "! grep", this fails the test reliably.
+refute_grep() {
+    run grep "$@"
+    [ "${status}" -ne 0 ]
+}
+
 @test "install.sh is a thin wrapper that sources lemper_stacks.sh" {
     # install.sh should NOT contain inline lemper_install function body
     local inline_count
@@ -150,17 +156,17 @@ setup() {
 
 @test "database passwords are not passed as mysql CLI arguments" {
     grep -q 'MYSQL_PWD=' "${BASE_DIR}/lib/lemper-db.sh"
-    ! grep -rqE '(mariadb|mysql|mysqldump)[^|]*(-p"|--password=)' "${BASE_DIR}/lib" "${BASE_DIR}/scripts"
+    refute_grep -rqE '(mariadb|mysql|mysqldump)[^|]*(-p"|--password=)' "${BASE_DIR}/lib" "${BASE_DIR}/scripts"
 }
 
 @test "scheduled database backups keep passwords out of crontab" {
     grep -q -- '--dbpass-file=' "${BASE_DIR}/lib/lemper-db.sh"
-    ! grep -q 'CRON_CMD=.*--dbpass=' "${BASE_DIR}/lib/lemper-db.sh"
+    refute_grep -q 'CRON_CMD=.*--dbpass=' "${BASE_DIR}/lib/lemper-db.sh"
 }
 
 @test "installer supplies app database password via environment" {
     grep -q 'LEMPER_DB_PASSWORD=' "${BASE_DIR}/lib/lemper-create.sh"
-    ! grep -q 'db account create.*--dbpass=' "${BASE_DIR}/lib/lemper-create.sh"
+    refute_grep -q 'db account create.*--dbpass=' "${BASE_DIR}/lib/lemper-create.sh"
 }
 
 @test "install_crowdsec.sh and remove_crowdsec.sh exist" {
@@ -214,7 +220,7 @@ setup() {
 @test "install_modsec.sh generates tuning config without placeholders" {
     grep -q 'lemper-tuning.conf' "${BASE_DIR}/scripts/install_modsec.sh"
     grep -q 'MODSEC_PARANOIA_LEVEL' "${BASE_DIR}/scripts/install_modsec.sh"
-    ! grep -q '{@SEC_BODY_LIMIT}' "${BASE_DIR}/scripts/install_modsec.sh"
+    refute_grep -q '{@SEC_BODY_LIMIT}' "${BASE_DIR}/scripts/install_modsec.sh"
 }
 
 @test "install_modsec.sh and remove_modsec.sh exist" {
@@ -264,3 +270,222 @@ setup() {
 @test "Podman test script defaults to Ubuntu 24.04" {
     grep -q 'ubuntu:24.04' "${BASE_DIR}/scripts/test_podman.sh"
 }
+
+@test "PHP-FPM pools keep temp files outside user homes (SEC-12)" {
+    grep -q 'var/lib/php/lemper' "${BASE_DIR}/lib/lemper-create.sh"
+    grep -q 'var/lib/php/lemper' "${BASE_DIR}/scripts/install_php.sh"
+    refute_grep -q '\.lemper/tmp' "${BASE_DIR}/lib/lemper-create.sh"
+    refute_grep -q '\.lemper/tmp' "${BASE_DIR}/scripts/install_php.sh"
+    refute_grep -rq '\.lemper/php' "${BASE_DIR}/etc/php"
+}
+
+@test "unit test suite covers validators, PHP temp dirs, and DB backup/restore" {
+    [ -f "${BASE_DIR}/tests/unit/validators.bats" ]
+    [ -f "${BASE_DIR}/tests/unit/php_temp_dirs.bats" ]
+    [ -f "${BASE_DIR}/tests/unit/db_backup_restore.bats" ]
+    grep -q 'db_backup_database' "${BASE_DIR}/lib/lemper-db.sh"
+    grep -q 'db_restore_database' "${BASE_DIR}/lib/lemper-db.sh"
+}
+
+@test "nginx blocks hidden files but keeps ACME challenges reachable (SEC-13)" {
+    local cfg="${BASE_DIR}/etc/nginx/includes/rules_restriction.conf"
+    local well_line deny_line
+    well_line=$(grep -nF 'location ~ ^/.well-known/' "${cfg}" | head -1 | cut -d: -f1)
+    deny_line=$(grep -nE '^location ~ /\\\.' "${cfg}" | head -1 | cut -d: -f1)
+    [ -n "${well_line}" ]
+    [ -n "${deny_line}" ]
+    [ "${well_line}" -lt "${deny_line}" ]
+}
+
+@test "restriction rules are included before static-file rules" {
+    local gen="${BASE_DIR}/lib/lemper-create.sh"
+    local restrict_line static_line
+    restrict_line=$(grep -n 'rules_restriction.conf' "${gen}" | head -1 | cut -d: -f1)
+    static_line=$(grep -n 'rules_staticfiles.conf' "${gen}" | head -1 | cut -d: -f1)
+    [ "${restrict_line}" -lt "${static_line}" ]
+}
+
+@test "static file locations preserve security headers" {
+    local cfg="${BASE_DIR}/etc/nginx/includes/rules_staticfiles.conf"
+    grep -qF 'include /etc/nginx/includes/security_headers.conf;' "${cfg}"
+    # JSON is not cached for a year as immutable.
+    refute_grep -qE '\\\.\(\?:wasm\|json\|map\)' "${cfg}"
+    grep -qE '\\\.\(\?:wasm\|map\)' "${cfg}"
+}
+
+@test "PHP-FPM pools disable error display and harden sessions (SEC-14)" {
+    local v pool conf
+    for v in 8.1 8.2 8.3 8.4; do
+        for pool in lemper www; do
+            conf="${BASE_DIR}/etc/php/${v}/fpm/pool.d/${pool}.conf"
+            grep -qF 'php_admin_flag[display_errors] = off' "${conf}"
+            grep -qF 'php_admin_flag[display_startup_errors] = off' "${conf}"
+            grep -qF 'php_admin_flag[expose_php] = off' "${conf}"
+            grep -qF 'request_terminate_timeout = 300s' "${conf}"
+            grep -qF 'php_admin_value[session.use_strict_mode] = 1' "${conf}"
+            grep -qF 'php_admin_value[session.cookie_httponly] = 1' "${conf}"
+            grep -qF 'php_admin_value[session.cookie_samesite] = Lax' "${conf}"
+            # Session files must not be relocatable into the document root.
+            grep -qF 'php_admin_value[session.save_path]' "${conf}"
+            refute_grep -qF 'php_value[session.save_path]' "${conf}"
+        done
+    done
+    grep -qF 'php_admin_flag[display_errors] = off' "${BASE_DIR}/lib/lemper-create.sh"
+    grep -qF 'php_admin_flag[display_errors] = off' "${BASE_DIR}/scripts/install_php.sh"
+    refute_grep -qF 'php_flag[display_errors] = on' "${BASE_DIR}/lib/lemper-create.sh"
+    refute_grep -qF 'php_flag[display_errors] = on' "${BASE_DIR}/scripts/install_php.sh"
+    # FPM php_flag only accepts on/off-style booleans, not "0".
+    refute_grep -rqF 'php_flag[cgi.fix_pathinfo] = 0' "${BASE_DIR}/lib" "${BASE_DIR}/scripts" "${BASE_DIR}/etc/php"
+    grep -qF 'php_flag[cgi.fix_pathinfo] = off' "${BASE_DIR}/lib/lemper-create.sh"
+}
+
+@test "FastCGI cache respects application cache headers (SEC-15)" {
+    local cache="${BASE_DIR}/etc/nginx/includes/fastcgi_cache.conf"
+    refute_grep -qE 'fastcgi_ignore_headers.*(Set-Cookie|Vary|Cache-Control)' "${cache}"
+    refute_grep -qE '^fastcgi_cache_valid any' "${cache}"
+    grep -qF 'fastcgi_ignore_headers Expires X-Accel-Expires;' "${cache}"
+    # shellcheck disable=SC2016 # literal nginx variables
+    grep -qF 'fastcgi_cache_key "$scheme$host$cache_uri";' "${BASE_DIR}/etc/nginx/fastcgi_cache"
+    # shellcheck disable=SC2016 # literal nginx variables
+    grep -qF 'fastcgi_cache_purge LEMPERCACHE "$scheme$host$1";' "${BASE_DIR}/etc/nginx/includes/rules_fastcgi_cache.conf"
+    # Directives unsupported by the packaged ngx_cache_purge must not be used.
+    refute_grep -rq 'cache_purge_response_type' "${BASE_DIR}/etc/nginx"
+}
+
+@test "generated PHP locations reject missing scripts and scope FPM status" {
+    local gen="${BASE_DIR}/lib/lemper-create.sh"
+    # shellcheck disable=SC2016 # generator escapes the literal $uri
+    [ "$(grep -cF 'try_files \$uri =404;' "${gen}")" -ge 4 ]
+    refute_grep -q 'allow all;' "${gen}"
+    refute_grep -qE 'location ~ \\\.php \{' "${gen}"
+    grep -qE 'location ~ \^/php-fpm_\(status\|ping\)\$' "${gen}"
+}
+
+@test "HSTS is not preloaded by default" {
+    local ssl="${BASE_DIR}/etc/nginx/includes/ssl.conf"
+    refute_grep -qE '^add_header Strict-Transport-Security .*preload' "${ssl}"
+    grep -qE '^add_header Strict-Transport-Security "max-age=31536000"' "${ssl}"
+}
+
+@test "installer enables opcache for every PHP version" {
+    grep -q 'opcache.enable=1' "${BASE_DIR}/scripts/install_php.sh"
+    grep -q 'Custom Optimization for LEMPer' "${BASE_DIR}/scripts/install_php.sh"
+}
+
+@test "admin vhosts apply the same restriction rules" {
+    local f
+    for f in "${BASE_DIR}/etc/nginx/sites-available/default" \
+             "${BASE_DIR}/etc/nginx/sites-available/default-ssl"; do
+        [ "$(grep -c 'rules_security.conf' "${f}")" -ge 2 ]
+        [ "$(grep -c 'rules_restriction.conf' "${f}")" -ge 2 ]
+    done
+}
+
+@test "compression config does not leak the stack name" {
+    refute_grep -q 'X-Powered-By' "${BASE_DIR}/etc/nginx/includes/compression_gzip.conf"
+}
+
+@test "cache_static template preserves security headers" {
+    grep -qF 'include /etc/nginx/includes/security_headers.conf;' \
+        "${BASE_DIR}/etc/nginx/includes/cache_static.conf"
+}
+
+@test "FastCGI cache honors client revalidation requests" {
+    local maps="${BASE_DIR}/etc/nginx/fastcgi_cache"
+    local cache="${BASE_DIR}/etc/nginx/includes/fastcgi_cache.conf"
+    grep -qF 'http_cache_control' "${maps}"
+    grep -qF 'skip_cache_control' "${maps}"
+    grep -qF 'skip_cache_control' "${cache}"
+}
+
+@test "restriction rules deny backups and dumps" {
+    grep -qF 'sql|sqlite|db|dump' "${BASE_DIR}/etc/nginx/includes/rules_restriction.conf"
+}
+
+@test "restriction rules deny PHP session files in web roots" {
+    local cfg="${BASE_DIR}/etc/nginx/includes/rules_restriction.conf"
+    grep -qF '/sess_[' "${cfg}"
+}
+
+@test "static SVG responses are sandboxed" {
+    local cfg="${BASE_DIR}/etc/nginx/includes/rules_staticfiles.conf"
+    grep -qF 'Content-Security-Policy' "${cfg}"
+    grep -qF 'sandbox' "${cfg}"
+}
+
+@test "generated vhosts enable gzip compression" {
+    local gen="${BASE_DIR}/lib/lemper-create.sh"
+    [ "$(grep -c '^    include /etc/nginx/includes/compression_gzip.conf;' "${gen}")" -ge 4 ]
+    grep -qF 'include /etc/nginx/includes/compression_gzip.conf;' \
+        "${BASE_DIR}/etc/nginx/sites-available/default"
+}
+
+@test "installer selects the low-end Nginx template on micro hosts" {
+    local lowend="${BASE_DIR}/etc/nginx/nginx-lowend.conf"
+    [ -f "${lowend}" ]
+    grep -qF 'worker_processes 1;' "${lowend}"
+    grep -qF 'worker_connections 512;' "${lowend}"
+    grep -qF 'open_file_cache max=10000' "${lowend}"
+    refute_grep -qE '^[[:space:]]*aio[[:space:]]+threads' "${lowend}"
+    grep -qF 'fastcgi_https_map' "${lowend}"
+    grep -qF 'sites-enabled' "${lowend}"
+    grep -qF 'nginx-lowend.conf' "${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+    grep -qF 'detect_resource_profile' "${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+}
+
+@test "resource profile knobs are documented in .env.dist" {
+    local envfile="${BASE_DIR}/.env.dist"
+    grep -qE '^SERVER_PROFILE="' "${envfile}"
+    grep -qE '^PHP_FPM_MAX_CHILDREN="' "${envfile}"
+    grep -qE '^PHP_MEMORY_LIMIT="' "${envfile}"
+    grep -qE '^OPCACHE_MEMORY_MB="' "${envfile}"
+    grep -qE '^SESSION_COOKIE_SECURE=' "${envfile}"
+    grep -qE '^NGINX_ETAG="' "${envfile}"
+    grep -qE '^DENY_ARCHIVE_FILES=' "${envfile}"
+}
+
+@test "PHP installer applies the resource profile to pools and opcache" {
+    local install="${BASE_DIR}/scripts/install_php.sh"
+    grep -qF 'detect_resource_profile' "${install}"
+    grep -qF 'tune_php_pool' "${install}"
+    # shellcheck disable=SC2016
+    grep -qF 'opcache.memory_consumption=${OPCACHE_MEM}' "${install}"
+    grep -qF 'calc_php_pool_sizing' "${BASE_DIR}/lib/lemper-create.sh"
+}
+
+@test "MariaDB installer applies the resource profile" {
+    local install="${BASE_DIR}/scripts/install_mariadb.sh"
+    grep -qF 'tune_mariadb_config' "${install}"
+    grep -qF 'calc_mariadb_sizing' "${install}"
+    grep -qF '99-lemper-tuning.cnf' "${install}"
+    grep -qF 'innodb_buffer_pool_size' "${install}"
+}
+
+@test "session cookie Secure is configurable per pool" {
+    local v pool conf
+    for v in 8.1 8.2 8.3 8.4; do
+        for pool in lemper www; do
+            conf="${BASE_DIR}/etc/php/${v}/fpm/pool.d/${pool}.conf"
+            grep -qF 'php_admin_value[session.cookie_secure] = 0' "${conf}"
+        done
+    done
+    # shellcheck disable=SC2016
+    grep -qF 'php_admin_value[session.cookie_secure] = ${COOKIE_SECURE}' \
+        "${BASE_DIR}/lib/lemper-create.sh"
+    grep -qF 'php_admin_value[session.cookie_secure]' "${BASE_DIR}/scripts/install_php.sh"
+}
+
+@test "archive deny rules are shipped but opt-in" {
+    [ -f "${BASE_DIR}/etc/nginx/includes/rules_archives.conf" ]
+    grep -qF '#include /etc/nginx/includes/rules_archives.conf;' \
+        "${BASE_DIR}/etc/nginx/includes/rules_restriction.conf"
+    grep -qF 'DENY_ARCHIVE_FILES' "${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+}
+
+@test "rate limiting is wired through the shared security include" {
+    local sec="${BASE_DIR}/etc/nginx/includes/rules_security.conf"
+    grep -qF '#limit_req zone=req_limit_per_ip' "${sec}"
+    grep -qF '#limit_conn conn_limit_per_ip' "${sec}"
+    grep -qF 'rules_security.conf' "${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+}
+

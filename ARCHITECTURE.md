@@ -123,11 +123,16 @@ LEMPer/
 ├── lemper.sh                      # Interactive installer (~551 lines, 551 lines)
 ├── remove.sh                      # Standalone uninstaller (~48 lines, wrapper)
 ├── tests/
-│   ├── test_helper.bash
-│   ├── test_sanitization.bats    # Input sanitization (9 tests)
-│   ├── test_structure.bats        # Structural integrity (35 tests)
-│   └── test_syntax.bats           # ShellCheck + bash -n (2 tests)
-└── .github/workflows/main.yml    # CI: ShellCheck + bats (44 tests)
+│   ├── test_sanitization.bats     # Input sanitization (9 tests)
+│   ├── test_structure.bats        # Structural integrity (68 tests)
+│   ├── test_syntax.bats           # ShellCheck + bash -n (2 tests)
+│   └── unit/                      # Mock-based unit tests (18 tests)
+│       ├── env_helper.bash
+│       ├── validators.bats
+│       ├── php_temp_dirs.bats
+│       ├── db_backup_restore.bats
+│       └── resource_profile.bats
+└── .github/workflows/main.yml     # CI: ShellCheck + bats (97 tests)
 ```
 
 ### 2.2 Execution Flow
@@ -210,14 +215,46 @@ lemper-cli <command> [subcommand] [options]
 | `/srv/.htpasswd` | Web auth users | ✅ Yes (password hashes) |
 
 The `.env` file uses a pseudo-INI format with `[section]` headers that Bash's `source` cannot
-parse natively. The loader strips comments and sections, then `eval`s each `key=value` line:
+parse natively. `utils.sh` loads it through `safe_parse_dotenv()`, which:
 
-```bash
-source <(grep -v '^#' "${ENVFILE}" | grep -v '^\[' | \
-    sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
-```
+1. Skips comments, blank lines, and `[section]` headers.
+2. Splits each line on the first `=` using `IFS` (never `eval`).
+3. Validates the key against `^[A-Za-z_][A-Za-z0-9_]*$` to prevent injection.
+4. Strips optional surrounding quotes from the value.
 
-This pattern is used in both `utils.sh` and `bin/lemper-cli.sh`.
+Values already present in the file override caller-supplied environment variables — so
+one-off overrides must be written to `.env` (or use variables absent from it, such as
+`LEMPER_PROFILE`).
+
+#### 2.3.1 Resource Profiles
+
+`detect_resource_profile()` in `utils.sh` classifies the host from `MemTotal` in
+`/proc/meminfo`, reduced by the cgroup v1/v2 memory limit when the installer runs inside a
+container or slice:
+
+| Profile | RAM | FPM `max_children` cap | Opcache (MB / strings MB / files) | Nginx | MariaDB (buffer pool / conns / perf schema) |
+|---|---|---|---|---|---|
+| `micro` | < 1 GiB | 4 | 64 / 8 / 8000 | `nginx-lowend.conf`, 1 worker, 512 connections | 128M / 30 / OFF |
+| `small` | 1–2 GiB | 6 | 128 / 16 / 16229 | 1024 connections, 50k open-file cache | 256M / 50 / OFF |
+| `medium` | 2–4 GiB | 10 | 256 / 32 / 32531 | 2048 connections, 200k open-file cache | 512M / 75 / ON |
+| `large` | ≥ 4 GiB | 16 | 512 / 64 / 32531 | one worker per core | 1G (2G on ≥ 8 GiB) / 100 / ON |
+
+`calc_php_max_children()` further caps workers to 35% of RAM, assuming each worker costs
+`memory_limit / 3` (minimum 64 MiB). `calc_php_pool_sizing()` derives `start_servers`,
+`min_spare_servers`, and `max_spare_servers` while preserving the FPM invariant
+`min_spare ≤ start ≤ max_spare`.
+
+Overrides:
+
+- `SERVER_PROFILE` in `.env` (or `LEMPER_PROFILE` in the environment) forces a profile.
+- `PHP_FPM_MAX_CHILDREN` overrides the computed worker count.
+- `PHP_MEMORY_LIMIT` and `OPCACHE_MEMORY_MB` change the sizing inputs.
+
+The tuning is applied at install time to the shipped `www` pool, to pools created by
+`lemper site create`, to nginx through `nginx_post_install.sh`, and to MariaDB through the
+generated `/etc/mysql/mariadb.conf.d/99-lemper-tuning.cnf` drop-in. Smaller profiles
+disable `performance_schema` to reclaim memory; large hosts cap the buffer pool so PHP
+and nginx keep headroom.
 
 ### 2.4 Plugin Architecture (CLI)
 
@@ -249,19 +286,21 @@ The GitHub Actions workflow (`.github/workflows/main.yml`) runs on every push/PR
    Toggled for CI: `REDIS_BACKEND="valkey"`, `INSTALL_CROWDSEC=true`,
    `ACME_WILDCARD=true`, `INSTALL_MODSEC=true`, `ENCRYPT_CONFIG_AT_REST=true`.
 2. **ShellCheck:** Runs `shellcheck -s bash -x` on every script file — **exit 0**.
-3. **Bats Tests:** Runs `bats tests/` — **44/44 pass** across 4 test files.
+3. **Bats Tests:** Runs `bats tests/ tests/unit/` — **97/97 pass** across 8 test files.
 
-**Test coverage (44 tests):**
+**Test coverage (97 tests):**
 - `test_sanitization.bats` — 9 tests (FQDN, IPv4, username, sed injection sanitization)
-- `test_structure.bats` — 35 tests (project structure, wiring, config flags)
+- `test_structure.bats` — 68 tests (project structure, wiring, config flags, temp-dir isolation, Nginx/PHP hardening, resource profiles)
 - `test_syntax.bats` — 2 tests (bash -n + shellcheck on all scripts)
+- `unit/validators.bats` — 6 tests (validators, sanitizers, mocked nginx)
+- `unit/php_temp_dirs.bats` — 2 tests (mock-based temp-dir creation)
+- `unit/db_backup_restore.bats` — 4 tests (mocked DB backup/restore)
+- `unit/resource_profile.bats` — 6 tests (RAM detection, profile selection, FPM/MariaDB sizing, pool tuning)
 
 **Limitations:**
 - No code coverage reporting.
-- Tests are structural (grep-based) + syntax — no mock-based unit tests.
 - No security scanning (bandit, semgrep, lynis as code).
 - Only runs on `ubuntu-latest` (no Debian matrix).
-- `sed -i` usage throughout codebase is not portable to macOS.
 
 ### 2.6 Dependency Model
 
@@ -334,7 +373,21 @@ and the dotenv-sourced environment variables being in scope.
 | SEC-09 | `fial` typo (undefined function) | Medium | `lemper-create.sh`, `lemper-db.sh` | ✅ **Fixed** (Phase 0) |
 | SEC-10 | No input sanitization on domain → `sed`/`openssl` | Medium | `lemper-selfssl.sh`, `lemper-create.sh` | ✅ **Fixed** — `validate_fqdn()` + `sanitize_sed_replacement()` in `utils.sh` |
 | SEC-11 | Credentials stored in `/etc/lemper/lemper.conf` without encryption | High | `utils.sh:846-851` | ✅ **Partially fixed** — `ENCRYPT_CONFIG_AT_REST` option available (default off) |
-| SEC-12 | Open_basedir tmp dirs under `~/.lemper` may leak | Medium | `lemper-create.sh` | ⚠️ **Open** — noted, low immediate risk |
+| SEC-12 | Open_basedir tmp dirs under `~/.lemper` may leak | Medium | `lemper-create.sh` | ✅ **Fixed** — temp/session dirs moved to `/var/lib/php/lemper/<pool>` (0700) |
+| SEC-13 | Hidden files (`.env`, `.git/`, backups) served by Nginx | Critical | `rules_restriction.conf` | ✅ **Fixed** — hidden-file deny enabled; `.well-known` still allowed |
+| SEC-14 | PHP error disclosure via `display_errors = on` in pools | High | `etc/php/*/fpm/pool.d/*.conf` | ✅ **Fixed** — disabled, errors go to the pool log |
+| SEC-15 | FastCGI cache ignored `Set-Cookie`/`Cache-Control`/`Vary` | High | `fastcgi_cache.conf` | ✅ **Fixed** — only `Expires`/`X-Accel-Expires` ignored; cache key/purge aligned |
+| SEC-16 | Session cookies lacked `HttpOnly`/`SameSite`/strict mode | High | all FPM pools | ✅ **Fixed** — enforced via `php_admin_value`, 48-char session IDs |
+| SEC-17 | FPM status/ping reachable from any client | Medium | vhost generators, default sites | ✅ **Fixed** — localhost only |
+| SEC-18 | `/lcp/phpinfo.php84` bypassed basic auth | High | `sites-available/default*` | ✅ **Fixed** — versioned handlers nested under `/lcp` |
+| SEC-19 | HSTS `preload; includeSubDomains` on by default | Medium | `ssl.conf` | ✅ **Fixed** — host-only default; opt-in stronger variant |
+| SEC-20 | Admin vhosts (8082/8083) bypassed restriction rules | High | `sites-available/default*` | ✅ **Fixed** — same security/restriction includes as public vhosts |
+| SEC-21 | `X-Powered-By: LEMPer/Gzip` advertised the stack | Low | `compression_gzip.conf` | ✅ **Fixed** — header removed |
+| SEC-22 | `cache_static.conf` dropped inherited security headers | Medium | `cache_static.conf` | ✅ **Fixed** — security headers re-included |
+| SEC-23 | Backup/dump files (`.bak`, `.old`, `.sql`, `.sqlite`, `.db`) served | High | `rules_restriction.conf` | ✅ **Fixed** — denied |
+| SEC-24 | SVG files served without sandboxing | Medium | `rules_staticfiles.conf` | ✅ **Fixed** — `CSP sandbox` on SVG responses |
+| SEC-25 | `session.save_path` was app-overridable, allowing session files in the doc root | High | `install_php.sh`, pool templates | ✅ **Fixed** — `php_admin_value`, `ini_set()` cannot relocate sessions |
+| SEC-26 | PHP session files (`sess_*`) left in a web root were served | High | `rules_restriction.conf` | ✅ **Fixed** — denied as defense-in-depth |
 
 ---
 
@@ -461,7 +514,7 @@ in place as a future-enhancement path.
 |---|---|---|---|
 | **Language** | Bash 4+ | Bash 5+ | ✅ Achieved |
 | **ShellCheck** | v0.10.0 | Latest | ✅ v0.11.0 locally, v0.10.0 in CI — both exit 0 |
-| **Test framework** | shunit2 | shunit2 + bats-core | ✅ bats-core 1.14.0, 44 tests |
+| **Test framework** | shunit2 | shunit2 + bats-core | ✅ bats-core 1.14.0, 97 tests |
 | **CI** | GitHub Actions | GitHub Actions (enhanced) | ✅ ShellCheck + bats matrix |
 | **Web server** | Nginx (repo or source) | Nginx (repo default, source optional) | ✅ |
 | **PHP** | 5.6–8.4 (EOL versions in templates) | 8.1–8.4 (Ondřej's PPA) | ✅ EOL removed from installer, stale templates remain |

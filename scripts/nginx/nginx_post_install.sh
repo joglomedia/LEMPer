@@ -19,11 +19,21 @@ function configure_nginx_files() {
 
     local SOURCE_DIR="${1:-.}"
 
+    # Pick the main config template that matches the server profile.
+    local RESOURCE_PROFILE NGINX_CONF_SRC
+    RESOURCE_PROFILE=$(detect_resource_profile)
+    NGINX_CONF_SRC="${SOURCE_DIR}/etc/nginx/nginx.conf"
+
+    if [[ "${RESOURCE_PROFILE}" == "micro" ]]; then
+        NGINX_CONF_SRC="${SOURCE_DIR}/etc/nginx/nginx-lowend.conf"
+    fi
+
     # Backup existing nginx.conf
     [[ -f /etc/nginx/nginx.conf ]] && run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf~
 
     # Copy main configuration files
-    run cp -f "${SOURCE_DIR}/etc/nginx/nginx.conf" /etc/nginx/
+    run cp -f "${NGINX_CONF_SRC}" /etc/nginx/nginx.conf
+    info "Applied Nginx '${RESOURCE_PROFILE}' resource profile."
     run cp -f "${SOURCE_DIR}/etc/nginx/charset" /etc/nginx/
     run cp -f "${SOURCE_DIR}/etc/nginx/fastcgi_cache" /etc/nginx/
     run cp -f "${SOURCE_DIR}/etc/nginx/fastcgi_https_map" /etc/nginx/
@@ -79,11 +89,15 @@ EOL
         fi
     fi
 
-    # Custom tmp, PHP opcache & sessions dir
-    run mkdir -p /usr/share/nginx/html/.lemper/tmp
-    run mkdir -p /usr/share/nginx/html/.lemper/php/sessions
-    run mkdir -p /usr/share/nginx/html/.lemper/php/opcache
-    run mkdir -p /usr/share/nginx/html/.lemper/php/wsdlcache
+    # Custom PHP tmp, opcache & sessions dir (outside the web root).
+    run mkdir -p /var/lib/php/lemper/www-data/tmp
+    run mkdir -p /var/lib/php/lemper/www-data/sessions
+    run mkdir -p /var/lib/php/lemper/www-data/opcache
+    run mkdir -p /var/lib/php/lemper/www-data/wsdlcache
+    run chmod 700 /var/lib/php/lemper/www-data /var/lib/php/lemper/www-data/tmp \
+        /var/lib/php/lemper/www-data/sessions /var/lib/php/lemper/www-data/opcache \
+        /var/lib/php/lemper/www-data/wsdlcache
+    run chown -hR www-data:www-data /var/lib/php/lemper/www-data
 
     # Fix ownership
     [[ -d /usr/share/nginx/html ]] && run chown -hR www-data:www-data /usr/share/nginx/html
@@ -96,16 +110,18 @@ EOL
 function configure_nginx_performance() {
     echo "Customizing Nginx configuration..."
 
-    # Get CPU count
-    local CPU_CORES
+    # Get CPU count and resource profile.
+    local CPU_CORES RESOURCE_PROFILE
     CPU_CORES=$(get_cpu_cores)
+    RESOURCE_PROFILE=$(detect_resource_profile)
 
-    # Adjust worker processes
-    if [[ "${CPU_CORES}" -gt 1 ]]; then
-        sed_inplace "s/worker_processes\ auto/worker_processes\ ${CPU_CORES}/g" /etc/nginx/nginx.conf
-    fi
+    # Adjust worker processes: one per core, a single worker on micro hosts.
+    local WORKERS=${CPU_CORES}
+    [[ "${RESOURCE_PROFILE}" == "micro" ]] && WORKERS=1
 
-    # Adjust worker connections based on CPU cores
+    sed_inplace "s/^worker_processes .*/worker_processes ${WORKERS};/" /etc/nginx/nginx.conf
+
+    # Adjust worker connections based on CPU cores, capped by profile.
     local NGX_CONNECTIONS
     case ${CPU_CORES} in
         1)       NGX_CONNECTIONS=1024 ;;
@@ -113,12 +129,43 @@ function configure_nginx_performance() {
         *)       NGX_CONNECTIONS=4096 ;;
     esac
 
-    sed_inplace "s/worker_connections\ 4096/worker_connections\ ${NGX_CONNECTIONS}/g" /etc/nginx/nginx.conf
+    case "${RESOURCE_PROFILE}" in
+        micro)  (( NGX_CONNECTIONS > 512 ))  && NGX_CONNECTIONS=512 ;;
+        small)  (( NGX_CONNECTIONS > 1024 )) && NGX_CONNECTIONS=1024 ;;
+        medium) (( NGX_CONNECTIONS > 2048 )) && NGX_CONNECTIONS=2048 ;;
+    esac
 
-    # Configure rate limiting if enabled
+    sed_inplace "s/^\( *\)worker_connections .*/\1worker_connections ${NGX_CONNECTIONS};/" \
+        /etc/nginx/nginx.conf
+
+    # Shrink the open file cache on constrained hosts.
+    local OFC_MAX
+    case "${RESOURCE_PROFILE}" in
+        micro) OFC_MAX=10000 ;;
+        small) OFC_MAX=50000 ;;
+        *)     OFC_MAX=200000 ;;
+    esac
+
+    sed_inplace "s/open_file_cache max=[0-9]*/open_file_cache max=${OFC_MAX}/" /etc/nginx/nginx.conf
+
+    # ETag: off hides inode metadata, on enables 304 revalidation for statics.
+    local ETAG_VALUE="${NGINX_ETAG:-off}"
+    [[ "${ETAG_VALUE}" == "on" || "${ETAG_VALUE}" == "off" ]] || ETAG_VALUE="off"
+    sed_inplace "s/^etag .*/etag ${ETAG_VALUE};/" /etc/nginx/nginx.conf
+
+    # Configure rate limiting if enabled.
     if [[ "${NGINX_RATE_LIMITING:-false}" == true ]]; then
         sed_inplace "s|#limit_|limit_|g" /etc/nginx/nginx.conf
-        sed_inplace "s|rate=10r\/s|rate=${NGINX_RATE_LIMIT_REQUESTS:-10}r\/s|g" /etc/nginx/nginx.conf
+        sed_inplace "s|rate=10r/s|rate=${NGINX_RATE_LIMIT_REQUESTS:-10}r/s|g" /etc/nginx/nginx.conf
+        # Apply the limits to every vhost via the shared security include.
+        sed_inplace "s|^#limit_req zone=|limit_req zone=|" /etc/nginx/includes/rules_security.conf
+        sed_inplace "s|^#limit_conn conn=|limit_conn conn=|" /etc/nginx/includes/rules_security.conf
+    fi
+
+    # Deny downloadable archives left in web roots when requested.
+    if [[ "${DENY_ARCHIVE_FILES:-false}" == true ]]; then
+        sed_inplace "s|^#include /etc/nginx/includes/rules_archives.conf;|include /etc/nginx/includes/rules_archives.conf;|" \
+            /etc/nginx/includes/rules_restriction.conf
     fi
 
     # Enable Headers More if available
@@ -151,11 +198,7 @@ function configure_fastcgi_cache_access() {
 
     if [[ -n "${ALLOWED_SERVER_IPV6}" ]]; then
         sed_inplace "s|#allow\ SERVER_IPV6|allow\ ${ALLOWED_SERVER_IPV6}|g" /etc/nginx/includes/rules_fastcgi_cache.conf
-        ALLOWED_SERVER_IP="${ALLOWED_SERVER_IP} ${ALLOWED_SERVER_IPV6}"
     fi
-
-    sed_inplace "s|allow_SERVER_IP|${ALLOWED_SERVER_IP}|g" /etc/nginx/includes/rules_fastcgi_cache.conf
-    sed_inplace "s|#fastcgi_cache_purge\ PURGE|fastcgi_cache_purge\ PURGE|g" /etc/nginx/includes/rules_fastcgi_cache.conf
 }
 
 ##
