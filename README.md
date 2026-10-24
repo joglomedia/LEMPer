@@ -20,7 +20,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 ## Features
 
 * Nginx - A high performance web server and a reverse proxy server.
-  * Community package from [Ondrej repo](https://launchpad.net/~ondrej/+archive/ubuntu/nginx) or @eilandert's [MyGuard repo](https://deb.myguard.nl/nginx-modules/) with built-in modules.
+  * Community packages from @eilandert's [MyGuard repo](https://deb.myguard.nl/nginx-modules/) (default, includes the module packages) or built from source. The Ondřej nginx repository is no longer published.
   * Custom build from [source](https://github.com/nginx/nginx) featured with :
     * [Brotli module](https://github.com/google/ngx_brotli.git) an alternative compression to Gzip
     * [Lua Nginx module](https://github.com/openresty/lua-nginx-module) with LuaJIT 2 library
@@ -33,8 +33,9 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
   * Free SSL certificates from [Let's Encrypt](https://letsencrypt.org/).
   * Get an A+ grade on several SSL Security Test ([Qualys SSL Labs](https://www.ssllabs.com/ssltest/analyze.html?d=masedi.net), [ImmuniWeb](https://www.immuniweb.com/ssl/?id=bVrykFnK), and Wormly).
 * PHP - Most used language that [powers 78.9% of all websites](https://w3techs.com/technologies/details/pl-php) around the universe.
-  * Community package from [Ondrej's PHP repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
-  * Multiple PHP versions: 8.1 [EOL], 8.2 [Security], 8.3 [Stable], 8.4 [Security], 8.5 [Latest, default].
+  * Community packages from [Ondřej's PHP repository](https://launchpad.net/~ondrej/+archive/ubuntu/php) (Sury on Debian).
+  * Multiple PHP versions: 8.1 [EOL], 8.2 [Security], 8.3 [Security], 8.4 [Active], 8.5 [Latest, default].
+  * PHP extensions are installed from apt repositories (Ondřej/Sury, plus the OpenSwoole PPA when selected). PECL/PEAR is no longer bundled: `geoip` and `mcrypt` are abandoned and excluded, and extensions with no package are reported so they can be built manually with [PIE](https://github.com/php/pie).
   * In-place security updater (`lemper-cli update`) with compensating controls for EOL branches.
   * Run PHP as user who own the file (Multi-user isolation via FPM pool).
   * Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
@@ -44,25 +45,37 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
     * Content Management: drupal, wordpress, wordpress-ms (multi-site),
     * Web Application: mautic, owncloud, roundcube, sendy, and
     * more coming soon.
-  * PHP Zend OPcache.
+  * PHP Zend OPcache (built into the PHP 8.5 binary).
   * PHP Loader, ionCube & SourceGuardian.
 * SQL database with MariaDB (MySQL drop-in replacement) or PostgreSQL.
 * NoSQL database with MongoDB.
-* Key-value store database with Redis.
+* Key-value store database with Redis or Valkey (`REDIS_BACKEND`).
 * In-memory cache with Memcached.
 * FTP server with VSFTPD or Pure-FTPd.
 * Web-based administration tools:
-  * [Adminer](https://www.adminer.org/) web-based SQL & MongoDB database manager (PhpMyAdmin replacement).
+  * [AdminerEvo](https://github.com/adminerevo/adminerevo) web-based SQL & MongoDB database manager (PhpMyAdmin replacement).
   * [phpRedisAdmin](https://github.com/erikdubbelboer/phpRedisAdmin) web-based Redis database manager.
   * [phpMemcachedAdmin](https://github.com/elijaa/phpmemcachedadmin) web-based Memcached manager.
+  * phpOpCacheStatus web-based OPcache status panel.
   * [TinyFileManager](https://github.com/joglomedia/tinyfilemanager) alternative web-based filemanager (Experimental).
+* Security hardening:
+  * Optional config-at-rest encryption (`ENCRYPT_CONFIG_AT_REST`) for LEMPer credentials, keyed by a root-only file (`/etc/lemper/.config_key`).
+  * SSL/TLS defaults from the RFC 7919 `ffdhe2048` group, security headers, and optional rate limiting, archive-deny rules, and secure session cookies.
 
 ## Setting Up
+
+### Requirements
+
+* Debian 11 (Bullseye) or 12 (Bookworm), or Ubuntu 20.04, 22.04, or 24.04 (Linux Mint 20–22), on a 64-bit architecture.
+* A fresh server with root (sudo) access; LEMPer removes conflicting web servers and configures system services.
+* git, curl, and a working apt repository connection.
+
+### Clone and configure
 
 * Ensure that you have git installed.
 * Clone LEMPer Git repositroy, ```git clone https://github.com/joglomedia/LEMPer.git```
 * Enter LEMPer directory
-* Checkout to the desired version, ```git checkout 2.x.x```
+* Checkout to the desired version, ```git checkout 3.x.x```
 * Make a copy of .env.dist to .env ```cp .env.dist .env``` and replace the values
 
 ### Install LEMPer Stack
@@ -112,6 +125,12 @@ as needing a rebuild.
 ### LEMPer Command Line Administration Tool
 
 LEMPer packed with friendly command line tool which makes your LEMPer stack administration much easier. These command line tool called Lemper CLI (lemper-cli) for creating new virtual host and managing existing LEMPer stack.
+
+An interactive TUI is available for menu-driven management, live service logs, and a guided site-creation wizard:
+
+```bash
+sudo lemper-cli tui
+```
 
 #### LEMPer CLI Usage
 
@@ -175,21 +194,34 @@ You can access pre-installed web-based administration tools here.
 http://YOUR_IP_ADDRESS:8082/lcp/
 ```
 
-Adminer (Web-based SQL database manager)
+AdminerEvo (web-based SQL database manager)
 
 ```bash
 http://YOUR_IP_ADDRESS:8082/lcp/dbadmin/
 ```
 
-TinyFileManager (Web-based file manager)
+TinyFileManager (web-based file manager)
 
 ```bash
 http://YOUR_IP_ADDRESS:8082/lcp/filemanager/
 ```
 
+phpOpCacheStatus (OPcache status panel)
+
+```bash
+http://YOUR_IP_ADDRESS:8082/lcp/opcache.php
+```
+
+phpMemcachedAdmin and phpRedisAdmin
+
+```bash
+http://YOUR_IP_ADDRESS:8082/lcp/memcadmin/
+http://YOUR_IP_ADDRESS:8082/lcp/redisadmin/
+```
+
 ## TODOs
 
-* [x] Add support for Debian (Bullseye, Bookworm) & Ubuntu (Bionic, Focal, Jammy) distro
+* [x] Add support for Debian (Bullseye, Bookworm) & Ubuntu (Focal, Jammy, Noble) distro
 * [x] Add custom build latest [Nginx](https://nginx.org/en/) from source
 * [x] Add [Let's Encrypt SSL](https://letsencrypt.org/)
 * [x] Add network security (iptable rules, firewall configurator, else?)
@@ -260,6 +292,6 @@ LEMPer Stack is open-source project licensed under the GNU GPLv3 license.
 
 ## Copyright
 
-(c) 2014-2024 | [MasEDI.Net](https://masedi.net/)
+(c) 2014-2026 | [MasEDI.Net](https://masedi.net/)
 
 ### Enjoy LEMPer Stack ;)
