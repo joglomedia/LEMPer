@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | LEMPer CLI - Encrypted Configuration (at-rest encryption)                |
 # +-------------------------------------------------------------------------+
-# | Provides AES-256-GCM encryption/decryption for /etc/lemper/lemper.conf  |
+# | Provides AES-256-CBC encryption/decryption for /etc/lemper/lemper.conf |
 # | Supports password via --password flag, LEMPER_CONFIG_PASSWORD env var,  |
 # | or /etc/lemper/.config_key (generated at install time).                  |
 # |                                                                          |
@@ -22,8 +22,8 @@ function is_config_encrypted() {
         return 1
     fi
 
-    # OpenSSL enc -a produces base64 text starting with "Salted__"
-    if head -1 "${file}" | grep -q "^Salted__"; then
+    # OpenSSL `enc` supports CBC; AEAD ciphers such as GCM are rejected.
+    if head -c 10 "${file}" | grep -qE '^(U2FsdGVkX1|Salted__)'; then
         return 0
     fi
 
@@ -107,9 +107,8 @@ function decrypt_config() {
         output_file=$(mktemp /tmp/lemper_config.XXXXXX)
     fi
 
-    # Decrypt using AES-256-GCM (or AES-256-CBC for older files).
-    # Try GCM first, fall back to CBC for backward compatibility.
-    if ! openssl enc -aes-256-gcm -d -a -salt -md sha256 \
+    # Decrypt using AES-256-CBC (GCM was never supported by `openssl enc`).
+    if ! openssl enc -aes-256-cbc -d -a -salt -md sha256 -pbkdf2 \
         -k "${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
         if ! openssl enc -aes-256-cbc -d -a -salt -md sha256 \
             -k "${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
@@ -138,8 +137,8 @@ function encrypt_config() {
         fi
     fi
 
-    # Encrypt using AES-256-GCM.
-    if openssl enc -aes-256-gcm -a -salt -md sha256 \
+    # Encrypt using AES-256-CBC.
+    if openssl enc -aes-256-cbc -a -salt -md sha256 -pbkdf2 \
         -k "${password}" -in "${plaintext_file}" -out "${encrypted_file}"; then
         # Zero out the plaintext file before removing.
         secure_shred "${plaintext_file}"
@@ -233,7 +232,7 @@ function save_config_encrypted() {
     if [[ -n "${temp_decrypted}" && -f "${working_file}" ]]; then
         local password
         password=$(resolve_config_password)
-        openssl enc -aes-256-gcm -a -salt -md sha256 \
+        openssl enc -aes-256-cbc -a -salt -md sha256 -pbkdf2 \
             -k "${password}" -in "${working_file}" -out "${config_file}"
         secure_shred "${working_file}"
     fi

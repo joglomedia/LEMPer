@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the packaged config, and a temporary template is only used for source installs.
 - Missing MongoDB and Redis PHP extensions are now reported as warnings instead
   of fatal errors, because they are optional components.
+- Config-at-rest encryption now uses AES-256-CBC, which `openssl enc` supports.
+  The previous AES-256-GCM path failed with `AEAD ciphers not supported`, so
+  `save_config` silently discarded every credential, including the MariaDB root
+  password. Encrypted-file detection now also recognizes the base64
+  `U2FsdGVkX1` header produced by `openssl enc -a`.
 
 ## [3.5.2] - 2026-10-24
 

@@ -261,7 +261,7 @@ refute_grep() {
     grep -q 'function decrypt_config' "${BASE_DIR}/lib/lemper-encrypt.sh"
     grep -q 'function encrypt_config' "${BASE_DIR}/lib/lemper-encrypt.sh"
     grep -q 'function resolve_config_password' "${BASE_DIR}/lib/lemper-encrypt.sh"
-    grep -q 'aes-256-gcm' "${BASE_DIR}/lib/lemper-encrypt.sh"
+    grep -q 'aes-256-cbc' "${BASE_DIR}/lib/lemper-encrypt.sh"
 }
 
 @test "bin/lemper-cli.sh supports --password flag for encrypted config" {

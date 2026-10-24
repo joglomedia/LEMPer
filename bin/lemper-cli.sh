@@ -79,7 +79,7 @@ ENCRYPT_CONFIG_AT_REST=${ENCRYPT_CONFIG_AT_REST:-false}
 
 function is_config_encrypted() {
     local file="${1}"
-    [[ -f "${file}" ]] && head -1 "${file}" | grep -q "^Salted__"
+    [[ -f "${file}" ]] && head -c 10 "${file}" | grep -qE '^(U2FsdGVkX1|Salted__)'
 }
 
 function secure_shred() {
@@ -119,8 +119,9 @@ function decrypt_config_file() {
         output_file=$(mktemp /tmp/lemper_config.XXXXXX)
     fi
 
-    if ! openssl enc -aes-256-gcm -d -a -salt -md sha256 \
+    if ! openssl enc -aes-256-cbc -d -a -salt -md sha256 -pbkdf2 \
         -k "${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
+        # Legacy files used the default OpenSSL KDF.
         if ! openssl enc -aes-256-cbc -d -a -salt -md sha256 \
             -k "${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
             secure_shred "${output_file}"

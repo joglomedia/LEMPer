@@ -1314,7 +1314,7 @@ function save_config() {
                 # Decrypt existing encrypted config.
                 local pw
                 pw=$(resolve_config_password) 2>/dev/null || pw="${LEMPER_PASSWORD}"
-                openssl enc -aes-256-cbc -d -a -salt -md sha256 \
+                openssl enc -aes-256-cbc -d -a -salt -md sha256 -pbkdf2 \
                     -k "${pw}" -in "${config_file}" -out "${temp_dec}" 2>/dev/null || true
             elif [[ -f "${config_file}" ]]; then
                 cp "${config_file}" "${temp_dec}"
@@ -1326,7 +1326,7 @@ function save_config() {
             local pw
             pw=$(resolve_config_password) 2>/dev/null || pw="${LEMPER_PASSWORD}"
             if [[ -n "${pw}" ]]; then
-                openssl enc -aes-256-gcm -a -salt -md sha256 \
+                openssl enc -aes-256-cbc -a -salt -md sha256 -pbkdf2 \
                     -k "${pw}" -in "${temp_dec}" -out "${config_file}"
             else
                 cp "${temp_dec}" "${config_file}"
@@ -1346,7 +1346,7 @@ function secure_config() {
             local pw
             pw=$(resolve_config_password) 2>/dev/null || pw="${LEMPER_PASSWORD}"
             if [[ -n "${pw}" ]]; then
-                run openssl enc -aes-256-gcm -a -salt -md sha256 -k "${pw}" \
+                run openssl enc -aes-256-cbc -a -salt -md sha256 -pbkdf2 -k "${pw}" \
                     -in "${config_file}" -out "${config_file}.enc"
                 secure_shred "${config_file}"
                 mv "${config_file}.enc" "${config_file}"
@@ -1355,10 +1355,10 @@ function secure_config() {
     fi
 }
 
-# Check if config file is encrypted (starts with Salted__ header).
+# Check if config file is encrypted (raw Salted__ or base64 header).
 function is_config_encrypted() {
     local file="${1:-/etc/lemper/lemper.conf}"
-    [[ -f "${file}" ]] && head -1 "${file}" | grep -q "^Salted__"
+    [[ -f "${file}" ]] && head -c 10 "${file}" | grep -qE '^(U2FsdGVkX1|Salted__)'
 }
 
 # Securely delete a file.
