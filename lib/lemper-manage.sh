@@ -441,6 +441,14 @@ function enable_ssl() {
                 run mv "/etc/nginx/sites-available/${DOMAIN}.conf.tmp" "/etc/nginx/sites-available/${DOMAIN}.conf"
             fi
 
+            # Enable HTTP/3 when the stack was installed with QUIC support.
+            if [[ -f /etc/nginx/includes/http3.conf ]] && \
+                ! grep -qE '^[[:space:]]*include[[:space:]]+/etc/nginx/includes/http3\.conf;' \
+                    "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+                sed_inplace "/^[[:space:]]*http2 on;/a\\    include /etc/nginx/includes/http3.conf;" \
+                    "/etc/nginx/sites-available/${DOMAIN}.conf"
+            fi
+
             # Enable SSL configs.
             sed_inplace "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             sed_inplace "s/#ssl_certificate_key/ssl_certificate_key/g" "/etc/nginx/sites-available/${DOMAIN}.conf"

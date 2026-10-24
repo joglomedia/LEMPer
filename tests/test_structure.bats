@@ -676,3 +676,25 @@ refute_grep() {
     grep -qF 'FORCE_REMOVE' "${remove}"
     grep -qF 'was already installed before LEMPer' "${remove}"
 }
+
+@test "HTTP/3 is opt-in and gated on the nginx v3 module" {
+    local post="${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+    local manage="${BASE_DIR}/lib/lemper-manage.sh"
+
+    grep -qF 'NGINX_HTTP3' "${BASE_DIR}/.env.dist"
+
+    # Runtime config only applies when the binary advertises the module.
+    grep -qF -- '--with-http_v3_module' "${post}"
+    grep -qF 'listen 443 quic;' "${post}"
+    grep -qF 'http3 on;' "${post}"
+    grep -qF 'Alt-Svc' "${post}"
+    grep -qF 'includes/http3.conf' "${post}"
+    grep -qF 'includes/http3.conf' "${manage}"
+
+    # The quictls builder requests v3, plain OpenSSL does not.
+    grep -qF 'grep -iq quic' "${BASE_DIR}/scripts/nginx/nginx_ssl_builders.sh"
+    grep -qF -- '--with-http_v3_module' "${BASE_DIR}/scripts/nginx/nginx_ssl_builders.sh"
+
+    # QUIC needs UDP 443 through CSF.
+    grep -qF 'UDP_IN' "${BASE_DIR}/scripts/server_security.sh"
+}

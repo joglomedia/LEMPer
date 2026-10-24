@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Opt-in `rewrite_log` (`NGINX_REWRITE_LOG`) for debugging rewrite rules.
   Enabling it also raises the Nginx error log from `warn` to `notice`, since
   rewrite messages are logged at notice level (issue #169).
+- Opt-in HTTP/3 (QUIC): `NGINX_HTTP3=true` adds QUIC listeners, `http3 on`,
+  and an `Alt-Svc` header to TLS vhosts. Source builds compile the v3 module
+  when a QUIC-capable TLS library is selected, and the installer detects the
+  module and skips HTTP/3 when a repository build lacks it (issue #175).
 - CORS can be enabled or disabled per vhost with
   `lemper-cli site mod --enable-cors` and `--disable-cors` (issue #52). The
   generated include defaults to a wildcard origin and can be restricted by

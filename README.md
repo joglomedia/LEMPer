@@ -61,6 +61,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * Security hardening:
   * Optional config-at-rest encryption (`ENCRYPT_CONFIG_AT_REST`) for LEMPer credentials, keyed by a root-only file (`/etc/lemper/.config_key`).
   * SSL/TLS defaults from the RFC 7919 `ffdhe2048` group, security headers, and optional rate limiting, archive-deny rules, and secure session cookies.
+  * Optional HTTP/3 (QUIC) listeners and `Alt-Svc` advertising on TLS vhosts (`NGINX_HTTP3`, requires an Nginx built with `--with-http_v3_module`).
 
 ## Setting Up
 

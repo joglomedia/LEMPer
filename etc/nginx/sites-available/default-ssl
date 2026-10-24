@@ -4,6 +4,8 @@ server {
     listen 443 ssl default_server;
     listen [::]:443 ssl default_server;
     http2 on;
+    ## HTTP/3 (QUIC) is added by the installer when NGINX_HTTP3=true.
+    #include /etc/nginx/includes/http3.conf;
 
     server_name localhost.localdomain;
 

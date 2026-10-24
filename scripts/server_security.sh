@@ -336,6 +336,12 @@ function install_csf() {
         # Allowed outgoing TCP ports.
         sed_inplace "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
 
+        # HTTP/3 (QUIC) needs UDP 443.
+        if [[ "${NGINX_HTTP3:-false}" == true ]] && \
+            ! grep -qE '^UDP_IN = "([^"]*,)?443(,|")' /etc/csf/csf.conf; then
+            sed_inplace 's/^UDP_IN\ =\ "\([0-9_,]*\)"/UDP_IN\ =\ "\1,443"/' /etc/csf/csf.conf
+        fi
+
         # IPv6 support (requires ip6tables).
         if [[ -n $(command -v ip6tables) ]]; then
             ip6tables_version=$(ip6tables --version | grep 'v' | cut -d'v' -f2)

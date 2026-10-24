@@ -43,8 +43,12 @@ function build_openssl() {
             NGX_CONFIGURE_ARGS+=(
                 "--with-cc-opt=\"-I${NGINX_BUILD_DIR}/${SSL_VERSION}/build/include\""
                 "--with-ld-opt=\"-L${NGINX_BUILD_DIR}/${SSL_VERSION}/build/lib\""
-                "--with-http_v3_module"
             )
+
+            # HTTP/3 requires a QUIC-capable library; plain OpenSSL is not.
+            if grep -iq quic <<<"${SSL_VERSION}"; then
+                NGX_CONFIGURE_ARGS+=("--with-http_v3_module")
+            fi
             return 0
         fi
     else
