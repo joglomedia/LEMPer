@@ -304,4 +304,6 @@ function install_nginx_from_repo() {
             run apt-get install -q -y "${NGINX_PKGS[@]}"
         fi
     fi
+
+    success "Nginx installed from repository successfully!"
 }

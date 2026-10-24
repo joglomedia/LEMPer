@@ -61,6 +61,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `U2FsdGVkX1` header produced by `openssl enc -a`, and the CLI trusts that
   header instead of relying on `ENCRYPT_CONFIG_AT_REST`, which sudo strips
   from the environment.
+- Repository-based Nginx installs now install the enabled `libnginx-mod-*`
+  packages. A duplicate `install_nginx_from_repo` definition in
+  `nginx_build.sh` shadowed the one in `nginx_repo.sh` and captured the
+  stderr-only module list into an empty variable, so only the base `nginx`
+  package was installed and `stream {}` failed with `unknown directive`.
+- The Nginx stream block is only appended when the stream module is actually
+  available (static build or enabled `load_module` config), so `nginx -t`
+  succeeds even when `NGX_STREAM=true` but the module is missing.
+- Config encryption now resolves `/etc/lemper/.config_key` before
+  `LEMPER_PASSWORD`. The installer encrypted with the admin password while the
+  sudo-launched CLI only had the key file, so `lemper-cli` could not decrypt
+  `/etc/lemper/lemper.conf`. Decryption failures now print an error instead of
+  silently exiting under `set -e`.
 
 ## [3.5.2] - 2026-10-24
 

@@ -1373,19 +1373,22 @@ function secure_shred() {
 }
 
 # Resolve config encryption password from available sources.
+# The install-time key file is preferred over the admin password: sudo strips
+# LEMPER_PASSWORD, while the key file is readable by root in both contexts.
 function resolve_config_password() {
     if [[ -n "${LEMPER_CONFIG_PASSWORD}" ]]; then
         printf '%s' "${LEMPER_CONFIG_PASSWORD}"
         return 0
     fi
 
-    if [[ -n "${LEMPER_PASSWORD}" ]]; then
-        printf '%s' "${LEMPER_PASSWORD}"
+    if [[ -f /etc/lemper/.config_key ]]; then
+        cat /etc/lemper/.config_key
         return 0
     fi
 
-    if [[ -f /etc/lemper/.config_key ]]; then
-        cat /etc/lemper/.config_key
+    # Legacy fallback for installs predating the key file.
+    if [[ -n "${LEMPER_PASSWORD}" ]]; then
+        printf '%s' "${LEMPER_PASSWORD}"
         return 0
     fi
 

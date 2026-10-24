@@ -97,13 +97,15 @@ function resolve_config_password() {
         printf '%s' "${LEMPER_CONFIG_PASSWORD}"
         return 0
     fi
-    if [[ -n "${LEMPER_PASSWORD}" ]]; then
-        printf '%s' "${LEMPER_PASSWORD}"
-        return 0
-    fi
     # Stored key file (generated at install time, mode 0600, root-only).
+    # Preferred over LEMPER_PASSWORD because sudo strips the environment.
     if [[ -f /etc/lemper/.config_key ]]; then
         cat /etc/lemper/.config_key
+        return 0
+    fi
+    # Legacy fallback for installs predating the key file.
+    if [[ -n "${LEMPER_PASSWORD}" ]]; then
+        printf '%s' "${LEMPER_PASSWORD}"
         return 0
     fi
     return 1
@@ -140,9 +142,9 @@ if [[ -f "${CONFIG_FILE}" ]]; then
     # Check if config is encrypted.
     if is_config_encrypted "${CONFIG_FILE}"; then
         # The header is authoritative: the flag is not inherited under sudo.
-        temp_decrypted=$(decrypt_config_file "${CONFIG_FILE}")
-        if [[ -z "${temp_decrypted}" ]]; then
+        if ! temp_decrypted=$(decrypt_config_file "${CONFIG_FILE}"); then
             echo "Failed to decrypt configuration." >&2
+            echo "Use --password if a custom config password was set during install." >&2
             exit 1
         fi
         source_file="${temp_decrypted}"

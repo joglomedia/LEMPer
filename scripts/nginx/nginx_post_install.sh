@@ -73,20 +73,31 @@ function configure_nginx_directories() {
     [[ ! -d /etc/nginx/sites-available ]] && run mkdir -p /etc/nginx/sites-available
     [[ ! -d /etc/nginx/sites-enabled ]] && run mkdir -p /etc/nginx/sites-enabled
 
-    # Create stream vhost directories (if stream module enabled)
+    # Create stream vhost directories (only when the stream module is usable).
     if "${NGX_STREAM:-false}"; then
-        [[ ! -d /etc/nginx/streams-available ]] && run mkdir -p /etc/nginx/streams-available
-        [[ ! -d /etc/nginx/streams-enabled ]] && run mkdir -p /etc/nginx/streams-enabled
+        local STREAM_AVAILABLE=false
 
-        # Append stream config to nginx.conf
-        if ! grep -q "streams-enabled" /etc/nginx/nginx.conf; then
-            cat >> /etc/nginx/nginx.conf <<EOL
+        if nginx -V 2>&1 | grep -q -- '--with-stream' || \
+           { [[ -d /etc/nginx/modules-enabled ]] && grep -rqs "ngx_stream_module" /etc/nginx/modules-enabled; }; then
+            STREAM_AVAILABLE=true
+        fi
+
+        if [[ "${STREAM_AVAILABLE}" == true ]]; then
+            [[ ! -d /etc/nginx/streams-available ]] && run mkdir -p /etc/nginx/streams-available
+            [[ ! -d /etc/nginx/streams-enabled ]] && run mkdir -p /etc/nginx/streams-enabled
+
+            # Append stream config to nginx.conf
+            if ! grep -q "streams-enabled" /etc/nginx/nginx.conf; then
+                cat >> /etc/nginx/nginx.conf <<EOL
 
 stream {
     # Load stream vhost configs.
     include /etc/nginx/streams-enabled/*;
 }
 EOL
+            fi
+        else
+            warning "NGX_STREAM is enabled but the Nginx stream module is not available, skipping stream configuration."
         fi
     fi
 

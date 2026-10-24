@@ -201,25 +201,3 @@ function get_nginx_base_configure_args() {
     fi
 }
 
-##
-# Install Nginx from repository
-##
-function install_nginx_from_repo() {
-    local REPO_SOURCE="${1:-ondrej}"
-
-    echo "Installing Nginx from ${REPO_SOURCE} repository..."
-
-    # Get extra module packages for this repo
-    local EXTRA_PKGS
-    EXTRA_PKGS=$(get_repo_extra_module_packages "${REPO_SOURCE}")
-
-    # Install nginx and modules
-    if [[ -n "${EXTRA_PKGS}" ]]; then
-        # shellcheck disable=SC2086
-        run_spinner "Installing Nginx modules" apt-get install -q -y "${NGINX_PKGS[@]}" ${EXTRA_PKGS}
-    else
-        run_spinner "Installing Nginx modules" apt-get install -q -y "${NGINX_PKGS[@]}"
-    fi
-
-    success "Nginx installed from repository successfully!"
-}

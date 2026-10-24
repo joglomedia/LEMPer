@@ -118,6 +118,27 @@ refute_grep() {
     refute_grep -q 'openssl dhparam -out' "${post_install}"
 }
 
+@test "Nginx repo installer is defined once and installs module packages" {
+    local repo="${BASE_DIR}/scripts/nginx/nginx_repo.sh"
+    local build="${BASE_DIR}/scripts/nginx/nginx_build.sh"
+    refute_grep -q '^function install_nginx_from_repo' "${build}"
+    grep -q 'EXTRA_MODULE_PKGS\[@\]' "${repo}"
+}
+
+@test "Nginx stream config is gated on module availability" {
+    local post_install="${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+    grep -q 'STREAM_AVAILABLE' "${post_install}"
+    grep -q 'ngx_stream_module' "${post_install}"
+}
+
+@test "CLI resolves the config key file before LEMPER_PASSWORD" {
+    local cli="${BASE_DIR}/bin/lemper-cli.sh"
+    local key_line pass_line
+    key_line=$(grep -n '/etc/lemper/.config_key' "${cli}" | head -1 | cut -d: -f1)
+    pass_line=$(grep -n 'if \[\[ -n "${LEMPER_PASSWORD}" \]\]' "${cli}" | head -1 | cut -d: -f1)
+    [ -n "${key_line}" ] && [ -n "${pass_line}" ] && [ "${key_line}" -lt "${pass_line}" ]
+}
+
 @test "valkey-server.service template exists" {
     [ -f "${BASE_DIR}/etc/systemd/valkey-server.service" ]
 }
