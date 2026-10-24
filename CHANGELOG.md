@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- SSL-enabled vhosts created by `lemper-cli site mod --enable-ssl` now receive
+  `http2 on;`. HTTP/2 uses the non-deprecated directive form everywhere; the
+  shipped `default-ssl` vhost already used it (issue #171).
 - Restored the executable bit on `update.sh`, which the CI test suite asserts and
   the bootstrap relies on to run directly.
 - Configured bashate to skip the project's established legacy formatting codes

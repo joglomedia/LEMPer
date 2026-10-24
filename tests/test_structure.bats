@@ -593,3 +593,16 @@ refute_grep() {
         grep -qE "^function ${fn}\(\)" "${cli}"
     done
 }
+
+@test "HTTP/2 uses the http2 directive instead of the deprecated listen parameter" {
+    local ssl_conf="${BASE_DIR}/etc/nginx/sites-available/default-ssl"
+    local manage="${BASE_DIR}/lib/lemper-manage.sh"
+
+    grep -qF 'http2 on;' "${ssl_conf}"
+    refute_grep -rqE '^[[:space:]]*listen[^;]*http2' "${BASE_DIR}/etc/nginx"
+    refute_grep -qE '^[[:space:]]*listen[^;]*http2' "${manage}"
+
+    # Enabling SSL must switch HTTP/2 on for generated vhosts.
+    grep -qF 'http2 on;' "${manage}"
+    refute_grep -q '#ssl on;' "${BASE_DIR}/etc/nginx/includes/ssl.conf"
+}

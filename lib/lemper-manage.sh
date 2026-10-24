@@ -430,8 +430,14 @@ function enable_ssl() {
             sed_inplace "s/listen\ 80/listen\ 443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             sed_inplace "s/listen\ \[::\]:80/listen\ \[::\]:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
 
+            # Enable HTTP/2 with the non-deprecated directive form.
+            if ! grep -qwE '^[[:space:]]*http2[[:space:]]+on;' "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+                awk '!done && /listen .*443 ssl/ { print; print "    http2 on;"; done=1; next } { print }' \
+                    "/etc/nginx/sites-available/${DOMAIN}.conf" > "/etc/nginx/sites-available/${DOMAIN}.conf.tmp" && \
+                run mv "/etc/nginx/sites-available/${DOMAIN}.conf.tmp" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            fi
+
             # Enable SSL configs.
-            sed_inplace "s/http2\ off/http2\ on/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             sed_inplace "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             sed_inplace "s/#ssl_certificate_key/ssl_certificate_key/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             sed_inplace "s/#ssl_trusted_certificate/ssl_trusted_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
