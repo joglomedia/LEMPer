@@ -404,10 +404,10 @@ function enable_ssl() {
 
         # Generate Diffie-Hellman parameters.
         if [ ! -f /etc/nginx/ssl/dhparam-2048.pem ]; then
-            echo "Generating Diffie-Hellman parameters for enhanced HTTPS/SSL security."
+            echo "Generating Diffie-Hellman parameters (ffdhe2048) for enhanced HTTPS/SSL security."
 
-            run openssl dhparam -out /etc/nginx/ssl/dhparam-2048.pem 2048
-            #run openssl dhparam -out /etc/nginx/ssl/dhparam-4096.pem 4096
+            run openssl genpkey -genparam -algorithm DH -pkeyopt group:ffdhe2048 \
+                -out /etc/nginx/ssl/dhparam-2048.pem
         fi
     else
         info "SSL certificates is already exists for ${DOMAIN}, trying to renew."

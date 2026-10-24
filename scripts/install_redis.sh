@@ -242,7 +242,22 @@ function init_redis_install {
         # Configure Redis/Valkey.
         if [[ "${DRYRUN}" != true ]]; then
             if [[ "${REDIS_BACKEND}" == "valkey" ]]; then
-                run cp -f etc/redis/redis.conf /etc/valkey/valkey.conf
+                local VALKEY_CONF="/etc/valkey/valkey.conf"
+
+                # Preserve the packaged config when present: it already points to
+                # the valkey-owned paths expected by the systemd unit.
+                if [[ ! -f "${VALKEY_CONF}" ]]; then
+                    run mkdir -p /etc/valkey
+                    run cp -f etc/redis/redis.conf "${VALKEY_CONF}"
+                    sed_inplace "s|/var/run/redis/|/var/run/valkey/|g" "${VALKEY_CONF}"
+                    sed_inplace "s|/var/log/redis/|/var/log/valkey/|g" "${VALKEY_CONF}"
+                    sed_inplace "s|/var/lib/redis|/var/lib/valkey|g" "${VALKEY_CONF}"
+                    sed_inplace "s|redis-server.pid|valkey-server.pid|g" "${VALKEY_CONF}"
+                    sed_inplace "s|redis-server.log|valkey-server.log|g" "${VALKEY_CONF}"
+                fi
+
+                run mkdir -p /var/lib/valkey /var/log/valkey /run/valkey
+                run chown -R valkey:valkey /var/lib/valkey /var/log/valkey /run/valkey
 
                 # Custom Valkey configuration.
                 local RAM_SIZE && \
@@ -257,7 +272,7 @@ function init_redis_install {
                 fi
 
                 # Optimize Valkey config.
-                cat >> /etc/valkey/valkey.conf <<EOL
+                cat >> "${VALKEY_CONF}" <<EOL
 
 ####################################
 # Custom configuration for LEMPer
@@ -274,7 +289,7 @@ EOL
                     export REDIS_PASSWORD=${REDIS_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
 
                     # Update Valkey config.
-                    cat >> /etc/valkey/valkey.conf <<EOL
+                    cat >> "${VALKEY_CONF}" <<EOL
 requirepass ${REDIS_PASSWORD}
 EOL
                     # Save data.

@@ -206,14 +206,19 @@ function configure_fastcgi_cache_access() {
 # Generate DH parameters for SSL
 ##
 function generate_dh_params() {
-    local DH_LENGTH=${KEY_HASH_LENGTH:-2048}
+    local DH_GROUP="${DH_PARAM_GROUP:-ffdhe2048}"
+    local DH_LENGTH="${DH_GROUP#ffdhe}"
+    local DH_FILE="/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem"
 
-    if [[ ! -f "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" ]]; then
-        echo "Generating DH parameters (${DH_LENGTH} bits)..."
+    if [[ ! -f "${DH_FILE}" ]]; then
+        echo "Generating DH parameters using the predefined ${DH_GROUP} group..."
 
         [[ ! -d /etc/nginx/ssl ]] && mkdir -p /etc/nginx/ssl
-        run openssl dhparam -out "/etc/nginx/ssl/dhparam-${DH_LENGTH}.pem" "${DH_LENGTH}"
+        # Named RFC 7919 groups avoid the expensive prime search of `openssl dhparam`.
+        run openssl genpkey -genparam -algorithm DH -pkeyopt "group:${DH_GROUP}" -out "${DH_FILE}"
     fi
+
+    sed_inplace "s|dhparam-[0-9]*\\.pem|dhparam-${DH_LENGTH}.pem|g" /etc/nginx/includes/ssl.conf
 }
 
 ##

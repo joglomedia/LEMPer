@@ -105,6 +105,19 @@ refute_grep() {
     grep -q 'bookworm-backports' "${redis}"
 }
 
+@test "Valkey install preserves the packaged config and paths" {
+    local redis="${BASE_DIR}/scripts/install_redis.sh"
+    grep -q 'if \[\[ ! -f "${VALKEY_CONF}" \]\]' "${redis}"
+    grep -q '/var/lib/valkey' "${redis}"
+}
+
+@test "Nginx DH params use a predefined RFC 7919 group" {
+    local post_install="${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+    grep -q 'DH_PARAM_GROUP' "${post_install}"
+    grep -q 'genpkey -genparam' "${post_install}"
+    refute_grep -q 'openssl dhparam -out' "${post_install}"
+}
+
 @test "valkey-server.service template exists" {
     [ -f "${BASE_DIR}/etc/systemd/valkey-server.service" ]
 }

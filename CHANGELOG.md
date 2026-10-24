@@ -42,6 +42,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   external repository and GitHub-hosted key URL are no longer published.
 - The shunit2 Redis/Valkey check now verifies `valkey-cli` and `valkey-server`
   when `REDIS_BACKEND=valkey`, instead of assuming the `redis-*` binaries exist.
+- Nginx TLS setup now generates DH parameters from the predefined RFC 7919
+  `ffdhe2048` group instead of running a CPU-heavy prime search. The previous
+  code used `KEY_HASH_LENGTH=4096`, which produced `dhparam-4096.pem` while
+  `ssl.conf` requires `dhparam-2048.pem`, so `nginx -t` failed. Configure the
+  group with `DH_PARAM_GROUP`.
+- Valkey installs no longer overwrite the distribution's `/etc/valkey/valkey.conf`
+  with the Redis template. The template pointed at `/var/lib/redis` and
+  `/var/log/redis`, which the `valkey` user cannot access, so
+  `valkey-server.service` failed to start. LEMPer settings are now appended to
+  the packaged config, and a temporary template is only used for source installs.
+- Missing MongoDB and Redis PHP extensions are now reported as warnings instead
+  of fatal errors, because they are optional components.
 
 ## [3.5.2] - 2026-10-24
 

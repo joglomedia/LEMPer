@@ -717,7 +717,7 @@ function enable_php_mongodb() {
                 info "MongoDB extension already enabled, please confirm it manually"
             fi
         else
-            error "MongoDB extension file could not be found, you could install it manually"
+            warning "MongoDB extension file could not be found, you could install it manually"
         fi
     else
         info "PHP ${PHPv} MongoDB extension optimized in dry run mode."
@@ -761,7 +761,7 @@ function enable_php_redis() {
                 info "Redis extension already enabled, please confirm it manually"
             fi
         else
-            error "Redis extension file could not be found, you could install it manually"
+            warning "Redis extension file could not be found, you could install it manually"
         fi
     else
         info "PHP ${PHPv} Redis extension optimized in dry run mode."
