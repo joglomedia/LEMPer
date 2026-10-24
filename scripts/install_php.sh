@@ -90,7 +90,7 @@ function install_php() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     # Checking if PHP already installed.
@@ -250,7 +250,7 @@ function restart_php_fpm() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     echo "Restarting PHP-FPM service..."
@@ -281,7 +281,7 @@ function optimize_php_fpm() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     echo "Optimizing PHP ${PHPv} & FPM configuration..."
@@ -611,7 +611,7 @@ function add_php_logrotate() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     if [[ -f "/etc/logrotate.d/php${PHPv}-fpm" ]]; then
@@ -645,7 +645,7 @@ function enable_php_memcached() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     # Enable PHP memcached module.
@@ -687,7 +687,7 @@ function enable_php_mongodb() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     PHP_LIB_DIR=$("php${PHPv}" -i | grep "extension_dir" | awk '{print $3}')
@@ -731,13 +731,13 @@ function enable_php_redis() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
-    PHP_LIB_DIR=$("php${PHPv}" -i | grep "extension_dir" | awk '{print $3}')
-    REDIS_EXT_PATH="${PHP_LIB_DIR}/redis.so"
-
     if [[ "${DRYRUN}" != true ]]; then
+        PHP_LIB_DIR=$("php${PHPv}" -i | grep "extension_dir" | awk '{print $3}')
+        REDIS_EXT_PATH="${PHP_LIB_DIR}/redis.so"
+
         if [[ -f "${REDIS_EXT_PATH}" ]]; then
             #run chmod 0644 "${REDIS_EXT_PATH}"
 
@@ -775,7 +775,7 @@ function install_php_composer() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     # Checking if php composer already installed.
@@ -869,7 +869,7 @@ function enable_ioncube_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     echo "Enable ionCube loader for PHP ${PHPv}."
@@ -940,7 +940,7 @@ function enable_sourceguardian_loader() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     echo "Enable SourceGuardian loader for PHP ${PHPv}."
@@ -977,7 +977,7 @@ function install_php_loader() {
     local SELECTED_PHP_LOADER="${2}"
 
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.4"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     if [[ -z "${SELECTED_PHP_LOADER}" ]]; then
@@ -1099,12 +1099,13 @@ function init_php_install() {
             # Manually select PHP version in interactive mode.
             echo "Which PHP version to be installed?"
             echo "Available PHP versions:"
-            echo "  1). PHP 8.1 (SFO)"
-            echo "  2). PHP 8.2 (SFO)"
+            echo "  1). PHP 8.1 (EOL)"
+            echo "  2). PHP 8.2 (Security)"
             echo "  3). PHP 8.3 (Stable)"
-            echo "  4). PHP 8.4 (Latest Stable)"
-            echo "  5). All available versions"
-            echo "  6). Do not install!"
+            echo "  4). PHP 8.4 (Security)"
+            echo "  5). PHP 8.5 (Latest Stable)"
+            echo "  6). All available versions"
+            echo "  7). Do not install!"
             echo "--------------------------------------------"
 
             [[ -n "${DEFAULT_PHP_VERSION}" ]] && \
@@ -1112,11 +1113,12 @@ function init_php_install() {
 
             while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                 ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
+                ${SELECTED_PHP} != "7" && \
                 ${SELECTED_PHP} != "8.1" && ${SELECTED_PHP} != "8.2" && ${SELECTED_PHP} != "8.3" && \
-                ${SELECTED_PHP} != "8.4" && \
+                ${SELECTED_PHP} != "8.4" && ${SELECTED_PHP} != "8.5" && \
                 ${SELECTED_PHP} != "all" && ${SELECTED_PHP} != "none"
             ]]; do
-                read -rp "Enter a PHP version from an option above [1-6]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
+                read -rp "Enter a PHP version from an option above [1-7]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
             done
 
             case "${SELECTED_PHP}" in
@@ -1132,11 +1134,14 @@ function init_php_install() {
                 4 | "8.4")
                     SELECTED_PHP_VERSIONS+=("8.4")
                 ;;
-                5 | "all")
-                    # Select all supported PHP versions.
-                    SELECTED_PHP_VERSIONS=("8.1" "8.2" "8.3" "8.4")
+                5 | "8.5")
+                    SELECTED_PHP_VERSIONS+=("8.5")
                 ;;
-                6 | n*)
+                6 | "all")
+                    # Select all supported PHP versions.
+                    SELECTED_PHP_VERSIONS=("8.1" "8.2" "8.3" "8.4" "8.5")
+                ;;
+                7 | n*)
                     info "No selected PHP version will be installed."
                     return
                 ;;

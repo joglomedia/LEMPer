@@ -29,7 +29,7 @@ SETUP="apt-get update -qq && apt-get install -qq -y shellcheck bats > /dev/null 
 
 # ShellCheck command — mirrors CI.
 SC_CMD="shellcheck -s bash -x \
-    install.sh remove.sh lemper.sh \
+    install.sh remove.sh update.sh lemper.sh \
     bin/lemper-cli.sh \
     lib/lemper-*.sh lib/core/lemper-stacks.sh \
     scripts/install_*.sh scripts/remove_*.sh scripts/utils.sh \

@@ -46,19 +46,24 @@ server {
         deny all;
 
         include /etc/nginx/fastcgi_params;
-        fastcgi_pass unix:/run/php/php8.4-fpm.sock;
+        fastcgi_pass unix:/run/php/php8.5-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $fastcgi_script_name;
         access_log off;
         log_not_found off;
     }
 
-    # Default PHP handler (PHP 8.4)
+    # Default PHP handler (PHP 8.5)
     location ~ \.php$ {
-        set $php_version "8.4";
+        set $php_version "8.5";
         include /etc/nginx/includes/php_handler.conf;
     }
 
     # PHP version-specific handlers using reusable template
+    location ~ \.php85$ {
+        set $php_version "8.5";
+        include /etc/nginx/includes/php_handler.conf;
+    }
+
     location ~ \.php84$ {
         set $php_version "8.4";
         include /etc/nginx/includes/php_handler.conf;
@@ -122,11 +127,16 @@ server {
         auth_basic_user_file /srv/.htpasswd;
 
         location ~ \.php$ {
-            set $php_version "8.4";
+            set $php_version "8.5";
             include /etc/nginx/includes/php_handler.conf;
         }
 
         # Versioned handlers inherit this location's auth_basic protection.
+        location ~ \.php85$ {
+            set $php_version "8.5";
+            include /etc/nginx/includes/php_handler.conf;
+        }
+
         location ~ \.php84$ {
             set $php_version "8.4";
             include /etc/nginx/includes/php_handler.conf;
@@ -150,11 +160,16 @@ server {
 
     # Default PHP handler
     location ~ \.php$ {
-        set $php_version "8.4";
+        set $php_version "8.5";
         include /etc/nginx/includes/php_handler.conf;
     }
 
     # PHP version-specific handlers
+    location ~ \.php85$ {
+        set $php_version "8.5";
+        include /etc/nginx/includes/php_handler.conf;
+    }
+
     location ~ \.php84$ {
         set $php_version "8.4";
         include /etc/nginx/includes/php_handler.conf;

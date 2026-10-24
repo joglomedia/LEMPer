@@ -56,7 +56,7 @@ LEMPer/
 │   ├── utils.sh                   # Core helper library (shared, 1021 lines)
 │   ├── install_dependencies.sh    # Base packages + Python
 │   ├── install_nginx.sh           # Nginx installer (delegates to nginx/)
-│   ├── install_php.sh             # PHP 8.1–8.4 only (EOL 5.6–8.0 removed)
+│   ├── install_php.sh             # PHP 8.1–8.5 only (EOL 5.6–8.0 removed)
 │   ├── install_mariadb.sh         # MariaDB 11.4
 │   ├── install_redis.sh           # Redis/Valkey (REDIS_BACKEND configurable)
 │   ├── install_postgres.sh        # PostgreSQL (optional)
@@ -97,7 +97,7 @@ LEMPer/
 │   │   └── vhost/
 │   │       ├── README.md
 │   │       └── site_wordpress.conf  # ModSecurity (was NAXSI)
-│   ├── php/8.4/                   # PHP FPM configs (only 8.1–8.4 remain)
+│   ├── php/8.5/                   # PHP FPM configs (only 8.1–8.5 remain)
 │   │   ├── fpm/php-fpm.conf
 │   │   └── fpm/pool.d/lemper.conf  # cgi.fix_pathinfo=0
 │   ├── mysql/mariadb.conf.d/      # MariaDB 11.4 configs
@@ -120,19 +120,21 @@ LEMPer/
 ├── LICENSE.md
 ├── README.md
 ├── install.sh                     # Standalone installer (~47 lines, wrapper)
+├── update.sh                      # Legacy security/stack update bootstrap
 ├── lemper.sh                      # Interactive installer (~551 lines, 551 lines)
 ├── remove.sh                      # Standalone uninstaller (~48 lines, wrapper)
 ├── tests/
 │   ├── test_sanitization.bats     # Input sanitization (9 tests)
 │   ├── test_structure.bats        # Structural integrity (68 tests)
 │   ├── test_syntax.bats           # ShellCheck + bash -n (2 tests)
-│   └── unit/                      # Mock-based unit tests (18 tests)
+│   └── unit/                      # Mock-based unit tests (28 tests)
 │       ├── env_helper.bash
 │       ├── validators.bats
 │       ├── php_temp_dirs.bats
 │       ├── db_backup_restore.bats
-│       └── resource_profile.bats
-└── .github/workflows/main.yml     # CI: ShellCheck + bats (97 tests)
+│       ├── resource_profile.bats
+│       └── update_helpers.bats    # PHP2Shell updater helpers (10 tests)
+└── .github/workflows/main.yml     # CI: ShellCheck + bats (107 tests)
 ```
 
 ### 2.2 Execution Flow
@@ -271,7 +273,8 @@ During installation, `install_tools.sh` copies library scripts from `lib/` to
 ├── lemper-db              → symlink: lemper-site-db → lemper-site-database
 ├── lemper-selfssl
 ├── lemper-fixpermission
-└── lemper-bench
+├── lemper-bench
+└── lemper-update           → stack updater (check/php/nginx/mariadb/lemper/all)
 ```
 
 The CLI dispatches by sourcing the plugin file (not executing it), which means all plugin
@@ -286,9 +289,9 @@ The GitHub Actions workflow (`.github/workflows/main.yml`) runs on every push/PR
    Toggled for CI: `REDIS_BACKEND="valkey"`, `INSTALL_CROWDSEC=true`,
    `ACME_WILDCARD=true`, `INSTALL_MODSEC=true`, `ENCRYPT_CONFIG_AT_REST=true`.
 2. **ShellCheck:** Runs `shellcheck -s bash -x` on every script file — **exit 0**.
-3. **Bats Tests:** Runs `bats tests/ tests/unit/` — **97/97 pass** across 8 test files.
+3. **Bats Tests:** Runs `bats tests/ tests/unit/` — **107/107 pass** across 9 test files.
 
-**Test coverage (97 tests):**
+**Test coverage (107 tests):**
 - `test_sanitization.bats` — 9 tests (FQDN, IPv4, username, sed injection sanitization)
 - `test_structure.bats` — 68 tests (project structure, wiring, config flags, temp-dir isolation, Nginx/PHP hardening, resource profiles)
 - `test_syntax.bats` — 2 tests (bash -n + shellcheck on all scripts)
@@ -296,6 +299,7 @@ The GitHub Actions workflow (`.github/workflows/main.yml`) runs on every push/PR
 - `unit/php_temp_dirs.bats` — 2 tests (mock-based temp-dir creation)
 - `unit/db_backup_restore.bats` — 4 tests (mocked DB backup/restore)
 - `unit/resource_profile.bats` — 6 tests (RAM detection, profile selection, FPM/MariaDB sizing, pool tuning)
+- `unit/update_helpers.bats` — 10 tests (version comparison, branch classification, pool mitigation idempotency, bootstrap wiring)
 
 **Limitations:**
 - No code coverage reporting.
@@ -388,6 +392,34 @@ and the dotenv-sourced environment variables being in scope.
 | SEC-24 | SVG files served without sandboxing | Medium | `rules_staticfiles.conf` | ✅ **Fixed** — `CSP sandbox` on SVG responses |
 | SEC-25 | `session.save_path` was app-overridable, allowing session files in the doc root | High | `install_php.sh`, pool templates | ✅ **Fixed** — `php_admin_value`, `ini_set()` cannot relocate sessions |
 | SEC-26 | PHP session files (`sess_*`) left in a web root were served | High | `rules_restriction.conf` | ✅ **Fixed** — denied as defense-in-depth |
+| SEC-27 | PHP2Shell OOM/use-after-free RCE (CVE-2026-109618, CVE-2026-109619) | Critical | PHP < 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 | ✅ **Patchable** — `lemper update php`; EOL branches get compensating controls only |
+
+### 3.5 Security Update Path (PHP2Shell)
+
+Legacy hosts bootstrap the updater from a current checkout with `sudo ./update.sh`.
+The bootstrap installs `bin/lemper-cli.sh` to `/usr/local/bin`, installs
+`lib/lemper-update.sh` as `/etc/lemper/cli-plugins/lemper-update`, and records the
+checkout in `/etc/lemper/update-source` so `lemper update lemper` can refresh plugins
+later.
+
+The plugin (`lib/lemper-update.sh`) exposes:
+
+| Command | Effect |
+|---|---|
+| `update check` | Read-only audit; exits non-zero unless every PHP branch is patched |
+| `update php` | `apt-get --only-upgrade` on installed `php<branch>-*`; verifies the package version against the fixed release, then reloads FPM |
+| `update nginx` | Upgrades package-managed nginx; source builds are reported as requiring a rebuild |
+| `update mariadb` | Upgrades MariaDB and restarts only if the version changed; warns on branch changes |
+| `update lemper` | Reinstalls the CLI and all plugins from the recorded checkout |
+| `update all` | `apt-get update`, then PHP, nginx, MariaDB, and tooling |
+
+Version classification uses `dpkg-query` (falling back to `php<branch> -r 'echo PHP_VERSION;'`)
+and `sort -V` comparison after stripping epochs and Debian revisions. Supported branches
+are patched normally. EOL branches (8.1 and older) have no vendor fix: the plugin backs
+up every FPM pool to `/etc/lemper/backups/php2shell-<UTC>/<branch>/` and admin-locks
+`memory_limit=-1`, `post_max_size=32M`, `session.upload_progress.enabled=0` (plus
+`fatal_error_backtraces=0` on PHP 8.5), then reports that migration to PHP 8.2+ is still
+required. Runs take an exclusive `flock` and log to `/var/log/lemper/update-<UTC>.log`.
 
 ---
 
@@ -502,7 +534,7 @@ LEMPer/
 **Migration decision:** The proposed directory restructuring would require renaming and
 moving ~50+ script files while maintaining backward-compatible symlink/destination paths
 on target systems. Given the scope and risk, the project should prioritize the **functional
-improvements already delivered** (security, PHP 8.4, Valkey, Bun.js, CrowdSec, ModSecurity,
+improvements already delivered** (security, PHP 8.5, Valkey, Bun.js, CrowdSec, ModSecurity,
 encrypted config, TUI) over a purely structural refactor. The directory scaffolds remain
 in place as a future-enhancement path.
 
@@ -514,10 +546,10 @@ in place as a future-enhancement path.
 |---|---|---|---|
 | **Language** | Bash 4+ | Bash 5+ | ✅ Achieved |
 | **ShellCheck** | v0.10.0 | Latest | ✅ v0.11.0 locally, v0.10.0 in CI — both exit 0 |
-| **Test framework** | shunit2 | shunit2 + bats-core | ✅ bats-core 1.14.0, 97 tests |
+| **Test framework** | shunit2 | shunit2 + bats-core | ✅ bats-core 1.14.0, 107 tests |
 | **CI** | GitHub Actions | GitHub Actions (enhanced) | ✅ ShellCheck + bats matrix |
 | **Web server** | Nginx (repo or source) | Nginx (repo default, source optional) | ✅ |
-| **PHP** | 5.6–8.4 (EOL versions in templates) | 8.1–8.4 (Ondřej's PPA) | ✅ EOL removed from installer, stale templates remain |
+| **PHP** | 5.6–8.4 (historical templates) | 8.1–8.5 (Ondřej's PPA) | ✅ EOL removed from installer, 8.1–8.5 templates shipped |
 | **Database** | MariaDB 11.1 | MariaDB 11.4 | ✅ Upgraded |
 | **Cache** | Redis | Redis or Valkey (configurable) | ✅ Valkey added (REDIS_BACKEND) |
 | **JS runtime** | (unused) | Bun.js | ✅ Bun.js installed |

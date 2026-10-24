@@ -345,11 +345,11 @@ bash shunit2/run_test.sh
 ### 7.2 DO
 
 - ✅ Check for the `fial` typo when grepping for error handling patterns.
-- ✅ Search for all versions of a pattern (e.g., PHP pool configs span 5.6–8.4).
+- ✅ Search for all versions of a pattern (e.g., PHP pool configs span 8.1–8.5).
 - ✅ Use `grep -rn` to find all references to a variable before renaming it.
 - ✅ Follow the `run()` function convention for all system commands.
 - ✅ Respect the guard clause pattern when creating new scripts.
-- ✅ Update both `install.sh` and `lemper.sh` when adding new installation steps
+- ✅ Update both `install.sh` , `remove.sh` , and `lemper.sh` when adding new installation steps
   (they contain similar but not identical logic).
 - ✅ Add new CLI plugins to `scripts/install_tools.sh` install logic.
 

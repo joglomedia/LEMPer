@@ -283,7 +283,7 @@ fi
 
 | Framework | Purpose | Tests |
 |---|---|---|
-| **bats-core** | Structural, syntax, and mock-based unit tests | **97 tests** (primary) |
+| **bats-core** | Structural, syntax, and mock-based unit tests | **107 tests** (primary) |
 | **shunit2** | Legacy unit tests (still present) | `shunit2/run_test.sh` |
 
 ### 5.2 Running Tests
@@ -294,7 +294,7 @@ bats tests/ tests/unit/
 
 # ShellCheck on all scripts (must pass with exit 0)
 shellcheck -s bash -x \
-    install.sh remove.sh lemper.sh \
+    install.sh remove.sh update.sh lemper.sh \
     bin/lemper-cli.sh \
     lib/lemper-*.sh lib/core/lemper-stacks.sh \
     scripts/install_*.sh scripts/remove_*.sh scripts/utils.sh \
@@ -333,6 +333,22 @@ setup() {
 For command-level tests, create a temporary mock directory and prepend it to
 `PATH` — see `tests/unit/db_backup_restore.bats` (mocked `mariadb`) and
 `tests/unit/php_temp_dirs.bats` (mocked `mkdir`/`chmod`/`chown`).
+
+The updater helpers in `lib/lemper-update.sh` are tested the same way. Source the
+plugin with `LEMPER_UPDATE_LIB_ONLY=true` (otherwise it runs its entry point) and
+stub `requires_root`; point `PHP_ETC_DIR` at a temp tree and export
+`LEMPER_BACKUP_DIR` so mitigation tests never touch `/etc`:
+
+```bash
+requires_root() { :; }
+PROG_NAME="lemper-cli"
+LEMPER_UPDATE_LIB_ONLY=true
+. "${REAL_BASE_DIR}/lib/lemper-update.sh"
+php_mitigate_pool_file "${pool}" 8.4
+```
+
+See `tests/unit/update_helpers.bats` for version comparison, branch
+classification, and idempotent pool-rewrite coverage.
 
 ### 5.4 Writing Integration Tests (bats-core)
 
@@ -501,7 +517,7 @@ The CI pipeline runs on every push/PR to `2.x.x` and `master` branches:
    Toggled for CI: `REDIS_BACKEND="valkey"`, `INSTALL_CROWDSEC=true`,
    `ACME_WILDCARD=true`, `INSTALL_MODSEC=true`, `ENCRYPT_CONFIG_AT_REST=true`.
 2. **ShellCheck:** Runs `shellcheck -s bash -x` on every script file — **exit 0**.
-3. **Bats Tests:** Runs `bats tests/ tests/unit/` — **97/97 tests pass**.
+3. **Bats Tests:** Runs `bats tests/ tests/unit/` — **107/107 tests pass**.
 
 **CI runs on `ubuntu-latest`** with ShellCheck v0.10.0 and bats-core 1.14.0.
 

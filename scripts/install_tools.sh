@@ -85,6 +85,16 @@ function init_tools_install() {
     run cp -f lib/lemper-encrypt.sh /etc/lemper/cli-plugins/lemper-encrypt && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-encrypt
 
+    # Install stack/security updater.
+    run cp -f lib/lemper-update.sh /etc/lemper/cli-plugins/lemper-update && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-update
+
+    # Record the source checkout so 'lemper update lemper' can refresh plugins.
+    if [[ -f "${BASE_DIR}/bin/lemper-cli.sh" ]]; then
+        run bash -c 'printf "%s\n" "$1" > /etc/lemper/update-source' _ "${BASE_DIR}"
+        run chmod 0600 /etc/lemper/update-source
+    fi
+
     # Remove old LEMPer CLI tool.
     [ -d /usr/local/lib/lemper ] && run rm -fr /usr/local/lib/lemper/lemper-*
 
@@ -107,6 +117,7 @@ function init_tools_install() {
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php82'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php83'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php84'
+    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php85'
 
     # Install Adminer for Web-based MySQL Administration Tool.
     echo -n "Installing database AdminerEVO..."
@@ -222,7 +233,7 @@ EOL
     # Install phpRedisAdmin Web Admin.
     echo -n "Installing PhpRedisAdmin panel..."
 
-    COMPOSER_BIN=$(command -v composer)
+    COMPOSER_BIN=$(command -v composer || true)
 
     local CURRENT_DIR && \
     CURRENT_DIR=$(pwd)

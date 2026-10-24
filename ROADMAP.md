@@ -1,13 +1,15 @@
 # LEMPer — Roadmap &amp; Improvement Plan
 
-> **Version:** 3.5.0 (in progress)
-> **Last Updated:** 2026-10-22
+> **Version:** 3.5.2
+> **Last Updated:** 2026-10-24
 > **Status:** Complete — all 5 phases (0-5) implemented: v2.7.2→v2.9.0 security &amp; bug fixes,
 > v3.0.0 architecture overhaul, v3.1.0–v3.2.0 functionality (Bun.js, Valkey, site list/show,
 > db backup/restore, CrowdSec, ACME DNS-01), v3.3.0 UI/UX (TUI, progress, help, PHP 8.4),
-> v3.4.0 security (ModSecurity v3 WAF, encrypted config at rest).
+> v3.4.0 security (ModSecurity v3 WAF, encrypted config at rest), v3.5.1 PHP2Shell
+> remediation (legacy update bootstrap, PHP/nginx/MariaDB/CLI updater), v3.5.2 PHP 8.5
+> support (templates, default version, install/remove flows, nginx handlers).
 >
-> **Last Updated:** 2026-10-22
+> **Last Updated:** 2026-10-24
 >
 > This document presents the audit findings and improvement recommendations for the LEMPer
 > codebase. It is organized by priority area (Security, Architecture, Functionality,
@@ -701,7 +703,7 @@ service URLs only — no passwords).
 
 **Issue:** `etc/php/{5.6,7.0,7.1,7.2,7.3,7.4,8.0}/` directories remained.
 
-**Fix:** ✅ Implemented — Deleted all stale PHP template directories. Remaining: 8.1–8.4 only.
+**Fix:** ✅ Implemented — Deleted all stale PHP template directories. Remaining: 8.1–8.5 only.
 Updated PHP version guard in `install_php.sh` from `8.0` → `8.1`.
 
 **Effort:** ✅ Done
@@ -805,6 +807,38 @@ planned for v3.6+ with symlink compatibility layer.
 
 ---
 
+### Phase 8: Emergency PHP2Shell Remediation (v3.5.1) — ✅ Complete
+
+**Focus:** Give legacy LEMPer installations a supported path to patch
+CVE-2026-109618 / CVE-2026-109619 and keep the rest of the stack current.
+
+
+| #     | Task                                        | Priority | Effort     | Estimated Time | Status  |
+| ----- | ------------------------------------------- | -------- | ---------- | -------------- | ------- |
+| 2.45  | Standalone `update.sh` bootstrap            | Critical | Medium     | 8h             | ✅ Complete |
+| 2.46  | `lemper update` CLI plugin                  | Critical | High       | 16h            | ✅ Complete |
+| 2.47  | Updater tests and documentation             | High     | Medium     | 6h             | ✅ Complete |
+
+**Implementation notes:**
+
+- **2.45** — `update.sh` installs the current CLI to `/usr/local/bin`, installs
+  `lib/lemper-update.sh` as `/etc/lemper/cli-plugins/lemper-update`, and records
+  the checkout in `/etc/lemper/update-source`. Supports `--install-only`,
+  `--check`, `--source-dir`, `--post-max-size`, and `--yes`.
+- **2.46** — `lib/lemper-update.sh` provides `check`, `php`, `nginx`, `mariadb`,
+  `lemper`, and `all`. Supported PHP branches are upgraded from apt and verified
+  against 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12. EOL branches are backed up and
+  admin-locked with `memory_limit=-1`, `post_max_size=32M`,
+  `session.upload_progress.enabled=0` (plus `fatal_error_backtraces=0` on 8.5),
+  then reported as requiring migration. Source-built nginx is detected and not
+  modified. Runs take a `flock` and log to `/var/log/lemper/`.
+- **2.47** — `tests/unit/update_helpers.bats` (10 tests) plus syntax/wiring
+  checks; suite is now 107 tests. README, ARCHITECTURE, and DEVELOPER document
+  the bootstrap and remediation limits.
+
+
+---
+
 ## 4. Risk Register
 
 
@@ -834,6 +868,8 @@ planned for v3.6+ with symlink compatibility layer.
 | **v3.3.0** | UI/UX                    | Progress indicators, improved help, PHP 8.4 default, Fail2ban default                                                                              |
 | **v3.4.0** | Advanced security        | ModSecurity v3 WAF, encrypted config at rest, interactive TUI                                                                                      |
 | **v3.5.0** | Architecture debt        | NOPASSWD fix, credential suppression, safe config loader, sed/i portability, restricted sudoers, Debian 12 CI, bashate linting, ShellCheck v0.11.0 |
+| **v3.5.1** | PHP2Shell remediation    | Legacy `update.sh` bootstrap, `lemper update` plugin, EOL pool mitigations, apt version verification |
+| **v3.5.2** | PHP 8.5 support          | 8.5 FPM templates, 8.5 default, install/remove menus, nginx handlers and phpinfo endpoints |
 | **v3.6.0** | Advanced UX              | TUI log streaming, site creation wizard, ModSecurity auto-tuning, systemd-resolved ACME                                                         |
 
 
@@ -844,7 +880,7 @@ planned for v3.6+ with symlink compatibility layer.
 All 5 phases (0–5) have been completed. The project is at **v3.5.0** with:
 
 - **v3.0.0**: Architecture overhaul — `lemper-stacks.sh` orchestrator, validation functions,
-bats-core test suite (97 tests passing)
+bats-core test suite (107 tests passing)
 - **v3.1.0**: `site list`, `site show`, DB backup/restore/schedule, Bun.js runtime
 - **v3.2.0**: CrowdSec HIPS (+ WordPress scenarios), Valkey drop-in, ACME DNS-01 wildcard
 - **v3.3.0**: Interactive TUI dashboard, progress indicators, improved CLI help,
@@ -853,6 +889,10 @@ PHP 8.4 default, Fail2ban enabled by default
 - **v3.5.0**: Restricted sudoers (replaces NOPASSWD:ALL), credential display suppression,
 safe config loader (no eval), `sed_inplace()` portable wrapper, removed stale PHP 5.6-8.0
 templates, bashate linting, Debian 12 CI matrix, ShellCheck v0.11.0, Ubuntu 24.04 runner
+- **v3.5.1**: PHP2Shell remediation — standalone `update.sh` bootstrap, `lemper update`
+plugin, EOL pool compensating controls, apt version verification
+- **v3.5.2**: PHP 8.5 support — FPM templates, `DEFAULT_PHP_VERSION=8.5`, install/remove
+menus, nginx `.php85` handlers, admin phpinfo endpoints
 - **v3.6.0**: TUI live log streaming, interactive site creation wizard,
 ModSecurity CRS auto-tuning (`lemper-cli modsec`), systemd-resolved ACME
 cache integration and renewal deploy hooks
@@ -860,6 +900,10 @@ cache integration and renewal deploy hooks
 PHP-FPM, opcache, and nginx from detected RAM/CPU; dedicated
 `nginx-lowend.conf` for sub-1 GiB hosts; opt-in rate limiting, archive deny,
 etag control, and secure session cookies; SEC-20 … SEC-26 fixes
+- **v3.5.1**: legacy `update.sh` bootstrap and `lemper-cli update` plugin patch
+PHP2Shell (CVE-2026-109618 / CVE-2026-109619) across PHP, nginx, MariaDB, and
+CLI/plugins; EOL PHP branches receive backed-up, admin-locked mitigations and a
+migration warning
 
 ---
 

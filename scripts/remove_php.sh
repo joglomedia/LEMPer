@@ -28,7 +28,7 @@ function remove_php() {
     local REMOVED_PHP_LOADER="${2}"
 
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     # Stop default PHP FPM process.
@@ -104,7 +104,7 @@ function disable_ioncube_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     echo "Disable ionCube loader for PHP ${PHPv}."
@@ -125,7 +125,7 @@ function remove_ioncube_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     echo "Uninstalling ionCube loader for PHP ${PHPv}..."
@@ -147,7 +147,7 @@ function disable_sourceguardian_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     echo "Disable SourceGuardian loader for PHP ${PHPv}."
@@ -168,7 +168,7 @@ function remove_sourceguardian_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     echo "Uninstalling SourceGuardian loader for PHP ${PHPv}..."
@@ -191,7 +191,7 @@ function remove_php_loader() {
     local REMOVED_PHP_LOADER="${2}"
 
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     if [[ -z "${REMOVED_PHP_LOADER}" ]]; then
@@ -302,12 +302,13 @@ function init_php_removal() {
             echo "  3). PHP 7.3 (EOL)"
             echo "  4). PHP 7.4 (EOL)"
             echo "  5). PHP 8.0 (EOL)"
-            echo "  6). PHP 8.1 (SFO)"
-            echo "  7). PHP 8.2 (SFO)"
+            echo "  6). PHP 8.1 (EOL)"
+            echo "  7). PHP 8.2 (Security)"
             echo "  8). PHP 8.3 (Stable)"
-            echo "  9). PHP 8.4 (Latest Stable)"
-            echo "  10). All installed versions"
-            echo "  11). Do not remove!"
+            echo "  9). PHP 8.4 (Security)"
+            echo "  10). PHP 8.5 (Latest Stable)"
+            echo "  11). All installed versions"
+            echo "  12). Do not remove!"
             echo "--------------------------------------------"
 
             [ -n "${DEFAULT_PHP_VERSION}" ] && \
@@ -316,13 +317,14 @@ function init_php_removal() {
             while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                     ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
                     ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && ${SELECTED_PHP} != "9" && \
-                    ${SELECTED_PHP} != "10" && ${SELECTED_PHP} != "11" && \
+                    ${SELECTED_PHP} != "10" && ${SELECTED_PHP} != "11" && ${SELECTED_PHP} != "12" && \
                     ${SELECTED_PHP} != "7.1" && ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && \
                     ${SELECTED_PHP} != "7.4" && ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "8.1" && \
                     ${SELECTED_PHP} != "8.2" && ${SELECTED_PHP} != "8.3" && ${SELECTED_PHP} != "8.4" && \
+                    ${SELECTED_PHP} != "8.5" && \
                     ${SELECTED_PHP} != "all" && ${SELECTED_PHP} != "none"
             ]]; do
-                read -rp "Enter a PHP version from an option above [1-11]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
+                read -rp "Enter a PHP version from an option above [1-12]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
             done
 
             case ${SELECTED_PHP} in
@@ -353,11 +355,14 @@ function init_php_removal() {
                 9 | "8.4")
                     REMOVED_PHP_VERSIONS+=("8.4")
                 ;;
-                10 | "all")
-                    # Select all PHP versions (except EOL & Beta).
-                    REMOVED_PHP_VERSIONS=("7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2" "8.3" "8.4")
+                10 | "8.5")
+                    REMOVED_PHP_VERSIONS+=("8.5")
                 ;;
-                11 | n*)
+                11 | "all")
+                    # Select all PHP versions (except EOL & Beta).
+                    REMOVED_PHP_VERSIONS=("7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2" "8.3" "8.4" "8.5")
+                ;;
+                12 | n*)
                     info "No selected PHP version will be removed."
                     return
                 ;;
@@ -382,10 +387,10 @@ function init_php_removal() {
         REMOVED_PHP_VERSIONS=($(printf "%s\n" "${REMOVED_PHP_VERSIONS[@]}" | sort -u | tr '\n' ' '))
 
         for PHP_VER in "${REMOVED_PHP_VERSIONS[@]}"; do
-            if [[ -n $(command -v "php${PHPv}") && -n $(command -v "php-fpm${PHPv}") ]]; then
+            if [[ -n $(command -v "php${PHP_VER}") && -n $(command -v "php-fpm${PHP_VER}") ]]; then
                 remove_php "${PHP_VER}" "${OPT_PHP_LOADER}"
             else
-                info "PHP ${PHPv} packages installation not found, uninstall skipped."
+                info "PHP ${PHP_VER} packages installation not found, uninstall skipped."
             fi
         done
 
@@ -394,7 +399,7 @@ function init_php_removal() {
             # New logic for multiple PHP removal in batch.
             PHP_IS_EXISTS=false
             for PHP_VER in "${REMOVED_PHP_VERSIONS[@]}"; do
-                [[ -n $(command -v "${PHP_VER}") ]] && PHP_IS_EXISTS=true
+                [[ -n $(command -v "php${PHP_VER}") ]] && PHP_IS_EXISTS=true
             done
 
             if [[ "${PHP_IS_EXISTS}" == false ]]; then

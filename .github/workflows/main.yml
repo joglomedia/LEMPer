@@ -68,6 +68,7 @@ jobs:
           shellcheck -s bash -x lemper.sh
           shellcheck -s bash -x install.sh
           shellcheck -s bash -x remove.sh
+          shellcheck -s bash -x update.sh
           shellcheck -s bash -x bin/lemper-*.sh
           shellcheck -s bash -x lib/lemper-*.sh
           shellcheck -s bash -x lib/core/lemper-stacks.sh
@@ -83,7 +84,7 @@ jobs:
         run: |
           set -ex
           bashate --ignore E006,E012,E042,E043,E044,E045 --max-line-length 120 \
-            install.sh remove.sh lemper.sh \
+            install.sh remove.sh update.sh lemper.sh \
             bin/lemper-cli.sh \
             lib/lemper-*.sh lib/core/lemper-stacks.sh \
             scripts/*.sh scripts/nginx/*.sh
@@ -153,6 +154,7 @@ jobs:
           shellcheck -s bash -x lemper.sh
           shellcheck -s bash -x install.sh
           shellcheck -s bash -x remove.sh
+          shellcheck -s bash -x update.sh
           shellcheck -s bash -x bin/lemper-*.sh
           shellcheck -s bash -x lib/lemper-*.sh
           shellcheck -s bash -x lib/core/lemper-stacks.sh

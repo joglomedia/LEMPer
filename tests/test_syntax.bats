@@ -14,6 +14,7 @@ setup() {
 _get_script_files() {
     echo "${BASE_DIR}/install.sh"
     echo "${BASE_DIR}/remove.sh"
+    echo "${BASE_DIR}/update.sh"
     echo "${BASE_DIR}/lemper.sh"
     echo "${BASE_DIR}/bin/lemper-cli.sh"
     for f in "${BASE_DIR}"/lib/lemper-*.sh; do

@@ -34,7 +34,8 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
   * Get an A+ grade on several SSL Security Test ([Qualys SSL Labs](https://www.ssllabs.com/ssltest/analyze.html?d=masedi.net), [ImmuniWeb](https://www.immuniweb.com/ssl/?id=bVrykFnK), and Wormly).
 * PHP - Most used language that [powers 78.9% of all websites](https://w3techs.com/technologies/details/pl-php) around the universe.
   * Community package from [Ondrej's PHP repository](https://launchpad.net/~ondrej/+archive/ubuntu/php).
-  * Multiple PHP versions: 8.1 [EOL], 8.2 [Security], 8.3 [Stable], 8.4 [Latest, default].
+  * Multiple PHP versions: 8.1 [EOL], 8.2 [Security], 8.3 [Stable], 8.4 [Security], 8.5 [Latest, default].
+  * In-place security updater (`lemper-cli update`) with compensating controls for EOL branches.
   * Run PHP as user who own the file (Multi-user isolation via FPM pool).
   * Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
   * Supported PHP Framework and CMS:
@@ -79,6 +80,34 @@ sudo ./install.sh
 ```bash
 sudo ./remove.sh
 ```
+
+### Update an Existing Installation
+
+Legacy installations can be patched in place from a current checkout. The bootstrap
+installs the latest CLI and updater plugin, records the checkout path, and then patches
+the stack through the configured apt repositories.
+
+```bash
+sudo ./update.sh                 # install updater + update PHP, nginx, MariaDB, CLI
+sudo ./update.sh --check         # install updater, then audit without patching
+sudo ./update.sh --install-only  # install the updater, change no packages
+```
+
+Once installed:
+
+```bash
+sudo lemper-cli update check     # exit 0 only when every PHP branch is patched
+sudo lemper-cli update all
+sudo lemper-cli update php --post-max-size=8M
+```
+
+The updater remediates **PHP2Shell** (CVE-2026-109618 / CVE-2026-109619) by installing
+PHP 8.2.35+, 8.3.36+, 8.4.27+, or 8.5.12+ from the configured apt repositories. PHP 8.1
+and older branches have no vendor patch: the updater backs up their FPM pools and
+admin-locks compensating controls (`memory_limit=-1`, `post_max_size=32M`,
+`session.upload_progress.enabled=0`, and `fatal_error_backtraces=0` on PHP 8.5) before
+reporting that migration is still required. Source-built nginx is detected and reported
+as needing a rebuild.
 
 ### LEMPer Command Line Administration Tool
 

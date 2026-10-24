@@ -872,7 +872,7 @@ function init_lemper_create() {
     SERVERNAME=""
     WEBROOT=""
     FRAMEWORK="default"
-    PHP_VERSION="8.1"
+    PHP_VERSION="${DEFAULT_PHP_VERSION:-8.5}"
     INSTALL_APP=false
     WPMS_SUBDOMAINS=""
     ENABLE_FASTCGI_CACHE=false

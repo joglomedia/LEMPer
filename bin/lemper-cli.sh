@@ -313,6 +313,13 @@ System Administration:
                         modsec status                Show engine and CRS status.
                         modsec report                Summarize triggered rules.
                         modsec tune [options]        Adjust paranoia/thresholds.
+  update          Patch PHP2Shell and keep the stack current.
+                        update check                 Audit PHP/nginx/MariaDB state.
+                        update php                   Patch PHP; mitigate EOL pools.
+                        update nginx                 Upgrade package-managed nginx.
+                        update mariadb               Upgrade MariaDB packages.
+                        update lemper                Refresh CLI and plugins.
+                        update all                   Run every update step.
 
 Options:
   --version, -v   Show version and exit.

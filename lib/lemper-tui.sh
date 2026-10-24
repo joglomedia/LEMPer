@@ -361,7 +361,7 @@ function tui_default_php_version() {
     if [[ -n "${versions}" ]]; then
         printf '%s' "${versions}" | sort -V | tail -n 1
     else
-        printf '%s\n' "${DEFAULT_PHP_VERSION:-8.3}"
+        printf '%s\n' "${DEFAULT_PHP_VERSION:-8.5}"
     fi
 }
 
