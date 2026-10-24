@@ -293,14 +293,14 @@ the pattern `scripts/nginx/*.sh` is not included.
 
 ---
 
-#### 2.14 Fix CI References to Non-Existent .env Variables
+#### 2.14 Fix CI References to Non-Existent .env Variables  ✅**COMPLETE**
 
 **Issue:** The CI workflow references `NGX_PAGESPEED` and `PHP_LOADER="none"` which don't
 exist in `.env.dist`, causing `sed` commands that silently match nothing.
 
-**File:** `.github/workflows/main.yml:31,33`
-
-**Fix:** Remove these `sed` lines or update to match actual `.env.dist` keys.
+**Resolution:** CI now toggles `INSTALL_PHP_LOADER=true`, which exists in `.env.dist`.
+The obsolete `NGX_PAGESPEED` line was removed together with the deprecated PageSpeed
+module (issue #178). No PageSpeed code, module, or configuration remains.
 
 **Effort:** Low
 

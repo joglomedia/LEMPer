@@ -308,6 +308,12 @@ refute_grep() {
     grep -q 'ubuntu:24.04' "${BASE_DIR}/scripts/test_podman.sh"
 }
 
+@test "Nginx PageSpeed module and config are fully removed" {
+    refute_grep -rqiE 'page.?speed|ngx_pagespeed' \
+        "${BASE_DIR}/scripts" "${BASE_DIR}/etc" "${BASE_DIR}/lib" \
+        "${BASE_DIR}/bin" "${BASE_DIR}/.env.dist"
+}
+
 @test "Ubuntu 20.04 is rejected as unsupported" {
     local utils="${BASE_DIR}/scripts/utils.sh"
     refute_grep -q '20\.04' "${utils}"

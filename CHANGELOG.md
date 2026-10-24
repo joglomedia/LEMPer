@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ubuntu 20.04 (Focal) and Linux Mint 20 support. The preflight check now
   rejects them; the minimum supported Ubuntu release is 22.04 (Jammy).
+- Remaining PageSpeed references from the developer docs (ROADMAP, AGENTIC).
+  The archived Nginx PageSpeed module was already removed; no PageSpeed
+  module, directive, package, or cache configuration remains (issue #178).
 
 ### Fixed
 

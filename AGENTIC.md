@@ -253,12 +253,11 @@ produces inconsistent capitalization (e.g., "Wordpress" instead of "WordPress").
 
 **Location:** `lemper.sh:526-527` — commented-out `./install.sh` and `./remove.sh` calls
 
-### 4.8 CI References Non-Existent Variables
+### 4.8 CI References Non-Existent Variables — Resolved
 
-**Location:** `.github/workflows/main.yml`
-
-- `sed -i "s/NGX_PAGESPEED=true/NGX_PAGESPEED=false/g"` — no `NGX_PAGESPEED` in `.env.dist`
-- `sed -i "s/PHP_LOADER=\"none\"/PHP_LOADER=\"ioncube\"/g"` — no `PHP_LOADER="none"` in `.env.dist`
+The obsolete `NGX_PAGESPEED` sed line and the `PHP_LOADER="none"` reference are gone.
+CI now toggles `INSTALL_PHP_LOADER=true`, which exists in `.env.dist`. PageSpeed was
+removed entirely from the stack (issue #178).
 
 ---
 
