@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deploy hooks.
 - SEC-20 through SEC-26 hardening fixes and the SEC-27 PHP2Shell entry in the
   security register.
+- Opt-in `rewrite_log` (`NGINX_REWRITE_LOG`) for debugging rewrite rules.
+  Enabling it also raises the Nginx error log from `warn` to `notice`, since
+  rewrite messages are logged at notice level (issue #169).
 
 ### Removed
 

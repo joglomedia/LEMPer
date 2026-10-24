@@ -165,6 +165,13 @@ function configure_nginx_performance() {
     [[ "${ETAG_VALUE}" == "on" || "${ETAG_VALUE}" == "off" ]] || ETAG_VALUE="off"
     sed_inplace "s/^etag .*/etag ${ETAG_VALUE};/" /etc/nginx/nginx.conf
 
+    # Rewrite logging is opt-in because it requires a notice-level error log.
+    if [[ "${NGINX_REWRITE_LOG:-false}" == true ]]; then
+        sed_inplace "s|^\( *\)#rewrite_log on;|\1rewrite_log on;|" /etc/nginx/nginx.conf
+        sed_inplace "s|^\( *\)error_log /var/log/nginx/error.log warn;|\1error_log /var/log/nginx/error.log notice;|" \
+            /etc/nginx/nginx.conf
+    fi
+
     # Configure rate limiting if enabled.
     if [[ "${NGINX_RATE_LIMITING:-false}" == true ]]; then
         sed_inplace "s|#limit_|limit_|g" /etc/nginx/nginx.conf

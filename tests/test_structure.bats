@@ -606,3 +606,13 @@ refute_grep() {
     grep -qF 'http2 on;' "${manage}"
     refute_grep -q '#ssl on;' "${BASE_DIR}/etc/nginx/includes/ssl.conf"
 }
+
+@test "rewrite_log is opt-in and paired with a notice-level error log" {
+    grep -qF '#rewrite_log on;' "${BASE_DIR}/etc/nginx/nginx.conf"
+    grep -qF '#rewrite_log on;' "${BASE_DIR}/etc/nginx/nginx-lowend.conf"
+    grep -qF 'NGINX_REWRITE_LOG' "${BASE_DIR}/.env.dist"
+
+    local post="${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+    grep -qF 'rewrite_log on;' "${post}"
+    grep -qF 'error.log notice;' "${post}"
+}
