@@ -502,22 +502,21 @@ refute_grep() {
     grep -qF 'calc_php_pool_sizing' "${BASE_DIR}/lib/lemper-create.sh"
 }
 
-@test "PECL is a conditional fallback and never updated unconditionally" {
+@test "PHP extensions come from the repository only, without PECL or PEAR" {
     local install="${BASE_DIR}/scripts/install_php.sh"
-    grep -qF 'if [[ "${#PHP_PECL_EXTS[@]}" -gt 0 ]]; then' "${install}"
-    grep -qF 'elif ! pecl channel-update pecl.php.net; then' "${install}"
-    refute_grep -qF 'pecl channel-update pear.php.net' "${install}"
-    # No unconditional `run pecl channel-update` (which exits on failure).
-    refute_grep -qE '^[[:space:]]*run pecl channel-update' "${install}"
+    refute_grep -qE '^[[:space:]]*(run )?pecl( |$)' "${install}"
+    refute_grep -q 'php-pear' "${install}"
+    grep -qF 'not available from the distribution repository' "${install}"
+    grep -qF 'https://github.com/php/pie' "${install}"
 }
 
-@test "deprecated PECL-only extensions are opt-in by default" {
+@test "deprecated PECL-only extensions are not in the default list" {
     local envfile="${BASE_DIR}/.env.dist"
     local exts
     exts=$(grep -E '^PHP_EXTENSIONS=' "${envfile}")
     [[ "${exts}" != *geoip* ]]
     [[ "${exts}" != *mcrypt* ]]
-    grep -qF 'Deprecated/abandoned extensions' "${envfile}"
+    grep -qF 'built manually with PIE' "${envfile}"
 }
 
 @test "Fail2ban install suppresses upstream Python SyntaxWarning noise" {

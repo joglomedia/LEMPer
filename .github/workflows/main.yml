@@ -15,7 +15,7 @@ jobs:
   ubuntu-latest:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       # Prepare testing environment
       - name: Prepare testing environment
         run: |
@@ -114,7 +114,7 @@ jobs:
     container:
       image: debian:12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Prepare testing environment
         run: |
           cp .env.dist .env

@@ -44,9 +44,6 @@ function remove_php() {
         if [[ -n $(command -v "php${PHPv}") ]]; then
             # Remove geoip extension.
             if "php${PHPv}" -m | grep -qw geoip; then
-                # Uninstall geoip pecl.
-                #run pecl uninstall geoip
-
                 # Unlink enabled extension.
                 [ -f "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini" ] && \
                 run unlink "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini"

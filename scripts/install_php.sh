@@ -102,8 +102,7 @@ function install_php() {
 
         local PHP_EXTS=()
         local PHP_REPO_EXTS=()
-        local PHP_PECL_EXTS=()
-        local PHP_PECL_FLAG=""
+        local PHP_MISSING_EXTS=()
 
         # Include user defined extensions from config file.
         read -r -a PHP_EXTS <<< "${PHP_EXTENSIONS}"
@@ -121,34 +120,25 @@ function install_php() {
         #shellcheck disable=SC2207
         PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | sort -u | tr '\n' ' '))
 
-        # Check additional PHP extensions availability.
+        # json is bundled with PHP 8.0+ and has no standalone package.
+        if [[ $(bc -l <<< "${PHPv//.} > 74") == 1 ]]; then
+            #shellcheck disable=SC2207
+            PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | grep -vx 'json' | tr '\n' ' '))
+        fi
+
+        # Resolve additional PHP extensions against the distribution repository.
         for EXT_NAME in "${PHP_EXTS[@]}"; do
             echo -n "Checking extension ${EXT_NAME}... "
 
-            # Search extension from repository or PECL.
             if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "php${PHPv}-${EXT_NAME}" > /dev/null; then
                 echo "[php${PHPv}-${EXT_NAME}]"
                 PHP_REPO_EXTS+=("php${PHPv}-${EXT_NAME}")
             elif apt-cache search "php-${EXT_NAME}" | grep -c "php-${EXT_NAME}" > /dev/null; then
-                echo "[php${PHPv}-${EXT_NAME}]"
+                echo "[php-${EXT_NAME}]"
                 PHP_REPO_EXTS+=("php-${EXT_NAME}")
             else
-                # Fix PECL Sodium ext name.
-                if [[ "${EXT_NAME}" == "sodium" ]]; then
-                    EXT_NAME="libsodium"
-                fi
-
-                # Check PECL extension is available.
-                if curl -sLI "https://pecl.php.net/rest/r/${EXT_NAME}/allreleases.xml" | grep -q "HTTP/[.12]* [2].."; then
-                    echo "[pecl-${EXT_NAME}]"
-                    PHP_PECL_EXTS+=("${EXT_NAME}")
-
-                    if [[ "${EXT_NAME}" == "openswoole" ]]; then
-                        PHP_PECL_FLAG=' -D enable-sockets="no" enable-openssl="yes" enable-http2="yes" enable-mysqlnd="yes" enable-swoole-json="yes" enable-swoole-curl="yes" enable-cares="yes" with-postgres="no"'
-                    fi
-                else
-                    echo "Not found."
-                fi
+                echo "[not available]"
+                PHP_MISSING_EXTS+=("${EXT_NAME}")
             fi
         done
 
@@ -157,86 +147,22 @@ function install_php() {
 
         if [[ "${#PHP_REPO_EXTS[@]}" -gt 0 ]]; then
             run_spinner "Installing PHP ${PHPv}" apt-get install -q -y "php${PHPv}" "${PHP_REPO_EXTS[@]}" \
-                dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
+                php-common php-xml fcgiwrap spawn-fcgi
         fi
 
-        # Sort PHP extensions and drop empty entries.
-        #shellcheck disable=SC2207
-        PHP_PECL_EXTS=($(printf "%s\n" "${PHP_PECL_EXTS[@]}" | grep -v '^$' | sort -u | tr '\n' ' '))
-
-        # Remove json extension from PHP 8.0+. It is now always available.
-        if [[ $(bc -l <<< "${PHPv//.} > 74") == 1 ]]; then
-            #shellcheck disable=SC2207
-            PHP_PECL_EXTS=($(printf "%s\n" "${PHP_PECL_EXTS[@]/json/}" | grep -v '^$' | tr '\n' ' '))
-        fi
-
-        # PECL is only a fallback for extensions missing from the
-        # distribution repository. PIE (php/pie) is its official successor,
-        # but it requires Composer package names and cannot target Debian's
-        # per-version php_suffix layout, so it is not a drop-in replacement.
-        if [[ "${#PHP_PECL_EXTS[@]}" -gt 0 ]]; then
-            echo "Installing PHP extensions from PECL repo..."
-
-            # PEAR emits PHP 8.5+ warnings ("Cannot use bool as array") and
-            # the channel update is optional, so never abort the install here.
-            if [[ "${DRYRUN:-false}" == true ]]; then
-                echo "would run pecl channel-update pecl.php.net"
-            elif ! pecl channel-update pecl.php.net; then
-                warning "PECL channel update failed, continuing."
-            fi
-
-            run pecl -d "php_suffix=${PHPv}" install"${PHP_PECL_FLAG}" "${PHP_PECL_EXTS[@]}"
-        else
-            info "All requested PHP extensions are available from the distribution repository; PECL skipped."
+        if [[ "${#PHP_MISSING_EXTS[@]}" -gt 0 ]]; then
+            warning "PHP extension(s) not available from the distribution repository: ${PHP_MISSING_EXTS[*]}"
+            warning "Install them manually with PIE (https://github.com/php/pie) if required."
         fi
 
         if [[ -n $(command -v "php${PHPv}") ]]; then
-            TOTAL_EXTS=$((${#PHP_EXTS[@]} + ${#PHP_PECL_EXTS[@]}))
-            success "PHP ${PHPv} along with ${TOTAL_EXTS} extensions installed."
+            success "PHP ${PHPv} along with ${#PHP_REPO_EXTS[@]} extensions installed."
         fi
 
         # Enable additional PHP extensions.
         [[ "${INSTALL_MEMCACHED}" == true ]] && enable_php_memcached "${PHPv}"
         [[ "${INSTALL_MONGODB}" == true ]] && enable_php_mongodb "${PHPv}"
         [[ "${INSTALL_REDIS}" == true ]] && enable_php_redis "${PHPv}"
-
-        # Enable GeoIP extension.
-        if [[ "${PHP_PECL_EXTS[*]}" =~ "geoip" ]]; then
-            echo "Updating PHP ini file with GeoIP extension..."
-
-            [[ ! -f "/etc/php/${PHPv}/mods-available/geoip.ini" ]] && \
-            run touch "/etc/php/${PHPv}/mods-available/geoip.ini"
-            run bash -c "echo extension=geoip.so > /etc/php/${PHPv}/mods-available/geoip.ini"
-
-            if [[ ! -f "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini" ]]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/geoip.ini" \
-                    "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini"
-            fi
-
-            if [[ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini" ]]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/geoip.ini" \
-                    "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini"
-            fi
-        fi
-
-        # Enable Mcrypt extension.
-        if [[ "${PHP_PECL_EXTS[*]}" =~ "mcrypt" ]]; then
-            echo "Updating PHP ini file with Mcrypt extension..."
-
-            [[ ! -f "/etc/php/${PHPv}/mods-available/mcrypt.ini" ]] && \
-            run touch "/etc/php/${PHPv}/mods-available/mcrypt.ini"
-            run bash -c "echo extension=mcrypt.so > /etc/php/${PHPv}/mods-available/mcrypt.ini"
-
-            if [[ ! -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ]]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
-                    "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini"
-            fi
-
-            if [[ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini" ]]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
-                    "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
-            fi
-        fi
 
         # Create PHP log dir.
         if [[ ! -d /var/log/php ]]; then
