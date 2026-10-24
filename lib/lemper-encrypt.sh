@@ -169,13 +169,7 @@ function load_config() {
 
     # Check if config is encrypted.
     if is_config_encrypted "${config_file}"; then
-        local ENCRYPT_CONFIG_AT_REST
-        ENCRYPT_CONFIG_AT_REST=${ENCRYPT_CONFIG_AT_REST:-false}
-
-        if [[ "${ENCRYPT_CONFIG_AT_REST}" != true ]]; then
-            fail "Config is encrypted but ENCRYPT_CONFIG_AT_REST is not enabled. Cannot load."
-        fi
-
+        # The header is authoritative: the flag is not inherited under sudo.
         temp_decrypted=$(decrypt_config "${config_file}")
         if [[ -z "${temp_decrypted}" ]]; then
             fail "Failed to decrypt configuration."

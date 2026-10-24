@@ -139,12 +139,7 @@ if [[ -f "${CONFIG_FILE}" ]]; then
 
     # Check if config is encrypted.
     if is_config_encrypted "${CONFIG_FILE}"; then
-        if [[ "${ENCRYPT_CONFIG_AT_REST}" != true ]]; then
-            echo "Config is encrypted but ENCRYPT_CONFIG_AT_REST is not enabled. Cannot load." >&2
-            echo "Set ENCRYPT_CONFIG_AT_REST=true in config or provide --password." >&2
-            exit 1
-        fi
-
+        # The header is authoritative: the flag is not inherited under sudo.
         temp_decrypted=$(decrypt_config_file "${CONFIG_FILE}")
         if [[ -z "${temp_decrypted}" ]]; then
             echo "Failed to decrypt configuration." >&2

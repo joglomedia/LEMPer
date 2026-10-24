@@ -58,7 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The previous AES-256-GCM path failed with `AEAD ciphers not supported`, so
   `save_config` silently discarded every credential, including the MariaDB root
   password. Encrypted-file detection now also recognizes the base64
-  `U2FsdGVkX1` header produced by `openssl enc -a`.
+  `U2FsdGVkX1` header produced by `openssl enc -a`, and the CLI trusts that
+  header instead of relying on `ENCRYPT_CONFIG_AT_REST`, which sudo strips
+  from the environment.
 
 ## [3.5.2] - 2026-10-24
 
