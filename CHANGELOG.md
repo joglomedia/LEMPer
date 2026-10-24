@@ -41,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Uninstall no longer removes packages and configuration for services that
+  predate LEMPer. Installers record provisioned services under
+  `/etc/lemper/installed/`, and the Nginx remover leaves a pre-existing server
+  untouched unless `FORCE_REMOVE=true` (issue #182). The README now states that
+  LEMPer targets clean installations.
 - ModSecurity installation now uses the packages the nginx repository actually
   ships: `libnginx-mod-http-modsecurity` and `modsecurity-crs` (issue #177).
   Previously the installer selected a non-existent package name, created an

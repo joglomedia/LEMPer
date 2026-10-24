@@ -162,6 +162,10 @@ function init_nginx_install() {
 
         # Post-installation configuration
         configure_nginx_post_install "${PWD}" "${HOSTNAME_CERT_PATH:-}"
+
+        # Remember that LEMPer installed Nginx so uninstall does not remove
+        # a server that was already present beforehand.
+        mark_lemper_provisioned nginx
     fi
 }
 

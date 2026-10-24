@@ -237,6 +237,33 @@ function spinner_stop() {
 }
 
 ##
+# Record that LEMPer provisioned a service. Uninstallers use this marker to
+# avoid removing packages and configuration that predate LEMPer.
+##
+function mark_lemper_provisioned() {
+    local service="${1}"
+
+    if [[ "${DRYRUN}" == true ]]; then
+        echo_color "${YELLOW}" -n "would mark "
+        echo "${service} as provisioned by LEMPer"
+        return 0
+    fi
+
+    run mkdir -p /etc/lemper/installed
+    run touch "/etc/lemper/installed/${service}"
+}
+
+##
+# Check whether LEMPer provisioned a service.
+#
+# Returns 0 when the marker exists, 1 otherwise.
+##
+function lemper_provisioned() {
+    local service="${1}"
+    [[ -f "/etc/lemper/installed/${service}" ]]
+}
+
+##
 # Run a command with a progress spinner and description.
 # Usage: run_spinner "Description" command args...
 ##

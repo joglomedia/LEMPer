@@ -662,3 +662,17 @@ refute_grep() {
     grep -qF 'cors-${DOMAIN}.conf' "${manage}"
     grep -qF 'CORS origin mapping' "${BASE_DIR}/etc/nginx/nginx.conf"
 }
+
+@test "uninstall leaves a pre-existing Nginx untouched unless forced" {
+    local install="${BASE_DIR}/scripts/install_nginx.sh"
+    local remove="${BASE_DIR}/scripts/remove_nginx.sh"
+    local utils="${BASE_DIR}/scripts/utils.sh"
+
+    grep -qE '^function mark_lemper_provisioned\(\)' "${utils}"
+    grep -qE '^function lemper_provisioned\(\)' "${utils}"
+
+    grep -qF 'mark_lemper_provisioned nginx' "${install}"
+    grep -qF 'lemper_provisioned nginx' "${remove}"
+    grep -qF 'FORCE_REMOVE' "${remove}"
+    grep -qF 'was already installed before LEMPer' "${remove}"
+}

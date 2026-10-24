@@ -67,7 +67,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 ### Requirements
 
 * Debian 11 (Bullseye) or 12 (Bookworm), or Ubuntu 22.04 or 24.04 (Linux Mint 21–22), on a 64-bit architecture.
-* A fresh server with root (sudo) access; LEMPer removes conflicting web servers and configures system services.
+* A fresh server with root (sudo) access. LEMPer is designed for a clean install and configures system services directly.
 * git, curl, and a working apt repository connection.
 
 ### Clone and configure
@@ -93,6 +93,11 @@ sudo ./install.sh
 ```bash
 sudo ./remove.sh
 ```
+
+Uninstall only tears down services that LEMPer provisioned. A service that
+already existed before installation (for example, a pre-installed Nginx) is
+left in place with its packages and configuration; set `FORCE_REMOVE=true` in
+`.env` to remove it anyway.
 
 ### Update an Existing Installation
 
