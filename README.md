@@ -172,6 +172,17 @@ Example, enable FastCGI cache
 sudo lemper-cli site mod --enable-fastcgi-cache example.test
 ```
 
+Example, enable or disable CORS
+
+```bash
+sudo lemper-cli site mod --enable-cors example.test
+sudo lemper-cli site mod --disable-cors example.test
+```
+
+`--enable-cors` allows every origin by default. To restrict it, edit the
+`set $cors` line in `/etc/nginx/includes/cors-example.test.conf` and reload
+Nginx (`sudo systemctl reload nginx`).
+
 For more info
 
 ```bash

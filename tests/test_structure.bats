@@ -616,3 +616,19 @@ refute_grep() {
     grep -qF 'rewrite_log on;' "${post}"
     grep -qF 'error.log notice;' "${post}"
 }
+
+@test "CORS can be enabled and disabled from the CLI" {
+    local manage="${BASE_DIR}/lib/lemper-manage.sh"
+
+    grep -qE '^function enable_cors\(\)' "${manage}"
+    grep -qE '^function disable_cors\(\)' "${manage}"
+    grep -qF -- '--enable-cors)' "${manage}"
+    grep -qF -- '--disable-cors)' "${manage}"
+
+    # Per-vhost wrapper defaults to a wildcard origin and pulls in the
+    # shared header include; disabling removes the wrapper again.
+    grep -qF 'set \$cors "*";' "${manage}"
+    grep -qF 'include /etc/nginx/includes/cors.conf;' "${manage}"
+    grep -qF 'cors-${DOMAIN}.conf' "${manage}"
+    grep -qF 'CORS origin mapping' "${BASE_DIR}/etc/nginx/nginx.conf"
+}

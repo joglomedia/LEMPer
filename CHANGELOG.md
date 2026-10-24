@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Opt-in `rewrite_log` (`NGINX_REWRITE_LOG`) for debugging rewrite rules.
   Enabling it also raises the Nginx error log from `warn` to `notice`, since
   rewrite messages are logged at notice level (issue #169).
+- CORS can be enabled or disabled per vhost with
+  `lemper-cli site mod --enable-cors` and `--disable-cors` (issue #52). The
+  generated include defaults to a wildcard origin and can be restricted by
+  editing its `set $cors` line.
 
 ### Removed
 
