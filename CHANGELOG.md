@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Valkey installs now use the distribution package when available (Ubuntu
   24.04+, Debian 13) and enable `bookworm-backports` on Debian 12. The previous
   external repository and GitHub-hosted key URL are no longer published.
+- The shunit2 Redis/Valkey check now verifies `valkey-cli` and `valkey-server`
+  when `REDIS_BACKEND=valkey`, instead of assuming the `redis-*` binaries exist.
 
 ## [3.5.2] - 2026-10-24
 
