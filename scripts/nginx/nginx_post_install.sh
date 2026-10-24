@@ -35,6 +35,7 @@ function configure_nginx_files() {
     run cp -f "${NGINX_CONF_SRC}" /etc/nginx/nginx.conf
     info "Applied Nginx '${RESOURCE_PROFILE}' resource profile."
     run cp -f "${SOURCE_DIR}/etc/nginx/charset" /etc/nginx/
+    run cp -f "${SOURCE_DIR}/etc/nginx/cors" /etc/nginx/
     run cp -f "${SOURCE_DIR}/etc/nginx/fastcgi_cache" /etc/nginx/
     run cp -f "${SOURCE_DIR}/etc/nginx/fastcgi_https_map" /etc/nginx/
     run cp -f "${SOURCE_DIR}/etc/nginx/fastcgi_params" /etc/nginx/

@@ -98,8 +98,11 @@ refute_grep() {
 }
 
 @test "install_redis.sh supports Valkey backend" {
-    grep -q 'add_valkey_repo' "${BASE_DIR}/scripts/install_redis.sh"
-    grep -q 'REDIS_BACKEND' "${BASE_DIR}/scripts/install_redis.sh"
+    local redis="${BASE_DIR}/scripts/install_redis.sh"
+    grep -q 'add_valkey_repo' "${redis}"
+    grep -q 'REDIS_BACKEND' "${redis}"
+    grep -q 'apt-cache show valkey-server' "${redis}"
+    grep -q 'bookworm-backports' "${redis}"
 }
 
 @test "valkey-server.service template exists" {
@@ -276,6 +279,11 @@ refute_grep() {
     grep -qF 'NGINX_REPO_SRC:-myguard' "${nginx}"
     grep -qF 'NGINX_REPO_SOURCE="${SELECTED_REPO}"' "${nginx}"
     grep -qF 'NGINX_REPO_SRC="myguard"' "${BASE_DIR}/.env.dist"
+}
+
+@test "nginx post-install ships the CORS origin map" {
+    grep -qF 'etc/nginx/cors" /etc/nginx/' \
+        "${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
 }
 
 @test "PHP-FPM pools keep temp files outside user homes (SEC-12)" {

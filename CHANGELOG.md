@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository-based Nginx installs now honor `NGINX_REPO_SRC` (default
   `myguard`). The setting was previously ignored in favor of the Ondřej PPA,
   which no longer serves packages; the sury nginx repository is likewise gone.
+- Nginx post-install now copies `etc/nginx/cors` to `/etc/nginx/`. The main
+  configuration includes that file, so skipping the copy made `nginx -t` fail
+  with `open() "/etc/nginx/cors" failed`.
+- Valkey installs now use the distribution package when available (Ubuntu
+  24.04+, Debian 13) and enable `bookworm-backports` on Debian 12. The previous
+  external repository and GitHub-hosted key URL are no longer published.
 
 ## [3.5.2] - 2026-10-24
 

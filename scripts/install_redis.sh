@@ -44,33 +44,35 @@ function add_redis_repo() {
 }
 
 ##
-# Add Valkey repository.
+# Prepare the Valkey package source.
 # Valkey is a Redis-compatible fork (drop-in replacement) maintained by
-# the Linux Foundation. Uses the official Valkey apt repository.
+# the Linux Foundation. Ubuntu 24.04+ and Debian 13 ship it directly;
+# Debian 12 provides it through bookworm-backports.
 ##
 function add_valkey_repo() {
-    echo "Adding Valkey repository..."
+    echo "Preparing Valkey installation..."
 
-    case "${DISTRIB_NAME}" in
-        debian | ubuntu)
-            local VALKEY_GPG="/usr/share/keyrings/valkey-archive-keyring.gpg"
+    if apt-cache show valkey-server >/dev/null 2>&1; then
+        info "Valkey is available from the configured repositories."
+        return 0
+    fi
 
-            if [[ ! -f "${VALKEY_GPG}" ]]; then
-                run bash -c "curl -fsSL https://raw.githubusercontent.com/valkey-io/valkey/master/utils/install.sh | gpg --dearmor --yes -o ${VALKEY_GPG}" && \
-                run chmod 644 "${VALKEY_GPG}"
-            fi
+    if [[ "${DISTRIB_NAME}" == "debian" && "${RELEASE_NAME}" == "bookworm" ]]; then
+        local BACKPORTS_LIST="/etc/apt/sources.list.d/lemper-backports.list"
 
-            if [[ ! -f "/etc/apt/sources.list.d/valkey.list" ]]; then
-                run bash -c "echo 'deb [signed-by=${VALKEY_GPG}] https://packages.valkey.io/deb ${RELEASE_NAME} main' | tee /etc/apt/sources.list.d/valkey.list" && \
-                run apt-get update --allow-releaseinfo-change -q -y
-            else
-                info "Valkey repository already exists."
-            fi
-        ;;
-        *)
-            fail "Unable to add Valkey repo, this GNU/Linux distribution is not supported."
-        ;;
-    esac
+        if [[ ! -f "${BACKPORTS_LIST}" ]]; then
+            run bash -c "echo 'deb http://deb.debian.org/debian bookworm-backports main' > ${BACKPORTS_LIST}"
+        fi
+
+        run apt-get update -q -y
+
+        if apt-cache show valkey-server >/dev/null 2>&1; then
+            info "Valkey is available from Debian bookworm-backports."
+            return 0
+        fi
+    fi
+
+    fail "Valkey is not packaged for ${DISTRIB_NAME} ${RELEASE_NAME}. Use REDIS_BACKEND=\"redis\" or install Valkey from source."
 }
 
 ##
