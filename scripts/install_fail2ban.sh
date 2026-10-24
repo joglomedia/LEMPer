@@ -53,7 +53,10 @@ function init_fail2ban_install() {
         case "${SELECTED_INSTALLER}" in
             1 | "repo")
                 echo "Installing Fail2ban from repository..."
-                run apt-get install -q -y fail2ban
+                # The Ubuntu/Debian package byte-compiles its own test files,
+                # which emit SyntaxWarning (invalid escape sequence) noise on
+                # newer Python. Suppress only that category during install.
+                run env PYTHONWARNINGS=ignore::SyntaxWarning apt-get install -q -y fail2ban
             ;;
             2 | "source")
                 echo "Installing Fail2ban from source..."

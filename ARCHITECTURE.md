@@ -323,6 +323,27 @@ This allows scripts to be sourced (sharing parent state) or run standalone. Howe
 creates tight coupling: all scripts depend on the global `run()` function, `DRYRUN` variable,
 and the dotenv-sourced environment variables being in scope.
 
+### 2.7 PHP Extension Sources (PECL vs PIE)
+
+`install_php.sh` resolves each name in `PHP_EXTENSIONS` in this order:
+
+1. `php${PHPv}-NAME` from the distribution/Ondřej repository.
+2. `php-NAME` (version-independent package) from the same repository.
+3. PECL, only when the extension is not packaged.
+
+The PECL path is a legacy fallback. It is skipped entirely when step 1 or 2 covers
+every requested extension, so no `pecl` command (and no PEAR warnings) runs on a
+stock install. `pecl channel-update pecl.php.net` is advisory: a failure logs a
+warning and continues.
+
+[PIE](https://github.com/php/pie) is the official successor to PECL, but it is not a
+drop-in replacement here: it installs Composer packages (`vendor/package`) rather
+than bare extension names such as `geoip` or `memcache`, it requires PHP 8.1+ to
+run, and it has no Debian/Ubuntu package or `php_suffix` equivalent for targeting
+multiple installed PHP versions. It is therefore not wired into the installer.
+`geoip` and `mcrypt` are abandoned upstream and opt-in only; they were removed from
+the default `PHP_EXTENSIONS` list.
+
 ---
 
 ## 3. Security Model (Current)

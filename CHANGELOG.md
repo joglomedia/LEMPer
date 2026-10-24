@@ -82,6 +82,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   resource-sizing helpers used by the site plugin. `lemper-cli site add`
   previously ran those functions only when sourced by the installer, so the
   plugin failed with `command not found`.
+- PECL is now invoked only when at least one requested extension is missing
+  from the distribution repository. The installer previously ran
+  `pecl channel-update pear.php.net` unconditionally, which printed PEAR
+  `Cannot use bool as array` warnings under PHP 8.5 even when no PECL package
+  was needed. The channel is also corrected to `pecl.php.net`, and a failed
+  channel update no longer aborts the installation.
+- `geoip` and `mcrypt` were removed from the default `PHP_EXTENSIONS` list.
+  Both are abandoned and only buildable through PECL; they remain supported as
+  opt-in entries.
+- Documented that PIE is not used yet: `php/pie` requires Composer package
+  names (`vendor/package`) and cannot target Debian's per-version
+  `php_suffix` layout, so it is not a drop-in replacement for this installer's
+  bare extension names. See `ARCHITECTURE.md`.
+- Fail2ban installs set `PYTHONWARNINGS=ignore::SyntaxWarning` for the package
+  install. The distribution package byte-compiles its own test files and emits
+  `SyntaxWarning: invalid escape sequence` on newer Python; the warnings are
+  upstream noise, affect no running service, and no longer clutter CI logs.
 
 ## [3.5.2] - 2026-10-24
 

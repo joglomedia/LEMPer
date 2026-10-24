@@ -502,6 +502,28 @@ refute_grep() {
     grep -qF 'calc_php_pool_sizing' "${BASE_DIR}/lib/lemper-create.sh"
 }
 
+@test "PECL is a conditional fallback and never updated unconditionally" {
+    local install="${BASE_DIR}/scripts/install_php.sh"
+    grep -qF 'if [[ "${#PHP_PECL_EXTS[@]}" -gt 0 ]]; then' "${install}"
+    grep -qF 'elif ! pecl channel-update pecl.php.net; then' "${install}"
+    refute_grep -qF 'pecl channel-update pear.php.net' "${install}"
+    # No unconditional `run pecl channel-update` (which exits on failure).
+    refute_grep -qE '^[[:space:]]*run pecl channel-update' "${install}"
+}
+
+@test "deprecated PECL-only extensions are opt-in by default" {
+    local envfile="${BASE_DIR}/.env.dist"
+    local exts
+    exts=$(grep -E '^PHP_EXTENSIONS=' "${envfile}")
+    [[ "${exts}" != *geoip* ]]
+    [[ "${exts}" != *mcrypt* ]]
+    grep -qF 'Deprecated/abandoned extensions' "${envfile}"
+}
+
+@test "Fail2ban install suppresses upstream Python SyntaxWarning noise" {
+    grep -qF 'PYTHONWARNINGS=ignore::SyntaxWarning' "${BASE_DIR}/scripts/install_fail2ban.sh"
+}
+
 @test "MariaDB installer applies the resource profile" {
     local install="${BASE_DIR}/scripts/install_mariadb.sh"
     grep -qF 'tune_mariadb_config' "${install}"

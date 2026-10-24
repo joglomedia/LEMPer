@@ -160,22 +160,34 @@ function install_php() {
                 dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
         fi
 
-        # Install PHP extensions from PECL.
-        echo "Installing PHP extensions from PECL repo..."
-
-        # Sort PHP extensions.
+        # Sort PHP extensions and drop empty entries.
         #shellcheck disable=SC2207
-        PHP_PECL_EXTS=($(printf "%s\n" "${PHP_PECL_EXTS[@]}" | sort -u | tr '\n' ' '))
+        PHP_PECL_EXTS=($(printf "%s\n" "${PHP_PECL_EXTS[@]}" | grep -v '^$' | sort -u | tr '\n' ' '))
 
         # Remove json extension from PHP 8.0+. It is now always available.
         if [[ $(bc -l <<< "${PHPv//.} > 74") == 1 ]]; then
-            PHP_PECL_EXTS=("${PHP_PECL_EXTS[@]/json/}")
+            #shellcheck disable=SC2207
+            PHP_PECL_EXTS=($(printf "%s\n" "${PHP_PECL_EXTS[@]/json/}" | grep -v '^$' | tr '\n' ' '))
         fi
 
-        run pecl channel-update pear.php.net
-
+        # PECL is only a fallback for extensions missing from the
+        # distribution repository. PIE (php/pie) is its official successor,
+        # but it requires Composer package names and cannot target Debian's
+        # per-version php_suffix layout, so it is not a drop-in replacement.
         if [[ "${#PHP_PECL_EXTS[@]}" -gt 0 ]]; then
+            echo "Installing PHP extensions from PECL repo..."
+
+            # PEAR emits PHP 8.5+ warnings ("Cannot use bool as array") and
+            # the channel update is optional, so never abort the install here.
+            if [[ "${DRYRUN:-false}" == true ]]; then
+                echo "would run pecl channel-update pecl.php.net"
+            elif ! pecl channel-update pecl.php.net; then
+                warning "PECL channel update failed, continuing."
+            fi
+
             run pecl -d "php_suffix=${PHPv}" install"${PHP_PECL_FLAG}" "${PHP_PECL_EXTS[@]}"
+        else
+            info "All requested PHP extensions are available from the distribution repository; PECL skipped."
         fi
 
         if [[ -n $(command -v "php${PHPv}") ]]; then
