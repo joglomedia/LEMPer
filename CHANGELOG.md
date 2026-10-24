@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configured bashate to skip the project's established legacy formatting codes
   (E001, E002, E003, E010, E011, E020) so the lint gate matches the existing
   shell style.
+- Repository-based Nginx installs now honor `NGINX_REPO_SRC` (default
+  `myguard`). The setting was previously ignored in favor of the Ondřej PPA,
+  which no longer serves packages; the sury nginx repository is likewise gone.
 
 ## [3.5.2] - 2026-10-24
 

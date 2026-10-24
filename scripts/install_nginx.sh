@@ -47,7 +47,7 @@ NGINX_SCRIPTS_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pw
 ##
 function select_install_method() {
     local SELECTED_INSTALLER=${NGINX_INSTALLER:-"source"}
-    local SELECTED_REPO="ondrej"
+    local SELECTED_REPO="${NGINX_REPO_SRC:-myguard}"
 
     if [[ "${AUTO_INSTALL}" == true ]]; then
         if [[ -z "${NGINX_INSTALLER}" || "${NGINX_INSTALLER}" == "none" ]]; then
@@ -83,6 +83,14 @@ function select_install_method() {
     case "${SELECTED_INSTALLER}" in
         1|"repo") NGINX_INSTALL_METHOD="repo" ;;
         2|"source"|*) NGINX_INSTALL_METHOD="source" ;;
+    esac
+
+    case "${SELECTED_REPO}" in
+        ondrej|myguard) ;;
+        *)
+            warning "Unsupported NGINX_REPO_SRC '${SELECTED_REPO}', falling back to myguard."
+            SELECTED_REPO="myguard"
+        ;;
     esac
 
     NGINX_REPO_SOURCE="${SELECTED_REPO}"

@@ -271,6 +271,13 @@ refute_grep() {
     grep -q 'ubuntu:24.04' "${BASE_DIR}/scripts/test_podman.sh"
 }
 
+@test "nginx repo installer honors NGINX_REPO_SRC" {
+    local nginx="${BASE_DIR}/scripts/install_nginx.sh"
+    grep -qF 'NGINX_REPO_SRC:-myguard' "${nginx}"
+    grep -qF 'NGINX_REPO_SOURCE="${SELECTED_REPO}"' "${nginx}"
+    grep -qF 'NGINX_REPO_SRC="myguard"' "${BASE_DIR}/.env.dist"
+}
+
 @test "PHP-FPM pools keep temp files outside user homes (SEC-12)" {
     grep -q 'var/lib/php/lemper' "${BASE_DIR}/lib/lemper-create.sh"
     grep -q 'var/lib/php/lemper' "${BASE_DIR}/scripts/install_php.sh"
