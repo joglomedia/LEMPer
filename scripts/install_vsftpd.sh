@@ -198,7 +198,7 @@ function init_vsftpd_install() {
     fi
 
     # Fallback installer to repo due to OpenSSL 3 compatibility issue.
-    if [[ "${RELEASE_NAME}" == "jammy" || "${RELEASE_NAME}" == "jammy" ]]; then
+    if [[ "${RELEASE_NAME}" == "jammy" || "${RELEASE_NAME}" == "noble" ]]; then
         SELECTED_INSTALLER="repo"
     fi
 
@@ -245,7 +245,7 @@ function init_vsftpd_install() {
                                 run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
                                     libcap-dev libcap2 libtirpc-dev libtirpc1 libmbedtls-dev
                             ;;
-                            focal | jammy)
+                            jammy | noble)
                                 run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
                                     libcap-dev libcap2 libtirpc-common libtirpc-dev libtirpc3 libmbedtls-dev
                             ;;

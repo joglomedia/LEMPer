@@ -24,7 +24,7 @@ testEqualityGetDistribName()
 #testEqualityGetReleaseName()
 #{
 #    release_name=$(get_release_name)
-#    assertEquals "focal" "${release_name}"
+#    assertEquals "noble" "${release_name}"
 #}
 
 testEqualityCreateAccount()

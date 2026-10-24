@@ -660,10 +660,6 @@ function get_release_name() {
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
 
                 case "${DISTRIB_RELEASE}" in
-                    "20.04" | "LM20")
-                        # Ubuntu release 20.04, LinuxMint 20
-                        RELEASE_NAME=${UBUNTU_CODENAME:-"focal"}
-                    ;;
                     "22.04" | "LM21")
                         # Ubuntu release 22.04, LinuxMint 21
                         RELEASE_NAME=${UBUNTU_CODENAME:-"jammy"}

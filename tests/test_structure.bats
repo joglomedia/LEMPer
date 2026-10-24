@@ -308,6 +308,13 @@ refute_grep() {
     grep -q 'ubuntu:24.04' "${BASE_DIR}/scripts/test_podman.sh"
 }
 
+@test "Ubuntu 20.04 is rejected as unsupported" {
+    local utils="${BASE_DIR}/scripts/utils.sh"
+    refute_grep -q '20\.04' "${utils}"
+    refute_grep -q 'focal' "${utils}"
+    grep -qF '"22.04" | "LM21"' "${utils}"
+}
+
 @test "nginx repo installer honors NGINX_REPO_SRC" {
     local nginx="${BASE_DIR}/scripts/install_nginx.sh"
     grep -qF 'NGINX_REPO_SRC:-myguard' "${nginx}"

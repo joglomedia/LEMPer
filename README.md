@@ -66,7 +66,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 
 ### Requirements
 
-* Debian 11 (Bullseye) or 12 (Bookworm), or Ubuntu 20.04, 22.04, or 24.04 (Linux Mint 20–22), on a 64-bit architecture.
+* Debian 11 (Bullseye) or 12 (Bookworm), or Ubuntu 22.04 or 24.04 (Linux Mint 21–22), on a 64-bit architecture.
 * A fresh server with root (sudo) access; LEMPer removes conflicting web servers and configures system services.
 * git, curl, and a working apt repository connection.
 
@@ -221,7 +221,7 @@ http://YOUR_IP_ADDRESS:8082/lcp/redisadmin/
 
 ## TODOs
 
-* [x] Add support for Debian (Bullseye, Bookworm) & Ubuntu (Focal, Jammy, Noble) distro
+* [x] Add support for Debian (Bullseye, Bookworm) & Ubuntu (Jammy, Noble) distro
 * [x] Add custom build latest [Nginx](https://nginx.org/en/) from source
 * [x] Add [Let's Encrypt SSL](https://letsencrypt.org/)
 * [x] Add network security (iptable rules, firewall configurator, else?)

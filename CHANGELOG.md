@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SEC-20 through SEC-26 hardening fixes and the SEC-27 PHP2Shell entry in the
   security register.
 
+### Removed
+
+- Ubuntu 20.04 (Focal) and Linux Mint 20 support. The preflight check now
+  rejects them; the minimum supported Ubuntu release is 22.04 (Jammy).
+
 ### Fixed
 
 - Restored the executable bit on `update.sh`, which the CI test suite asserts and

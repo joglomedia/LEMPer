@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # PostgreSQL server uninstaller
-# Min. Requirement  : GNU/Linux Ubuntu 20.04
+# Min. Requirement  : GNU/Linux Ubuntu 22.04
 # Last Build        : 02/01/2026
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 2.6.6

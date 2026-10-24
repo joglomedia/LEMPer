@@ -107,9 +107,9 @@ case "${DISTRIB_NAME}" in
     ubuntu)
         # Install Python
         # python3.7 will be dropped on next Certbot release
-        # deadsnake ppa only support Focal, Jammy & Noble
+        # deadsnake ppa only supports Jammy & Noble
         case "${RELEASE_NAME}" in
-            noble | focal | jammy)
+            noble | jammy)
                 run add-apt-repository ppa:deadsnakes/ppa -y && \
                 run apt-get update -q -y && \
                 run apt-get install -q -y python3.13 python3.13-dev python3.13-venv && \

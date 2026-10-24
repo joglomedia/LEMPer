@@ -22,7 +22,7 @@ virtual hosts, databases, SSL certificates, and supporting services.
 - Teams looking for a free, scriptable alternative to cPanel/Plesk/RunCloud/Cloudways.
 
 **Supported distributions:**
-- Ubuntu: Focal (20.04), Jammy (22.04), Noble (24.04) — **Noble (24.04) is the primary test target**
+- Ubuntu: Jammy (22.04), Noble (24.04) — **Noble (24.04) is the primary test target**
 - Debian: Bullseye (11), Bookworm (12)
 
 ---
