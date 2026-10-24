@@ -538,3 +538,8 @@ refute_grep() {
     grep -qF 'rules_security.conf' "${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
 }
 
+
+@test "WordPress config creation skips the masked-password DB check" {
+    grep -qF -- '--dbpass="__LEMPER_DB_PASS__"' "${BASE_DIR}/lib/lemper-create.sh"
+    grep -qF -- '--skip-check' "${BASE_DIR}/lib/lemper-create.sh"
+}

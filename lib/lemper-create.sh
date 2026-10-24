@@ -829,9 +829,11 @@ function install_wordpress() {
 
             # wp-cli only accepts the password as an argument, so write a
             # placeholder and substitute it in the generated file to keep the
-            # secret out of the process list.
+            # secret out of the process list. --skip-check avoids validating
+            # the placeholder against the database.
             run sudo -u "${USERNAME}" -i -- wp-cli config create --dbname="${APP_DB_NAME}" \
-                --dbuser="${APP_DB_USER}" --dbpass="__LEMPER_DB_PASS__" --dbprefix=ls_ --path="${WEBROOT}"
+                --dbuser="${APP_DB_USER}" --dbpass="__LEMPER_DB_PASS__" --dbprefix=ls_ \
+                --skip-check --path="${WEBROOT}"
 
             if [[ "${DRYRUN}" != true && -f "${WEBROOT}/wp-config.php" ]]; then
                 sed_inplace "s|__LEMPER_DB_PASS__|$(sanitize_sed_replacement "${APP_DB_PASS}")|g" "${WEBROOT}/wp-config.php"

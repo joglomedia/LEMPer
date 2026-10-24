@@ -1307,24 +1307,37 @@ function save_config() {
 
         if [[ "${ENCRYPT_CONFIG_AT_REST}" == true ]]; then
             # Decrypt, write, re-encrypt.
-            local temp_dec
+            local temp_dec pw
             temp_dec=$(mktemp /tmp/lemper_save.XXXXXX)
+            pw=$(resolve_config_password) 2>/dev/null || pw="${LEMPER_PASSWORD}"
 
             if is_config_encrypted "${config_file}"; then
-                # Decrypt existing encrypted config.
-                local pw
-                pw=$(resolve_config_password) 2>/dev/null || pw="${LEMPER_PASSWORD}"
-                openssl enc -aes-256-cbc -d -a -salt -md sha256 -pbkdf2 \
-                    -k "${pw}" -in "${config_file}" -out "${temp_dec}" 2>/dev/null || true
+                local decrypted=false
+
+                if openssl enc -aes-256-cbc -d -a -salt -md sha256 -pbkdf2 \
+                    -k "${pw}" -in "${config_file}" -out "${temp_dec}" 2>/dev/null; then
+                    decrypted=true
+                # Fall back to the admin password for configs written before
+                # the install-time key file became authoritative.
+                elif [[ -n "${LEMPER_PASSWORD}" && "${LEMPER_PASSWORD}" != "${pw}" ]] && \
+                    openssl enc -aes-256-cbc -d -a -salt -md sha256 -pbkdf2 \
+                        -k "${LEMPER_PASSWORD}" -in "${config_file}" -out "${temp_dec}" 2>/dev/null; then
+                    decrypted=true
+                fi
+
+                if [[ "${decrypted}" != true ]]; then
+                    secure_shred "${temp_dec}"
+                    error "Failed to decrypt ${config_file}; refusing to overwrite it."
+                    return 1
+                fi
             elif [[ -f "${config_file}" ]]; then
                 cp "${config_file}" "${temp_dec}"
             fi
 
             echo "$@" >> "${temp_dec}"
 
-            # Re-encrypt.
-            local pw
-            pw=$(resolve_config_password) 2>/dev/null || pw="${LEMPER_PASSWORD}"
+            # Re-encrypt with the preferred password, migrating legacy
+            # password-encrypted configs to the key file.
             if [[ -n "${pw}" ]]; then
                 openssl enc -aes-256-cbc -a -salt -md sha256 -pbkdf2 \
                     -k "${pw}" -in "${temp_dec}" -out "${config_file}"

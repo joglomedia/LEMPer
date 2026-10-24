@@ -74,6 +74,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sudo-launched CLI only had the key file, so `lemper-cli` could not decrypt
   `/etc/lemper/lemper.conf`. Decryption failures now print an error instead of
   silently exiting under `set -e`.
+- WordPress site creation passes `--skip-check` to `wp config create`. WP-CLI
+  otherwise validates the deliberately masked `__LEMPER_DB_PASS__` placeholder
+  against the database and fails with `Access denied`, before the real password
+  is substituted into `wp-config.php`.
 
 ## [3.5.2] - 2026-10-24
 
