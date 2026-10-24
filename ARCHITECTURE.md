@@ -258,6 +258,32 @@ generated `/etc/mysql/mariadb.conf.d/99-lemper-tuning.cnf` drop-in. Smaller prof
 disable `performance_schema` to reclaim memory; large hosts cap the buffer pool so PHP
 and nginx keep headroom.
 
+#### 2.3.2 Nginx Configuration Layout
+
+The shipped configuration is split by scope, and every file is copied verbatim
+from `etc/nginx/` to `/etc/nginx/`:
+
+| Path | Scope | Contents |
+|---|---|---|
+| `nginx.conf` / `nginx-lowend.conf` | `http {}` | Global tuning, maps, cache zones, vhost loading |
+| `conf.d/` | `http {}` | Optional drop-ins (`mail.conf`) |
+| `cors`, `fastcgi_cache`, `fastcgi_https_map`, `proxy_cache`, `upstream` | `http {}` | Glue maps included by the main config |
+| `includes/` | `server {}` or `location {}` | PHP handlers, monitoring, security, compression, TLS, cache, WAF |
+| `vhost/site_<framework>.conf` | `server {}` | Framework rewrite rules only |
+| `sites-available/` | `server {}` | Full vhosts, including the generated default |
+| `sites-enabled/` | — | Symlinks into `sites-available/` |
+
+Vhost ordering is deliberate: compression first, then the security and
+restriction rules, then the static-file locations, then the framework rules,
+and finally the PHP handlers and monitoring endpoints. Restriction rules must
+precede the static-file regex locations so a `deny` is not shadowed.
+
+Repeated handler boilerplate lives in `includes/php_handlers.conf` (`.php` plus
+`.php85`–`.php81`) and `includes/monitoring.conf` (loopback-only
+`/nginx_status` and `/php-fpm_status`). Both are included in the public and
+admin server blocks and, for `/lcp`, inside the basic-auth protected prefix
+location so the nested handlers inherit its access rules.
+
 ### 2.4 Plugin Architecture (CLI)
 
 During installation, `install_tools.sh` copies library scripts from `lib/` to

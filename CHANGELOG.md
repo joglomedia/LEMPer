@@ -35,6 +35,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   generated include defaults to a wildcard origin and can be restricted by
   editing its `set $cors` line.
 
+### Changed
+
+- Reorganized the Nginx configuration to remove repeated boilerplate (issue
+  #29). The default and admin vhosts now pull PHP-FPM handlers from
+  `includes/php_handlers.conf` and the loopback status endpoints from
+  `includes/monitoring.conf` instead of repeating 18 handler and status blocks
+  in each file. The security/restriction/static-file include order is
+  documented in `etc/nginx/includes/README.md` and ARCHITECTURE.md, and stale
+  comments in `nginx.conf` and `nginx-lowend.conf` now point at the real
+  per-vhost include paths.
+
 ### Removed
 
 - Ubuntu 20.04 (Focal) and Linux Mint 20 support. The preflight check now

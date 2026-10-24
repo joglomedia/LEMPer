@@ -27,61 +27,14 @@ server {
 
     include /etc/nginx/vhost/site_default.conf;
 
-    # Nginx basic status monitoring.
-    location = /nginx_status {
-        allow 127.0.0.1;
-        allow ::1;
-        deny all;
+    # PHP release used by handlers that do not pin a version.
+    set $php_version "8.5";
 
-        stub_status;
-        access_log off;
-        log_not_found off;
-    }
+    # Default and versioned PHP-FPM handlers.
+    include /etc/nginx/includes/php_handlers.conf;
 
-    # PHP-FPM status monitoring (local only).
-    location ~ ^/php-fpm_(status|ping)$ {
-        allow 127.0.0.1;
-        allow ::1;
-        deny all;
-
-        include /etc/nginx/fastcgi_params;
-        fastcgi_pass unix:/run/php/php8.5-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $fastcgi_script_name;
-        access_log off;
-        log_not_found off;
-    }
-
-    # Default PHP handler (PHP 8.5)
-    location ~ \.php$ {
-        set $php_version "8.5";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
-    # PHP version-specific handlers using reusable template
-    location ~ \.php85$ {
-        set $php_version "8.5";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
-    location ~ \.php84$ {
-        set $php_version "8.4";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
-    location ~ \.php83$ {
-        set $php_version "8.3";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
-    location ~ \.php82$ {
-        set $php_version "8.2";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
-    location ~ \.php81$ {
-        set $php_version "8.1";
-        include /etc/nginx/includes/php_handler.conf;
-    }
+    # Local-only Nginx and PHP-FPM monitoring endpoints.
+    include /etc/nginx/includes/monitoring.conf;
 
     #include /etc/nginx/includes/error_pages.conf;
     #include /etc/nginx/includes/fcgiwrap.conf;
@@ -97,6 +50,9 @@ server {
     root /usr/share/nginx/html;
     index index.php index.html index.htm;
     client_max_body_size 50m;
+
+    # PHP release used by handlers that do not pin a version.
+    set $php_version "8.5";
 
     # Apply the same hardening as the public vhosts.
     include /etc/nginx/includes/compression_gzip.conf;
@@ -121,69 +77,12 @@ server {
         auth_basic "Denied";
         auth_basic_user_file /srv/.htpasswd;
 
-        location ~ \.php$ {
-            set $php_version "8.5";
-            include /etc/nginx/includes/php_handler.conf;
-        }
-
-        # Versioned handlers inherit this location's auth_basic protection.
-        location ~ \.php85$ {
-            set $php_version "8.5";
-            include /etc/nginx/includes/php_handler.conf;
-        }
-
-        location ~ \.php84$ {
-            set $php_version "8.4";
-            include /etc/nginx/includes/php_handler.conf;
-        }
-
-        location ~ \.php83$ {
-            set $php_version "8.3";
-            include /etc/nginx/includes/php_handler.conf;
-        }
-
-        location ~ \.php82$ {
-            set $php_version "8.2";
-            include /etc/nginx/includes/php_handler.conf;
-        }
-
-        location ~ \.php81$ {
-            set $php_version "8.1";
-            include /etc/nginx/includes/php_handler.conf;
-        }
+        # Default and versioned handlers inherit this location's auth_basic.
+        include /etc/nginx/includes/php_handlers.conf;
     }
 
-    # Default PHP handler
-    location ~ \.php$ {
-        set $php_version "8.5";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
-    # PHP version-specific handlers
-    location ~ \.php85$ {
-        set $php_version "8.5";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
-    location ~ \.php84$ {
-        set $php_version "8.4";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
-    location ~ \.php83$ {
-        set $php_version "8.3";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
-    location ~ \.php82$ {
-        set $php_version "8.2";
-        include /etc/nginx/includes/php_handler.conf;
-    }
-
-    location ~ \.php81$ {
-        set $php_version "8.1";
-        include /etc/nginx/includes/php_handler.conf;
-    }
+    # Default and versioned PHP-FPM handlers.
+    include /etc/nginx/includes/php_handlers.conf;
 
     #include /etc/nginx/includes/error_pages.conf;
     #include /etc/nginx/includes/fcgiwrap.conf;

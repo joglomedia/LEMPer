@@ -473,6 +473,28 @@ refute_grep() {
     done
 }
 
+@test "default vhosts share the PHP handler and monitoring includes" {
+    local handlers="${BASE_DIR}/etc/nginx/includes/php_handlers.conf"
+    local f
+
+    [ -f "${handlers}" ]
+    grep -qF 'location ~ \.php85$ {' "${handlers}"
+    grep -qF 'location ~ \.php81$ {' "${handlers}"
+    grep -qF 'include /etc/nginx/includes/php_handler.conf;' "${handlers}"
+
+    for f in "${BASE_DIR}/etc/nginx/sites-available/default" \
+             "${BASE_DIR}/etc/nginx/sites-available/default-ssl"; do
+        # Public server, nested /lcp area, and admin server.
+        [ "$(grep -c 'include /etc/nginx/includes/php_handlers.conf;' "${f}")" -eq 3 ]
+        [ "$(grep -c 'include /etc/nginx/includes/monitoring.conf;' "${f}")" -eq 1 ]
+        grep -qF 'set $php_version "8.5";' "${f}"
+        refute_grep -qF 'location ~ \.php85$ {' "${f}"
+    done
+
+    grep -qF 'fastcgi_pass unix:/run/php/php$php_version-fpm.sock;' \
+        "${BASE_DIR}/etc/nginx/includes/monitoring.conf"
+}
+
 @test "compression config does not leak the stack name" {
     refute_grep -q 'X-Powered-By' "${BASE_DIR}/etc/nginx/includes/compression_gzip.conf"
 }
