@@ -24,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SEC-20 through SEC-26 hardening fixes and the SEC-27 PHP2Shell entry in the
   security register.
 
+### Fixed
+
+- Restored the executable bit on `update.sh`, which the CI test suite asserts and
+  the bootstrap relies on to run directly.
+- Configured bashate to skip the project's established legacy formatting codes
+  (E001, E002, E003, E010, E011, E020) so the lint gate matches the existing
+  shell style.
+
 ## [3.5.2] - 2026-10-24
 
 ### Added

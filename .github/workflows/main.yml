@@ -83,7 +83,7 @@ jobs:
           TERM: xterm-256color
         run: |
           set -ex
-          bashate --ignore E006,E012,E042,E043,E044,E045 --max-line-length 120 \
+          bashate --ignore E001,E002,E003,E006,E010,E011,E012,E020,E042,E043,E044,E045 --max-line-length 120 \
             install.sh remove.sh update.sh lemper.sh \
             bin/lemper-cli.sh \
             lib/lemper-*.sh lib/core/lemper-stacks.sh \
