@@ -543,3 +543,12 @@ refute_grep() {
     grep -qF -- '--dbpass="__LEMPER_DB_PASS__"' "${BASE_DIR}/lib/lemper-create.sh"
     grep -qF -- '--skip-check' "${BASE_DIR}/lib/lemper-create.sh"
 }
+
+@test "CLI provides helpers required by the site plugin" {
+    local cli="${BASE_DIR}/bin/lemper-cli.sh"
+    local fn
+    for fn in sed_inplace sanitize_sed_replacement detect_resource_profile \
+        calc_php_pool_sizing create_php_temp_dirs; do
+        grep -qE "^function ${fn}\(\)" "${cli}"
+    done
+}

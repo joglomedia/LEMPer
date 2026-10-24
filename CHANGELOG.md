@@ -78,6 +78,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   otherwise validates the deliberately masked `__LEMPER_DB_PASS__` placeholder
   against the database and fails with `Access denied`, before the real password
   is substituted into `wp-config.php`.
+- The CLI now provides `sed_inplace`, `sanitize_sed_replacement`, and the
+  resource-sizing helpers used by the site plugin. `lemper-cli site add`
+  previously ran those functions only when sourced by the installer, so the
+  plugin failed with `command not found`.
 
 ## [3.5.2] - 2026-10-24
 

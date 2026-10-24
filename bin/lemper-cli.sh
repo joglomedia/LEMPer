@@ -268,6 +268,199 @@ function run() {
     fi
 }
 
+# Portable in-place sed (GNU and BSD).
+function sed_inplace() {
+    local backup_suffix=""
+    local extra_opts=()
+
+    while [[ $# -gt 0 ]]; do
+        case "${1}" in
+            -E|-r)
+                extra_opts+=("${1}")
+                shift
+            ;;
+            -b|--backup)
+                backup_suffix=".bak"
+                shift
+            ;;
+            --)
+                shift
+                break
+            ;;
+            -*)
+                error "sed_inplace: unsupported option '${1}'."
+                return 2
+            ;;
+            *)
+                break
+            ;;
+        esac
+    done
+
+    if [[ $# -lt 2 ]]; then
+        error "Usage: sed_inplace [-E|-r] [-b] 'script' file [file...]"
+        return 2
+    fi
+
+    local script="${1}"
+    shift
+
+    if [[ "${DRYRUN}" == true ]]; then
+        echo_color "${YELLOW}" -n "would run "
+        echo "sed -i${backup_suffix} ${extra_opts[*]} '${script}' $*"
+        return 0
+    fi
+
+    local result=0
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        sed -i "${backup_suffix}" "${extra_opts[@]}" "${script}" "$@" || result=$?
+    else
+        sed -i"${backup_suffix}" "${extra_opts[@]}" "${script}" "$@" || result=$?
+    fi
+
+    if [[ "${result}" -ne 0 ]]; then
+        error "Failure running sed in-place on: $*"
+        return 1
+    fi
+}
+
+# Escape backslashes, ampersands, and slashes for sed replacements.
+function sanitize_sed_replacement() {
+    local INPUT=${1}
+    printf '%s' "${INPUT}" | sed -e 's/[\\&]/\\&/g' -e 's/\//\\\//g'
+}
+
+function memory_to_mb() {
+    local VALUE="${1:-256M}"
+
+    if [[ ! "${VALUE}" =~ ^[0-9]+[GgMm]?$ ]]; then
+        echo 256
+        return 0
+    fi
+
+    case "${VALUE}" in
+        *[Gg]) echo $(( ${VALUE%[Gg]} * 1024 )) ;;
+        *[Mm]) echo $(( ${VALUE%[Mm]} )) ;;
+        *)     echo $(( VALUE )) ;;
+    esac
+}
+
+function get_memory_mb() {
+    if [[ "${LEMPER_MEMORY_MB:-}" =~ ^[1-9][0-9]*$ ]]; then
+        echo "${LEMPER_MEMORY_MB}"
+        return 0
+    fi
+
+    local MEM_MB
+    MEM_MB=$(awk '/^MemTotal:/ { printf "%.0f", $2/1024 }' /proc/meminfo 2>/dev/null)
+
+    local CGROUP_LIMIT
+    if [[ -r /sys/fs/cgroup/memory.max ]]; then
+        CGROUP_LIMIT=$(cat /sys/fs/cgroup/memory.max 2>/dev/null)
+    elif [[ -r /sys/fs/cgroup/memory/memory.limit_in_bytes ]]; then
+        CGROUP_LIMIT=$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null)
+    fi
+
+    awk -v total="${MEM_MB:-0}" -v limit="${CGROUP_LIMIT:-0}" 'BEGIN {
+        if (limit ~ /^[0-9]+$/) {
+            mb = int(limit / 1048576);
+            if (mb > 0 && mb < 1048576 && (total == 0 || mb < total)) total = mb;
+        }
+        printf "%.0f\n", total;
+    }'
+}
+
+function detect_resource_profile() {
+    local PROFILE="${LEMPER_PROFILE:-${SERVER_PROFILE:-auto}}"
+
+    case "${PROFILE}" in
+        micro|small|medium|large)
+            echo "${PROFILE}"
+            return 0
+            ;;
+        auto|"") ;;
+        *)
+            warning "Unknown resource profile '${PROFILE}', using auto-detection." >&2
+            ;;
+    esac
+
+    local MEM_MB
+    MEM_MB=$(get_memory_mb)
+
+    if (( MEM_MB <= 0 )); then
+        echo "small"
+    elif (( MEM_MB < 1024 )); then
+        echo "micro"
+    elif (( MEM_MB < 2048 )); then
+        echo "small"
+    elif (( MEM_MB < 4096 )); then
+        echo "medium"
+    else
+        echo "large"
+    fi
+}
+
+function calc_php_max_children() {
+    local PROFILE="${1:-}"
+    [[ -z "${PROFILE}" ]] && PROFILE=$(detect_resource_profile)
+    local MEMLIMIT="${2:-256}"
+    local CAP
+
+    case "${PROFILE}" in
+        micro)  CAP=4 ;;
+        small)  CAP=6 ;;
+        medium) CAP=10 ;;
+        large)  CAP=16 ;;
+        *)      CAP=6 ;;
+    esac
+
+    local PER_CHILD=$(( MEMLIMIT / 3 ))
+    (( PER_CHILD < 64 )) && PER_CHILD=64
+
+    local TOTAL
+    TOTAL=$(get_memory_mb)
+    if (( TOTAL > 0 )); then
+        local BUDGET=$(( TOTAL * 35 / 100 ))
+        local BY_MEM=$(( BUDGET / PER_CHILD ))
+        (( BY_MEM < 2 )) && BY_MEM=2
+        (( BY_MEM < CAP )) && CAP=${BY_MEM}
+    fi
+
+    (( CAP < 2 )) && CAP=2
+    echo "${CAP}"
+}
+
+function calc_php_pool_sizing() {
+    local PROFILE="${1:-}"
+    [[ -z "${PROFILE}" ]] && PROFILE=$(detect_resource_profile)
+    local MEMLIMIT="${2:-256}"
+    local MAX_CHILDREN="${PHP_FPM_MAX_CHILDREN:-}"
+
+    if [[ ! "${MAX_CHILDREN}" =~ ^[0-9]+$ || "${MAX_CHILDREN}" -lt 2 ]]; then
+        MAX_CHILDREN=$(calc_php_max_children "${PROFILE}" "${MEMLIMIT}")
+    fi
+
+    local START=$(( MAX_CHILDREN / 2 ))
+    (( START > 2 )) && START=2
+    (( START < 1 )) && START=1
+
+    local MAX_SPARE=$(( MAX_CHILDREN / 2 ))
+    (( MAX_SPARE < START )) && MAX_SPARE=${START}
+
+    echo "${MAX_CHILDREN} ${START} 1 ${MAX_SPARE}"
+}
+
+function create_php_temp_dirs() {
+    local POOLNAME="${1}"
+    local TEMP_BASE="/var/lib/php/lemper/${POOLNAME}"
+
+    run mkdir -p "${TEMP_BASE}/tmp" "${TEMP_BASE}/sessions" \
+        "${TEMP_BASE}/wsdlcache" "${TEMP_BASE}/opcache" && \
+    run chmod 700 "${TEMP_BASE}" "${TEMP_BASE}/tmp" "${TEMP_BASE}/sessions" \
+        "${TEMP_BASE}/wsdlcache" "${TEMP_BASE}/opcache" && \
+    run chown -hR "${POOLNAME}:${POOLNAME}" "${TEMP_BASE}"
+}
+
 ## 
 # Show usage
 # output to STDERR.
