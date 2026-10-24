@@ -69,7 +69,7 @@ LEMPer/
 │   ├── install_fail2ban.sh        # Fail2ban (enabled by default)
 │   ├── install_crowdsec.sh        # CrowdSec HIPS + WordPress scenarios
 │   ├── install_bun.sh             # Bun.js runtime (replaces Node.js)
-│   ├── install_modsec.sh          # ModSecurity v3 + OWASP CRS v3.3.5
+│   ├── install_modsec.sh          # ModSecurity v3 + packaged OWASP CRS
 │   ├── install_tools.sh           # CLI tool + TUI + encrypt plugin
 │   ├── remove_*.sh                # Per-component removal scripts
 │   ├── server_cleanup.sh          # Pre-install service cleanup
@@ -375,7 +375,7 @@ and excluded from the default `PHP_EXTENSIONS` list.
 - **✅ Fail2ban** enabled by default (`INSTALL_FAIL2BAN=true` in `.env.dist`).
 - **✅ CrowdSec HIPS** installed (optional, off by default). Now includes WordPress +
   PHP web app scenarios.
-- **✅ Nginx WAF: ModSecurity v3 + OWASP CRS v3.3.5** (replaced legacy NAXSI).
+- **✅ Nginx WAF: ModSecurity v3 + OWASP CRS** (replaced legacy NAXSI).
   CRS paranoia level and anomaly thresholds are tunable via
   `lemper-cli modsec tune [--auto] --apply`.
 - **✅ SSL: Let's Encrypt (certbot)** with ACME v2 DNS-01 wildcard support.

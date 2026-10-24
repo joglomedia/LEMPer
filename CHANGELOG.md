@@ -41,6 +41,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- ModSecurity installation now uses the packages the nginx repository actually
+  ships: `libnginx-mod-http-modsecurity` and `modsecurity-crs` (issue #177).
+  Previously the installer selected a non-existent package name, created an
+  invalid `modules-enabled` symlink, and pointed the rules at a
+  `crs-setup.conf` that only exists as `.example` after cloning. The connector
+  is now enabled through the package's `modules-available` file, CRS is
+  configured under `/etc/modsecurity/crs`, and audit logs are written to
+  `/var/log/modsecurity/modsec_audit.log`. Removal purges the same packages and
+  strips the include from `sites-available` vhosts without breaking the
+  `sites-enabled` symlinks.
 - SSL-enabled vhosts created by `lemper-cli site mod --enable-ssl` now receive
   `http2 on;`. HTTP/2 uses the non-deprecated directive form everywhere; the
   shipped `default-ssl` vhost already used it (issue #171).

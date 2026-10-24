@@ -265,6 +265,36 @@ refute_grep() {
     [ -f "${BASE_DIR}/scripts/remove_modsec.sh" ]
 }
 
+@test "ModSecurity uses the packaged nginx connector and CRS layout" {
+    local install="${BASE_DIR}/scripts/install_modsec.sh"
+    local remove="${BASE_DIR}/scripts/remove_modsec.sh"
+    local modsec="${BASE_DIR}/lib/lemper-modsec.sh"
+
+    grep -qF 'libnginx-mod-http-modsecurity' "${install}"
+    grep -qF 'modsecurity-crs' "${install}"
+    refute_grep -qE '(^|[[:space:]])nginx-mod-http-modsecurity([[:space:]]|$)' "${install}"
+
+    # The connector is enabled by the package via modules-available.
+    grep -qF '/usr/share/nginx/modules-available/mod-http-modsecurity.conf' "${install}"
+    grep -qF '/etc/nginx/modules-enabled/50-mod-http-modsecurity.conf' "${install}"
+    refute_grep -q '/usr/share/modsecurity/modsecurity.conf' "${install}"
+
+    # CRS lives under /etc/modsecurity/crs and ships a setup template.
+    grep -qF '/etc/modsecurity/crs/rules/*.conf' "${install}"
+    grep -qF 'crs-setup.conf.example' "${install}"
+    refute_grep -q 'git clone' "${install}"
+    refute_grep -q 'MODSEC_CRS_VERSION' "${BASE_DIR}/.env.dist"
+
+    # The CLI reads the packaged CRS location and reports its version.
+    grep -qF '/etc/modsecurity/crs' "${modsec}"
+    grep -qF 'modsecurity-crs' "${modsec}"
+
+    # Removal uses the real package names and edits sites-available.
+    grep -qF 'libnginx-mod-http-modsecurity' "${remove}"
+    grep -qF 'sites-available' "${remove}"
+    refute_grep -q 'sites-enabled/\*' "${remove}"
+}
+
 @test "lemper-stacks.sh wires in ModSecurity install/remove" {
     grep -q 'install_modsec.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
     grep -q 'remove_modsec.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"

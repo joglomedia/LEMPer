@@ -21,7 +21,17 @@ fi
 MODSEC_CONF_DIR="${MODSEC_CONF_DIR:-/etc/modsecurity}"
 MODSEC_MAIN_CONF="${MODSEC_CONF_DIR}/modsecurity.conf"
 MODSEC_TUNING_CONF="${MODSEC_CONF_DIR}/lemper-tuning.conf"
-MODSEC_CRS_DIR="${MODSEC_CRS_DIR:-/usr/share/modsecurity-crs}"
+
+# The repository package installs CRS under /etc/modsecurity/crs; keep the
+# old clone location as a fallback for existing installs.
+MODSEC_CRS_DIR="${MODSEC_CRS_DIR:-}"
+if [[ -z "${MODSEC_CRS_DIR}" || ! -d "${MODSEC_CRS_DIR}" ]]; then
+    if [[ -d /etc/modsecurity/crs ]]; then
+        MODSEC_CRS_DIR="/etc/modsecurity/crs"
+    else
+        MODSEC_CRS_DIR="/usr/share/modsecurity-crs"
+    fi
+fi
 
 ##
 # Locate the ModSecurity audit log.
@@ -106,10 +116,14 @@ function modsec_status() {
     [[ -z "${outbound}" ]] && outbound=4
 
     crs_version="unknown"
-    if [[ -d "${MODSEC_CRS_DIR}/.git" ]]; then
-        crs_version=$(git -C "${MODSEC_CRS_DIR}" describe --tags 2>/dev/null || true)
-        [[ -z "${crs_version}" ]] && crs_version="unknown"
+    if [[ -f "${MODSEC_CRS_DIR}/crs-setup.conf" ]]; then
+        crs_version=$(sed -n 's/^# OWASP CRS ver\.\(.*\)$/\1/p' \
+            "${MODSEC_CRS_DIR}/crs-setup.conf" 2>/dev/null | head -n 1 || true)
     fi
+    if [[ -z "${crs_version}" && -n $(command -v dpkg-query) ]]; then
+        crs_version=$(dpkg-query -W -f='${Version}' modsecurity-crs 2>/dev/null || true)
+    fi
+    [[ -z "${crs_version}" ]] && crs_version="unknown"
 
     log_file=$(modsec_find_log 2>/dev/null || true)
 
