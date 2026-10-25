@@ -29,7 +29,8 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
     * and much more useful 3rd-party modules.
   * Pre-configured optimization for low-end VPS/cloud server, auto-tuned at install time from the host's RAM and CPU (`micro`, `small`, `medium`, `large` profiles). Need reliable VPS/cloud server? Get one from [DigitalOcean](https://masedi.net/l/digitalocean/), [UpCloud](https://masedi.net/l/upcloud/), or [Vultr](https://masedi.net/l/vultr/).
   * Nginx virtual host (vhost) configuration optimized for WordPress and several PHP Frameworks.
-  * Support HTTP/2 natively for your secure website.
+  * Per-vhost CORS control with `lemper-cli site mod --enable-cors` and `--disable-cors`.
+  * HTTP/2 on TLS vhosts, with opt-in HTTP/3 (QUIC) when the Nginx build provides the v3 module.
   * Free SSL certificates from [Let's Encrypt](https://letsencrypt.org/).
   * Get an A+ grade on several SSL Security Test ([Qualys SSL Labs](https://www.ssllabs.com/ssltest/analyze.html?d=masedi.net), [ImmuniWeb](https://www.immuniweb.com/ssl/?id=bVrykFnK), and Wormly).
 * PHP - Most used language that [powers 78.9% of all websites](https://w3techs.com/technologies/details/pl-php) around the universe.
@@ -51,6 +52,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * NoSQL database with MongoDB.
 * Key-value store database with Redis or Valkey (`REDIS_BACKEND`).
 * In-memory cache with Memcached.
+* Modern JavaScript/TypeScript runtime with Bun.js, including an npm-compatible client and bundler (`INSTALL_BUNJS`, enabled by default).
 * FTP server with VSFTPD or Pure-FTPd.
 * Web-based administration tools:
   * [Adminer](https://github.com/vrana/adminer) web-based SQL database manager (PhpMyAdmin replacement).
@@ -59,9 +61,12 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
   * phpOpCacheStatus web-based OPcache status panel.
   * [TinyFileManager](https://github.com/joglomedia/tinyfilemanager) alternative web-based filemanager (Experimental).
 * Security hardening:
+  * Optional CrowdSec host-based intrusion prevention with WordPress and PHP application scenarios (`INSTALL_CROWDSEC`).
+  * Optional ModSecurity v3 WAF with the OWASP Core Rule Set, plus `lemper-cli modsec` status, reporting, and auto-tuning (`INSTALL_MODSEC`).
   * Optional config-at-rest encryption (`ENCRYPT_CONFIG_AT_REST`) for LEMPer credentials, keyed by a root-only file (`/etc/lemper/.config_key`).
   * SSL/TLS defaults from the RFC 7919 `ffdhe2048` group, security headers, and optional rate limiting, archive-deny rules, and secure session cookies.
   * Optional HTTP/3 (QUIC) listeners and `Alt-Svc` advertising on TLS vhosts (`NGINX_HTTP3`, requires an Nginx built with `--with-http_v3_module`).
+  * Loopback-only Nginx and PHP-FPM status endpoints for local monitoring.
 
 ## Setting Up
 
@@ -74,7 +79,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 ### Clone and configure
 
 * Ensure that you have git installed.
-* Clone LEMPer Git repositroy, ```git clone https://github.com/joglomedia/LEMPer.git```
+* Clone LEMPer Git repository, ```git clone https://github.com/joglomedia/LEMPer.git```
 * Enter LEMPer directory
 * Checkout to the desired version, ```git checkout 3.x.x```
 * Make a copy of .env.dist to .env ```cp .env.dist .env``` and replace the values
@@ -85,6 +90,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 sudo apt-get install git && \
 git clone -q https://github.com/joglomedia/LEMPer.git && \
 cd LEMPer && \
+git checkout 3.x.x && \
 cp -f .env.dist .env && \
 sudo ./install.sh
 ```
@@ -238,6 +244,8 @@ http://YOUR_IP_ADDRESS:8082/lcp/redisadmin/
 
 ## TODOs
 
+Implemented:
+
 * [x] Add support for Debian (Bullseye, Bookworm) & Ubuntu (Jammy, Noble) distro
 * [x] Add custom build latest [Nginx](https://nginx.org/en/) from source
 * [x] Add [Let's Encrypt SSL](https://letsencrypt.org/)
@@ -245,12 +253,19 @@ http://YOUR_IP_ADDRESS:8082/lcp/redisadmin/
 * [x] Add database backup tool (Mariabackup, Percona Xtrabackup, else?)
 * [x] Add PostgreSQL database (SQL object-relational database system)
 * [x] Add Pure-FTPd installation as an alternative option to VSFTPD
-* [x] Add enhanced security (AppArmor, cgroups, jailkit (chrooted/jail users), fail2ban, else?)
-* [ ] Add CrowdSec a modern Host-based Intrusion Prevention System (modern-replacement for Fail2ban)
-* [ ] Add NodeJS installation to support modern web frontend development
+* [x] Add enhanced security (firewall, Fail2ban, CrowdSec, ModSecurity WAF)
+* [x] Add CrowdSec a modern Host-based Intrusion Prevention System (modern-replacement for Fail2ban)
+* [x] Add Bun.js JavaScript/TypeScript runtime (Node.js-compatible npm client and bundler)
+* [x] Add in-place security updater (`lemper-cli update`, PHP2Shell remediation)
+* [x] Add interactive TUI dashboard and site-creation wizard
+* [x] Add user account management (`lemper-cli account`, PHP-FPM pool isolation)
+
+Planned:
+
+* [ ] Add native Node.js installation to support modern web frontend development (Bun.js is available as a Node.js-compatible runtime)
 * [ ] Add file backup tool (Borg, Duplicati, Rclone, Restic, Rsnapshot, else?)
-* [ ] Add server monitoring (Amplify, Monit, Nagios, else?)
-* [ ] Add user account & hosting package management
+* [ ] Add server monitoring (Netdata, Monit, Nagios, Zabbix, else?); loopback Nginx/PHP-FPM status endpoints are already shipped
+* [ ] Add hosting package management (per-user quotas and provisioning)
 
 Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new)!
 
