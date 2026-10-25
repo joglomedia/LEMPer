@@ -162,8 +162,37 @@ EOF
     [ "${status}" -eq 0 ]
 }
 
-@test "CLI help documents the update command" {
-    run grep -q 'update all                   Run every update step.' \
+@test "CLI help documents the update command as a nested subcommand" {
+    run grep -q 'help_subentry all "Run every update step\."' \
         "${REAL_BASE_DIR}/bin/lemper-cli.sh"
     [ "${status}" -eq 0 ]
+}
+
+@test "update_check aligns the PHP status table columns" {
+    run bash -c '
+        requires_root() { :; }
+        PROG_NAME="lemper-cli"
+        LEMPER_UPDATE_LIB_ONLY=true
+        . "${REAL_BASE_DIR}/lib/lemper-update.sh"
+        php_installed_branches() { echo "8.2"; }
+        php_package_version() { echo "8.2.34-1+ubuntu22.04.1+deb.sury.org+1"; }
+        php_branch_state() { echo "vulnerable"; }
+        php_fixed_version() { echo "8.2.35"; }
+        php_pool_count() { if [ "${2:-}" = "true" ]; then echo "0"; else echo "2"; fi; }
+        update_check
+    '
+    [ "${status}" -eq 1 ]
+
+    local header row
+    header=$(printf '%s\n' "${output}" | grep '^  Branch')
+    row=$(printf '%s\n' "${output}" | grep '^  php8.2')
+    [ -n "${header}" ]
+    [ -n "${row}" ]
+
+    [ "$(printf '%s' "${header}" | awk '{ print index($0, "State") }')" \
+        -eq "$(printf '%s' "${row}" | awk '{ print index($0, "vulnerable") }')" ]
+    [ "$(printf '%s' "${header}" | awk '{ print index($0, "Fixed") }')" \
+        -eq "$(printf '%s' "${row}" | awk '{ print index($0, "8.2.35") }')" ]
+    [ "$(printf '%s' "${header}" | awk '{ print index($0, "Pools") }')" \
+        -eq "$(printf '%s' "${row}" | awk '{ print index($0, "2 (0)") }')" ]
 }

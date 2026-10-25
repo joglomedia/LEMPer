@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `lemper-cli --help` now nests subcommands one level under their parent
+  command instead of padding them to the description column. `update check`
+  prints an aligned PHP status table with column widths computed from the
+  installed versions, state, and fixed-release values.
 - Replaced the deprecated AdminerEvo (4.8.4) web database manager with upstream
   [Adminer](https://github.com/vrana/adminer) 6.2.0, configurable through
   `ADMINER_VERSION` in `.env` (issue #183). Existing `/lcp/dbadmin` files are

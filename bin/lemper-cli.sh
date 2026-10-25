@@ -461,6 +461,20 @@ function create_php_temp_dirs() {
     run chown -hR "${POOLNAME}:${POOLNAME}" "${TEMP_BASE}"
 }
 
+##
+# Print a top-level command and its description.
+##
+function help_entry() {
+    printf '  %-16s%s\n' "${1}" "${2}"
+}
+
+##
+# Print a subcommand and its description, nested under its parent.
+##
+function help_subentry() {
+    printf '    %-28s  %s\n' "${1}" "${2}"
+}
+
 ## 
 # Show usage
 # output to STDERR.
@@ -471,46 +485,52 @@ ${PROG_NAME} ${PROG_VERSION}
 Command line management tool for LEMPer Stack (Linux, Nginx, MySQL/MariaDB, PHP).
 
 Usage: ${PROG_NAME} [command] [subcommand] [options]
+EOL
 
-LEMP Stack Management:
-  create          Create a new virtual host (add a domain).
-  add             Alias of 'create'.
-  site            Virtual host management.
-                        site list [options]          List all vhosts (table or JSON).
-                        site show <domain> [options] Show detailed vhost config.
-                        site enable <domain>         Enable a vhost.
-                        site disable <domain>        Disable a vhost.
-  manage          Manage existing virtual hosts (mod/ssl/rewrite).
-  mod             Alias of 'manage'.
+    echo
+    echo "LEMP Stack Management:"
+    help_entry create "Create a new virtual host (add a domain)."
+    help_entry add "Alias of 'create'."
+    help_entry site "Virtual host management."
+    help_subentry "list [options]" "List all vhosts (table or JSON)."
+    help_subentry "show <domain> [options]" "Show detailed vhost config."
+    help_subentry "enable <domain>" "Enable a vhost."
+    help_subentry "disable <domain>" "Disable a vhost."
+    help_entry manage "Manage existing virtual hosts (mod/ssl/rewrite)."
+    help_entry mod "Alias of 'manage'."
 
-Database Management:
-  db              MySQL/MariaDB database manager.
-                        db create [options]          Create a new database.
-                        db drop <name>               Delete a database.
-                        db export [options]          Export a database to SQL.
-                        db backup [options]          Create a timestamped backup (.sql.gz).
-                        db restore [options]         Restore from a backup file.
-                        db backup-schedule [options] Schedule automated backups via cron.
-                        db account [subcommand]      Manage database user accounts.
+    echo
+    echo "Database Management:"
+    help_entry db "MySQL/MariaDB database manager."
+    help_subentry "create [options]" "Create a new database."
+    help_subentry "drop <name>" "Delete a database."
+    help_subentry "export [options]" "Export a database to SQL."
+    help_subentry "backup [options]" "Create a timestamped backup (.sql.gz)."
+    help_subentry "restore [options]" "Restore from a backup file."
+    help_subentry "backup-schedule [options]" "Schedule automated backups via cron."
+    help_subentry "account <subcommand>" "Manage database user accounts."
 
-System Administration:
-  account         Interactive system user/account creator.
-  adduser         Alias of 'account'.
-  tui             Launch interactive TUI dashboard.
-  selfssl         Generate self-signed SSL certificates.
-  fixpermission   Fix file/directory permissions for web root.
-  bench           Run server benchmark checks.
-  modsec          ModSecurity WAF status, reporting, and auto-tuning.
-                        modsec status                Show engine and CRS status.
-                        modsec report                Summarize triggered rules.
-                        modsec tune [options]        Adjust paranoia/thresholds.
-  update          Patch PHP2Shell and keep the stack current.
-                        update check                 Audit PHP/nginx/MariaDB state.
-                        update php                   Patch PHP; mitigate EOL pools.
-                        update nginx                 Upgrade package-managed nginx.
-                        update mariadb               Upgrade MariaDB packages.
-                        update lemper                Refresh CLI and plugins.
-                        update all                   Run every update step.
+    echo
+    echo "System Administration:"
+    help_entry account "Interactive system user/account creator."
+    help_entry adduser "Alias of 'account'."
+    help_entry tui "Launch interactive TUI dashboard."
+    help_entry selfssl "Generate self-signed SSL certificates."
+    help_entry fixpermission "Fix file/directory permissions for web root."
+    help_entry bench "Run server benchmark checks."
+    help_entry modsec "ModSecurity WAF status, reporting, and auto-tuning."
+    help_subentry status "Show engine and CRS status."
+    help_subentry report "Summarize triggered rules."
+    help_subentry "tune [options]" "Adjust paranoia/thresholds."
+    help_entry update "Patch PHP2Shell and keep the stack current."
+    help_subentry check "Audit PHP/nginx/MariaDB state."
+    help_subentry php "Patch PHP; mitigate EOL pools."
+    help_subentry nginx "Upgrade package-managed nginx."
+    help_subentry mariadb "Upgrade MariaDB packages."
+    help_subentry lemper "Refresh CLI and plugins."
+    help_subentry all "Run every update step."
+
+    cat <<- EOL
 
 Options:
   --version, -v   Show version and exit.
@@ -523,7 +543,7 @@ For detailed help on a specific command:
   ${PROG_NAME} <command> <subcommand> --help
 EOL
 
-exit 0
+    exit 0
 }
 
 ## 

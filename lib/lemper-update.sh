@@ -544,27 +544,47 @@ EOF
 ##
 function update_check() {
     local branches branch installed state fixed pools mitigated rc=0
-
-    echo "PHP2Shell (CVE-2026-109618 / CVE-2026-109619) status"
-    echo "-----------------------------------------------------"
+    local rows="" w_installed=17 w_state=5 w_fixed=5
 
     branches=$(php_installed_branches)
-    if [[ -z "${branches}" ]]; then
-        echo "  No PHP installation detected."
-    else
+    if [[ -n "${branches}" ]]; then
         while IFS= read -r branch; do
             [[ -z "${branch}" ]] && continue
             installed=$(php_package_version "${branch}")
+            installed="${installed:-unknown}"
             state=$(php_branch_state "${branch}" "${installed}")
             fixed=$(php_fixed_version "${branch}" 2>/dev/null || echo "-")
             pools=$(php_pool_count "${branch}")
             mitigated=$(php_pool_count "${branch}" "true")
 
-            printf '  php%-4s %-22s %-11s fixed %-9s pools %s (mitigated %s)\n' \
-                "${branch}" "${installed:-unknown}" "${state}" "${fixed}" "${pools}" "${mitigated}"
+            rows+="php${branch}"$'\t'"${installed}"$'\t'"${state}"
+            rows+=$'\t'"${fixed}"$'\t'"${pools}"$'\t'"${mitigated}"$'\n'
+
+            (( ${#installed} > w_installed )) && w_installed=${#installed}
+            (( ${#state} > w_state )) && w_state=${#state}
+            (( ${#fixed} > w_fixed )) && w_fixed=${#fixed}
 
             [[ "${state}" == "patched" ]] || rc=1
         done <<< "${branches}"
+    fi
+
+    echo "PHP2Shell (CVE-2026-109618 / CVE-2026-109619) status"
+    echo "-----------------------------------------------------"
+
+    if [[ -z "${rows}" ]]; then
+        echo "  No PHP installation detected."
+    else
+        printf '  %-6s  %-*s  %-*s  %-*s  %s\n' \
+            "Branch" "${w_installed}" "Installed version" \
+            "${w_state}" "State" "${w_fixed}" "Fixed" "Pools (mitigated)"
+
+        while IFS=$'\t' read -r branch installed state fixed pools mitigated; do
+            [[ -z "${branch}" ]] && continue
+            printf '  %-6s  %-*s  %-*s  %-*s  %s (%s)\n' \
+                "${branch}" "${w_installed}" "${installed}" \
+                "${w_state}" "${state}" "${w_fixed}" "${fixed}" \
+                "${pools}" "${mitigated}"
+        done <<< "${rows}"
     fi
 
     echo
