@@ -17,11 +17,10 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     exit 1
 fi
 
-# Resolve BASE_DIR so this module can find scripts/ regardless of CWD.
-# Entry points (install.sh, remove.sh) already set BASE_DIR; this is a fallback
-# for lemper.sh which uses relative sourcing.
+# Resolve the repository root from this module's location so sourcing works
+# regardless of the caller's working directory (this file lives in lib/core/).
 if [[ -z "${BASE_DIR:-}" ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[1]:-$0}" )/.." >/dev/null 2>&1 && pwd )
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." >/dev/null 2>&1 && pwd )
     export BASE_DIR
 fi
 

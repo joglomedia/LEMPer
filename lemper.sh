@@ -22,6 +22,17 @@
 
 PROG_NAME=$(basename "$0")
 
+# Help must not require root, a dotenv file, or a repository checkout.
+case "${1:-}" in
+    -h | --help | help)
+        echo "LEMPer Stack installer"
+        echo "Usage: ${PROG_NAME} install [options]"
+        echo "       ${PROG_NAME} remove [options]"
+        echo "For more help please visit https://github.com/joglomedia/LEMPer"
+        exit 0
+    ;;
+esac
+
 # Make sure only root can run this installer script.
 if [[ "$(id -u)" -ne 0 ]]; then
     if ! hash sudo 2>/dev/null; then
@@ -32,6 +43,12 @@ if [[ "$(id -u)" -ne 0 ]]; then
         exit 0
     fi
 fi
+
+# Run from the checkout root so relative paths (.env, scripts/, share/) work
+# regardless of the caller's working directory.
+LEMPER_ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+cd "${LEMPER_ROOT}" || { echo "${PROG_NAME}: cannot enter ${LEMPER_ROOT}."; exit 1; }
+export BASE_DIR="${LEMPER_ROOT}"
 
 # Try to re-export global path.
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -98,31 +115,6 @@ function final_time_result() {
 }
 
 ##
-# Clone the LEMPer repository.
-##
-function git_clone_lemper() {
-    GIT_BRANCH=${1:-master}
-
-    if [[ -z $(command -v git) ]]; then
-        echo "Git is not installed, now installing..."
-        apt-get update -y && apt-get install -y git
-    fi
-
-    if [[ -n $(command -v git) && ! -d LEMPer/.git ]]; then
-        echo -e "\nCloning LEMPer from ${GIT_BRANCH} branch..."
-        git clone https://github.com/joglomedia/LEMPer.git
-    else
-        echo -e "\nUpdating LEMPer from ${GIT_BRANCH} branch..."
-        cd LEMPer
-        git pull
-        cd ..
-    fi
-
-    cd LEMPer
-    git checkout "${GIT_BRANCH}"
-}
-
-##
 # Run lemper.sh <COMMANDS> <OPTIONS>
 #
 # COMMANDS:
@@ -135,25 +127,22 @@ function git_clone_lemper() {
 function init_lemper_install() {
     START_TIME=$(date +%s)
 
-    # Clone LEMPer repository first.
-    git_clone_lemper "master" > /dev/null 2>&1
-
     # Check dotenv config file.
-    if [[ ! -f .env.dist ]]; then
+    if [[ ! -f "${BASE_DIR}/.env.dist" ]]; then
         echo "${PROG_NAME}: .env.dist file not found."
         exit 1
     fi
 
-    if [[ -f .env ]]; then
-        cp -f .env .env.bak
+    if [[ -f "${BASE_DIR}/.env" ]]; then
+        cp -f "${BASE_DIR}/.env" "${BASE_DIR}/.env.bak"
     else
-        cp .env.dist .env
+        cp "${BASE_DIR}/.env.dist" "${BASE_DIR}/.env"
     fi
 
     # Include helper functions before parsing options: option handlers update
     # .env through sed_inplace and set_env_value.
     if [[ "$(type -t run)" != "function" ]]; then
-        . ./scripts/utils.sh
+        . "${BASE_DIR}/scripts/utils.sh"
     fi
 
     # Set default args.
@@ -537,10 +526,6 @@ function init_lemper_install() {
             lemper_remove
             final_time_result "${START_TIME}"
             footer_msg
-            exit 0
-        ;;
-        -h | --help | help)
-            echo "For more help please visit https://github.com/joglomedia/LEMPer"
             exit 0
         ;;
         *)

@@ -6,16 +6,11 @@
 # Author            : MasEDI.Net (me@masedi.net)
 # Since Version     : 1.0.0
 
-# Define base directory.
-BASE_DIR=${BASE_DIR:-"$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"}
-
-# Define scripts directory.
+# Resolve the directory containing this helper file without relying on BASE_DIR,
+# which callers may already have set to the repository root or to scripts/.
+SCRIPTS_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+BASE_DIR=${BASE_DIR:-"${SCRIPTS_DIR}"}
 export SCRIPTS_DIR
-if grep -q "scripts" <<< "${BASE_DIR}"; then
-    SCRIPTS_DIR="${BASE_DIR}"
-else
-    SCRIPTS_DIR="${BASE_DIR}/scripts"
-fi
 
 ##
 # Parse a key=value line from a config file safely.
@@ -103,8 +98,13 @@ function is_ssh_public_key() {
     [[ "${key}" =~ ^(ssh-rsa|ssh-ed25519|ssh-dss|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)[[:space:]]+[A-Za-z0-9+/]+={0,3}([[:space:]].*)?$ ]]
 }
 
-# Export environment variables.
-ENVFILE=$(echo "${BASE_DIR}/.env" | sed '$ s|\/scripts\/.env$|\/.env|')
+# The dotenv lives at the repository root: either BASE_DIR itself or its
+# parent when BASE_DIR points at scripts/.
+if [[ -f "${BASE_DIR}/.env" ]]; then
+    ENVFILE="${BASE_DIR}/.env"
+else
+    ENVFILE="$( cd "${SCRIPTS_DIR}/.." >/dev/null 2>&1 && pwd )/.env"
+fi
 
 if [ -f "${ENVFILE}" ]; then
     # Clean environment first — unset existing vars from .env.
@@ -120,7 +120,7 @@ if [ -f "${ENVFILE}" ]; then
         export "${key}=${value}"
     done < <(safe_parse_dotenv "${ENVFILE}")
 else
-    echo "Environment variables required, but the dotenv file doesn't exist. Copy .env.dist to .env first!"
+    echo "Environment variables required, but the dotenv file doesn't exist at ${ENVFILE}. Copy .env.dist to .env first!"
     exit 1
 fi
 

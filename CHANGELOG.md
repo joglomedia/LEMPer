@@ -62,6 +62,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `lemper.sh` now runs from its own checkout instead of cloning a nested copy
+  of the repository and switching it to `master` on every start-up. It resolves
+  the repository root from the script location, enters it before using relative
+  paths, and answers `--help` before the root and `.env` checks, so
+  `./lemper.sh --help` no longer fails with "dotenv file doesn't exist".
+  `BASE_DIR` in `lib/core/lemper-stacks.sh` is now derived from that module's
+  location, and `scripts/utils.sh` locates `.env` next to `scripts/` instead of
+  rewriting a guessed path with `sed`.
 - Re-running the installer now reconciles `PHP_EXTENSIONS` for PHP versions
   that are already installed instead of skipping them entirely. MongoDB, Redis,
   and Memcache are enabled for both the CLI and FPM SAPIs through `phpenmod`

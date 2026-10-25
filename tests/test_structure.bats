@@ -88,6 +88,44 @@ refute_grep() {
     grep -q 'remove' "${BASE_DIR}/lemper.sh"
 }
 
+@test "lemper.sh --help works without sudo or a dotenv file" {
+    run env -u BASE_DIR bash "${BASE_DIR}/lemper.sh" --help
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"Usage:"* ]]
+    [[ "${output}" == *"install"* ]]
+}
+
+@test "lemper.sh runs from its checkout instead of cloning a nested copy" {
+    local cli="${BASE_DIR}/lemper.sh"
+
+    grep -qF 'LEMPER_ROOT=' "${cli}"
+    grep -qF 'export BASE_DIR="${LEMPER_ROOT}"' "${cli}"
+    refute_grep -q 'git_clone_lemper' "${cli}"
+    refute_grep -qF 'git clone https://github.com/joglomedia/LEMPer.git' "${cli}"
+}
+
+@test "BASE_DIR and the dotenv resolve from the module location" {
+    local stacks="${BASE_DIR}/lib/core/lemper-stacks.sh"
+    local utils="${BASE_DIR}/scripts/utils.sh"
+
+    grep -qF 'dirname "${BASH_SOURCE[0]}" )/../..' "${stacks}"
+    refute_grep -qF 'BASH_SOURCE[1]' "${stacks}"
+
+    # The dotenv lookup must not rewrite a guessed path with sed.
+    refute_grep -qF "s|\\/scripts" "${utils}"
+    grep -qF 'SCRIPTS_DIR}/..' "${utils}"
+}
+
+@test "utils.sh loads .env from the repository root regardless of CWD" {
+    local tmp="${BATS_TEST_TMPDIR}/lemper-env"
+    mkdir -p "${tmp}/scripts"
+    cp "${BASE_DIR}/scripts/utils.sh" "${tmp}/scripts/utils.sh"
+    printf 'LEMPER_DOTENV_PROBE="ok"\n' > "${tmp}/.env"
+
+    run env -u BASE_DIR bash -c 'cd / && . "$1/scripts/utils.sh" && printf "%s" "$LEMPER_DOTENV_PROBE"' _ "${tmp}"
+    [ "${output}" = "ok" ]
+}
+
 @test "lemper-stacks.sh wires in Bun.js install/remove" {
     grep -q 'install_bun.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
     grep -q 'remove_bun.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
