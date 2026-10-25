@@ -46,6 +46,8 @@ function init_pureftpd_removal() {
     [[ -f /etc/systemd/system/multi-user.target.wants/pure-ftpd.service ]] && \
         run unlink /etc/systemd/system/multi-user.target.wants/pure-ftpd.service
 
+    [[ -f /etc/systemd/system/pure-ftpd.service ]] && run rm -f /etc/systemd/system/pure-ftpd.service
+
     [[ -f /lib/systemd/system/pure-ftpd.service ]] && run rm /lib/systemd/system/pure-ftpd.service
 
     [[ -f /run/systemd/generator.late/multi-user.target.wants/pure-ftpd.service ]] && \
@@ -82,6 +84,7 @@ function init_pureftpd_removal() {
         [[ -d /etc/pure-ftpd ]] && run rm -fr /etc/pure-ftpd
         [[ -f /etc/pure-ftpd.conf ]] && run rm -f /etc/pure-ftpd.conf
         [[ -f /etc/default/pure-ftpd-common ]] && run rm -f /etc/default/pure-ftpd-common
+        [[ -f /etc/ssl/private/pure-ftpd.pem ]] && run rm -f /etc/ssl/private/pure-ftpd.pem
 
         echo "All configuration files deleted permanently."
     fi

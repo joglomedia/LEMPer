@@ -66,6 +66,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Pure-FTPd now starts reliably (issue #135). The installer creates the `ftp`
+  system account when it is missing, writes each setting to
+  `/etc/pure-ftpd/conf` (the directory `pure-ftpd-wrapper` actually reads),
+  generates `/etc/ssl/private/pure-ftpd.pem` as a certificate **and** private
+  key bundle instead of pointing TLS at a certificate-only snakeoil PEM, and
+  verifies the service after restarting it. Source installs get a native
+  systemd unit instead of a copied sysv-generator unit in `/run`. Re-running
+  the installer re-applies this configuration, so hosts that already hit the
+  bug are repaired in place instead of being skipped.
+- VSFTPD can be compiled from source on OpenSSL 3 hosts (issue #146). The build
+  now allows deprecation warnings instead of failing on `-Werror`, installs
+  `libssl-dev`/`libpam0g-dev`/`libcap-dev`, and the source branch no longer
+  falls back to the repository package behind the user's back. TLS is
+  configured for TLS 1.2/1.3 and falls back to a generated self-signed
+  certificate when no certificate pair exists. The build also finds libpam in
+  the multiarch directory, so PAM links on arm64.
+- Pure-FTPd source installs target 1.0.54, drop the unneeded MySQL client
+  dependency, and no longer install a stale `pure-ftpd.conf` that the packaged
+  service ignores.
 - `lemper.sh` now runs from its own checkout instead of cloning a nested copy
   of the repository and switching it to `master` on every start-up. It resolves
   the repository root from the script location, enters it before using relative

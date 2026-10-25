@@ -66,6 +66,7 @@ function init_vsftpd_removal() {
         [ -f /etc/vsftpd.userlist ] && run rm -f /etc/vsftpd.userlist
         [ -f /etc/ftpusers ] && run rm -f /etc/ftpusers
         [ -f /etc/pam.d/vsftpd ] && run rm -f /etc/pam.d/vsftpd
+        [ -f /etc/ssl/private/vsftpd-selfsigned.pem ] && run rm -f /etc/ssl/private/vsftpd-selfsigned.pem
 
         echo "All configuration files deleted permanently."
     fi
