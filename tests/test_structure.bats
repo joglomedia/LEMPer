@@ -372,6 +372,16 @@ refute_grep() {
     grep -q 'shellcheck-v0.11.0' "${BASE_DIR}/.github/workflows/main.yml"
 }
 
+@test "CI workflow installs and verifies both FTP servers" {
+    local workflow="${BASE_DIR}/.github/workflows/main.yml"
+
+    grep -q 'name: Verify FTP server installation' "${workflow}"
+    grep -q 'ftp-source:' "${workflow}"
+    grep -q 'FTP_SERVER_INSTALLER="source"' "${workflow}"
+    grep -q 'scripts/install_pureftpd.sh' "${workflow}"
+    grep -q 'scripts/install_vsftpd.sh' "${workflow}"
+}
+
 @test "Podman test script defaults to Ubuntu 24.04" {
     grep -q 'ubuntu:24.04' "${BASE_DIR}/scripts/test_podman.sh"
 }

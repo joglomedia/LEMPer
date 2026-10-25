@@ -156,6 +156,24 @@ function configure_pureftpd() {
             run chmod 0644 /etc/pam.d/pure-ftpd
         fi
 
+        # Debian and Ubuntu start pure-ftpd from a sysv init script, which
+        # only launches the daemon in standalone mode. debconf normally
+        # writes this file, but minimal images can leave it out or in inetd
+        # mode, where the init script exits successfully without listening.
+        if [[ "${installer}" == "repo" ]]; then
+            if [[ ! -f /etc/default/pure-ftpd-common ]]; then
+                run cp -f etc/default/pure-ftpd-common /etc/default/pure-ftpd-common
+                run chmod 0644 /etc/default/pure-ftpd-common
+            fi
+
+            if grep -Eq '^[[:space:]]*STANDALONE_OR_INETD=' /etc/default/pure-ftpd-common; then
+                run sed_inplace 's/^[[:space:]]*STANDALONE_OR_INETD=.*/STANDALONE_OR_INETD=standalone/' \
+                    /etc/default/pure-ftpd-common
+            else
+                run bash -c "printf '\nSTANDALONE_OR_INETD=standalone\n' >> /etc/default/pure-ftpd-common"
+            fi
+        fi
+
         # Enable passive mode.
         if [[ "${FTP_PASV_MODE}" == true ]]; then
             set_pureftpd_option "PassivePortRange" "${FTP_MIN_PORT} ${FTP_MAX_PORT}"

@@ -46,6 +46,10 @@ jobs:
           sed -i "s/ACME_DNS_PROVIDER=\"cloudflare\"/ACME_DNS_PROVIDER=\"cloudflare\"/g" .env
           sed -i "s/INSTALL_MODSEC=false/INSTALL_MODSEC=true/g" .env
           sed -i "s/ENCRYPT_CONFIG_AT_REST=false/ENCRYPT_CONFIG_AT_REST=true/g" .env
+          sed -i "s/^INSTALL_FTP_SERVER=.*/INSTALL_FTP_SERVER=true/g" .env
+          sed -i "s/^FTP_SERVER_INSTALLER=.*/FTP_SERVER_INSTALLER=\"repo\"/g" .env
+          sed -i "s/^FTP_SERVER_NAME=.*/FTP_SERVER_NAME=\"pureftpd\"/g" .env
+          sed -i "s/^FTP_SSL_ENABLE=.*/FTP_SSL_ENABLE=true/g" .env
       # Install Dependencies
       - name: Install testing dependencies
         run: |
@@ -109,6 +113,106 @@ jobs:
           sudo bash scripts/server_cleanup.sh
           sudo bash scripts/install_dependencies.sh
           sudo bash shunit2/run_test.sh
+      # FTP server install verification (issue #135)
+      - name: Verify FTP server installation
+        run: |
+          set -ex
+          systemctl is-active --quiet pure-ftpd
+          systemctl is-enabled --quiet pure-ftpd
+          sudo ss -ltn | grep -q ':21 '
+          getent passwd ftp
+          sudo grep -qx 'STANDALONE_OR_INETD=standalone' /etc/default/pure-ftpd-common
+          sudo grep -qx '2' /etc/pure-ftpd/conf/TLS
+          sudo test -f /etc/pure-ftpd/conf/PassivePortRange
+          sudo test -L /etc/pure-ftpd/auth/65unix
+          sudo test -L /etc/pure-ftpd/auth/70pam
+          sudo test -s /etc/ssl/private/pure-ftpd.pem
+          sudo grep -q 'BEGIN CERTIFICATE' /etc/ssl/private/pure-ftpd.pem
+          sudo grep -q 'PRIVATE KEY' /etc/ssl/private/pure-ftpd.pem
+  ftp-source:
+    name: ftp-source (${{ matrix.server }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+          - ubuntu-24.04
+        server:
+          - pureftpd
+          - vsftpd
+        include:
+          - server: pureftpd
+            installer: scripts/install_pureftpd.sh
+            service: pure-ftpd
+          - server: vsftpd
+            installer: scripts/install_vsftpd.sh
+            service: vsftpd
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare FTP testing environment
+        run: |
+          set -ex
+          cp .env.dist .env
+          sed -i 's/ENVIRONMENT="production"/ENVIRONMENT="development"/g' .env
+          sed -i 's/SERVER_HOSTNAME=""/SERVER_HOSTNAME="gh-ci.lemper.cloud"/g' .env
+          sed -i 's/SERVER_IP=""/SERVER_IP="127.0.0.1"/g' .env
+          sed -i 's/AUTO_INSTALL=false/AUTO_INSTALL=true/g' .env
+          sed -i 's/^INSTALL_FTP_SERVER=.*/INSTALL_FTP_SERVER=true/' .env
+          sed -i 's/^FTP_SERVER_INSTALLER=.*/FTP_SERVER_INSTALLER="source"/' .env
+          sed -i "s/^FTP_SERVER_NAME=.*/FTP_SERVER_NAME=\"${{ matrix.server }}\"/" .env
+          sed -i 's/^FTP_SERVER_VERSION=.*/FTP_SERVER_VERSION="latest"/' .env
+          sed -i 's/^FTP_SSL_ENABLE=.*/FTP_SSL_ENABLE=true/' .env
+          sed -i 's/^FTP_PASV_MODE=.*/FTP_PASV_MODE=true/' .env
+          grep -E '^(INSTALL_FTP_SERVER|FTP_SERVER_|FTP_SSL_ENABLE|FTP_PASV_MODE)' .env
+          sudo apt-get update -q
+      - name: Install FTP server from source
+        run: |
+          set -ex
+          sudo bash "${{ matrix.installer }}"
+      - name: Verify FTP service
+        run: |
+          set -ex
+          systemctl is-active --quiet "${{ matrix.service }}"
+          systemctl is-enabled --quiet "${{ matrix.service }}"
+          sudo ss -ltn | grep -q ':21 '
+      - name: Verify Pure-FTPd source build (issue #135)
+        if: matrix.server == 'pureftpd'
+        run: |
+          set -ex
+          sudo pure-ftpd -h | grep -q 'v1\.0\.54'
+          test -x /usr/sbin/pure-ftpd-wrapper
+          # A source install must not come from the Debian package.
+          ! dpkg-query -W -f='${Status}' pure-ftpd 2>/dev/null | grep -q 'install ok installed'
+          getent passwd ftp
+          sudo test -s /etc/ssl/private/pure-ftpd.pem
+          sudo grep -q 'BEGIN CERTIFICATE' /etc/ssl/private/pure-ftpd.pem
+          sudo grep -q 'PRIVATE KEY' /etc/ssl/private/pure-ftpd.pem
+          sudo grep -qx '2' /etc/pure-ftpd/conf/TLS
+          sudo test -f /etc/pure-ftpd/conf/PassivePortRange
+          sudo test -L /etc/pure-ftpd/auth/65unix
+          sudo test -L /etc/pure-ftpd/auth/70pam
+          sudo /usr/sbin/pure-ftpd-wrapper --show-options | grep -q -- '-Y 2'
+      - name: Verify vsftpd source build (issue #146)
+        if: matrix.server == 'vsftpd'
+        run: |
+          set -ex
+          vsftpd -v
+          sudo grep -qx 'ssl_enable=YES' /etc/vsftpd.conf
+          sudo grep -qx 'ssl_tlsv12=YES' /etc/vsftpd.conf
+          sudo grep -qx 'ssl_tlsv13=YES' /etc/vsftpd.conf
+          sudo grep -q '^ssl_ciphers=' /etc/vsftpd.conf
+          cert_file=$(sudo awk -F= '/^rsa_cert_file=/{print $2}' /etc/vsftpd.conf)
+          key_file=$(sudo awk -F= '/^rsa_private_key_file=/{print $2}' /etc/vsftpd.conf)
+          sudo test -s "${cert_file}"
+          sudo test -s "${key_file}"
+          sudo grep -q 'BEGIN CERTIFICATE' "${cert_file}"
+          sudo grep -q 'PRIVATE KEY' "${key_file}"
+      - name: Re-run installer to reconcile configuration
+        run: |
+          set -ex
+          sudo bash "${{ matrix.installer }}"
+          systemctl is-active --quiet "${{ matrix.service }}"
   debian-12:
     runs-on: ubuntu-24.04
     container:

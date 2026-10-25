@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `lemper-cli site mod --enable-cors` and `--disable-cors` (issue #52). The
   generated include defaults to a wildcard origin and can be restricted by
   editing its `set $cors` line.
+- CI installs and verifies the FTP server (issues #135 and #146). The Ubuntu
+  job checks the repository-installed Pure-FTPd service, TLS bundle, and auth
+  links, and a new `ftp-source` matrix compiles Pure-FTPd 1.0.54 and VSFTPD
+  3.0.5 from source on Ubuntu 22.04 and 24.04.
 
 ### Changed
 
@@ -72,9 +76,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   generates `/etc/ssl/private/pure-ftpd.pem` as a certificate **and** private
   key bundle instead of pointing TLS at a certificate-only snakeoil PEM, and
   verifies the service after restarting it. Source installs get a native
-  systemd unit instead of a copied sysv-generator unit in `/run`. Re-running
-  the installer re-applies this configuration, so hosts that already hit the
-  bug are repaired in place instead of being skipped.
+  systemd unit instead of a copied sysv-generator unit in `/run`. The packaged
+  sysv init script is forced into standalone mode, because inetd mode exits
+  successfully without listening on port 21. Re-running the installer
+  re-applies this configuration, so hosts that already hit the bug are
+  repaired in place instead of being skipped.
 - VSFTPD can be compiled from source on OpenSSL 3 hosts (issue #146). The build
   now allows deprecation warnings instead of failing on `-Werror`, installs
   `libssl-dev`/`libpam0g-dev`/`libcap-dev`, and the source branch no longer

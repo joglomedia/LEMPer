@@ -50,6 +50,14 @@ refute_grep() {
     grep -q '/etc/pam.d/pure-ftpd' "${BASE_DIR}/scripts/install_pureftpd.sh"
 }
 
+@test "pure-ftpd repository install forces standalone mode" {
+    # The sysv init script shipped by the package only starts the daemon in
+    # standalone mode; in inetd mode it exits 0 without listening on port 21.
+    grep -q '/etc/default/pure-ftpd-common' "${BASE_DIR}/scripts/install_pureftpd.sh"
+    grep -q 'STANDALONE_OR_INETD=standalone' "${BASE_DIR}/scripts/install_pureftpd.sh"
+    grep -q 'cp -f etc/default/pure-ftpd-common' "${BASE_DIR}/scripts/install_pureftpd.sh"
+}
+
 @test "pure-ftpd source build pins 1.0.54 without the MySQL client" {
     grep -q 'pure-ftpd-1.0.54.tar.gz' "${BASE_DIR}/scripts/install_pureftpd.sh"
     grep -q 'download.pureftpd.org/pub/pure-ftpd/releases' \
