@@ -526,6 +526,7 @@ lemper-modsec:lemper-modsec
 lemper-tui:lemper-tui
 lemper-encrypt:lemper-encrypt
 lemper-update:lemper-update
+lemper-backup:lemper-backup
 EOF
 
     ln -sfn "${dest}/lemper-site-create" "${dest}/lemper-site-add"

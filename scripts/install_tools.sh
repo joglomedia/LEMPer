@@ -89,6 +89,10 @@ function init_tools_install() {
     run cp -f lib/lemper-update.sh /etc/lemper/cli-plugins/lemper-update && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-update
 
+    # Install configuration backup/restore plugin.
+    run cp -f lib/lemper-backup.sh /etc/lemper/cli-plugins/lemper-backup && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-backup
+
     # Record the source checkout so 'lemper update lemper' can refresh plugins.
     if [[ -f "${BASE_DIR}/bin/lemper-cli.sh" ]]; then
         run bash -c 'printf "%s\n" "$1" > /etc/lemper/update-source' _ "${BASE_DIR}"

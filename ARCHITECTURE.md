@@ -38,6 +38,7 @@ LEMPer/
 ├── lib/
 │   ├── lemper-account.sh          # CLI plugin: system account creation
 │   ├── lemper-adduser.sh          # CLI plugin: add user wrapper
+│   ├── lemper-backup.sh           # CLI plugin: configuration backup/restore
 │   ├── lemper-bench.sh            # CLI plugin: hardware & network benchmark
 │   ├── lemper-create.sh           # CLI plugin: vhost creation & framework auto-installer
 │   ├── lemper-db.sh               # CLI plugin: MySQL/MariaDB database manager (backup/restore)
@@ -300,7 +301,8 @@ During installation, `install_tools.sh` copies library scripts from `lib/` to
 ├── lemper-selfssl
 ├── lemper-fixpermission
 ├── lemper-bench
-└── lemper-update           → stack updater (check/php/nginx/mariadb/lemper/all)
+├── lemper-update           → stack updater (check/php/nginx/mariadb/lemper/all)
+└── lemper-backup           → configuration archive (create/list/show/verify/restore/prune)
 ```
 
 The CLI dispatches by sourcing the plugin file (not executing it), which means all plugin
@@ -324,6 +326,7 @@ The GitHub Actions workflow (`.github/workflows/main.yml`) runs on every push/PR
 - `unit/validators.bats` — 6 tests (validators, sanitizers, mocked nginx)
 - `unit/php_temp_dirs.bats` — 2 tests (mock-based temp-dir creation)
 - `unit/db_backup_restore.bats` — 4 tests (mocked DB backup/restore)
+- `unit/config_backup.bats` — configuration archive create/verify/restore/prune (temp backup root)
 - `unit/resource_profile.bats` — 6 tests (RAM detection, profile selection, FPM/MariaDB sizing, pool tuning)
 - `unit/update_helpers.bats` — 10 tests (version comparison, branch classification, pool mitigation idempotency, bootstrap wiring)
 

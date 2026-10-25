@@ -201,6 +201,27 @@ For more info
 sudo lemper-cli site mod --help
 ```
 
+##### LEMPer CLI back up and restore configuration
+
+`lemper-cli backup` archives the configuration LEMPer manages — Nginx, PHP,
+MySQL/MariaDB, Redis/Valkey, Memcached, Fail2ban, CrowdSec, ModSecurity
+tuning, mail, FTP, Let's Encrypt, `/etc/lemper`, and legacy `.env` files — so
+a broken change can be rolled back. Web content and database data are not
+included.
+
+```bash
+sudo lemper-cli backup create          # archive to /var/backups/lemper/config
+sudo lemper-cli backup list            # list archives
+sudo lemper-cli backup show latest     # print the newest archive manifest
+sudo lemper-cli backup restore --latest --reload
+sudo lemper-cli backup prune --keep 5
+```
+
+`restore` verifies the archive and the member allow-list first, writes a
+pre-restore snapshot to the same directory, runs `nginx -t` afterwards, and
+rolls back automatically if the test fails. Archives contain credentials and
+private keys, so they are created root-only (mode 0600).
+
 ##### for more help
 
 ```bash

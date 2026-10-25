@@ -38,6 +38,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   job checks the repository-installed Pure-FTPd service, TLS bundle, and auth
   links, and a new `ftp-source` matrix compiles Pure-FTPd 1.0.54 and VSFTPD
   3.0.5 from source on Ubuntu 22.04 and 24.04.
+- `lemper-cli backup` archives and restores the configuration LEMPer manages:
+  `/etc/lemper`, Nginx, PHP, MySQL/MariaDB, PostgreSQL, MongoDB,
+  Redis/Valkey, Memcached, Fail2ban, CrowdSec, ModSecurity tuning, Let's
+  Encrypt, mail, FTP, systemd units, and legacy `.env` files. `create`,
+  `list`, `show`, `verify`, `restore`, and `prune` subcommands are included.
+  Restore validates archive members against an allow-list, writes a
+  pre-restore snapshot, tests Nginx afterwards, and rolls back on failure.
+  Archives contain secrets and are created root-only (0600).
 
 ### Changed
 
