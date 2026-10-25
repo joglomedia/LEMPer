@@ -53,7 +53,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * In-memory cache with Memcached.
 * FTP server with VSFTPD or Pure-FTPd.
 * Web-based administration tools:
-  * [AdminerEvo](https://github.com/adminerevo/adminerevo) web-based SQL & MongoDB database manager (PhpMyAdmin replacement).
+  * [Adminer](https://github.com/vrana/adminer) web-based SQL database manager (PhpMyAdmin replacement).
   * [phpRedisAdmin](https://github.com/erikdubbelboer/phpRedisAdmin) web-based Redis database manager.
   * [phpMemcachedAdmin](https://github.com/elijaa/phpmemcachedadmin) web-based Memcached manager.
   * phpOpCacheStatus web-based OPcache status panel.
@@ -211,7 +211,7 @@ You can access pre-installed web-based administration tools here.
 http://YOUR_IP_ADDRESS:8082/lcp/
 ```
 
-AdminerEvo (web-based SQL database manager)
+Adminer (web-based SQL database manager)
 
 ```bash
 http://YOUR_IP_ADDRESS:8082/lcp/dbadmin/

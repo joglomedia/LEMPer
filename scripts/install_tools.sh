@@ -120,14 +120,16 @@ function init_tools_install() {
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php85'
 
     # Install Adminer for Web-based MySQL Administration Tool.
-    echo -n "Installing database AdminerEVO..."
+    echo -n "Installing database Adminer..."
     [ ! -d /usr/share/nginx/html/lcp/dbadmin ] && run mkdir -p /usr/share/nginx/html/lcp/dbadmin
 
-    # Overwrite existing files.
-    run curl -sSL -o /usr/share/nginx/html/lcp/dbadmin/index.php \
-        https://github.com/adminerevo/adminerevo/releases/download/v4.8.4/adminer-4.8.4.php 
-    run curl -sSL -o /usr/share/nginx/html/lcp/dbadmin/editor.php \
-        https://github.com/adminerevo/adminerevo/releases/download/v4.8.4/editor-4.8.4.php \
+    ADMINER_VERSION=${ADMINER_VERSION:-"6.2.0"}
+
+    # Overwrite existing files (including leftovers from AdminerEvo installs).
+    run curl -fsSL -o /usr/share/nginx/html/lcp/dbadmin/index.php \
+        "https://github.com/vrana/adminer/releases/download/v${ADMINER_VERSION}/adminer-${ADMINER_VERSION}.php"
+    run curl -fsSL -o /usr/share/nginx/html/lcp/dbadmin/editor.php \
+        "https://github.com/vrana/adminer/releases/download/v${ADMINER_VERSION}/editor-${ADMINER_VERSION}.php"
 
     [ -f /usr/share/nginx/html/lcp/dbadmin/index.php ] && echo_ok "OK"
 

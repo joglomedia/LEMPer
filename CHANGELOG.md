@@ -37,6 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Replaced the deprecated AdminerEvo (4.8.4) web database manager with upstream
+  [Adminer](https://github.com/vrana/adminer) 6.2.0, configurable through
+  `ADMINER_VERSION` in `.env` (issue #183). Existing `/lcp/dbadmin` files are
+  overwritten on upgrade. The install recap no longer checks undefined
+  `INSTALL_ADMINER`/`INSTALL_FILEMANAGER` flags and lists both tools when
+  Nginx is installed.
 - Reorganized the Nginx configuration to remove repeated boilerplate (issue
   #29). The default and admin vhosts now pull PHP-FPM handlers from
   `includes/php_handlers.conf` and the loopback status endpoints from

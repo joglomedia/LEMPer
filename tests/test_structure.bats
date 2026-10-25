@@ -732,3 +732,17 @@ refute_grep() {
     # QUIC needs UDP 443 through CSF.
     grep -qF 'UDP_IN' "${BASE_DIR}/scripts/server_security.sh"
 }
+
+@test "Adminer is installed from the official upstream release" {
+    local tools="${BASE_DIR}/scripts/install_tools.sh"
+
+    grep -qF 'github.com/vrana/adminer/releases/download' "${tools}"
+    grep -qF 'adminer-${ADMINER_VERSION}.php' "${tools}"
+    grep -qF 'editor-${ADMINER_VERSION}.php' "${tools}"
+    grep -qF 'ADMINER_VERSION:-' "${tools}"
+    grep -qE '^ADMINER_VERSION="' "${BASE_DIR}/.env.dist"
+
+    # AdminerEvo has been deprecated in favor of upstream Adminer.
+    refute_grep -qi 'github.com/adminerevo' "${tools}"
+    refute_grep -qi 'adminerevo' "${BASE_DIR}/README.md"
+}

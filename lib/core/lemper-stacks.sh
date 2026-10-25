@@ -215,11 +215,7 @@ function lemper_install() {
             echo "Service URLs:"
             if [[ "${INSTALL_NGINX}" == true ]]; then
                 echo "  Web Server: http://${SERVER_IP}/ (Nginx)"
-            fi
-            if [[ "${INSTALL_ADMINER}" == true || "${INSTALL_PHPMYADMIN}" == true ]]; then
                 echo "  Database Admin: http://${SERVER_IP}:8082/lcp/dbadmin/"
-            fi
-            if [[ "${INSTALL_FILEMANAGER}" == true ]]; then
                 echo "  File Manager: http://${SERVER_IP}:8082/lcp/filemanager/"
             fi
             info "All sensitive credentials are in /etc/lemper/lemper.conf (root-only)."
