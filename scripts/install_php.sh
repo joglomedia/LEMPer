@@ -85,69 +85,80 @@ function add_php_repo() {
 # Install PHP and extensions.
 ##
 function install_php() {
-    #local PHP_IS_INSTALLED="no"
-
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
         PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
-    # Checking if PHP already installed.
+    local PHP_ALREADY_INSTALLED=false
+
     if [[ -n $(command -v "php${PHPv}") && -n $(command -v "php-fpm${PHPv}") ]]; then
-        #PHP_IS_INSTALLED="yes"
-        info "PHP ${PHPv} and it's extensions already exists, installation skipped."
+        PHP_ALREADY_INSTALLED=true
+        info "PHP ${PHPv} is already installed, reconciling its extensions."
     else
         echo "Preparing PHP ${PHPv} installation..."
+    fi
 
-        local PHP_EXTS=()
-        local PHP_REPO_EXTS=()
-        local PHP_MISSING_EXTS=()
+    local PHP_EXTS=()
+    local PHP_REPO_EXTS=()
+    local PHP_MISSING_EXTS=()
+    local EXT_NAME
 
-        # Include user defined extensions from config file.
-        read -r -a PHP_EXTS <<< "${PHP_EXTENSIONS}"
+    # Include user defined extensions from config file.
+    read -r -a PHP_EXTS <<< "${PHP_EXTENSIONS}"
 
-        PHP_EXTS+=("bcmath" "bz2" "cli" "common" "curl" "dev" "fpm" "gd" "gmp" "gnupg" \
-            "imap" "intl" "mbstring" "mysql" "opcache" "pcov" "pgsql" "pspell" "readline" \
-            "ldap" "snmp" "soap" "sqlite3" "tidy" "tokenizer" "xml" "xmlrpc" "xsl" "yaml" "zip")
+    PHP_EXTS+=("bcmath" "bz2" "cli" "common" "curl" "dev" "fpm" "gd" "gmp" "gnupg" \
+        "imap" "intl" "mbstring" "mysql" "opcache" "pcov" "pgsql" "pspell" "readline" \
+        "ldap" "snmp" "soap" "sqlite3" "tidy" "tokenizer" "xml" "xmlrpc" "xsl" "yaml" "zip")
 
-        # Add PHP extensions.
-        [[ "${INSTALL_MEMCACHED}" == true ]] && PHP_EXTS+=("memcache" "memcached")
-        [[ "${INSTALL_MONGODB}" == true ]] && PHP_EXTS+=("mongodb")
-        [[ "${INSTALL_REDIS}" == true ]] && PHP_EXTS+=("redis")
+    # Add PHP extensions.
+    [[ "${INSTALL_MEMCACHED}" == true ]] && PHP_EXTS+=("memcache" "memcached")
+    [[ "${INSTALL_MONGODB}" == true ]] && PHP_EXTS+=("mongodb")
+    [[ "${INSTALL_REDIS}" == true ]] && PHP_EXTS+=("redis")
 
-        # Sort PHP extensions.
+    # Sort PHP extensions.
+    #shellcheck disable=SC2207
+    PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | sort -u | tr '\n' ' '))
+
+    # json is bundled with PHP 8.0+ and has no standalone package.
+    if [[ $(bc -l <<< "${PHPv//.} > 74") == 1 ]]; then
         #shellcheck disable=SC2207
-        PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | sort -u | tr '\n' ' '))
+        PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | grep -vx 'json' | tr '\n' ' '))
+    fi
 
-        # json is bundled with PHP 8.0+ and has no standalone package.
-        if [[ $(bc -l <<< "${PHPv//.} > 74") == 1 ]]; then
-            #shellcheck disable=SC2207
-            PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | grep -vx 'json' | tr '\n' ' '))
+    # Opcache is built into the PHP binary since 8.5 (no package or .so).
+    if [[ $(bc -l <<< "${PHPv//.} >= 85") == 1 ]]; then
+        #shellcheck disable=SC2207
+        PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | grep -vx 'opcache' | tr '\n' ' '))
+    fi
+
+    # Resolve additional PHP extensions against the distribution repository.
+    for EXT_NAME in "${PHP_EXTS[@]}"; do
+        echo -n "Checking extension ${EXT_NAME}... "
+
+        if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "php${PHPv}-${EXT_NAME}" > /dev/null; then
+            echo "[php${PHPv}-${EXT_NAME}]"
+            PHP_REPO_EXTS+=("php${PHPv}-${EXT_NAME}")
+        elif apt-cache search "php-${EXT_NAME}" | grep -c "php-${EXT_NAME}" > /dev/null; then
+            echo "[php-${EXT_NAME}]"
+            PHP_REPO_EXTS+=("php-${EXT_NAME}")
+        else
+            echo "[not available]"
+            PHP_MISSING_EXTS+=("${EXT_NAME}")
         fi
+    done
 
-        # Opcache is built into the PHP binary since 8.5 (no package or .so).
-        if [[ $(bc -l <<< "${PHPv//.} >= 85") == 1 ]]; then
-            #shellcheck disable=SC2207
-            PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | grep -vx 'opcache' | tr '\n' ' '))
+    if [[ "${PHP_ALREADY_INSTALLED}" == true ]]; then
+        # Reconcile extensions added to PHP_EXTENSIONS after the initial install.
+        if [[ "${#PHP_REPO_EXTS[@]}" -gt 0 ]]; then
+            echo "Installing missing PHP ${PHPv} extensions..."
+            run_spinner "Installing PHP ${PHPv} extensions" apt-get install -q -y "${PHP_REPO_EXTS[@]}"
+            success "PHP ${PHPv} extensions reconciled."
+        else
+            info "No PHP ${PHPv} extension packages to install."
         fi
-
-        # Resolve additional PHP extensions against the distribution repository.
-        for EXT_NAME in "${PHP_EXTS[@]}"; do
-            echo -n "Checking extension ${EXT_NAME}... "
-
-            if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "php${PHPv}-${EXT_NAME}" > /dev/null; then
-                echo "[php${PHPv}-${EXT_NAME}]"
-                PHP_REPO_EXTS+=("php${PHPv}-${EXT_NAME}")
-            elif apt-cache search "php-${EXT_NAME}" | grep -c "php-${EXT_NAME}" > /dev/null; then
-                echo "[php-${EXT_NAME}]"
-                PHP_REPO_EXTS+=("php-${EXT_NAME}")
-            else
-                echo "[not available]"
-                PHP_MISSING_EXTS+=("${EXT_NAME}")
-            fi
-        done
-
+    else
         # Install PHP and PHP extensions.
         echo "Installing PHP ${PHPv} and it's extensions..."
 
@@ -156,20 +167,24 @@ function install_php() {
                 php-common php-xml fcgiwrap spawn-fcgi
         fi
 
-        if [[ "${#PHP_MISSING_EXTS[@]}" -gt 0 ]]; then
-            warning "PHP extension(s) not available from the distribution repository: ${PHP_MISSING_EXTS[*]}"
-            warning "Install them manually with PIE (https://github.com/php/pie) if required."
-        fi
-
         if [[ -n $(command -v "php${PHPv}") ]]; then
             success "PHP ${PHPv} along with ${#PHP_REPO_EXTS[@]} extensions installed."
         fi
+    fi
 
-        # Enable additional PHP extensions.
-        [[ "${INSTALL_MEMCACHED}" == true ]] && enable_php_memcached "${PHPv}"
-        [[ "${INSTALL_MONGODB}" == true ]] && enable_php_mongodb "${PHPv}"
-        [[ "${INSTALL_REDIS}" == true ]] && enable_php_redis "${PHPv}"
+    if [[ "${#PHP_MISSING_EXTS[@]}" -gt 0 ]]; then
+        warning "PHP extension(s) not available from the distribution repository: ${PHP_MISSING_EXTS[*]}"
+        warning "Install them manually with PIE (https://github.com/php/pie) if required."
+    fi
 
+    # Enable additional PHP extensions for both the CLI and FPM SAPIs.
+    [[ "${INSTALL_MEMCACHED}" == true ]] && enable_php_memcached "${PHPv}"
+    [[ "${INSTALL_MONGODB}" == true ]] && enable_php_mongodb "${PHPv}"
+    [[ "${INSTALL_REDIS}" == true ]] && enable_php_redis "${PHPv}"
+
+    # Post-install tasks only apply to a fresh install. Re-running must not
+    # overwrite tuned pools, log directories, or logrotate configuration.
+    if [[ "${PHP_ALREADY_INSTALLED}" == false ]]; then
         # Create PHP log dir.
         if [[ ! -d /var/log/php ]]; then
             run mkdir -p /var/log/php
@@ -583,6 +598,67 @@ EOL
 }
 
 ##
+# Enable a PHP extension for both the CLI and FPM SAPIs.
+#
+# Repositories create the mods-available ini, but manually built extensions
+# (PIE) and interrupted installs may leave it enabled for the CLI only. The
+# FPM SAPI is verified through 'php-fpm -m', which reads fpm/conf.d rather
+# than the CLI configuration.
+##
+function enable_php_extension() {
+    local PHPv="${1}"
+    local EXT_NAME="${2}"
+
+    if [[ -z "${PHPv}" || -z "${EXT_NAME}" ]]; then
+        error "Usage: enable_php_extension <php-version> <extension>"
+        return 1
+    fi
+
+    if [[ "${DRYRUN}" == true ]]; then
+        info "PHP ${PHPv} ${EXT_NAME} extension enabled in dry run mode."
+        return 0
+    fi
+
+    local PHP_LIB_DIR
+    PHP_LIB_DIR=$("php${PHPv}" -i 2>/dev/null | grep '^extension_dir' | awk '{print $3}')
+
+    if [[ -z "${PHP_LIB_DIR}" || ! -f "${PHP_LIB_DIR}/${EXT_NAME}.so" ]]; then
+        warning "PHP ${PHPv} ${EXT_NAME} extension is not installed; install php${PHPv}-${EXT_NAME} first."
+        return 1
+    fi
+
+    local SAPI MOD_INI
+    MOD_INI="/etc/php/${PHPv}/mods-available/${EXT_NAME}.ini"
+
+    for SAPI in cli fpm; do
+        if [[ ! -d "/etc/php/${PHPv}/${SAPI}/conf.d" ]]; then
+            continue
+        fi
+
+        # Skip SAPIs that already load the extension.
+        if compgen -G "/etc/php/${PHPv}/${SAPI}/conf.d/*-${EXT_NAME}.ini" > /dev/null; then
+            continue
+        fi
+
+        if [[ -f "${MOD_INI}" ]] && command -v phpenmod > /dev/null 2>&1; then
+            run phpenmod -v "${PHPv}" -s "${SAPI}" "${EXT_NAME}"
+        else
+            if [[ ! -f "${MOD_INI}" ]]; then
+                printf 'extension=%s\n' "${PHP_LIB_DIR}/${EXT_NAME}.so" > "${MOD_INI}"
+            fi
+            run ln -s "${MOD_INI}" "/etc/php/${PHPv}/${SAPI}/conf.d/30-${EXT_NAME}.ini"
+        fi
+    done
+
+    if "php-fpm${PHPv}" -m 2>/dev/null | grep -qiw "${EXT_NAME}"; then
+        success "PHP ${PHPv} ${EXT_NAME} extension enabled for CLI and FPM."
+    else
+        warning "PHP ${PHPv} ${EXT_NAME} is configured but the FPM SAPI does not report it."
+        return 1
+    fi
+}
+
+##
 # Enable PHP Memcached extension.
 ##
 function enable_php_memcached() {
@@ -592,14 +668,27 @@ function enable_php_memcached() {
         PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
-    # Enable PHP memcached module.
     echo "Optimizing PHP ${PHPv} memcached extension..."
 
-    # Optimize PHP memcache extension.
-    if [[ "${DRYRUN}" != true ]]; then
-        if [ -d "/etc/php/${PHPv}/mods-available/" ]; then
-            if [ -f "/etc/php/${PHPv}/mods-available/memcache.ini" ]; then
-                cat >> "/etc/php/${PHPv}/mods-available/memcache.ini" <<EOL
+    if [[ "${DRYRUN}" == true ]]; then
+        info "PHP ${PHPv} memcached extension optimized in dry run mode."
+        return 0
+    fi
+
+    if ! enable_php_extension "${PHPv}" "memcache"; then
+        return 1
+    fi
+
+    local MEMCACHE_INI="/etc/php/${PHPv}/mods-available/memcache.ini"
+
+    if [[ ! -f "${MEMCACHE_INI}" ]]; then
+        warning "PHP ${PHPv} memcache settings file not found; skipping tuning."
+        return 0
+    fi
+
+    # Appending on every re-run would duplicate the directives.
+    if ! grep -q 'Optimized for LEMPer stack.' "${MEMCACHE_INI}"; then
+        cat >> "${MEMCACHE_INI}" <<EOL
 
 ; Optimized for LEMPer stack.
 memcache.dbpath="/var/lib/memcache"
@@ -613,15 +702,9 @@ memcache.maxratio=0
 session.bak_handler="memcache"
 session.bak_path="tcp://127.0.0.1:11211"
 EOL
-
-                success "PHP ${PHPv} Memcached extension enabled."
-            fi
-        else
-            info "It seems that PHP ${PHPv} not yet installed. Please install it before!"
-        fi
-    else
-        info "PHP ${PHPv} Memcached extension optimized in dry run mode."
     fi
+
+    success "PHP ${PHPv} memcached extension enabled."
 }
 
 ##
@@ -634,38 +717,8 @@ function enable_php_mongodb() {
         PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
-    PHP_LIB_DIR=$("php${PHPv}" -i | grep "extension_dir" | awk '{print $3}')
-    MONGODB_EXT_PATH="${PHP_LIB_DIR}/mongodb.so"
-
-    if [[ "${DRYRUN}" != true ]]; then
-        if [[ -f "${MONGODB_EXT_PATH}" ]]; then
-            #run chmod 0644 "${MONGODB_EXT_PATH}"
-
-            if "php${PHPv}" -m | grep -q 'mongodb'; then
-                echo "Updating PHP ini file with MongoDB extension..."
-
-                [[ ! -f "/etc/php/${PHPv}/mods-available/mongodb.ini" ]] && \
-                run touch "/etc/php/${PHPv}/mods-available/mongodb.ini"
-                run bash -c "echo extension=${MONGODB_EXT_PATH} > /etc/php/${PHPv}/mods-available/mongodb.ini"
-
-                if [[ ! -f "/etc/php/${PHPv}/cli/conf.d/30-mongodb.ini" ]]; then
-                    run ln -s "/etc/php/${PHPv}/mods-available/mongodb.ini" \
-                        "/etc/php/${PHPv}/cli/conf.d/30-mongodb.ini"
-                fi
-
-                if [[ ! -f "/etc/php/${PHPv}/fpm/conf.d/30-mongodb.ini" ]]; then
-                    run ln -s "/etc/php/${PHPv}/mods-available/mongodb.ini" \
-                        "/etc/php/${PHPv}/fpm/conf.d/30-mongodb.ini"
-                fi
-            else
-                info "MongoDB extension already enabled, please confirm it manually"
-            fi
-        else
-            warning "MongoDB extension file could not be found, you could install it manually"
-        fi
-    else
-        info "PHP ${PHPv} MongoDB extension optimized in dry run mode."
-    fi
+    echo "Enabling PHP ${PHPv} MongoDB extension..."
+    enable_php_extension "${PHPv}" "mongodb"
 }
 
 ##
@@ -678,38 +731,8 @@ function enable_php_redis() {
         PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
-    if [[ "${DRYRUN}" != true ]]; then
-        PHP_LIB_DIR=$("php${PHPv}" -i | grep "extension_dir" | awk '{print $3}')
-        REDIS_EXT_PATH="${PHP_LIB_DIR}/redis.so"
-
-        if [[ -f "${REDIS_EXT_PATH}" ]]; then
-            #run chmod 0644 "${REDIS_EXT_PATH}"
-
-            if "php${PHPv}" -m | grep -q 'redis'; then
-                echo "Updating PHP ini file with Redis extension..."
-
-                [[ ! -f "/etc/php/${PHPv}/mods-available/redis.ini" ]] && \
-                run touch "/etc/php/${PHPv}/mods-available/redis.ini"
-                run bash -c "echo extension=${REDIS_EXT_PATH} > /etc/php/${PHPv}/mods-available/redis.ini"
-
-                if [[ ! -f "/etc/php/${PHPv}/cli/conf.d/30-redis.ini" ]]; then
-                    run ln -s "/etc/php/${PHPv}/mods-available/redis.ini" \
-                        "/etc/php/${PHPv}/cli/conf.d/30-redis.ini"
-                fi
-
-                if [[ ! -f "/etc/php/${PHPv}/fpm/conf.d/30-redis.ini" ]]; then
-                    run ln -s "/etc/php/${PHPv}/mods-available/redis.ini" \
-                        "/etc/php/${PHPv}/fpm/conf.d/30-redis.ini"
-                fi
-            else
-                info "Redis extension already enabled, please confirm it manually"
-            fi
-        else
-            warning "Redis extension file could not be found, you could install it manually"
-        fi
-    else
-        info "PHP ${PHPv} Redis extension optimized in dry run mode."
-    fi
+    echo "Enabling PHP ${PHPv} Redis extension..."
+    enable_php_extension "${PHPv}" "redis"
 }
 
 ##
@@ -1104,18 +1127,26 @@ function init_php_install() {
     add_php_repo
 
     # Install all selected PHP versions and extensions.
+    local PHP_WAS_INSTALLED
+
     for PHPv in "${SELECTED_PHP_VERSIONS[@]}"; do
         IS_PKG_AVAIL=$(apt-cache search "php${PHPv}" | grep -c "${PHPv}" || true)
 
         if [[ "${IS_PKG_AVAIL}" -gt 0 ]]; then
-            # Install PHP + default extensions.
+            PHP_WAS_INSTALLED=false
             if [[ -n $(command -v "php${PHPv}") && -n $(command -v "php-fpm${PHPv}") ]]; then
-                info "PHP version ${PHPv} and it's extensions already exists, installation skipped."
-            else
-                install_php "${PHPv}"
-                install_php_loader "${PHPv}" "${OPT_PHP_LOADER}"
-                restart_php_fpm "${PHPv}"
+                PHP_WAS_INSTALLED=true
             fi
+
+            # Always reconcile extensions so a re-run picks up new entries in
+            # PHP_EXTENSIONS. Loaders are only installed with a fresh PHP.
+            install_php "${PHPv}"
+
+            if [[ "${PHP_WAS_INSTALLED}" == false ]]; then
+                install_php_loader "${PHPv}" "${OPT_PHP_LOADER}"
+            fi
+
+            restart_php_fpm "${PHPv}"
         else
             error "PHP ${PHPv} package is not available for your operating system."
         fi

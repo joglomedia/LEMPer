@@ -582,6 +582,41 @@ refute_grep() {
     grep -qF "grep -vx 'opcache'" "${install}"
 }
 
+@test "PHP extensions are enabled for both SAPIs and verified through FPM" {
+    local install="${BASE_DIR}/scripts/install_php.sh"
+
+    grep -qE '^function enable_php_extension\(\)' "${install}"
+
+    # Missing links are added per SAPI instead of reloading the CLI config.
+    # shellcheck disable=SC2016
+    grep -qF 'for SAPI in cli fpm; do' "${install}"
+    grep -qF 'phpenmod -v "${PHPv}" -s "${SAPI}" "${EXT_NAME}"' "${install}"
+    grep -qF '"php-fpm${PHPv}" -m' "${install}"
+
+    # MongoDB and Redis delegate to the shared helper; the old CLI-only gate
+    # ("php -m") must not decide whether FPM gets the extension.
+    grep -qF 'enable_php_extension "${PHPv}" "mongodb"' "${install}"
+    grep -qF 'enable_php_extension "${PHPv}" "redis"' "${install}"
+    refute_grep -qF '"php${PHPv}" -m | grep' "${install}"
+}
+
+@test "re-running the PHP installer reconciles extensions for installed versions" {
+    local install="${BASE_DIR}/scripts/install_php.sh"
+
+    grep -qF 'is already installed, reconciling its extensions' "${install}"
+    grep -qF 'PHP_WAS_INSTALLED' "${install}"
+    grep -qF 'Installing missing PHP ${PHPv} extensions' "${install}"
+
+    # A full re-run must not overwrite pools or logrotate on existing PHP.
+    grep -qF 'if [[ "${PHP_ALREADY_INSTALLED}" == false ]]; then' "${install}"
+    refute_grep -qF "and it's extensions already exists" "${install}"
+}
+
+@test "memcache tuning is only appended once" {
+    local install="${BASE_DIR}/scripts/install_php.sh"
+    grep -qF "grep -q 'Optimized for LEMPer stack.'" "${install}"
+}
+
 @test "deprecated PECL-only extensions are not in the default list" {
     local envfile="${BASE_DIR}/.env.dist"
     local exts

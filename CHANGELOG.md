@@ -62,6 +62,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Re-running the installer now reconciles `PHP_EXTENSIONS` for PHP versions
+  that are already installed instead of skipping them entirely. MongoDB, Redis,
+  and Memcache are enabled for both the CLI and FPM SAPIs through `phpenmod`
+  and verified with `php-fpm<version> -m`; the previous helpers only acted when
+  the CLI already reported the module, which left extensions invisible to
+  Nginx/PHP-FPM (issue #180).
 - `.env` values that contain spaces and `=` padding are parsed intact, so a
   4096-bit OpenSSH public key no longer aborts installation with
   `xargs: unmatched double quote` or `unexpected EOF while looking for
