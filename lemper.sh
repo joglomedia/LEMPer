@@ -150,6 +150,12 @@ function init_lemper_install() {
         cp .env.dist .env
     fi
 
+    # Include helper functions before parsing options: option handlers update
+    # .env through sed_inplace and set_env_value.
+    if [[ "$(type -t run)" != "function" ]]; then
+        . ./scripts/utils.sh
+    fi
+
     # Set default args.
     DEBUG_MODE=false
     DRYRUN=false
@@ -436,8 +442,12 @@ function init_lemper_install() {
             --with-ssh-pub-key)
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
-                SSH_PUB_KEY=${1}
-                sed_inplace "s/SSH_PUB_KEY=\"[a-zA-Z0-9._-](.*)\"/SSH_PUB_KEY=\"${SSH_PUB_KEY}\"/g" .env
+                RSA_PUB_KEY=${1}
+                if ! is_ssh_public_key "${RSA_PUB_KEY}"; then
+                    echo "${PROG_NAME}: '${RSA_PUB_KEY}' is not a valid OpenSSH public key."
+                    exit 1
+                fi
+                set_env_value .env RSA_PUB_KEY "${RSA_PUB_KEY}"
                 shift
             ;;
             -e | --admin-email)
@@ -507,11 +517,6 @@ function init_lemper_install() {
     # Set debug mode.
     set_debug_mode "${DEBUG_MODE}"
     set_dryrun_mode "${DRYRUN}"
-
-    # Include helper functions.
-    if [[ "$(type -t run)" != "function" ]]; then
-        . ./scripts/utils.sh
-    fi
 
     # Make sure only supported distribution can run this installer script.
     preflight_system_check

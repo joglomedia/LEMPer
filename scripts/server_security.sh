@@ -46,12 +46,12 @@ Never share your private key.
         echo "Open your public key (id_rsa.pub) file, copy paste the key here..."
 
         RSA_PUB_KEY=${RSA_PUB_KEY:-""}
-        while ! [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; do
-            read -rp ": " -e RSA_PUB_KEY
+        while ! is_ssh_public_key "${RSA_PUB_KEY}"; do
+            IFS= read -rp ": " -e RSA_PUB_KEY
         done
 
         # Grand access to SSH with key.
-        if [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; then
+        if is_ssh_public_key "${RSA_PUB_KEY}"; then
             echo -e "\nSecuring your SSH server with public key..."
 
             if [ ! -d "/home/${LEMPER_USERNAME}/.ssh" ]; then
@@ -66,9 +66,7 @@ Never share your private key.
 
             # Create authorized_keys file and copy your public key here.
             if [[ "${DRYRUN}" != true ]]; then
-                cat >> "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" <<EOL
-${RSA_PUB_KEY}
-EOL
+                printf '%s\n' "${RSA_PUB_KEY}" >> "/home/${LEMPER_USERNAME}/.ssh/authorized_keys"
                 success "RSA public key added to the authorized_keys."
             else
                 info "RSA public key added in dry run mode."

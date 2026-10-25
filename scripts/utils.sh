@@ -27,12 +27,17 @@ fi
 function safe_parse_dotenv() {
     local envfile="${1}"
     while IFS= read -r line || [[ -n "${line}" ]]; do
+        # Normalize CRLF files edited on Windows.
+        line="${line%$'\r'}"
         # Skip comments and section headers.
         line="${line#"${line%%[![:space:]]*}"}"  # ltrim
         [[ -z "${line}" || "${line}" == \#* || "${line}" == \[* ]] && continue
-        # Split on first =.
+        # Skip lines without a key=value separator.
+        [[ "${line}" != *=* ]] && continue
+        # Split on first =. Values keep spaces (SSH public keys, paths, ...).
         local key="${line%%=*}"
         local value="${line#*=}"
+        key="${key%"${key##*[![:space:]]}"}"  # rtrim
         # Strip surrounding quotes from value if present.
         value="${value#\"}"
         value="${value%\"}"
@@ -43,6 +48,59 @@ function safe_parse_dotenv() {
             printf '%s\t%s\n' "${key}" "${value}"
         fi
     done < "${envfile}"
+}
+
+##
+# Set KEY=VALUE in an env file without shell or sed interpretation.
+# Values may contain spaces, slashes, ampersands, quotes, and '=' characters.
+# The first matching key is replaced; the key is appended when absent.
+# Usage: set_env_value FILE KEY VALUE
+##
+function set_env_value() {
+    local file="${1}"
+    local key="${2}"
+    local value="${3}"
+
+    [[ "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || return 1
+    [[ -f "${file}" ]] || return 1
+
+    if [[ "${DRYRUN:-false}" == true ]]; then
+        echo_color "${YELLOW}" -n "would set "
+        echo "${key} in ${file}"
+        return 0
+    fi
+
+    local tmp
+    tmp=$(mktemp "${file}.XXXXXX") || return 1
+
+    # ENVIRON avoids awk -v escape processing in the value.
+    if LEMPER_ENV_VALUE="${value}" awk -v k="${key}" '
+        BEGIN { v = ENVIRON["LEMPER_ENV_VALUE"]; found = 0 }
+        index($0, k "=") == 1 { if (!found) { print k "=" v; found = 1 }; next }
+        { print }
+        END { if (!found) print k "=" v }
+    ' "${file}" > "${tmp}"; then
+        # Rewrite in place to keep ownership and mode.
+        cat "${tmp}" > "${file}"
+        rm -f "${tmp}"
+        return 0
+    fi
+
+    rm -f "${tmp}"
+    return 1
+}
+
+##
+# Validate an OpenSSH public key line (ssh-rsa, ed25519, ECDSA, or FIDO).
+# Returns 0 when the key type is recognised and a base64 body is present.
+##
+function is_ssh_public_key() {
+    local key="${1:-}"
+    key="${key%$'\r'}"
+    key="${key#"${key%%[![:space:]]*}"}"  # ltrim
+    key="${key%"${key##*[![:space:]]}"}"  # rtrim
+
+    [[ "${key}" =~ ^(ssh-rsa|ssh-ed25519|ssh-dss|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)[[:space:]]+[A-Za-z0-9+/]+={0,3}([[:space:]].*)?$ ]]
 }
 
 # Export environment variables.

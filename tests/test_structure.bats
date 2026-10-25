@@ -646,6 +646,18 @@ refute_grep() {
     done
 }
 
+@test "SSH public key option updates RSA_PUB_KEY without sed" {
+    local cli="${BASE_DIR}/lemper.sh"
+    local security="${BASE_DIR}/scripts/server_security.sh"
+
+    grep -qF -- '--with-ssh-pub-key)' "${cli}"
+    grep -qF 'set_env_value .env RSA_PUB_KEY "${RSA_PUB_KEY}"' "${cli}"
+    refute_grep -q 'SSH_PUB_KEY' "${cli}"
+
+    grep -qF 'is_ssh_public_key "${RSA_PUB_KEY}"' "${security}"
+    refute_grep -q 'RSA_PUB_KEY} =~ ssh-rsa' "${security}"
+}
+
 @test "HTTP/2 uses the http2 directive instead of the deprecated listen parameter" {
     local ssl_conf="${BASE_DIR}/etc/nginx/sites-available/default-ssl"
     local manage="${BASE_DIR}/lib/lemper-manage.sh"

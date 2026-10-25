@@ -56,6 +56,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `.env` values that contain spaces and `=` padding are parsed intact, so a
+  4096-bit OpenSSH public key no longer aborts installation with
+  `xargs: unmatched double quote` or `unexpected EOF while looking for
+  matching '"'` (issues #42, #144). The parser also ignores CRLF line endings
+  and lines without a `key=value` separator.
+- `lemper.sh --with-ssh-pub-key` now writes `RSA_PUB_KEY`, the key that
+  `server_security.sh` actually reads, through the new `set_env_value` helper
+  instead of an unescaped `sed` replacement. Key validation accepts RSA,
+  Ed25519, ECDSA, and FIDO keys instead of matching any string containing
+  `ssh-rs`, and option handling now loads the helper functions before parsing
+  flags.
 - Uninstall no longer removes packages and configuration for services that
   predate LEMPer. Installers record provisioned services under
   `/etc/lemper/installed/`, and the Nginx remover leaves a pre-existing server
