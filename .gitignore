@@ -5,6 +5,7 @@
 .travis.yml
 .agents/
 .codex/
+.claude/
 .qoder/
 dev-notes.md
 install.log
