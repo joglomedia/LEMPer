@@ -101,7 +101,7 @@ command_plugins() {
             create)        expected="Usage: lemper-cli create" ;;
             db)            expected="Usage: lemper-cli db" ;;
             fixpermission) expected="Recursively set directories" ;;
-            manage)        expected="Usage: lemper-cli manage" ;;
+            manage)        expected="lemper-cli manage [OPTION]" ;;
             modsec)        expected="Usage: lemper-cli modsec" ;;
             selfssl)       expected="Generates self-signed SSL certificate" ;;
             site)          expected="Usage: lemper-cli site" ;;
@@ -150,7 +150,7 @@ command_plugins() {
 
     plugin_exec fixpermission
     [ "${status}" -eq 1 ]
-    [[ "${output}" == *"Usage: lemper-cli fixpermission"* ]]
+    [[ "${output}" == *"lemper-cli fixpermission <directory>"* ]]
 
     plugin_exec fixpermission /
     [ "${status}" -eq 1 ]
