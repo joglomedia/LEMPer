@@ -3,12 +3,23 @@
 # +-------------------------------------------------------------------------+
 # | LEMPer CLI - Security & Stack Updater                                   |
 # +-------------------------------------------------------------------------+
-# | Patches PHP2Shell (CVE-2026-109618 / CVE-2026-109619) and keeps the      |
-# | rest of the stack current. Legacy (EOL) PHP branches have no vendor      |
-# | patch, so their pools receive admin-locked compensating controls and     |
+# | Patches PHP2Shell (CVE-2026-109618 / CVE-2026-109619) and keeps the     |
+# | rest of the stack current. Legacy (EOL) PHP branches have no vendor     |
+# | patch, so their pools receive admin-locked compensating controls and    |
 # | are reported as requiring migration.                                    |
-# |                                                                          |
-# | Invoked as: lemper-cli update <check|php|nginx|mariadb|lemper|all>       |
+# |                                                                         |
+# | Invoked as: lemper-cli update <check|php|nginx|mariadb|lemper|all>      |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
 CMD_PARENT="${PROG_NAME}"
@@ -524,7 +535,6 @@ lemper-fixpermission:lemper-fixpermission
 lemper-bench:lemper-bench
 lemper-modsec:lemper-modsec
 lemper-tui:lemper-tui
-lemper-encrypt:lemper-encrypt
 lemper-update:lemper-update
 lemper-backup:lemper-backup
 EOF
@@ -533,6 +543,10 @@ EOF
     ln -sfn "${dest}/lemper-site-update" "${dest}/lemper-site-mod"
     ln -sfn "${dest}/lemper-db" "${dest}/lemper-site-db"
     ln -sfn "${dest}/lemper-db" "${dest}/lemper-site-database"
+    ln -sfn "${dest}/lemper-site-create" "${dest}/lemper-create"
+    ln -sfn "${dest}/lemper-site-create" "${dest}/lemper-add"
+    ln -sfn "${dest}/lemper-site-update" "${dest}/lemper-manage"
+    ln -sfn "${dest}/lemper-site-update" "${dest}/lemper-mod"
 
     printf '%s\n' "${src}" > "${LEMPER_UPDATE_SOURCE_FILE}"
     chmod 0600 "${LEMPER_UPDATE_SOURCE_FILE}"
@@ -670,6 +684,7 @@ Options:
   --source-dir=PATH     LEMPer checkout used for CLI/plugin refresh.
   --post-max-size=SIZE  post_max_size for EOL mitigations (default: 32M).
   -h, --help            Show this help.
+  -v, --version         Output version information and exit.
 
 EOL mitigations (admin-locked per pool):
   memory_limit=-1, post_max_size=32M, session.upload_progress.enabled=0,
@@ -703,6 +718,10 @@ function init_lemper_update() {
                 subcommand="help"
                 shift
                 ;;
+            -v | --version)
+                subcommand="version"
+                shift
+                ;;
             *)
                 error "Unknown option: ${1}"
                 update_help
@@ -718,6 +737,9 @@ function init_lemper_update() {
     case "${subcommand}" in
         help | -h | --help)
             update_help
+            ;;
+        version | -v | --version)
+            echo "${CMD_PARENT} ${CMD_NAME} version ${PROG_VERSION}"
             ;;
         check | status)
             update_check

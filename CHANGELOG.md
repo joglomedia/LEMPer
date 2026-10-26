@@ -49,6 +49,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Install and remove scripts share the 2014-2026 license header and resolve
+  the checkout root before loading helpers, so a standalone run no longer
+  depends on the caller's working directory. `install.sh`, `remove.sh`, and
+  `lemper.sh` answer `--help` before asking for root. The CrowdSec installer
+  downloads the upstream release tarball and runs `wizard.sh --bininstall`
+  on amd64 (other architectures compile the tagged source), installs the
+  current hub collections, and saves the repository setup script instead of
+  piping it to bash. Removal stops an inactive CrowdSec unit without
+  aborting, deletes wizard-installed binaries and plugins, and runs
+  `apt-get autoremove` only after CrowdSec packages were purged.
+- All CLI plugins now share one license header (copyright 2014-2026), declare
+  `CMD_PARENT`/`CMD_NAME`, and expose `--help`/`--version`. `lemper-encrypt` is
+  a library only; it is no longer installed as a no-op CLI plugin. The install
+  and update paths create the advertised `create`/`add`/`manage`/`mod` aliases,
+  plus the missing `site db`/`site database` links.
+- `lemper-cli bench` was rewritten. The old script parsed `wget -q` output,
+  which suppresses the progress line, so every download reported an empty
+  speed. It now uses curl's speed counter with a per-endpoint timeout,
+  downloads current Cloudflare/Vultr/OVH endpoints, reports failed endpoints
+  instead of blanks, handles GNU/BusyBox/BSD `dd` output, and cleans up its
+  disk test file. New `--hardware`, `--disk`, `--network`, `--size`,
+  `--disk-size`, and `--timeout` options replace the all-or-nothing run.
+  The TUI gains a Benchmark menu for quick, network-only, and full runs.
 - `lemper-cli --help` now nests subcommands one level under their parent
   command instead of padding them to the description column. `update check`
   prints an aligned PHP status table with column widths computed from the
@@ -78,6 +101,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `lemper-cli fixpermission` now requires an explicit path and refuses `/`,
+  `/etc`, `/usr`, `/var`, and other system roots. Previously a missing argument
+  silently did nothing and a bare `/` would have chmod-ed the whole filesystem.
+- `lemper-cli account` and `lemper-cli adduser` handle `--help`/`--version`
+  before touching the system. `adduser` builds its `useradd` arguments from
+  validated values, so empty options are no longer passed as arguments.
+- `lemper-cli selfssl`, `site list`, `site show`, and `update` now accept
+  `-h`/`--help` and `-v`/`--version` consistently with the other commands.
+- `lemper-cli account` validates usernames before using them in `useradd`,
+  `sed`, and `.htpasswd` updates.
+- TUI menu actions now dispatch through `lemper-cli` instead of executing
+  plugin files directly. Plugins expect the CLI's helper functions, so direct
+  execution was rejected with "Direct access to this script is not permitted."
+  Selecting the Exit menu item also quits now; previously only `q`/`0` worked.
+- `lemper-cli tui` now launches. The plugin only ran when executed directly,
+  but the CLI sources plugins, so its entry point never fired and the command
+  exited silently. The TUI also accepts `--help` and `--version` instead of
+  opening the menu.
 - Pure-FTPd now starts reliably (issue #135). The installer creates the `ftp`
   system account when it is missing, writes each setting to
   `/etc/pure-ftpd/conf` (the directory `pure-ftpd-wrapper` actually reads),

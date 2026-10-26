@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # +-------------------------------------------------------------------------+
-# | LEMPer CLI - Virtual Host (Site) Show                                    |
+# | LEMPer CLI - Virtual Host (Site) Show                                   |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2024 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -61,8 +61,9 @@ Options:
   -a, --app         Show application metadata (credentials, DB, etc.).
   -s, --ssl         Show SSL certificate information.
   -A, --all         Show all (config + FPM + app + SSL).
-  -j, --json       Output as JSON instead of plain text.
+  -j, --json        Output as JSON instead of plain text.
   -h, --help        Print this message and exit.
+  -v, --version     Output version information and exit.
 
 For more informations visit https://masedi.net/lemper
 Mail bug reports and suggestions to <me@masedi.net>
@@ -315,6 +316,10 @@ function init_lemper_site_show() {
             site_show_usage
             exit 0
         ;;
+        -v | --version)
+            echo "${PROG_NAME} version ${PROG_VERSION}"
+            exit 0
+        ;;
     esac
 
     # Validate domain name.
@@ -334,8 +339,8 @@ function init_lemper_site_show() {
 
     if [[ $# -gt 0 ]]; then
         local OPTS
-        OPTS=$(getopt -o cafAsAj \
-          -l config,fpm,app,ssl,all,help \
+        OPTS=$(getopt -o cafAsAjv \
+          -l config,fpm,app,ssl,all,help,version \
           -n "${PROG_NAME}" -- "$@")
         eval set -- "${OPTS}"
 
@@ -383,6 +388,10 @@ function init_lemper_site_show() {
                 ;;
                 -h | --help)
                     site_show_usage
+                    exit 0
+                ;;
+                -v | --version)
+                    echo "${PROG_NAME} version ${PROG_VERSION}"
                     exit 0
                 ;;
                 --)

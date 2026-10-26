@@ -1,14 +1,9 @@
 #!/usr/bin/env bash
 
 # +-------------------------------------------------------------------------+
-# | LEMPer is a simple LEMP stack installer for Debian/Ubuntu Linux         |
-# |-------------------------------------------------------------------------+
-# | Min requirement   : GNU/Linux Debian 8, Ubuntu 18.04 or Linux Mint 17   |
-# | Last Update       : 13/02/2022                                          |
-# | Author            : MasEDI.Net (me@masedi.net)                          |
-# | Since Version     : 2.6.0                                               |
+# | LEMPer Stack Installer & Manager                                        |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2022 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |

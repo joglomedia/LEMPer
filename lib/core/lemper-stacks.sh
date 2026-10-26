@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
 
-##
-# LEMPer Stack Installer & Uninstaller - Shared Logic
-# Part of LEMPer Stack - https://github.com/joglomedia/LEMPer
-# Author: MasEDI.Net (me@masedi.net)
-# Since Version: 2.6.0
-#
-# This module contains the lemper_install() and lemper_remove() functions
-# shared by install.sh, remove.sh, and lemper.sh to avoid code duplication.
-# It must be sourced, not executed directly.
-##
+# +-------------------------------------------------------------------------+
+# | LEMPer Stack Installer & Uninstaller - Shared Logic                     |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Prevent direct execution
+# Shared logic is sourced by lemper.sh, install.sh, and remove.sh.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "This script should be sourced, not executed directly."
     exit 1
@@ -284,13 +288,13 @@ function lemper_remove() {
         . "${BASE_DIR}/scripts/remove_mongodb.sh"
     fi
 
-    ### Remove PHP & FPM ###
+    ### Remove Memcached ###
     if [ -f "${BASE_DIR}/scripts/remove_memcached.sh" ]; then
         echo ""
         . "${BASE_DIR}/scripts/remove_memcached.sh"
     fi
 
-    ### Mail server installation ###
+    ### Remove Mail server ###
     if [ -f "${BASE_DIR}/scripts/remove_mailer.sh" ]; then
         echo ""
         . "${BASE_DIR}/scripts/remove_mailer.sh"
@@ -382,12 +386,14 @@ function lemper_remove() {
     fi
 
     ### Remove web tools ###
+    [ -e /usr/bin/lemper-cli ] && run rm -f /usr/bin/lemper-cli
     [ -f /usr/local/bin/lemper-cli ] && run rm -f /usr/local/bin/lemper-cli
     [ -d /usr/local/lib/lemper ] && run rm -fr /usr/local/lib/lemper
+    [ -d /usr/share/nginx/html/lcp ] && run rm -fr /usr/share/nginx/html/lcp
 
-    # Clean up existing lemper config.
-    [ -f /etc/lemper/lemper.conf ] && run rm -f /etc/lemper/lemper.conf
-    [ -d /etc/lemper/cli-plugins ] && run rm -fr /etc/lemper/cli-plugins
+    # Clean up LEMPer state: credentials, encrypted config key, vhost metadata,
+    # ACME account data, WAF snippets, update source, and provisioning markers.
+    [ -d /etc/lemper ] && run rm -fr /etc/lemper
 
     ### Remove unnecessary packages ###
     echo -e "\nCleaning up unnecessary packages..."

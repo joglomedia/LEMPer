@@ -255,10 +255,13 @@ refute_grep() {
 }
 
 @test "CrowdSec install includes WordPress web app scenarios" {
+    # The official hub collection replaces the old local scenario files, which
+    # were not valid CrowdSec scenarios and made `cscli hub install` fail.
     grep -q 'install_crowdsec_webapp_support' "${BASE_DIR}/scripts/install_crowdsec.sh"
     grep -q 'crowdsecurity/wordpress' "${BASE_DIR}/scripts/install_crowdsec.sh"
-    grep -q 'wordpress-xmlrpc' "${BASE_DIR}/scripts/install_crowdsec.sh"
-    grep -q 'wordpress-bruteforce' "${BASE_DIR}/scripts/install_crowdsec.sh"
+    grep -q 'crowdsecurity/base-http-scenarios' "${BASE_DIR}/scripts/install_crowdsec.sh"
+    refute_grep -q 'wordpress-xmlrpc.yaml' "${BASE_DIR}/scripts/install_crowdsec.sh"
+    refute_grep -q 'wordpress-bruteforce.yaml' "${BASE_DIR}/scripts/install_crowdsec.sh"
 }
 
 @test ".env.dist has CrowdSec WordPress config" {

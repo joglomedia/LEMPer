@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # +-------------------------------------------------------------------------+
-# | Lemper CLI - Simple LEMP Stack Manager                                  |
+# | LEMPer CLI - Simple LEMP Stack Manager                                  |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2022 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -22,6 +22,7 @@ set -e -o pipefail
 # Version control.
 export PROG_NAME && PROG_NAME=$(basename "$0")
 export PROG_VERSION && PROG_VERSION="2.x.x"
+export LEMPER_CLI_BIN && LEMPER_CLI_BIN="$0"
 
 # Test mode.
 DRYRUN=false
@@ -512,8 +513,8 @@ EOL
 
     echo
     echo "System Administration:"
-    help_entry account "Interactive system user/account creator."
-    help_entry adduser "Alias of 'account'."
+    help_entry account "Create a system user account."
+    help_entry adduser "Interactively add a system user."
     help_entry tui "Launch interactive TUI dashboard."
     help_entry backup "Back up and restore LEMPer-managed configuration."
     help_subentry "create [options]" "Archive system configuration."

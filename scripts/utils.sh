@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 
-# Helper Functions
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 06/08/2022
-# Author            : MasEDI.Net (me@masedi.net)
-# Since Version     : 1.0.0
+# +-------------------------------------------------------------------------+
+# | LEMPer Helper Functions                                                 |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Resolve the directory containing this helper file without relying on BASE_DIR,
-# which callers may already have set to the repository root or to scripts/.
 SCRIPTS_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
 BASE_DIR=${BASE_DIR:-"${SCRIPTS_DIR}"}
 export SCRIPTS_DIR
@@ -950,7 +957,7 @@ function preflight_system_check() {
         sleep 2
 
         if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" && $(dig "${HOSTNAME}" +short) != "${SERVER_IP_LOCAL}" ]]; then
-            error "Your hostname '${V_DOMAIN}' doesn't appear to be currently pointed to this server's public IP address."
+            error "Your hostname '${HOSTNAME}' doesn't appear to be currently pointed to this server's public IP address."
             echo -n "In a production environment, you'll need to add an A record pointing to this IP address "; status -n "${SERVER_IP}"; echo " !"
             exit 1
         fi
@@ -1520,7 +1527,7 @@ function footer_msg() {
 #       If useful, don't forget to buy me a cup of coffee or milk :D       #
 #   My PayPal is always open for donation, here https://paypal.me/masedi   #
 #                                                                          #
-#         (c) 2014-2024 | MasEDI.Net | https://masedi.net/l/lemper         #
+#         (c) 2014-2026 | MasEDI.Net | https://masedi.net/l/lemper         #
 #==========================================================================#
 EOL
 }

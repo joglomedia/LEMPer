@@ -2,12 +2,22 @@
 
 # +-------------------------------------------------------------------------+
 # | LEMPer Stack - Security Update Bootstrap                                |
+# |-------------------------------------------------------------------------|
+# | Installs the latest LEMPer CLI and updater plugin on an existing        |
+# | legacy installation, then patches PHP2Shell (CVE-2026-109618 /          |
+# | CVE-2026-109619) and the rest of the stack through the package          |
+# | manager.                                                                |
+# |-------------------------------------------------------------------------|
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
-# | Installs the latest LEMPer CLI and updater plugin on an existing legacy |
-# | installation, then patches PHP2Shell (CVE-2026-109618 / CVE-2026-109619)|
-# | and the rest of the stack through the package manager.                  |
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
 # |                                                                         |
-# | Usage: sudo ./update.sh [--install-only | --check] [options]            |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
 set -e -o pipefail

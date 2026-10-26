@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 
-# LEMPer administration installer
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 12/02/2022
-# Author            : MasEDI.Net (me@masedi.net)
-# Since Version     : 1.0.0
+# +-------------------------------------------------------------------------+
+# | LEMPer Administration Tools Installer                                   |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellcheck disable=SC1091
-    . "${BASE_DIR}/utils.sh"
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
+    cd "${BASE_DIR}" || { echo "Cannot enter ${BASE_DIR}."; exit 1; }
+    # shellcheck source=scripts/utils.sh
+    . "${BASE_DIR}/scripts/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -53,17 +62,30 @@ function init_tools_install() {
     [ -f /etc/lemper/cli-plugins/lemper-site-create ] && \
         run ln -fs /etc/lemper/cli-plugins/lemper-site-create /etc/lemper/cli-plugins/lemper-site-add
 
+    [ -f /etc/lemper/cli-plugins/lemper-site-create ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-site-create /etc/lemper/cli-plugins/lemper-create
+
+    [ -f /etc/lemper/cli-plugins/lemper-site-create ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-site-create /etc/lemper/cli-plugins/lemper-add
+
     run cp -f lib/lemper-manage.sh /etc/lemper/cli-plugins/lemper-site-update && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-update
 
     [ -f /etc/lemper/cli-plugins/lemper-site-update ] && \
         run ln -fs /etc/lemper/cli-plugins/lemper-site-update /etc/lemper/cli-plugins/lemper-site-mod
 
+    [ -f /etc/lemper/cli-plugins/lemper-site-update ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-site-update /etc/lemper/cli-plugins/lemper-manage
+
+    [ -f /etc/lemper/cli-plugins/lemper-site-update ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-site-update /etc/lemper/cli-plugins/lemper-mod
+
     run cp -f lib/lemper-db.sh /etc/lemper/cli-plugins/lemper-db && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-db
 
-    [ -f /etc/lemper/cli-plugins/lemper-site-db ] && \
-        run ln -fs /etc/lemper/cli-plugins/lemper-site-db /etc/lemper/cli-plugins/lemper-site-database
+    [ -f /etc/lemper/cli-plugins/lemper-db ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-db /etc/lemper/cli-plugins/lemper-site-db && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-db /etc/lemper/cli-plugins/lemper-site-database
 
     run cp -f lib/lemper-selfssl.sh /etc/lemper/cli-plugins/lemper-selfssl && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-selfssl
@@ -80,10 +102,6 @@ function init_tools_install() {
     # Install TUI plugin.
     run cp -f lib/lemper-tui.sh /etc/lemper/cli-plugins/lemper-tui && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-tui
-
-    # Install encryption library.
-    run cp -f lib/lemper-encrypt.sh /etc/lemper/cli-plugins/lemper-encrypt && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-encrypt
 
     # Install stack/security updater.
     run cp -f lib/lemper-update.sh /etc/lemper/cli-plugins/lemper-update && \

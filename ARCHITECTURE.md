@@ -39,7 +39,7 @@ LEMPer/
 │   ├── lemper-account.sh          # CLI plugin: system account creation
 │   ├── lemper-adduser.sh          # CLI plugin: add user wrapper
 │   ├── lemper-backup.sh           # CLI plugin: configuration backup/restore
-│   ├── lemper-bench.sh            # CLI plugin: hardware & network benchmark
+│   ├── lemper-bench.sh            # CLI plugin: hardware, disk & network benchmark
 │   ├── lemper-create.sh           # CLI plugin: vhost creation & framework auto-installer
 │   ├── lemper-db.sh               # CLI plugin: MySQL/MariaDB database manager (backup/restore)
 │   ├── lemper-encrypt.sh          # Config at-rest encryption utilities
@@ -317,18 +317,24 @@ The GitHub Actions workflow (`.github/workflows/main.yml`) runs on every push/PR
    Toggled for CI: `REDIS_BACKEND="valkey"`, `INSTALL_CROWDSEC=true`,
    `ACME_WILDCARD=true`, `INSTALL_MODSEC=true`, `ENCRYPT_CONFIG_AT_REST=true`.
 2. **ShellCheck:** Runs `shellcheck -s bash -x` on every script file — **exit 0**.
-3. **Bats Tests:** Runs `bats tests/ tests/unit/` — **107/107 pass** across 9 test files.
+3. **Bats Tests:** Runs `bats tests/ tests/unit/` — **198/198 pass** across 15 test files.
 
-**Test coverage (107 tests):**
+**Test coverage (198 tests):**
 - `test_sanitization.bats` — 9 tests (FQDN, IPv4, username, sed injection sanitization)
-- `test_structure.bats` — 68 tests (project structure, wiring, config flags, temp-dir isolation, Nginx/PHP hardening, resource profiles)
+- `test_structure.bats` — 100 tests (project structure, wiring, config flags, temp-dir isolation, Nginx/PHP hardening, resource profiles)
 - `test_syntax.bats` — 2 tests (bash -n + shellcheck on all scripts)
 - `unit/validators.bats` — 6 tests (validators, sanitizers, mocked nginx)
 - `unit/php_temp_dirs.bats` — 2 tests (mock-based temp-dir creation)
 - `unit/db_backup_restore.bats` — 4 tests (mocked DB backup/restore)
-- `unit/config_backup.bats` — configuration archive create/verify/restore/prune (temp backup root)
+- `unit/config_backup.bats` — 8 tests (configuration archive create/verify/restore/prune, temp backup root)
+- `unit/config_encryption.bats` — 2 tests (at-rest config encryption)
+- `unit/dotenv.bats` — 7 tests (dotenv parsing and overrides)
+- `unit/ftp_installers.bats` — 11 tests (Pure-FTPd/vsftpd install and reconciliation)
 - `unit/resource_profile.bats` — 6 tests (RAM detection, profile selection, FPM/MariaDB sizing, pool tuning)
-- `unit/update_helpers.bats` — 10 tests (version comparison, branch classification, pool mitigation idempotency, bootstrap wiring)
+- `unit/bench_plugin.bats` — 10 tests (section selection, dd/speed parsing, mocked downloads, endpoint overrides, disk cleanup)
+- `unit/tui_dispatch.bats` — 8 tests (sourced entry point, help/version, benchmark menu, CLI dispatch)
+- `unit/update_helpers.bats` — 11 tests (version comparison, branch classification, pool mitigation idempotency, bootstrap wiring)
+- `unit/plugin_conventions.bats` — 12 tests (2014-2026 headers, 77-column boxes, command metadata, help/version, safe fixpermission, CLI aliases, library-only encrypt)
 
 **Limitations:**
 - No code coverage reporting.

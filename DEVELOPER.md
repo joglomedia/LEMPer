@@ -473,10 +473,20 @@ startup.
 ### 7.1 Adding a New CLI Command
 
 1. Create a new plugin script in `lib/`, e.g., `lib/lemper-monitor.sh`
-2. Add the `CMD_NAME` and direct-access guard:
+2. Start from the canonical header (copyright 2014-2026), then declare
+   command metadata and the direct-access guard:
 
 ```bash
 #!/usr/bin/env bash
+
+# +-------------------------------------------------------------------------+
+# | LEMPer CLI - <Title>                                                    |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | ... license text and Authors block ...                                  |
+# +-------------------------------------------------------------------------+
+
 CMD_PARENT="${PROG_NAME}"
 CMD_NAME="monitor"
 
@@ -486,8 +496,11 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
 fi
 ```
 
-3. Implement `show_usage()` and `init_lemper_monitor()` functions.
-4. Add the plugin to `scripts/install_tools.sh`:
+3. Implement `<cmd>_show_usage()` and `init_lemper_monitor()` functions, and
+   call `init_lemper_monitor "$@"` unconditionally at the end of the file.
+   Handle `-h`/`--help` and `-v`/`--version` before any side effects.
+4. Add the plugin to `scripts/install_tools.sh` and to the mapping in
+   `update_lemper_tooling()` in `lib/lemper-update.sh`:
 
 ```bash
 run cp -f lib/lemper-monitor.sh /etc/lemper/cli-plugins/lemper-monitor && \
@@ -517,7 +530,7 @@ The CI pipeline runs on every push/PR to `2.x.x` and `master` branches:
    Toggled for CI: `REDIS_BACKEND="valkey"`, `INSTALL_CROWDSEC=true`,
    `ACME_WILDCARD=true`, `INSTALL_MODSEC=true`, `ENCRYPT_CONFIG_AT_REST=true`.
 2. **ShellCheck:** Runs `shellcheck -s bash -x` on every script file — **exit 0**.
-3. **Bats Tests:** Runs `bats tests/ tests/unit/` — **107/107 tests pass**.
+3. **Bats Tests:** Runs `bats tests/ tests/unit/` — **198/198 tests pass**.
 
 **CI runs on `ubuntu-latest`** with ShellCheck v0.10.0 and bats-core 1.14.0.
 

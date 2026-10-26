@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 
-# Dependencies Installer
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 12/02/2022
-# Author            : MasEDI.Net (me@masedi.net)
-# Since Version     : 1.0.0
+# +-------------------------------------------------------------------------+
+# | Dependencies Installer                                                  |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellcheck disable=SC1091
-    . "${BASE_DIR}/utils.sh"
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
+    cd "${BASE_DIR}" || { echo "Cannot enter ${BASE_DIR}."; exit 1; }
+    # shellcheck source=scripts/utils.sh
+    . "${BASE_DIR}/scripts/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -65,16 +74,18 @@ function install_python_from_source() {
         CURRENT_DIR=$(pwd)
 
     PYTHON_SRC="https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz"
+    PYTHON_MAJOR_MINOR=${PYTHON_VERSION%.*}
 
     if curl -sLI "${PYTHON_SRC}" | grep -q "HTTP/[.12]* [2].."; then
-        run run cd "${BUILD_DIR}" && \
+        run cd "${BUILD_DIR}" && \
         run curl -sSL -o "Python-${PYTHON_VERSION}.tgz" "${PYTHON_SRC}" && \
         run tar -xzf "Python-${PYTHON_VERSION}.tgz" && \
         run cd "Python-${PYTHON_VERSION}" && \
         run ./configure --enable-shared --enable-optimizations --prefix=/usr/local LDFLAGS="-Wl,--rpath=/usr/local/lib" && \
         run make altinstall && \
-        run update-alternatives --install /usr/bin/python python /usr/local/bin/python3.13 313 && \
-        run update-alternatives --set python /usr/local/bin/python3.13 && \
+        run update-alternatives --install /usr/bin/python python "/usr/local/bin/python${PYTHON_MAJOR_MINOR}" \
+            "${PYTHON_MAJOR_MINOR//./}" && \
+        run update-alternatives --set python "/usr/local/bin/python${PYTHON_MAJOR_MINOR}" && \
         run curl -sSL -o "get-pip.py" "https://bootstrap.pypa.io/get-pip.py" && \
         run python get-pip.py && \
         run python -m pip install --upgrade pip && \

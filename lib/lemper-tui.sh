@@ -1,12 +1,23 @@
 #!/usr/bin/env bash
 
 # +-------------------------------------------------------------------------+
-# | LEMPer CLI - Interactive TUI (Terminal User Interface)                   |
+# | LEMPer CLI - Interactive TUI (Terminal User Interface)                  |
 # +-------------------------------------------------------------------------+
-# | A pure-Bash, menu-driven TUI for managing the LEMPer stack.              |
-# | No external dependencies — uses ANSI escape sequences + read.            |
-# |                                                                          |
+# | A pure-Bash, menu-driven TUI for managing the LEMPer stack.             |
+# | No external dependencies - uses ANSI escape sequences and read.         |
+# |                                                                         |
 # | Invoked as: lemper-cli tui  or  lemper-cli --interactive                |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
 # shellcheck disable=SC2034
@@ -52,6 +63,27 @@ function tui_echo() {
     local color="${1}"
     shift
     printf '\033[%sm%s\033[0m\n' "${color}" "$*"
+}
+
+##
+# Run a LEMPer CLI command from inside the TUI.
+# Plugins are sourced by the CLI, so they cannot be executed directly.
+##
+function tui_cli() {
+    local cli="${LEMPER_CLI_BIN:-}"
+
+    if [[ -z "${cli}" ]]; then
+        cli=$(command -v "${PROG_NAME:-lemper-cli}" 2>/dev/null || true)
+    fi
+    if [[ -z "${cli}" && -x /usr/local/bin/lemper-cli ]]; then
+        cli="/usr/local/bin/lemper-cli"
+    fi
+    if [[ -z "${cli}" ]]; then
+        tui_echo "${RED}" "  lemper-cli executable not found."
+        return 1
+    fi
+
+    "${cli}" "$@"
 }
 
 ##
@@ -268,18 +300,14 @@ function tui_sites() {
             "List all sites|Show all configured vhosts" \
             "Show site details|Display detailed config for a domain" \
             "Create new site|Create a new virtual host" \
-            "Manage site|Enable/disable SSL, cache, etc." \
+            "Manage site|Show site modification options" \
             "Back to main menu|Return to dashboard")
 
         case "${choice}" in
             1)
                 echo ""
-                if [[ -x "${CLI_PLUGINS_DIR}/lemper-site-list" ]]; then
-                    tui_clear
-                    "${CLI_PLUGINS_DIR}/lemper-site-list" --all 2>&1 || true
-                else
-                    tui_echo "${RED}" "  lemper-site-list plugin not found."
-                fi
+                tui_clear
+                tui_cli site-list --all 2>&1 || true
                 echo ""
                 tui_echo "${TUI_DIM}" "  Press Enter to continue..."
                 read -r
@@ -289,12 +317,8 @@ function tui_sites() {
                 echo ""
                 read -rp "  Enter domain name: " domain
                 if [[ -n "${domain}" ]]; then
-                    if [[ -x "${CLI_PLUGINS_DIR}/lemper-site-show" ]]; then
-                        tui_clear
-                        "${CLI_PLUGINS_DIR}/lemper-site-show" "${domain}" --all 2>&1 || true
-                    else
-                        tui_echo "${RED}" "  lemper-site-show plugin not found."
-                    fi
+                    tui_clear
+                    tui_cli site-show "${domain}" --all 2>&1 || true
                 fi
                 echo ""
                 tui_echo "${TUI_DIM}" "  Press Enter to continue..."
@@ -304,14 +328,8 @@ function tui_sites() {
                 tui_site_create_wizard
             ;;
             4)
-                local domain
-                echo ""
-                read -rp "  Enter domain name: " domain
-                if [[ -n "${domain}" ]]; then
-                    if [[ -x "${CLI_PLUGINS_DIR}/lemper-site" ]]; then
-                        "${CLI_PLUGINS_DIR}/lemper-site" mod 2>&1 || true
-                    fi
-                fi
+                tui_clear
+                tui_cli site mod --help 2>&1 || true
                 echo ""
                 tui_echo "${TUI_DIM}" "  Press Enter to continue..."
                 read -r
@@ -513,12 +531,8 @@ function tui_site_create_wizard() {
     [[ "${fail2ban}" == "y" ]] && args+=(--enable-fail2ban)
 
     echo ""
-    if [[ -x "${CLI_PLUGINS_DIR}/lemper-site" ]]; then
-        "${CLI_PLUGINS_DIR}/lemper-site" "${args[@]}" 2>&1 || \
-            tui_echo "${RED}" "  Site creation failed."
-    else
-        tui_echo "${RED}" "  lemper-site plugin not found."
-    fi
+    tui_cli site "${args[@]}" 2>&1 || \
+        tui_echo "${RED}" "  Site creation failed."
 
     echo ""
     tui_echo "${TUI_DIM}" "  Press Enter to continue..."
@@ -639,11 +653,7 @@ function tui_databases() {
         case "${choice}" in
             1)
                 echo ""
-                if [[ -x "${CLI_PLUGINS_DIR}/lemper-db" ]]; then
-                    "${CLI_PLUGINS_DIR}/lemper-db" databases 2>&1 || true
-                else
-                    tui_echo "${RED}" "  lemper-db plugin not found."
-                fi
+                tui_cli db databases 2>&1 || true
                 echo ""
                 tui_echo "${TUI_DIM}" "  Press Enter to continue..."
                 read -r
@@ -653,7 +663,7 @@ function tui_databases() {
                 echo ""
                 read -rp "  Enter database name: " dbname
                 if [[ -n "${dbname}" ]]; then
-                    "${CLI_PLUGINS_DIR}/lemper-db" backup --dbname="${dbname}" 2>&1 || true
+                    tui_cli db backup --dbname="${dbname}" 2>&1 || true
                 fi
                 echo ""
                 tui_echo "${TUI_DIM}" "  Press Enter to continue..."
@@ -665,7 +675,7 @@ function tui_databases() {
                 read -rp "  Enter database name: " dbname
                 read -rp "  Enter backup file path: " dbfile
                 if [[ -n "${dbname}" && -n "${dbfile}" ]]; then
-                    "${CLI_PLUGINS_DIR}/lemper-db" restore --dbname="${dbname}" --dbfile="${dbfile}" 2>&1 || true
+                    tui_cli db restore --dbname="${dbname}" --dbfile="${dbfile}" 2>&1 || true
                 fi
                 echo ""
                 tui_echo "${TUI_DIM}" "  Press Enter to continue..."
@@ -678,9 +688,9 @@ function tui_databases() {
                 read -rp "  Cron schedule (default: 0 2 * * *): " schedule
                 if [[ -n "${dbname}" ]]; then
                     if [[ -n "${schedule}" ]]; then
-                        "${CLI_PLUGINS_DIR}/lemper-db" backup-schedule --dbname="${dbname}" --dbschedule="${schedule}" 2>&1 || true
+                        tui_cli db backup-schedule --dbname="${dbname}" --dbschedule="${schedule}" 2>&1 || true
                     else
-                        "${CLI_PLUGINS_DIR}/lemper-db" backup-schedule --dbname="${dbname}" 2>&1 || true
+                        tui_cli db backup-schedule --dbname="${dbname}" 2>&1 || true
                     fi
                 fi
                 echo ""
@@ -795,6 +805,52 @@ function tui_security() {
 }
 
 ##
+# Performance benchmark menu.
+##
+function tui_bench() {
+    local choice
+    while true; do
+        choice=$(tui_menu "Performance Benchmark" "Select a test:" \
+            "Quick benchmark|Hardware and disk I/O (no downloads)" \
+            "Network speed test|Download test files from global endpoints" \
+            "Full benchmark|Hardware, disk I/O, and network speed" \
+            "Back to main menu|Return to dashboard")
+
+        case "${choice}" in
+            1)
+                tui_clear
+                tui_cli bench --hardware --disk 2>&1 || true
+                echo ""
+                tui_echo "${TUI_DIM}" "  Press Enter to continue..."
+                read -r
+            ;;
+            2)
+                tui_clear
+                tui_echo "${TUI_DIM}" "  Network tests download data from each endpoint."
+                echo ""
+                tui_cli bench --network 2>&1 || true
+                echo ""
+                tui_echo "${TUI_DIM}" "  Press Enter to continue..."
+                read -r
+            ;;
+            3)
+                tui_clear
+                tui_echo "${TUI_DIM}" "  Full benchmark running; network tests use bandwidth."
+                echo ""
+                tui_cli bench 2>&1 || true
+                echo ""
+                tui_echo "${TUI_DIM}" "  Press Enter to continue..."
+                read -r
+            ;;
+            4 | 0)
+                return
+            ;;
+            -1) ;;
+        esac
+    done
+}
+
+##
 # Show about / info dialog.
 ##
 function tui_about() {
@@ -833,9 +889,51 @@ function tui_about() {
 }
 
 ##
+# Show TUI help.
+##
+function tui_help() {
+    cat <<- EOL
+${CMD_PARENT} ${CMD_NAME} ${PROG_VERSION}
+LEMPer interactive dashboard — manage sites, databases, services, and security.
+
+Usage: ${CMD_PARENT} ${CMD_NAME} [option]
+
+Options:
+  -h, --help             Show this help.
+  -v, --version          Show the TUI version.
+
+Without an option, launches the interactive menu. The TUI requires an
+interactive terminal and root privileges.
+
+Example:
+  sudo ${CMD_PARENT} ${CMD_NAME}
+EOL
+}
+
+##
 # Main TUI entry point.
 ##
 function init_lemper_tui() {
+    local arg
+
+    for arg in "$@"; do
+        case "${arg}" in
+            help | -h | --help)
+                tui_help
+                return 0
+            ;;
+            version | -v | --version)
+                echo "${CMD_PARENT} ${CMD_NAME} version ${PROG_VERSION}"
+                return 0
+            ;;
+            *)
+                error "Unknown ${CMD_NAME} option: ${arg}"
+                tui_help
+                exit 1
+            ;;
+        esac
+    done
+
     # Check if we're in a terminal.
     if [[ ! -t 0 ]]; then
         info "TUI mode requires an interactive terminal."
@@ -850,6 +948,7 @@ function init_lemper_tui() {
             "System Status|Services, disk, memory" \
             "Security & Firewall|Fail2ban, CrowdSec, SSL, firewall" \
             "Live Logs|Stream service logs in real time" \
+            "Benchmark|Hardware, disk I/O, and network speed" \
             "About|Show LEMPer version and configuration" \
             "Exit|Quit the application")
 
@@ -870,9 +969,12 @@ function init_lemper_tui() {
                 tui_logs
             ;;
             6)
+                tui_bench
+            ;;
+            7)
                 tui_about
             ;;
-            0)
+            8 | 0)
                 tui_clear
                 tui_echo "${TUI_BORDER}" "Thank you for using LEMPer Stack. Goodbye!"
                 exit 0
@@ -882,7 +984,6 @@ function init_lemper_tui() {
     done
 }
 
-# Start running unless this is a sourced library.
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    init_lemper_tui "$@"
-fi
+# Start running things from a call at the end so if this script is executed
+# after a partial download it doesn't do anything.
+init_lemper_tui "$@"

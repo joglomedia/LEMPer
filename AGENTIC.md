@@ -65,7 +65,7 @@ commands must go through `run()`.
 | `lib/lemper-db.sh` | `db` | account, create, drop, export, import, query |
 | `lib/lemper-selfssl.sh` | `selfssl` | Generate self-signed SSL |
 | `lib/lemper-fixpermission.sh` | `fixpermission` | Fix file permissions |
-| `lib/lemper-bench.sh` | `bench` | Hardware/network benchmark |
+| `lib/lemper-bench.sh` | `bench` | Hardware, disk, and network benchmark (also in TUI) |
 | `lib/lemper-account.sh` | (interactive, sourced standalone) | Interactive user creation |
 | `lib/lemper-adduser.sh` | (interactive, sourced standalone) | Interactive user creation |
 
@@ -283,7 +283,10 @@ removed entirely from the stack (issue #178).
 1. **Follow existing patterns** — don't invent new conventions.
 2. **Add to `.env.dist`** for any new configuration option.
 3. **Add to `install.sh`** if it's a new installation component.
-4. **Add CLI plugin entry** in `scripts/install_tools.sh` if it's a new CLI command.
+4. **Add CLI plugin entry** in `scripts/install_tools.sh` and the matching
+   mapping in `lib/lemper-update.sh` if it's a new CLI command. Use the
+   canonical 2014-2026 header, declare `CMD_PARENT`/`CMD_NAME`, and handle
+   `-h`/`--help` and `-v`/`--version` before any side effects.
 5. **Write tests** in `tests/unit/` or `tests/integration/`.
 6. **Update shellcheck** if new shell patterns are introduced.
 

@@ -138,7 +138,7 @@ as needing a rebuild.
 
 LEMPer packed with friendly command line tool which makes your LEMPer stack administration much easier. These command line tool called Lemper CLI (lemper-cli) for creating new virtual host and managing existing LEMPer stack.
 
-An interactive TUI is available for menu-driven management, live service logs, and a guided site-creation wizard:
+An interactive TUI is available for menu-driven management, live service logs, a guided site-creation wizard, and hardware, disk, and network benchmarks:
 
 ```bash
 sudo lemper-cli tui
@@ -221,6 +221,24 @@ sudo lemper-cli backup prune --keep 5
 pre-restore snapshot to the same directory, runs `nginx -t` afterwards, and
 rolls back automatically if the test fails. Archives contain credentials and
 private keys, so they are created root-only (mode 0600).
+
+##### LEMPer CLI benchmark the server
+
+`lemper-cli bench` reports hardware details, measures disk write/read speed,
+and downloads a test file from global endpoints. Downloads use curl's own
+speed counter with a per-endpoint timeout, and endpoints that fail are
+reported as unavailable instead of printing an empty speed.
+
+```bash
+sudo lemper-cli bench                          # hardware, disk, and network
+sudo lemper-cli bench --hardware --disk        # no downloads
+sudo lemper-cli bench --network --size 100 --timeout 60
+sudo lemper-cli bench --disk --disk-size 1024
+```
+
+The same tests are available from the TUI under **Benchmark**. Network tests
+use bandwidth: each endpoint receives the configured test size (default
+32 MB).
 
 ##### for more help
 

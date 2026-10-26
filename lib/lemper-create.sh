@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | LEMPer CLI - Virtual Host (Site) Generator                              |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2024 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -25,20 +25,24 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
-# Check pre-requisite packages.
-REQUIRED_PACKAGES=("curl" "git" "rsync" "unzip" "wget")
-for CMD in "${REQUIRED_PACKAGES[@]}"; do
-    if ! [[ -x "$(command -v "${CMD}")" ]]; then
-        NO_PACKAGES+=("${CMD}")
-    fi
-done
+# Check pre-requisite packages when the command actually runs (help/version
+# must work on hosts that are only partially provisioned).
+function check_required_packages() {
+    local CMD
+    local -a MISSING=()
 
-if [[ ${#NO_PACKAGES[@]} -gt 0 ]]; then
-    printf -v NO_PACKAGES_STR '%s, ' "${NO_PACKAGES[@]}"
-    error "${PROG_NAME} ${COMMAND_NAME} requires: ${NO_PACKAGES_STR%, }, please install it first!"
-    echo "help: run 'sudo apt-get install ${NO_PACKAGES[*]}'"
-    exit 1
-fi
+    for CMD in curl git rsync unzip wget; do
+        if ! command -v "${CMD}" &>/dev/null; then
+            MISSING+=("${CMD}")
+        fi
+    done
+
+    if [[ ${#MISSING[@]} -gt 0 ]]; then
+        error "${PROG_NAME} ${CMD_NAME} requires: ${MISSING[*]}, please install it first!"
+        echo "help: run 'sudo apt-get install ${MISSING[*]}'"
+        exit 1
+    fi
+}
 
 ##
 # Main Functions
@@ -988,6 +992,8 @@ function init_lemper_create() {
     done
 
     if [[ "${MAIN_ARGS}" -ge 1 ]]; then
+        check_required_packages
+
         # Additional Check - ensure that Nginx's configuration meets the requirements.
         if [[ ! -d /etc/nginx/sites-available && ! -d /etc/nginx/vhost ]]; then
             fail "Your Nginx installation does not meet the LEMPer stack requirements. The installation has been aborted."

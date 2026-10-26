@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 # +-------------------------------------------------------------------------+
-# | LEMPer CLI - Virtual Host (Site) List                                    |
+# | LEMPer CLI - Virtual Host (Site) List                                   |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2024 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -61,6 +61,7 @@ Options:
   -e, --enabled   Show only enabled vhosts (symlinked in sites-enabled).
   -d, --disabled  Show only disabled vhosts (no symlink in sites-enabled).
   -h, --help      Print this message and exit.
+  -v, --version   Output version information and exit.
 
 For more informations visit https://masedi.net/lemper
 Mail bug reports and suggestions to <me@masedi.net>
@@ -118,8 +119,8 @@ function list_vhosts() {
     local SHOW_DISABLED=""
 
     local OPTS
-    OPTS=$(getopt -o jeadh \
-      -l json,all,enabled,disabled,help \
+    OPTS=$(getopt -o jeadhv \
+      -l json,all,enabled,disabled,help,version \
       -n "${PROG_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
@@ -145,6 +146,10 @@ function list_vhosts() {
             ;;
             -h | --help)
                 site_list_show_usage
+                exit 0
+            ;;
+            -v | --version)
+                echo "${PROG_NAME} version ${PROG_VERSION}"
                 exit 0
             ;;
             --)

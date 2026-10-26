@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 
-# MariaDB Installer
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 13/02/2022
-# Author            : MasEDI.Net (me@masedi.net)
-# Since Version     : 1.0.0
+# +-------------------------------------------------------------------------+
+# | MariaDB Installer                                                       |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellcheck disable=SC1091
-    . "${BASE_DIR}/utils.sh"
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
+    cd "${BASE_DIR}" || { echo "Cannot enter ${BASE_DIR}."; exit 1; }
+    # shellcheck source=scripts/utils.sh
+    . "${BASE_DIR}/scripts/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -75,11 +84,13 @@ function add_mariadb_repo() {
             run bash "${BUILD_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
                 --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}" --skip-maxscale --skip-tools && \
             run apt-get update -q -y
-        else
-            info "MariaDB repo installer not found, trying to use pre-downloaded script."
-            run bash "${BASE_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
+        elif [[ -f "${BASE_DIR}/scripts/mariadb_repo_setup" ]]; then
+            info "MariaDB repo installer download failed, using bundled copy."
+            run bash "${BASE_DIR}/scripts/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
                 --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}" --skip-maxscale --skip-tools && \
             run apt-get update -q -y
+        else
+            error "MariaDB repository installer is unavailable. Configure MYSQL_REPO_MIRROR_URL or install MariaDB manually."
         fi
     else
         # Add MariaDB mirror repo.

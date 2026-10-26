@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | LEMPer CLI - Self-signed SSL Generator                                  |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2024 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -112,6 +112,7 @@ function sanitize_sed_replacement() {
 function generate_selfsigned_ssl() {
     DOMAIN=${1}
     SERVER_IP=${2:-$(hostname -I | awk '{print $1}')}
+    SERVER_IPV6=${3:-}
     KEY_HASH_LENGTH=4096
 
     if [ -z "${DOMAIN}" ]; then
@@ -127,6 +128,14 @@ function generate_selfsigned_ssl() {
         fail "Invalid IPv4 address: '${SERVER_IP}' is not a valid IPv4 address."
     fi
 
+    # Validate the shape of an explicitly provided IPv6 address.
+    if [ -n "${SERVER_IPV6}" ] && [[ ! "${SERVER_IPV6}" =~ ^[0-9A-Fa-f:]+$ || "${SERVER_IPV6}" != *:* ]]; then
+        fail "Invalid IPv6 address: '${SERVER_IPV6}' is not a valid IPv6 address."
+    fi
+
+    # Without an explicit IPv6 address, keep the historic IPv4 value.
+    local CERT_IPV6="${SERVER_IPV6:-${SERVER_IP}}"
+
     if [ ! -d "/etc/lemper/ssl/${DOMAIN}" ]; then
         mkdir -p "/etc/lemper/ssl/${DOMAIN}"
     fi
@@ -136,8 +145,8 @@ function generate_selfsigned_ssl() {
     sed_inplace "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
     sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
     sed_inplace "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    sed_inplace -r "s|^IP.1\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.1\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
-    sed_inplace -r "s|^IP.2\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.2\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace -r "s|^IP\.1\s*=\s*.*$|IP.1 = ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace -r "s|^IP\.2\s*=\s*.*$|IP.2 = ${CERT_IPV6}|g" /etc/lemper/ssl/csr.conf && \
     sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
 
     # Create Certificate Authority (CA).
@@ -179,10 +188,10 @@ function generate_selfsigned_ssl() {
 ##
 # Main App
 #
-function init_selfsigned_ssl() {
+function init_lemper_selfssl() {
     # Command line arguments.
-    OPTS=$(getopt -o d:4:6: \
-      -l domain-name:,ipv4:,ipv6: \
+    OPTS=$(getopt -o d:4:6:hv \
+      -l domain-name:,ipv4:,ipv6:,help,version \
       -n "${PROG_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
@@ -246,4 +255,4 @@ function init_selfsigned_ssl() {
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-init_selfsigned_ssl "$@"
+init_lemper_selfssl "$@"

@@ -3,9 +3,20 @@
 # +-------------------------------------------------------------------------+
 # | LEMPer CLI - ModSecurity WAF Manager                                    |
 # +-------------------------------------------------------------------------+
-# | Status, audit-log reporting, and OWASP CRS auto-tuning.                  |
-# |                                                                          |
+# | Status, audit-log reporting, and OWASP CRS auto-tuning.                 |
+# |                                                                         |
 # | Invoked as: lemper-cli modsec <status|report|tune> [options]            |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
 # Version control.
@@ -441,6 +452,7 @@ Tune options:
   --auto                 Derive conservative values from the audit log.
   --apply                Write the tuning and reload Nginx (preview otherwise).
   -h, --help             Show this help.
+  -v, --version          Output version information and exit.
 
 Examples:
   ${CMD_PARENT} ${CMD_NAME} status

@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 
-# Install Fail2ban
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 12/02/2022
-# Author            : MasEDI.Net (me@masedi.net)
-# Since Version     : 1.3.0
+# +-------------------------------------------------------------------------+
+# | Fail2ban Installer                                                      |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellcheck disable=SC1091
-    . "${BASE_DIR}/utils.sh"
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
+    cd "${BASE_DIR}" || { echo "Cannot enter ${BASE_DIR}."; exit 1; }
+    # shellcheck source=scripts/utils.sh
+    . "${BASE_DIR}/scripts/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -69,7 +78,12 @@ function init_fail2ban_install() {
 
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
-                run cd "${BUILD_DIR}" || return 1
+                run mkdir -p "${BUILD_DIR}"
+                if [[ "${DRYRUN}" == true ]]; then
+                    info "would enter ${BUILD_DIR}"
+                else
+                    cd "${BUILD_DIR}" || exit 1
+                fi
 
                 # Install from source
                 # https://github.com/fail2ban/fail2ban
@@ -77,8 +91,12 @@ function init_fail2ban_install() {
 
                 if curl -sLI "${fail2ban_download_link}" | grep -q "HTTP/[.12]* [2].."; then
                     run curl -sSL -o fail2ban.tar.gz "${fail2ban_download_link}" && \
-                    run tar -zxf fail2ban.tar.gz && \
-                    run cd fail2ban-*/ || return
+                    run tar -zxf fail2ban.tar.gz
+                    if [[ "${DRYRUN}" == true ]]; then
+                        info "would enter fail2ban-${FAIL2BAN_VERSION}"
+                    else
+                        cd fail2ban-*/ || exit 1
+                    fi
 
                     # Convert to Python3 codebase
                     run python -m venv /opt/fail2ban/ && \
@@ -90,16 +108,23 @@ function init_fail2ban_install() {
                     run ln -sf /opt/fail2ban/bin/fail2ban-server /usr/bin/fail2ban-server && \
                     run ln -sf /opt/fail2ban/bin/fail2ban-regex /usr/bin/fail2ban-regex && \
                     run ln -sf /opt/fail2ban/bin/fail2ban-testcases /usr/bin/fail2ban-testcases && \
-                    run ln -sf /opt/fail2ban/bin/python /usr/bin/fail2ban-python && \
-                    run cp files/debian-initd /etc/init.d/fail2ban && \
-                    run update-rc.d fail2ban defaults
+                    run ln -sf /opt/fail2ban/bin/python /usr/bin/fail2ban-python
+
+                    if [[ -f files/debian-initd ]]; then
+                        run cp files/debian-initd /etc/init.d/fail2ban
+                        run update-rc.d fail2ban defaults
+                    fi
                 fi
 
-                run cd "${CURRENT_DIR}" || return 1
+                if [[ "${DRYRUN}" == true ]]; then
+                    info "would return to ${CURRENT_DIR}"
+                else
+                    cd "${CURRENT_DIR}" || exit 1
+                fi
             ;;
         esac
 
-        # Configure Fal2ban.
+        # Configure Fail2ban.
         echo "Configuring Fail2ban..."
 
         if [[ "${DRYRUN}" != true ]]; then
@@ -150,16 +175,24 @@ EOL
             fi
         fi
 
-        # Add systemd service.  
-        [[ ! -f /lib/systemd/system/fail2ban.service ]] && \
-            run cp etc/systemd/fail2ban.service /lib/systemd/system/fail2ban.service
-        [[ ! -f /etc/systemd/system/multi-user.target.wants/fail2ban.service ]] && \
-            run ln -s /lib/systemd/system/fail2ban.service /etc/systemd/system/multi-user.target.wants/fail2ban.service
+        # Install a systemd unit when the source build did not provide one.
+        FAIL2BAN_UNIT="/lib/systemd/system/fail2ban.service"
+        if [[ ! -f "${FAIL2BAN_UNIT}" && ! -f /etc/systemd/system/fail2ban.service ]]; then
+            if [[ -f etc/systemd/fail2ban.service ]]; then
+                run cp etc/systemd/fail2ban.service "${FAIL2BAN_UNIT}"
+            else
+                warning "No Fail2ban systemd unit found; the service must be started manually."
+            fi
+        fi
 
         # Restart Fail2ban daemon.
-        echo "Starting Fail2ban server..."
-        run systemctl start fail2ban && \
-        run systemctl enable fail2ban
+        if [[ -f "${FAIL2BAN_UNIT}" || -f /etc/systemd/system/fail2ban.service ]] && \
+            command -v systemctl >/dev/null 2>&1; then
+            echo "Starting Fail2ban server..."
+            run systemctl daemon-reload
+            run systemctl enable fail2ban
+            run systemctl restart fail2ban
+        fi
 
         if [[ "${DRYRUN}" != true ]]; then
             if [[ $(pgrep -c fail2ban-server) -gt 0 ]]; then
