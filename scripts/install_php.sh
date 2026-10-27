@@ -961,7 +961,7 @@ function install_php_loader() {
     fi
 
     # Install PHP loader.
-    if [[ "${PHPv}" != "unsupported" && ! $(version_older_than "${PHPv}" "8.1") ]]; then
+    if [[ "${PHPv}" != "unsupported" && ! $(version_older_than "${PHPv}" "8.2") ]]; then
         if [[ "${AUTO_INSTALL}" == true ]]; then
             if [[ "${INSTALL_PHP_LOADER}" == true ]]; then
                 DO_INSTALL_PHP_LOADER="y"
@@ -1075,13 +1075,12 @@ function init_php_install() {
             # Manually select PHP version in interactive mode.
             echo "Which PHP version to be installed?"
             echo "Available PHP versions:"
-            echo "  1). PHP 8.1 (EOL)"
-            echo "  2). PHP 8.2 (Security)"
-            echo "  3). PHP 8.3 (Stable)"
-            echo "  4). PHP 8.4 (Security)"
-            echo "  5). PHP 8.5 (Latest Stable)"
-            echo "  6). All available versions"
-            echo "  7). Do not install!"
+            echo "  1). PHP 8.2 (Security)"
+            echo "  2). PHP 8.3 (Stable)"
+            echo "  3). PHP 8.4 (Security)"
+            echo "  4). PHP 8.5 (Latest Stable)"
+            echo "  5). All available versions"
+            echo "  6). Do not install!"
             echo "--------------------------------------------"
 
             [[ -n "${DEFAULT_PHP_VERSION}" ]] && \
@@ -1089,35 +1088,31 @@ function init_php_install() {
 
             while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                 ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
-                ${SELECTED_PHP} != "7" && \
-                ${SELECTED_PHP} != "8.1" && ${SELECTED_PHP} != "8.2" && ${SELECTED_PHP} != "8.3" && \
+                ${SELECTED_PHP} != "8.2" && ${SELECTED_PHP} != "8.3" && \
                 ${SELECTED_PHP} != "8.4" && ${SELECTED_PHP} != "8.5" && \
                 ${SELECTED_PHP} != "all" && ${SELECTED_PHP} != "none"
             ]]; do
-                read -rp "Enter a PHP version from an option above [1-7]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
+                read -rp "Enter a PHP version from an option above [1-6]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
             done
 
             case "${SELECTED_PHP}" in
-                1 | "8.1")
-                    SELECTED_PHP_VERSIONS+=("8.1")
-                ;;
-                2 | "8.2")
+                1 | "8.2")
                     SELECTED_PHP_VERSIONS+=("8.2")
                 ;;
-                3 | "8.3")
+                2 | "8.3")
                     SELECTED_PHP_VERSIONS+=("8.3")
                 ;;
-                4 | "8.4")
+                3 | "8.4")
                     SELECTED_PHP_VERSIONS+=("8.4")
                 ;;
-                5 | "8.5")
+                4 | "8.5")
                     SELECTED_PHP_VERSIONS+=("8.5")
                 ;;
-                6 | "all")
+                5 | "all")
                     # Select all supported PHP versions.
-                    SELECTED_PHP_VERSIONS=("8.1" "8.2" "8.3" "8.4" "8.5")
+                    SELECTED_PHP_VERSIONS=("8.2" "8.3" "8.4" "8.5")
                 ;;
-                7 | n*)
+                6 | n*)
                     info "No selected PHP version will be installed."
                     return
                 ;;
@@ -1139,6 +1134,14 @@ function init_php_install() {
     local PHP_WAS_INSTALLED
 
     for PHPv in "${SELECTED_PHP_VERSIONS[@]}"; do
+        case "${PHPv}" in
+            8.2 | 8.3 | 8.4 | 8.5) ;;
+            *)
+                warning "PHP ${PHPv} is not a supported install target. Choose 8.2, 8.3, 8.4, or 8.5."
+                continue
+                ;;
+        esac
+
         IS_PKG_AVAIL=$(apt-cache search "php${PHPv}" | grep -c "${PHPv}" || true)
 
         if [[ "${IS_PKG_AVAIL}" -gt 0 ]]; then
@@ -1162,6 +1165,13 @@ function init_php_install() {
     done
 
     # Install default PHP version used by LEMPer.
+    case "${DEFAULT_PHP_VERSION}" in
+        8.2 | 8.3 | 8.4 | 8.5) ;;
+        *)
+            warning "PHP ${DEFAULT_PHP_VERSION} is not a supported default. Choose 8.2, 8.3, 8.4, or 8.5."
+            DEFAULT_PHP_VERSION="8.5"
+            ;;
+    esac
     if [[ -z $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
         info "LEMPer requires PHP ${DEFAULT_PHP_VERSION} as default to run its administration tool."
         echo "PHP ${DEFAULT_PHP_VERSION} now being installed..."

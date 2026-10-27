@@ -347,7 +347,7 @@ bash shunit2/run_test.sh
 ### 7.2 DO
 
 - ✅ Check for the `fial` typo when grepping for error handling patterns.
-- ✅ Search for all versions of a pattern (e.g., PHP pool configs span 8.1–8.5).
+- ✅ Search for all versions of a pattern (e.g., PHP pool configs span 8.2–8.5).
 - ✅ Use `grep -rn` to find all references to a variable before renaming it.
 - ✅ Follow the `run()` function convention for all system commands.
 - ✅ Respect the guard clause pattern when creating new scripts.

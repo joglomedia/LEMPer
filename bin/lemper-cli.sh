@@ -532,7 +532,7 @@ EOL
     help_subentry "tune [options]" "Adjust paranoia/thresholds."
     help_entry update "Patch PHP2Shell and keep the stack current."
     help_subentry check "Audit PHP/nginx/MariaDB state."
-    help_subentry php "Patch PHP; mitigate EOL pools."
+    help_subentry php "Patch PHP; migrate EOL vhosts with --migrate-to=VERSION."
     help_subentry nginx "Upgrade package-managed nginx from MyGuard."
     help_subentry mariadb "Upgrade MariaDB packages."
     help_subentry lemper "Reinstall CLI, plugins, and web admin tools."

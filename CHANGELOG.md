@@ -46,9 +46,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Restore validates archive members against an allow-list, writes a
   pre-restore snapshot, tests Nginx afterwards, and rolls back on failure.
   Archives contain secrets and are created root-only (0600).
+- `lemper-cli update php --migrate-to=VERSION` moves every vhost that still
+  uses an EOL PHP onto that version. `--force=VERSION` is the same switch;
+  a bare `--force` is rejected so the destination stays explicit. EOL
+  `fastcgi_pass` sockets and EOL `set $php_version` lines are rewritten.
+  The pool user is taken from `phpX.Y-fpm.USER.sock` (a bare socket uses
+  `www`). A missing destination pool is copied from the EOL pool, or written
+  from a small template when that file is gone. Existing destination pools
+  are kept. Nginx is tested before reload, and the previous vhosts are stored
+  under `/etc/lemper/backups/php-migrate-<UTC>/`. The old PHP packages and
+  pools stay installed.
 
 ### Changed
 
+- Default PHP installs are 8.2, 8.3, 8.4, and 8.5. `PHP_VERSIONS` in
+  `.env.dist` no longer lists 8.1, and the interactive installer menu
+  matches that set. An explicit 8.1 (or any other unsupported version) in
+  `PHP_VERSIONS` or `--php-version` is skipped.
 - Repository nginx installs use the MyGuard nginx-only APT source
   (`https://deb.myguard.nl/apt/nginx/<codename>`) with a scoped signing key
   and a pin that covers nginx packages only. `NGINX_REPO_SRC=ondrej` selects
@@ -104,6 +118,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- PHP 8.1 from the default install set and the shipped configuration.
+  `etc/php/8.1/` is gone, the `.php81` Nginx handler is gone, and
+  `/lcp/phpinfo.php81` is no longer created. `remove_php.sh` can still
+  uninstall a PHP 8.1 that is already on the host. PHP 8.1 is EOL and has
+  no vendor patch for PHP2Shell.
 - Node.js from the planned installer list. Bun.js is the JavaScript runtime.
 - Ubuntu 20.04 (Focal) and Linux Mint 20 support. The preflight check now
   rejects them; the minimum supported Ubuntu release is 22.04 (Jammy).

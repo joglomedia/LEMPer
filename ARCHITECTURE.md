@@ -57,7 +57,7 @@ LEMPer/
 │   ├── utils.sh                   # Core helper library (shared, 1021 lines)
 │   ├── install_dependencies.sh    # Base packages + Python
 │   ├── install_nginx.sh           # Nginx installer (delegates to nginx/)
-│   ├── install_php.sh             # PHP 8.1–8.5 only (EOL 5.6–8.0 removed)
+│   ├── install_php.sh             # PHP 8.2–8.5 only (EOL 5.6–8.1 removed)
 │   ├── install_mariadb.sh         # MariaDB 11.4
 │   ├── install_redis.sh           # Redis/Valkey (REDIS_BACKEND configurable)
 │   ├── install_postgres.sh        # PostgreSQL (optional)
@@ -98,7 +98,7 @@ LEMPer/
 │   │   └── vhost/
 │   │       ├── README.md
 │   │       └── site_wordpress.conf  # ModSecurity (was NAXSI)
-│   ├── php/8.5/                   # PHP FPM configs (only 8.1–8.5 remain)
+│   ├── php/8.5/                   # PHP FPM configs (only 8.2–8.5 remain)
 │   │   ├── fpm/php-fpm.conf
 │   │   └── fpm/pool.d/lemper.conf  # cgi.fix_pathinfo=0
 │   ├── mysql/mariadb.conf.d/      # MariaDB 11.4 configs
@@ -280,7 +280,7 @@ and finally the PHP handlers and monitoring endpoints. Restriction rules must
 precede the static-file regex locations so a `deny` is not shadowed.
 
 Repeated handler boilerplate lives in `includes/php_handlers.conf` (`.php` plus
-`.php85`–`.php81`) and `includes/monitoring.conf` (loopback-only
+`.php85`–`.php82`) and `includes/monitoring.conf` (loopback-only
 `/nginx_status` and `/php-fpm_status`). Both are included in the public and
 admin server blocks and, for `/lcp`, inside the basic-auth protected prefix
 location so the nested handlers inherit its access rules.
@@ -472,11 +472,13 @@ The plugin (`lib/lemper-update.sh`) exposes:
 
 Version classification uses `dpkg-query` (falling back to `php<branch> -r 'echo PHP_VERSION;'`)
 and `sort -V` comparison after stripping epochs and Debian revisions. Supported branches
-are patched normally. EOL branches (8.1 and older) have no vendor fix: the plugin backs
+are patched normally. EOL branches (8.1 and older) have no vendor fix. `update php --migrate-to=8.3`
+(or `--force=8.3`) rewrites EOL FastCGI sockets and `set $php_version` lines in the Nginx
+vhosts, creates the destination FPM pool from the old pool when it exists, tests Nginx,
+and reloads. A bare `--force` is rejected. Without that flag the plugin backs
 up every FPM pool to `/etc/lemper/backups/php2shell-<UTC>/<branch>/` and admin-locks
 `memory_limit=-1`, `post_max_size=32M`, `session.upload_progress.enabled=0` (plus
-`fatal_error_backtraces=0` on PHP 8.5), then reports that migration to PHP 8.2+ is still
-required. Runs take an exclusive `flock` and log to `/var/log/lemper/update-<UTC>.log`.
+`fatal_error_backtraces=0` on PHP 8.5). Runs take an exclusive `flock` and log to `/var/log/lemper/update-<UTC>.log`.
 
 ---
 
@@ -526,7 +528,7 @@ required. Runs take an exclusive `flock` and log to `/var/log/lemper/update-<UTC
 | **Security** | Optional fail2ban, commented encryption | Fail2ban + CrowdSec, encrypted secrets, secure defaults |
 | **CI** | ShellCheck + install tests on Ubuntu | Multi-distro matrix, security audit, dependency scan, release automation |
 | **Documentation** | Minimal README + CONTRIBUTING | Full ARCHITECTURE, DEVELOPER, AGENTIC, ROADMAP docs |
-| **PHP support** | 5.6–8.4 (many EOL) | 8.1+ only (EOL versions removed) |
+| **PHP support** | 5.6–8.4 (many EOL) | 8.2+ only (EOL versions removed) |
 | **SSH** | Password or key auth | Key-only by default, ed25519 |
 | **Firewall** | UFW/CSF/APF | UFW + nftables backend, optional CrowdSec |
 | **SSL** | RSA 2048 self-signed | RSA 4096 or ed25519, OCSP stapling, ACME v2 |
@@ -606,7 +608,7 @@ in place as a future-enhancement path.
 | **Test framework** | shunit2 | shunit2 + bats-core | ✅ bats-core 1.14.0, 107 tests |
 | **CI** | GitHub Actions | GitHub Actions (enhanced) | ✅ ShellCheck + bats matrix |
 | **Web server** | Nginx (repo or source) | Nginx (repo default, source optional) | ✅ |
-| **PHP** | 5.6–8.4 (historical templates) | 8.1–8.5 (Ondřej's PPA) | ✅ EOL removed from installer, 8.1–8.5 templates shipped |
+| **PHP** | 5.6–8.4 (historical templates) | 8.2–8.5 (Ondřej's PPA) | ✅ EOL removed from installer, 8.2–8.5 templates shipped |
 | **Database** | MariaDB 11.1 | MariaDB 11.4 | ✅ Upgraded |
 | **Cache** | Redis | Redis or Valkey (configurable) | ✅ Valkey added (REDIS_BACKEND) |
 | **JS runtime** | (unused) | Bun.js | ✅ Bun.js installed |

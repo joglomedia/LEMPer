@@ -458,7 +458,7 @@ refute_grep() {
 
 @test "PHP-FPM pools disable error display and harden sessions (SEC-14)" {
     local v pool conf
-    for v in 8.1 8.2 8.3 8.4 8.5; do
+    for v in 8.2 8.3 8.4 8.5; do
         for pool in lemper www; do
             conf="${BASE_DIR}/etc/php/${v}/fpm/pool.d/${pool}.conf"
             grep -qF 'php_admin_flag[display_errors] = off' "${conf}"
@@ -530,7 +530,8 @@ refute_grep() {
 
     [ -f "${handlers}" ]
     grep -qF 'location ~ \.php85$ {' "${handlers}"
-    grep -qF 'location ~ \.php81$ {' "${handlers}"
+    grep -qF 'location ~ \.php82$ {' "${handlers}"
+    refute_grep -qF 'location ~ \.php81$ {' "${handlers}"
     grep -qF 'include /etc/nginx/includes/php_handler.conf;' "${handlers}"
 
     for f in "${BASE_DIR}/etc/nginx/sites-available/default" \
@@ -691,7 +692,7 @@ refute_grep() {
 
 @test "session cookie Secure is configurable per pool" {
     local v pool conf
-    for v in 8.1 8.2 8.3 8.4 8.5; do
+    for v in 8.2 8.3 8.4 8.5; do
         for pool in lemper www; do
             conf="${BASE_DIR}/etc/php/${v}/fpm/pool.d/${pool}.conf"
             grep -qF 'php_admin_value[session.cookie_secure] = 0' "${conf}"

@@ -702,8 +702,8 @@ service URLs only — no passwords).
 
 **Issue:** `etc/php/{5.6,7.0,7.1,7.2,7.3,7.4,8.0}/` directories remained.
 
-**Fix:** ✅ Implemented — Deleted all stale PHP template directories. Remaining: 8.1–8.5 only.
-Updated PHP version guard in `install_php.sh` from `8.0` → `8.1`.
+**Fix:** ✅ Implemented — Deleted the PHP 5.6–8.0 template directories.
+The installer floor is now 8.2. Shipped templates are 8.2–8.5. `update php --migrate-to=VERSION` moves vhosts that still use an EOL PHP.
 
 **Effort:** ✅ Done
 

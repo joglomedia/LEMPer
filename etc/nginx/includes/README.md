@@ -31,7 +31,7 @@ set $php_version "8.5";
 include /etc/nginx/includes/php_handlers.conf;
 ```
 
-`php_handlers.conf` defines `.php` plus the versioned `.php85`–`.php81`
+`php_handlers.conf` defines `.php` plus the versioned `.php85`–`.php82`
 handlers. Include it again inside a prefix location (such as the
 basic-auth protected `/lcp` area) to inherit that location's access rules.
 

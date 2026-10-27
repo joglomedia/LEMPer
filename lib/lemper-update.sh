@@ -4,9 +4,9 @@
 # | LEMPer CLI - Security & Stack Updater                                   |
 # +-------------------------------------------------------------------------+
 # | Patches PHP2Shell (CVE-2026-109618 / CVE-2026-109619) and keeps the     |
-# | rest of the stack current. Legacy (EOL) PHP branches have no vendor     |
-# | patch, so their pools receive admin-locked compensating controls and    |
-# | are reported as requiring migration.                                    |
+# | rest of the stack current. Supported branches are upgraded from apt.    |
+# | --migrate-to=VERSION moves EOL vhosts onto that PHP and creates any     |
+# | missing FPM pool. Without it, EOL pools get compensating controls.      |
 # |                                                                         |
 # | Invoked as: lemper-cli update <check|php|nginx|mariadb|lemper|all>      |
 # +-------------------------------------------------------------------------+
@@ -43,6 +43,10 @@ PHP2SHELL_POST_MAX="${PHP2SHELL_POST_MAX:-32M}"
 UPDATE_ASSUME_YES="${UPDATE_ASSUME_YES:-false}"
 UPDATE_SOURCE_DIR=""
 UPDATE_LOG=""
+# Set only by --migrate-to / --force=VERSION. An inherited environment value
+# must not move production vhosts during a normal update.
+PHP_MIGRATE_TO=""
+UPDATE_REQUESTED_SUBCOMMAND=""
 
 ##
 # Fixed upstream releases for CVE-2026-109618 / CVE-2026-109619.
@@ -401,13 +405,430 @@ function php_mitigate_branch() {
 }
 
 ##
-# Patch supported PHP branches and mitigate EOL branches.
+# True when the branch has a vendor fix for PHP2Shell.
+##
+function php_branch_is_supported() {
+    php_fixed_version "${1}" >/dev/null
+}
+
+##
+# branch<TAB>pool from a fastcgi_pass socket. The bare www socket has no user.
+##
+function php_parse_fpm_socket() {
+    local line="${1}" branch="" pool=""
+
+    [[ "${line}" =~ php([0-9]+\.[0-9]+)-fpm(\.([A-Za-z0-9_-]+))?\.sock ]] || return 1
+    branch="${BASH_REMATCH[1]}"
+    pool="${BASH_REMATCH[3]}"
+    [[ -z "${pool}" ]] && pool="www"
+    printf '%s\t%s\n' "${branch}" "${pool}"
+}
+
+##
+# Rewrite EOL PHP-FPM sockets to the destination version. Supported sockets stay.
+##
+function php_migrate_fastcgi_line() {
+    local line="${1}"
+    local target="${2}"
+    local rest="${1}"
+    local parsed="" branch="" guard=0
+    local from_token="" to_token=""
+
+    if [[ "${line}" =~ ^[[:space:]]*# ]]; then
+        printf '%s\n' "${line}"
+        return 0
+    fi
+
+    while parsed=$(php_parse_fpm_socket "${rest}"); do
+        guard=$((guard + 1))
+        [[ "${guard}" -gt 8 ]] && break
+        branch="${parsed%%$'\t'*}"
+        from_token="php${branch}-fpm"
+        to_token="php${target}-fpm"
+        if ! php_branch_is_supported "${branch}"; then
+            line="${line//"${from_token}"/${to_token}}"
+        fi
+        rest="${rest#*"${from_token}"}"
+    done
+    printf '%s\n' "${line}"
+}
+
+##
+# branch<TAB>pool for every EOL socket on one line.
+##
+function php_eol_socket_pairs() {
+    local rest="${1}" parsed="" branch="" pool="" guard=0
+    local from_token=""
+
+    while parsed=$(php_parse_fpm_socket "${rest}"); do
+        guard=$((guard + 1))
+        [[ "${guard}" -gt 8 ]] && break
+        branch="${parsed%%$'\t'*}"
+        pool="${parsed#*$'\t'}"
+        from_token="php${branch}-fpm"
+        if ! php_branch_is_supported "${branch}"; then
+            printf '%s\t%s\n' "${branch}" "${pool}"
+        fi
+        rest="${rest#*"${from_token}"}"
+    done
+}
+
+##
+# Version from `set $php_version "X.Y"`, or failure when the line has none.
+##
+function php_assigned_php_version() {
+    local line="${1}"
+
+    if [[ "${line}" =~ set[[:space:]]+\$php_version[[:space:]]+\"([0-9]+\.[0-9]+)\" ]] || \
+        [[ "${line}" =~ set[[:space:]]+\$php_version[[:space:]]+\'([0-9]+\.[0-9]+)\' ]] || \
+        [[ "${line}" =~ set[[:space:]]+\$php_version[[:space:]]+([0-9]+\.[0-9]+)([^0-9.]|$) ]]; then
+        printf '%s\n' "${BASH_REMATCH[1]}"
+        return 0
+    fi
+    return 1
+}
+
+##
+# Point an EOL `set $php_version` line at the destination release.
+##
+function php_migrate_version_assignment() {
+    local line="${1}" target="${2}" branch=""
+
+    if [[ "${line}" =~ ^[[:space:]]*# ]]; then
+        printf '%s\n' "${line}"
+        return 0
+    fi
+
+    branch=$(php_assigned_php_version "${line}") || {
+        printf '%s\n' "${line}"
+        return 0
+    }
+    if php_branch_is_supported "${branch}"; then
+        printf '%s\n' "${line}"
+        return 0
+    fi
+    if [[ "${line}" == *"\"${branch}\""* ]]; then
+        line="${line/\"${branch}\"/\"${target}\"}"
+    elif [[ "${line}" == *"'${branch}'"* ]]; then
+        line="${line/\'${branch}\'/\'${target}\'}"
+    else
+        line="${line/${branch}/${target}}"
+    fi
+    printf '%s\n' "${line}"
+}
+
+##
+# Absolute path of a vhost file. Symlinks collapse to the target file.
+##
+function php_migrate_realpath() {
+    local path="${1}"
+
+    if command -v realpath >/dev/null 2>&1; then
+        realpath "${path}" 2>/dev/null && return 0
+    fi
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${path}"
+        return 0
+    fi
+    if [[ -L "${path}" ]]; then
+        return 1
+    fi
+    printf '%s\n' "${path}"
+}
+
+##
+# Put backed-up vhosts back after a failed migration.
+##
+function php_migrate_restore_manifest() {
+    local manifest="${1}" backup="" vhost=""
+
+    [[ -f "${manifest}" ]] || return 0
+    while IFS=$'\t' read -r backup vhost || [[ -n "${backup}" ]]; do
+        [[ -z "${backup}" ]] && continue
+        [[ -f "${backup}" && -n "${vhost}" ]] || continue
+        cp -a "${backup}" "${vhost}" || true
+    done < "${manifest}"
+}
+
+##
+# Rewrite phpX.Y path and extension-suffix tokens from one branch to another.
+##
+function php_rewrite_pool_text() {
+    local from="${1}" to="${2}"
+    local from_compact="${from//./}" to_compact="${to//./}"
+    sed "s/php${from}/php${to}/g; s/\\.php${from_compact}/.php${to_compact}/g"
+}
+
+##
+# Minimal pool used when the EOL branch has no pool file for this user.
+##
+function php_minimal_pool_text() {
+    local pool="${1}" version="${2}"
+    local user="${pool}" group="${pool}" home="/home/${pool}" listen_name=".${pool}"
+
+    if [[ "${pool}" == "www" ]]; then
+        user="www-data"
+        group="www-data"
+        home="/usr/share/nginx/html"
+        listen_name=""
+    fi
+
+    cat <<EOF
+[${pool}]
+user = ${user}
+group = ${group}
+listen = /run/php/php${version}-fpm${listen_name}.sock
+listen.owner = www-data
+listen.group = www-data
+listen.mode = 0660
+pm = dynamic
+pm.max_children = 10
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+pm.process_idle_timeout = 30s
+pm.max_requests = 500
+request_terminate_timeout = 300s
+chdir = ${home}
+clear_env = yes
+security.limit_extensions = .php .php${version//./}
+php_admin_flag[log_errors] = on
+php_admin_flag[expose_php] = off
+php_admin_flag[display_errors] = off
+php_admin_flag[display_startup_errors] = off
+php_flag[cgi.fix_pathinfo] = off
+php_admin_value[error_log] = ${home}/logs/php/php${version}-fpm_error.log
+php_admin_value[open_basedir] = ${home}:/var/lib/php/lemper/${pool}
+php_admin_value[sys_temp_dir] = /var/lib/php/lemper/${pool}/tmp
+php_admin_value[upload_tmp_dir] = /var/lib/php/lemper/${pool}/tmp
+php_admin_value[session.save_path] = /var/lib/php/lemper/${pool}/sessions
+php_admin_value[session.use_strict_mode] = 1
+php_admin_value[session.cookie_httponly] = 1
+php_admin_value[session.cookie_samesite] = Lax
+EOF
+}
+
+##
+# Private temp and session directories for a migrated pool.
+##
+function php_migrate_prepare_pool_dirs() {
+    local pool="${1}"
+    local base="${LEMPER_PHP_STATE_DIR:-/var/lib/php/lemper}/${pool}"
+    local owner="${pool}"
+
+    mkdir -p "${base}/tmp" "${base}/sessions" "${base}/wsdlcache" "${base}/opcache" || return 1
+    chmod 700 "${base}" "${base}/tmp" "${base}/sessions" "${base}/wsdlcache" "${base}/opcache" 2>/dev/null || true
+    if [[ "$(id -u)" -eq 0 ]]; then
+        [[ "${pool}" == "www" ]] && owner="www-data"
+        if id "${owner}" >/dev/null 2>&1; then
+            chown -R "${owner}:${owner}" "${base}" 2>/dev/null || true
+        fi
+    fi
+}
+
+##
+# Create the destination pool from the EOL pool, or from a minimal template.
+##
+function php_ensure_migrated_pool() {
+    local pool="${1}" from="${2}" to="${3}"
+    local dest="${PHP_ETC_DIR}/${to}/fpm/pool.d/${pool}.conf"
+    local src="${PHP_ETC_DIR}/${from}/fpm/pool.d/${pool}.conf"
+
+    if [[ -f "${dest}" ]]; then
+        info "PHP ${to} pool ${pool} already exists."
+        return 0
+    fi
+    mkdir -p "${PHP_ETC_DIR}/${to}/fpm/pool.d" || return 1
+    if [[ -f "${src}" ]]; then
+        php_rewrite_pool_text "${from}" "${to}" < "${src}" > "${dest}" || return 1
+        info "Created PHP ${to} pool ${pool} from the PHP ${from} pool."
+    else
+        php_minimal_pool_text "${pool}" "${to}" > "${dest}" || return 1
+        info "Created a new PHP ${to} pool for ${pool}."
+    fi
+    chmod 0644 "${dest}" 2>/dev/null || true
+    php_migrate_prepare_pool_dirs "${pool}" || return 1
+    php_migrate_prepare_log_dir "${pool}"
+}
+
+##
+# Best-effort PHP log directory named by the pool file.
+##
+function php_migrate_prepare_log_dir() {
+    local pool="${1}"
+    local log_dir="/home/${pool}/logs/php"
+    local owner="${pool}"
+
+    if [[ "${pool}" == "www" ]]; then
+        log_dir="/usr/share/nginx/html/logs/php"
+        owner="www-data"
+    elif [[ "$(id -u)" -ne 0 && ! -d "/home/${pool}" ]]; then
+        return 0
+    fi
+    mkdir -p "${log_dir}" 2>/dev/null || true
+    chmod 750 "${log_dir}" 2>/dev/null || true
+    if [[ "$(id -u)" -eq 0 ]] && id "${owner}" >/dev/null 2>&1; then
+        chown "${owner}:${owner}" "${log_dir}" 2>/dev/null || true
+    fi
+}
+
+##
+# Point EOL fastcgi_pass sockets at the destination PHP and create missing pools.
+# Existing destination pools are kept. Old pools and packages are left in place.
+##
+function php_migrate_eol_sites() {
+    local target="${1}"
+    local sites="${LEMPER_NGINX_SITES_DIR:-/etc/nginx/sites-available}"
+    local enabled="${LEMPER_NGINX_SITES_ENABLED:-$(dirname "${sites}")/sites-enabled}"
+    local stamp="" backup_dir="" manifest="" vhost="" tmp="" line="" new_line=""
+    local resolved="" entry="" dir="" branch="" pool="" assigned="" suffix=""
+    local backup_file="" seen_pools=" " seen_paths="" vhost_changed=0
+    local -a vhosts=()
+
+    if ! php_branch_is_supported "${target}"; then
+        error "PHP ${target} is not a supported migration target. Choose 8.2, 8.3, 8.4, or 8.5."
+        return 1
+    fi
+    if [[ ! -d "${PHP_ETC_DIR}/${target}/fpm" ]]; then
+        error "PHP ${target} is not installed. Install it, then re-run with --migrate-to=${target}."
+        return 1
+    fi
+
+    for dir in "${sites}" "${enabled}"; do
+        [[ -d "${dir}" ]] || continue
+        for entry in "${dir}"/*.conf; do
+            [[ -e "${entry}" ]] || continue
+            resolved=$(php_migrate_realpath "${entry}") || continue
+            [[ -f "${resolved}" ]] || continue
+            if printf '%s\n' "${seen_paths}" | grep -Fxq "${resolved}"; then
+                continue
+            fi
+            seen_paths="${seen_paths}"$'\n'"${resolved}"
+            vhosts+=("${resolved}")
+        done
+    done
+
+    if [[ "${#vhosts[@]}" -eq 0 ]]; then
+        info "No Nginx vhosts found to migrate."
+        return 0
+    fi
+
+    for vhost in "${vhosts[@]}"; do
+        tmp=$(mktemp "${TMPDIR:-/tmp}/lemper-vhost.XXXXXX") || return 1
+        : > "${tmp}"
+        vhost_changed=0
+        while IFS= read -r line || [[ -n "${line}" ]]; do
+            new_line=$(php_migrate_fastcgi_line "${line}" "${target}")
+            new_line=$(php_migrate_version_assignment "${new_line}" "${target}")
+            if [[ "${new_line}" != "${line}" ]]; then
+                vhost_changed=1
+                while IFS=$'\t' read -r branch pool; do
+                    [[ -z "${branch}" || -z "${pool}" ]] && continue
+                    if [[ "${seen_pools}" != *" ${branch}:${pool} "* ]]; then
+                        seen_pools+="${branch}:${pool} "
+                        if ! php_ensure_migrated_pool "${pool}" "${branch}" "${target}"; then
+                            rm -f "${tmp}"
+                            php_migrate_restore_manifest "${manifest}"
+                            return 1
+                        fi
+                    fi
+                done <<< "$(php_eol_socket_pairs "${line}")"
+                assigned=$(php_assigned_php_version "${line}" || true)
+                if [[ -n "${assigned}" ]] && ! php_branch_is_supported "${assigned}"; then
+                    if [[ "${seen_pools}" != *" ${assigned}:www "* ]]; then
+                        seen_pools+="${assigned}:www "
+                        if ! php_ensure_migrated_pool "www" "${assigned}" "${target}"; then
+                            rm -f "${tmp}"
+                            php_migrate_restore_manifest "${manifest}"
+                            return 1
+                        fi
+                    fi
+                fi
+            fi
+            printf '%s\n' "${new_line}" >> "${tmp}"
+        done < "${vhost}"
+        if [[ "${vhost_changed}" -eq 0 ]]; then
+            rm -f "${tmp}"
+            continue
+        fi
+        if [[ -z "${backup_dir}" ]]; then
+            stamp=$(date -u +%Y%m%dT%H%M%SZ)
+            backup_dir="${LEMPER_BACKUP_DIR}/php-migrate-${stamp}"
+            mkdir -p "${backup_dir}" || {
+                rm -f "${tmp}"
+                return 1
+            }
+            chmod 0700 "${backup_dir}" 2>/dev/null || true
+            manifest="${backup_dir}/manifest.tsv"
+            : > "${manifest}"
+            chmod 0600 "${manifest}" 2>/dev/null || true
+        fi
+        suffix=$(cksum "${vhost}" 2>/dev/null | awk '{print $1}')
+        [[ -z "${suffix}" ]] && suffix="${RANDOM}"
+        backup_file="${backup_dir}/$(basename "${vhost}").${suffix}"
+        if ! cp -a "${vhost}" "${backup_file}"; then
+            rm -f "${tmp}"
+            php_migrate_restore_manifest "${manifest}"
+            return 1
+        fi
+        if ! cat "${tmp}" > "${vhost}"; then
+            rm -f "${tmp}"
+            php_migrate_restore_manifest "${manifest}"
+            return 1
+        fi
+        rm -f "${tmp}"
+        printf '%s\t%s\n' "${backup_file}" "${vhost}" >> "${manifest}"
+        info "Migrated EOL PHP handlers in ${vhost} to PHP ${target}."
+    done
+
+    if [[ -z "${backup_dir}" ]]; then
+        info "No EOL PHP sockets found in Nginx vhosts."
+        return 0
+    fi
+
+    # Unit tests point the sites directory at a fixture. Only a real
+    # sites-available tree is allowed to invoke the local nginx binary.
+    if [[ "${sites}" == "/etc/nginx/sites-available" ]] && command -v nginx >/dev/null 2>&1; then
+        if ! nginx -t; then
+            error "nginx configuration test failed; restoring vhosts."
+            php_migrate_restore_manifest "${manifest}"
+            return 1
+        fi
+        systemctl try-reload-or-restart "php${target}-fpm" 2>/dev/null || \
+            warning "PHP ${target} FPM pool files were written; reload php${target}-fpm manually."
+        if systemctl reload nginx 2>/dev/null; then
+            success "Nginx reloaded with PHP ${target} handlers."
+        else
+            warning "Vhosts now use PHP ${target}; reload Nginx manually."
+        fi
+    fi
+
+    success "EOL vhosts now use PHP ${target}. Previous vhosts: ${backup_dir}."
+    warning "The old PHP packages and pools are still installed. Stop those FPM services after the sites answer on PHP ${target}."
+}
+
+##
+# Patch supported PHP branches and mitigate or migrate EOL branches.
 ##
 function update_php() {
     local branches branch installed state fixed rc=0
+    local -a eol_branches=()
+    local migrate=0
+
+    if [[ -n "${PHP_MIGRATE_TO:-}" ]]; then
+        if [[ ! "${PHP_MIGRATE_TO}" =~ ^[0-9]+\.[0-9]+$ ]] || ! php_branch_is_supported "${PHP_MIGRATE_TO}"; then
+            error "PHP ${PHP_MIGRATE_TO} is not a supported migration target. Choose 8.2, 8.3, 8.4, or 8.5."
+            return 1
+        fi
+        migrate=1
+    fi
 
     branches=$(php_installed_branches)
     if [[ -z "${branches}" ]]; then
+        if [[ "${migrate}" -eq 1 ]]; then
+            php_migrate_eol_sites "${PHP_MIGRATE_TO}" || return 1
+            return 0
+        fi
         info "No PHP installation detected."
         return 0
     fi
@@ -427,10 +848,15 @@ function update_php() {
                 php_patch_branch "${branch}" "${fixed}" || rc=1
                 ;;
             eol)
-                warning "PHP ${branch} is EOL and has no vendor patch for PHP2Shell."
-                php_mitigate_branch "${branch}" || rc=1
-                warning "PHP ${branch} remains exploitable; migrate its pools to PHP 8.2 or newer."
-                rc=1
+                eol_branches+=("${branch}")
+                if [[ "${migrate}" -eq 0 ]]; then
+                    warning "PHP ${branch} is EOL and has no vendor patch for PHP2Shell."
+                    php_mitigate_branch "${branch}" || rc=1
+                    warning "PHP ${branch} remains exploitable. Re-run 'update php --migrate-to=8.3' (or 8.2, 8.4, 8.5) to move its vhosts."
+                    rc=1
+                else
+                    warning "PHP ${branch} is EOL. Vhosts that use it will move to PHP ${PHP_MIGRATE_TO}."
+                fi
                 ;;
             *)
                 warning "Unable to determine the PHP ${branch} version."
@@ -438,6 +864,18 @@ function update_php() {
                 ;;
         esac
     done <<< "${branches}"
+
+    if [[ "${migrate}" -eq 1 ]]; then
+        if php_migrate_eol_sites "${PHP_MIGRATE_TO}"; then
+            for branch in "${eol_branches[@]}"; do
+                [[ -z "${branch}" ]] && continue
+                php_mitigate_branch "${branch}" || rc=1
+                warning "PHP ${branch} is still installed. Stop php${branch}-fpm after the migrated sites are checked."
+            done
+        else
+            rc=1
+        fi
+    fi
 
     return "${rc}"
 }
@@ -1327,7 +1765,9 @@ Usage: ${CMD_PARENT} ${CMD_NAME} [command] [options]
 Commands:
   check                 Audit installed PHP, nginx, MariaDB, and updater state.
                         Exit 0 only when every PHP branch is patched.
-  php                   Patch PHP-FPM packages; mitigate EOL branches.
+  php                   Patch PHP-FPM packages. With --migrate-to=VERSION,
+                        move EOL vhosts onto that PHP and create missing
+                        FPM pools. Without it, mitigate EOL pools.
   nginx                 Upgrade package-managed nginx from the MyGuard
                         nginx-only repository and reload it. Retired Ondřej
                         nginx sources are disabled first. The Ondřej PHP
@@ -1339,6 +1779,11 @@ Commands:
 
 Options:
   -y, --yes             Accepted for unattended use (restarts are automatic).
+  --migrate-to=VERSION  Move every EOL vhost to this PHP (8.2, 8.3, 8.4, or
+                        8.5). The same switch is --force=VERSION. The target
+                        PHP must already be installed. Old packages and pools
+                        are left in place. Applies to update php and the php
+                        step of update all.
   --source-dir=PATH     LEMPer checkout used for CLI/plugin refresh.
   --post-max-size=SIZE  post_max_size for EOL mitigations (default: 32M).
   -h, --help            Show this help.
@@ -1355,17 +1800,23 @@ Nginx repository:
 EOL mitigations (admin-locked per pool):
   memory_limit=-1, post_max_size=32M, session.upload_progress.enabled=0,
   and fatal_error_backtraces=0 on PHP 8.5. These are compensating controls,
-  not a fix; migrate to PHP 8.2.35+, 8.3.36+, 8.4.27+, or 8.5.12+.
+  not a fix. Move the sites with:
+    ${CMD_PARENT} ${CMD_NAME} php --migrate-to=8.3
+  --force=8.3 is the same switch. A bare --force is rejected because the
+  destination has to be explicit. Only EOL sockets and EOL
+  \`set \$php_version\` lines change. Supported sockets stay. Each pool user
+  is taken from the socket name (phpX.Y-fpm.USER.sock); a bare socket or a
+  \`set \$php_version\` line uses the www pool. The destination pool is copied
+  from the EOL pool when that file exists, and is created otherwise.
+  Nginx is tested before it is reloaded. The previous vhosts are kept under
+  ${LEMPER_BACKUP_DIR}/php-migrate-<UTC>/.
 LEMPER_HELP
 }
 
 ##
-# Entry point.
+# Parse updater options. The destination version is required for a migration.
 ##
-function init_lemper_update() {
-    local subcommand="${1:-all}"
-    [[ $# -gt 0 ]] && shift
-
+function update_parse_args() {
     while [[ $# -gt 0 ]]; do
         case "${1}" in
             -y | --yes)
@@ -1380,21 +1831,54 @@ function init_lemper_update() {
                 PHP2SHELL_POST_MAX="${1#*=}"
                 shift
                 ;;
+            --migrate-to=* | --force=*)
+                PHP_MIGRATE_TO="${1#*=}"
+                if [[ -z "${PHP_MIGRATE_TO}" ]]; then
+                    error "A destination version is required. Use --migrate-to=8.3 or --force=8.3."
+                    return 1
+                fi
+                shift
+                ;;
+            --migrate-to)
+                if [[ $# -lt 2 || -z "${2}" || "${2}" == -* ]]; then
+                    error "A destination version is required. Use --migrate-to=8.3 or --force=8.3."
+                    return 1
+                fi
+                PHP_MIGRATE_TO="${2}"
+                shift 2
+                ;;
+            --force)
+                error "A destination version is required. Use --migrate-to=8.3 or --force=8.3."
+                return 1
+                ;;
             -h | --help)
-                subcommand="help"
+                UPDATE_REQUESTED_SUBCOMMAND="help"
                 shift
                 ;;
             -v | --version)
-                subcommand="version"
+                UPDATE_REQUESTED_SUBCOMMAND="version"
                 shift
                 ;;
             *)
                 error "Unknown option: ${1}"
                 update_help
-                exit 1
+                return 1
                 ;;
         esac
     done
+}
+
+##
+# Entry point.
+##
+function init_lemper_update() {
+    local subcommand="${1:-all}"
+    [[ $# -gt 0 ]] && shift
+
+    update_parse_args "$@" || exit 1
+    if [[ -n "${UPDATE_REQUESTED_SUBCOMMAND}" ]]; then
+        subcommand="${UPDATE_REQUESTED_SUBCOMMAND}"
+    fi
 
     if [[ ! "${PHP2SHELL_POST_MAX}" =~ ^[0-9]+[KMG]$ ]]; then
         fail "Invalid --post-max-size '${PHP2SHELL_POST_MAX}' (use e.g. 8M or 32M)."
