@@ -3,17 +3,19 @@ on:
   push:
     branches:
       - '2.x.x'
+      - '3.x.x'
       - 'master'
   pull_request:
     branches: 
       - '2.x.x'
+      - '3.x.x'
       - 'master'
   workflow_dispatch:
 jobs:
   ubuntu-latest:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
       # Prepare testing environment
       - name: Prepare testing environment
         run: |
@@ -28,9 +30,7 @@ jobs:
           sed -i "s/FORCE_REMOVE=false/FORCE_REMOVE=true/g" .env
           sed -i "s/LEMPER_ADMIN_EMAIL=\"mail@example.com\"/LEMPER_ADMIN_EMAIL=\"me@masedi.net\"/g" .env
           sed -i "s/NGINX_INSTALLER=\"source\"/NGINX_INSTALLER=\"repo\"/g" .env
-          sed -i "s/NGX_PAGESPEED=true/NGX_PAGESPEED=false/g" .env
           sed -i "s/INSTALL_PHP_LOADER=false/INSTALL_PHP_LOADER=true/g" .env
-          sed -i "s/PHP_LOADER=\"none\"/PHP_LOADER=\"ioncube\"/g" .env
           sed -i "s/IMAGEMAGICK_INSTALLER=\"source\"/IMAGEMAGICK_INSTALLER=\"repo\"/g" .env
           sed -i "s/INSTALL_POSTGRES=false/INSTALL_POSTGRES=true/g" .env
           sed -i "s/INSTALL_MEMCACHED=false/INSTALL_MEMCACHED=true/g" .env
@@ -40,17 +40,28 @@ jobs:
           sed -i "s/INSTALL_SPFDKIM=true/INSTALL_SPFDKIM=false/g" .env
           sed -i "s/SENDER_DOMAIN=\"example.com\"/SENDER_DOMAIN=\"lemper.test\"/g" .env
           sed -i "s/INSTALL_FAIL2BAN=false/INSTALL_FAIL2BAN=true/g" .env
+          sed -i "s/REDIS_BACKEND=\"redis\"/REDIS_BACKEND=\"valkey\"/g" .env
+          sed -i "s/INSTALL_CROWDSEC=false/INSTALL_CROWDSEC=true/g" .env
+          sed -i "s/ACME_WILDCARD=false/ACME_WILDCARD=true/g" .env
+          sed -i "s/ACME_DNS_PROVIDER=\"cloudflare\"/ACME_DNS_PROVIDER=\"cloudflare\"/g" .env
+          sed -i "s/INSTALL_MODSEC=false/INSTALL_MODSEC=true/g" .env
+          sed -i "s/ENCRYPT_CONFIG_AT_REST=false/ENCRYPT_CONFIG_AT_REST=true/g" .env
+          sed -i "s/^INSTALL_FTP_SERVER=.*/INSTALL_FTP_SERVER=true/g" .env
+          sed -i "s/^FTP_SERVER_INSTALLER=.*/FTP_SERVER_INSTALLER=\"repo\"/g" .env
+          sed -i "s/^FTP_SERVER_NAME=.*/FTP_SERVER_NAME=\"pureftpd\"/g" .env
+          sed -i "s/^FTP_SSL_ENABLE=.*/FTP_SSL_ENABLE=true/g" .env
       # Install Dependencies
       - name: Install testing dependencies
         run: |
           set -ex
           sudo apt-get update -q -y
-          sudo apt-get install -q -y bash curl
+          sudo apt-get install -q -y bash curl python3-pip
+          sudo pip3 install --break-system-packages bashate 2>/dev/null || sudo pip3 install bashate
           sudo curl -sSL -o /usr/local/bin/shunit2 https://raw.githubusercontent.com/kward/shunit2/master/shunit2
           sudo chmod +x /usr/local/bin/shunit2
-          sudo curl -sSLO https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz
-          sudo tar -xf shellcheck-v0.10.0.linux.x86_64.tar.xz
-          sudo mv shellcheck-v0.10.0/shellcheck /usr/local/bin/
+          sudo curl -sSLO https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz
+          sudo tar -xf shellcheck-v0.11.0.linux.x86_64.tar.xz
+          sudo mv shellcheck-v0.11.0/shellcheck /usr/local/bin/
           sudo chmod +x /usr/local/bin/shellcheck
       # Shellcheck Tests
       - name: Run shellcheck testing
@@ -61,12 +72,38 @@ jobs:
           shellcheck -s bash -x lemper.sh
           shellcheck -s bash -x install.sh
           shellcheck -s bash -x remove.sh
+          shellcheck -s bash -x update.sh
           shellcheck -s bash -x bin/lemper-*.sh
           shellcheck -s bash -x lib/lemper-*.sh
+          shellcheck -s bash -x lib/core/lemper-stacks.sh
           shellcheck -s bash -x scripts/utils.sh
           shellcheck -s bash -x scripts/server_*.sh
           shellcheck -s bash -x scripts/install_*.sh
           shellcheck -s bash -x scripts/remove_*.sh
+          shellcheck -s bash -x scripts/nginx/*.sh
+      # Bashate Linting
+      - name: Run bashate linting
+        env:
+          TERM: xterm-256color
+        run: |
+          set -ex
+          bashate --ignore E001,E002,E003,E006,E010,E011,E012,E020,E042,E043,E044,E045 --max-line-length 120 \
+            install.sh remove.sh update.sh lemper.sh \
+            bin/lemper-cli.sh \
+            lib/lemper-*.sh lib/core/lemper-stacks.sh \
+            scripts/*.sh scripts/nginx/*.sh
+      # Install bats-core for integration testing
+      - name: Install bats-core
+        run: |
+          set -ex
+          sudo apt-get install -y -q bats
+      # Bats Integration Tests
+      - name: Run bats integration tests
+        env:
+          TERM: xterm-256color
+        run: |
+          set -ex
+          bats tests/ tests/unit/
       # Simple Unit Tests
       - name: Run unit testing
         env:
@@ -76,3 +113,164 @@ jobs:
           sudo bash scripts/server_cleanup.sh
           sudo bash scripts/install_dependencies.sh
           sudo bash shunit2/run_test.sh
+      # FTP server install verification (issue #135)
+      - name: Verify FTP server installation
+        run: |
+          set -ex
+          systemctl is-active --quiet pure-ftpd
+          systemctl is-enabled --quiet pure-ftpd
+          sudo ss -ltn | grep -q ':21 '
+          getent passwd ftp
+          sudo grep -qx 'STANDALONE_OR_INETD=standalone' /etc/default/pure-ftpd-common
+          sudo grep -qx '2' /etc/pure-ftpd/conf/TLS
+          sudo test -f /etc/pure-ftpd/conf/PassivePortRange
+          sudo test -L /etc/pure-ftpd/auth/65unix
+          sudo test -L /etc/pure-ftpd/auth/70pam
+          sudo test -s /etc/ssl/private/pure-ftpd.pem
+          sudo grep -q 'BEGIN CERTIFICATE' /etc/ssl/private/pure-ftpd.pem
+          sudo grep -q 'PRIVATE KEY' /etc/ssl/private/pure-ftpd.pem
+  ftp-source:
+    name: ftp-source (${{ matrix.server }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+          - ubuntu-24.04
+        server:
+          - pureftpd
+          - vsftpd
+        include:
+          - server: pureftpd
+            installer: scripts/install_pureftpd.sh
+            service: pure-ftpd
+          - server: vsftpd
+            installer: scripts/install_vsftpd.sh
+            service: vsftpd
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare FTP testing environment
+        run: |
+          set -ex
+          cp .env.dist .env
+          sed -i 's/ENVIRONMENT="production"/ENVIRONMENT="development"/g' .env
+          sed -i 's/SERVER_HOSTNAME=""/SERVER_HOSTNAME="gh-ci.lemper.cloud"/g' .env
+          sed -i 's/SERVER_IP=""/SERVER_IP="127.0.0.1"/g' .env
+          sed -i 's/AUTO_INSTALL=false/AUTO_INSTALL=true/g' .env
+          sed -i 's/^INSTALL_FTP_SERVER=.*/INSTALL_FTP_SERVER=true/' .env
+          sed -i 's/^FTP_SERVER_INSTALLER=.*/FTP_SERVER_INSTALLER="source"/' .env
+          sed -i "s/^FTP_SERVER_NAME=.*/FTP_SERVER_NAME=\"${{ matrix.server }}\"/" .env
+          sed -i 's/^FTP_SERVER_VERSION=.*/FTP_SERVER_VERSION="latest"/' .env
+          sed -i 's/^FTP_SSL_ENABLE=.*/FTP_SSL_ENABLE=true/' .env
+          sed -i 's/^FTP_PASV_MODE=.*/FTP_PASV_MODE=true/' .env
+          grep -E '^(INSTALL_FTP_SERVER|FTP_SERVER_|FTP_SSL_ENABLE|FTP_PASV_MODE)' .env
+          sudo apt-get update -q
+      - name: Install FTP server from source
+        run: |
+          set -ex
+          sudo bash "${{ matrix.installer }}"
+      - name: Verify FTP service
+        run: |
+          set -ex
+          systemctl is-active --quiet "${{ matrix.service }}"
+          systemctl is-enabled --quiet "${{ matrix.service }}"
+          sudo ss -ltn | grep -q ':21 '
+      - name: Verify Pure-FTPd source build (issue #135)
+        if: matrix.server == 'pureftpd'
+        run: |
+          set -ex
+          sudo pure-ftpd -h | grep -q 'v1\.0\.54'
+          test -x /usr/sbin/pure-ftpd-wrapper
+          # A source install must not come from the Debian package.
+          ! dpkg-query -W -f='${Status}' pure-ftpd 2>/dev/null | grep -q 'install ok installed'
+          getent passwd ftp
+          sudo test -s /etc/ssl/private/pure-ftpd.pem
+          sudo grep -q 'BEGIN CERTIFICATE' /etc/ssl/private/pure-ftpd.pem
+          sudo grep -q 'PRIVATE KEY' /etc/ssl/private/pure-ftpd.pem
+          sudo grep -qx '2' /etc/pure-ftpd/conf/TLS
+          sudo test -f /etc/pure-ftpd/conf/PassivePortRange
+          sudo test -L /etc/pure-ftpd/auth/65unix
+          sudo test -L /etc/pure-ftpd/auth/70pam
+          sudo /usr/sbin/pure-ftpd-wrapper --show-options | grep -q -- '-Y 2'
+      - name: Verify vsftpd source build (issue #146)
+        if: matrix.server == 'vsftpd'
+        run: |
+          set -ex
+          vsftpd -v
+          sudo grep -qx 'ssl_enable=YES' /etc/vsftpd.conf
+          sudo grep -qx 'ssl_tlsv12=YES' /etc/vsftpd.conf
+          sudo grep -qx 'ssl_tlsv13=YES' /etc/vsftpd.conf
+          sudo grep -q '^ssl_ciphers=' /etc/vsftpd.conf
+          cert_file=$(sudo awk -F= '/^rsa_cert_file=/{print $2}' /etc/vsftpd.conf)
+          key_file=$(sudo awk -F= '/^rsa_private_key_file=/{print $2}' /etc/vsftpd.conf)
+          sudo test -s "${cert_file}"
+          sudo test -s "${key_file}"
+          sudo grep -q 'BEGIN CERTIFICATE' "${cert_file}"
+          sudo grep -q 'PRIVATE KEY' "${key_file}"
+      - name: Re-run installer to reconcile configuration
+        run: |
+          set -ex
+          sudo bash "${{ matrix.installer }}"
+          systemctl is-active --quiet "${{ matrix.service }}"
+  debian-12:
+    runs-on: ubuntu-24.04
+    container:
+      image: debian:12
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare testing environment
+        run: |
+          cp .env.dist .env
+          sed -i 's/FIX_BROKEN_INSTALL=false/FIX_BROKEN_INSTALL=true/g' .env
+          sed -i 's/ENVIRONMENT="production"/ENVIRONMENT="development"/g' .env
+          sed -i 's/SERVER_HOSTNAME=""/SERVER_HOSTNAME="gh-ci.lemper.cloud"/g' .env
+          sed -i 's/SERVER_IP=""/SERVER_IP="127.0.0.1"/g' .env
+          sed -i 's/AUTO_INSTALL=false/AUTO_INSTALL=true/g' .env
+          sed -i 's/FORCE_INSTALL=false/FORCE_INSTALL=true/g' .env
+          sed -i 's/AUTO_REMOVE=false/AUTO_REMOVE=true/g' .env
+          sed -i 's/FORCE_REMOVE=false/FORCE_REMOVE=true/g' .env
+          sed -i 's/LEMPER_ADMIN_EMAIL="mail@example.com"/LEMPER_ADMIN_EMAIL="me@masedi.net"/g' .env
+          sed -i 's/NGINX_INSTALLER="source"/NGINX_INSTALLER="repo"/g' .env
+          sed -i 's/INSTALL_PHP_LOADER=false/INSTALL_PHP_LOADER=true/g' .env
+          sed -i 's/IMAGEMAGICK_INSTALLER="source"/IMAGEMAGICK_INSTALLER="repo"/g' .env
+          sed -i 's/INSTALL_POSTGRES=false/INSTALL_POSTGRES=false/g' .env
+          sed -i 's/INSTALL_MONGODB=false/INSTALL_MONGODB=false/g' .env
+          sed -i 's/INSTALL_REDIS=false/INSTALL_REDIS=false/g' .env
+          sed -i 's/INSTALL_MAILER=true/INSTALL_MAILER=false/g' .env
+          sed -i 's/INSTALL_SPFDKIM=true/INSTALL_SPFDKIM=false/g' .env
+          sed -i 's/INSTALL_FAIL2BAN=false/INSTALL_FAIL2BAN=true/g' .env
+          sed -i 's/REDIS_BACKEND="redis"/REDIS_BACKEND="redis"/g' .env
+          sed -i 's/INSTALL_CROWDSEC=false/INSTALL_CROWDSEC=false/g' .env
+          sed -i 's/ACME_WILDCARD=false/ACME_WILDCARD=false/g' .env
+          sed -i 's/INSTALL_MODSEC=false/INSTALL_MODSEC=false/g' .env
+          sed -i 's/ENCRYPT_CONFIG_AT_REST=false/ENCRYPT_CONFIG_AT_REST=false/g' .env
+      - name: Install testing dependencies
+        run: |
+          set -ex
+          apt-get update -q -y
+          apt-get install -q -y bash curl shellcheck bats
+      - name: Run ShellCheck
+        env:
+          TERM: xterm-256color
+        run: |
+          set -ex
+          shellcheck -s bash -x lemper.sh
+          shellcheck -s bash -x install.sh
+          shellcheck -s bash -x remove.sh
+          shellcheck -s bash -x update.sh
+          shellcheck -s bash -x bin/lemper-*.sh
+          shellcheck -s bash -x lib/lemper-*.sh
+          shellcheck -s bash -x lib/core/lemper-stacks.sh
+          shellcheck -s bash -x scripts/utils.sh
+          shellcheck -s bash -x scripts/server_*.sh
+          shellcheck -s bash -x scripts/install_*.sh
+          shellcheck -s bash -x scripts/remove_*.sh
+          shellcheck -s bash -x scripts/nginx/*.sh
+          shellcheck -s bash -x scripts/test_podman.sh
+      - name: Run bats tests
+        env:
+          TERM: xterm-256color
+        run: |
+          set -ex
+          bats tests/ tests/unit/

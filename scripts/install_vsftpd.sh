@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 
-# VSFTPD Installer
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 12/02/2022
-# Author            : MasEDI.Net (me@masedi.net)
-# Since Version     : 1.0.0
+# +-------------------------------------------------------------------------+
+# | VSFTPD Installer                                                        |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellcheck disable=SC1091
-    . "${BASE_DIR}/utils.sh"
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
+    cd "${BASE_DIR}" || { echo "Cannot enter ${BASE_DIR}."; exit 1; }
+    # shellcheck source=scripts/utils.sh
+    . "${BASE_DIR}/scripts/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -69,45 +78,78 @@ EOL
 
         # Enable passv mode.
         if [[ "${FTP_PASV_MODE}" == true ]]; then
-            run sed -i 's/pasv_enable=NO/pasv_enable=YES/g' /etc/vsftpd.conf
-            run sed -i 's/\#pasv_min_port/pasv_min_port/g' /etc/vsftpd.conf
-            run sed -i 's/\#pasv_max_port/pasv_max_port/g' /etc/vsftpd.conf
+            sed_inplace 's/pasv_enable=NO/pasv_enable=YES/g' /etc/vsftpd.conf
+            sed_inplace 's/\#pasv_min_port/pasv_min_port/g' /etc/vsftpd.conf
+            sed_inplace 's/\#pasv_max_port/pasv_max_port/g' /etc/vsftpd.conf
 
             # If using elastic IP (such as AWS EC2), set the server IP.
             if [[ "${ENVIRONMENT}" == prod* && "${SERVER_IP}" != "$(get_ip_private)" ]]; then
-                run sed -i "s|^#pasv_address=.*|pasv_address=${SERVER_IP}|g" /etc/vsftpd.conf
-                run sed -i "s|^#pasv_addr_resolve=.*|pasv_addr_resolve=YES|g" /etc/vsftpd.conf
+                sed_inplace "s|^#pasv_address=.*|pasv_address=${SERVER_IP}|g" /etc/vsftpd.conf
+                sed_inplace "s|^#pasv_addr_resolve=.*|pasv_addr_resolve=YES|g" /etc/vsftpd.conf
             fi
         fi
 
         # Enable SSL.
         if [[ "${FTP_SSL_ENABLE}" == true ]]; then
-            # Certificate files.
-            if [[ -n "${HOSTNAME_CERT_PATH}" && -f "${HOSTNAME_CERT_PATH}/fullchain.pem" ]]; then
-                RSA_CERT_FILE="${HOSTNAME_CERT_PATH}/fullchain.pem"
-                RSA_KEY_FILE="${HOSTNAME_CERT_PATH}/privkey.pem"
-            elif [[ -f "/etc/lemper/ssl/${HOSTNAME}/cert.pem" ]]; then
-                RSA_CERT_FILE="/etc/lemper/ssl/${HOSTNAME}/cert.pem"
-                RSA_KEY_FILE="/etc/lemper/ssl/${HOSTNAME}/privkey.pem"
-            else
-                RSA_CERT_FILE="/etc/ssl/certs/ssl-cert-snakeoil.pem"
-                RSA_KEY_FILE="/etc/ssl/private/ssl-cert-snakeoil.key"
+            local cert_file="" key_file=""
+
+            if [[ -n "${HOSTNAME_CERT_PATH}" && -f "${HOSTNAME_CERT_PATH}/fullchain.pem" \
+                && -f "${HOSTNAME_CERT_PATH}/privkey.pem" ]]; then
+                cert_file="${HOSTNAME_CERT_PATH}/fullchain.pem"
+                key_file="${HOSTNAME_CERT_PATH}/privkey.pem"
+            elif [[ -n "${HOSTNAME}" && -f "/etc/letsencrypt/live/${HOSTNAME}/fullchain.pem" \
+                && -f "/etc/letsencrypt/live/${HOSTNAME}/privkey.pem" ]]; then
+                cert_file="/etc/letsencrypt/live/${HOSTNAME}/fullchain.pem"
+                key_file="/etc/letsencrypt/live/${HOSTNAME}/privkey.pem"
+            elif [[ -n "${HOSTNAME}" && -f "/etc/lemper/ssl/${HOSTNAME}/fullchain.pem" \
+                && -f "/etc/lemper/ssl/${HOSTNAME}/privkey.pem" ]]; then
+                cert_file="/etc/lemper/ssl/${HOSTNAME}/fullchain.pem"
+                key_file="/etc/lemper/ssl/${HOSTNAME}/privkey.pem"
+            elif [[ -f /etc/ssl/certs/ssl-cert-snakeoil.pem \
+                && -f /etc/ssl/private/ssl-cert-snakeoil.key ]]; then
+                cert_file="/etc/ssl/certs/ssl-cert-snakeoil.pem"
+                key_file="/etc/ssl/private/ssl-cert-snakeoil.key"
+            fi
+
+            if [[ -z "${cert_file}" || -z "${key_file}" ]]; then
+                warning "No TLS certificate found for VSFTPD, generating a self-signed one."
+
+                local key_length="${KEY_HASH_LENGTH:-2048}"
+                local common_name="${HOSTNAME:-$(hostname)}"
+
+                if [ ! -d /etc/ssl/private ]; then
+                    run install -d -m 0700 -o root -g root /etc/ssl/private
+                fi
+                run openssl req -x509 -nodes -newkey "rsa:${key_length}" -sha256 -days 3650 \
+                    -subj "/CN=${common_name}" \
+                    -keyout /etc/ssl/private/vsftpd.key \
+                    -out /etc/ssl/private/vsftpd.crt
+                run bash -c "cat /etc/ssl/private/vsftpd.crt /etc/ssl/private/vsftpd.key \
+                    > /etc/ssl/private/vsftpd-selfsigned.pem"
+                run rm -f /etc/ssl/private/vsftpd.key /etc/ssl/private/vsftpd.crt
+                run chmod 0600 /etc/ssl/private/vsftpd-selfsigned.pem
+
+                cert_file="/etc/ssl/private/vsftpd-selfsigned.pem"
+                key_file="${cert_file}"
             fi
 
             cat >> /etc/vsftpd.conf <<EOL
 
 ssl_enable=YES
+ssl_tlsv1=NO
+ssl_tlsv11=NO
+ssl_tlsv12=YES
+ssl_tlsv13=YES
+ssl_sslv2=NO
+ssl_sslv3=NO
+ssl_ciphers=HIGH:!aNULL:!MD5
 require_ssl_reuse=NO
 allow_anon_ssl=NO
 force_local_data_ssl=YES
 force_local_logins_ssl=YES
-ssl_tlsv1=YES
-ssl_sslv2=NO
-ssl_sslv3=NO
-ssl_ciphers=HIGH
 
-rsa_cert_file=${RSA_CERT_FILE}
-rsa_private_key_file=${RSA_KEY_FILE}
+rsa_cert_file=${cert_file}
+rsa_private_key_file=${key_file}
 EOL
         fi
 
@@ -161,7 +203,10 @@ EOL
 
         LEMPER_USERNAME=${LEMPER_USERNAME:-lemper}
         run touch /etc/vsftpd.userlist
-        run bash -c "echo '${LEMPER_USERNAME}' | tee -a /etc/vsftpd.userlist"
+
+        if ! grep -qx "${LEMPER_USERNAME}" /etc/vsftpd.userlist 2>/dev/null; then
+            run bash -c "echo '${LEMPER_USERNAME}' >> /etc/vsftpd.userlist"
+        fi
 
         # Add systemd service.
         [[ ! -f /lib/systemd/system/vsftpd.service ]] && \
@@ -174,7 +219,19 @@ EOL
 
         run systemctl unmask vsftpd
         run systemctl daemon-reload
+        run systemctl enable vsftpd
         run systemctl restart vsftpd
+
+        sleep 1
+
+        if ! systemctl is-active --quiet vsftpd; then
+            error "FTP server (VSFTPD) failed to start."
+            systemctl --no-pager --lines=15 status vsftpd || true
+            journalctl -u vsftpd -n 15 --no-pager || true
+            return 1
+        fi
+
+        success "FTP server (VSFTPD) is running."
     fi
 }
 
@@ -197,11 +254,6 @@ function init_vsftpd_install() {
         done
     fi
 
-    # Fallback installer to repo due to OpenSSL 3 compatibility issue.
-    if [[ "${RELEASE_NAME}" == "jammy" || "${RELEASE_NAME}" == "jammy" ]]; then
-        SELECTED_INSTALLER="repo"
-    fi
-
     if [[ ${DO_INSTALL_FTP_SERVER} == y* || ${DO_INSTALL_FTP_SERVER} == Y* ]]; then
         echo "Available VSFTPD installation method:"
         echo "  1). Install from Repository (repo)"
@@ -216,49 +268,20 @@ function init_vsftpd_install() {
         case "${SELECTED_INSTALLER}" in
             1 | repo)
                 echo "Installing FTP server (VSFTPD) from repository..."
-                run apt-get install -q -y vsftpd
+                run env DEBIAN_FRONTEND=noninteractive apt-get install -q -y vsftpd
                 configure_vsftpd
             ;;
             2 | source)
                 echo "Installing FTP server (VSFTPD) from source..."
 
-                # Install libraries.
-                case "${DISTRIB_NAME}" in
-                    debian)
-                        case "${RELEASE_NAME}" in
-                            stretch)
-                                run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
-                                    libcap-dev libcap2 libtirpc-dev libtirpc1 libmbedtls-dev
-                            ;;
-                            buster | bullseye | bookworm)
-                                run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
-                                    libcap-dev libcap2 libtirpc-common libtirpc-dev libtirpc3 libmbedtls-dev
-                            ;;
-                            *)
-                                fail "Unsupported Debian release: ${RELEASE_NAME^}."
-                            ;;
-                        esac
+                # Install build dependencies for the supported releases.
+                case "${DISTRIB_NAME}/${RELEASE_NAME}" in
+                    debian/bullseye | debian/bookworm | ubuntu/jammy | ubuntu/noble)
+                        run env DEBIAN_FRONTEND=noninteractive apt-get install -q -y \
+                            build-essential libssl-dev libpam0g-dev libcap-dev
                     ;;
-                    ubuntu)
-                        case "${RELEASE_NAME}" in
-                            bionic)
-                                run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
-                                    libcap-dev libcap2 libtirpc-dev libtirpc1 libmbedtls-dev
-                            ;;
-                            focal | jammy)
-                                run apt-get install -q -y libpam0g libpam0g-dev libcapi20-3 libcapi20-dev \
-                                    libcap-dev libcap2 libtirpc-common libtirpc-dev libtirpc3 libmbedtls-dev
-                            ;;
-                            *)
-                                fail "Unsupported Ubuntu release: ${RELEASE_NAME^}."
-                            ;;
-                        esac
-                    ;;
-                    #centos | rocky*)
-                    #    run dnf install -q -y pam pam_cap libcap libcap-devel pam-devel libcap-devel libtirpc-devel
-                    #;;
                     *)
-                        fail "Unsupported OS distribution: ${DISTRIB_NAME^}."
+                        fail "Unsupported OS distribution: ${DISTRIB_NAME^} ${RELEASE_NAME^}."
                     ;;
                 esac
 
@@ -283,6 +306,12 @@ function init_vsftpd_install() {
                     else
                         echo "Cannot find libcap.so file."
                     fi
+                fi
+
+                # vsf_findlibs.sh only probes /usr/lib and /usr/lib64 for
+                # libpam, which misses the multiarch directory on arm64.
+                if [ ! -f /usr/lib/libpam.so ] && [ -f "${LIB_GNU_DIR}/libpam.so" ]; then
+                    run ln -s "${LIB_GNU_DIR}/libpam.so" /usr/lib/libpam.so
                 fi
 
                 local CURRENT_DIR && \
@@ -316,8 +345,13 @@ function init_vsftpd_install() {
 
                     # If SSL Enabled, modify the builddefs.h file.
                     if [[ "${FTP_SSL_ENABLE}" == true ]]; then
-                        run sed -i 's/\#undef\ VSF_BUILD_SSL/\#define\ VSF_BUILD_SSL/g' ./builddefs.h
+                        sed_inplace 's/\#undef\ VSF_BUILD_SSL/\#define\ VSF_BUILD_SSL/g' ./builddefs.h
                     fi
+
+                    # vsftpd 3.0.5 still calls APIs that OpenSSL 3 deprecates.
+                    # Its Makefile builds with -Werror, so keep -Werror for every
+                    # other warning but let deprecation warnings through.
+                    sed_inplace 's/-Werror/-Werror -Wno-error=deprecated-declarations/' Makefile
 
                     # Fix error install: cannot create regular file.
                     run mkdir -p /usr/local/man/man8 && \
@@ -342,11 +376,8 @@ function init_vsftpd_install() {
         esac
 
         if [[ "${DRYRUN}" != true ]]; then
-            if [[ $(pgrep -c vsftpd) -gt 0 ]]; then
-                run systemctl enable vsftpd
-                success "FTP server (VSFTPD) started successfully."
-            else
-                info "Something went wrong with FTP server installation."
+            if ! systemctl is-active --quiet vsftpd; then
+                error "FTP server (VSFTPD) is not running after installation."
             fi
         else
             info "FTP server (VSFTPD) installed in dry run mode."
@@ -361,7 +392,14 @@ echo "[FTP Server (VSFTPD) Installation]"
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v vsftpd) && "${FORCE_INSTALL}" != true ]]; then
-    info "FTP Server (VSFTPD) already exists, installation skipped."
+    if [[ "${INSTALL_FTP_SERVER}" == true ]]; then
+        # Re-apply configuration so existing installs pick up the service and
+        # TLS changes instead of staying on their old settings.
+        info "FTP Server (VSFTPD) already exists, re-applying configuration."
+        configure_vsftpd
+    else
+        info "FTP Server (VSFTPD) already exists, installation skipped."
+    fi
 else
     init_vsftpd_install "$@"
 fi

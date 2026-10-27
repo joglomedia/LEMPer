@@ -1,16 +1,28 @@
 #!/usr/bin/env bash
 
-# Nginx HTTP Server Installer
-# Part of LEMPer Stack - https://github.com/joglomedia/LEMPer
-# Author: MasEDI.Net (me@masedi.net)
-# Since Version: 1.0.0
-# Refactored: 2.x.x - Modular architecture
+# +-------------------------------------------------------------------------+
+# | Nginx HTTP Server Installer                                             |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Include helper functions
 if [[ "$(type -t run)" != "function" ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
+    cd "${BASE_DIR}" || { echo "Cannot enter ${BASE_DIR}."; exit 1; }
     # shellcheck source=scripts/utils.sh
-    . "${BASE_DIR}/utils.sh"
+    . "${BASE_DIR}/scripts/utils.sh"
+
+    # Make sure only supported distribution can run this installer script.
+    preflight_system_check
 fi
 
 # Must be root to run this script
@@ -20,30 +32,34 @@ requires_root "$@"
 export CURRENT_DIR
 CURRENT_DIR=$(pwd)
 
+# Resolve module paths relative to this script. When sourced from install.sh,
+# BASE_DIR points at the project root, not the scripts directory.
+NGINX_SCRIPTS_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+
 # Include nginx modules
 # shellcheck source=scripts/nginx/nginx_common.sh
-. "${BASE_DIR}/nginx/nginx_common.sh"
+. "${NGINX_SCRIPTS_DIR}/nginx/nginx_common.sh"
 # shellcheck source=scripts/nginx/nginx_repo.sh
-. "${BASE_DIR}/nginx/nginx_repo.sh"
+. "${NGINX_SCRIPTS_DIR}/nginx/nginx_repo.sh"
 # shellcheck source=scripts/nginx/nginx_ssl_builders.sh
-. "${BASE_DIR}/nginx/nginx_ssl_builders.sh"
+. "${NGINX_SCRIPTS_DIR}/nginx/nginx_ssl_builders.sh"
 # shellcheck source=scripts/nginx/nginx_extra_modules.sh
-. "${BASE_DIR}/nginx/nginx_extra_modules.sh"
+. "${NGINX_SCRIPTS_DIR}/nginx/nginx_extra_modules.sh"
 # shellcheck source=scripts/nginx/nginx_module_config.sh
-. "${BASE_DIR}/nginx/nginx_module_config.sh"
+. "${NGINX_SCRIPTS_DIR}/nginx/nginx_module_config.sh"
 # shellcheck source=scripts/nginx/nginx_post_install.sh
-. "${BASE_DIR}/nginx/nginx_post_install.sh"
+. "${NGINX_SCRIPTS_DIR}/nginx/nginx_post_install.sh"
 # shellcheck source=scripts/nginx/nginx_ssl_cert.sh
-. "${BASE_DIR}/nginx/nginx_ssl_cert.sh"
+. "${NGINX_SCRIPTS_DIR}/nginx/nginx_ssl_cert.sh"
 # shellcheck source=scripts/nginx/nginx_build.sh
-. "${BASE_DIR}/nginx/nginx_build.sh"
+. "${NGINX_SCRIPTS_DIR}/nginx/nginx_build.sh"
 
 ##
 # Select installer method (interactive or automatic)
 ##
 function select_install_method() {
     local SELECTED_INSTALLER=${NGINX_INSTALLER:-"source"}
-    local SELECTED_REPO="ondrej"
+    local SELECTED_REPO="${NGINX_REPO_SRC:-myguard}"
 
     if [[ "${AUTO_INSTALL}" == true ]]; then
         if [[ -z "${NGINX_INSTALLER}" || "${NGINX_INSTALLER}" == "none" ]]; then
@@ -79,6 +95,18 @@ function select_install_method() {
     case "${SELECTED_INSTALLER}" in
         1|"repo") NGINX_INSTALL_METHOD="repo" ;;
         2|"source"|*) NGINX_INSTALL_METHOD="source" ;;
+    esac
+
+    case "${SELECTED_REPO}" in
+        myguard) ;;
+        ondrej)
+            warning "NGINX_REPO_SRC=ondrej is retired. The Ondřej nginx repository is no longer published. Using myguard."
+            SELECTED_REPO="myguard"
+            ;;
+        *)
+            warning "Unsupported NGINX_REPO_SRC '${SELECTED_REPO}', falling back to myguard."
+            SELECTED_REPO="myguard"
+            ;;
     esac
 
     NGINX_REPO_SOURCE="${SELECTED_REPO}"
@@ -124,14 +152,7 @@ function init_nginx_install() {
     if [[ ${DO_INSTALL_NGINX} == y* && ${INSTALL_NGINX:-true} == true ]]; then
         case "${NGINX_INSTALL_METHOD}" in
             repo)
-                # Add repository
-                if [[ "${NGINX_REPO_SOURCE}" == "ondrej" ]]; then
-                    add_nginx_repo_ondrej
-                else
-                    add_nginx_repo_myguard
-                fi
-
-                # Install from repo
+                add_nginx_repo_myguard
                 install_nginx_from_repo "${NGINX_REPO_SOURCE}"
                 ;;
 
@@ -150,6 +171,10 @@ function init_nginx_install() {
 
         # Post-installation configuration
         configure_nginx_post_install "${PWD}" "${HOSTNAME_CERT_PATH:-}"
+
+        # Remember that LEMPer installed Nginx so uninstall does not remove
+        # a server that was already present beforehand.
+        mark_lemper_provisioned nginx
     fi
 }
 

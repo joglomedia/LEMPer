@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 
-# LEMPer administration installer
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 12/02/2022
-# Author            : MasEDI.Net (me@masedi.net)
-# Since Version     : 1.0.0
+# +-------------------------------------------------------------------------+
+# | LEMPer Administration Tools Installer                                   |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellcheck disable=SC1091
-    . "${BASE_DIR}/utils.sh"
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
+    cd "${BASE_DIR}" || { echo "Cannot enter ${BASE_DIR}."; exit 1; }
+    # shellcheck source=scripts/utils.sh
+    . "${BASE_DIR}/scripts/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -41,11 +50,23 @@ function init_tools_install() {
     run cp -f lib/lemper-site.sh /etc/lemper/cli-plugins/lemper-site && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-site
 
+    run cp -f lib/lemper-site-list.sh /etc/lemper/cli-plugins/lemper-site-list && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-list
+
+    run cp -f lib/lemper-site-show.sh /etc/lemper/cli-plugins/lemper-site-show && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-show
+
     run cp -f lib/lemper-create.sh /etc/lemper/cli-plugins/lemper-site-create && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-create
 
     [ -f /etc/lemper/cli-plugins/lemper-site-create ] && \
         run ln -fs /etc/lemper/cli-plugins/lemper-site-create /etc/lemper/cli-plugins/lemper-site-add
+
+    [ -f /etc/lemper/cli-plugins/lemper-site-create ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-site-create /etc/lemper/cli-plugins/lemper-create
+
+    [ -f /etc/lemper/cli-plugins/lemper-site-create ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-site-create /etc/lemper/cli-plugins/lemper-add
 
     run cp -f lib/lemper-manage.sh /etc/lemper/cli-plugins/lemper-site-update && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-update
@@ -53,11 +74,18 @@ function init_tools_install() {
     [ -f /etc/lemper/cli-plugins/lemper-site-update ] && \
         run ln -fs /etc/lemper/cli-plugins/lemper-site-update /etc/lemper/cli-plugins/lemper-site-mod
 
+    [ -f /etc/lemper/cli-plugins/lemper-site-update ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-site-update /etc/lemper/cli-plugins/lemper-manage
+
+    [ -f /etc/lemper/cli-plugins/lemper-site-update ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-site-update /etc/lemper/cli-plugins/lemper-mod
+
     run cp -f lib/lemper-db.sh /etc/lemper/cli-plugins/lemper-db && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-db
 
-    [ -f /etc/lemper/cli-plugins/lemper-site-db ] && \
-        run ln -fs /etc/lemper/cli-plugins/lemper-site-db /etc/lemper/cli-plugins/lemper-site-database
+    [ -f /etc/lemper/cli-plugins/lemper-db ] && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-db /etc/lemper/cli-plugins/lemper-site-db && \
+        run ln -fs /etc/lemper/cli-plugins/lemper-db /etc/lemper/cli-plugins/lemper-site-database
 
     run cp -f lib/lemper-selfssl.sh /etc/lemper/cli-plugins/lemper-selfssl && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-selfssl
@@ -67,6 +95,27 @@ function init_tools_install() {
 
     run cp -f lib/lemper-bench.sh /etc/lemper/cli-plugins/lemper-bench && \
     run chmod ugo+x /etc/lemper/cli-plugins/lemper-bench
+
+    run cp -f lib/lemper-modsec.sh /etc/lemper/cli-plugins/lemper-modsec && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-modsec
+
+    # Install TUI plugin.
+    run cp -f lib/lemper-tui.sh /etc/lemper/cli-plugins/lemper-tui && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-tui
+
+    # Install stack/security updater.
+    run cp -f lib/lemper-update.sh /etc/lemper/cli-plugins/lemper-update && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-update
+
+    # Install configuration backup/restore plugin.
+    run cp -f lib/lemper-backup.sh /etc/lemper/cli-plugins/lemper-backup && \
+    run chmod ugo+x /etc/lemper/cli-plugins/lemper-backup
+
+    # Record the source checkout so 'lemper update lemper' can refresh plugins.
+    if [[ -f "${BASE_DIR}/bin/lemper-cli.sh" ]]; then
+        run bash -c 'printf "%s\n" "$1" > /etc/lemper/update-source' _ "${BASE_DIR}"
+        run chmod 0600 /etc/lemper/update-source
+    fi
 
     # Remove old LEMPer CLI tool.
     [ -d /usr/local/lib/lemper ] && run rm -fr /usr/local/lib/lemper/lemper-*
@@ -84,27 +133,25 @@ function init_tools_install() {
     # Copy default index file.
     run cp -f share/nginx/html/index.html /usr/share/nginx/html/
 
-    # Install PHP Info
+    # Install PHP Info (reachable only behind the /lcp basic-auth vhost).
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php'
-    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php70'
-    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php71'
-    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php72'
-    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php73'
-    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php74'
-    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php80'
-    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php81'
+    run rm -f /usr/share/nginx/html/lcp/phpinfo.php81
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php82'
     run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php83'
+    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php84'
+    run bash -c 'echo "<?php phpinfo(); ?>" > /usr/share/nginx/html/lcp/phpinfo.php85'
 
     # Install Adminer for Web-based MySQL Administration Tool.
-    echo -n "Installing database AdminerEVO..."
+    echo -n "Installing database Adminer..."
     [ ! -d /usr/share/nginx/html/lcp/dbadmin ] && run mkdir -p /usr/share/nginx/html/lcp/dbadmin
 
-    # Overwrite existing files.
-    run curl -sSL -o /usr/share/nginx/html/lcp/dbadmin/index.php \
-        https://github.com/adminerevo/adminerevo/releases/download/v4.8.4/adminer-4.8.4.php 
-    run curl -sSL -o /usr/share/nginx/html/lcp/dbadmin/editor.php \
-        https://github.com/adminerevo/adminerevo/releases/download/v4.8.4/editor-4.8.4.php \
+    ADMINER_VERSION=${ADMINER_VERSION:-"6.2.0"}
+
+    # Overwrite existing files (including leftovers from AdminerEvo installs).
+    run curl -fsSL -o /usr/share/nginx/html/lcp/dbadmin/index.php \
+        "https://github.com/vrana/adminer/releases/download/v${ADMINER_VERSION}/adminer-${ADMINER_VERSION}.php"
+    run curl -fsSL -o /usr/share/nginx/html/lcp/dbadmin/editor.php \
+        "https://github.com/vrana/adminer/releases/download/v${ADMINER_VERSION}/editor-${ADMINER_VERSION}.php"
 
     [ -f /usr/share/nginx/html/lcp/dbadmin/index.php ] && echo_ok "OK"
 
@@ -158,7 +205,11 @@ function init_tools_install() {
     fi
 
     # Configure phpMemcachedAdmin.
-    if [[ "${DRYRUN}" != true ]]; then
+    # A tools refresh that only has .env.dist must not replace a live SASL
+    # config with the sample credentials.
+    if [[ "${DRYRUN}" != true && "${LEMPER_TOOLS_PRESERVE_ADMIN_CONFIG:-false}" == true && -f /usr/share/nginx/html/lcp/memcadmin/Config/Memcache.php ]]; then
+        info "Keeping the existing phpMemcachedAdmin configuration."
+    elif [[ "${DRYRUN}" != true ]]; then
         if [[ ${MEMCACHED_SASL} == "enable" || ${MEMCACHED_SASL} == true ]]; then
             MEMCACHED_SASL_CREDENTIAL="username=${MEMCACHED_USERNAME},
             password=${MEMCACHED_PASSWORD},"
@@ -210,7 +261,7 @@ EOL
     # Install phpRedisAdmin Web Admin.
     echo -n "Installing PhpRedisAdmin panel..."
 
-    COMPOSER_BIN=$(command -v composer)
+    COMPOSER_BIN=$(command -v composer || true)
 
     local CURRENT_DIR && \
     CURRENT_DIR=$(pwd)
@@ -223,7 +274,7 @@ EOL
         run cp includes/config.sample.inc.php includes/config.inc.php
 
         if [[ "${REDIS_REQUIRE_PASSWORD}" == true ]]; then
-            run sed -i "s|//'auth'\ =>\ 'redispasswordhere'|'auth'\ =>\ '${REDIS_PASSWORD}'|g" includes/config.inc.php
+            sed_inplace "s|//'auth'\ =>\ 'redispasswordhere'|'auth'\ =>\ '${REDIS_PASSWORD}'|g" includes/config.inc.php
         fi
     else
         run cd redisadmin && \

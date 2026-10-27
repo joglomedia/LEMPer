@@ -1,0 +1,411 @@
+#!/usr/bin/env bash
+
+# +-------------------------------------------------------------------------+
+# | LEMPer Stack Installer & Uninstaller - Shared Logic                     |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
+
+# Shared logic is sourced by lemper.sh, install.sh, and remove.sh.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    echo "This script should be sourced, not executed directly."
+    exit 1
+fi
+
+# Resolve the repository root from this module's location so sourcing works
+# regardless of the caller's working directory (this file lives in lib/core/).
+if [[ -z "${BASE_DIR:-}" ]]; then
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." >/dev/null 2>&1 && pwd )
+    export BASE_DIR
+fi
+
+##
+# Main LEMPer Installer
+##
+function lemper_install() {
+    echo "Starting LEMPer Stack installation..."
+    echo "Please ensure that you're on a fresh install!"
+    echo -e "\nPress [Ctrl+C] to abort the installation process."
+
+    sleep 3
+
+    if [[ "${AUTO_INSTALL}" != true ]]; then
+        echo ""
+        read -t 60 -rp "Press [Enter] to continue..." </dev/tty
+    fi
+
+    # Init log.
+    run init_log
+
+    # Init config.
+    run init_config
+
+    ### Install dependencies packages ###
+    if [ -f "${BASE_DIR}/scripts/install_dependencies.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_dependencies.sh"
+    fi
+
+    ### Server clean-up ###
+    if [ -f "${BASE_DIR}/scripts/server_cleanup.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/server_cleanup.sh"
+    fi
+
+    ### Create default account ###
+    echo ""
+    LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
+    create_account "${LEMPER_USERNAME}"
+
+    ### Certbot Let's Encrypt SSL installation ###
+    if [ -f "${BASE_DIR}/scripts/install_certbotle.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_certbotle.sh"
+    fi
+
+    ### Nginx installation ###
+    if [ -f "${BASE_DIR}/scripts/install_nginx.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_nginx.sh"
+    fi
+
+    ### PHP installation ###
+    if [ -f "${BASE_DIR}/scripts/install_php.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_php.sh"
+    fi
+
+    ### Phalcon PHP installation ###
+    if [ -f "${BASE_DIR}/scripts/install_phalcon.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_phalcon.sh"
+    fi
+
+    ### MySQL database installation ###
+    if [ -f "${BASE_DIR}/scripts/install_mariadb.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_mariadb.sh"
+    fi
+
+    ### PostgreSQL database installation ###
+    if [ -f "${BASE_DIR}/scripts/install_postgres.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_postgres.sh"
+    fi
+
+    ### Redis database installation ###
+    if [ -f "${BASE_DIR}/scripts/install_redis.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_redis.sh"
+    fi
+
+    ### MongoDB database installation ###
+    if [ -f "${BASE_DIR}/scripts/install_mongodb.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_mongodb.sh"
+    fi
+
+    ### Memcached installation ###
+    if [ -f "${BASE_DIR}/scripts/install_memcached.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_memcached.sh"
+    fi
+
+    ### Imagick installation ###
+    if [ -f "${BASE_DIR}/scripts/install_imagemagick.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_imagemagick.sh"
+    fi
+
+    ### Mail server installation ###
+    if [ -f "${BASE_DIR}/scripts/install_mailer.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_mailer.sh"
+    fi
+
+    ### FTP installation ###
+    if [[ "${FTP_SERVER_NAME}" == "pureftpd" || "${FTP_SERVER_NAME}" == "pure-ftpd" ]]; then
+        if [ -f "${BASE_DIR}/scripts/install_pureftpd.sh" ]; then
+            echo ""
+            . "${BASE_DIR}/scripts/install_pureftpd.sh"
+        fi
+    else
+        if [ -f "${BASE_DIR}/scripts/install_vsftpd.sh" ]; then
+            echo ""
+            . "${BASE_DIR}/scripts/install_vsftpd.sh"
+        fi
+    fi
+
+    ### Fail2ban, intrusion prevention software framework. ###
+    if [ -f "${BASE_DIR}/scripts/install_fail2ban.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_fail2ban.sh"
+    fi
+
+    ### CrowdSec HIPS (Host Intrusion Prevention System). ###
+    if [ -f "${BASE_DIR}/scripts/install_crowdsec.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_crowdsec.sh"
+    fi
+
+    ### ModSecurity v3 WAF (OWASP Core Rule Set). ###
+    if [ -f "${BASE_DIR}/scripts/install_modsec.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_modsec.sh"
+    fi
+
+    ### LEMPer tools installation ###
+    if [ -f "${BASE_DIR}/scripts/install_tools.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_tools.sh"
+    fi
+
+    ### Bun.js runtime installation ###
+    if [ -f "${BASE_DIR}/scripts/install_bun.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/install_bun.sh"
+    fi
+
+    ### Basic server optimization ###
+    if [ -f "${BASE_DIR}/scripts/server_optimization.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/server_optimization.sh"
+    fi
+
+    ### Basic server security setup ###
+    if [ -f "${BASE_DIR}/scripts/server_security.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/server_security.sh"
+    fi
+
+    ### FINAL SETUP ###
+    if [[ "${FORCE_REMOVE}" == true ]]; then
+        # Cleaning up all build dependencies hanging around on production server?
+        echo -e "\nClean up installation process..."
+        run apt-get autoremove -q -y
+
+        # Cleanup build dir
+        echo "Clean up build directory..."
+        if [ -d "${BUILD_DIR}" ]; then
+            run rm -fr "${BUILD_DIR}"
+        fi
+    fi
+
+    if [[ "${DRYRUN}" != true ]]; then
+        status -e "\nCongrats, your LEMPer Stack installation has been completed."
+
+        ### Recap (SEC-08: credentials NOT printed to stdout) ###
+        if [[ -n "${LEMPER_PASSWORD}" ]]; then
+            info "Installation credentials have been saved to /etc/lemper/lemper.conf (root-only, mode 0600)."
+            info "To view them, run: sudo cat /etc/lemper/lemper.conf"
+
+            echo ""
+            echo "LEMPer Stack installed successfully:"
+            echo "  Hostname: ${HOSTNAME}"
+            echo "  Server IP: ${SERVER_IP}"
+            echo "  SSH Port: ${SSH_PORT}"
+            echo "  Admin User: ${LEMPER_USERNAME}"
+            echo ""
+            echo "Service URLs:"
+            if [[ "${INSTALL_NGINX}" == true ]]; then
+                echo "  Web Server: http://${SERVER_IP}/ (Nginx)"
+                echo "  Database Admin: http://${SERVER_IP}:8082/lcp/dbadmin/"
+                echo "  File Manager: http://${SERVER_IP}:8082/lcp/filemanager/"
+            fi
+            info "All sensitive credentials are in /etc/lemper/lemper.conf (root-only)."
+        fi
+    else
+        warning -e "\nLEMPer installation has been completed in dry-run mode."
+    fi
+
+    echo -e "\nSee the log file (lemper.log) for more information.
+Now, you can reboot your server and enjoy it!\n"
+
+    info "SECURITY: Credentials are stored in /etc/lemper/lemper.conf (mode 0600, root-only).
+Keep this file secure and delete the installation log after setup."
+}
+
+##
+# Main LEMPer Uninstaller
+##
+function lemper_remove() {
+    echo "Are you sure to remove LEMPer Stack installation?"
+    echo "Please ensure that you've backed up your critical data!"
+    echo ""
+
+    if [[ "${AUTO_REMOVE}" == false ]]; then
+        read -rt 20 -p "Press [Enter] to continue..." </dev/tty
+    fi
+
+    # Fix broken install, first?
+    if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
+        run dpkg --configure -a
+        run apt-get install -q -y --fix-broken
+    fi
+
+    ### Remove Nginx ###
+    if [ -f "${BASE_DIR}/scripts/remove_nginx.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_nginx.sh"
+    fi
+
+    ### Remove MySQL ###
+    if [ -f "${BASE_DIR}/scripts/remove_mariadb.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_mariadb.sh"
+    fi
+
+    ### Remove PostgreSQL ###
+    if [ -f "${BASE_DIR}/scripts/remove_postgres.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_postgres.sh"
+    fi
+
+    ### Remove PHP & FPM ###
+    if [ -f "${BASE_DIR}/scripts/remove_php.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_php.sh"
+    fi
+
+    ### Remove Redis ###
+    if [ -f "${BASE_DIR}/scripts/remove_redis.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_redis.sh"
+    fi
+
+    ### Remove MongoDB ###
+    if [ -f "${BASE_DIR}/scripts/remove_mongodb.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_mongodb.sh"
+    fi
+
+    ### Remove Memcached ###
+    if [ -f "${BASE_DIR}/scripts/remove_memcached.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_memcached.sh"
+    fi
+
+    ### Remove Mail server ###
+    if [ -f "${BASE_DIR}/scripts/remove_mailer.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_mailer.sh"
+    fi
+
+    ### Remove FTP installation ###
+    if [[ "${FTP_SERVER_NAME}" == "pureftpd" || "${FTP_SERVER_NAME}" == "pure-ftpd" ]]; then
+        if [ -f "${BASE_DIR}/scripts/remove_pureftpd.sh" ]; then
+            echo ""
+            . "${BASE_DIR}/scripts/remove_pureftpd.sh"
+        fi
+    else
+        if [ -f "${BASE_DIR}/scripts/remove_vsftpd.sh" ]; then
+            echo ""
+            . "${BASE_DIR}/scripts/remove_vsftpd.sh"
+        fi
+    fi
+
+    ### Remove Fail2ban ###
+    if [ -f "${BASE_DIR}/scripts/remove_fail2ban.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_fail2ban.sh"
+    fi
+
+    ### Remove CrowdSec HIPS ###
+    if [ -f "${BASE_DIR}/scripts/remove_crowdsec.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_crowdsec.sh"
+    fi
+
+    ### Remove ModSecurity v3 WAF ###
+    if [ -f "${BASE_DIR}/scripts/remove_modsec.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_modsec.sh"
+    fi
+
+    ### Remove Certbot ###
+    if [ -f "${BASE_DIR}/scripts/remove_certbotle.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_certbotle.sh"
+    fi
+
+    ### Remove Bun.js runtime ###
+    if [ -f "${BASE_DIR}/scripts/remove_bun.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/remove_bun.sh"
+    fi
+
+    ### Remove server security setup ###
+    if [ -f "${BASE_DIR}/scripts/server_security.sh" ]; then
+        echo ""
+        . "${BASE_DIR}/scripts/server_security.sh" --remove
+    fi
+
+    ### Remove default user account ###
+    echo ""
+    echo "Removing created default account..."
+
+    if [[ "${AUTO_REMOVE}" == true ]]; then
+        REMOVE_ACCOUNT="y"
+    else
+        while [[ "${REMOVE_ACCOUNT}" != "y" && "${REMOVE_ACCOUNT}" != "n" ]]; do
+            read -rp "Remove default LEMPer account? [y/n]: " -i y -e REMOVE_ACCOUNT
+        done
+    fi
+
+    if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* || "${FORCE_REMOVE}" == true ]]; then
+        if [[ "$(type -t delete_account)" == "function" ]]; then
+            delete_account "${LEMPER_USERNAME}"
+        fi
+    fi
+
+    ### Remove created swap ###
+    echo ""
+    echo "Removing created swap..."
+
+    if [[ "${AUTO_REMOVE}" == true ]]; then
+        REMOVE_SWAP="y"
+    else
+        while [[ "${REMOVE_SWAP}" != "y" && "${REMOVE_SWAP}" != "n" ]]; do
+            read -rp "Remove created Swap? [y/n]: " -e REMOVE_SWAP
+        done
+    fi
+
+    if [[ "${REMOVE_SWAP}" == Y* || "${REMOVE_SWAP}" == y* || "${FORCE_REMOVE}" == true ]]; then
+        if [[ "$(type -t remove_swap)" == "function" ]]; then
+            remove_swap
+        fi
+    fi
+
+    ### Remove web tools ###
+    [ -e /usr/bin/lemper-cli ] && run rm -f /usr/bin/lemper-cli
+    [ -f /usr/local/bin/lemper-cli ] && run rm -f /usr/local/bin/lemper-cli
+    [ -d /usr/local/lib/lemper ] && run rm -fr /usr/local/lib/lemper
+    [ -d /usr/share/nginx/html/lcp ] && run rm -fr /usr/share/nginx/html/lcp
+
+    # Clean up LEMPer state: credentials, encrypted config key, vhost metadata,
+    # ACME account data, WAF snippets, update source, and provisioning markers.
+    [ -d /etc/lemper ] && run rm -fr /etc/lemper
+
+    ### Remove unnecessary packages ###
+    echo -e "\nCleaning up unnecessary packages..."
+
+    run apt-get autoremove -q -y && \
+    run apt-get autoclean -q -y && \
+    run apt-get clean -q -y
+
+    echo -e "\nLEMPer Stack has been removed completely."
+    warning -e "\nDid you know? that we're so sad to see you leave :'(
+If you are not satisfied with LEMPer Stack or have 
+any other reasons to uninstall it, please let us know ^^
+
+Submit your issue here: https://github.com/joglomedia/LEMPer/issues"
+}

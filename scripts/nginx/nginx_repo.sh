@@ -1,89 +1,102 @@
 #!/usr/bin/env bash
 
-# Nginx Repository Management
-# Part of LEMPer Stack - https://github.com/joglomedia/LEMPer
-# Author: MasEDI.Net (me@masedi.net)
-# Since Version: 2.x.x
+# +-------------------------------------------------------------------------+
+# | Nginx Repository Installer                                              |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Prevent direct execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "This script should be sourced, not executed directly."
     exit 1
 fi
 
 ##
-# Add Ondrej's Nginx repository.
+# Add the Nginx repository. The Ondřej nginx archive is no longer published.
 ##
 function add_nginx_repo_ondrej() {
-    echo "Add Ondrej's Nginx repository..."
-
-    # Nginx version.
-    local NGINX_VERSION=${NGINX_VERSION:-"stable"}
-
-    if [[ ${NGINX_VERSION} == "mainline" || ${NGINX_VERSION} == "latest" ]]; then
-        local NGINX_REPO="nginx-mainline"
-    else
-        local NGINX_REPO="nginx"
-    fi
-
-    case "${DISTRIB_NAME}" in
-        debian)
-            if [[ ! -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
-                run curl -sSL -o "/etc/apt/trusted.gpg.d/ondrej-${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg" && \
-                run touch "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list" && \
-                run bash -c "echo 'deb https://packages.sury.org/${NGINX_REPO}/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
-            else
-                info "${NGINX_REPO} repository already exists."
-            fi
-
-            run apt-get update -q -y
-            NGINX_PKGS=("nginx" "nginx-common")
-        ;;
-        ubuntu)
-            # Nginx custom with ngx cache purge from Ondrej repo.
-            run curl -sSL -o "/etc/apt/trusted.gpg.d/ondrej-${NGINX_REPO}.gpg" "https://packages.sury.org/${NGINX_REPO}/apt.gpg" && \
-            run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C && \
-            run add-apt-repository -y "ppa:ondrej/${NGINX_REPO}" && \
-            run apt-get update -q -y
-            NGINX_PKGS=("nginx" "nginx-common")
-        ;;
-        *)
-            fail "Unable to add Nginx, this GNU/Linux distribution is not supported."
-        ;;
-    esac
+    warning "The Ondřej nginx repository is no longer published. Using the MyGuard nginx repository."
+    add_nginx_repo_myguard
 }
 
 ##
-# Add MyGuard's Nginx repository.
+# Add MyGuard's nginx-only repository.
+# Keyring path and source line match https://deb.myguard.nl/how-to-use/
 ##
 function add_nginx_repo_myguard() {
+    local NGINX_REPO="nginx"
+    local codename="${RELEASE_NAME:-}"
+    local arch="${DISTRIB_ARCH:-}"
+    local key list pin line fp
+
     echo "Add MyGuard's Nginx repository..."
 
-    # Nginx version.
-    NGINX_VERSION=${NGINX_VERSION:-"stable"}
-
-    # MyGuard only has one repo for nginx
-    local NGINX_REPO="nginx"
-
-    DISTRIB_ARCH=$(get_distrib_arch)
-
     case "${DISTRIB_NAME}" in
-        debian | ubuntu)
-            if [[ ! -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list" ]]; then
-                run curl -sSL -o "/etc/apt/trusted.gpg.d/deb.myguard.nl.gpg" "https://deb.myguard.nl/pool/deb.myguard.nl.gpg" && \
-                run touch "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list" && \
-                run bash -c "echo 'deb [arch=${DISTRIB_ARCH}] http://deb.myguard.nl ${RELEASE_NAME} main' > /etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
-            else
-                info "${NGINX_REPO} repository already exists."
-            fi
-
-            run apt-get update -q -y
-            NGINX_PKGS=("nginx" "nginx-common")
-        ;;
+        debian | ubuntu) ;;
         *)
             fail "Unable to add Nginx, this GNU/Linux distribution is not supported."
-        ;;
+            ;;
     esac
+
+    if [[ -z "${codename}" || "${codename}" == "unsupported" ]]; then
+        fail "Unable to add the MyGuard nginx repository; the distribution codename is unknown."
+    fi
+
+    case "${codename}" in
+        focal | jammy | noble | resolute | bullseye | bookworm | trixie) ;;
+        *)
+            fail "MyGuard nginx packages are not published for ${codename}."
+            ;;
+    esac
+
+    if [[ -z "${arch}" ]]; then
+        arch=$(get_distrib_arch 2>/dev/null || dpkg --print-architecture)
+    fi
+
+    key="/etc/apt/keyrings/deb.myguard.nl.gpg"
+    list="/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${codename}.list"
+    pin="/etc/apt/preferences.d/myguard-${NGINX_REPO}-${codename}.pref"
+    line="deb [arch=${arch} signed-by=${key}] https://deb.myguard.nl/apt/nginx/${codename} ${codename} main"
+
+    run install -d -m 0755 /etc/apt/keyrings
+    if [[ ! -s "${key}" ]]; then
+        run curl -fsSL --retry 3 --retry-delay 2 -o "${key}" "https://deb.myguard.nl/deb.myguard.nl.gpg"
+        run chmod 0644 "${key}"
+    fi
+
+    if [[ "${DRYRUN:-false}" != true && -s "${key}" ]] && command -v gpg >/dev/null 2>&1; then
+        fp=$(gpg --batch --with-colons --show-keys "${key}" 2>/dev/null | awk -F: '/^fpr:/ {print $10; exit}' || true)
+        if [[ -z "${fp}" ]]; then
+            fp=$(gpg --batch --with-colons --import-options show-only --import "${key}" 2>/dev/null | awk -F: '/^fpr:/ {print $10; exit}' || true)
+        fi
+        if [[ "${fp}" != "D18B8E5ADF7D55CE2A00D58167F9C3D8456D7F62" ]]; then
+            fail "MyGuard signing key fingerprint does not match."
+        fi
+    fi
+
+    if [[ ! -f "${list}" ]] || ! grep -qF "https://deb.myguard.nl/apt/nginx/${codename}" "${list}"; then
+        run bash -c 'printf "%s\n" "$1" > "$2"' _ "${line}" "${list}"
+    else
+        info "MyGuard nginx repository already exists."
+    fi
+
+    run tee "${pin}" >/dev/null <<'EOF'
+Package: nginx nginx-common nginx-core nginx-full nginx-extras nginx-light nginx-minimal libnginx-mod-* libssl-nginx libssl-nginx-dev libz-ng2
+Pin: origin "deb.myguard.nl"
+Pin-Priority: 501
+EOF
+
+    run apt-get update -q -y
+    NGINX_PKGS=("nginx" "nginx-common")
 }
 
 ##
@@ -92,7 +105,7 @@ function add_nginx_repo_myguard() {
 # Note: All debug messages go to stderr to avoid polluting package list
 ##
 function get_repo_extra_module_packages() {
-    local SELECTED_REPO="${1:-ondrej}"
+    local SELECTED_REPO="${1:-myguard}"
     EXTRA_MODULE_PKGS=()
 
     echo "Determining extra module packages..." >&2
@@ -138,16 +151,18 @@ function get_repo_extra_module_packages() {
         EXTRA_MODULE_PKGS+=("libnginx-mod-http-fancyindex")
     fi
 
-    # GeoIP
+    # GeoIP. The module depends on libmaxminddb0. Headers are omitted here:
+    # Ubuntu's libmaxminddb-dev requires the distro library exactly, and the
+    # MyGuard nginx archive publishes a newer libmaxminddb0.
     if "${NGX_HTTP_GEOIP:-false}"; then
         echo "  Adding: libnginx-mod-http-geoip" >&2
-        EXTRA_MODULE_PKGS+=("libmaxminddb0" "libmaxminddb-dev" "libnginx-mod-http-geoip" "libnginx-mod-stream-geoip")
+        EXTRA_MODULE_PKGS+=("libmaxminddb0" "libnginx-mod-http-geoip" "libnginx-mod-stream-geoip")
     fi
 
     # GeoIP2
     if "${NGX_HTTP_GEOIP2:-false}"; then
         echo "  Adding: libnginx-mod-http-geoip2" >&2
-        EXTRA_MODULE_PKGS+=("libmaxminddb0" "libmaxminddb-dev" "libnginx-mod-http-geoip2" "libnginx-mod-stream-geoip2")
+        EXTRA_MODULE_PKGS+=("libmaxminddb0" "libnginx-mod-http-geoip2" "libnginx-mod-stream-geoip2")
     fi
 
     # Headers more
@@ -284,7 +299,7 @@ function get_repo_extra_module_packages() {
 # Install Nginx from repository
 ##
 function install_nginx_from_repo() {
-    local SELECTED_REPO="${1:-ondrej}"
+    local SELECTED_REPO="${1:-myguard}"
 
     echo "Installing Nginx from ${SELECTED_REPO} repository..."
 
@@ -304,4 +319,6 @@ function install_nginx_from_repo() {
             run apt-get install -q -y "${NGINX_PKGS[@]}"
         fi
     fi
+
+    success "Nginx installed from repository successfully!"
 }

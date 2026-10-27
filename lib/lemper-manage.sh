@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | LEMPer CLI - Virtual Host (Site) Manager                                |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2024 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -52,6 +52,10 @@ Options:
       Enable FastCGI cache.
   --disable-fastcgi-cache <vhost domain name>
       Disable FastCHI cache.
+  --enable-cors <vhost domain name>
+      Enable CORS with a wildcard origin (any origin).
+  --disable-cors <vhost domain name>
+      Disable CORS.
   -d, --disable <vhost domain name>
       Disable virtual host.
   -e, --enable <vhost domain name>
@@ -62,6 +66,10 @@ Options:
       Disable fail2ban jail.
   -g, --enable-gzip <vhost domain name>
       Enable Gzip compression.
+  --enable-modsec <vhost domain name>
+      Enable ModSecurity v3 WAF.
+  --disable-modsec <vhost domain name>
+      Disable ModSecurity v3 WAF.
   --disable-compression  <vhost domain name>
       Disable Gzip/Brotli compression.
   -r, --remove <vhost domain name>
@@ -165,8 +173,10 @@ function remove_vhost() {
 
     # If we have local domain setup in hosts file, remove it.
     if grep -qwE "${DOMAIN}" "/etc/hosts"; then
-        info "Domain ${DOMAIN} found in your hosts file. Removing now...";
-        run sed -i".backup" "/${DOMAIN}/d" "/etc/hosts"
+        info "Domain ${DOMAIN} found in your hosts file. Removing now..."
+        run cp -p "/etc/hosts" "/etc/hosts.backup"
+        # Use grep -vF (fixed-string) instead of sed to prevent regex injection.
+        run grep -v -F "${DOMAIN}" "/etc/hosts" > "/etc/hosts.tmp" && run mv "/etc/hosts.tmp" "/etc/hosts"
     fi
 
     success "Virtual host configuration file removed."
@@ -208,9 +218,9 @@ function remove_vhost() {
         echo "+-------------------------------+"
 
         # Show user's databases
-        #run mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema"
+        #MYSQL_PWD="${MYSQL_PASS}" mysql -u "${MYSQL_USER}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema"
         local DATABASES && \
-        DATABASES=$(mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
+        DATABASES=$(MYSQL_PWD="${MYSQL_PASS}" mysql -u "${MYSQL_USER}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
 
         if [[ -n "${DATABASES}" ]]; then
             printf '%s\n' "${DATABASES}"
@@ -226,7 +236,7 @@ function remove_vhost() {
 
         if [[ -d "/var/lib/mysql/${DBNAME}" ]]; then
             echo "Deleting database ${DBNAME}..."
-            run mysql -u "${MYSQL_USER}" -p"${MYSQL_PASS}" -e "DROP DATABASE ${DBNAME}"
+            run env MYSQL_PWD="${MYSQL_PASS}" mysql -u "${MYSQL_USER}" -e "DROP DATABASE ${DBNAME}"
             success "Database '${DBNAME}' dropped."
         else
             info "Sorry, database ${DBNAME} not found. Skipped..."
@@ -309,11 +319,11 @@ function enable_fastcgi_cache() {
 
     if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]; then
         # enable cached directives
-        run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" \
+        sed_inplace "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
 
         # enable fastcgi_cache conf
-        run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
+        sed_inplace "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
 
         # Reload Nginx.
@@ -336,11 +346,11 @@ function disable_fastcgi_cache() {
 
     if [ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]; then
         # enable cached directives
-        run sed -i "s|^\    include\ /etc/nginx/includes/rules_fastcgi_cache.conf|\    #include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" \
+        sed_inplace "s|^\    include\ /etc/nginx/includes/rules_fastcgi_cache.conf|\    #include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
 
         # enable fastcgi_cache conf
-        run sed -i "s|^\        include\ /etc/nginx/includes/fastcgi_cache.conf|\        #include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
+        sed_inplace "s|^\        include\ /etc/nginx/includes/fastcgi_cache.conf|\        #include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
 
         # Reload Nginx.
@@ -398,10 +408,10 @@ function enable_ssl() {
 
         # Generate Diffie-Hellman parameters.
         if [ ! -f /etc/nginx/ssl/dhparam-2048.pem ]; then
-            echo "Generating Diffie-Hellman parameters for enhanced HTTPS/SSL security."
+            echo "Generating Diffie-Hellman parameters (ffdhe2048) for enhanced HTTPS/SSL security."
 
-            run openssl dhparam -out /etc/nginx/ssl/dhparam-2048.pem 2048
-            #run openssl dhparam -out /etc/nginx/ssl/dhparam-4096.pem 4096
+            run openssl genpkey -genparam -algorithm DH -pkeyopt group:ffdhe2048 \
+                -out /etc/nginx/ssl/dhparam-2048.pem
         fi
     else
         info "SSL certificates is already exists for ${DOMAIN}, trying to renew."
@@ -418,18 +428,32 @@ function enable_ssl() {
 
             # Change listening port to 443.
             if grep -qwE "^\    listen\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b:80" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-                run sed -i "s/\:80/\:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+                sed_inplace "s/\:80/\:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
             fi
             
-            run sed -i "s/listen\ 80/listen\ 443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            run sed -i "s/listen\ \[::\]:80/listen\ \[::\]:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            sed_inplace "s/listen\ 80/listen\ 443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            sed_inplace "s/listen\ \[::\]:80/listen\ \[::\]:443\ ssl/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+
+            # Enable HTTP/2 with the non-deprecated directive form.
+            if ! grep -qwE '^[[:space:]]*http2[[:space:]]+on;' "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+                awk '!done && /listen .*443 ssl/ { print; print "    http2 on;"; done=1; next } { print }' \
+                    "/etc/nginx/sites-available/${DOMAIN}.conf" > "/etc/nginx/sites-available/${DOMAIN}.conf.tmp" && \
+                run mv "/etc/nginx/sites-available/${DOMAIN}.conf.tmp" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            fi
+
+            # Enable HTTP/3 when the stack was installed with QUIC support.
+            if [[ -f /etc/nginx/includes/http3.conf ]] && \
+                ! grep -qE '^[[:space:]]*include[[:space:]]+/etc/nginx/includes/http3\.conf;' \
+                    "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+                sed_inplace "/^[[:space:]]*http2 on;/a\\    include /etc/nginx/includes/http3.conf;" \
+                    "/etc/nginx/sites-available/${DOMAIN}.conf"
+            fi
 
             # Enable SSL configs.
-            run sed -i "s/http2\ off/http2\ on/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            run sed -i "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            run sed -i "s/#ssl_certificate_key/ssl_certificate_key/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            run sed -i "s/#ssl_trusted_certificate/ssl_trusted_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
-            run sed -i "s|#include\ /etc/nginx/includes/ssl.conf|include\ /etc/nginx/includes/ssl.conf|g" \
+            sed_inplace "s/#ssl_certificate/ssl_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            sed_inplace "s/#ssl_certificate_key/ssl_certificate_key/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            sed_inplace "s/#ssl_trusted_certificate/ssl_trusted_certificate/g" "/etc/nginx/sites-available/${DOMAIN}.conf"
+            sed_inplace "s|#include\ /etc/nginx/includes/ssl.conf|include\ /etc/nginx/includes/ssl.conf|g" \
                 "/etc/nginx/sites-available/${DOMAIN}.conf"
 
             # Append HTTP <=> HTTPS redirection block.
@@ -627,12 +651,12 @@ function enable_brotli() {
         elif grep -qwE "^\    include\ /etc/nginx/includes/compression_gzip.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             echo "Found Gzip compression enabled, updating to Brotli..."
 
-            run sed -i "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_brotli.conf;|g" \
+            sed_inplace "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_brotli.conf;|g" \
                 "/etc/nginx/sites-available/${DOMAIN}.conf"
         elif grep -qwE "^\    #include\ /etc/nginx/includes/compression_[a-z]*\.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             echo "Enabling Brotli compression module..."
 
-            run sed -i "s|#include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_brotli.conf;|g" \
+            sed_inplace "s|#include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_brotli.conf;|g" \
                 "/etc/nginx/sites-available/${DOMAIN}.conf"
         else
             error "Sorry, we couldn't find any compression module section."
@@ -665,12 +689,12 @@ function enable_gzip() {
         elif grep -qwE "^\    include\ /etc/nginx/includes/compression_brotli.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             echo "Found Brotli compression enabled, updating to Gzip..."
 
-            run sed -i "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_gzip.conf;|g" \
+            sed_inplace "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_gzip.conf;|g" \
                 "/etc/nginx/sites-available/${DOMAIN}.conf"
         elif grep -qwE "^\    #include\ /etc/nginx/includes/compression_[a-z]*\.conf;" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
             echo "Enabling Gzip compression module..."
 
-            run sed -i "s|#include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_gzip.conf;|g" \
+            sed_inplace "s|#include\ /etc/nginx/includes/compression_[a-z]*\.conf;|include\ /etc/nginx/includes/compression_gzip.conf;|g" \
                 "/etc/nginx/sites-available/${DOMAIN}.conf"
         else
             error "Sorry, we couldn't find any compression module section."
@@ -696,7 +720,7 @@ function disable_compression() {
     echo "Disabling compression module..."
 
     if grep -qwE "^\    include\ /etc/nginx/includes/compression_[a-z]*\.conf" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-        run sed -i "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|#include\ /etc/nginx/includes/compression_gzip.conf;|g" \
+        sed_inplace "s|include\ /etc/nginx/includes/compression_[a-z]*\.conf;|#include\ /etc/nginx/includes/compression_gzip.conf;|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
     else
         error "Sorry, we couldn't find any enabled compression module."
@@ -704,6 +728,195 @@ function disable_compression() {
     fi
 
     reload_nginx
+}
+
+##
+# Enable ModSecurity v3 WAF for a virtual host.
+##
+function enable_modsec() {
+    local DOMAIN=${1}
+    verify_vhost "${DOMAIN}"
+
+    local VHOST_FILE="/etc/nginx/sites-available/${DOMAIN}.conf"
+    local MODSEC_CONF="/etc/nginx/includes/modsec.conf"
+
+    if [[ ! -f "${MODSEC_CONF}" ]]; then
+        error "ModSecurity is not installed."
+        echo "Reinstall with INSTALL_MODSEC=true, or run 'bash scripts/install_modsec.sh'."
+        exit 1
+    fi
+
+    if grep -qE '^[[:space:]]*include[[:space:]]+/etc/nginx/includes/modsec\.conf;' "${VHOST_FILE}"; then
+        info "ModSecurity is already enabled for ${DOMAIN}."
+        exit 0
+    fi
+
+    echo "Enabling ModSecurity for ${DOMAIN}..."
+    sed_inplace "/^[[:space:]]*server_name[[:space:]]/a\\    include /etc/nginx/includes/modsec.conf;" "${VHOST_FILE}"
+
+    if grep -qE '^[[:space:]]*include[[:space:]]+/etc/nginx/includes/modsec\.conf;' "${VHOST_FILE}"; then
+        success "ModSecurity has been enabled for ${DOMAIN}."
+        reload_nginx
+    else
+        fail "Failed to enable ModSecurity for ${DOMAIN}."
+    fi
+}
+
+##
+# Disable ModSecurity v3 WAF for a virtual host.
+##
+function disable_modsec() {
+    local DOMAIN=${1}
+    verify_vhost "${DOMAIN}"
+
+    local VHOST_FILE="/etc/nginx/sites-available/${DOMAIN}.conf"
+
+    if ! grep -qE '^[[:space:]]*include[[:space:]]+/etc/nginx/includes/modsec\.conf;' "${VHOST_FILE}"; then
+        info "ModSecurity is not enabled for ${DOMAIN}."
+        exit 0
+    fi
+
+    echo "Disabling ModSecurity for ${DOMAIN}..."
+    sed_inplace '\#^[[:space:]]*include[[:space:]]*/etc/nginx/includes/modsec\.conf;#d' "${VHOST_FILE}"
+
+    if ! grep -qE '^[[:space:]]*include[[:space:]]+/etc/nginx/includes/modsec\.conf;' "${VHOST_FILE}"; then
+        success "ModSecurity has been disabled for ${DOMAIN}."
+        reload_nginx
+    else
+        fail "Failed to disable ModSecurity for ${DOMAIN}."
+    fi
+}
+
+##
+# Enable CORS for a virtual host.
+##
+function enable_cors() {
+    local DOMAIN=${1}
+    verify_vhost "${DOMAIN}"
+
+    local VHOST_FILE="/etc/nginx/sites-available/${DOMAIN}.conf"
+    local CORS_CONF="/etc/nginx/includes/cors.conf"
+    local CORS_SITE="/etc/nginx/includes/cors-${DOMAIN}.conf"
+    local INCLUDE_LINE="    include /etc/nginx/includes/cors-${DOMAIN}.conf;"
+
+    if [[ ! -f "${CORS_CONF}" ]]; then
+        error "CORS include not found: ${CORS_CONF}"
+        exit 1
+    fi
+
+    if grep -qF "${INCLUDE_LINE}" "${VHOST_FILE}"; then
+        info "CORS is already enabled for ${DOMAIN}."
+        exit 0
+    fi
+
+    warning "Enabling CORS with a wildcard origin allows requests from any website."
+    echo "To restrict origins, edit the 'set \$cors' line in ${CORS_SITE}."
+
+    if [[ "${DRYRUN}" == true ]]; then
+        info "Would create ${CORS_SITE} and enable CORS for ${DOMAIN}."
+        return 0
+    fi
+
+    cat > "${CORS_SITE}" <<EOL
+# Generated by lemper-cli site mod --enable-cors for ${DOMAIN}.
+# Default policy allows every origin. To restrict, replace "*" with an
+# explicit origin, e.g. set \$cors "https://app.example.com";
+# For multiple origins define a map in /etc/nginx/cors instead.
+set \$cors "*";
+include /etc/nginx/includes/cors.conf;
+EOL
+
+    # Insert the include only into the first server block.
+    awk -v include_line="${INCLUDE_LINE}" '
+        !inserted && /^[[:space:]]*server_name[[:space:]]/ {
+            print
+            print include_line
+            inserted = 1
+            next
+        }
+        { print }
+    ' "${VHOST_FILE}" > "${VHOST_FILE}.tmp" || { rm -f "${VHOST_FILE}.tmp"; fail "Failed to update ${VHOST_FILE}."; exit 1; }
+    run mv "${VHOST_FILE}.tmp" "${VHOST_FILE}"
+
+    if grep -qF "${INCLUDE_LINE}" "${VHOST_FILE}"; then
+        success "CORS has been enabled for ${DOMAIN}."
+        reload_nginx
+    else
+        fail "Failed to enable CORS for ${DOMAIN}."
+    fi
+}
+
+##
+# Disable CORS for a virtual host.
+##
+function disable_cors() {
+    local DOMAIN=${1}
+    verify_vhost "${DOMAIN}"
+
+    local VHOST_FILE="/etc/nginx/sites-available/${DOMAIN}.conf"
+    local CORS_SITE="/etc/nginx/includes/cors-${DOMAIN}.conf"
+    local INCLUDE_LINE="    include /etc/nginx/includes/cors-${DOMAIN}.conf;"
+
+    if ! grep -qF "${INCLUDE_LINE}" "${VHOST_FILE}"; then
+        info "CORS is not enabled for ${DOMAIN}."
+        exit 0
+    fi
+
+    echo "Disabling CORS for ${DOMAIN}..."
+    sed_inplace "\#${INCLUDE_LINE}#d" "${VHOST_FILE}"
+    [[ -f "${CORS_SITE}" ]] && run rm -f "${CORS_SITE}"
+
+    if ! grep -qF "${INCLUDE_LINE}" "${VHOST_FILE}"; then
+        success "CORS has been disabled for ${DOMAIN}."
+        reload_nginx
+    else
+        fail "Failed to disable CORS for ${DOMAIN}."
+    fi
+}
+
+##
+# Validate FQDN domain.
+# CLI plugins cannot access utils.sh, so each plugin that needs this
+# defines its own copy (kept in sync with scripts/utils.sh).
+# Uses ERE (grep -E) with a separate length check for portability.
+##
+function validate_fqdn() {
+    local FQDN=${1}
+
+    # Length check: 4-253 characters (RFC 1035 / RFC 1123).
+    if [[ ${#FQDN} -lt 4 || ${#FQDN} -gt 253 ]]; then
+        echo false # error
+        return
+    fi
+
+    # Validate format: labels of 1-63 chars separated by dots,
+    # no leading/trailing dashes, TLD is 2-63 letters, optional trailing dot.
+    if grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}\.?$' <<< "${FQDN}"; then
+        echo true # success
+    else
+        echo false # error
+    fi
+}
+
+##
+# Validate IPv4 address.
+##
+function validate_ipv4() {
+    local IP=${1}
+
+    if grep -qE '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$' <<< "${IP}"; then
+        echo true # success
+    else
+        echo false # error
+    fi
+}
+
+##
+# Sanitize a string for safe use in sed replacement patterns.
+##
+function sanitize_sed_replacement() {
+    local INPUT=${1}
+    printf '%s' "${INPUT}" | sed -e 's/[\\&]/\\&/g' -e 's/\//\\\//g'
 }
 
 ##
@@ -718,6 +931,13 @@ function verify_vhost() {
 
     if [[ "${1}" == "default" ]]; then
         error "Modify/delete default virtual host is prohibitted."
+        exit 1
+    fi
+
+    # Validate domain name is a proper FQDN before using it in file paths,
+    # sed patterns, and openssl commands — prevents injection attacks.
+    if [[ $(validate_fqdn "${1}") == false ]]; then
+        error "Invalid domain name: '${1}' is not a valid FQDN."
         exit 1
     fi
 
@@ -775,20 +995,26 @@ function generate_selfsigned_ssl() {
     local SERVER_IP=${2:-$(get_ip_public)}
     verify_vhost "${DOMAIN}"
 
+    # Validate IPv4 address — get_ip_public() should return valid IPv4,
+    # but we check defensively in case the network source is compromised.
+    if [ -n "${SERVER_IP}" ] && [[ $(validate_ipv4 "${SERVER_IP}") == false ]]; then
+        fail "Invalid IPv4 address: '${SERVER_IP}' is not a valid IPv4 address."
+    fi
+
     if [ ! -d "/etc/lemper/ssl/${DOMAIN}" ]; then
         run mkdir -p "/etc/lemper/ssl/${DOMAIN}"
     fi
 
-    run sed -i "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/ca.conf && \
-    run sed -i "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -i "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -r -i "s|^IP.1\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.1\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -r -i "s|^IP.2\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.2\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
+    sed_inplace "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/ca.conf && \
+    sed_inplace "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace -r "s|^IP.1\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.1\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace -r "s|^IP.2\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.2\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
 
     # Create Certificate Authority (CA).
-    run openssl req -x509 -sha256 -days 365000 -nodes -newkey rsa:2048 \
+    run openssl req -x509 -sha256 -days 365000 -nodes -newkey rsa:4096 \
         -keyout "/etc/lemper/ssl/${DOMAIN}/ca.key" -out "/etc/lemper/ssl/${DOMAIN}/ca.crt" \
         -config /etc/lemper/ssl/ca.conf
 
@@ -796,7 +1022,7 @@ function generate_selfsigned_ssl() {
     CA_CRT_FILE="/etc/lemper/ssl/${DOMAIN}/ca.crt"
 
     # Create Server Private Key.
-    run openssl genrsa -out "/etc/lemper/ssl/${DOMAIN}/privkey.pem" 2048 && \
+    run openssl genrsa -out "/etc/lemper/ssl/${DOMAIN}/privkey.pem" 4096 && \
 
     # Generate Certificate Signing Request (CSR) using Server Private Key.
     run openssl req -new -key "/etc/lemper/ssl/${DOMAIN}/privkey.pem" \
@@ -854,7 +1080,7 @@ function get_ip_public() {
 function init_lemper_manage() {
     OPTS=$(getopt -o c:d:e:f:r:s:bghv \
       -l enable:,disable:,remove:,enable-fail2ban:,disable-fail2ban:,enable-fastcgi-cache:,disable-fastcgi-cache: \
-      -l enable-ssl:,disable-ssl:,remove-ssl:,renew-ssl:,enable-brotli:,enable-gzip:,disable-compression:,help,version \
+      -l enable-ssl:,disable-ssl:,remove-ssl:,renew-ssl:,enable-brotli:,enable-gzip:,disable-compression:,enable-modsec:,disable-modsec:,enable-cors:,disable-cors:,help,version \
       -n "${PROG_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
@@ -924,6 +1150,26 @@ function init_lemper_manage() {
             ;;
             -g | --enable-gzip)
                 enable_gzip "${2}"
+                shift 2
+                exit 0
+            ;;
+            --enable-modsec)
+                enable_modsec "${2}"
+                shift 2
+                exit 0
+            ;;
+            --disable-modsec)
+                disable_modsec "${2}"
+                shift 2
+                exit 0
+            ;;
+            --enable-cors)
+                enable_cors "${2}"
+                shift 2
+                exit 0
+            ;;
+            --disable-cors)
+                disable_cors "${2}"
                 shift 2
                 exit 0
             ;;

@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 
-# PHP Installer
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 13/02/2022
-# Author            : MasEDI.Net (me@masedi.net)
-# Since Version     : 1.0.0
+# +-------------------------------------------------------------------------+
+# | PHP Installer                                                           |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellcheck disable=SC1091
-    . "${BASE_DIR}/utils.sh"
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
+    cd "${BASE_DIR}" || { echo "Cannot enter ${BASE_DIR}."; exit 1; }
+    # shellcheck source=scripts/utils.sh
+    . "${BASE_DIR}/scripts/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -85,147 +94,106 @@ function add_php_repo() {
 # Install PHP and extensions.
 ##
 function install_php() {
-    #local PHP_IS_INSTALLED="no"
-
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
-    # Checking if PHP already installed.
+    local PHP_ALREADY_INSTALLED=false
+
     if [[ -n $(command -v "php${PHPv}") && -n $(command -v "php-fpm${PHPv}") ]]; then
-        #PHP_IS_INSTALLED="yes"
-        info "PHP ${PHPv} and it's extensions already exists, installation skipped."
+        PHP_ALREADY_INSTALLED=true
+        info "PHP ${PHPv} is already installed, reconciling its extensions."
     else
         echo "Preparing PHP ${PHPv} installation..."
+    fi
 
-        local PHP_EXTS=()
-        local PHP_REPO_EXTS=()
-        local PHP_PECL_EXTS=()
-        local PHP_PECL_FLAG=""
+    local PHP_EXTS=()
+    local PHP_REPO_EXTS=()
+    local PHP_MISSING_EXTS=()
+    local EXT_NAME
 
-        # Include user defined extensions from config file.
-        read -r -a PHP_EXTS <<< "${PHP_EXTENSIONS}"
+    # Include user defined extensions from config file.
+    read -r -a PHP_EXTS <<< "${PHP_EXTENSIONS}"
 
-        PHP_EXTS+=("bcmath" "bz2" "cli" "common" "curl" "dev" "fpm" "gd" "gmp" "gnupg" \
-            "imap" "intl" "mbstring" "mysql" "opcache" "pcov" "pgsql" "pspell" "readline" \
-            "ldap" "snmp" "soap" "sqlite3" "tidy" "tokenizer" "xml" "xmlrpc" "xsl" "yaml" "zip")
+    PHP_EXTS+=("bcmath" "bz2" "cli" "common" "curl" "dev" "fpm" "gd" "gmp" "gnupg" \
+        "imap" "intl" "mbstring" "mysql" "opcache" "pcov" "pgsql" "pspell" "readline" \
+        "ldap" "snmp" "soap" "sqlite3" "tidy" "tokenizer" "xml" "xmlrpc" "xsl" "yaml" "zip")
 
-        # Add PHP extensions.
-        [[ "${INSTALL_MEMCACHED}" == true ]] && PHP_EXTS+=("memcache" "memcached")
-        [[ "${INSTALL_MONGODB}" == true ]] && PHP_EXTS+=("mongodb")
-        [[ "${INSTALL_REDIS}" == true ]] && PHP_EXTS+=("redis")
+    # Add PHP extensions.
+    [[ "${INSTALL_MEMCACHED}" == true ]] && PHP_EXTS+=("memcache" "memcached")
+    [[ "${INSTALL_MONGODB}" == true ]] && PHP_EXTS+=("mongodb")
+    [[ "${INSTALL_REDIS}" == true ]] && PHP_EXTS+=("redis")
 
-        # Sort PHP extensions.
+    # Sort PHP extensions.
+    #shellcheck disable=SC2207
+    PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | sort -u | tr '\n' ' '))
+
+    # json is bundled with PHP 8.0+ and has no standalone package.
+    if [[ $(bc -l <<< "${PHPv//.} > 74") == 1 ]]; then
         #shellcheck disable=SC2207
-        PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | sort -u | tr '\n' ' '))
+        PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | grep -vx 'json' | tr '\n' ' '))
+    fi
 
-        # Check additional PHP extensions availability.
-        for EXT_NAME in "${PHP_EXTS[@]}"; do
-            echo -n "Checking extension ${EXT_NAME}... "
+    # Opcache is built into the PHP binary since 8.5 (no package or .so).
+    if [[ $(bc -l <<< "${PHPv//.} >= 85") == 1 ]]; then
+        #shellcheck disable=SC2207
+        PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | grep -vx 'opcache' | tr '\n' ' '))
+    fi
 
-            # Search extension from repository or PECL.
-            if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "php${PHPv}-${EXT_NAME}" > /dev/null; then
-                echo "[php${PHPv}-${EXT_NAME}]"
-                PHP_REPO_EXTS+=("php${PHPv}-${EXT_NAME}")
-            elif apt-cache search "php-${EXT_NAME}" | grep -c "php-${EXT_NAME}" > /dev/null; then
-                echo "[php${PHPv}-${EXT_NAME}]"
-                PHP_REPO_EXTS+=("php-${EXT_NAME}")
-            else
-                # Fix PECL Sodium ext name.
-                if [[ "${EXT_NAME}" == "sodium" ]]; then
-                    EXT_NAME="libsodium"
-                fi
+    # Resolve additional PHP extensions against the distribution repository.
+    for EXT_NAME in "${PHP_EXTS[@]}"; do
+        echo -n "Checking extension ${EXT_NAME}... "
 
-                # Check PECL extension is available.
-                if curl -sLI "https://pecl.php.net/rest/r/${EXT_NAME}/allreleases.xml" | grep -q "HTTP/[.12]* [2].."; then
-                    echo "[pecl-${EXT_NAME}]"
-                    PHP_PECL_EXTS+=("${EXT_NAME}")
+        if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "php${PHPv}-${EXT_NAME}" > /dev/null; then
+            echo "[php${PHPv}-${EXT_NAME}]"
+            PHP_REPO_EXTS+=("php${PHPv}-${EXT_NAME}")
+        elif apt-cache search "php-${EXT_NAME}" | grep -c "php-${EXT_NAME}" > /dev/null; then
+            echo "[php-${EXT_NAME}]"
+            PHP_REPO_EXTS+=("php-${EXT_NAME}")
+        else
+            echo "[not available]"
+            PHP_MISSING_EXTS+=("${EXT_NAME}")
+        fi
+    done
 
-                    if [[ "${EXT_NAME}" == "openswoole" ]]; then
-                        PHP_PECL_FLAG=' -D enable-sockets="no" enable-openssl="yes" enable-http2="yes" enable-mysqlnd="yes" enable-swoole-json="yes" enable-swoole-curl="yes" enable-cares="yes" with-postgres="no"'
-                    fi
-                else
-                    echo "Not found."
-                fi
-            fi
-        done
-
+    if [[ "${PHP_ALREADY_INSTALLED}" == true ]]; then
+        # Reconcile extensions added to PHP_EXTENSIONS after the initial install.
+        if [[ "${#PHP_REPO_EXTS[@]}" -gt 0 ]]; then
+            echo "Installing missing PHP ${PHPv} extensions..."
+            run_spinner "Installing PHP ${PHPv} extensions" apt-get install -q -y "${PHP_REPO_EXTS[@]}"
+            success "PHP ${PHPv} extensions reconciled."
+        else
+            info "No PHP ${PHPv} extension packages to install."
+        fi
+    else
         # Install PHP and PHP extensions.
         echo "Installing PHP ${PHPv} and it's extensions..."
 
         if [[ "${#PHP_REPO_EXTS[@]}" -gt 0 ]]; then
-            run apt-get install -q -y "php${PHPv}" "${PHP_REPO_EXTS[@]}" \
-                dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
-        fi
-
-        # Install PHP extensions from PECL.
-        echo "Installing PHP extensions from PECL repo..."
-
-        # Sort PHP extensions.
-        #shellcheck disable=SC2207
-        PHP_PECL_EXTS=($(printf "%s\n" "${PHP_PECL_EXTS[@]}" | sort -u | tr '\n' ' '))
-
-        # Remove json extension from PHP greater than 7.4. It is now always available.
-        if [[ $(bc -l <<< "${PHPv//.} > 74") == 1 ]]; then
-            PHP_PECL_EXTS=("${PHP_PECL_EXTS[@]/json/}")
-        fi
-
-        run pecl channel-update pear.php.net
-
-        if [[ "${#PHP_PECL_EXTS[@]}" -gt 0 ]]; then
-            run pecl -d "php_suffix=${PHPv}" install"${PHP_PECL_FLAG}" "${PHP_PECL_EXTS[@]}"
+            run_spinner "Installing PHP ${PHPv}" apt-get install -q -y "php${PHPv}" "${PHP_REPO_EXTS[@]}" \
+                php-common php-xml fcgiwrap spawn-fcgi
         fi
 
         if [[ -n $(command -v "php${PHPv}") ]]; then
-            TOTAL_EXTS=$((${#PHP_EXTS[@]} + ${#PHP_PECL_EXTS[@]}))
-            success "PHP ${PHPv} along with ${TOTAL_EXTS} extensions installed."
+            success "PHP ${PHPv} along with ${#PHP_REPO_EXTS[@]} extensions installed."
         fi
+    fi
 
-        # Enable additional PHP extensions.
-        [[ "${INSTALL_MEMCACHED}" == true ]] && enable_php_memcached "${PHPv}"
-        [[ "${INSTALL_MONGODB}" == true ]] && enable_php_mongodb "${PHPv}"
-        [[ "${INSTALL_REDIS}" == true ]] && enable_php_redis "${PHPv}"
+    if [[ "${#PHP_MISSING_EXTS[@]}" -gt 0 ]]; then
+        warning "PHP extension(s) not available from the distribution repository: ${PHP_MISSING_EXTS[*]}"
+        warning "Install them manually with PIE (https://github.com/php/pie) if required."
+    fi
 
-        # Enable GeoIP extension.
-        if [[ "${PHP_PECL_EXTS[*]}" =~ "geoip" ]]; then
-            echo "Updating PHP ini file with GeoIP extension..."
+    # Enable additional PHP extensions for both the CLI and FPM SAPIs.
+    [[ "${INSTALL_MEMCACHED}" == true ]] && enable_php_memcached "${PHPv}"
+    [[ "${INSTALL_MONGODB}" == true ]] && enable_php_mongodb "${PHPv}"
+    [[ "${INSTALL_REDIS}" == true ]] && enable_php_redis "${PHPv}"
 
-            [[ ! -f "/etc/php/${PHPv}/mods-available/geoip.ini" ]] && \
-            run touch "/etc/php/${PHPv}/mods-available/geoip.ini"
-            run bash -c "echo extension=geoip.so > /etc/php/${PHPv}/mods-available/geoip.ini"
-
-            if [[ ! -f "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini" ]]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/geoip.ini" \
-                    "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini"
-            fi
-
-            if [[ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini" ]]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/geoip.ini" \
-                    "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini"
-            fi
-        fi
-
-        # Enable Mcrypt extension.
-        if [[ "${PHP_PECL_EXTS[*]}" =~ "mcrypt" ]]; then
-            echo "Updating PHP ini file with Mcrypt extension..."
-
-            [[ ! -f "/etc/php/${PHPv}/mods-available/mcrypt.ini" ]] && \
-            run touch "/etc/php/${PHPv}/mods-available/mcrypt.ini"
-            run bash -c "echo extension=mcrypt.so > /etc/php/${PHPv}/mods-available/mcrypt.ini"
-
-            if [[ ! -f "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini" ]]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
-                    "/etc/php/${PHPv}/cli/conf.d/20-mcrypt.ini"
-            fi
-
-            if [[ ! -f "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini" ]]; then
-                run ln -s "/etc/php/${PHPv}/mods-available/mcrypt.ini" \
-                    "/etc/php/${PHPv}/fpm/conf.d/20-mcrypt.ini"
-            fi
-        fi
-
+    # Post-install tasks only apply to a fresh install. Re-running must not
+    # overwrite tuned pools, log directories, or logrotate configuration.
+    if [[ "${PHP_ALREADY_INSTALLED}" == false ]]; then
         # Create PHP log dir.
         if [[ ! -d /var/log/php ]]; then
             run mkdir -p /var/log/php
@@ -250,7 +218,7 @@ function restart_php_fpm() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     echo "Restarting PHP-FPM service..."
@@ -281,10 +249,26 @@ function optimize_php_fpm() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     echo "Optimizing PHP ${PHPv} & FPM configuration..."
+
+    # Size Opcache and FPM pools from the detected server resources.
+    local RESOURCE_PROFILE
+    RESOURCE_PROFILE=$(detect_resource_profile)
+
+    local OPCACHE_MEM OPCACHE_STRINGS OPCACHE_FILES
+    case "${RESOURCE_PROFILE}" in
+        micro)  OPCACHE_MEM=64;  OPCACHE_STRINGS=8;  OPCACHE_FILES=8000 ;;
+        small)  OPCACHE_MEM=128; OPCACHE_STRINGS=16; OPCACHE_FILES=16229 ;;
+        medium) OPCACHE_MEM=256; OPCACHE_STRINGS=32; OPCACHE_FILES=32531 ;;
+        *)      OPCACHE_MEM=512; OPCACHE_STRINGS=64; OPCACHE_FILES=32531 ;;
+    esac
+
+    if [[ "${OPCACHE_MEMORY_MB:-}" =~ ^[1-9][0-9]*$ ]]; then
+        OPCACHE_MEM=${OPCACHE_MEMORY_MB}
+    fi
 
     if [[ ! -d "/etc/php/${PHPv}/fpm" ]]; then
         run mkdir -p "/etc/php/${PHPv}/fpm"
@@ -294,8 +278,12 @@ function optimize_php_fpm() {
     if [[ -f "etc/php/${PHPv}/fpm/php.ini" ]]; then
         run mv "/etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/php.ini~"
         run cp -f "etc/php/${PHPv}/fpm/php.ini" "/etc/php/${PHPv}/fpm/"
-    else
-        if [[ "${DRYRUN}" != true ]]; then
+    fi
+
+    # Ensure production defaults are present even when the distro php.ini
+    # was kept. The marker keeps re-runs idempotent.
+    if [[ "${DRYRUN}" != true ]]; then
+        if ! grep -q "Custom Optimization for LEMPer" "/etc/php/${PHPv}/fpm/php.ini"; then
             if [[ "${ENVIRONMENT}" == prod* ]]; then
                 OVT="${OVT:-"0"}"
             else
@@ -311,19 +299,29 @@ function optimize_php_fpm() {
 [opcache]
 opcache.enable=1
 opcache.enable_cli=0
-opcache.memory_consumption=512
-opcache.interned_strings_buffer=64
-opcache.max_accelerated_files=32531
+opcache.memory_consumption=${OPCACHE_MEM}
+opcache.interned_strings_buffer=${OPCACHE_STRINGS}
+opcache.max_accelerated_files=${OPCACHE_FILES}
 opcache.max_wasted_percentage=5
 opcache.validate_timestamps=${OVT}
 opcache.revalidate_freq=600
 opcache.save_comments=1
-opcache.fast_shutdown=1
+opcache.file_update_protection=2
 opcache.error_log=/var/log/php/php${PHPv}-opcache_error.log
+
+; Session hardening (also enforced per pool via php_admin_value).
+session.use_strict_mode=1
+session.use_only_cookies=1
+session.cookie_httponly=1
+session.cookie_samesite=Lax
+session.sid_length=48
+session.sid_bits_per_character=5
+session.gc_probability=1
+session.gc_divisor=1000
 EOL
-        else
-            info "PHP opcache optimized in dry run mode."
         fi
+    else
+        info "PHP opcache optimized in dry run mode."
     fi
 
     # Copy the optimized-version of php-fpm config file.
@@ -333,34 +331,34 @@ EOL
     else
         if [[ "${DRYRUN}" != true ]]; then
             if grep -qwE "^error_log\ =\ \/var\/log\/php${PHPv}-fpm.log" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
-                run sed -i "s|^error_log\ =\ /var/log/php${PHPv}-fpm.log|error_log\ =\ /var/log/php/php${PHPv}-fpm.log/g" \
+                sed_inplace "s|^error_log\ =\ /var/log/php${PHPv}-fpm.log|error_log\ =\ /var/log/php/php${PHPv}-fpm.log/g" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             else
-                run sed -i "/^;error_log/a error_log\ =\ \/var\/log\/php\/php${PHPv}-fpm.log" \
+                sed_inplace "/^;error_log/a error_log\ =\ \/var\/log\/php\/php${PHPv}-fpm.log" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             fi
 
             if grep -qwE "^emergency_restart_threshold\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
-                run sed -i "s/^emergency_restart_threshold\ =\ [0-9]*/emergency_restart_threshold\ =\ 10/g" \
+                sed_inplace "s/^emergency_restart_threshold\ =\ [0-9]*/emergency_restart_threshold\ =\ 10/g" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             else
-                run sed -i "/^;emergency_restart_threshold/a emergency_restart_threshold\ =\ 10" \
+                sed_inplace "/^;emergency_restart_threshold/a emergency_restart_threshold\ =\ 10" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             fi
 
             if grep -qwE "^emergency_restart_interval\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
-                run sed -i "s/^emergency_restart_interval\ =\ [0-9]*/emergency_restart_interval\ =\ 60/g" \
+                sed_inplace "s/^emergency_restart_interval\ =\ [0-9]*/emergency_restart_interval\ =\ 60/g" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             else
-                run sed -i "/^;emergency_restart_interval/a emergency_restart_interval\ =\ 60" \
+                sed_inplace "/^;emergency_restart_interval/a emergency_restart_interval\ =\ 60" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             fi
 
             if grep -qwE "^process_control_timeout\ =\ [0-9]*" "/etc/php/${PHPv}/fpm/php-fpm.conf"; then
-                run sed -i "s/^process_control_timeout\ =\ [0-9]*/process_control_timeout\ =\ 10/g" \
+                sed_inplace "s/^process_control_timeout\ =\ [0-9]*/process_control_timeout\ =\ 10/g" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             else
-                run sed -i "/^;process_control_timeout/a process_control_timeout\ =\ 10" \
+                sed_inplace "/^;process_control_timeout/a process_control_timeout\ =\ 10" \
                     "/etc/php/${PHPv}/fpm/php-fpm.conf"
             fi
         else
@@ -378,34 +376,36 @@ EOL
         run cp -f "etc/php/${PHPv}/fpm/pool.d/www.conf" "/etc/php/${PHPv}/fpm/pool.d/"
 
         # Update timezone.
-        run run sed -i "s|php_admin_value\[date\.timezone\]\ =\ UTC|php_admin_value\[date\.timezone\]\ =\ ${TIMEZONE}|g" \
+        sed_inplace "s|php_admin_value\[date\.timezone\]\ =\ UTC|php_admin_value\[date\.timezone\]\ =\ ${TIMEZONE}|g" \
             "/etc/php/${PHPv}/fpm/pool.d/www.conf"
     else
         # Enable FPM ping service.
-        run sed -i "/^;ping.path\ =.*/a ping.path\ =\ \/ping" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
+        sed_inplace "/^;ping.path\ =.*/a ping.path\ =\ \/ping" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
         # Enable FPM status.
-        run sed -i "/^;pm.status_path\ =.*/a pm.status_path\ =\ \/status" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
+        sed_inplace "/^;pm.status_path\ =.*/a pm.status_path\ =\ \/status" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
         # Enable chdir.
-        run sed -i "/^;chdir\ =.*/a chdir\ =\ \/usr\/share\/nginx\/html" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
+        sed_inplace "/^;chdir\ =.*/a chdir\ =\ \/usr\/share\/nginx\/html" "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
         # Add custom php extension (ex .php70, .php71)
         PHPExt=".php${PHPv//.}"
-        run sed -i "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/g" \
+        sed_inplace "s/;\(security\.limit_extensions\s*=\s*\).*$/\1\.php\ $PHPExt/g" \
             "/etc/php/${PHPv}/fpm/pool.d/www.conf"
 
         # Customize php ini settings.
         if [[ "${DRYRUN}" != true ]]; then
             cat >> "/etc/php/${PHPv}/fpm/pool.d/www.conf" <<EOL
 ; Custom PHP ini settings for LEMPer Stack.
-php_admin_value[open_basedir] = /usr/share/nginx/html
-php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
+request_terminate_timeout = 300s
+php_admin_value[open_basedir] = /usr/share/nginx/html:/var/lib/php/lemper/www-data
+php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,pcntl_unshare,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
 php_admin_value[error_log] = /var/log/php/${PHPv}-fpm_error.\$pool.log
-php_admin_value[sys_temp_dir] = /usr/share/nginx/html/.lemper/tmp
-php_admin_value[upload_tmp_dir] = /usr/share/nginx/html/.lemper/tmp
+php_admin_flag[expose_php] = off
+php_admin_value[sys_temp_dir] = /var/lib/php/lemper/www-data/tmp
+php_admin_value[upload_tmp_dir] = /var/lib/php/lemper/www-data/tmp
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
 
 ; Configuration below can be overwritten from PHP call 'ini_set'.
@@ -419,18 +419,36 @@ php_value[upload_max_filesize] = 50M
 php_value[max_file_uploads] = 20
 php_value[default_socket_timeout] = 60
 php_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
-php_flag[display_errors] = on
-php_flag[cgi.fix_pathinfo] = 1
+php_admin_flag[display_errors] = off
+php_admin_flag[display_startup_errors] = off
+php_flag[cgi.fix_pathinfo] = off
 php_value[date.timezone] = UTC
 php_value[session.save_handler] = files
-php_value[session.save_path] = /usr/share/nginx/html/.lemper/php/sessions
-php_value[soap.wsdl_cache_dir] = /usr/share/nginx/html/.lemper/php/wsdlcache
-php_value[opcache.file_cache] = /usr/share/nginx/html/.lemper/php/opcache
+; Keep session files out of the document root: ini_set() must not relocate them.
+php_admin_value[session.save_path] = /var/lib/php/lemper/www-data/sessions
+php_value[soap.wsdl_cache_dir] = /var/lib/php/lemper/www-data/wsdlcache
+php_value[opcache.file_cache] = /var/lib/php/lemper/www-data/opcache
 php_value[opcache.error_log] = /var/log/php/php${PHPv}-opcache_error.log
+
+; Session hardening (not overridable from application code).
+php_admin_value[session.use_strict_mode] = 1
+php_admin_value[session.use_only_cookies] = 1
+php_admin_value[session.cookie_httponly] = 1
+php_admin_value[session.cookie_secure] = 0
+php_admin_value[session.cookie_samesite] = Lax
+php_admin_value[session.sid_length] = 48
+php_admin_value[session.sid_bits_per_character] = 5
+php_admin_value[session.gc_probability] = 1
+php_admin_value[session.gc_divisor] = 1000
 EOL
         else
             info "Default FPM pool optimized in dry run mode."
         fi
+    fi
+
+    # Apply resource-aware worker sizing to the default pool.
+    if [[ "${DRYRUN}" != true ]]; then
+        tune_php_pool "/etc/php/${PHPv}/fpm/pool.d/www.conf" "${RESOURCE_PROFILE}"
     fi
 
     # Copy the optimized-version of php fpm default lemper pool.
@@ -440,7 +458,7 @@ EOL
         run cp -f "etc/php/${PHPv}/fpm/pool.d/lemper.conf" "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
 
         # Update timezone.
-        run sed -i "s|php_admin_value\[date\.timezone\]\ =\ UTC|php_admin_value\[date\.timezone\]\ =\ ${TIMEZONE}|g" \
+        sed_inplace "s|php_admin_value\[date\.timezone\]\ =\ UTC|php_admin_value\[date\.timezone\]\ =\ ${TIMEZONE}|g" \
             "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf"
     else
         if [[ -f "/etc/php/${PHPv}/fpm/pool.d/lemper.conf" && -n $(getent passwd "${POOLNAME}") ]]; then
@@ -463,11 +481,13 @@ listen.mode = 0660
 
 ; Custom PHP-FPM optimization, adjust here to meet your specs.
 ; Default value here is optimized for a single CPU with at least 1GB RAM.
+; Raise pm.max_children only after checking available memory:
+; pm.max_children * memory_limit is the worst-case RAM budget.
 pm = dynamic
-pm.max_children = 30
-pm.start_servers = 5
-pm.min_spare_servers = 5
-pm.max_spare_servers = 20
+pm.max_children = 10
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
 pm.process_idle_timeout = 30s
 pm.max_requests = 500
 
@@ -476,23 +496,29 @@ ping.path = /php-fpm_ping
 
 slowlog = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_slow.log
 request_slowlog_timeout = 10s
+; Kill runaway workers even if max_execution_time is bypassed.
+request_terminate_timeout = 300s
 
 ;chroot = /home/${POOLNAME}
 chdir = /home/${POOLNAME}
 
+; Do not leak the service environment into PHP.
+clear_env = yes
+
 ;catch_workers_output = yes
 ;decorate_workers_output = no
 
-security.limit_extensions = .php .php7 .php8 .php${PHPv//./}
+security.limit_extensions = .php .php${PHPv//./}
 
 ; Custom PHP ini settings for LEMPer Stack.
-php_admin_value[open_basedir] = /home/${POOLNAME}
-php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
+php_admin_value[open_basedir] = /home/${POOLNAME}:/var/lib/php/lemper/${POOLNAME}
+php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,pcntl_unshare,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
 php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_error.log
-php_admin_value[sys_temp_dir] = /home/${POOLNAME}/.lemper/tmp
-php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.lemper/tmp
+php_admin_flag[expose_php] = off
+php_admin_value[sys_temp_dir] = /var/lib/php/lemper/${POOLNAME}/tmp
+php_admin_value[upload_tmp_dir] = /var/lib/php/lemper/${POOLNAME}/tmp
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
 
 ; Configuration below can be overwritten from PHP call 'ini_set'.
@@ -506,38 +532,54 @@ php_value[upload_max_filesize] = 50M
 php_value[max_file_uploads] = 20
 php_value[default_socket_timeout] = 60
 php_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
-php_flag[display_errors] = on
-php_flag[cgi.fix_pathinfo] = 1
+php_admin_flag[display_errors] = off
+php_admin_flag[display_startup_errors] = off
+php_flag[cgi.fix_pathinfo] = off
 php_value[date.timezone] = UTC
 php_value[session.save_handler] = files
-php_value[session.save_path] = /home/${POOLNAME}/.lemper/php/sessions
-php_value[soap.wsdl_cache_dir] = /home/${POOLNAME}/.lemper/php/wsdlcache
-php_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/php/opcache
+; Keep session files out of the document root: ini_set() must not relocate them.
+php_admin_value[session.save_path] = /var/lib/php/lemper/${POOLNAME}/sessions
+php_value[soap.wsdl_cache_dir] = /var/lib/php/lemper/${POOLNAME}/wsdlcache
+php_value[opcache.file_cache] = /var/lib/php/lemper/${POOLNAME}/opcache
 php_value[opcache.error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-opcache_error.log
+
+; Session hardening (not overridable from application code).
+php_admin_value[session.use_strict_mode] = 1
+php_admin_value[session.use_only_cookies] = 1
+php_admin_value[session.cookie_httponly] = 1
+php_admin_value[session.cookie_secure] = 0
+php_admin_value[session.cookie_samesite] = Lax
+php_admin_value[session.sid_length] = 48
+php_admin_value[session.sid_bits_per_character] = 5
+php_admin_value[session.gc_probability] = 1
+php_admin_value[session.gc_divisor] = 1000
 EOL
         else
             info "Custom FPM pool '${POOLNAME}' created in dry run mode."
         fi
     fi
 
+    # Apply resource-aware worker sizing to the LEMPer pool.
+    if [[ "${DRYRUN}" != true ]]; then
+        tune_php_pool "/etc/php/${PHPv}/fpm/pool.d/${POOLNAME}.conf" "${RESOURCE_PROFILE}"
+    fi
+
     # Create default directories & log files.
-    run mkdir -p "/home/${POOLNAME}/.lemper/tmp"
-    run mkdir -p "/home/${POOLNAME}/.lemper/php/opcache"
-    run mkdir -p "/home/${POOLNAME}/.lemper/php/sessions"
-    run mkdir -p "/home/${POOLNAME}/.lemper/php/wsdlcache"
+    create_php_temp_dirs "${POOLNAME}"
+    create_php_temp_dirs "www-data"
     run mkdir -p "/home/${POOLNAME}/cgi-bin"
     run mkdir -p "/home/${POOLNAME}/logs/php"
     run touch "/home/${POOLNAME}/logs/php/php${PHPv}-fpm_slow.log"
     run touch "/home/${POOLNAME}/logs/php/php${PHPv}-fpm_error.log"
     run touch "/home/${POOLNAME}/logs/php/php${PHPv}-opcache_error.log"
-    run chown -hR "${POOLNAME}:${POOLNAME}" "/home/${POOLNAME}/.lemper" "/home/${POOLNAME}/cgi-bin" "/home/${POOLNAME}/logs"
+    run chown -hR "${POOLNAME}:${POOLNAME}" "/home/${POOLNAME}/cgi-bin" "/home/${POOLNAME}/logs"
 }
 
 function add_php_logrotate() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     if [[ -f "/etc/logrotate.d/php${PHPv}-fpm" ]]; then
@@ -565,23 +607,97 @@ EOL
 }
 
 ##
+# Enable a PHP extension for both the CLI and FPM SAPIs.
+#
+# Repositories create the mods-available ini, but manually built extensions
+# (PIE) and interrupted installs may leave it enabled for the CLI only. The
+# FPM SAPI is verified through 'php-fpm -m', which reads fpm/conf.d rather
+# than the CLI configuration.
+##
+function enable_php_extension() {
+    local PHPv="${1}"
+    local EXT_NAME="${2}"
+
+    if [[ -z "${PHPv}" || -z "${EXT_NAME}" ]]; then
+        error "Usage: enable_php_extension <php-version> <extension>"
+        return 1
+    fi
+
+    if [[ "${DRYRUN}" == true ]]; then
+        info "PHP ${PHPv} ${EXT_NAME} extension enabled in dry run mode."
+        return 0
+    fi
+
+    local PHP_LIB_DIR
+    PHP_LIB_DIR=$("php${PHPv}" -i 2>/dev/null | grep '^extension_dir' | awk '{print $3}')
+
+    if [[ -z "${PHP_LIB_DIR}" || ! -f "${PHP_LIB_DIR}/${EXT_NAME}.so" ]]; then
+        warning "PHP ${PHPv} ${EXT_NAME} extension is not installed; install php${PHPv}-${EXT_NAME} first."
+        return 1
+    fi
+
+    local SAPI MOD_INI
+    MOD_INI="/etc/php/${PHPv}/mods-available/${EXT_NAME}.ini"
+
+    for SAPI in cli fpm; do
+        if [[ ! -d "/etc/php/${PHPv}/${SAPI}/conf.d" ]]; then
+            continue
+        fi
+
+        # Skip SAPIs that already load the extension.
+        if compgen -G "/etc/php/${PHPv}/${SAPI}/conf.d/*-${EXT_NAME}.ini" > /dev/null; then
+            continue
+        fi
+
+        if [[ -f "${MOD_INI}" ]] && command -v phpenmod > /dev/null 2>&1; then
+            run phpenmod -v "${PHPv}" -s "${SAPI}" "${EXT_NAME}"
+        else
+            if [[ ! -f "${MOD_INI}" ]]; then
+                printf 'extension=%s\n' "${PHP_LIB_DIR}/${EXT_NAME}.so" > "${MOD_INI}"
+            fi
+            run ln -s "${MOD_INI}" "/etc/php/${PHPv}/${SAPI}/conf.d/30-${EXT_NAME}.ini"
+        fi
+    done
+
+    if "php-fpm${PHPv}" -m 2>/dev/null | grep -qiw "${EXT_NAME}"; then
+        success "PHP ${PHPv} ${EXT_NAME} extension enabled for CLI and FPM."
+    else
+        warning "PHP ${PHPv} ${EXT_NAME} is configured but the FPM SAPI does not report it."
+        return 1
+    fi
+}
+
+##
 # Enable PHP Memcached extension.
 ##
 function enable_php_memcached() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
-    # Enable PHP memcached module.
     echo "Optimizing PHP ${PHPv} memcached extension..."
 
-    # Optimize PHP memcache extension.
-    if [[ "${DRYRUN}" != true ]]; then
-        if [ -d "/etc/php/${PHPv}/mods-available/" ]; then
-            if [ -f "/etc/php/${PHPv}/mods-available/memcache.ini" ]; then
-                cat >> "/etc/php/${PHPv}/mods-available/memcache.ini" <<EOL
+    if [[ "${DRYRUN}" == true ]]; then
+        info "PHP ${PHPv} memcached extension optimized in dry run mode."
+        return 0
+    fi
+
+    if ! enable_php_extension "${PHPv}" "memcache"; then
+        return 1
+    fi
+
+    local MEMCACHE_INI="/etc/php/${PHPv}/mods-available/memcache.ini"
+
+    if [[ ! -f "${MEMCACHE_INI}" ]]; then
+        warning "PHP ${PHPv} memcache settings file not found; skipping tuning."
+        return 0
+    fi
+
+    # Appending on every re-run would duplicate the directives.
+    if ! grep -q 'Optimized for LEMPer stack.' "${MEMCACHE_INI}"; then
+        cat >> "${MEMCACHE_INI}" <<EOL
 
 ; Optimized for LEMPer stack.
 memcache.dbpath="/var/lib/memcache"
@@ -595,15 +711,9 @@ memcache.maxratio=0
 session.bak_handler="memcache"
 session.bak_path="tcp://127.0.0.1:11211"
 EOL
-
-                success "PHP ${PHPv} Memcached extension enabled."
-            fi
-        else
-            info "It seems that PHP ${PHPv} not yet installed. Please install it before!"
-        fi
-    else
-        info "PHP ${PHPv} Memcached extension optimized in dry run mode."
     fi
+
+    success "PHP ${PHPv} memcached extension enabled."
 }
 
 ##
@@ -613,41 +723,11 @@ function enable_php_mongodb() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
-    PHP_LIB_DIR=$("php${PHPv}" -i | grep "extension_dir" | awk '{print $3}')
-    MONGODB_EXT_PATH="${PHP_LIB_DIR}/mongodb.so"
-
-    if [[ "${DRYRUN}" != true ]]; then
-        if [[ -f "${MONGODB_EXT_PATH}" ]]; then
-            #run chmod 0644 "${MONGODB_EXT_PATH}"
-
-            if "php${PHPv}" -m | grep -q 'mongodb'; then
-                echo "Updating PHP ini file with MongoDB extension..."
-
-                [[ ! -f "/etc/php/${PHPv}/mods-available/mongodb.ini" ]] && \
-                run touch "/etc/php/${PHPv}/mods-available/mongodb.ini"
-                run bash -c "echo extension=${MONGODB_EXT_PATH} > /etc/php/${PHPv}/mods-available/mongodb.ini"
-
-                if [[ ! -f "/etc/php/${PHPv}/cli/conf.d/30-mongodb.ini" ]]; then
-                    run ln -s "/etc/php/${PHPv}/mods-available/mongodb.ini" \
-                        "/etc/php/${PHPv}/cli/conf.d/30-mongodb.ini"
-                fi
-
-                if [[ ! -f "/etc/php/${PHPv}/fpm/conf.d/30-mongodb.ini" ]]; then
-                    run ln -s "/etc/php/${PHPv}/mods-available/mongodb.ini" \
-                        "/etc/php/${PHPv}/fpm/conf.d/30-mongodb.ini"
-                fi
-            else
-                info "MongoDB extension already enabled, please confirm it manually"
-            fi
-        else
-            error "MongoDB extension file could not be found, you could install it manually"
-        fi
-    else
-        info "PHP ${PHPv} MongoDB extension optimized in dry run mode."
-    fi
+    echo "Enabling PHP ${PHPv} MongoDB extension..."
+    enable_php_extension "${PHPv}" "mongodb"
 }
 
 ##
@@ -657,41 +737,11 @@ function enable_php_redis() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
-    PHP_LIB_DIR=$("php${PHPv}" -i | grep "extension_dir" | awk '{print $3}')
-    REDIS_EXT_PATH="${PHP_LIB_DIR}/redis.so"
-
-    if [[ "${DRYRUN}" != true ]]; then
-        if [[ -f "${REDIS_EXT_PATH}" ]]; then
-            #run chmod 0644 "${REDIS_EXT_PATH}"
-
-            if "php${PHPv}" -m | grep -q 'redis'; then
-                echo "Updating PHP ini file with Redis extension..."
-
-                [[ ! -f "/etc/php/${PHPv}/mods-available/redis.ini" ]] && \
-                run touch "/etc/php/${PHPv}/mods-available/redis.ini"
-                run bash -c "echo extension=${REDIS_EXT_PATH} > /etc/php/${PHPv}/mods-available/redis.ini"
-
-                if [[ ! -f "/etc/php/${PHPv}/cli/conf.d/30-redis.ini" ]]; then
-                    run ln -s "/etc/php/${PHPv}/mods-available/redis.ini" \
-                        "/etc/php/${PHPv}/cli/conf.d/30-redis.ini"
-                fi
-
-                if [[ ! -f "/etc/php/${PHPv}/fpm/conf.d/30-redis.ini" ]]; then
-                    run ln -s "/etc/php/${PHPv}/mods-available/redis.ini" \
-                        "/etc/php/${PHPv}/fpm/conf.d/30-redis.ini"
-                fi
-            else
-                info "Redis extension already enabled, please confirm it manually"
-            fi
-        else
-            error "Redis extension file could not be found, you could install it manually"
-        fi
-    else
-        info "PHP ${PHPv} Redis extension optimized in dry run mode."
-    fi
+    echo "Enabling PHP ${PHPv} Redis extension..."
+    enable_php_extension "${PHPv}" "redis"
 }
 
 ##
@@ -701,7 +751,7 @@ function install_php_composer() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     # Checking if php composer already installed.
@@ -795,7 +845,7 @@ function enable_ioncube_loader() {
     # PHP version.
     local PHPv="${1}"
     if [ -z "${PHPv}" ]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     echo "Enable ionCube loader for PHP ${PHPv}."
@@ -866,7 +916,7 @@ function enable_sourceguardian_loader() {
     # PHP version.
     local PHPv="${1}"
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     echo "Enable SourceGuardian loader for PHP ${PHPv}."
@@ -903,7 +953,7 @@ function install_php_loader() {
     local SELECTED_PHP_LOADER="${2}"
 
     if [[ -z "${PHPv}" ]]; then
-        PHPv=${DEFAULT_PHP_VERSION:-"8.3"}
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
     if [[ -z "${SELECTED_PHP_LOADER}" ]]; then
@@ -911,7 +961,7 @@ function install_php_loader() {
     fi
 
     # Install PHP loader.
-    if [[ "${PHPv}" != "unsupported" && ! $(version_older_than "${PHPv}" "5.6") ]]; then
+    if [[ "${PHPv}" != "unsupported" && ! $(version_older_than "${PHPv}" "8.2") ]]; then
         if [[ "${AUTO_INSTALL}" == true ]]; then
             if [[ "${INSTALL_PHP_LOADER}" == true ]]; then
                 DO_INSTALL_PHP_LOADER="y"
@@ -1025,17 +1075,12 @@ function init_php_install() {
             # Manually select PHP version in interactive mode.
             echo "Which PHP version to be installed?"
             echo "Available PHP versions:"
-            echo "  1). PHP 7.1 (EOL)"
-            echo "  2). PHP 7.2 (EOL)"
-            echo "  3). PHP 7.3 (EOL)"
-            echo "  4). PHP 7.4 (EOL)"
-            echo "  5). PHP 8.0 (EOL)"
-            echo "  6). PHP 8.1 (SFO)"
-            echo "  7). PHP 8.2 (SFO)"
-            echo "  8). PHP 8.3 (Stable)"
-            echo "  9). PHP 8.4 (Latest Stable)"
-            echo "  10). All available versions"
-            echo "  11). Do not install!"
+            echo "  1). PHP 8.2 (Security)"
+            echo "  2). PHP 8.3 (Stable)"
+            echo "  3). PHP 8.4 (Security)"
+            echo "  4). PHP 8.5 (Latest Stable)"
+            echo "  5). All available versions"
+            echo "  6). Do not install!"
             echo "--------------------------------------------"
 
             [[ -n "${DEFAULT_PHP_VERSION}" ]] && \
@@ -1043,49 +1088,31 @@ function init_php_install() {
 
             while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" && \
                 ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" && \
-                ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && ${SELECTED_PHP} != "9" && \
-                ${SELECTED_PHP} != "10" && ${SELECTED_PHP} != "11" && \
-                ${SELECTED_PHP} != "7.1" && ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" && \
-                ${SELECTED_PHP} != "7.4" && ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "8.1" && \
-                ${SELECTED_PHP} != "8.2" && ${SELECTED_PHP} != "8.3" && ${SELECTED_PHP} != "8.4" && \
+                ${SELECTED_PHP} != "8.2" && ${SELECTED_PHP} != "8.3" && \
+                ${SELECTED_PHP} != "8.4" && ${SELECTED_PHP} != "8.5" && \
                 ${SELECTED_PHP} != "all" && ${SELECTED_PHP} != "none"
             ]]; do
-                read -rp "Enter a PHP version from an option above [1-11]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
+                read -rp "Enter a PHP version from an option above [1-6]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
             done
 
             case "${SELECTED_PHP}" in
-                1 | "7.1")
-                    SELECTED_PHP_VERSIONS+=("7.1")
-                ;;
-                2 | "7.2")
-                    SELECTED_PHP_VERSIONS+=("7.2")
-                ;;
-                3 | "7.3")
-                    SELECTED_PHP_VERSIONS+=("7.3")
-                ;;
-                4 | "7.4")
-                    SELECTED_PHP_VERSIONS+=("7.4")
-                ;;
-                5 | "8.0")
-                    SELECTED_PHP_VERSIONS+=("8.0")
-                ;;
-                6 | "8.1")
-                    SELECTED_PHP_VERSIONS+=("8.1")
-                ;;
-                7 | "8.2")
+                1 | "8.2")
                     SELECTED_PHP_VERSIONS+=("8.2")
                 ;;
-                8 | "8.3")
+                2 | "8.3")
                     SELECTED_PHP_VERSIONS+=("8.3")
                 ;;
-                9 | "8.4")
+                3 | "8.4")
                     SELECTED_PHP_VERSIONS+=("8.4")
                 ;;
-                10 | "all")
-                    # Select all PHP versions (except EOL & Beta).
-                    SELECTED_PHP_VERSIONS=("7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2" "8.3" "8.4")
+                4 | "8.5")
+                    SELECTED_PHP_VERSIONS+=("8.5")
                 ;;
-                11 | n*)
+                5 | "all")
+                    # Select all supported PHP versions.
+                    SELECTED_PHP_VERSIONS=("8.2" "8.3" "8.4" "8.5")
+                ;;
+                6 | n*)
                     info "No selected PHP version will be installed."
                     return
                 ;;
@@ -1104,24 +1131,47 @@ function init_php_install() {
     add_php_repo
 
     # Install all selected PHP versions and extensions.
+    local PHP_WAS_INSTALLED
+
     for PHPv in "${SELECTED_PHP_VERSIONS[@]}"; do
-        IS_PKG_AVAIL=$(apt-cache search "php${PHPv}" | grep -c "${PHPv}")
+        case "${PHPv}" in
+            8.2 | 8.3 | 8.4 | 8.5) ;;
+            *)
+                warning "PHP ${PHPv} is not a supported install target. Choose 8.2, 8.3, 8.4, or 8.5."
+                continue
+                ;;
+        esac
+
+        IS_PKG_AVAIL=$(apt-cache search "php${PHPv}" | grep -c "${PHPv}" || true)
 
         if [[ "${IS_PKG_AVAIL}" -gt 0 ]]; then
-            # Install PHP + default extensions.
+            PHP_WAS_INSTALLED=false
             if [[ -n $(command -v "php${PHPv}") && -n $(command -v "php-fpm${PHPv}") ]]; then
-                info "PHP version ${PHPv} and it's extensions already exists, installation skipped."
-            else
-                install_php "${PHPv}"
-                install_php_loader "${PHPv}" "${OPT_PHP_LOADER}"
-                restart_php_fpm "${PHPv}"
+                PHP_WAS_INSTALLED=true
             fi
+
+            # Always reconcile extensions so a re-run picks up new entries in
+            # PHP_EXTENSIONS. Loaders are only installed with a fresh PHP.
+            install_php "${PHPv}"
+
+            if [[ "${PHP_WAS_INSTALLED}" == false ]]; then
+                install_php_loader "${PHPv}" "${OPT_PHP_LOADER}"
+            fi
+
+            restart_php_fpm "${PHPv}"
         else
             error "PHP ${PHPv} package is not available for your operating system."
         fi
     done
 
     # Install default PHP version used by LEMPer.
+    case "${DEFAULT_PHP_VERSION}" in
+        8.2 | 8.3 | 8.4 | 8.5) ;;
+        *)
+            warning "PHP ${DEFAULT_PHP_VERSION} is not a supported default. Choose 8.2, 8.3, 8.4, or 8.5."
+            DEFAULT_PHP_VERSION="8.5"
+            ;;
+    esac
     if [[ -z $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
         info "LEMPer requires PHP ${DEFAULT_PHP_VERSION} as default to run its administration tool."
         echo "PHP ${DEFAULT_PHP_VERSION} now being installed..."

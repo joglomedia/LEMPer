@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 
-# Basic Server Security Hardening
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 12/02/2022
-# Author            : MasEDI.Net (me@masedi.net)
-# Since Version     : 1.0.0
+# +-------------------------------------------------------------------------+
+# | Server Security Setup                                                   |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellcheck disable=SC1091
-    . "${BASE_DIR}/utils.sh"
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
+    cd "${BASE_DIR}" || { echo "Cannot enter ${BASE_DIR}."; exit 1; }
+    # shellcheck source=scripts/utils.sh
+    . "${BASE_DIR}/scripts/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -46,12 +55,12 @@ Never share your private key.
         echo "Open your public key (id_rsa.pub) file, copy paste the key here..."
 
         RSA_PUB_KEY=${RSA_PUB_KEY:-""}
-        while ! [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; do
-            read -rp ": " -e RSA_PUB_KEY
+        while ! is_ssh_public_key "${RSA_PUB_KEY}"; do
+            IFS= read -rp ": " -e RSA_PUB_KEY
         done
 
         # Grand access to SSH with key.
-        if [[ ${RSA_PUB_KEY} =~ ssh-rsa* ]]; then
+        if is_ssh_public_key "${RSA_PUB_KEY}"; then
             echo -e "\nSecuring your SSH server with public key..."
 
             if [ ! -d "/home/${LEMPER_USERNAME}/.ssh" ]; then
@@ -66,9 +75,7 @@ Never share your private key.
 
             # Create authorized_keys file and copy your public key here.
             if [[ "${DRYRUN}" != true ]]; then
-                cat >> "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" <<EOL
-${RSA_PUB_KEY}
-EOL
+                printf '%s\n' "${RSA_PUB_KEY}" >> "/home/${LEMPER_USERNAME}/.ssh/authorized_keys"
                 success "RSA public key added to the authorized_keys."
             else
                 info "RSA public key added in dry run mode."
@@ -89,7 +96,7 @@ EOL
                 echo "Restricting SSH root login..."
 
                 if grep -qwE "^PermitRootLogin\ [a-z]*" /etc/ssh/sshd_config; then
-                    run sed -i "s/^PermitRootLogin\ [a-z]*/PermitRootLogin\ no/g" /etc/ssh/sshd_config
+                    sed_inplace "s/^PermitRootLogin\ [a-z]*/PermitRootLogin\ no/g" /etc/ssh/sshd_config
                 else
                     #run sed -i "/^#PermitRootLogin/a PermitRootLogin\ no" /etc/ssh/sshd_config
                     run bash -c "echo 'PermitRootLogin no' >> /etc/ssh/sshd_config"
@@ -98,7 +105,7 @@ EOL
 
             # Enable RSA key authentication.
             if grep -qwE "^RSAAuthentication\ no" /etc/ssh/sshd_config; then
-                run sed -i "s/^RSAAuthentication\ no/RSAAuthentication\ yes/g" /etc/ssh/sshd_config
+                sed_inplace "s/^RSAAuthentication\ no/RSAAuthentication\ yes/g" /etc/ssh/sshd_config
             else
                 #run sed -i "/^#RSAAuthentication/a RSAAuthentication\ yes" /etc/ssh/sshd_config
                 run bash -c "echo 'RSAAuthentication yes' >> /etc/ssh/sshd_config"
@@ -106,7 +113,7 @@ EOL
 
             # Enable pub key authentication.
             if grep -qwE "^PubkeyAuthentication\ no" /etc/ssh/sshd_config; then
-                run sed -i "s/^PubkeyAuthentication\ no/PubkeyAuthentication\ yes/g" /etc/ssh/sshd_config
+                sed_inplace "s/^PubkeyAuthentication\ no/PubkeyAuthentication\ yes/g" /etc/ssh/sshd_config
             else
                 #run sed -i "/^#PubkeyAuthentication/a PubkeyAuthentication\ yes" /etc/ssh/sshd_config
                 run bash -c "echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config"
@@ -114,21 +121,21 @@ EOL
 
             # Disable password authentication for password-less login using key.
             if grep -qwE "^PasswordAuthentication\ [a-z]*" /etc/ssh/sshd_config; then
-                run sed -i "s/^PasswordAuthentication\ [a-z]*/PasswordAuthentication\ no/g" /etc/ssh/sshd_config
+                sed_inplace "s/^PasswordAuthentication\ [a-z]*/PasswordAuthentication\ no/g" /etc/ssh/sshd_config
             else
                 #run sed -i "/^#PasswordAuthentication/a PasswordAuthentication\ no" /etc/ssh/sshd_config
                 run bash -c "echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config"
             fi
 
             if grep -qwE "^ClientAliveInterval\ [0-9]*" /etc/ssh/sshd_config; then
-                run sed -i "s/^ClientAliveInterval\ [0-9]*/ClientAliveInterval\ 600/g" /etc/ssh/sshd_config
+                sed_inplace "s/^ClientAliveInterval\ [0-9]*/ClientAliveInterval\ 600/g" /etc/ssh/sshd_config
             else
                 #run sed -i "/^#ClientAliveInterval/a ClientAliveInterval\ 600" /etc/ssh/sshd_config
                 run bash -c "echo 'ClientAliveInterval 600' >> /etc/ssh/sshd_config"
             fi
 
             if grep -qwE "^ClientAliveCountMax\ [0-9]*" /etc/ssh/sshd_config; then
-                run sed -i "s/^ClientAliveCountMax\ [0-9]*/ClientAliveCountMax\ 3/g" /etc/ssh/sshd_config
+                sed_inplace "s/^ClientAliveCountMax\ [0-9]*/ClientAliveCountMax\ 3/g" /etc/ssh/sshd_config
             else
                 #run sed -i "/^#ClientAliveCountMax/a ClientAliveCountMax\ 3" /etc/ssh/sshd_config
                 run bash -c "echo 'ClientAliveCountMax 3' >> /etc/ssh/sshd_config"
@@ -146,14 +153,14 @@ EOL
 
     if [[ ${SSH_PORT} =~ ^[0-9]+$ ]]; then
         if grep -qwE "^Port\ [0-9]*" /etc/ssh/sshd_config; then
-            run sed -i "s/^Port\ [0-9]*/Port\ ${SSH_PORT}/g" /etc/ssh/sshd_config
+            sed_inplace "s/^Port\ [0-9]*/Port\ ${SSH_PORT}/g" /etc/ssh/sshd_config
         else
-            run sed -i "/^#Port\ [0-9]*/a Port\ ${SSH_PORT}" /etc/ssh/sshd_config
+            sed_inplace "/^#Port\ [0-9]*/a Port\ ${SSH_PORT}" /etc/ssh/sshd_config
         fi
 
         # Save config.
         #save_config -e "HOSTNAME=${HOSTNAME}\nSERVER_IP=${SERVER_IP}\nSSH_PORT=${SSH_PORT}"
-        run sudo sed -i "s|^SERVER_SSH_PORT=[0-9]*|SERVER_SSH_PORT=${SSH_PORT}|g" /etc/lemper/lemper.conf
+        sed_inplace "s|^SERVER_SSH_PORT=[0-9]*|SERVER_SSH_PORT=${SSH_PORT}|g" /etc/lemper/lemper.conf
 
         # Save log.
         save_log "Default SSH port updated to ${SSH_PORT}."
@@ -313,7 +320,7 @@ function install_csf() {
         echo "Configuring CSF+LFD firewall rules..."
 
         # Enable CSF.
-        run sed -i 's/^TESTING\ =\ "1"/TESTING\ =\ "0"/g' /etc/csf/csf.conf
+        sed_inplace 's/^TESTING\ =\ "1"/TESTING\ =\ "0"/g' /etc/csf/csf.conf
 
         # Allowed ports.
         CSF_ALLOW_PORTS="53,80,8081,8082,8083,8443,25,465,587,110,143,993,995"
@@ -331,10 +338,16 @@ function install_csf() {
         fi
 
         # Allowed incoming TCP ports.
-        run sed -i "s/^TCP_IN\ =\ \"[0-9_,]*\"/TCP_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+        sed_inplace "s/^TCP_IN\ =\ \"[0-9_,]*\"/TCP_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
 
         # Allowed outgoing TCP ports.
-        run sed -i "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+        sed_inplace "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+
+        # HTTP/3 (QUIC) needs UDP 443.
+        if [[ "${NGINX_HTTP3:-false}" == true ]] && \
+            ! grep -qE '^UDP_IN = "([^"]*,)?443(,|")' /etc/csf/csf.conf; then
+            sed_inplace 's/^UDP_IN\ =\ "\([0-9_,]*\)"/UDP_IN\ =\ "\1,443"/' /etc/csf/csf.conf
+        fi
 
         # IPv6 support (requires ip6tables).
         if [[ -n $(command -v ip6tables) ]]; then
@@ -343,13 +356,13 @@ function install_csf() {
                 echo "Configuring CSF+LFD for IPv6..."
 
                 # Enable IPv6 support.
-                run sed -i 's/^IPV6\ =\ "0"/IPV6\ =\ "1"/g' /etc/csf/csf.conf
+                sed_inplace 's/^IPV6\ =\ "0"/IPV6\ =\ "1"/g' /etc/csf/csf.conf
 
                 # Allowed incoming TCP ports for IPv6.
-                run sed -i "s/^TCP6_IN\ =\ \"[0-9_,]*\"/TCP6_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+                sed_inplace "s/^TCP6_IN\ =\ \"[0-9_,]*\"/TCP6_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
 
                 # Allowed outgoing TCP ports for IPv6.
-                run sed -i "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+                sed_inplace "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
             else
                 info "ip6tables version greater than 1.4.3 required for IPv6 support."
             fi
@@ -419,16 +432,16 @@ function install_apf() {
         echo "Configuring APF+BFD firewall rules..."
 
         # Enable APF.
-        run sed -i "s/^DEVEL_MODE=\"1\"/DEVEL_MODE=\"0\"/g" /etc/apf/conf.apf
+        sed_inplace "s/^DEVEL_MODE=\"1\"/DEVEL_MODE=\"0\"/g" /etc/apf/conf.apf
 
         # Get ethernet interface.
         IFACE=${IFACE:-$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)}
 
         # Set ethernet interface to monitor.
-        run sed -i "s/^IFACE_UNTRUSTED=\"[0-9a-zA-Z]*\"/IFACE_UNTRUSTED=\"${IFACE}\"/g" /etc/apf/conf.apf
+        sed_inplace "s/^IFACE_UNTRUSTED=\"[0-9a-zA-Z]*\"/IFACE_UNTRUSTED=\"${IFACE}\"/g" /etc/apf/conf.apf
 
         # Enable fast load.
-        run sed -i 's/^SET_FASTLOAD="0"/SET_FASTLOAD="1"/g' /etc/apf/conf.apf
+        sed_inplace 's/^SET_FASTLOAD="0"/SET_FASTLOAD="1"/g' /etc/apf/conf.apf
     fi
 
     # Clean up installation files.

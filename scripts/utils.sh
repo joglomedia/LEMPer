@@ -1,36 +1,136 @@
 #!/usr/bin/env bash
 
-# Helper Functions
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 06/08/2022
-# Author            : MasEDI.Net (me@masedi.net)
-# Since Version     : 1.0.0
+# +-------------------------------------------------------------------------+
+# | LEMPer Helper Functions                                                 |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Define base directory.
-BASE_DIR=${BASE_DIR:-"$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"}
-
-# Define scripts directory.
+SCRIPTS_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
+BASE_DIR=${BASE_DIR:-"${SCRIPTS_DIR}"}
 export SCRIPTS_DIR
-if grep -q "scripts" <<< "${BASE_DIR}"; then
-    SCRIPTS_DIR="${BASE_DIR}"
+
+##
+# Parse a key=value line from a config file safely.
+# Reads a single line and splits on the first '=' using IFS, avoiding eval.
+# Returns: "key<TAB>value" or nothing if the line is a comment/blank/section.
+#
+# Must be defined before the dotenv loading block below runs.
+##
+function safe_parse_dotenv() {
+    local envfile="${1}"
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        # Normalize CRLF files edited on Windows.
+        line="${line%$'\r'}"
+        # Skip comments and section headers.
+        line="${line#"${line%%[![:space:]]*}"}"  # ltrim
+        [[ -z "${line}" || "${line}" == \#* || "${line}" == \[* ]] && continue
+        # Skip lines without a key=value separator.
+        [[ "${line}" != *=* ]] && continue
+        # Split on first =. Values keep spaces (SSH public keys, paths, ...).
+        local key="${line%%=*}"
+        local value="${line#*=}"
+        key="${key%"${key##*[![:space:]]}"}"  # rtrim
+        # Strip surrounding quotes from value if present.
+        value="${value#\"}"
+        value="${value%\"}"
+        value="${value#\'}"
+        value="${value%\'}"
+        # Validate key name (prevent injection).
+        if [[ "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+            printf '%s\t%s\n' "${key}" "${value}"
+        fi
+    done < "${envfile}"
+}
+
+##
+# Set KEY=VALUE in an env file without shell or sed interpretation.
+# Values may contain spaces, slashes, ampersands, quotes, and '=' characters.
+# The first matching key is replaced; the key is appended when absent.
+# Usage: set_env_value FILE KEY VALUE
+##
+function set_env_value() {
+    local file="${1}"
+    local key="${2}"
+    local value="${3}"
+
+    [[ "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || return 1
+    [[ -f "${file}" ]] || return 1
+
+    if [[ "${DRYRUN:-false}" == true ]]; then
+        echo_color "${YELLOW}" -n "would set "
+        echo "${key} in ${file}"
+        return 0
+    fi
+
+    local tmp
+    tmp=$(mktemp "${file}.XXXXXX") || return 1
+
+    # ENVIRON avoids awk -v escape processing in the value.
+    if LEMPER_ENV_VALUE="${value}" awk -v k="${key}" '
+        BEGIN { v = ENVIRON["LEMPER_ENV_VALUE"]; found = 0 }
+        index($0, k "=") == 1 { if (!found) { print k "=" v; found = 1 }; next }
+        { print }
+        END { if (!found) print k "=" v }
+    ' "${file}" > "${tmp}"; then
+        # Rewrite in place to keep ownership and mode.
+        cat "${tmp}" > "${file}"
+        rm -f "${tmp}"
+        return 0
+    fi
+
+    rm -f "${tmp}"
+    return 1
+}
+
+##
+# Validate an OpenSSH public key line (ssh-rsa, ed25519, ECDSA, or FIDO).
+# Returns 0 when the key type is recognised and a base64 body is present.
+##
+function is_ssh_public_key() {
+    local key="${1:-}"
+    key="${key%$'\r'}"
+    key="${key#"${key%%[![:space:]]*}"}"  # ltrim
+    key="${key%"${key##*[![:space:]]}"}"  # rtrim
+
+    [[ "${key}" =~ ^(ssh-rsa|ssh-ed25519|ssh-dss|ecdsa-sha2-nistp(256|384|521)|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com)[[:space:]]+[A-Za-z0-9+/]+={0,3}([[:space:]].*)?$ ]]
+}
+
+# The dotenv lives at the repository root: either BASE_DIR itself or its
+# parent when BASE_DIR points at scripts/. LEMPER_ENV_FILE lets an updater
+# point at the installed /etc/lemper/lemper.conf without copying it.
+if [[ -n "${LEMPER_ENV_FILE:-}" && -f "${LEMPER_ENV_FILE}" ]]; then
+    ENVFILE="${LEMPER_ENV_FILE}"
+elif [[ -f "${BASE_DIR}/.env" ]]; then
+    ENVFILE="${BASE_DIR}/.env"
 else
-    SCRIPTS_DIR="${BASE_DIR}/scripts"
+    ENVFILE="$( cd "${SCRIPTS_DIR}/.." >/dev/null 2>&1 && pwd )/.env"
 fi
 
-# Export environment variables.
-ENVFILE=$(echo "${BASE_DIR}/.env" | sed '$ s|\/scripts\/.env$|\/.env|')
-
 if [ -f "${ENVFILE}" ]; then
-    # Clean environemnt first.
+    # Clean environment first — unset existing vars from .env.
     # shellcheck source=.env.dist
-    # shellcheck disable=SC2046
-    unset $(grep -v '^#' "${ENVFILE}" | grep -v '^\[' | sed -E 's/(.*)=.*/\1/' | xargs)
+    while IFS=$'\t' read -r key _; do
+        unset "${key}" 2>/dev/null || true
+    done < <(safe_parse_dotenv "${ENVFILE}")
 
     # shellcheck source=.env.dist
-    # shellcheck disable=SC1094
-    source <(grep -v '^#' "${ENVFILE}" | grep -v '^\[' | sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
+    # Safe parser: avoids eval-based source <(...) which is an injection vector.
+    # Uses IFS-based line-by-line parsing with key name validation.
+    while IFS=$'\t' read -r key value; do
+        export "${key}=${value}"
+    done < <(safe_parse_dotenv "${ENVFILE}")
 else
-    echo "Environment variables required, but the dotenv file doesn't exist. Copy .env.dist to .env first!"
+    echo "Environment variables required, but the dotenv file doesn't exist at ${ENVFILE}. Copy .env.dist to .env first!"
     exit 1
 fi
 
@@ -44,6 +144,7 @@ TIMEZONE=${TIMEZONE:-"UTC"}
 RED=31
 GREEN=32
 YELLOW=33
+BLUE=34
 
 function begin_color() {
     color="${1}"
@@ -134,6 +235,203 @@ function run() {
         fi
     fi
 }
+
+# Create isolated PHP temp/session directories for an FPM pool.
+# They live outside the user's home so uploaded/session files cannot be
+# reached from the web root if the application is compromised.
+function create_php_temp_dirs() {
+    local POOLNAME="${1}"
+    local TEMP_BASE="/var/lib/php/lemper/${POOLNAME}"
+
+    run mkdir -p "${TEMP_BASE}/tmp" "${TEMP_BASE}/sessions" \
+        "${TEMP_BASE}/wsdlcache" "${TEMP_BASE}/opcache" && \
+    run chmod 700 "${TEMP_BASE}" "${TEMP_BASE}/tmp" "${TEMP_BASE}/sessions" \
+        "${TEMP_BASE}/wsdlcache" "${TEMP_BASE}/opcache" && \
+    run chown -hR "${POOLNAME}:${POOLNAME}" "${TEMP_BASE}"
+}
+
+##
+# Progress indicator — shows a step counter (e.g. [3/10]).
+##
+PROGRESS_TOTAL=${PROGRESS_TOTAL:-0}
+PROGRESS_CURRENT=${PROGRESS_CURRENT:-0}
+
+function progress() {
+    local description="${1}"
+    PROGRESS_CURRENT=$((PROGRESS_CURRENT + 1))
+    if [[ "${PROGRESS_TOTAL}" -gt 0 ]]; then
+        echo_color "${BLUE}" -n "[${PROGRESS_CURRENT}/${PROGRESS_TOTAL}] "
+    else
+        echo_color "${BLUE}" -n "▸ "
+    fi
+    echo "${description}"
+}
+
+##
+# Spinner — shows an animated spinner while a command runs.
+# Only activates in interactive TTY mode (not in CI/dry-run).
+##
+SPINNER_PID=""
+
+function spinner_start() {
+    local message="${1}"
+    # Only show spinner if we have a TTY and not in dry-run mode.
+    if [[ "${DRYRUN}" == true ]] || [[ ! -t 1 ]]; then
+        return 0
+    fi
+
+    echo -n "${message} "
+    local spinner_chars='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+    local i=0
+    (
+        while true; do
+            local idx=$((i % ${#spinner_chars}))
+            echo -ne "\b${spinner_chars:${idx}:1}"
+            sleep 0.1
+            i=$((i + 1))
+        done
+    ) &
+    SPINNER_PID=$!
+}
+
+function spinner_stop() {
+    if [[ -n "${SPINNER_PID}" ]] && kill -0 "${SPINNER_PID}" 2>/dev/null; then
+        kill "${SPINNER_PID}" 2>/dev/null
+        wait "${SPINNER_PID}" 2>/dev/null
+        SPINNER_PID=""
+        # Clear spinner character.
+        echo -ne "\b \b"
+    fi
+}
+
+##
+# Record that LEMPer provisioned a service. Uninstallers use this marker to
+# avoid removing packages and configuration that predate LEMPer.
+##
+function mark_lemper_provisioned() {
+    local service="${1}"
+
+    if [[ "${DRYRUN}" == true ]]; then
+        echo_color "${YELLOW}" -n "would mark "
+        echo "${service} as provisioned by LEMPer"
+        return 0
+    fi
+
+    run mkdir -p /etc/lemper/installed
+    run touch "/etc/lemper/installed/${service}"
+}
+
+##
+# Check whether LEMPer provisioned a service.
+#
+# Returns 0 when the marker exists, 1 otherwise.
+##
+function lemper_provisioned() {
+    local service="${1}"
+    [[ -f "/etc/lemper/installed/${service}" ]]
+}
+
+##
+# Run a command with a progress spinner and description.
+# Usage: run_spinner "Description" command args...
+##
+function run_spinner() {
+    local description="${1}"
+    shift
+
+    spinner_start "${description}"
+
+    local status=0
+    if [[ "${DRYRUN}" == true ]]; then
+        echo_color "${YELLOW}" -n "would run "
+        echo "$@"
+    else
+        "$@" || status=$?
+    fi
+
+    spinner_stop
+
+    if [[ "${status}" -ne 0 ]]; then
+        error "Failure running '$*', exiting."
+        exit 1
+    fi
+
+    if [[ "${DRYRUN}" != true ]]; then
+        success "${description} — done"
+    fi
+}
+
+##
+# Portable in-place sed wrapper.
+# On GNU/Linux (sed 4.x), `sed -i 's/.../.../' file` works without a backup suffix.
+# On macOS/BSD (sed), `sed -i` requires an empty string argument: `sed -i '' 's/.../.../' file`.
+# This wrapper detects the platform and uses the correct syntax.
+#
+# Usage:
+#   sed_inplace "s/old/new/g" /path/to/file
+#   sed_inplace "s/old/new/g" file1 file2 file3
+#   sed_inplace -E "s/(old|older)/new/g" /path/to/file
+#   sed_inplace -b "s/old/new/g" /path/to/file   # keep a .bak backup
+##
+function sed_inplace() {
+    local backup_suffix=""
+    local extra_opts=()
+
+    while [[ $# -gt 0 ]]; do
+        case "${1}" in
+            -E|-r)
+                extra_opts+=("${1}")
+                shift
+            ;;
+            -b|--backup)
+                backup_suffix=".bak"
+                shift
+            ;;
+            --)
+                shift
+                break
+            ;;
+            -*)
+                error "sed_inplace: unsupported option '${1}'."
+                return 2
+            ;;
+            *)
+                break
+            ;;
+        esac
+    done
+
+    if [[ $# -lt 2 ]]; then
+        error "Usage: sed_inplace [-E|-r] [-b] 'script' file [file...]"
+        return 2
+    fi
+
+    local script="${1}"
+    shift
+
+    if [[ "${DRYRUN}" == true ]]; then
+        echo_color "${YELLOW}" -n "would run "
+        echo "sed -i${backup_suffix} ${extra_opts[*]} '${script}' $*"
+        return 0
+    fi
+
+    local status=0
+    if [[ "$(uname -s)" == "Darwin" ]]; then
+        sed -i "${backup_suffix}" "${extra_opts[@]}" "${script}" "$@" || status=$?
+    else
+        sed -i"${backup_suffix}" "${extra_opts[@]}" "${script}" "$@" || status=$?
+    fi
+
+    if [[ "${status}" -ne 0 ]]; then
+        error "Failure running sed in-place on: $*"
+        return 1
+    fi
+}
+
+##
+# Parse a key=value line from a config file safely.
+# Defined at the top of this file: the dotenv loading block runs on source.
+##
 
 # Check if RedHat package (.rpm) is installed.
 function redhat_is_installed() {
@@ -325,14 +623,61 @@ function validate_nginx_config() {
 }
 
 # Validate FQDN domain.
+# Uses ERE (grep -E) with a separate length check for portability.
+# PCRE (grep -P) lookahead/lookbehind is not available on all platforms.
 function validate_fqdn() {
     local FQDN=${1}
 
-    if grep -qP "(?=^.{4,253}\.?$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)" <<< "${FQDN}"; then
+    # Length check: 4-253 characters (RFC 1035 / RFC 1123).
+    if [[ ${#FQDN} -lt 4 || ${#FQDN} -gt 253 ]]; then
+        echo false # error
+        return
+    fi
+
+    # Validate format: labels of 1-63 chars separated by dots,
+    # no leading/trailing dashes, TLD is 2-63 letters, optional trailing dot.
+    if grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}\.?$' <<< "${FQDN}"; then
         echo true # success
     else
         echo false # error
     fi
+}
+
+# Validate IPv4 address.
+function validate_ipv4() {
+    local IP=${1}
+
+    if grep -qE '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$' <<< "${IP}"; then
+        echo true # success
+    else
+        echo false # error
+    fi
+}
+
+# Validate Unix username (RFC 932 + POSIX: alphanumeric, dash, underscore; 1-32 chars, starts with letter).
+function validate_username() {
+    local USERNAME=${1}
+
+    if grep -qE '^[a-z_][a-z0-9_-]{0,31}$' <<< "${USERNAME}"; then
+        echo true # success
+    else
+        echo false # error
+    fi
+}
+
+# Sanitize a string for safe use in sed replacement patterns.
+# Escapes backslash, forward-slash, ampersand, and newline to prevent
+# injection when interpolating user input into sed s/.../.../ commands.
+function sanitize_sed_replacement() {
+    local INPUT=${1}
+    printf '%s' "${INPUT}" | sed -e 's/[\\&]/\\&/g' -e 's/\//\\\//g'
+}
+
+# Sanitize a string for safe use as a sed regex pattern (delimiter-aware).
+# Uses a different delimiter ([) to avoid issues with slashes in paths.
+function sanitize_sed_pattern() {
+    local INPUT=${1}
+    printf '%s' "${INPUT}" | sed -e 's/\[/\\[/g'
 }
 
 # Get general distribution name.
@@ -410,10 +755,6 @@ function get_release_name() {
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
 
                 case "${DISTRIB_RELEASE}" in
-                    "20.04" | "LM20")
-                        # Ubuntu release 20.04, LinuxMint 20
-                        RELEASE_NAME=${UBUNTU_CODENAME:-"focal"}
-                    ;;
                     "22.04" | "LM21")
                         # Ubuntu release 22.04, LinuxMint 21
                         RELEASE_NAME=${UBUNTU_CODENAME:-"jammy"}
@@ -595,7 +936,7 @@ function preflight_system_check() {
         run bash -c "echo '${SERVER_HOSTNAME}' > /etc/hostname"
 
         if grep -q "${SERVER_HOSTNAME}" /etc/hosts; then
-            run sed -i".bak" "/${SERVER_HOSTNAME}/d" /etc/hosts
+            sed_inplace -b "/${SERVER_HOSTNAME}/d" /etc/hosts
             run bash -c "echo -e '${SERVER_IP}\t${SERVER_HOSTNAME}' >> /etc/hosts"
         else
             run bash -c "echo -e '\n# LEMPer local hosts\n${SERVER_IP}\t${SERVER_HOSTNAME}' >> /etc/hosts"
@@ -619,7 +960,7 @@ function preflight_system_check() {
         sleep 2
 
         if [[ $(dig "${HOSTNAME}" +short) != "${SERVER_IP}" && $(dig "${HOSTNAME}" +short) != "${SERVER_IP_LOCAL}" ]]; then
-            error "Your hostname '${V_DOMAIN}' doesn't appear to be currently pointed to this server's public IP address."
+            error "Your hostname '${HOSTNAME}' doesn't appear to be currently pointed to this server's public IP address."
             echo -n "In a production environment, you'll need to add an A record pointing to this IP address "; status -n "${SERVER_IP}"; echo " !"
             exit 1
         fi
@@ -660,6 +1001,185 @@ function get_ram_size() {
     echo "${RAM_SIZE_IN_MB:-0}"
 }
 
+# Get total usable memory in MiB (cgroup-aware).
+# LEMPER_MEMORY_MB overrides detection (useful in tests and containers).
+function get_memory_mb() {
+    if [[ "${LEMPER_MEMORY_MB:-}" =~ ^[1-9][0-9]*$ ]]; then
+        echo "${LEMPER_MEMORY_MB}"
+        return 0
+    fi
+
+    local MEM_MB
+    MEM_MB=$(awk '/^MemTotal:/ { printf "%.0f", $2/1024 }' /proc/meminfo 2>/dev/null)
+
+    # Respect cgroup limits (containers and systemd slices).
+    local CGROUP_LIMIT
+    if [[ -r /sys/fs/cgroup/memory.max ]]; then
+        CGROUP_LIMIT=$(cat /sys/fs/cgroup/memory.max 2>/dev/null)
+    elif [[ -r /sys/fs/cgroup/memory/memory.limit_in_bytes ]]; then
+        CGROUP_LIMIT=$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null)
+    fi
+
+    # Ignore "unlimited" sentinels (1 PiB and friends).
+    awk -v total="${MEM_MB:-0}" -v limit="${CGROUP_LIMIT:-0}" 'BEGIN {
+        if (limit ~ /^[0-9]+$/) {
+            mb = int(limit / 1048576);
+            if (mb > 0 && mb < 1048576 && (total == 0 || mb < total)) total = mb;
+        }
+        printf "%.0f\n", total;
+    }'
+}
+
+# Normalize a PHP memory value (e.g. 256M, 1G, 512) to MiB.
+function memory_to_mb() {
+    local VALUE="${1:-256M}"
+
+    if [[ ! "${VALUE}" =~ ^[0-9]+[GgMm]?$ ]]; then
+        echo 256
+        return 0
+    fi
+
+    case "${VALUE}" in
+        *[Gg]) echo $(( ${VALUE%[Gg]} * 1024 )) ;;
+        *[Mm]) echo $(( ${VALUE%[Mm]} )) ;;
+        *)     echo $(( VALUE )) ;;
+    esac
+}
+
+# Classify the server by RAM: micro | small | medium | large.
+# LEMPER_PROFILE (or SERVER_PROFILE in .env) overrides auto-detection.
+function detect_resource_profile() {
+    local PROFILE="${LEMPER_PROFILE:-${SERVER_PROFILE:-auto}}"
+
+    case "${PROFILE}" in
+        micro|small|medium|large)
+            echo "${PROFILE}"
+            return 0
+            ;;
+        auto|"") ;;
+        *)
+            warning "Unknown resource profile '${PROFILE}', using auto-detection." >&2
+            ;;
+    esac
+
+    local MEM_MB && MEM_MB=$(get_memory_mb)
+
+    if (( MEM_MB <= 0 )); then
+        # Unknown memory: assume the conservative middle.
+        echo "small"
+    elif (( MEM_MB < 1024 )); then
+        echo "micro"
+    elif (( MEM_MB < 2048 )); then
+        echo "small"
+    elif (( MEM_MB < 4096 )); then
+        echo "medium"
+    else
+        echo "large"
+    fi
+}
+
+# Calculate a safe pm.max_children for a profile and PHP memory_limit (MiB).
+function calc_php_max_children() {
+    local PROFILE="${1:-}"
+    [[ -z "${PROFILE}" ]] && PROFILE=$(detect_resource_profile)
+    local MEMLIMIT="${2:-256}"
+    local CAP
+
+    case "${PROFILE}" in
+        micro)  CAP=4 ;;
+        small)  CAP=6 ;;
+        medium) CAP=10 ;;
+        large)  CAP=16 ;;
+        *)      CAP=6 ;;
+    esac
+
+    # A busy PHP worker typically holds 40-80 MiB. Budget a third of
+    # memory_limit so the cap is realistic for small CMS workloads while
+    # still bounding the worst case.
+    local PER_CHILD=$(( MEMLIMIT / 3 ))
+    (( PER_CHILD < 64 )) && PER_CHILD=64
+
+    local TOTAL && TOTAL=$(get_memory_mb)
+    if (( TOTAL > 0 )); then
+        local BUDGET=$(( TOTAL * 35 / 100 ))
+        local BY_MEM=$(( BUDGET / PER_CHILD ))
+        (( BY_MEM < 2 )) && BY_MEM=2
+        (( BY_MEM < CAP )) && CAP=${BY_MEM}
+    fi
+
+    (( CAP < 2 )) && CAP=2
+    echo "${CAP}"
+}
+
+# Print FPM sizing: "max_children start_servers min_spare max_spare".
+function calc_php_pool_sizing() {
+    local PROFILE="${1:-}"
+    [[ -z "${PROFILE}" ]] && PROFILE=$(detect_resource_profile)
+    local MEMLIMIT="${2:-256}"
+    local MAX_CHILDREN="${PHP_FPM_MAX_CHILDREN:-}"
+
+    if [[ ! "${MAX_CHILDREN}" =~ ^[0-9]+$ || "${MAX_CHILDREN}" -lt 2 ]]; then
+        MAX_CHILDREN=$(calc_php_max_children "${PROFILE}" "${MEMLIMIT}")
+    fi
+
+    local START=$(( MAX_CHILDREN / 2 ))
+    (( START > 2 )) && START=2
+    (( START < 1 )) && START=1
+
+    local MAX_SPARE=$(( MAX_CHILDREN / 2 ))
+    (( MAX_SPARE < START )) && MAX_SPARE=${START}
+
+    echo "${MAX_CHILDREN} ${START} 1 ${MAX_SPARE}"
+}
+
+# Apply resource-aware sizing to an installed PHP-FPM pool file.
+function tune_php_pool() {
+    local POOL_FILE="${1}"
+    local PROFILE="${2:-}"
+    [[ -z "${PROFILE}" ]] && PROFILE=$(detect_resource_profile)
+
+    [[ -f "${POOL_FILE}" ]] || return 0
+
+    local MEMLIMIT_MB && MEMLIMIT_MB=$(memory_to_mb "${PHP_MEMORY_LIMIT:-256M}")
+    local MAX_CHILDREN START MIN_SPARE MAX_SPARE
+    read -r MAX_CHILDREN START MIN_SPARE MAX_SPARE <<< \
+        "$(calc_php_pool_sizing "${PROFILE}" "${MEMLIMIT_MB}")"
+
+    sed_inplace "s/^pm\.max_children = .*/pm.max_children = ${MAX_CHILDREN}/" "${POOL_FILE}"
+    sed_inplace "s/^pm\.start_servers = .*/pm.start_servers = ${START}/" "${POOL_FILE}"
+    sed_inplace "s/^pm\.min_spare_servers = .*/pm.min_spare_servers = ${MIN_SPARE}/" "${POOL_FILE}"
+    sed_inplace "s/^pm\.max_spare_servers = .*/pm.max_spare_servers = ${MAX_SPARE}/" "${POOL_FILE}"
+    sed_inplace "s/^php_value\[memory_limit\] = .*/php_value[memory_limit] = ${PHP_MEMORY_LIMIT:-256M}/" "${POOL_FILE}"
+
+    local COOKIE_SECURE=0
+    [[ "${SESSION_COOKIE_SECURE:-false}" == true ]] && COOKIE_SECURE=1
+    sed_inplace "s/^php_admin_value\[session\.cookie_secure\] = .*/php_admin_value[session.cookie_secure] = ${COOKIE_SECURE}/" "${POOL_FILE}"
+}
+
+# Print MariaDB sizing: "buffer_pool_mb max_connections table_open_cache performance_schema".
+function calc_mariadb_sizing() {
+    local PROFILE="${1:-}"
+    [[ -z "${PROFILE}" ]] && PROFILE=$(detect_resource_profile)
+
+    local BUFFER_POOL MAX_CONNECTIONS TABLE_CACHE PERF_SCHEMA
+
+    case "${PROFILE}" in
+        micro)  BUFFER_POOL=128;  MAX_CONNECTIONS=30;  TABLE_CACHE=64;  PERF_SCHEMA=OFF ;;
+        small)  BUFFER_POOL=256;  MAX_CONNECTIONS=50;  TABLE_CACHE=128; PERF_SCHEMA=OFF ;;
+        medium) BUFFER_POOL=512;  MAX_CONNECTIONS=75;  TABLE_CACHE=256; PERF_SCHEMA=ON ;;
+        *)      BUFFER_POOL=1024; MAX_CONNECTIONS=100; TABLE_CACHE=512; PERF_SCHEMA=ON ;;
+    esac
+
+    # Large hosts can afford a bigger pool; cap it so the database does not
+    # crowd out PHP-FPM and the web server.
+    local TOTAL && TOTAL=$(get_memory_mb)
+    if (( TOTAL >= 8192 )); then
+        BUFFER_POOL=2048
+    fi
+
+    echo "${BUFFER_POOL} ${MAX_CONNECTIONS} ${TABLE_CACHE} ${PERF_SCHEMA}"
+}
+
 # Create custom swap space for low end box.
 function create_swap() {
     local SWAP_FILE="/swapfile"
@@ -689,7 +1209,7 @@ function create_swap() {
 
     # Make the change permanent.
     if grep -qwE "#${SWAP_FILE}" /etc/fstab; then
-        sed -i "s|#${SWAP_FILE}|${SWAP_FILE}|g" /etc/fstab
+        sed_inplace "s|#${SWAP_FILE}|${SWAP_FILE}|g" /etc/fstab
     else
         echo "${SWAP_FILE} swap swap defaults 0 0" >> /etc/fstab
         success "Swap space created and enabled at '${SWAP_FILE}'."
@@ -702,7 +1222,7 @@ function remove_swap() {
 
     if [ -f "${SWAP_FILE}" ]; then
         run swapoff ${SWAP_FILE} && \
-        run sed -i "s|${SWAP_FILE}|#\ ${SWAP_FILE}|g" /etc/fstab && \
+        sed_inplace "s|${SWAP_FILE}|#\ ${SWAP_FILE}|g" /etc/fstab && \
         run rm -f ${SWAP_FILE}
 
         echo "Swap file removed."
@@ -736,16 +1256,35 @@ function create_account() {
         if [[ ${DRYRUN} != true ]]; then
             run useradd -d "/home/${LEMPER_USERNAME}" -m -s /bin/bash "${LEMPER_USERNAME}"
             run echo "${LEMPER_USERNAME}:${LEMPER_PASSWORD}" | chpasswd
-            run usermod -aG sudo "${LEMPER_USERNAME}"
-            run touch /etc/sudoers.d/90-lemper-users && \
-            run echo "${LEMPER_USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/90-lemper-users
+
+            # Restrict sudo access to specific systemctl service management.
+            # This replaces the old NOPASSWD:ALL approach which granted full root.
+            run mkdir -p /etc/sudoers.d
+            run touch "/etc/sudoers.d/90-${LEMPER_USERNAME}"
+            run chmod 0440 "/etc/sudoers.d/90-${LEMPER_USERNAME}"
+            run cat > "/etc/sudoers.d/90-${LEMPER_USERNAME}" <<SUDOERS_EOF
+# Restricted sudoers for LEMPer admin user.
+# Allows the lemper user to manage specific services without full root.
+%${LEMPER_USERNAME} ALL=(root) NOPASSWD: /bin/systemctl reload nginx, \\
+    /bin/systemctl reload php*, \\
+    /bin/systemctl restart nginx, \\
+    /bin/systemctl restart php*, \\
+    /bin/systemctl restart redis-server, \\
+    /bin/systemctl restart mariadb, \\
+    /bin/systemctl restart mysql, \\
+    /bin/systemctl status nginx, \\
+    /bin/systemctl status php*, \\
+    /bin/systemctl status redis-server, \\
+    /bin/systemctl status mariadb, \\
+    /bin/systemctl status mysql
+SUDOERS_EOF
 
             # Create default directories.
             run mkdir -p "/home/${LEMPER_USERNAME}/webapps" && \
             run mkdir -p "/home/${LEMPER_USERNAME}/logs" && \
             run mkdir -p "/home/${LEMPER_USERNAME}/logs/nginx" && \
             run mkdir -p "/home/${LEMPER_USERNAME}/logs/php" && \
-            run mkdir -p "/home/${LEMPER_USERNAME}/.lemper" && \
+            create_php_temp_dirs "${LEMPER_USERNAME}" && \
             run mkdir -p "/home/${LEMPER_USERNAME}/.ssh" && \
             run chmod 700 "/home/${LEMPER_USERNAME}/.ssh" && \
             run touch "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" && \
@@ -763,13 +1302,13 @@ function create_account() {
             # Generate password hash.
             if [[ -n $(command -v mkpasswd) ]]; then
                 PASSWORD_HASH=$(mkpasswd --method=sha-256 "${LEMPER_PASSWORD}")
-                run sed -i "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
+                sed_inplace "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
                 run echo "${LEMPER_USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             elif [[ -n $(command -v htpasswd) ]]; then
-                run htpasswd -b /srv/.htpasswd "${LEMPER_USERNAME}" "${LEMPER_PASSWORD}"
+                printf '%s\n' "${LEMPER_PASSWORD}" | run htpasswd -i /srv/.htpasswd "${LEMPER_USERNAME}"
             else
-                PASSWORD_HASH=$(openssl passwd -1 "${LEMPER_PASSWORD}")
-                run sed -i "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
+                PASSWORD_HASH=$(printf '%s\n' "${LEMPER_PASSWORD}" | openssl passwd -1 -stdin)
+                sed_inplace "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
                 run echo "${LEMPER_USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
             fi
 
@@ -777,8 +1316,9 @@ function create_account() {
             save_config -e "ENVIRONMENT=${ENVIRONMENT}\nHOSTNAME=${HOSTNAME}\nSERVER_IP=${SERVER_IP}\nSERVER_SSH_PORT=${SSH_PORT}"
             save_config -e "LEMPER_USERNAME=${LEMPER_USERNAME}\nLEMPER_PASSWORD=${LEMPER_PASSWORD}\nLEMPER_ADMIN_EMAIL=${LEMPER_ADMIN_EMAIL}"
 
-            # Save data to log file.
-            save_log -e "Your default system account information:\nUsername: ${LEMPER_USERNAME}\nPassword: ${LEMPER_PASSWORD}"
+            # Do NOT log passwords to the installation log file.
+            # Credentials are saved securely to /etc/lemper/lemper.conf (mode 0600, root-only).
+            save_log -e "Default system account '${LEMPER_USERNAME}' has been created successfully."
 
             success "Username ${LEMPER_USERNAME} created."
         else
@@ -800,7 +1340,7 @@ function delete_account() {
             run userdel -r "${LEMPER_USERNAME}"
 
             if [ -f "/srv/.htpasswd" ]; then
-                run sed -i "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
+                sed_inplace "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
             fi
 
             success "Account ${LEMPER_USERNAME} deleted."
@@ -839,25 +1379,124 @@ function init_config() {
         run mkdir -p /etc/lemper/vhost.d && run chmod 0700 /etc/lemper/vhost.d
     fi
 
+    # Generate encryption key file for config at rest.
+    if [[ "${ENCRYPT_CONFIG_AT_REST}" == true ]] && [[ ! -f /etc/lemper/.config_key ]]; then
+        local config_key
+        config_key=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9')
+        echo "${config_key}" > /etc/lemper/.config_key
+        run chmod 0600 /etc/lemper/.config_key
+        success "Encrypted config key generated at /etc/lemper/.config_key"
+    fi
+
     save_log -e "# LEMPer configuration.\n# Edit here if you change your password manually, but do NOT delete!"
 }
 
 # Save configuration.
 function save_config() {
     if [[ ${DRYRUN} != true ]]; then
-        [ -f /etc/lemper/lemper.conf ] && \
-        echo "$@" >> /etc/lemper/lemper.conf
+        local config_file="/etc/lemper/lemper.conf"
+
+        if [[ "${ENCRYPT_CONFIG_AT_REST}" == true ]]; then
+            # Decrypt, write, re-encrypt.
+            local temp_dec pw
+            temp_dec=$(mktemp /tmp/lemper_save.XXXXXX)
+            pw=$(resolve_config_password) 2>/dev/null || pw="${LEMPER_PASSWORD}"
+
+            if is_config_encrypted "${config_file}"; then
+                local decrypted=false
+
+                if openssl enc -aes-256-cbc -d -a -salt -md sha256 -pbkdf2 \
+                    -k "${pw}" -in "${config_file}" -out "${temp_dec}" 2>/dev/null; then
+                    decrypted=true
+                # Fall back to the admin password for configs written before
+                # the install-time key file became authoritative.
+                elif [[ -n "${LEMPER_PASSWORD}" && "${LEMPER_PASSWORD}" != "${pw}" ]] && \
+                    openssl enc -aes-256-cbc -d -a -salt -md sha256 -pbkdf2 \
+                        -k "${LEMPER_PASSWORD}" -in "${config_file}" -out "${temp_dec}" 2>/dev/null; then
+                    decrypted=true
+                fi
+
+                if [[ "${decrypted}" != true ]]; then
+                    secure_shred "${temp_dec}"
+                    error "Failed to decrypt ${config_file}; refusing to overwrite it."
+                    return 1
+                fi
+            elif [[ -f "${config_file}" ]]; then
+                cp "${config_file}" "${temp_dec}"
+            fi
+
+            echo "$@" >> "${temp_dec}"
+
+            # Re-encrypt with the preferred password, migrating legacy
+            # password-encrypted configs to the key file.
+            if [[ -n "${pw}" ]]; then
+                openssl enc -aes-256-cbc -a -salt -md sha256 -pbkdf2 \
+                    -k "${pw}" -in "${temp_dec}" -out "${config_file}"
+            else
+                cp "${temp_dec}" "${config_file}"
+            fi
+            secure_shred "${temp_dec}"
+        else
+            [ -f "${config_file}" ] && echo "$@" >> "${config_file}"
+        fi
     fi
 }
 
-# Encrypt configuration.
+# Encrypt configuration at rest.
 function secure_config() {
     if [[ ${DRYRUN} != true ]]; then
-        if [ -f /etc/lemper/lemper.conf ]; then
-            run openssl aes-256-gcm -a -salt -md sha256 -k "${LEMPER_PASSWORD}" \
-                -in /etc/lemper/lemper.conf -out /etc/lemper/lemper.cnf
+        local config_file="/etc/lemper/lemper.conf"
+        if [ -f "${config_file}" ] && [[ "${ENCRYPT_CONFIG_AT_REST}" == true ]]; then
+            local pw
+            pw=$(resolve_config_password) 2>/dev/null || pw="${LEMPER_PASSWORD}"
+            if [[ -n "${pw}" ]]; then
+                run openssl enc -aes-256-cbc -a -salt -md sha256 -pbkdf2 -k "${pw}" \
+                    -in "${config_file}" -out "${config_file}.enc"
+                secure_shred "${config_file}"
+                mv "${config_file}.enc" "${config_file}"
+            fi
         fi
     fi
+}
+
+# Check if config file is encrypted (raw Salted__ or base64 header).
+function is_config_encrypted() {
+    local file="${1:-/etc/lemper/lemper.conf}"
+    [[ -f "${file}" ]] && head -c 10 "${file}" | grep -qE '^(U2FsdGVkX1|Salted__)'
+}
+
+# Securely delete a file.
+function secure_shred() {
+    local file="${1}"
+    [[ -f "${file}" ]] || return 0
+    if command -v shred &>/dev/null; then
+        shred -u -z -n 3 "${file}" 2>/dev/null || rm -f "${file}"
+    else
+        rm -f "${file}"
+    fi
+}
+
+# Resolve config encryption password from available sources.
+# The install-time key file is preferred over the admin password: sudo strips
+# LEMPER_PASSWORD, while the key file is readable by root in both contexts.
+function resolve_config_password() {
+    if [[ -n "${LEMPER_CONFIG_PASSWORD}" ]]; then
+        printf '%s' "${LEMPER_CONFIG_PASSWORD}"
+        return 0
+    fi
+
+    if [[ -f /etc/lemper/.config_key ]]; then
+        cat /etc/lemper/.config_key
+        return 0
+    fi
+
+    # Legacy fallback for installs predating the key file.
+    if [[ -n "${LEMPER_PASSWORD}" ]]; then
+        printf '%s' "${LEMPER_PASSWORD}"
+        return 0
+    fi
+
+    return 1
 }
 
 # Header message.
@@ -891,7 +1530,7 @@ function footer_msg() {
 #       If useful, don't forget to buy me a cup of coffee or milk :D       #
 #   My PayPal is always open for donation, here https://paypal.me/masedi   #
 #                                                                          #
-#         (c) 2014-2024 | MasEDI.Net | https://masedi.net/l/lemper         #
+#         (c) 2014-2026 | MasEDI.Net | https://masedi.net/l/lemper         #
 #==========================================================================#
 EOL
 }

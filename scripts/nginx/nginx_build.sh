@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 
-# Nginx Source Build Module
-# Part of LEMPer Stack - https://github.com/joglomedia/LEMPer
-# Author: MasEDI.Net (me@masedi.net)
-# Since Version: 2.x.x
+# +-------------------------------------------------------------------------+
+# | Nginx Source Build                                                      |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Prevent direct execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "This script should be sourced, not executed directly."
     exit 1
@@ -81,10 +90,10 @@ function compile_nginx() {
     run cd "${NGINX_SRC_DIR}" || return 1
 
     echo "Compiling Nginx (using ${NB_PROC} cores)..."
-    run make -j"${NB_PROC}"
+    run_spinner "Compiling Nginx" make -j"${NB_PROC}"
 
     echo "Installing Nginx..."
-    run make install
+    run_spinner "Installing Nginx" make install
 
     # Create nginx symlink if not exists
     if [[ ! -f /usr/sbin/nginx && -f /etc/nginx/sbin/nginx ]]; then
@@ -201,25 +210,3 @@ function get_nginx_base_configure_args() {
     fi
 }
 
-##
-# Install Nginx from repository
-##
-function install_nginx_from_repo() {
-    local REPO_SOURCE="${1:-ondrej}"
-
-    echo "Installing Nginx from ${REPO_SOURCE} repository..."
-
-    # Get extra module packages for this repo
-    local EXTRA_PKGS
-    EXTRA_PKGS=$(get_repo_extra_module_packages "${REPO_SOURCE}")
-
-    # Install nginx and modules
-    if [[ -n "${EXTRA_PKGS}" ]]; then
-        # shellcheck disable=SC2086
-        run apt-get install -q -y "${NGINX_PKGS[@]}" ${EXTRA_PKGS}
-    else
-        run apt-get install -q -y "${NGINX_PKGS[@]}"
-    fi
-
-    success "Nginx installed from repository successfully!"
-}

@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | LEMPer CLI - Virtual Host (Site) Generator                              |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2024 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -25,20 +25,24 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
-# Check pre-requisite packages.
-REQUIRED_PACKAGES=("curl" "git" "rsync" "unzip" "wget")
-for CMD in "${REQUIRED_PACKAGES[@]}"; do
-    if ! [[ -x "$(command -v "${CMD}")" ]]; then
-        NO_PACKAGES+=("${CMD}")
-    fi
-done
+# Check pre-requisite packages when the command actually runs (help/version
+# must work on hosts that are only partially provisioned).
+function check_required_packages() {
+    local CMD
+    local -a MISSING=()
 
-if [[ ${#NO_PACKAGES[@]} -gt 0 ]]; then
-    printf -v NO_PACKAGES_STR '%s, ' "${NO_PACKAGES[@]}"
-    error "${PROG_NAME} ${COMMAND_NAME} requires: ${NO_PACKAGES_STR%, }, please install it first!"
-    echo "help: run 'sudo apt-get install ${NO_PACKAGES[*]}'"
-    exit 1
-fi
+    for CMD in curl git rsync unzip wget; do
+        if ! command -v "${CMD}" &>/dev/null; then
+            MISSING+=("${CMD}")
+        fi
+    done
+
+    if [[ ${#MISSING[@]} -gt 0 ]]; then
+        error "${PROG_NAME} ${CMD_NAME} requires: ${MISSING[*]}, please install it first!"
+        echo "help: run 'sudo apt-get install ${MISSING[*]}'"
+        exit 1
+    fi
+}
 
 ##
 # Main Functions
@@ -117,7 +121,6 @@ function create_vhost_default() {
 server {
     listen 80;
     listen [::]:80;
-    http2 off;
 
     server_name ${SERVERNAME};
 
@@ -135,15 +138,19 @@ server {
     set \$root_path "${WEBROOT}";
     root \$root_path;
     index index.php index.html index.htm;
+    client_max_body_size 50m;
 
     # Enable Compression.
     # gzip (default) or brotli (requires Nginx installed with brotli module).
-    #include /etc/nginx/includes/compression_gzip.conf;
+    include /etc/nginx/includes/compression_gzip.conf;
+    #include /etc/nginx/includes/compression_brotli.conf;
 
     ## Global directives configuration.
+    # Restriction rules must come before the static-file locations so deny
+    # rules are not shadowed by the broader static regexes.
     include /etc/nginx/includes/rules_security.conf;
-    include /etc/nginx/includes/rules_staticfiles.conf;
     include /etc/nginx/includes/rules_restriction.conf;
+    include /etc/nginx/includes/rules_staticfiles.conf;
 
     ## Naxsi WAF rules.
     #set \$naxsi_json_log 1;
@@ -177,15 +184,15 @@ server {
         #include /etc/nginx/includes/fastcgi_cache.conf;
     }
 
-    ## PHP-FPM status monitoring
+    ## PHP-FPM status monitoring (local only).
     location ~ ^/php-fpm_(status|ping)$ {
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+
         include /etc/nginx/fastcgi_params;
 
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
-
-        allow all;
-        auth_basic "Denied";
-        auth_basic_user_file /srv/.htpasswd;
     }
 
     ## Uncomment to enable error page directives configuration.
@@ -210,7 +217,6 @@ function create_vhost_drupal() {
 server {
     listen 80;
     listen [::]:80;
-    http2 off;
 
     server_name ${SERVERNAME};
 
@@ -228,15 +234,19 @@ server {
     set \$root_path "${WEBROOT}";
     root \$root_path;
     index index.php index.html index.htm;
+    client_max_body_size 50m;
 
     # Enable Compression.
     # gzip (default) or brotli (requires Nginx installed with brotli module).
-    #include /etc/nginx/includes/compression_gzip.conf;
+    include /etc/nginx/includes/compression_gzip.conf;
+    #include /etc/nginx/includes/compression_brotli.conf;
 
     ## Global directives configuration.
+    # Restriction rules must come before the static-file locations so deny
+    # rules are not shadowed by the broader static regexes.
     include /etc/nginx/includes/rules_security.conf;
-    include /etc/nginx/includes/rules_staticfiles.conf;
     include /etc/nginx/includes/rules_restriction.conf;
+    include /etc/nginx/includes/rules_staticfiles.conf;
 
     ## Naxsi WAF rules.
     #set \$naxsi_json_log 1;
@@ -252,6 +262,8 @@ server {
 
     ## Pass the PHP scripts to FastCGI server listening on Unix socket.
     location ~ '\.php$|^/update.php' {
+        try_files \$uri =404;
+
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_index index.php;
 
@@ -268,15 +280,15 @@ server {
         #include /etc/nginx/includes/fastcgi_cache.conf;
     }
 
-    ## PHP-FPM status monitoring
+    ## PHP-FPM status monitoring (local only).
     location ~ ^/php-fpm_(status|ping)$ {
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+
         include /etc/nginx/fastcgi_params;
 
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
-
-        allow all;
-        auth_basic "Denied";
-        auth_basic_user_file /srv/.htpasswd;
     }
 
     ## Uncomment to enable error page directives configuration.
@@ -301,7 +313,6 @@ function create_vhost_laravel() {
 server {
     listen 80;
     listen [::]:80;
-    http2 off;
 
     server_name ${SERVERNAME};
 
@@ -319,15 +330,19 @@ server {
     set \$root_path "${WEBROOT}/public";
     root \$root_path;
     index index.php index.html index.htm;
+    client_max_body_size 50m;
 
     # Enable Compression.
     # gzip (default) or brotli (requires Nginx installed with brotli module).
-    #include /etc/nginx/includes/compression_gzip.conf;
+    include /etc/nginx/includes/compression_gzip.conf;
+    #include /etc/nginx/includes/compression_brotli.conf;
 
     ## Global directives configuration.
+    # Restriction rules must come before the static-file locations so deny
+    # rules are not shadowed by the broader static regexes.
     include /etc/nginx/includes/rules_security.conf;
-    include /etc/nginx/includes/rules_staticfiles.conf;
     include /etc/nginx/includes/rules_restriction.conf;
+    include /etc/nginx/includes/rules_staticfiles.conf;
 
     ## Naxsi WAF rules.
     #set \$naxsi_json_log 1;
@@ -343,6 +358,8 @@ server {
 
     ## Pass the PHP scripts to FastCGI server listening on Unix socket.
     location ~ \.php$ {
+        try_files \$uri =404;
+
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_index index.php;
 
@@ -359,15 +376,15 @@ server {
         #include /etc/nginx/includes/fastcgi_cache.conf;
     }
 
-    ## PHP-FPM status monitoring
+    ## PHP-FPM status monitoring (local only).
     location ~ ^/php-fpm_(status|ping)$ {
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+
         include /etc/nginx/fastcgi_params;
 
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
-
-        allow all;
-        auth_basic "Denied";
-        auth_basic_user_file /srv/.htpasswd;
     }
 
     ## Uncomment to enable error page directives configuration.
@@ -392,7 +409,6 @@ function create_vhost_phalcon() {
 server {
     listen 80;
     listen [::]:80;
-    http2 off;
 
     server_name ${SERVERNAME};
 
@@ -410,15 +426,19 @@ server {
     set \$root_path "${WEBROOT}/public";
     root \$root_path;
     index index.php index.html index.htm;
+    client_max_body_size 50m;
 
     # Enable Compression.
     # gzip (default) or brotli (requires Nginx installed with brotli module).
-    #include /etc/nginx/includes/compression_gzip.conf;
+    include /etc/nginx/includes/compression_gzip.conf;
+    #include /etc/nginx/includes/compression_brotli.conf;
 
     ## Global directives configuration.
+    # Restriction rules must come before the static-file locations so deny
+    # rules are not shadowed by the broader static regexes.
     include /etc/nginx/includes/rules_security.conf;
-    include /etc/nginx/includes/rules_staticfiles.conf;
     include /etc/nginx/includes/rules_restriction.conf;
+    include /etc/nginx/includes/rules_staticfiles.conf;
 
     ## Naxsi WAF rules.
     #set \$naxsi_json_log 1;
@@ -433,7 +453,9 @@ server {
     ## End of custom site directives. 
 
     ## Pass the PHP scripts to FastCGI server listening on Unix socket.
-    location ~ \.php {
+    location ~ \.php$ {
+        try_files \$uri =404;
+
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
         fastcgi_index index.php;
 
@@ -453,15 +475,15 @@ server {
         #include /etc/nginx/includes/fastcgi_cache.conf;
     }
 
-    ## PHP-FPM status monitoring
+    ## PHP-FPM status monitoring (local only).
     location ~ ^/php-fpm_(status|ping)$ {
+        allow 127.0.0.1;
+        allow ::1;
+        deny all;
+
         include /etc/nginx/fastcgi_params;
 
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.${USERNAME}.sock;
-
-        allow all;
-        auth_basic "Denied";
-        auth_basic_user_file /srv/.htpasswd;
     }
 
     ## Uncomment to enable error page directives configuration.
@@ -576,6 +598,17 @@ function create_fpm_pool_conf() {
     local POOLNAME="${1}"
     local PHPv="${2}"
 
+    local RESOURCE_PROFILE MEMLIMIT_MB
+    RESOURCE_PROFILE=$(detect_resource_profile)
+    MEMLIMIT_MB=$(memory_to_mb "${PHP_MEMORY_LIMIT:-256M}")
+
+    local POOL_MAX_CHILDREN POOL_START_SERVERS POOL_MIN_SPARE POOL_MAX_SPARE
+    read -r POOL_MAX_CHILDREN POOL_START_SERVERS POOL_MIN_SPARE POOL_MAX_SPARE <<< \
+        "$(calc_php_pool_sizing "${RESOURCE_PROFILE}" "${MEMLIMIT_MB}")"
+
+    local COOKIE_SECURE=0
+    [[ "${SESSION_COOKIE_SECURE:-false}" == true ]] && COOKIE_SECURE=1
+
     cat <<- EOL
 [${POOLNAME}]
 user = ${POOLNAME}
@@ -587,13 +620,12 @@ listen.group = www-data
 listen.mode = 0660
 ;listen.allowed_clients = 127.1.0.1
 
-; Custom PHP-FPM optimization, adjust here to meet your specs.
-; Default value here is optimized for a single CPU with at least 1GB RAM.
+; Custom PHP-FPM optimization, sized from SERVER_PROFILE and available RAM.
 pm = dynamic
-pm.max_children = 30
-pm.start_servers = 5
-pm.min_spare_servers = 5
-pm.max_spare_servers = 20
+pm.max_children = ${POOL_MAX_CHILDREN}
+pm.start_servers = ${POOL_START_SERVERS}
+pm.min_spare_servers = ${POOL_MIN_SPARE}
+pm.max_spare_servers = ${POOL_MAX_SPARE}
 pm.process_idle_timeout = 30s
 pm.max_requests = 500
 
@@ -602,44 +634,63 @@ ping.path = /php-fpm_ping
 
 slowlog = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_slow.log
 request_slowlog_timeout = 10s
+; Kill runaway workers even if max_execution_time is bypassed.
+request_terminate_timeout = 300s
 
 ;chroot = /home/${POOLNAME}
 chdir = /home/${POOLNAME}
 
+; Do not leak the service environment into PHP.
+clear_env = yes
+
 ;catch_workers_output = yes
 ;decorate_workers_output = no
 
-security.limit_extensions = .php .php7 .php8 .php${PHPv//./}
+security.limit_extensions = .php .php${PHPv//./}
 
 ; Custom PHP ini settings for LEMPer Stack.
-php_admin_value[open_basedir] = /home/${POOLNAME}
-php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,exec,passthru,popen,proc_open,shell_exec,system
+php_admin_value[open_basedir] = /home/${POOLNAME}:/var/lib/php/lemper/${POOLNAME}
+php_admin_value[disable_functions] = pcntl_alarm,pcntl_fork,pcntl_waitpid,pcntl_wait,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_signal,pcntl_signal_get_handler,pcntl_signal_dispatch,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,pcntl_async_signals,pcntl_unshare,exec,passthru,popen,proc_open,shell_exec,system
 ;php_admin_value[disable_classes] = 
 php_admin_flag[log_errors] = on
 php_admin_value[error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-fpm_error.log
-php_admin_value[sys_temp_dir] = /home/${POOLNAME}/.lemper/tmp
-php_admin_value[upload_tmp_dir] = /home/${POOLNAME}/.lemper/tmp
+php_admin_flag[expose_php] = off
+php_admin_value[sys_temp_dir] = /var/lib/php/lemper/${POOLNAME}/tmp
+php_admin_value[upload_tmp_dir] = /var/lib/php/lemper/${POOLNAME}/tmp
 ;php_admin_value[sendmail_path] = /usr/sbin/sendmail -t -i -f www@my.domain.com
 
 ; Configuration below can be overwritten from PHP call 'ini_set'.
 php_flag[short_open_tag] = off
 php_value[max_execution_time] = 300
 php_value[max_input_time] = 60
-php_value[memory_limit] = 128M
+php_value[memory_limit] = ${PHP_MEMORY_LIMIT:-256M}
 php_value[post_max_size] = 50M
 php_flag[file_uploads] = on
 php_value[upload_max_filesize] = 50M
 php_value[max_file_uploads] = 20
 php_value[default_socket_timeout] = 60
 php_value[error_reporting] = E_ALL & ~E_DEPRECATED & ~E_STRICT
-php_flag[display_errors] = on
-php_flag[cgi.fix_pathinfo] = 1
+php_admin_flag[display_errors] = off
+php_admin_flag[display_startup_errors] = off
+php_flag[cgi.fix_pathinfo] = off
 php_value[date.timezone] = UTC
 php_value[session.save_handler] = files
-php_value[session.save_path] = /home/${POOLNAME}/.lemper/php/sessions
-php_value[soap.wsdl_cache_dir]  = /home/${POOLNAME}/.lemper/php/wsdlcache
-php_value[opcache.file_cache] = /home/${POOLNAME}/.lemper/php/opcache
+; Keep session files out of the document root: ini_set() must not relocate them.
+php_admin_value[session.save_path] = /var/lib/php/lemper/${POOLNAME}/sessions
+php_value[soap.wsdl_cache_dir] = /var/lib/php/lemper/${POOLNAME}/wsdlcache
+php_value[opcache.file_cache] = /var/lib/php/lemper/${POOLNAME}/opcache
 php_value[opcache.error_log] = /home/${POOLNAME}/logs/php/php${PHPv}-opcache_error.log
+
+; Session hardening (not overridable from application code).
+php_admin_value[session.use_strict_mode] = 1
+php_admin_value[session.use_only_cookies] = 1
+php_admin_value[session.cookie_httponly] = 1
+php_admin_value[session.cookie_secure] = ${COOKIE_SECURE}
+php_admin_value[session.cookie_samesite] = Lax
+php_admin_value[session.sid_length] = 48
+php_admin_value[session.sid_bits_per_character] = 5
+php_admin_value[session.gc_probability] = 1
+php_admin_value[session.gc_divisor] = 1000
 EOL
 }
 
@@ -698,11 +749,21 @@ function validate_ipv6() {
 
 ##
 # Validate FQDN domain.
+# Uses ERE (grep -E) with a separate length check for portability.
+# PCRE (grep -P) lookahead/lookbehind is not available on all platforms.
 ##
 function validate_fqdn() {
     local FQDN=${1}
 
-    if grep -qP "(?=^.{4,253}\.?$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)" <<< "${FQDN}"; then
+    # Length check: 4-253 characters (RFC 1035 / RFC 1123).
+    if [[ ${#FQDN} -lt 4 || ${#FQDN} -gt 253 ]]; then
+        echo false # error
+        return
+    fi
+
+    # Validate format: labels of 1-63 chars separated by dots,
+    # no leading/trailing dashes, TLD is 2-63 letters, optional trailing dot.
+    if grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}\.?$' <<< "${FQDN}"; then
         echo true # success
     else
         echo false # error
@@ -744,7 +805,7 @@ function create_app_db() {
     APP_DB_PASS=${2:-"$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"}
     APP_DB_NAME=${3:-"app_${APP_UID}"}
 
-    run lemper-cli db account create --dbuser="${APP_DB_USER}" --dbpass="${APP_DB_PASS}" && \
+    LEMPER_DB_PASSWORD="${APP_DB_PASS}" run lemper-cli db account create --dbuser="${APP_DB_USER}" && \
     run lemper-cli db create --dbname="${APP_DB_NAME}" --dbuser="${APP_DB_USER}"
 }
 
@@ -770,8 +831,19 @@ function install_wordpress() {
             # create_app_db [app_db_username] [app_db_password] [app_db_name]
             create_app_db "${APP_DB_USER}" "${APP_DB_PASS}" "${APP_DB_NAME}"
 
+            # wp-cli only accepts the password as an argument, so write a
+            # placeholder and substitute it in the generated file to keep the
+            # secret out of the process list. --skip-check avoids validating
+            # the placeholder against the database.
             run sudo -u "${USERNAME}" -i -- wp-cli config create --dbname="${APP_DB_NAME}" \
-                --dbuser="${APP_DB_USER}" --dbpass="${APP_DB_PASS}" --dbprefix=ls_ --path="${WEBROOT}"
+                --dbuser="${APP_DB_USER}" --dbpass="__LEMPER_DB_PASS__" --dbprefix=ls_ \
+                --skip-check --path="${WEBROOT}"
+
+            if [[ "${DRYRUN}" != true && -f "${WEBROOT}/wp-config.php" ]]; then
+                sed_inplace "s|__LEMPER_DB_PASS__|$(sanitize_sed_replacement "${APP_DB_PASS}")|g" "${WEBROOT}/wp-config.php"
+                run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/wp-config.php"
+                run chmod 640 "${WEBROOT}/wp-config.php"
+            fi
         else
             info "It seems that WordPress files already exists."
         fi
@@ -806,7 +878,7 @@ function init_lemper_create() {
     SERVERNAME=""
     WEBROOT=""
     FRAMEWORK="default"
-    PHP_VERSION="8.1"
+    PHP_VERSION="${DEFAULT_PHP_VERSION:-8.5}"
     INSTALL_APP=false
     WPMS_SUBDOMAINS=""
     ENABLE_FASTCGI_CACHE=false
@@ -920,6 +992,8 @@ function init_lemper_create() {
     done
 
     if [[ "${MAIN_ARGS}" -ge 1 ]]; then
+        check_required_packages
+
         # Additional Check - ensure that Nginx's configuration meets the requirements.
         if [[ ! -d /etc/nginx/sites-available && ! -d /etc/nginx/vhost ]]; then
             fail "Your Nginx installation does not meet the LEMPer stack requirements. The installation has been aborted."
@@ -954,7 +1028,7 @@ function init_lemper_create() {
 
             # Additional Check - are user account exist?
             if [[ -z $(getent passwd "${USERNAME}") ]]; then
-                fial "User account '${USERNAME}' does not exist. Create the account first. Aborting..."
+                fail "User account '${USERNAME}' does not exist. Create the account first. Aborting..."
             fi
 
             # Check PHP runtime version is exists.
@@ -972,17 +1046,14 @@ function init_lemper_create() {
                     create_fpm_pool_conf "${USERNAME}" "${PHP_VERSION}" > "/etc/php/${PHP_VERSION}/fpm/pool.d/${USERNAME}.conf"
 
                     # Create default directories & log files.
-                    run mkdir -p "/home/${USERNAME}/.lemper/tmp" && \
-                    run mkdir -p "/home/${USERNAME}/.lemper/php/opcache" && \
-                    run mkdir -p "/home/${USERNAME}/.lemper/php/sessions" && \
-                    run mkdir -p "/home/${USERNAME}/.lemper/php/wsdlcache" && \
+                    create_php_temp_dirs "${USERNAME}" && \
                     run mkdir -p "/home/${USERNAME}/cgi-bin" && \
                     run mkdir -p "/home/${USERNAME}/logs/php" && \
                     run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_slow.log" && \
                     run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_error.log" && \
                     run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-opcache_error.log" && \
                     run chmod 755 "/home/${USERNAME}" && \
-                    run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.lemper" "/home/${USERNAME}/cgi-bin" "/home/${USERNAME}/logs"
+                    run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/cgi-bin" "/home/${USERNAME}/logs"
 
                     # Restart PHP FPM.
                     echo "Restarting php${PHP_VERSION}-fpm configuration..."
@@ -1314,7 +1385,7 @@ require WPMU_PLUGIN_DIR . '/mercator/mercator.php';
 EOL
 
                     # Enable sunrise. (insert new line before match)
-                    run sed -i "/\/*\ That/i define( 'SUNRISE', true );\n" "${WEBROOT}/wp-config.php"
+                    sed_inplace "/\/*\ That/i define( 'SUNRISE', true );\n" "${WEBROOT}/wp-config.php"
 
                     # Pre-populate blog id mapping, used by Nginx vhost config.
                     if [[ ! -d "${WEBROOT}/wp-content/uploads/nginx-helper" ]]; then
@@ -1335,7 +1406,7 @@ EOL
 
                     # Enable wildcard host.
                     if grep -qwE "server_name\ ${SERVERNAME};$" "${VHOST_FILE}"; then
-                        run sed -i "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" \
+                        sed_inplace "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" \
                             "${VHOST_FILE}"
                     fi
                 ;;
@@ -1402,6 +1473,12 @@ EOL
             esac
 
             if [[ ${DRYRUN} != true ]]; then
+                # Enable ModSecurity automatically when installed.
+                if [[ "${INSTALL_MODSEC}" == true ]] && [[ -f /etc/nginx/includes/modsec.conf ]]; then
+                    sed_inplace "/^[[:space:]]*server_name[[:space:]]/a\\    include /etc/nginx/includes/modsec.conf;" "${VHOST_FILE}"
+                    info "ModSecurity enabled for ${SERVERNAME}."
+                fi
+
                 # Confirm virtual host.
                 if grep -qwE "server_name ${SERVERNAME}" "${VHOST_FILE}"; then
                     success "New domain ${SERVERNAME} successfuly added to virtual host."
@@ -1425,7 +1502,7 @@ EOL
                     echo "Assigning IPv4 ${IPv4} to ${SERVERNAME}..."
 
                     if grep -qwE "listen\ 80" "${VHOST_FILE}"; then
-                        run sed -i "s/^\    listen\ 80/\    listen ${IPv4}:80/g" "${VHOST_FILE}"
+                        sed_inplace "s/^\    listen\ 80/\    listen ${IPv4}:80/g" "${VHOST_FILE}"
 
                         # Add local domain (e.g. example.test) to hosts file.
                         add_local_domain "${IPv4}" "${SERVERNAME}"
@@ -1437,7 +1514,7 @@ EOL
                     echo "Assigning IPv6 ${IPv6} to ${SERVERNAME}..."
 
                     if grep -qwE "listen\ \[::\]:80" "${VHOST_FILE}"; then
-                        run sed -i "s/^\    listen\ \[::\]:80/\    listen [${IPv6}]:80/g" "${VHOST_FILE}"
+                        sed_inplace "s/^\    listen\ \[::\]:80/\    listen [${IPv6}]:80/g" "${VHOST_FILE}"
 
                         # Add local domain (e.g. example.test) to hosts file.
                         add_local_domain "${IPv6}" "${SERVERNAME}"
@@ -1449,7 +1526,7 @@ EOL
                     echo "Enable wildcard domain for ${SERVERNAME}..."
 
                     if grep -qwE "server_name\ ${SERVERNAME};$" "${VHOST_FILE}"; then
-                        run sed -i "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" "${VHOST_FILE}"
+                        sed_inplace "s/server_name\ ${SERVERNAME};/server_name\ ${SERVERNAME}\ \*.${SERVERNAME};/g" "${VHOST_FILE}"
                     fi
                 fi
 
@@ -1459,9 +1536,9 @@ EOL
 
                     if [[ -f /etc/nginx/includes/rules_fastcgi_cache.conf ]]; then
                         # enable cached directives
-                        run sed -i "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" "${VHOST_FILE}"
+                        sed_inplace "s|#include\ /etc/nginx/includes/rules_fastcgi_cache.conf|include\ /etc/nginx/includes/rules_fastcgi_cache.conf|g" "${VHOST_FILE}"
                         # enable fastcgi_cache conf
-                        run sed -i "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" "${VHOST_FILE}"
+                        sed_inplace "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" "${VHOST_FILE}"
                     else
                         info "FastCGI cache is not enabled due to no cached version of ${FRAMEWORK^} directive."
                     fi

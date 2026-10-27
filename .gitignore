@@ -3,6 +3,10 @@
 .env.bak
 .env.save
 .travis.yml
+.agents/
+.codex/
+.claude/
+.qoder/
 dev-notes.md
 install.log
 lemper.log
@@ -17,3 +21,5 @@ bin/lemperography.php
 scripts/install_ffmpeg.sh
 scripts/createssl.sh
 scripts/mysqltuner.pl
+.DS_Store
+tests/.env.test

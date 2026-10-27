@@ -1,0 +1,16 @@
+# PAM config for pure-ftpd
+
+# Standard behaviour for ftpd(8).
+auth	required	pam_listfile.so item=user sense=deny file=/etc/ftpusers onerr=succeed
+
+# Uncomment next line to allow non-anonymous ftp access ONLY for users,
+# listed in /etc/ftpallow
+#auth    required        pam_listfile.so item=user sense=allow file=/etc/ftpallow onerr=fail
+
+# Note: pure-ftpd handles anonymous logins on its own. Do not enable pam_ftp.so.
+
+# Standard pam includes
+@include common-account
+@include common-session
+@include common-auth
+auth	required	pam_shells.so

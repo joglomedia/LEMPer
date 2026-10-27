@@ -1,16 +1,25 @@
 #!/usr/bin/env bash
 
-# Mail Installer
-# Min. Requirement  : GNU/Linux Ubuntu 18.04
-# Last Build        : 14/02/2022
-# Author            : MasEDI.Net (me@masedi.net)
-# Since Version     : 1.0.0
+# +-------------------------------------------------------------------------+
+# | Mail Server Installer                                                   |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Include helper functions.
 if [[ "$(type -t run)" != "function" ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )
-    # shellcheck disable=SC1091
-    . "${BASE_DIR}/utils.sh"
+    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
+    cd "${BASE_DIR}" || { echo "Cannot enter ${BASE_DIR}."; exit 1; }
+    # shellcheck source=scripts/utils.sh
+    . "${BASE_DIR}/scripts/utils.sh"
 
     # Make sure only root can run this installer script.
     requires_root "$@"
@@ -190,14 +199,14 @@ function install_dovecot() {
         #run bash -c "echo -e '\nexport MAIL=~/Maildir' >> /etc/profile.d/mail.sh"
 
         if grep -q "MAIL=~/Maildir" /etc/bash.bashrc; then
-            run sed -i".bak" "/export\ MAIL=~\/Maildir/d" /etc/bash.bashrc
+            sed_inplace -b "/export\ MAIL=~\/Maildir/d" /etc/bash.bashrc
             run bash -c "echo -e 'export MAIL=~/Maildir' >> /etc/bash.bashrc"
         else
             run bash -c "echo -e '\n# LEMPer Mailer\nexport MAIL=~/Maildir' >> /etc/bash.bashrc"
         fi
 
         if grep -q "MAIL=~/Maildir" /etc/profile.d/mail.sh; then
-            run sed -i".bak" "/export\ MAIL=~\/Maildir/d" /etc/profile.d/mail.sh
+            sed_inplace -b "/export\ MAIL=~\/Maildir/d" /etc/profile.d/mail.sh
             run bash -c "echo -e 'export MAIL=~/Maildir' >> /etc/profile.d/mail.sh"
         else
             run bash -c "echo -e '\n# LEMPer Mailer\nexport MAIL=~/Maildir' >> /etc/profile.d/mail.sh"
@@ -207,19 +216,19 @@ function install_dovecot() {
         if [[ -f /etc/dovecot/conf.d/10-auth.conf ]]; then
             # Disabling the plaintext authentication.
             if grep -qwE "^#disable_plaintext_auth\ =\ [a-zA-Z]*" /etc/dovecot/conf.d/10-auth.conf; then
-                run sed -i "/^#disable_plaintext_auth/a disable_plaintext_auth\ =\ yes" \
+                sed_inplace "/^#disable_plaintext_auth/a disable_plaintext_auth\ =\ yes" \
                     /etc/dovecot/conf.d/10-auth.conf
             else
-                run sed -i "s/disable_plaintext_auth\ =\ [a-zA-Z]*/disable_plaintext_auth\ =\ yes/g" \
+                sed_inplace "s/disable_plaintext_auth\ =\ [a-zA-Z]*/disable_plaintext_auth\ =\ yes/g" \
                     /etc/dovecot/conf.d/10-auth.conf
             fi
 
             # Enabling login authentication mechanism.
             if grep -qwE "^#auth_mechanisms\ =\ [a-zA-Z]*" /etc/dovecot/conf.d/10-auth.conf; then
-                run sed -i "/^#auth_mechanisms/a auth_mechanisms = plain login" \
+                sed_inplace "/^#auth_mechanisms/a auth_mechanisms = plain login" \
                     /etc/dovecot/conf.d/10-auth.conf
             else
-                run sed -i "s/auth_mechanisms\ =\ [a-zA-Z]*/auth_mechanisms\ =\ plain\ login/g" \
+                sed_inplace "s/auth_mechanisms\ =\ [a-zA-Z]*/auth_mechanisms\ =\ plain\ login/g" \
                     /etc/dovecot/conf.d/10-auth.conf
             fi
         fi
@@ -228,10 +237,10 @@ function install_dovecot() {
         if [[ -f /etc/dovecot/conf.d/10-mail.conf ]]; then
             # Maildir.
             if grep -qwE "^mail_location\ =\ [^[:digit:]]*$" /etc/dovecot/conf.d/10-mail.conf; then
-                run sed -i "s/^mail_location\ =\ [^[:digit:]]*$/mail_location\ =\ maildir:~\/Maildir/g" \
+                sed_inplace "s/^mail_location\ =\ [^[:digit:]]*$/mail_location\ =\ maildir:~\/Maildir/g" \
                     /etc/dovecot/conf.d/10-mail.conf
             else
-                run sed -iE "/^#mail_location\ =\ [^[:digit:]]*$/a mail_location\ =\ maildir:~\/Maildir" \
+                sed_inplace -E "/^#mail_location\ =\ [^[:digit:]]*$/a mail_location\ =\ maildir:~\/Maildir" \
                     /etc/dovecot/conf.d/10-mail.conf
             fi
         fi
@@ -239,40 +248,40 @@ function install_dovecot() {
         # Enable IMAP and POP3 protocols for email clients.
         if [[ -f /etc/dovecot/conf.d/10-master.conf ]]; then
             # IMAP
-            run sed -i "s/#port\ =\ 143/port\ =\ 143/g" /etc/dovecot/conf.d/10-master.conf
+            sed_inplace "s/#port\ =\ 143/port\ =\ 143/g" /etc/dovecot/conf.d/10-master.conf
             # IMAPS
-            run sed -i "s/#port\ =\ 993/port\ =\ 993/g" /etc/dovecot/conf.d/10-master.conf
-            run sed -i "s/#ssl\ =\ yes/ssl\ =\ yes/g" /etc/dovecot/conf.d/10-master.conf
+            sed_inplace "s/#port\ =\ 993/port\ =\ 993/g" /etc/dovecot/conf.d/10-master.conf
+            sed_inplace "s/#ssl\ =\ yes/ssl\ =\ yes/g" /etc/dovecot/conf.d/10-master.conf
 
             # POP3
-            run sed -i "s/#port\ =\ 110/port\ =\ 110/g" /etc/dovecot/conf.d/10-master.conf
+            sed_inplace "s/#port\ =\ 110/port\ =\ 110/g" /etc/dovecot/conf.d/10-master.conf
             # POP3S
-            run sed -i "s/#port\ =\ 995/port\ =\ 995/g" /etc/dovecot/conf.d/10-master.conf
-            run sed -i "s/#ssl\ =\ yes/ssl\ =\ yes/g" /etc/dovecot/conf.d/10-master.conf
+            sed_inplace "s/#port\ =\ 995/port\ =\ 995/g" /etc/dovecot/conf.d/10-master.conf
+            sed_inplace "s/#ssl\ =\ yes/ssl\ =\ yes/g" /etc/dovecot/conf.d/10-master.conf
 
             # Postfix SMTP auth.
-            run sed -i "s/#mode\ =\ 0666/mode\ =\ 0666/g" /etc/dovecot/conf.d/10-master.conf
-            run sed -i "s/#user\ =\ postfix/user\ =\ postfix/g" /etc/dovecot/conf.d/10-master.conf
-            run sed -i "s/#group\ =\ postfix/group\ =\ postfix/g" /etc/dovecot/conf.d/10-master.conf
+            sed_inplace "s/#mode\ =\ 0666/mode\ =\ 0666/g" /etc/dovecot/conf.d/10-master.conf
+            sed_inplace "s/#user\ =\ postfix/user\ =\ postfix/g" /etc/dovecot/conf.d/10-master.conf
+            sed_inplace "s/#group\ =\ postfix/group\ =\ postfix/g" /etc/dovecot/conf.d/10-master.conf
         fi
 
         # Let's Encrypt SSL certs.
         if [[ -n "${MAILER_CERT_PATH}" && -f /etc/dovecot/conf.d/10-ssl.conf ]]; then
             # SSL cert.
             if grep -qwE "^ssl_cert\ =\ [^[:digit:]]*$" /etc/dovecot/conf.d/10-ssl.conf; then
-                run sed -i "s|^ssl_cert\ =\ [^[:digit:]]*$|ssl_cert\ =\ <${MAILER_CERT_PATH}/fullchain.pem|g" \
+                sed_inplace "s|^ssl_cert\ =\ [^[:digit:]]*$|ssl_cert\ =\ <${MAILER_CERT_PATH}/fullchain.pem|g" \
                     /etc/dovecot/conf.d/10-ssl.conf
             else
-                run sed -iE "/^#ssl_cert\ =\ [^[:digit:]]*$/a ssl_cert\ =\ <${MAILER_CERT_PATH}/fullchain.pem" \
+                sed_inplace -E "/^#ssl_cert\ =\ [^[:digit:]]*$/a ssl_cert\ =\ <${MAILER_CERT_PATH}/fullchain.pem" \
                     /etc/dovecot/conf.d/10-ssl.conf
             fi
 
             # SSL key.
             if grep -qwE "^ssl_key\ =\ [^[:digit:]]*$" /etc/dovecot/conf.d/10-ssl.conf; then
-                run sed -i "s|^ssl_key\ =\ [^[:digit:]]*$|ssl_key\ =\ ${MAILER_CERT_PATH}/privkey.pem|g" \
+                sed_inplace "s|^ssl_key\ =\ [^[:digit:]]*$|ssl_key\ =\ ${MAILER_CERT_PATH}/privkey.pem|g" \
                     /etc/dovecot/conf.d/10-ssl.conf
             else
-                run sed -iE "/^#ssl_key\ =\ [^[:digit:]]*$/a ssl_key\ =\ ${MAILER_CERT_PATH}/privkey.pem" \
+                sed_inplace -E "/^#ssl_key\ =\ [^[:digit:]]*$/a ssl_key\ =\ ${MAILER_CERT_PATH}/privkey.pem" \
                     /etc/dovecot/conf.d/10-ssl.conf
             fi
         fi
@@ -351,14 +360,14 @@ function install_spf_dkim() {
 
         # Update OpenDKIM default socket configuration file.
         if [[ -f /etc/default/opendkim ]]; then
-            run sed -i "s/^RUNDIR=\/var\/run\/opendkim/#RUNDIR=\/var\/run\/opendkim/g" /etc/default/opendkim
-            run sed -i "/^#RUNDIR=\/var\/spool\/postfix\/var\/run\/opendkim/s/^#//" /etc/default/opendkim
+            sed_inplace "s/^RUNDIR=\/var\/run\/opendkim/#RUNDIR=\/var\/run\/opendkim/g" /etc/default/opendkim
+            sed_inplace "/^#RUNDIR=\/var\/spool\/postfix\/var\/run\/opendkim/s/^#//" /etc/default/opendkim
         fi
 
         # Update OpenDKIM socket config.
         local OPENDKIM_SOCKET="local:/var/spool/postfix/opendkim/opendkim.sock"
-        run sed -i "/^Socket\s[^[:digit:]]*$/s//#&/" /etc/opendkim.conf
-        run sed -i "/^#Socket\s[^[:digit:]]*$/a Socket\    ${OPENDKIM_SOCKET}" /etc/opendkim.conf
+        sed_inplace "/^Socket\s[^[:digit:]]*$/s//#&/" /etc/opendkim.conf
+        sed_inplace "/^#Socket\s[^[:digit:]]*$/a Socket\    ${OPENDKIM_SOCKET}" /etc/opendkim.conf
 
         # Postfix Milter configuration.
         run postconf -e "milter_default_action = accept"
@@ -368,10 +377,10 @@ function install_spf_dkim() {
 
         # Adjusts OpenDKIM config.
         #run sed -i "/^#Canonicalization/a Canonicalization\       relaxed\/simple" /etc/opendkim.conf
-        run sed -i "/^#Canonicalization/a Canonicalization\       relaxed\/relaxed" /etc/opendkim.conf
-        run sed -i "/^#Mode/a Mode\                   sv" /etc/opendkim.conf
-        run sed -i "/^#SubDomains/a SubDomains\             no" /etc/opendkim.conf
-        run sed -i "/^SubDomains/a #ADSPAction\ continue\nAutoRestart\         yes\nAutoRestartRate\     10\/1M\nBackground\          yes\nDNSTimeout\          5\nSignatureAlgorithm\  rsa-sha256" /etc/opendkim.conf
+        sed_inplace "/^#Canonicalization/a Canonicalization\       relaxed\/relaxed" /etc/opendkim.conf
+        sed_inplace "/^#Mode/a Mode\                   sv" /etc/opendkim.conf
+        sed_inplace "/^#SubDomains/a SubDomains\             no" /etc/opendkim.conf
+        sed_inplace "/^SubDomains/a #ADSPAction\ continue\nAutoRestart\         yes\nAutoRestartRate\     10\/1M\nBackground\          yes\nDNSTimeout\          5\nSignatureAlgorithm\  rsa-sha256" /etc/opendkim.conf
 
         # Add opendkim user id.
         if ! grep -qwE "^UserID\                opendkim" /etc/opendkim.conf; then

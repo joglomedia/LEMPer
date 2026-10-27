@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 
-# Nginx SSL Certificate Generation
-# Part of LEMPer Stack - https://github.com/joglomedia/LEMPer
-# Author: MasEDI.Net (me@masedi.net)
-# Since Version: 2.x.x
+# +-------------------------------------------------------------------------+
+# | Nginx Self-Signed SSL Certificate                                       |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Prevent direct execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "This script should be sourced, not executed directly."
     exit 1
@@ -47,6 +56,7 @@ function generate_letsencrypt_cert() {
             --webroot-path=/usr/share/nginx/html -d "${DOMAIN}"
     fi
 
+    # shellcheck disable=SC2034  # HOSTNAME_CERT_PATH is a return value for callers
     HOSTNAME_CERT_PATH="/etc/letsencrypt/live/${DOMAIN}"
 
     # Restart webserver
@@ -59,7 +69,7 @@ function generate_letsencrypt_cert() {
 function generate_selfsigned_cert() {
     local DOMAIN="$1"
     local SERVER_IP="${2:-$(get_ip)}"
-    local KEY_HASH_LENGTH="${KEY_HASH_LENGTH:-2048}"
+    local KEY_HASH_LENGTH="${KEY_HASH_LENGTH:-4096}"
 
     echo "Generating self-signed certificate for ${DOMAIN}..."
 
@@ -67,13 +77,13 @@ function generate_selfsigned_cert() {
     [[ ! -d "/etc/lemper/ssl/${DOMAIN}" ]] && mkdir -p "/etc/lemper/ssl/${DOMAIN}"
 
     # Update certificate configuration files
-    run sed -i "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/ca.conf
-    run sed -i "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf
-    run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf
-    run sed -i "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf
-    run sed -r -i "s|^IP.1\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.1\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf
-    run sed -r -i "s|^IP.2\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.2\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf
-    run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
+    sed_inplace "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/ca.conf
+    sed_inplace "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf
+    sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf
+    sed_inplace "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf
+    sed_inplace -r "s|^IP.1\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.1\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf
+    sed_inplace -r "s|^IP.2\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.2\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf
+    sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
 
     # Create Certificate Authority (CA)
     run openssl req -x509 -sha256 -days 365000 -nodes -newkey "rsa:${KEY_HASH_LENGTH}" \
@@ -98,6 +108,7 @@ function generate_selfsigned_cert() {
         "/etc/lemper/ssl/${DOMAIN}/fullchain.pem"
 
     if [[ -f "/etc/lemper/ssl/${DOMAIN}/cert.pem" ]]; then
+        # shellcheck disable=SC2034  # HOSTNAME_CERT_PATH is a return value for callers
         HOSTNAME_CERT_PATH="/etc/lemper/ssl/${DOMAIN}"
         success "Self-signed SSL certificate has been successfully generated."
     else

@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 
-# Nginx SSL Library Builders
-# Part of LEMPer Stack - https://github.com/joglomedia/LEMPer
-# Author: MasEDI.Net (me@masedi.net)
-# Since Version: 2.x.x
+# +-------------------------------------------------------------------------+
+# | Nginx SSL Module Builders                                               |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Prevent direct execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "This script should be sourced, not executed directly."
     exit 1
@@ -43,8 +52,12 @@ function build_openssl() {
             NGX_CONFIGURE_ARGS+=(
                 "--with-cc-opt=\"-I${NGINX_BUILD_DIR}/${SSL_VERSION}/build/include\""
                 "--with-ld-opt=\"-L${NGINX_BUILD_DIR}/${SSL_VERSION}/build/lib\""
-                "--with-http_v3_module"
             )
+
+            # HTTP/3 requires a QUIC-capable library; plain OpenSSL is not.
+            if grep -iq quic <<<"${SSL_VERSION}"; then
+                NGX_CONFIGURE_ARGS+=("--with-http_v3_module")
+            fi
             return 0
         fi
     else

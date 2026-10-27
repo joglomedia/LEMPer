@@ -3,7 +3,7 @@
 # +-------------------------------------------------------------------------+
 # | LEMPer CLI - Self-signed SSL Generator                                  |
 # +-------------------------------------------------------------------------+
-# | Copyright (c) 2014-2024 MasEDI.Net (https://masedi.net/lemper)          |
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
 # +-------------------------------------------------------------------------+
 # | This source file is subject to the GNU General Public License           |
 # | that is bundled with this package in the file LICENSE.md.               |
@@ -63,15 +63,47 @@ EOL
 
 ##
 # Validate FQDN domain.
+# Uses ERE (grep -E) with a separate length check for portability.
 ##
 function validate_fqdn() {
     local FQDN=${1}
 
-    if grep -qP "(?=^.{4,253}\.?$)(^((?!-)[a-zA-Z0-9-]{1,63}(?<!-)\.)+[a-zA-Z]{2,63}\.?$)" <<< "${FQDN}"; then
+    # Length check: 4-253 characters (RFC 1035 / RFC 1123).
+    if [[ ${#FQDN} -lt 4 || ${#FQDN} -gt 253 ]]; then
+        echo false # error
+        return
+    fi
+
+    # Validate format: labels of 1-63 chars separated by dots,
+    # no leading/trailing dashes, TLD is 2-63 letters, optional trailing dot.
+    if grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}\.?$' <<< "${FQDN}"; then
         echo true # success
     else
         echo false # error
     fi
+}
+
+##
+# Validate IPv4 address.
+##
+function validate_ipv4() {
+    local IP=${1}
+
+    if grep -qE '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$' <<< "${IP}"; then
+        echo true # success
+    else
+        echo false # error
+    fi
+}
+
+##
+# Sanitize a string for safe use in sed replacement patterns.
+# Escapes backslash, ampersand, and forward-slash to prevent injection
+# when interpolating user input into sed s/.../.../ commands.
+##
+function sanitize_sed_replacement() {
+    local INPUT=${1}
+    printf '%s' "${INPUT}" | sed -e 's/[\\&]/\\&/g' -e 's/\//\\\//g'
 }
 
 ##
@@ -80,7 +112,8 @@ function validate_fqdn() {
 function generate_selfsigned_ssl() {
     DOMAIN=${1}
     SERVER_IP=${2:-$(hostname -I | awk '{print $1}')}
-    KEY_HASH_LENGTH=2048
+    SERVER_IPV6=${3:-}
+    KEY_HASH_LENGTH=4096
 
     if [ -z "${DOMAIN}" ]; then
         fail "Please specify domain name."
@@ -90,21 +123,34 @@ function generate_selfsigned_ssl() {
         fail "Your Domain name is not valid 'Fully Qualified Domain Name (FQDN)' format!"
     fi
 
+    # Validate IPv4 address when provided via CLI --ipv4 flag.
+    if [ -n "${SERVER_IP}" ] && [[ $(validate_ipv4 "${SERVER_IP}") == false ]]; then
+        fail "Invalid IPv4 address: '${SERVER_IP}' is not a valid IPv4 address."
+    fi
+
+    # Validate the shape of an explicitly provided IPv6 address.
+    if [ -n "${SERVER_IPV6}" ] && [[ ! "${SERVER_IPV6}" =~ ^[0-9A-Fa-f:]+$ || "${SERVER_IPV6}" != *:* ]]; then
+        fail "Invalid IPv6 address: '${SERVER_IPV6}' is not a valid IPv6 address."
+    fi
+
+    # Without an explicit IPv6 address, keep the historic IPv4 value.
+    local CERT_IPV6="${SERVER_IPV6:-${SERVER_IP}}"
+
     if [ ! -d "/etc/lemper/ssl/${DOMAIN}" ]; then
         mkdir -p "/etc/lemper/ssl/${DOMAIN}"
     fi
 
     # Self-signed certificate for local development environment.
-    run sed -i "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/ca.conf && \
-    run sed -i "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -i "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -r -i "s|^IP.1\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.1\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -r -i "s|^IP.2\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.2\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
-    run sed -i "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
+    sed_inplace "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/ca.conf && \
+    sed_inplace "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace -r "s|^IP\.1\s*=\s*.*$|IP.1 = ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace -r "s|^IP\.2\s*=\s*.*$|IP.2 = ${CERT_IPV6}|g" /etc/lemper/ssl/csr.conf && \
+    sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
 
     # Create Certificate Authority (CA).
-    run openssl req -x509 -sha256 -days 365000 -nodes -newkey rsa:2048 \
+    run openssl req -x509 -sha256 -days 365000 -nodes -newkey "rsa:${KEY_HASH_LENGTH}" \
         -keyout "/etc/lemper/ssl/${DOMAIN}/ca.key" -out "/etc/lemper/ssl/${DOMAIN}/ca.crt" \
         -config /etc/lemper/ssl/ca.conf
 
@@ -142,10 +188,10 @@ function generate_selfsigned_ssl() {
 ##
 # Main App
 #
-function init_selfsigned_ssl() {
+function init_lemper_selfssl() {
     # Command line arguments.
-    OPTS=$(getopt -o d:4:6: \
-      -l domain-name:,ipv4:,ipv6: \
+    OPTS=$(getopt -o d:4:6:hv \
+      -l domain-name:,ipv4:,ipv6:,help,version \
       -n "${PROG_NAME}" -- "$@")
 
     eval set -- "${OPTS}"
@@ -209,4 +255,4 @@ function init_selfsigned_ssl() {
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-init_selfsigned_ssl "$@"
+init_lemper_selfssl "$@"

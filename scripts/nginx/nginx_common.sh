@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 
-# Nginx Common Variables and Utilities
-# Part of LEMPer Stack - https://github.com/joglomedia/LEMPer
-# Author: MasEDI.Net (me@masedi.net)
-# Since Version: 2.x.x
+# +-------------------------------------------------------------------------+
+# | Nginx Common Variables and Utilities                                    |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-# Prevent direct execution
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     echo "This script should be sourced, not executed directly."
     exit 1
@@ -17,11 +26,11 @@ fi
 NGINX_CONF_DIR="/etc/nginx"
 NGINX_MODULES_AVAILABLE="${NGINX_CONF_DIR}/modules-available"
 NGINX_MODULES_ENABLED="${NGINX_CONF_DIR}/modules-enabled"
-NGINX_SITES_AVAILABLE="${NGINX_CONF_DIR}/sites-available"
-NGINX_SITES_ENABLED="${NGINX_CONF_DIR}/sites-enabled"
+export NGINX_SITES_AVAILABLE="${NGINX_CONF_DIR}/sites-available"
+export NGINX_SITES_ENABLED="${NGINX_CONF_DIR}/sites-enabled"
 NGINX_LIB_MODULES="/usr/lib/nginx/modules"
-NGINX_SHARE_DIR="/usr/share/nginx"
-NGINX_CACHE_DIR="/var/cache/nginx"
+export NGINX_SHARE_DIR="/usr/share/nginx"
+export NGINX_CACHE_DIR="/var/cache/nginx"
 
 ##
 # Default build directory

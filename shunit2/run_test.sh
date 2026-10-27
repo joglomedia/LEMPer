@@ -24,7 +24,7 @@ testEqualityGetDistribName()
 #testEqualityGetReleaseName()
 #{
 #    release_name=$(get_release_name)
-#    assertEquals "focal" "${release_name}"
+#    assertEquals "noble" "${release_name}"
 #}
 
 testEqualityCreateAccount()
@@ -107,11 +107,13 @@ testEqualityInstallRedis()
 {
     . scripts/install_redis.sh
 
-    rediscli_bin=$(command -v redis-cli)
-    assertEquals "/usr/bin/redis-cli" "${rediscli_bin}"
-
-    redisserver_bin=$(command -v redis-server)
-    assertEquals "/usr/bin/redis-server" "${redisserver_bin}"
+    if [[ "${REDIS_BACKEND}" == "valkey" ]]; then
+        assertEquals "/usr/bin/valkey-cli" "$(command -v valkey-cli)"
+        assertEquals "/usr/bin/valkey-server" "$(command -v valkey-server)"
+    else
+        assertEquals "/usr/bin/redis-cli" "$(command -v redis-cli)"
+        assertEquals "/usr/bin/redis-server" "$(command -v redis-server)"
+    fi
 }
 
 #testEqualityInstallMongoDB()
