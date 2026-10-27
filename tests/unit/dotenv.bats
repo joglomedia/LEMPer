@@ -16,6 +16,18 @@ setup() {
 RSA_KEY='ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDMh+TeSOd/iTYgAbO0r+6ZWEPvow== lemper@test.com'
 ED25519_KEY='ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKq7vQ4d8Yy2y4Hf1Xo3Jc1p9Wz6uT5sR0aB2cD3eF4g deploy@host'
 
+@test "LEMPER_ENV_FILE is loaded instead of the checkout .env" {
+    local custom="${TEST_TMPDIR}/installed.conf"
+    printf 'LEMPER_TEST_FROM_FILE=from-custom\n' > "${custom}"
+    printf 'LEMPER_TEST_FROM_FILE=from-dot\n' >> "${TEST_TMPDIR}/.env"
+
+    run env BASE_DIR="${BASE_DIR}" LEMPER_ENV_FILE="${custom}" bash -c \
+        '. "${REAL_BASE_DIR}/scripts/utils.sh"; printf "%s\n" "${LEMPER_TEST_FROM_FILE}"'
+
+    [ "${status}" -eq 0 ]
+    [ "${output}" = "from-custom" ]
+}
+
 @test "safe_parse_dotenv keeps spaces and '=' in SSH public keys" {
     local envfile="${TEST_TMPDIR}/policy.env"
     printf 'RSA_PUB_KEY=%s\n' "${RSA_KEY}" > "${envfile}"

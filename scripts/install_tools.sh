@@ -205,7 +205,11 @@ function init_tools_install() {
     fi
 
     # Configure phpMemcachedAdmin.
-    if [[ "${DRYRUN}" != true ]]; then
+    # A tools refresh that only has .env.dist must not replace a live SASL
+    # config with the sample credentials.
+    if [[ "${DRYRUN}" != true && "${LEMPER_TOOLS_PRESERVE_ADMIN_CONFIG:-false}" == true && -f /usr/share/nginx/html/lcp/memcadmin/Config/Memcache.php ]]; then
+        info "Keeping the existing phpMemcachedAdmin configuration."
+    elif [[ "${DRYRUN}" != true ]]; then
         if [[ ${MEMCACHED_SASL} == "enable" || ${MEMCACHED_SASL} == true ]]; then
             MEMCACHED_SASL_CREDENTIAL="username=${MEMCACHED_USERNAME},
             password=${MEMCACHED_PASSWORD},"

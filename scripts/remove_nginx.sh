@@ -74,6 +74,11 @@ function remove_nginx_from_repo() {
         if [[ "${FORCE_REMOVE}" == true ]]; then
             run rm -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
             run rm -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
+            run rm -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list.disabled"
+            run rm -f /etc/apt/sources.list.d/ondrej-*-nginx-*.list \
+                /etc/apt/sources.list.d/ondrej-*-nginx-*.list.disabled \
+                /etc/apt/sources.list.d/ondrej-*-nginx-*.sources \
+                /etc/apt/sources.list.d/ondrej-*-nginx-*.sources.disabled
             [ -f "/etc/apt/preferences.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.pref" ] && \
                 run rm -f "/etc/apt/preferences.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.pref"
         fi
@@ -99,6 +104,11 @@ function remove_nginx_from_repo() {
         if [[ "${FORCE_REMOVE}" == true ]]; then
             run rm -f "/etc/apt/sources.list.d/ondrej-${NGINX_REPO}-${RELEASE_NAME}.list"
             run rm -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list"
+            run rm -f "/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.list.disabled"
+            run rm -f /etc/apt/sources.list.d/ondrej-*-nginx-*.list \
+                /etc/apt/sources.list.d/ondrej-*-nginx-*.list.disabled \
+                /etc/apt/sources.list.d/ondrej-*-nginx-*.sources \
+                /etc/apt/sources.list.d/ondrej-*-nginx-*.sources.disabled
             [ -f "/etc/apt/preferences.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.pref" ] && \
                 run rm -f "/etc/apt/preferences.d/myguard-${NGINX_REPO}-${RELEASE_NAME}.pref"
         fi

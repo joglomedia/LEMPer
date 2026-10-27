@@ -465,7 +465,7 @@ The plugin (`lib/lemper-update.sh`) exposes:
 |---|---|
 | `update check` | Read-only audit; exits non-zero unless every PHP branch is patched |
 | `update php` | `apt-get --only-upgrade` on installed `php<branch>-*`; verifies the package version against the fixed release, then reloads FPM |
-| `update nginx` | Upgrades package-managed nginx; source builds are reported as requiring a rebuild |
+| `update nginx` | Disables a retired Ondřej nginx APT source, then upgrades package-managed nginx from the MyGuard nginx-only repository. Source builds are reported as requiring a rebuild |
 | `update mariadb` | Upgrades MariaDB and restarts only if the version changed; warns on branch changes |
 | `update lemper` | Reinstalls the CLI and all plugins from the recorded checkout |
 | `update all` | `apt-get update`, then PHP, nginx, MariaDB, and tooling |
@@ -720,7 +720,7 @@ User runs: lemper-cli site add -d example.com -f wordpress
 - [LEMPer GitHub](https://github.com/joglomedia/LEMPer)
 - [Nginx Module Docs](https://nginx.org/en/docs/)
 - [PHP-FPM Pool Config](https://www.php.net/manual/en/install.fpm.configuration.php)
-- [Ondřej Surý's Nginx PPA](https://launchpad.net/~ondrej/+archive/ubuntu/nginx)
+- [MyGuard Nginx repository](https://deb.myguard.nl/nginx-modules/)
 - [Sury PHP Repository](https://packages.sury.org/php/)
 - [MariaDB Repositories](https://mariadb.com/kb/en/mariadb:repositories/)
 - [Let's Encrypt ACME v2](https://letsencrypt.org/docs/)

@@ -49,6 +49,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Repository nginx installs use the MyGuard nginx-only APT source
+  (`https://deb.myguard.nl/apt/nginx/<codename>`) with a scoped signing key
+  and a pin that covers nginx packages only. `NGINX_REPO_SRC=ondrej` selects
+  that source; the Ondřej nginx archive is no longer published.
+- `./update.sh` and `lemper-cli update lemper` reinstall the administration
+  tools by running `scripts/install_tools.sh` from the recorded checkout.
+  That refreshes the CLI, every plugin, Adminer, TinyFileManager, and the
+  PHP admin panels. The checkout `.env` is used when it exists; otherwise
+  the installed `/etc/lemper/lemper.conf` is used. `--check` still audits
+  without reinstalling those tools. `--install-only` reinstalls the tools
+  and does not upgrade stack packages.
 - Install and remove scripts share the 2014-2026 license header and resolve
   the checkout root before loading helpers, so a standalone run no longer
   depends on the caller's working directory. `install.sh`, `remove.sh`, and
@@ -93,6 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- Node.js from the planned installer list. Bun.js is the JavaScript runtime.
 - Ubuntu 20.04 (Focal) and Linux Mint 20 support. The preflight check now
   rejects them; the minimum supported Ubuntu release is 22.04 (Jammy).
 - Remaining PageSpeed references from the developer docs (ROADMAP, AGENTIC).
@@ -101,6 +113,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `lemper-cli update` no longer aborts when a legacy Ondřej nginx source
+  returns 403. Sources for `ondrej/nginx`, `ondrej/nginx-mainline`, and
+  `packages.sury.org/nginx` are disabled before `apt-get update`. The Ondřej
+  PHP repository stays enabled. `update nginx` and the nginx step of
+  `update all` then enable the MyGuard nginx-only repository, pin those
+  packages to `deb.myguard.nl`, and upgrade them while keeping existing
+  `/etc/nginx` files (`--force-confold`). MyGuard's current nginx is mainline
+  and links `libssl-nginx` beside the system OpenSSL. That Ondřej-to-MyGuard
+  package switch has not been verified on a live server.
+- `lemper-cli tui` draws its menu again. The menu text was captured by the
+  command substitution that reads the selection, so the terminal showed only
+  `Select [1-8] or 'q' to quit:` and every choice was ignored.
 - `lemper-cli fixpermission` now requires an explicit path and refuses `/`,
   `/etc`, `/usr`, `/var`, and other system roots. Previously a missing argument
   silently did nothing and a bare `/` would have chmod-ed the whole filesystem.

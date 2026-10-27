@@ -533,9 +533,9 @@ EOL
     help_entry update "Patch PHP2Shell and keep the stack current."
     help_subentry check "Audit PHP/nginx/MariaDB state."
     help_subentry php "Patch PHP; mitigate EOL pools."
-    help_subentry nginx "Upgrade package-managed nginx."
+    help_subentry nginx "Upgrade package-managed nginx from MyGuard."
     help_subentry mariadb "Upgrade MariaDB packages."
-    help_subentry lemper "Refresh CLI and plugins."
+    help_subentry lemper "Reinstall CLI, plugins, and web admin tools."
     help_subentry all "Run every update step."
 
     cat <<- EOL

@@ -153,6 +153,42 @@ EOF
     [ "${status}" -eq 0 ]
 }
 
+@test "update reinstalls administration tools from install_tools.sh" {
+    run grep -q 'function reinstall_admin_tools' "${REAL_BASE_DIR}/lib/lemper-update.sh"
+    [ "${status}" -eq 0 ]
+
+    run grep -q 'scripts/install_tools.sh' "${REAL_BASE_DIR}/lib/lemper-update.sh"
+    [ "${status}" -eq 0 ]
+
+    run grep -q 'reinstall_admin_tools "${src}"' "${REAL_BASE_DIR}/lib/lemper-update.sh"
+    [ "${status}" -eq 0 ]
+
+    run grep -q 'update_lemper_tooling' "${REAL_BASE_DIR}/update.sh"
+    [ "${status}" -eq 0 ]
+}
+
+@test "tools env prefers the checkout .env over the sample file" {
+    local src="${BATS_TEST_TMPDIR}/checkout"
+    mkdir -p "${src}"
+    printf 'ADMINER_VERSION=9.9.9\n' > "${src}/.env"
+    printf 'ADMINER_VERSION=0.0.0\n' > "${src}/.env.dist"
+
+    run bash -c '
+        requires_root() { :; }
+        PROG_NAME="lemper-cli"
+        LEMPER_UPDATE_LIB_ONLY=true
+        REAL_BASE_DIR="$1"
+        . "${REAL_BASE_DIR}/lib/lemper-update.sh"
+        resolve_tools_env "$2"
+        printf "PRESERVE=%s\n" "${LEMPER_TOOLS_PRESERVE_ADMIN_CONFIG}"
+    ' _ "${REAL_BASE_DIR}" "${src}"
+
+    [ "${status}" -eq 0 ]
+    path=$(printf '%s\n' "${output}" | head -n 1)
+    [ "${path}" = "${src}/.env" ]
+    printf '%s\n' "${output}" | grep -qx 'PRESERVE=false'
+}
+
 @test "installer ships the update plugin and records the source checkout" {
     run grep -q 'lib/lemper-update.sh /etc/lemper/cli-plugins/lemper-update' \
         "${REAL_BASE_DIR}/scripts/install_tools.sh"

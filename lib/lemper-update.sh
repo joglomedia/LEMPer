@@ -381,13 +381,444 @@ function update_php() {
     return "${rc}"
 }
 
+# Apt configuration root. Tests point this at a fixture directory.
+LEMPER_APT_ROOT="${LEMPER_APT_ROOT:-/etc/apt}"
+
+# MyGuard nginx-only repository. The signing key is published by Thijs Eilander.
+MYGUARD_NGINX_KEY_URL="${MYGUARD_NGINX_KEY_URL:-https://deb.myguard.nl/deb.myguard.nl.gpg}"
+MYGUARD_NGINX_KEY_FPR="D18B8E5ADF7D55CE2A00D58167F9C3D8456D7F62"
+
+##
+# True when a sources line points at the unpublished Ondřej nginx archive.
+# The Ondřej PHP archive shares the same host and must not match.
+##
+function nginx_line_is_retired_ondrej() {
+    local line="${1}"
+
+    [[ "${line}" =~ ^[[:space:]]*# ]] && return 1
+    [[ "${line}" =~ ^[[:space:]]*$ ]] && return 1
+    [[ "${line}" =~ ondrej/php(/|[[:space:]]|$) ]] && return 1
+    [[ "${line}" =~ packages\.sury\.org/php(/|[[:space:]]|$) ]] && return 1
+    [[ "${line}" =~ packages\.sury\.org/nginx(-mainline)?(/|[[:space:]]|$) ]] && return 0
+    [[ "${line}" =~ ondrej/nginx(-mainline)?(/|[[:space:]]|$) ]] && return 0
+    return 1
+}
+
+##
+# True when the file contains a retired Ondřej nginx line.
+##
+function apt_file_has_retired_nginx() {
+    local line
+    [[ -f "${1}" ]] || return 1
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        if nginx_line_is_retired_ondrej "${line}"; then
+            return 0
+        fi
+    done < "${1}"
+    return 1
+}
+
+##
+# True when every active entry in the file is a retired Ondřej nginx source.
+##
+function apt_file_is_only_retired_nginx() {
+    local line retired=0 other=0
+    [[ -f "${1}" ]] || return 1
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        if nginx_line_is_retired_ondrej "${line}"; then
+            retired=1
+            continue
+        fi
+        [[ "${line}" =~ ^[[:space:]]*(#|$) ]] && continue
+        if [[ "${line}" =~ ondrej/php || "${line}" =~ packages\.sury\.org/php ]]; then
+            other=1
+            continue
+        fi
+        if [[ "${line}" =~ ^[[:space:]]*deb(-src)?[[:space:]] ]]; then
+            other=1
+            continue
+        fi
+        if [[ "${line}" =~ ^[[:space:]]*(Types|URIs|Suites|Components|Signed-By|Architectures|Enabled|Trusted|Allow-Insecure|Check-Valid-Until|By-Hash|PDiffs|X-[A-Za-z0-9-]+):[[:space:]] ]]; then
+            continue
+        fi
+        other=1
+    done < "${1}"
+    [[ "${retired}" -eq 1 && "${other}" -eq 0 ]]
+}
+
+##
+# True when a deb822 stanza still names the retired nginx archive.
+##
+function nginx_text_has_retired_nginx() {
+    local line
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        if nginx_line_is_retired_ondrej "${line}"; then
+            return 0
+        fi
+    done <<< "${1}"
+    return 1
+}
+
+##
+# Comment retired nginx lines and leave every other entry in place.
+##
+function nginx_comment_retired_lines() {
+    local src="${1}" tmp line changed=0
+    tmp=$(mktemp "${TMPDIR:-/tmp}/lemper-apt.XXXXXX") || return 1
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        if nginx_line_is_retired_ondrej "${line}"; then
+            printf '# lemper-retired-ondrej-nginx: %s\n' "${line}" >> "${tmp}" || {
+                rm -f "${tmp}"
+                return 1
+            }
+            changed=1
+        else
+            printf '%s\n' "${line}" >> "${tmp}" || {
+                rm -f "${tmp}"
+                return 1
+            }
+        fi
+    done < "${src}"
+    if [[ "${changed}" -eq 0 ]]; then
+        rm -f "${tmp}"
+        return 0
+    fi
+    if ! cat "${tmp}" > "${src}"; then
+        rm -f "${tmp}"
+        return 1
+    fi
+    rm -f "${tmp}"
+    info "Commented retired Ondřej nginx entries in ${src}"
+}
+
+##
+# Drop deb822 stanzas that name the retired nginx archive.
+##
+function nginx_strip_retired_stanzas() {
+    local src="${1}" tmp line stanza="" kept="" removed=0
+    tmp=$(mktemp "${TMPDIR:-/tmp}/lemper-apt.XXXXXX") || return 1
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        if [[ -z "${line}" ]]; then
+            if [[ -n "${stanza}" ]]; then
+                if nginx_text_has_retired_nginx "${stanza}"; then
+                    removed=1
+                else
+                    kept+="${stanza}"$'\n'
+                fi
+                stanza=""
+            fi
+            continue
+        fi
+        stanza+="${line}"$'\n'
+    done < "${src}"
+    if [[ -n "${stanza}" ]]; then
+        if nginx_text_has_retired_nginx "${stanza}"; then
+            removed=1
+        else
+            kept+="${stanza}"
+        fi
+    fi
+    if [[ "${removed}" -eq 0 ]]; then
+        rm -f "${tmp}"
+        return 0
+    fi
+    if [[ -z "${kept//[[:space:]]/}" ]]; then
+        rm -f "${tmp}"
+        if [[ -e "${src}.disabled" ]]; then
+            info "Retired Ondřej nginx source already disabled: ${src}.disabled"
+            return 0
+        fi
+        mv "${src}" "${src}.disabled" || return 1
+        info "Disabled retired Ondřej nginx source: ${src}"
+        return 0
+    fi
+    printf '%s' "${kept}" > "${tmp}" || {
+        rm -f "${tmp}"
+        return 1
+    }
+    if ! cat "${tmp}" > "${src}"; then
+        rm -f "${tmp}"
+        return 1
+    fi
+    rm -f "${tmp}"
+    info "Removed retired Ondřej nginx stanza from ${src}"
+}
+
+##
+# Disable unpublished Ondřej nginx APT sources before apt-get update.
+# Drop-in files that contain only that archive are renamed to .disabled.
+# The Ondřej PHP source is left enabled.
+##
+function retire_ondrej_nginx_sources() {
+    local root="${LEMPER_APT_ROOT:-/etc/apt}"
+    local entry f
+    local -a files=()
+
+    if [[ -f "${root}/sources.list" ]]; then
+        files+=("${root}/sources.list")
+    fi
+    if [[ -d "${root}/sources.list.d" ]]; then
+        for entry in "${root}/sources.list.d"/*; do
+            [[ -f "${entry}" ]] || continue
+            case "${entry}" in
+                *.disabled) continue ;;
+                *.list | *.sources) files+=("${entry}") ;;
+            esac
+        done
+    fi
+
+    for f in "${files[@]}"; do
+        if apt_file_is_only_retired_nginx "${f}"; then
+            if [[ -e "${f}.disabled" ]]; then
+                info "Retired Ondřej nginx source already disabled: ${f}.disabled"
+                continue
+            fi
+            mv "${f}" "${f}.disabled" || return 1
+            info "Disabled retired Ondřej nginx source: ${f}"
+            continue
+        fi
+        if ! apt_file_has_retired_nginx "${f}"; then
+            continue
+        fi
+        case "${f}" in
+            *.sources)
+                nginx_strip_retired_stanzas "${f}" || return 1
+                ;;
+            *)
+                nginx_comment_retired_lines "${f}" || return 1
+                ;;
+        esac
+    done
+}
+
+##
+# Distribution codename used in the MyGuard suite name.
+##
+function nginx_release_codename() {
+    local codename=""
+    if [[ -n "${LEMPER_NGINX_CODENAME:-}" ]]; then
+        printf '%s\n' "${LEMPER_NGINX_CODENAME}"
+        return 0
+    fi
+    if [[ -r /etc/os-release ]]; then
+        # shellcheck disable=SC1091
+        . /etc/os-release
+        codename="${VERSION_CODENAME:-}"
+    fi
+    if [[ -z "${codename}" ]]; then
+        return 1
+    fi
+    printf '%s\n' "${codename}"
+}
+
+##
+# Architectures published in the MyGuard nginx tree.
+##
+function nginx_apt_arch() {
+    local arch=""
+    if [[ -n "${LEMPER_NGINX_ARCH:-}" ]]; then
+        printf '%s\n' "${LEMPER_NGINX_ARCH}"
+        return 0
+    fi
+    if command -v dpkg >/dev/null 2>&1; then
+        arch=$(dpkg --print-architecture 2>/dev/null || true)
+    fi
+    if [[ -z "${arch}" ]]; then
+        arch="amd64"
+    fi
+    printf '%s\n' "${arch}"
+}
+
+##
+# MyGuard publishes nginx packages for these suites.
+##
+function nginx_codename_supported() {
+    case "${1}" in
+        focal | jammy | noble | resolute | bullseye | bookworm | trixie)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+##
+# deb line for the nginx-only tree. The flat http://deb.myguard.nl layout is retired.
+##
+function myguard_nginx_source_line() {
+    local root="${LEMPER_APT_ROOT:-/etc/apt}"
+    local codename arch
+    codename=$(nginx_release_codename) || return 1
+    arch=$(nginx_apt_arch)
+    printf 'deb [arch=%s signed-by=%s/keyrings/deb.myguard.nl.gpg] https://deb.myguard.nl/apt/nginx/%s %s main\n' \
+        "${arch}" "${root}" "${codename}" "${codename}"
+}
+
+##
+# Prefer MyGuard only for nginx and the libraries that nginx package depends on.
+##
+function myguard_nginx_pin_text() {
+    cat <<'EOF'
+Package: nginx nginx-common nginx-core nginx-full nginx-extras nginx-light nginx-minimal libnginx-mod-* libssl-nginx libssl-nginx-dev libz-ng2
+Pin: origin "deb.myguard.nl"
+Pin-Priority: 501
+EOF
+}
+
+##
+# True when the keyring file matches the published MyGuard fingerprint.
+##
+function myguard_nginx_key_fingerprint() {
+    local key="${1}" fp=""
+    # The published file is a raw OpenPGP certificate, not a keybox.
+    fp=$(gpg --batch --with-colons --show-keys "${key}" 2>/dev/null | awk -F: '/^fpr:/ {print $10; exit}' || true)
+    if [[ -z "${fp}" ]]; then
+        fp=$(gpg --batch --with-colons --import-options show-only --import "${key}" 2>/dev/null | awk -F: '/^fpr:/ {print $10; exit}' || true)
+    fi
+    printf '%s\n' "${fp}"
+}
+
+function myguard_nginx_key_ok() {
+    local key="${1}" fp=""
+    [[ -s "${key}" ]] || return 1
+    if ! command -v gpg >/dev/null 2>&1; then
+        warning "gpg is not installed; the MyGuard key fingerprint was not checked."
+        return 0
+    fi
+    fp=$(myguard_nginx_key_fingerprint "${key}")
+    [[ "${fp}" == "${MYGUARD_NGINX_KEY_FPR}" ]]
+}
+
+##
+# Install the scoped MyGuard signing key.
+##
+function ensure_myguard_nginx_key() {
+    local root="${LEMPER_APT_ROOT:-/etc/apt}"
+    local key="${root}/keyrings/deb.myguard.nl.gpg"
+    local tmp=""
+    if [[ -s "${key}" ]] && myguard_nginx_key_ok "${key}"; then
+        return 0
+    fi
+    if ! install -d -m 0755 "${root}/keyrings"; then
+        mkdir -p "${root}/keyrings" || return 1
+    fi
+    tmp=$(mktemp "${TMPDIR:-/tmp}/lemper-myguard-key.XXXXXX") || return 1
+    if ! curl -fsSL --retry 3 --retry-delay 2 -o "${tmp}" "${MYGUARD_NGINX_KEY_URL}"; then
+        rm -f "${tmp}"
+        error "Failed to download the MyGuard signing key."
+        return 1
+    fi
+    if ! myguard_nginx_key_ok "${tmp}"; then
+        rm -f "${tmp}"
+        error "MyGuard signing key fingerprint does not match ${MYGUARD_NGINX_KEY_FPR}."
+        return 1
+    fi
+    mv "${tmp}" "${key}" || return 1
+    chmod 0644 "${key}" || true
+}
+
+##
+# Write the nginx-only MyGuard source and a package-scoped pin.
+##
+function ensure_myguard_nginx_repo() {
+    local root="${LEMPER_APT_ROOT:-/etc/apt}"
+    local codename="" line="" list="" pin=""
+    codename=$(nginx_release_codename) || {
+        error "Unable to detect the distribution codename for the MyGuard nginx repository."
+        return 1
+    }
+    if ! nginx_codename_supported "${codename}"; then
+        error "MyGuard nginx packages are not published for '${codename}'."
+        return 1
+    fi
+    ensure_myguard_nginx_key || return 1
+    line=$(myguard_nginx_source_line) || return 1
+    mkdir -p "${root}/sources.list.d" "${root}/preferences.d" || return 1
+    list="${root}/sources.list.d/myguard-nginx-${codename}.list"
+    pin="${root}/preferences.d/myguard-nginx-${codename}.pref"
+    if [[ ! -f "${list}" ]] || ! grep -qF "https://deb.myguard.nl/apt/nginx/${codename}" "${list}"; then
+        printf '%s\n' "${line}" > "${list}" || return 1
+        info "Enabled MyGuard nginx repository: ${list}"
+    fi
+    myguard_nginx_pin_text > "${pin}" || return 1
+}
+
+##
+# Disable the dead nginx archive, then refresh package lists.
+##
+function refresh_stack_apt() {
+    if ! retire_ondrej_nginx_sources; then
+        error "Could not disable the retired Ondřej nginx repository."
+        return 1
+    fi
+    apt-get update -q
+}
+
+##
+# Disable the dead nginx archive, add MyGuard when nginx is packaged, then refresh.
+##
+function refresh_nginx_apt() {
+    if ! retire_ondrej_nginx_sources; then
+        error "Could not disable the retired Ondřej nginx repository."
+        return 1
+    fi
+    if nginx_is_package_managed; then
+        if ! ensure_myguard_nginx_repo; then
+            error "Could not enable the MyGuard nginx repository."
+            return 1
+        fi
+    fi
+    if ! apt-get update -q; then
+        error "apt-get update failed."
+        return 1
+    fi
+}
+
+##
+# True when the nginx binary on PATH comes from a .deb.
+##
+function nginx_is_package_managed() {
+    local bin="" real=""
+    bin=$(command -v nginx 2>/dev/null || true)
+    [[ -n "${bin}" ]] || return 1
+    real=$(readlink -f "${bin}" 2>/dev/null || printf '%s' "${bin}")
+    dpkg -S "${real}" >/dev/null 2>&1
+}
+
+##
+# MyGuard package that replaces an Ondřej module name.
+# libnginx-mod-rtmp is published under the same name and is not rewritten.
+##
+function nginx_myguard_module_target() {
+    case "${1}" in
+        libnginx-mod-brotli) printf '%s\n' "libnginx-mod-http-brotli" ;;
+        *) printf '%s\n' "${1}" ;;
+    esac
+}
+
+##
+# Print the candidate version, or fail when apt has none.
+##
+function nginx_apt_candidate() {
+    local cand=""
+    cand=$(apt-cache policy "${1}" 2>/dev/null | awk '/^[[:space:]]*Candidate:/ {print $2; exit}' || true)
+    [[ -n "${cand}" && "${cand}" != "(none)" ]] || return 1
+    printf '%s\n' "${cand}"
+}
+
 ##
 # Upgrade installed nginx packages (source builds must be rebuilt).
+# Package installs move to the MyGuard nginx-only repository. /etc/nginx is kept.
 ##
 function update_nginx() {
-    local bin real pkgs=() pkg
+    local bin="" real="" pkg="" target="" name=""
+    local install_list=" nginx nginx-common "
+    local remove_list=" "
+    local -a txn=()
 
-    if ! bin=$(command -v nginx); then
+    bin=$(command -v nginx 2>/dev/null || true)
+    if [[ -z "${bin}" ]]; then
         info "nginx is not installed."
         return 0
     fi
@@ -399,15 +830,49 @@ function update_nginx() {
     fi
 
     while IFS= read -r pkg; do
-        [[ -n "${pkg}" ]] && pkgs+=("${pkg}")
+        [[ -z "${pkg}" ]] && continue
+        case "${pkg}" in
+            nginx | nginx-common) continue ;;
+        esac
+        target=$(nginx_myguard_module_target "${pkg}")
+        if nginx_apt_candidate "${target}" >/dev/null; then
+            case "${install_list}" in
+                *" ${target} "*) ;;
+                *) install_list+="${target} " ;;
+            esac
+            if [[ "${target}" != "${pkg}" ]]; then
+                case "${remove_list}" in
+                    *" ${pkg} "*) ;;
+                    *) remove_list+="${pkg} " ;;
+                esac
+            fi
+        else
+            warning "No MyGuard package for ${pkg}; removing it so the nginx ABI can change."
+            case "${remove_list}" in
+                *" ${pkg} "*) ;;
+                *) remove_list+="${pkg} " ;;
+            esac
+        fi
     done < <(dpkg-query -W -f='${Package}\n' 'nginx*' 'libnginx-mod-*' 2>/dev/null || true)
 
-    if [[ "${#pkgs[@]}" -eq 0 ]]; then
-        info "No nginx packages found to upgrade."
-        return 0
+    # shellcheck disable=SC2086
+    for name in ${install_list}; do
+        txn+=("${name}")
+    done
+    # shellcheck disable=SC2086
+    for name in ${remove_list}; do
+        txn+=("${name}-")
+    done
+
+    warning "Upgrading package-managed nginx from the MyGuard nginx repository (mainline, linked to libssl-nginx). Existing /etc/nginx files are kept. Switching an Ondřej nginx install to MyGuard has not been verified on a live host."
+    if [[ "${remove_list}" != " " ]]; then
+        warning "Packages removed with this upgrade:${remove_list}"
     fi
 
-    if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -q --only-upgrade "${pkgs[@]}"; then
+    if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -q \
+        -o Dpkg::Options::=--force-confdef \
+        -o Dpkg::Options::=--force-confold \
+        "${txn[@]}"; then
         error "Failed to upgrade nginx packages."
         return 1
     fi
@@ -491,6 +956,119 @@ function update_resolve_source() {
 }
 
 ##
+# True when a config file has the openssl enc header.
+##
+function tools_config_is_encrypted() {
+    local file="${1}"
+    [[ -f "${file}" ]] || return 1
+    head -c 10 "${file}" | grep -qE '^(U2FsdGVkX1|Salted__)'
+}
+
+##
+# Decrypt lemper.conf into dest. The key file is preferred.
+##
+function tools_decrypt_config() {
+    local src="${1}"
+    local dest="${2}"
+    local pw=""
+
+    if [[ -f /etc/lemper/.config_key ]]; then
+        pw=$(tr -d '\n' < /etc/lemper/.config_key)
+    elif [[ -n "${LEMPER_PASSWORD:-}" ]]; then
+        pw="${LEMPER_PASSWORD}"
+    else
+        return 1
+    fi
+
+    openssl enc -aes-256-cbc -a -d -salt -md sha256 -pbkdf2 \
+        -k "${pw}" -in "${src}" -out "${dest}" 2>/dev/null
+}
+
+##
+# Pick the dotenv used to reinstall administration tools.
+# Prints the path. Sets LEMPER_TOOLS_PRESERVE_ADMIN_CONFIG=true when the
+# only available file is the sample .env.dist.
+##
+function resolve_tools_env() {
+    local src="${1}"
+    local conf="/etc/lemper/lemper.conf"
+    local tmp
+
+    LEMPER_TOOLS_PRESERVE_ADMIN_CONFIG=false
+
+    if [[ -f "${src}/.env" ]]; then
+        printf '%s\n' "${src}/.env"
+        return 0
+    fi
+
+    if [[ -f "${conf}" ]]; then
+        tmp=$(mktemp "${TMPDIR:-/tmp}/lemper-tools-env.XXXXXX") || return 1
+        chmod 0600 "${tmp}" || true
+        if tools_config_is_encrypted "${conf}"; then
+            if tools_decrypt_config "${conf}" "${tmp}"; then
+                printf '%s\n' "${tmp}"
+                return 0
+            fi
+            rm -f "${tmp}"
+            warning "Could not decrypt ${conf}; falling back to .env.dist."
+        else
+            cp "${conf}" "${tmp}" || { rm -f "${tmp}"; return 1; }
+            printf '%s\n' "${tmp}"
+            return 0
+        fi
+    fi
+
+    if [[ -f "${src}/.env.dist" ]]; then
+        LEMPER_TOOLS_PRESERVE_ADMIN_CONFIG=true
+        printf '%s\n' "${src}/.env.dist"
+        return 0
+    fi
+
+    error "No .env, ${conf}, or .env.dist is available for the tools reinstall."
+    return 1
+}
+
+##
+# Re-run scripts/install_tools.sh from a checkout. DRYRUN is forced off so
+# the CLI, plugins, Adminer, file manager, and PHP admin panels are replaced.
+##
+function reinstall_admin_tools() {
+    local src="${1}"
+    local envfile=""
+    local tools_rc=0
+
+    [[ -f "${src}/scripts/install_tools.sh" && -f "${src}/scripts/utils.sh" ]] || {
+        error "Source at ${src} has no scripts/install_tools.sh."
+        return 1
+    }
+
+    envfile=$(resolve_tools_env "${src}") || return 1
+
+    info "Reinstalling LEMPer CLI, plugins, and web administration tools from ${src}..."
+    DRYRUN=false \
+        LEMPER_ENV_FILE="${envfile}" \
+        LEMPER_TOOLS_PRESERVE_ADMIN_CONFIG="${LEMPER_TOOLS_PRESERVE_ADMIN_CONFIG}" \
+        bash -c '
+            tools="$1"
+            base=$(cd "$(dirname "${tools}")/.." && pwd) || exit 1
+            cd "${base}" || exit 1
+            export BASE_DIR="${base}"
+            # shellcheck source=scripts/utils.sh
+            . "${base}/scripts/utils.sh"
+            DRYRUN=false
+            shift
+            # shellcheck source=scripts/install_tools.sh
+            . "${tools}"
+        ' _ "${src}/scripts/install_tools.sh" || tools_rc=$?
+
+    if [[ "${envfile}" != "${src}/.env" && "${envfile}" != "${src}/.env.dist" ]]; then
+        rm -f "${envfile}"
+    fi
+
+    return "${tools_rc}"
+}
+
+##
 # Refresh the CLI and CLI plugins from a source checkout.
 ##
 function update_lemper_tooling() {
@@ -551,7 +1129,8 @@ EOF
     printf '%s\n' "${src}" > "${LEMPER_UPDATE_SOURCE_FILE}"
     chmod 0600 "${LEMPER_UPDATE_SOURCE_FILE}"
 
-    success "LEMPer CLI and plugins refreshed from ${src}."
+    reinstall_admin_tools "${src}" || return 1
+    success "LEMPer CLI, plugins, and web administration tools reinstalled from ${src}."
 }
 
 ##
@@ -639,15 +1218,29 @@ function update_check() {
 # Run the full stack update.
 ##
 function update_all() {
-    local rc=0
+    local rc=0 nginx_repo_ready=0
 
+    if ! retire_ondrej_nginx_sources; then
+        error "Could not disable the retired Ondřej nginx repository."
+        return 1
+    fi
+    if nginx_is_package_managed; then
+        if ensure_myguard_nginx_repo; then
+            nginx_repo_ready=1
+        else
+            warning "MyGuard nginx repository was not added; package-managed nginx will not be upgraded."
+            rc=1
+        fi
+    fi
     if ! apt-get update -q; then
         error "apt-get update failed; aborting."
         return 1
     fi
 
     update_php || rc=1
-    update_nginx || rc=1
+    if [[ "${nginx_repo_ready}" -eq 1 ]] || ! nginx_is_package_managed; then
+        update_nginx || rc=1
+    fi
     update_mariadb || rc=1
     update_lemper_tooling || rc=1
 
@@ -674,9 +1267,13 @@ Commands:
   check                 Audit installed PHP, nginx, MariaDB, and updater state.
                         Exit 0 only when every PHP branch is patched.
   php                   Patch PHP-FPM packages; mitigate EOL branches.
-  nginx                 Upgrade package-managed nginx and reload it.
+  nginx                 Upgrade package-managed nginx from the MyGuard
+                        nginx-only repository and reload it. Retired Ondřej
+                        nginx sources are disabled first. The Ondřej PHP
+                        repository stays enabled.
   mariadb               Upgrade MariaDB packages and restart if changed.
-  lemper                Refresh the LEMPer CLI/plugins from the recorded source.
+  lemper                Reinstall the CLI, plugins, and web administration tools
+                        from the recorded source (scripts/install_tools.sh).
   all                   Run every step above (default).
 
 Options:
@@ -685,6 +1282,14 @@ Options:
   --post-max-size=SIZE  post_max_size for EOL mitigations (default: 32M).
   -h, --help            Show this help.
   -v, --version         Output version information and exit.
+
+Nginx repository:
+  The Ondřej nginx PPA and packages.sury.org nginx suites are unpublished.
+  Every apt refresh disables those sources. update nginx and the nginx step
+  of update all then use https://deb.myguard.nl/apt/nginx/<codename> and keep
+  existing /etc/nginx files. MyGuard nginx is mainline and links libssl-nginx
+  beside the system OpenSSL. That package switch has not been verified on a
+  live Ondřej install.
 
 EOL mitigations (admin-locked per pool):
   memory_limit=-1, post_max_size=32M, session.upload_progress.enabled=0,
@@ -763,17 +1368,17 @@ function init_lemper_update() {
 
             case "${subcommand}" in
                 php)
-                    apt-get update -q || fail "apt-get update failed."
+                    refresh_stack_apt || fail "apt-get update failed."
                     update_php
                     exit $?
                     ;;
                 nginx)
-                    apt-get update -q || fail "apt-get update failed."
+                    refresh_nginx_apt || fail "Nginx update could not refresh package lists."
                     update_nginx
                     exit $?
                     ;;
                 mariadb)
-                    apt-get update -q || fail "apt-get update failed."
+                    refresh_stack_apt || fail "apt-get update failed."
                     update_mariadb
                     exit $?
                     ;;

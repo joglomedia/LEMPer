@@ -98,11 +98,15 @@ function select_install_method() {
     esac
 
     case "${SELECTED_REPO}" in
-        ondrej|myguard) ;;
+        myguard) ;;
+        ondrej)
+            warning "NGINX_REPO_SRC=ondrej is retired. The Ondřej nginx repository is no longer published. Using myguard."
+            SELECTED_REPO="myguard"
+            ;;
         *)
             warning "Unsupported NGINX_REPO_SRC '${SELECTED_REPO}', falling back to myguard."
             SELECTED_REPO="myguard"
-        ;;
+            ;;
     esac
 
     NGINX_REPO_SOURCE="${SELECTED_REPO}"
@@ -148,14 +152,7 @@ function init_nginx_install() {
     if [[ ${DO_INSTALL_NGINX} == y* && ${INSTALL_NGINX:-true} == true ]]; then
         case "${NGINX_INSTALL_METHOD}" in
             repo)
-                # Add repository
-                if [[ "${NGINX_REPO_SOURCE}" == "ondrej" ]]; then
-                    add_nginx_repo_ondrej
-                else
-                    add_nginx_repo_myguard
-                fi
-
-                # Install from repo
+                add_nginx_repo_myguard
                 install_nginx_from_repo "${NGINX_REPO_SOURCE}"
                 ;;
 

@@ -366,8 +366,7 @@ has export/import but no scheduled backup rotation.
 #### 2.19 Add Bun.js Runtime Integration (replaces Node.js)  ✅**COMPLETE**
 
 **Issue:** PHP frameworks like Laravel often need a JavaScript runtime for asset building
-(e.g., Vite, Mix). The project has an empty `scripts/install_nodejs.sh` stub and no
-runtime integration.
+(e.g., Vite, Mix). Node.js is not shipped; Bun.js is the runtime.
 
 **Fix:**
 
@@ -939,7 +938,7 @@ migration warning
 | SEC-25   | `session.save_path` app-overridable (doc-root sessions) | `scripts/install_php.sh`, FPM pool templates              | Audit ✅    |
 | SEC-26   | `sess_*` session files served if left in web root   | `etc/nginx/includes/rules_restriction.conf`                   | Audit ✅    |
 | PERF-01  | Fixed FPM/opcache/nginx/MariaDB sizing on low-end VPSes | `scripts/utils.sh`, `nginx_post_install.sh`, `nginx-lowend.conf`, `install_mariadb.sh` | Audit ✅ |
-| FUNC-01  | Node.js installer not in main flow                  | `scripts/install_nodejs.sh` (not called)                      | Phase 3 ✅  |
+| FUNC-01  | JavaScript runtime                                   | Bun.js via `scripts/install_bun.sh`; Node.js is not shipped   | Phase 3 ✅  |
 | FUNC-02  | No `site list` command                              | CLI missing                                                   | Phase 3 ✅  |
 | FUNC-03  | No `site show` command                              | CLI missing                                                   | Phase 3 ✅  |
 | FUNC-04  | No DB backup/restore commands                       | `lib/lemper-db.sh`                                            | Phase 3 ✅  |

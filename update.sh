@@ -100,6 +100,12 @@ Options:
   --post-max-size=SIZE  post_max_size for EOL PHP mitigations (default: 32M).
   -y, --yes             Unattended mode (service restarts are automatic).
 
+The default run reinstalls everything scripts/install_tools.sh installs
+(CLI, plugins, Adminer, the file manager, and the PHP admin panels), then
+patches PHP, nginx, and MariaDB. --install-only reinstalls those tools and
+does not change stack packages. --check installs the updater and audits
+exposure; it does not reinstall the tools.
+
 The updater patches PHP 8.2.35+, 8.3.36+, 8.4.27+ and 8.5.12+ from the
 configured apt repositories. EOL PHP branches receive admin-locked
 compensating controls in every FPM pool and are reported as requiring
@@ -153,8 +159,14 @@ function run_updater() {
     "${CLI_BIN}" update "${UPDATE_SUBCOMMAND}" "${UPDATE_ARGS[@]}"
 }
 
+export PROG_NAME="${PROG_NAME:-lemper-cli}"
+export LEMPER_UPDATE_LIB_ONLY=true
+# shellcheck source=lib/lemper-update.sh
+. "${BASE_DIR}/lib/lemper-update.sh"
+
 # Argument parsing.
 PARSED_ARGS=()
+UPDATE_SOURCE_DIR=""
 while [[ $# -gt 0 ]]; do
     case "${1}" in
         --install-only)
@@ -195,10 +207,12 @@ fi
 requires_root "${ORIGINAL_ARGS[@]}"
 check_prerequisites
 install_updater "${UPDATE_SOURCE_DIR:-${BASE_DIR}}"
+UPDATE_SOURCE_DIR="${UPDATE_SOURCE_DIR:-${BASE_DIR}}"
 
 case "${MODE}" in
     install-only)
-        info "Install-only mode; no packages were changed."
+        update_lemper_tooling
+        info "Administration tools reinstalled. Stack packages were not changed."
         ;;
     install-and-update)
         run_updater

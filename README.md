@@ -109,13 +109,15 @@ left in place with its packages and configuration; set `FORCE_REMOVE=true` in
 ### Update an Existing Installation
 
 Legacy installations can be patched in place from a current checkout. The bootstrap
-installs the latest CLI and updater plugin, records the checkout path, and then patches
-the stack through the configured apt repositories.
+installs the latest CLI and updater plugin, reinstalls the administration tools
+from `scripts/install_tools.sh` (CLI plugins, Adminer, the file manager, and the
+PHP status panels), records the checkout path, and then patches the stack
+through the configured apt repositories.
 
 ```bash
-sudo ./update.sh                 # install updater + update PHP, nginx, MariaDB, CLI
-sudo ./update.sh --check         # install updater, then audit without patching
-sudo ./update.sh --install-only  # install the updater, change no packages
+sudo ./update.sh                 # reinstall admin tools, then update PHP, nginx, MariaDB, CLI
+sudo ./update.sh --check         # install updater, then audit without patching or reinstalling tools
+sudo ./update.sh --install-only  # reinstall admin tools; do not change stack packages
 ```
 
 Once installed:
@@ -124,7 +126,16 @@ Once installed:
 sudo lemper-cli update check     # exit 0 only when every PHP branch is patched
 sudo lemper-cli update all
 sudo lemper-cli update php --post-max-size=8M
+sudo lemper-cli update nginx
 ```
+
+`lemper-cli update nginx` disables a retired Ondřej nginx APT source (that
+PPA now answers 403) and upgrades a package-managed Nginx from the MyGuard
+nginx-only repository. The Ondřej PHP repository stays enabled. MyGuard's
+Nginx is mainline and links `libssl-nginx` beside the system OpenSSL, and
+existing files in `/etc/nginx` are kept. Back up `/etc/nginx` before the
+first switch from an Ondřej build; that package switch is not yet verified
+on a live server.
 
 The updater remediates **PHP2Shell** (CVE-2026-109618 / CVE-2026-109619) by installing
 PHP 8.2.35+, 8.3.36+, 8.4.27+, or 8.5.12+ from the configured apt repositories. PHP 8.1
@@ -294,14 +305,13 @@ Implemented:
 * [x] Add Pure-FTPd installation as an alternative option to VSFTPD
 * [x] Add enhanced security (firewall, Fail2ban, CrowdSec, ModSecurity WAF)
 * [x] Add CrowdSec a modern Host-based Intrusion Prevention System (modern-replacement for Fail2ban)
-* [x] Add Bun.js JavaScript/TypeScript runtime (Node.js-compatible npm client and bundler)
+* [x] Add Bun.js JavaScript/TypeScript runtime (npm-compatible client and bundler)
 * [x] Add in-place security updater (`lemper-cli update`, PHP2Shell remediation)
 * [x] Add interactive TUI dashboard and site-creation wizard
 * [x] Add user account management (`lemper-cli account`, PHP-FPM pool isolation)
 
 Planned:
 
-* [ ] Add native Node.js installation to support modern web frontend development (Bun.js is available as a Node.js-compatible runtime)
 * [ ] Add file backup tool (Borg, Duplicati, Rclone, Restic, Rsnapshot, else?)
 * [ ] Add server monitoring (Netdata, Monit, Nagios, Zabbix, else?); loopback Nginx/PHP-FPM status endpoints are already shipped
 * [ ] Add hosting package management (per-user quotas and provisioning)

@@ -106,8 +106,11 @@ function is_ssh_public_key() {
 }
 
 # The dotenv lives at the repository root: either BASE_DIR itself or its
-# parent when BASE_DIR points at scripts/.
-if [[ -f "${BASE_DIR}/.env" ]]; then
+# parent when BASE_DIR points at scripts/. LEMPER_ENV_FILE lets an updater
+# point at the installed /etc/lemper/lemper.conf without copying it.
+if [[ -n "${LEMPER_ENV_FILE:-}" && -f "${LEMPER_ENV_FILE}" ]]; then
+    ENVFILE="${LEMPER_ENV_FILE}"
+elif [[ -f "${BASE_DIR}/.env" ]]; then
     ENVFILE="${BASE_DIR}/.env"
 else
     ENVFILE="$( cd "${SCRIPTS_DIR}/.." >/dev/null 2>&1 && pwd )/.env"

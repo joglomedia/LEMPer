@@ -131,40 +131,47 @@ function tui_menu() {
     local options=("$@")
     local count=${#options[@]}
 
-    tui_clear
-    tui_echo "${TUI_BORDER}" "═══════════════════════════════════════════════════════════"
-    tui_echo "${TUI_BG}"
-    printf '  %-58s\n' " ${title}"
-    tui_echo "${TUI_BORDER}" "═══════════════════════════════════════════════════════════"
-    echo ""
+    # Callers read the selection with choice=$(tui_menu ...). Everything
+    # drawn here has to reach the terminal on stderr; stdout is only the
+    # selection number. Mixing the menu into stdout hides the screen and
+    # makes the number impossible to match.
+    {
+        tui_clear
+        tui_echo "${TUI_BORDER}" "═══════════════════════════════════════════════════════════"
+        tui_echo "${TUI_BG}"
+        printf '  %-58s\n' " ${title}"
+        tui_echo "${TUI_BORDER}" "═══════════════════════════════════════════════════════════"
+        echo ""
 
-    local i=1
-    for opt in "${options[@]}"; do
-        local label
-        label="${opt%%|*}"
-        local desc
-        desc="${opt#*|}"
-        if [[ "${label}" == "${desc}" ]]; then
-            desc=""
-            tui_print "${TUI_HIGHLIGHT}" "  [${i}] "
-            tui_echo "${TUI_FG}" "${label}"
-        else
-            tui_print "${TUI_HIGHLIGHT}" "  [${i}] "
-            tui_echo "${TUI_FG}" "${label}"
-            printf '      %*s' "$((60 - ${#label}))" ""
-            tui_echo "${TUI_DIM}" "${desc}"
-        fi
-        i=$((i + 1))
-    done
+        local i=1 opt label desc
+        for opt in "${options[@]}"; do
+            label="${opt%%|*}"
+            desc="${opt#*|}"
+            if [[ "${label}" == "${desc}" ]]; then
+                tui_print "${TUI_HIGHLIGHT}" "  [${i}] "
+                tui_echo "${TUI_FG}" "${label}"
+            else
+                tui_print "${TUI_HIGHLIGHT}" "  [${i}] "
+                tui_echo "${TUI_FG}" "${label}"
+                printf '      %*s' "$((60 - ${#label}))" ""
+                tui_echo "${TUI_DIM}" "${desc}"
+            fi
+            i=$((i + 1))
+        done
 
-    echo ""
-    tui_rule 60
-    echo ""
+        echo ""
+        tui_rule 60
+        echo ""
+    } >&2
 
     local choice
-    read -rp "  Select [1-${count}] or 'q' to quit: " choice
-
-    echo ""
+    if ! read -rp "  Select [1-${count}] or 'q' to quit: " choice; then
+        echo 0
+        return
+    fi
+    choice="${choice#"${choice%%[![:space:]]*}"}"
+    choice="${choice%"${choice##*[![:space:]]}"}"
+    echo "" >&2
 
     case "${choice}" in
         q | Q | quit | exit)
@@ -176,8 +183,8 @@ function tui_menu() {
                [[ "${choice}" -le "${count}" ]]; then
                 echo "${choice}"
             else
-                tui_echo "${TUI_DIM}" "  Invalid selection. Press Enter to continue..."
-                read -r
+                tui_echo "${TUI_DIM}" "  Invalid selection. Press Enter to continue..." >&2
+                read -r || true
                 echo -1
             fi
         ;;

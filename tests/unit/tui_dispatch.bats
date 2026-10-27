@@ -92,3 +92,45 @@ tui_exec() {
     run grep -q '8 | 0)' "${TUI_PLUGIN}"
     [ "${status}" -eq 0 ]
 }
+
+# The dashboard captures tui_menu's stdout as the selection. Drawing must
+# stay on the terminal, or the prompt repeats and the number never matches.
+@test "tui menu selection is not mixed with the drawn menu" {
+    local err="${BATS_TEST_TMPDIR}/menu.err"
+
+    run env TUI_PLUGIN="${TUI_PLUGIN}" MENU_ERR="${err}" bash -c '
+        requires_root() { :; }
+        error() { echo "ERROR: $*" >&2; }
+        info() { echo "$*" >&2; }
+        PROG_NAME="lemper-cli"
+        PROG_VERSION="test"
+        . "${TUI_PLUGIN}" --help >/dev/null
+        choice=$(printf "1\n" | tui_menu "Dash Title" "prompt" "Alpha|first" "Beta|second" 2>"${MENU_ERR}")
+        printf "SEL<<%s>>\n" "${choice}"
+        grep -q "Dash Title" "${MENU_ERR}" && echo MENU_TITLE=yes
+        grep -q "Alpha" "${MENU_ERR}" && echo MENU_ITEM=yes
+    '
+
+    [ "${status}" -eq 0 ]
+    sel=$(printf '%s\n' "${output}" | grep '^SEL<<')
+    [ "${sel}" = "SEL<<1>>" ]
+    printf '%s\n' "${output}" | grep -qx 'MENU_TITLE=yes'
+    printf '%s\n' "${output}" | grep -qx 'MENU_ITEM=yes'
+}
+
+@test "tui menu quit returns zero" {
+    run env TUI_PLUGIN="${TUI_PLUGIN}" bash -c '
+        requires_root() { :; }
+        error() { echo "ERROR: $*" >&2; }
+        info() { echo "$*" >&2; }
+        PROG_NAME="lemper-cli"
+        PROG_VERSION="test"
+        . "${TUI_PLUGIN}" --help >/dev/null
+        choice=$(printf "q\n" | tui_menu "Dash Title" "prompt" "Alpha|first" "Beta|second" 2>/dev/null)
+        printf "SEL<<%s>>\n" "${choice}"
+    '
+
+    [ "${status}" -eq 0 ]
+    sel=$(printf '%s\n' "${output}" | grep '^SEL<<')
+    [ "${sel}" = "SEL<<0>>" ]
+}
