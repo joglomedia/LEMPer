@@ -21,7 +21,7 @@ set -e -o pipefail
 
 # Version control.
 export PROG_NAME && PROG_NAME=$(basename "$0")
-export PROG_VERSION && PROG_VERSION="2.x.x"
+export PROG_VERSION && PROG_VERSION="3.6.0"
 export LEMPER_CLI_BIN && LEMPER_CLI_BIN="$0"
 
 # Test mode.

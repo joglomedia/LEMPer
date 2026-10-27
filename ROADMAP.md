@@ -1,15 +1,14 @@
 # LEMPer — Roadmap &amp; Improvement Plan
 
-> **Version:** 3.5.2
-> **Last Updated:** 2026-10-24
-> **Status:** Complete — all 5 phases (0-5) implemented: v2.7.2→v2.9.0 security &amp; bug fixes,
-> v3.0.0 architecture overhaul, v3.1.0–v3.2.0 functionality (Bun.js, Valkey, site list/show,
-> db backup/restore, CrowdSec, ACME DNS-01), v3.3.0 UI/UX (TUI, progress, help, PHP 8.4),
-> v3.4.0 security (ModSecurity v3 WAF, encrypted config at rest), v3.5.1 PHP2Shell
-> remediation (legacy update bootstrap, PHP/nginx/MariaDB/CLI updater), v3.5.2 PHP 8.5
-> support (templates, default version, install/remove flows, nginx handlers).
+> **Version:** 3.6.0
+> **Last Updated:** 2026-10-27
+> **Status:** v3.6.0 released. Phases 0–8 are done. The next major is v4.0
+> (issue #92 and ARCHITECTURE.md section 4).
 >
-> **Last Updated:** 2026-10-24
+> v3.6.0 ships the TUI log viewer and site wizard, ModSecurity tuning, opt-in
+> HTTP/3, per-site CORS, resource profiles, the MyGuard nginx archive, PHP 8.1
+> removed from the default install, EOL vhost migration, Adminer 6.2.0, config
+> backup, the CrowdSec installer, and the FTP fixes.
 >
 > This document presents the audit findings and improvement recommendations for the LEMPer
 > codebase. It is organized by priority area (Security, Architecture, Functionality,
@@ -838,6 +837,54 @@ CVE-2026-109618 / CVE-2026-109619 and keep the rest of the stack current.
 
 ---
 
+### Phase 9: Next Major (v4.0) — Planned
+
+v3.6.0 stops before this work. Two documents describe it: GitHub issue
+[#92](https://github.com/joglomedia/LEMPer/issues/92) and ARCHITECTURE.md
+section 4, "Proposed Target Architecture (v3.0)". The section title is the
+old target name. The implementation version is v4.0.
+
+**CLI structure (issue #92).** Keep the `lemper-cli` binary. Add a
+`lemperctl` symlink once the new verbs exist, so current scripts keep
+working.
+
+- `lemper-cli stack install`, `stack remove`, and `stack update` run one
+  service at a time (Nginx, PHP, MariaDB, Redis/Valkey, PostgreSQL, FTP,
+  CrowdSec, Fail2ban, and the rest of the installer set).
+- `lemper-cli stack start|stop|restart|reload|status` controls those
+  services. PHP-FPM takes a version option because several branches can be
+  installed together.
+- `site create`, `site remove`, and `site update` match the issue's verbs.
+  The current `add`, `manage`, and `mod` commands stay as aliases.
+- A pinned `get-lemper` bootstrap downloads one release tarball, checks its
+  checksum, installs the CLI and plugins under `/opt/lemper/<version>`, and
+  copies `.env.dist` to `/etc/lemper/lemper.conf` only when that file is
+  missing. It does not install the stack. The next instruction is to edit
+  that config, then run `lemper-cli stack install`.
+
+**Architecture section 4, still open.** These rows from that section are
+already on the 3.x line and are not part of v4.0: PHP 8.2–8.5, bats plus
+ShellCheck and bashate, Fail2ban and CrowdSec, optional encrypted config,
+the documentation set, multi-distro CI, and ACME with RSA-4096
+certificates.
+
+v4.0 still has to:
+
+- Validate the config with a schema. The format can stay `.env` or move to
+  YAML. `safe_parse_dotenv()` remains the loader underneath.
+- Split `scripts/utils.sh` into the modules section 4.4 names: `config.sh`,
+  `logging.sh`, `colors.sh`, and the distro, network, and security helpers.
+- Move plugins into `lib/runtime/` and installers into `lib/services/`.
+  The paths installed on a host stay where they are, so an upgrade does not
+  break a running server.
+- Use one argument parser for every plugin.
+- Make SSH key-only the default, with ed25519 as the generated key type.
+- Offer UFW with an nftables backend.
+- Add a host audit (lynis or the same class of check) and release
+  automation to CI.
+
+---
+
 ## 4. Risk Register
 
 
@@ -869,14 +916,18 @@ CVE-2026-109618 / CVE-2026-109619 and keep the rest of the stack current.
 | **v3.5.0** | Architecture debt        | NOPASSWD fix, credential suppression, safe config loader, sed/i portability, restricted sudoers, Debian 12 CI, bashate linting, ShellCheck v0.11.0 |
 | **v3.5.1** | PHP2Shell remediation    | Legacy `update.sh` bootstrap, `lemper update` plugin, EOL pool mitigations, apt version verification |
 | **v3.5.2** | PHP 8.5 support          | 8.5 FPM templates, 8.5 default, install/remove menus, nginx handlers and phpinfo endpoints |
-| **v3.6.0** | Advanced UX              | TUI log streaming, site creation wizard, ModSecurity auto-tuning, systemd-resolved ACME                                                         |
+| **v3.6.0** | Current release          | TUI logs and site wizard, ModSecurity tuning, HTTP/3, CORS, resource profiles, MyGuard nginx, PHP 8.1 removed from defaults, EOL vhost migration (`--migrate-to`), Adminer 6.2.0, config backup, CrowdSec installer, FTP fixes |
+| **v4.0.0** | Next major               | Issue #92 command structure (`stack` and `site` verbs, old commands kept as aliases), pinned get-lemper bootstrap, and the remaining ARCHITECTURE.md section 4 work (config schema, utils split, runtime/services layout, SSH key-only, nftables, release automation) |
 
 
 ---
 
 ## 6. Next Steps
 
-All 5 phases (0–5) have been completed. The project is at **v3.5.0** with:
+Phases 0–8 are released as **v3.6.0**. The next implementation is **v4.0**
+(Phase 9): issue #92 and the unfinished rows of ARCHITECTURE.md section 4.
+
+Shipped through v3.6.0:
 
 - **v3.0.0**: Architecture overhaul — `lemper-stacks.sh` orchestrator, validation functions,
 bats-core test suite (107 tests passing)
@@ -892,17 +943,16 @@ templates, bashate linting, Debian 12 CI matrix, ShellCheck v0.11.0, Ubuntu 24.0
 plugin, EOL pool compensating controls, apt version verification
 - **v3.5.2**: PHP 8.5 support — FPM templates, `DEFAULT_PHP_VERSION=8.5`, install/remove
 menus, nginx `.php85` handlers, admin phpinfo endpoints
-- **v3.6.0**: TUI live log streaming, interactive site creation wizard,
-ModSecurity CRS auto-tuning (`lemper-cli modsec`), systemd-resolved ACME
-cache integration and renewal deploy hooks
-- **Post-v3.6.0 audit**: adaptive resource profiles (`micro` → `large`) sizing
-PHP-FPM, opcache, and nginx from detected RAM/CPU; dedicated
-`nginx-lowend.conf` for sub-1 GiB hosts; opt-in rate limiting, archive deny,
-etag control, and secure session cookies; SEC-20 … SEC-26 fixes
-- **v3.5.1**: legacy `update.sh` bootstrap and `lemper-cli update` plugin patch
-PHP2Shell (CVE-2026-109618 / CVE-2026-109619) across PHP, nginx, MariaDB, and
-CLI/plugins; EOL PHP branches receive backed-up, admin-locked mitigations and a
-migration warning
+- **v3.6.0**: TUI live logs and site wizard, ModSecurity CRS auto-tuning,
+systemd-resolved ACME hooks, opt-in HTTP/3, per-site CORS, resource profiles
+and `nginx-lowend.conf`, SEC-20 … SEC-27, MyGuard nginx, PHP 8.1 removed
+from the default install, `update php --migrate-to`, Adminer 6.2.0, config
+backup, CrowdSec installer, and the Pure-FTPd / VSFTPD fixes
+- **v4.0.0**: issue #92 (`lemper-cli stack` and the new `site` verbs, with
+today's commands kept as aliases) and the remaining ARCHITECTURE.md section 4
+work: config schema, splitting `utils.sh`, moving plugins and installers into
+`lib/runtime` and `lib/services`, SSH key-only, nftables, and a pinned
+get-lemper bootstrap that stops before the stack install
 
 ---
 

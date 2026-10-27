@@ -161,7 +161,7 @@ be very careful about quoting and escaping.
 | `lowerCamelCase` | Local function variables |
 | `CMD_PARENT` | CLI program name (e.g., `lemper-cli`) |
 | `CMD_NAME` | Subcommand name (e.g., `site`, `db`) |
-| `PROG_VERSION` | Version string (currently `"2.x.x"` placeholder) |
+| `PROG_VERSION` | Version string (currently `"3.6.0"`) |
 
 ### 3.6 Framework Detection
 
