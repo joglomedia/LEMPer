@@ -113,6 +113,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Repository Nginx installs no longer request `libmaxminddb-dev`. Ubuntu's
+  development package requires the distro `libmaxminddb0` exactly, while the
+  MyGuard nginx archive publishes a newer library that the GeoIP modules
+  already depend on. Source builds still install the headers themselves.
 - `lemper-cli update` no longer aborts when a legacy Ondřej nginx source
   returns 403. Sources for `ondrej/nginx`, `ondrej/nginx-mainline`, and
   `packages.sury.org/nginx` are disabled before `apt-get update`. The Ondřej

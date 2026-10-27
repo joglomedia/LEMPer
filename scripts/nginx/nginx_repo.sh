@@ -151,16 +151,18 @@ function get_repo_extra_module_packages() {
         EXTRA_MODULE_PKGS+=("libnginx-mod-http-fancyindex")
     fi
 
-    # GeoIP
+    # GeoIP. The module depends on libmaxminddb0. Headers are omitted here:
+    # Ubuntu's libmaxminddb-dev requires the distro library exactly, and the
+    # MyGuard nginx archive publishes a newer libmaxminddb0.
     if "${NGX_HTTP_GEOIP:-false}"; then
         echo "  Adding: libnginx-mod-http-geoip" >&2
-        EXTRA_MODULE_PKGS+=("libmaxminddb0" "libmaxminddb-dev" "libnginx-mod-http-geoip" "libnginx-mod-stream-geoip")
+        EXTRA_MODULE_PKGS+=("libmaxminddb0" "libnginx-mod-http-geoip" "libnginx-mod-stream-geoip")
     fi
 
     # GeoIP2
     if "${NGX_HTTP_GEOIP2:-false}"; then
         echo "  Adding: libnginx-mod-http-geoip2" >&2
-        EXTRA_MODULE_PKGS+=("libmaxminddb0" "libmaxminddb-dev" "libnginx-mod-http-geoip2" "libnginx-mod-stream-geoip2")
+        EXTRA_MODULE_PKGS+=("libmaxminddb0" "libnginx-mod-http-geoip2" "libnginx-mod-stream-geoip2")
     fi
 
     # Headers more

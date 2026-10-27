@@ -209,4 +209,7 @@ run_lib() {
     if grep -q 'add_nginx_repo_ondrej' "${REAL_BASE_DIR}/scripts/install_nginx.sh"; then
         return 1
     fi
+    if grep -q 'libmaxminddb-dev"' "${REAL_BASE_DIR}/scripts/nginx/nginx_repo.sh"; then
+        return 1
+    fi
 }
