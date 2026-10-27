@@ -31,6 +31,27 @@ run_lib() {
     bash -c "${load_update_lib}"' "$@"' _ "$@"
 }
 
+@test "retired php-json packages are removed and other missing candidates are skipped" {
+    run run_lib php_upgrade_action php8.2-json "(none)"
+    [ "${status}" -eq 0 ]
+    [ "${output}" = "remove" ]
+
+    run run_lib php_upgrade_action php8.3-json ""
+    [ "${output}" = "remove" ]
+
+    run run_lib php_upgrade_action php8.2-json "8.2.35-1+ubuntu22.04.1+deb.sury.org+1"
+    [ "${output}" = "upgrade" ]
+
+    run run_lib php_upgrade_action php8.2-fpm "8.2.35-1"
+    [ "${output}" = "upgrade" ]
+
+    run run_lib php_upgrade_action php8.2-redis "(none)"
+    [ "${output}" = "skip" ]
+
+    run run_lib php_upgrade_action php8.5-opcache "(none)"
+    [ "${output}" = "skip" ]
+}
+
 @test "version_ge matches upstream fixed releases and strips Debian suffixes" {
     run run_lib version_ge_out "8.2.35" "8.2.35"
     [ "${output}" = "true" ]

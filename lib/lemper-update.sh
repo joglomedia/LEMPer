@@ -266,20 +266,81 @@ function php_reload_branch() {
 }
 
 ##
+# Decide what to do with one installed PHP package during an upgrade.
+# Prints upgrade, remove, or skip.
+# phpX.Y-json used to be a real transitional package. Current Ondřej builds
+# publish it only as a virtual package provided by the SAPI packages, and
+# passing that name to apt-get install aborts the whole branch upgrade.
+##
+function php_upgrade_action() {
+    local pkg="${1}"
+    local candidate="${2}"
+
+    if [[ -n "${candidate}" && "${candidate}" != "(none)" ]]; then
+        printf '%s\n' "upgrade"
+        return 0
+    fi
+    if [[ "${pkg}" =~ ^php[0-9]+\.[0-9]+-json$ ]]; then
+        printf '%s\n' "remove"
+        return 0
+    fi
+    printf '%s\n' "skip"
+}
+
+##
+# Candidate version, or nothing when apt cannot install the package.
+##
+function php_apt_candidate() {
+    local cand=""
+    cand=$(apt-cache policy "${1}" 2>/dev/null | awk '/^[[:space:]]*Candidate:/ {print $2; exit}' || true)
+    printf '%s\n' "${cand}"
+}
+
+##
 # Upgrade a patched PHP branch and verify the running package version.
 ##
 function php_patch_branch() {
     local branch="${1}"
     local fixed="${2}"
     local pkgs=()
-    local pkg installed
+    local remove_pkgs=()
+    local pkg action installed
 
     while IFS= read -r pkg; do
-        [[ -n "${pkg}" ]] && pkgs+=("${pkg}")
+        [[ -n "${pkg}" ]] || continue
+        action=$(php_upgrade_action "${pkg}" "$(php_apt_candidate "${pkg}")")
+        case "${action}" in
+            upgrade)
+                pkgs+=("${pkg}")
+                ;;
+            remove)
+                info "Removing retired package ${pkg}; JSON is included in the PHP ${branch} SAPI packages."
+                remove_pkgs+=("${pkg}")
+                ;;
+            *)
+                warning "Skipping ${pkg}; apt has no installation candidate for it."
+                ;;
+        esac
     done < <(dpkg-query -W -f='${Package}\n' "php${branch}-*" 2>/dev/null || true)
 
     if [[ "${#pkgs[@]}" -eq 0 ]]; then
-        pkgs=("php${branch}-fpm" "php${branch}-cli" "php${branch}-common")
+        for pkg in "php${branch}-fpm" "php${branch}-cli" "php${branch}-common"; do
+            action=$(php_upgrade_action "${pkg}" "$(php_apt_candidate "${pkg}")")
+            if [[ "${action}" == "upgrade" ]]; then
+                pkgs+=("${pkg}")
+            fi
+        done
+    fi
+
+    if [[ "${#pkgs[@]}" -eq 0 ]]; then
+        error "No upgradable PHP ${branch} packages found."
+        return 1
+    fi
+
+    if [[ "${#remove_pkgs[@]}" -gt 0 ]]; then
+        if ! DEBIAN_FRONTEND=noninteractive apt-get remove -y -q "${remove_pkgs[@]}"; then
+            warning "Could not remove retired package(s): ${remove_pkgs[*]}. The PHP ${branch} upgrade will continue."
+        fi
     fi
 
     info "Upgrading PHP ${branch} packages to >= ${fixed}..."

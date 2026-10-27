@@ -113,6 +113,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `lemper-cli update php` no longer aborts a branch upgrade when
+  `phpX.Y-json` is installed. Current Ondřej packages publish that name
+  only as a virtual package provided by the FPM, CLI, and CGI SAPIs, so
+  apt reports "no installation candidate" and upgrades nothing else on
+  the branch. The retired JSON package is removed, and any other PHP
+  package without a candidate is skipped.
 - Repository Nginx installs no longer request `libmaxminddb-dev`. Ubuntu's
   development package requires the distro `libmaxminddb0` exactly, while the
   MyGuard nginx archive publishes a newer library that the GeoIP modules
