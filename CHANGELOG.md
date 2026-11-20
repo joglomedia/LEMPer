@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - Unreleased
+
 ### Added
+- Shared profile-based full-stack entry adapter for install/remove/update and
+  `lemperctl stack ... --all`, with config validation before host changes.
+- Optional `get-lemper --install --config FILE`, `--minimal`, `--yes` and
+  mutation-free dry runs; default bootstrap remains CLI-only.
+- Release archives ship a pinned `get-lemper` asset and its checksum.
 - Disposable systemd/Podman UAT fixtures and real CLI acceptance checks covering
   service lifecycle, HTTP/TLS, SSH, backup and ownership-based removal.
 - Optional `ACME_REGISTER_ACCOUNT` for package-only Certbot installation.
@@ -24,8 +31,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tag-driven release automation, and provisioned-host/dependency audit reports.
 
 ### Changed
+- Compatibility scripts delegate to one lifecycle entry path; legacy installer
+  flags remain isolated in adapters. Disabled components are skipped.
+- Minimal service profiles omit optional services and web panels while keeping
+  the CLI; `INSTALL_WEB_ADMIN` controls panel installation independently.
+- PHP extension packages are resolved with exact versioned metadata; bundled
+  XSL/tokenizer aliases do not pull in another PHP branch through metapackages.
+- Update bootstrap exports the complete versioned CLI once through the shared
+  deployment path instead of installing a separate partial CLI copy.
 - Preferred `lemperctl`, with legacy names/flags retained and public help/version
   handled before root checks or private configuration loading.
+- Current documentation and command examples use `lemperctl`; compatibility
+  notes and source references retain `lemper-cli` and `bin/lemper-cli.sh`.
 - PHP selection distinguishes supported installation from installed management.
   Selected updates upgrade packages; EOL removal checks site references.
 - Full-stack recipes, bootstrap and tooling refresh share registries. Root-owned
@@ -40,6 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   release symlinks.
 
 ### Fixed
+- Full-stack removal retains ownership through partial teardown and permits
+  removal of PHP referenced only by a stopped, owned Nginx being removed.
+- Explicit profile replacement preserves configuration on failure and follows
+  the existing encryption-password resolver without exposing passwords in argv.
+- Legacy debug mode no longer traces credential-bearing shell expansions.
 - UAT-discovered installation problems: checkout-root helper paths, installed
   configuration seeding/metadata validation, lock umask leakage, public WP CLI
   permissions, idempotent site enabling and Ubuntu SSH socket activation.

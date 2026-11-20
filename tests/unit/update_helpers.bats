@@ -163,14 +163,10 @@ EOF
 
 @test "update.sh exposes install-only, check, and help modes" {
     [ -x "${REAL_BASE_DIR}/update.sh" ]
-
-    run grep -q -- '--install-only' "${REAL_BASE_DIR}/update.sh"
+    run bash "${REAL_BASE_DIR}/update.sh" --help
     [ "${status}" -eq 0 ]
-
-    run grep -q -- '--check' "${REAL_BASE_DIR}/update.sh"
-    [ "${status}" -eq 0 ]
-
-    run grep -q 'UPDATE_SUBCOMMAND="all"' "${REAL_BASE_DIR}/update.sh"
+    [[ "${output}" == *"--install-only"* && "${output}" == *"--check"* ]]
+    run grep -q 'UPDATE_SUBCOMMAND="all"' "${REAL_BASE_DIR}/lib/compat/updater.sh"
     [ "${status}" -eq 0 ]
 }
 
@@ -184,7 +180,7 @@ EOF
     run grep -q 'reinstall_admin_tools "${src}"' "${REAL_BASE_DIR}/lib/lemper-update.sh"
     [ "${status}" -eq 0 ]
 
-    run grep -q 'update_lemper_tooling' "${REAL_BASE_DIR}/update.sh"
+    run grep -q 'update_lemper_tooling' "${REAL_BASE_DIR}/lib/compat/updater.sh"
     [ "${status}" -eq 0 ]
 }
 

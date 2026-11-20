@@ -29,7 +29,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
     * and much more useful 3rd-party modules.
   * Pre-configured optimization for low-end VPS/cloud server, auto-tuned at install time from the host's RAM and CPU (`micro`, `small`, `medium`, `large` profiles). Need reliable VPS/cloud server? Get one from [DigitalOcean](https://masedi.net/l/digitalocean/), [UpCloud](https://masedi.net/l/upcloud/), or [Vultr](https://masedi.net/l/vultr/).
   * Nginx virtual host (vhost) configuration optimized for WordPress and several PHP Frameworks.
-  * Per-vhost CORS control with `lemper-cli site mod --enable-cors` and `--disable-cors`.
+  * Per-vhost CORS control with `lemperctl site mod --enable-cors` and `--disable-cors`.
   * HTTP/2 on TLS vhosts, with opt-in HTTP/3 (QUIC) when the Nginx build provides the v3 module.
   * Free SSL certificates from [Let's Encrypt](https://letsencrypt.org/).
   * Get an A+ grade on several SSL Security Test ([Qualys SSL Labs](https://www.ssllabs.com/ssltest/analyze.html?d=masedi.net), [ImmuniWeb](https://www.immuniweb.com/ssl/?id=bVrykFnK), and Wormly).
@@ -37,7 +37,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
   * Community packages from [Ondřej's PHP repository](https://launchpad.net/~ondrej/+archive/ubuntu/php) (Sury on Debian).
   * Multiple PHP versions: 8.2 [Security], 8.3 [Security], 8.4 [Active], 8.5 [Latest, default]. PHP 8.1 is EOL and has no PHP2Shell patch.
   * PHP extensions are installed from apt repositories (Ondřej/Sury, plus the OpenSwoole PPA when selected). PECL/PEAR is no longer bundled: `geoip` and `mcrypt` are abandoned and excluded, and extensions with no package are reported so they can be built manually with [PIE](https://github.com/php/pie).
-  * In-place security updater (`lemper-cli update`) with compensating controls for EOL branches.
+  * In-place security updater (`lemperctl update`) with compensating controls for EOL branches.
   * Run PHP as user who own the file (Multi-user isolation via FPM pool).
   * Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
   * Supported PHP Framework and CMS:
@@ -62,7 +62,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
   * [TinyFileManager](https://github.com/joglomedia/tinyfilemanager) alternative web-based filemanager (Experimental).
 * Security hardening:
   * Optional CrowdSec host-based intrusion prevention with WordPress and PHP application scenarios (`INSTALL_CROWDSEC`).
-  * Optional ModSecurity v3 WAF with the OWASP Core Rule Set, plus `lemper-cli modsec` status, reporting, and auto-tuning (`INSTALL_MODSEC`).
+  * Optional ModSecurity v3 WAF with the OWASP Core Rule Set, plus `lemperctl modsec` status, reporting, and auto-tuning (`INSTALL_MODSEC`).
   * Optional config-at-rest encryption (`ENCRYPT_CONFIG_AT_REST`) for LEMPer credentials, keyed by a root-only file (`/etc/lemper/.config_key`).
   * SSL/TLS defaults from the RFC 7919 `ffdhe2048` group, security headers, and optional rate limiting, archive-deny rules, and secure session cookies.
   * Optional HTTP/3 (QUIC) listeners and `Alt-Svc` advertising on TLS vhosts (`NGINX_HTTP3`, requires an Nginx built with `--with-http_v3_module`).
@@ -74,39 +74,92 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 
 * Debian 11 (Bullseye) or 12 (Bookworm), or Ubuntu 22.04 or 24.04 (Linux Mint 21–22), on a 64-bit architecture.
 * A fresh server with root (sudo) access. LEMPer is designed for a clean install and configures system services directly.
-* git, curl, and a working apt repository connection.
+* Bash 5+, curl, tar, SHA256 tools, and a working apt repository connection.
 
-### Clone and configure
+### Install v4 from a release
 
-* Ensure that you have git installed.
-* Clone LEMPer Git repository, ```git clone https://github.com/joglomedia/LEMPer.git```
-* Enter LEMPer directory
-* Checkout to the desired version, ```git checkout 3.x.x```
-* Make a copy of .env.dist to .env ```cp .env.dist .env``` and replace the values
+The commands below target **v4.0.0**. They become available when that release is
+published; the existing v3.6.0 release does not contain these bootstrap assets.
+
+Install only the administration CLI with one command:
+
+~~~bash
+curl -fsSL https://github.com/joglomedia/LEMPer/releases/download/v4.0.0/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0
+~~~
+
+The bootstrap downloads the versioned archive and verifies its SHA256 before
+installing `lemperctl`. It preserves existing configuration and services.
+The bootstrap's own checksum is available as `get-lemper.sha256` on the release.
+
+For a fresh server, prepare a private configuration file first:
+
+~~~bash
+curl -fsSL https://raw.githubusercontent.com/joglomedia/LEMPer/v4.0.0/.env.dist -o lemper.env
+chmod 0600 lemper.env
+${EDITOR:-vi} lemper.env
+~~~
+
+Set `SERVER_HOSTNAME`, `SERVER_IP`, `LEMPER_ADMIN_EMAIL`, and `RSA_PUB_KEY`
+to your server details, email, and SSH public key. Choose the PHP versions and
+optional services in this file. On ARM64, select `NGINX_INSTALLER="source"`
+while MyGuard has no compatible ARM64 Nginx binary.
 
 Unattended installation now defaults to key-only SSH. Generate an ed25519 key
-on your local computer and set RSA_PUB_KEY in .env to its public key before
+on your local computer and set RSA_PUB_KEY in your profile to its public key before
 installing. The installer rejects a missing or invalid key before changing the
 server. An explicit SSH_PASSWORDLESS=false supports a staged migration.
 Previous SSH firewall ports remain allowed until you confirm a working login
 and deliberately retire those allowances.
 
-### Install LEMPer Stack
+Then install the core service profile with one command:
 
-```bash
-sudo apt-get install git && \
-git clone -q https://github.com/joglomedia/LEMPer.git && \
-cd LEMPer && \
-git checkout 3.x.x && \
-cp -f .env.dist .env && \
-sudo ./install.sh
-```
+~~~bash
+curl -fsSL https://github.com/joglomedia/LEMPer/releases/download/v4.0.0/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0 --install --config ./lemper.env --minimal --yes
+~~~
+
+`--minimal` installs Nginx, PHP, MariaDB, Certbot, Fail2ban, and the CLI.
+It disables optional databases/caches, FTP, mail, Bun, ImageMagick, CrowdSec,
+ModSecurity, and web administration panels. SSH and firewall policy still follow
+your configuration. Optional Nginx source modules are disabled and the distro
+PCRE library is used. Omit `--minimal` to install the services selected in the file.
+
+Validate and inspect the plan first by adding `--dry-run`. An invalid profile
+or missing SSH key stops installation before host changes.
+
+### Install from a checkout or an installed CLI
+
+~~~bash
+git clone https://github.com/joglomedia/LEMPer.git
+cd LEMPer
+git checkout v4.0.0
+cp .env.dist .env
+chmod 0600 .env
+${EDITOR:-vi} .env
+sudo bash install.sh --config .env --minimal --yes
+~~~
+
+After the CLI is installed, use the same full-stack flow or manage one service:
+
+~~~bash
+sudo lemperctl stack install --all --config ./lemper.env --minimal --yes
+sudo lemperctl stack install php --php-version 8.5
+sudo lemperctl stack status nginx
+~~~
+
+`install.sh`, `remove.sh`, `update.sh`, and `lemper.sh` are compatibility
+entry points into the shared lifecycle. Existing `lemper.sh install --with-...`
+flags remain supported; configuration files are the preferred v4 interface.
 
 ### Remove LEMPer Stack
 
 ```bash
-sudo ./remove.sh
+sudo lemperctl stack remove --all --yes
+# From a checkout: sudo bash remove.sh --yes
 ```
+
+Full-stack removal is destructive: back up databases and account data first.
+For individual components, use `lemperctl stack remove SERVICE`; site reference
+and provisioning checks still apply.
 
 Uninstall only tears down services that LEMPer provisioned. A service that
 already existed before installation (for example, a pre-installed Nginx) is
@@ -127,16 +180,30 @@ sudo ./update.sh --check         # install updater, then audit without patching 
 sudo ./update.sh --install-only  # reinstall admin tools; do not change stack packages
 ```
 
+For an existing server, install the v4 CLI without `--install` so its
+configuration and services are preserved, then check and update packages:
+
+```bash
+sudo lemperctl backup create
+curl -fsSL https://github.com/joglomedia/LEMPer/releases/download/v4.0.0/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0
+sudo lemperctl update check
+sudo lemperctl update all --yes
+```
+
+If an older installation has only `lemper-cli`, use that alias for the initial
+backup. Do not rerun a fresh-server full installation as an upgrade. EOL PHP
+branches still require an explicit migration target, as described below.
+
 Once installed:
 
 ```bash
-sudo lemper-cli update check     # exit 0 only when every PHP branch is patched
-sudo lemper-cli update all
-sudo lemper-cli update php --post-max-size=8M
-sudo lemper-cli update nginx
+sudo lemperctl update check     # exit 0 only when every PHP branch is patched
+sudo lemperctl update all
+sudo lemperctl update php --post-max-size=8M
+sudo lemperctl update nginx
 ```
 
-`lemper-cli update nginx` disables a retired Ondřej nginx APT source (that
+`lemperctl update nginx` disables a retired Ondřej nginx APT source (that
 PPA now answers 403) and upgrades a package-managed Nginx from the MyGuard
 nginx-only repository. The Ondřej PHP repository stays enabled. MyGuard's
 Nginx is mainline and links `libssl-nginx` beside the system OpenSSL, and
@@ -149,7 +216,7 @@ PHP 8.2.35+, 8.3.36+, 8.4.27+, or 8.5.12+ from the configured apt repositories. 
 and older branches have no vendor patch. Move those vhosts with an explicit destination:
 
 ```bash
-sudo lemper-cli update php --migrate-to=8.3
+sudo lemperctl update php --migrate-to=8.3
 # --force=8.3 is the same switch. A bare --force is rejected.
 ```
 
@@ -165,12 +232,13 @@ reported as needing a rebuild.
 
 ### LEMPer Command Line Administration Tool
 
-LEMPer packed with friendly command line tool which makes your LEMPer stack administration much easier. These command line tool called Lemper CLI (lemper-cli) for creating new virtual host and managing existing LEMPer stack.
+Use `lemperctl` to create virtual hosts and manage the LEMPer stack. The legacy
+`lemper-cli` command remains available as a compatibility symlink to the same CLI.
 
 An interactive TUI is available for menu-driven management, live service logs, a guided site-creation wizard, and hardware, disk, and network benchmarks:
 
 ```bash
-sudo lemper-cli tui
+sudo lemperctl tui
 ```
 
 #### LEMPer CLI Usage
@@ -180,23 +248,23 @@ Here are some examples of using LEMPer CLI.
 ##### LEMPer CLI add new vhost / website
 
 ```bash
-lemper-cli site add -u ${USER} -d example.test -f wordpress \
+lemperctl site add -u ${USER} -d example.test -f wordpress \
 -w ${HOME}/webapps/example.test --install-app
 ```
 
 :warning: For local/development environment, in order to make the test domain (e.g. example.test) working as expected, you need to do a small workaround by modifying the `/etc/hosts` file. By adding the local domain name to the hosts file and assign it with local/private IP address.
 
-Since version 2.4.0, this workaround could be done via `lemper-cli` by passing `--ipv4` parameter and assign it with private IP address, as below:
+For a local development site, pass the local/private IP address with `--ipv4`:
 
 ```bash
-lemper-cli site add -u ${USER} -d example.test -f wordpress \ 
+lemperctl site add -u ${USER} -d example.test -f wordpress \
 -w ${HOME}/webapps/example.test --ipv4=127.0.10.1 --install-app
 ```
 
 For more info
 
 ```bash
-lemper-cli site add --help
+lemperctl site add --help
 ```
 
 ##### LEMPer CLI manage vhost / website
@@ -204,20 +272,20 @@ lemper-cli site add --help
 Example, enable SSL
 
 ```bash
-sudo lemper-cli site mod --enable-ssl example.test
+sudo lemperctl site mod --enable-ssl example.test
 ```
 
 Example, enable FastCGI cache
 
 ```bash
-sudo lemper-cli site mod --enable-fastcgi-cache example.test
+sudo lemperctl site mod --enable-fastcgi-cache example.test
 ```
 
 Example, enable or disable CORS
 
 ```bash
-sudo lemper-cli site mod --enable-cors example.test
-sudo lemper-cli site mod --disable-cors example.test
+sudo lemperctl site mod --enable-cors example.test
+sudo lemperctl site mod --disable-cors example.test
 ```
 
 `--enable-cors` allows every origin by default. To restrict it, edit the
@@ -227,23 +295,23 @@ Nginx (`sudo systemctl reload nginx`).
 For more info
 
 ```bash
-sudo lemper-cli site mod --help
+sudo lemperctl site mod --help
 ```
 
 ##### LEMPer CLI back up and restore configuration
 
-`lemper-cli backup` archives the configuration LEMPer manages — Nginx, PHP,
+`lemperctl backup` archives the configuration LEMPer manages — Nginx, PHP,
 MySQL/MariaDB, Redis/Valkey, Memcached, Fail2ban, CrowdSec, ModSecurity
 tuning, mail, FTP, Let's Encrypt, `/etc/lemper`, and legacy `.env` files — so
 a broken change can be rolled back. Web content and database data are not
 included.
 
 ```bash
-sudo lemper-cli backup create          # archive to /var/backups/lemper/config
-sudo lemper-cli backup list            # list archives
-sudo lemper-cli backup show latest     # print the newest archive manifest
-sudo lemper-cli backup restore --latest --reload
-sudo lemper-cli backup prune --keep 5
+sudo lemperctl backup create          # archive to /var/backups/lemper/config
+sudo lemperctl backup list            # list archives
+sudo lemperctl backup show latest     # print the newest archive manifest
+sudo lemperctl backup restore --latest --reload
+sudo lemperctl backup prune --keep 5
 ```
 
 `restore` verifies the archive and the member allow-list first, writes a
@@ -257,16 +325,16 @@ archive on another host may require that explicit checkout-directory override.
 
 ##### LEMPer CLI benchmark the server
 
-`lemper-cli bench` reports hardware details, measures disk write/read speed,
+`lemperctl bench` reports hardware details, measures disk write/read speed,
 and downloads a test file from global endpoints. Downloads use curl's own
 speed counter with a per-endpoint timeout, and endpoints that fail are
 reported as unavailable instead of printing an empty speed.
 
 ```bash
-sudo lemper-cli bench                          # hardware, disk, and network
-sudo lemper-cli bench --hardware --disk        # no downloads
-sudo lemper-cli bench --network --size 100 --timeout 60
-sudo lemper-cli bench --disk --disk-size 1024
+sudo lemperctl bench                          # hardware, disk, and network
+sudo lemperctl bench --hardware --disk        # no downloads
+sudo lemperctl bench --network --size 100 --timeout 60
+sudo lemperctl bench --disk --disk-size 1024
 ```
 
 The same tests are available from the TUI under **Benchmark**. Network tests
@@ -276,7 +344,7 @@ use bandwidth: each endpoint receives the configured test size (default
 ##### for more help
 
 ```bash
-sudo lemper-cli help
+sudo lemperctl help
 ```
 
 Note: LEMPer CLI automagically create new PHP-FPM user's pool configuration if it doesn't exists. You must add the user account first.
@@ -339,8 +407,9 @@ under `/opt/lemper/VERSION`. An atomic `/opt/lemper/current` selector and
 compatibility links keep CLI/library code on one release. Configuration stays
 under `/etc/lemper`. Full installation and tooling refresh share this registry
 and export path. Selecting older code does not restore packages, databases or
-service configuration. Bootstrap installs no services; release assets are
-published by the version-tag workflow.
+service configuration. The default bootstrap installs no services;
+`--install --config FILE` explicitly selects full-stack installation.
+Release assets are published by the version-tag workflow.
 
 Configuration values are validated before loading. config check also rejects
 unknown options and unsupported PHP versions; normal runtime loading preserves
@@ -404,9 +473,9 @@ Implemented:
 * [x] Add enhanced security (firewall, Fail2ban, CrowdSec, ModSecurity WAF)
 * [x] Add CrowdSec a modern Host-based Intrusion Prevention System (modern-replacement for Fail2ban)
 * [x] Add Bun.js JavaScript/TypeScript runtime (npm-compatible client and bundler)
-* [x] Add in-place security updater (`lemper-cli update`, PHP2Shell remediation)
+* [x] Add in-place security updater (`lemperctl update`, PHP2Shell remediation)
 * [x] Add interactive TUI dashboard and site-creation wizard
-* [x] Add user account management (`lemper-cli account`, PHP-FPM pool isolation)
+* [x] Add user account management (`lemperctl account`, PHP-FPM pool isolation)
 
 Planned:
 

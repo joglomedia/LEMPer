@@ -77,11 +77,8 @@ installer_files() {
         [ "${status}" -eq 0 ]
         [[ "${output}" == *"Usage:"* ]]
 
-        if [[ "${script}" == "lemper.sh" ]]; then
-            run grep -F -q 'cd "${LEMPER_ROOT}"' "${REAL_BASE_DIR}/${script}"
-        else
-            run grep -F -q 'cd "${BASE_DIR}"' "${REAL_BASE_DIR}/${script}"
-        fi
+        # Entry adapters resolve the checkout even when invoked outside it.
+        run bash -c 'cd / && "$1" --help' _ "${REAL_BASE_DIR}/${script}"
         [ "${status}" -eq 0 ]
     done
 }

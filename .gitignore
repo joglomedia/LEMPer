@@ -24,3 +24,4 @@ scripts/mysqltuner.pl
 .DS_Store
 tests/.env.test
 .firecrawl/
+/dist/

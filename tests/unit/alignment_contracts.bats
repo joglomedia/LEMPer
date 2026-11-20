@@ -27,7 +27,7 @@ alignment_child='
     [[ "$output" == *"--runtime-user"* ]]
     run runuser -u nobody -- bash "$REAL_BASE_DIR/bin/lemper-cli.sh" --version
     [ "$status" -eq 0 ]
-    [[ "$output" == *"version 3.6.0"* ]]
+    [[ "$output" == *"version 4.0.0"* ]]
 }
 @test "source-only runtime and driver modules neither dispatch nor initialize" {
     run bash -c '

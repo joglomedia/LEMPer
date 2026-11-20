@@ -141,6 +141,8 @@ and Conventional Commit conventions in `DEVELOPER.md` and `CONTRIBUTING.md`.
 
 ## Integration and compatibility
 
+- Use `lemperctl` in current documentation and command examples. Preserve
+  `lemper-cli` as a compatibility alias and `bin/lemper-cli.sh` as the source filename.
 - New service components need matching install/remove scripts, `.env.dist`
   options, and wiring in the relevant entry points and stack definitions. Inspect
   `install.sh`, `remove.sh`, and `lemper.sh`; their paths are similar but differ.

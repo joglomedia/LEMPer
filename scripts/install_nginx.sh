@@ -141,6 +141,8 @@ function determine_nginx_version() {
 # Main nginx installation function
 ##
 function init_nginx_install() {
+    local preexisting_nginx=false
+    command -v nginx >/dev/null 2>&1 && preexisting_nginx=true
     # Check if we should install
     if ! select_install_method; then
         info "Nginx HTTP (web) server installation skipped."
@@ -173,7 +175,7 @@ function init_nginx_install() {
 
         # Remember that LEMPer installed Nginx so uninstall does not remove
         # a server that was already present beforehand.
-        mark_lemper_provisioned nginx
+        [[ "$preexisting_nginx" == true ]] || mark_lemper_provisioned nginx
     fi
 }
 

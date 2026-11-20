@@ -19,47 +19,45 @@ refute_grep() {
     [ "${status}" -ne 0 ]
 }
 
-@test "install.sh is a thin wrapper that sources lemper_stacks.sh" {
+@test "install.sh is a thin wrapper for the shared entry adapter" {
     # install.sh should NOT contain inline lemper_install function body
     local inline_count
     inline_count=$(grep -c 'function lemper_install()' "${BASE_DIR}/install.sh" 2>/dev/null || true)
     [ "${inline_count}" -eq 0 ]
 
     # install.sh should source lemper-stacks.sh from lib/core/
-    grep -q 'lib/core/lemper-stacks.sh' "${BASE_DIR}/install.sh"
+    grep -q 'lib/runtime/stack/entry.sh' "${BASE_DIR}/install.sh"
 
     # install.sh should call lemper_install
-    grep -q 'lemper_install' "${BASE_DIR}/install.sh"
+    grep -q 'lemper_entry_main install' "${BASE_DIR}/install.sh"
 }
 
-@test "install.sh calls requires_root and preflight before install" {
-    grep -q 'requires_root' "${BASE_DIR}/install.sh"
-    grep -q 'preflight_system_check' "${BASE_DIR}/install.sh"
-    grep -q 'header_msg' "${BASE_DIR}/install.sh"
-    grep -q 'footer_msg' "${BASE_DIR}/install.sh"
+@test "install.sh help works without configuration or root" {
+    run runuser -u nobody -- bash "${BASE_DIR}/install.sh" --help
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"--config FILE"* ]]
 }
 
-@test "remove.sh is a thin wrapper that sources lemper_stacks.sh" {
+@test "remove.sh is a thin wrapper for the shared entry adapter" {
     # remove.sh should NOT contain inline lemper_remove function body
     local inline_count
     inline_count=$(grep -c 'function lemper_remove()' "${BASE_DIR}/remove.sh" 2>/dev/null || true)
     [ "${inline_count}" -eq 0 ]
 
     # remove.sh should source lemper-stacks.sh from lib/core/
-    grep -q 'lib/core/lemper-stacks.sh' "${BASE_DIR}/remove.sh"
+    grep -q 'lib/runtime/stack/entry.sh' "${BASE_DIR}/remove.sh"
 
     # remove.sh should call lemper_remove
-    grep -q 'lemper_remove' "${BASE_DIR}/remove.sh"
+    grep -q 'lemper_entry_main remove' "${BASE_DIR}/remove.sh"
 }
 
-@test "remove.sh calls requires_root and preflight before remove" {
-    grep -q 'requires_root' "${BASE_DIR}/remove.sh"
-    grep -q 'preflight_system_check' "${BASE_DIR}/remove.sh"
-    grep -q 'header_msg' "${BASE_DIR}/remove.sh"
-    grep -q 'footer_msg' "${BASE_DIR}/remove.sh"
+@test "remove.sh help works without configuration or root" {
+    run runuser -u nobody -- bash "${BASE_DIR}/remove.sh" --help
+    [ "${status}" -eq 0 ]
+    [[ "${output}" == *"--config FILE"* ]]
 }
 
-@test "lemper.sh sources lemper_stacks.sh instead of inline functions" {
+@test "lemper.sh shares the entry adapter instead of inline functions" {
     # lemper.sh should NOT contain inline lemper_install or lemper_remove
     local install_count remove_count
     install_count=$(grep -c 'function lemper_install()' "${BASE_DIR}/lemper.sh" 2>/dev/null || true)
@@ -68,7 +66,7 @@ refute_grep() {
     [ "${remove_count}" -eq 0 ]
 
     # lemper.sh should source lemper_stacks.sh from lib/core/
-    grep -q 'lib/core/lemper-stacks.sh' "${BASE_DIR}/lemper.sh"
+    grep -q 'lib/runtime/stack/entry.sh' "${BASE_DIR}/lemper.sh"
 }
 
 @test "lemper_stacks.sh contains lemper_install function" {
@@ -84,7 +82,7 @@ refute_grep() {
 }
 
 @test "lemper.sh preserves getopt-based CLI flags" {
-    grep -q 'getopt' "${BASE_DIR}/lemper.sh"
+    grep -q 'getopt' "${BASE_DIR}/lib/compat/installer.sh"
     grep -q 'install' "${BASE_DIR}/lemper.sh"
     grep -q 'remove' "${BASE_DIR}/lemper.sh"
 }
@@ -100,7 +98,7 @@ refute_grep() {
     local cli="${BASE_DIR}/lemper.sh"
 
     grep -qF 'LEMPER_ROOT=' "${cli}"
-    grep -qF 'export BASE_DIR="${LEMPER_ROOT}"' "${cli}"
+    grep -qF 'export BASE_DIR="$LEMPER_ROOT"' "${cli}"
     refute_grep -q 'git_clone_lemper' "${cli}"
     refute_grep -qF 'git clone https://github.com/joglomedia/LEMPer.git' "${cli}"
 }
@@ -747,7 +745,7 @@ refute_grep() {
 }
 
 @test "SSH public key option updates RSA_PUB_KEY without sed" {
-    local cli="${BASE_DIR}/lemper.sh"
+    local cli="${BASE_DIR}/lib/compat/installer.sh"
     local security="${BASE_DIR}/scripts/server_security.sh"
 
     grep -qF -- '--with-ssh-pub-key)' "${cli}"

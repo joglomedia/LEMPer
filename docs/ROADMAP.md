@@ -362,7 +362,7 @@ actual installations. They cannot run on macOS or in constrained CI environments
 
 ### Phase 3 — Functionality Improvements (P1 — Medium)
 
-#### 2.16 Add `lemper-cli site list` Subcommand  ✅**COMPLETE**
+#### 2.16 Add `lemperctl site list` Subcommand  ✅**COMPLETE**
 
 **Issue:** There is no way to list all configured virtual hosts without inspecting the
 filesystem directly.
@@ -376,7 +376,7 @@ domain names, framework, SSL status, PHP version.
 
 ---
 
-#### 2.17 Add `lemper-cli site show <domain>` Subcommand  ✅**COMPLETE**
+#### 2.17 Add `lemperctl site show <domain>` Subcommand  ✅**COMPLETE**
 
 **Issue:** No way to display the full configuration for a specific vhost.
 
@@ -394,9 +394,9 @@ has export/import but no scheduled backup rotation.
 
 **Fix:**
 
-- Add `lemper-cli db backup <domain>` — creates timestamped SQL dump.
-- Add `lemper-cli db restore <domain> <file>` — restores from dump.
-- Add `lemper-cli db backup-schedule <domain>` — adds cron entry.
+- Add `lemperctl db backup <domain>` — creates timestamped SQL dump.
+- Add `lemperctl db restore <domain> <file>` — restores from dump.
+- Add `lemperctl db backup-schedule <domain>` — adds cron entry.
 
 **Effort:** Medium
 
@@ -490,11 +490,11 @@ operations (source compilation, large downloads).
 
 #### 2.23 Improve CLI Help Output  ✅**COMPLETE**
 
-**Issue:** `lemper-cli --help` shows only 3 commands (`create`, `database`, `manage`).
+**Issue:** `lemperctl --help` shows only 3 commands (`create`, `database`, `manage`).
 The actual CLI supports `site`, `db`, and more (aliased differently).
 
 **Fix:** Rewrite `cmd_help()` in `bin/lemper-cli.sh` to list all available commands with
-descriptions. Add subcommand-level help (`lemper-cli site --help`).
+descriptions. Add subcommand-level help (`lemperctl site --help`).
 
 **Effort:** Medium
 
@@ -504,7 +504,7 @@ descriptions. Add subcommand-level help (`lemper-cli site --help`).
 
 **Issue:** The CLI is purely argument-based. No interactive dashboard for server status.
 
-**Fix (v3.x):** Add `lemper-cli dashboard` that displays server status (services, disk,
+**Fix (v3.x):** Add `lemperctl dashboard` that displays server status (services, disk,
 memory, swap, recent logs) in a text-based UI using `whiptail` or `dialog`.
 
 **Effort:** High
@@ -835,7 +835,7 @@ layers are implemented; remaining legacy internals extraction stays open.
 - **2.42** — `lib/lemper-tui.sh`: guided wizard validates the domain, framework,
   PHP version, system user, and web root, then invokes `lemper-site create` with
   SSL, wildcard, FastCGI cache, Fail2ban, and app-install options.
-- **2.43** — `lib/lemper-modsec.sh`: new `lemper-cli modsec` plugin with
+- **2.43** — `lib/lemper-modsec.sh`: new `lemperctl modsec` plugin with
   `status`, `report`, and `tune` commands. `tune --auto --apply` derives CRS
   paranoia/thresholds from the audit log, writes `/etc/modsecurity/lemper-tuning.conf`,
   validates with `nginx -t`, and rolls back on failure. Installer now respects
@@ -886,14 +886,14 @@ v3.6.0 stops before this work. Two documents describe it: GitHub issue
 section 4, "Proposed Target Architecture (v3.0)". The section title is the
 old target name. The implementation version is v4.0.
 
-**CLI structure (issue #92).** Keep the `lemper-cli` binary. Add a
-`lemperctl` symlink once the new verbs exist, so current scripts keep
-working.
+**CLI structure (issue #92).** `lemperctl` is the preferred installed command.
+Retain `lemper-cli` as a compatibility symlink so existing scripts keep working.
+The implementation filename remains `bin/lemper-cli.sh`.
 
-- `lemper-cli stack install`, `stack remove`, and `stack update` run one
+- `lemperctl stack install`, `stack remove`, and `stack update` run one
   service at a time (Nginx, PHP, MariaDB, Redis/Valkey, PostgreSQL, FTP,
   CrowdSec, Fail2ban, and the rest of the installer set).
-- `lemper-cli stack start|stop|restart|reload|status` controls those
+- `lemperctl stack start|stop|restart|reload|status` controls those
   services. PHP-FPM takes a version option because several branches can be
   installed together.
 - `site create`, `site remove`, and `site update` match the issue's verbs.
@@ -902,7 +902,8 @@ working.
   checksum, installs the CLI and plugins under `/opt/lemper/<version>`, and
   copies `.env.dist` to `/etc/lemper/lemper.conf` only when that file is
   missing. It does not install the stack. The next instruction is to edit
-  that config, then run `lemper-cli stack install`.
+  that config, then run `lemperctl stack install SERVICE` or opt into the
+  shared full recipe with `stack install --all --config FILE`.
 
 **Architecture section 4, still open.** These rows from that section are
 already on the 3.x line and are not part of v4.0: PHP 8.2–8.5, bats plus
@@ -991,7 +992,7 @@ systemd-resolved ACME hooks, opt-in HTTP/3, per-site CORS, resource profiles
 and `nginx-lowend.conf`, SEC-20 … SEC-27, MyGuard nginx, PHP 8.1 removed
 from the default install, `update php --migrate-to`, Adminer 6.2.0, config
 backup, CrowdSec installer, and the Pure-FTPd / VSFTPD fixes
-- **v4.0.0**: issue #92 (`lemper-cli stack` and the new `site` verbs, with
+- **v4.0.0**: issue #92 (`lemperctl stack` and the new `site` verbs, with
 today's commands kept as aliases) and the remaining ARCHITECTURE.md section 4
 work: config schema, splitting `utils.sh`, moving plugins and installers into
 `lib/runtime` and `lib/services`, SSH key-only, nftables, and a pinned
@@ -1065,3 +1066,14 @@ get-lemper bootstrap that stops before the stack install
 | DOC-03   | No agentic guide                                    | Project root                                                  | ✅ Complete |
 | DOC-04   | No roadmap document                                 | Project root                                                  | ✅ Complete |
 | DOC-05   | Stale PHP 5.6-8.0 docs in README                    | `README.md`                                                   | Phase 6 ✅  |
+
+## v4 release preparation status
+
+The v4 entry points now share profile validation and full-stack lifecycle
+orchestration. Bootstrap defaults to CLI-only; an explicit `--install --config`
+selects full installation. A minimal service profile skips optional services
+and panels. The version/tag workflow produces both archive and bootstrap
+checksums. Remaining deeper driver migrations and nftables are follow-up work,
+not claimed as completed by this release.
+
+Validation and publication steps are recorded in [RELEASE_V4.md](RELEASE_V4.md).

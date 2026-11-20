@@ -1,7 +1,7 @@
 # LEMPer — Architecture Document
 
-> **Version:** 2.7.1 → 3.0.0 (proposed)
-> **Last Updated:** 2026-10-22
+> **Version:** 4.0.0 (release preparation; historical audit sections retained)
+> **Last Updated:** 2026-11-20
 > **Author:** Senior Engineering Audit
 
 ---
@@ -13,8 +13,11 @@
 LEMPer (**L**inux **E**ngine-X **M**ariaDB **P**HP — "Installer" or "er") is an open-source,
 Bash-based CLI administration tool that automates deployment, configuration, and ongoing
 management of a LEMP/LEMP-like stack on Debian and Ubuntu Linux servers. It provides both
-an installer (`install.sh` / `lemper.sh`) and a runtime CLI (`lemper-cli`) for managing
+an installer (`install.sh` / `lemper.sh`) and a runtime CLI (`lemperctl`) for managing
 virtual hosts, databases, SSL certificates, and supporting services.
+
+The installed command is `lemperctl`; `lemper-cli` remains a compatibility
+symlink. The implementation filename is still `bin/lemper-cli.sh`.
 
 **Target audience:**
 - System administrators who need to provision PHP hosting servers quickly.
@@ -181,7 +184,7 @@ lemper.sh / install.sh
     │     install_fail2ban.sh        → Fail2ban
     │     install_crowdsec.sh        → CrowdSec HIPS (optional, off by default)
     │     install_bun.sh             → Bun.js runtime (for asset building)
-    │     install_tools.sh           → lemper-cli + web admin tools (site list/show plugins)
+    │     install_tools.sh           → lemperctl + web admin tools (site list/show plugins)
     │     server_optimization.sh     → Swap, sysctl tuning
     │     server_security.sh         → SSH hardening, UFW/CSF/APF
     │
@@ -191,7 +194,7 @@ lemper.sh / install.sh
 #### 2.2.2 CLI (Runtime) Flow
 
 ```
-lemper-cli <command> [subcommand] [options]
+lemperctl <command> [subcommand] [options]
     │
     ├─> requires_root()
     ├─> Load /etc/lemper/lemper.conf (via eval-based sourcing)
@@ -417,7 +420,7 @@ and excluded from the default `PHP_EXTENSIONS` list.
   PHP web app scenarios.
 - **✅ Nginx WAF: ModSecurity v3 + OWASP CRS** (replaced legacy NAXSI).
   CRS paranoia level and anomaly thresholds are tunable via
-  `lemper-cli modsec tune [--auto] --apply`.
+  `lemperctl modsec tune [--auto] --apply`.
 - **✅ SSL: Let's Encrypt (certbot)** with ACME v2 DNS-01 wildcard support.
   Certbot deploy hooks reload Nginx and flush the systemd-resolved cache after renewal.
   Self-signed CA: **RSA 4096-bit**, SHA-256 (upgraded from 2048-bit).
@@ -459,10 +462,11 @@ and excluded from the default `PHP_EXTENSIONS` list.
 ### 3.5 Security Update Path (PHP2Shell)
 
 Legacy hosts bootstrap the updater from a current checkout with `sudo ./update.sh`.
-The bootstrap installs `bin/lemper-cli.sh` to `/usr/local/bin`, installs
-`lib/lemper-update.sh` as `/etc/lemper/cli-plugins/lemper-update`, and records the
-checkout in `/etc/lemper/update-source` so `lemper update lemper` can refresh plugins
-later.
+The bootstrap publishes `/usr/local/bin/lemperctl` with `lemper-cli` compatibility
+links. The implementation stays at `/opt/lemper/current/bin/lemper-cli.sh`, and
+`lib/lemper-update.sh` is exposed as `/etc/lemper/cli-plugins/lemper-update`.
+It records the checkout in `/etc/lemper/update-source` so
+`lemperctl update lemper` can refresh plugins later.
 
 The plugin (`lib/lemper-update.sh`) exposes:
 
@@ -511,6 +515,8 @@ performed as part of this implementation.
 
 ~~~text
 bin/lemper-cli.sh (lemperctl; lemper-cli compatibility alias)
+    → stack ... --all: lib/runtime/stack/entry.sh (profile and lifecycle adapter)
+    → install.sh/remove.sh/update.sh/lemper.sh: same entry adapter
     → shared command registry and command adapters
     → lib/runtime/site/ and lib/runtime/stack/ use cases
     → lib/services/php/, lib/services/nginx/, and systemd driver
@@ -670,9 +676,9 @@ User runs install.sh
 ### 6.2 CLI Runtime Data Flow
 
 ```
-User runs: lemper-cli site add -d example.com -f wordpress
+User runs: lemperctl site add -d example.com -f wordpress
     │
-    ├─> /usr/local/bin/lemper-cli (symlink → bin/lemper-cli.sh)
+    ├─> /usr/local/bin/lemperctl (symlink → /opt/lemper/current/bin/lemper-cli.sh)
     │
     ├─> Load /etc/lemper/lemper.conf via eval sourcing
     │
@@ -721,3 +727,13 @@ User runs: lemper-cli site add -d example.com -f wordpress
 - [Sury PHP Repository](https://packages.sury.org/php/)
 - [MariaDB Repositories](https://mariadb.com/kb/en/mariadb:repositories/)
 - [Let's Encrypt ACME v2](https://letsencrypt.org/docs/)
+
+## v4 release preparation
+
+The preferred full-stack interface is `lemperctl stack install --all --config
+FILE --minimal --yes`. `get-lemper --install --config FILE` selects the same
+validated installation flow; its default remains CLI-only. The four historical
+scripts are compatibility entry points. Runtime modules define functions only;
+legacy source-time behavior is contained by executed adapters.
+
+See [RELEASE_V4.md](RELEASE_V4.md) for artifacts, validation, and publication steps.

@@ -21,7 +21,7 @@ set -e -o pipefail
 
 # Version control.
 export PROG_NAME && PROG_NAME=$(basename "$0")
-export PROG_VERSION && PROG_VERSION="3.6.0"
+export PROG_VERSION && PROG_VERSION="4.0.0"
 export LEMPER_CLI_BIN && LEMPER_CLI_BIN="$0"
 
 # Test mode.
@@ -96,6 +96,29 @@ if [[ "$CLI_HELP" == true || "${1:-}" == help || $# -eq 0 ]]; then
             fi ;;
     esac
     exit 0
+fi
+# Full-stack operations share the entry adapter with compatibility scripts.
+# Route before config loading: first installation accepts an explicit profile.
+if [[ "${1:-}" == stack && "${2:-}" =~ ^(install|remove|update)$ ]]; then
+    CLI_ALL=false
+    CLI_STACK_ARGS=()
+    for CLI_ARGUMENT in "${@:2}"; do
+        if [[ "$CLI_ARGUMENT" == --all ]]; then
+            [[ "$CLI_ALL" == false ]] || { echo "Duplicate --all." >&2; exit 1; }
+            CLI_ALL=true
+        else
+            CLI_STACK_ARGS+=("$CLI_ARGUMENT")
+        fi
+    done
+    if [[ "$CLI_ALL" == true ]]; then
+        export LEMPER_ROOT
+        LEMPER_ROOT=$(cd "$CLI_LIBRARY_DIR/.." && pwd -P) || exit 1
+        export LEMPER_ENTRY_CANONICAL=true
+        # shellcheck source=/dev/null
+        . "$CLI_LIBRARY_DIR/runtime/stack/entry.sh" || exit 1
+        lemper_entry_main "${CLI_STACK_ARGS[@]}"
+        exit $?
+    fi
 fi
 requires_root "$@"
 

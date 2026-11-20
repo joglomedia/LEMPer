@@ -4,11 +4,15 @@ on:
     branches:
       - '2.x.x'
       - '3.x.x'
+      - '4.x.x'
+      - 'release/**'
       - 'master'
   pull_request:
     branches: 
       - '2.x.x'
       - '3.x.x'
+      - '4.x.x'
+      - 'release/**'
       - 'master'
   workflow_dispatch:
 jobs:

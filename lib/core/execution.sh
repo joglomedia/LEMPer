@@ -46,8 +46,8 @@ function lemper_with_lock() {
 function lemper_load_module() {
     local module="$1" root
     case "$module" in
-        runtime/site/commands|runtime/stack/commands|services/php/lifecycle|\
-        services/systemd|compat/components|core/deployment) ;;
+        runtime/site/commands|runtime/stack/commands|services/php/lifecycle|services/php/packages|\
+        services/systemd|services/inventory|compat/components|core/deployment) ;;
         *) error "Unknown library module."; return 1 ;;
     esac
     root=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd) || return 1

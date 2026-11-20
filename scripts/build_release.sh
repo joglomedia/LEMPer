@@ -34,4 +34,8 @@ asset="lemper-v${version}.tar.gz"
 # gzip -n removes the timestamp so repeated builds produce the same checksum.
 git archive --format=tar --prefix="LEMPer-${version}/" HEAD | gzip -n > "${output}/${asset}"
 ( cd "${output}" && sha256sum "${asset}" > "${asset}.sha256" )
+# Publish the pinned bootstrap beside the archive, with its own integrity file.
+git show HEAD:get-lemper > "$output/get-lemper"
+chmod 0755 "$output/get-lemper"
+( cd "$output" && sha256sum get-lemper > get-lemper.sha256 )
 echo "${output}/${asset}"

@@ -118,6 +118,36 @@ function core_init_config() {
     save_log -e "# LEMPer configuration.\n# Edit here if you change your password manually, but do NOT delete!"
 }
 
+# Explicit full-stack installation reconciles its validated effective profile.
+# Existing generated secrets were merged by the entry adapter; keep a protected backup.
+function core_store_install_profile() {
+    local profile="$1" file="/etc/lemper/lemper.conf" temporary backup password
+    validate_config_file "$profile" install || return 1
+    [[ "${DRYRUN:-false}" != true ]] || return 0
+    local existing=false
+    [[ ! -f "$file" ]] || existing=true
+    core_init_config || return 1
+    temporary=$(mktemp /etc/lemper/.install-profile.XXXXXXXX) || return 1
+    if [[ "${ENCRYPT_CONFIG_AT_REST:-false}" == true ]]; then
+        password=$(resolve_config_password) || { rm -f "$temporary"; return 1; }
+        if ! openssl enc -aes-256-cbc -a -salt -md sha256 -pbkdf2 \
+            -pass fd:3 3<<<"$password" -in "$profile" -out "$temporary"; then
+            rm -f "$temporary"; return 1
+        fi
+    else
+        cat "$profile" > "$temporary" || { rm -f "$temporary"; return 1; }
+    fi
+    if [[ "$existing" == true ]]; then
+        backup=$(mktemp /etc/lemper/.pre-install-profile.XXXXXXXX) || { rm -f "$temporary"; return 1; }
+        cp "$file" "$backup" || { rm -f "$temporary" "$backup"; return 1; }
+        chmod 0600 "$backup" || { rm -f "$temporary"; return 1; }
+    fi
+    if ! chmod 0600 "$temporary" || ! mv -f "$temporary" "$file"; then
+        rm -f "$temporary"
+        return 1
+    fi
+}
+
 function core_save_config() {
     if [[ ${DRYRUN} != true ]]; then
         local config_file="/etc/lemper/lemper.conf"

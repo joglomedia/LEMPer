@@ -16,29 +16,44 @@
 # +-------------------------------------------------------------------------+
 
 
-# CLI-only release bootstrap. It never sources installer/service scripts.
+# Default CLI-only release bootstrap; --install delegates to the shared profile entry.
 set -e -o pipefail
 version="" archive="" expected="" prefix="/" base="https://github.com/joglomedia/LEMPer/releases/download"
+install_stack=false profile="" yes=false minimal=false dry=false
 while [[ $# -gt 0 ]]; do
     case "${1}" in
-        --version|--archive|--sha256|--prefix|--release-base-url)
+        --version|--archive|--sha256|--prefix|--release-base-url|--config)
             [[ $# -ge 2 && -n "${2}" ]] || { echo "Missing bootstrap option value." >&2; exit 1; }
             case "${1}" in
                 --version) version="${2}" ;; --archive) archive="${2}" ;;
                 --sha256) expected="${2}" ;; --prefix) prefix="${2}" ;; --release-base-url) base="${2}" ;;
+                --config) profile="${2}" ;;
             esac
             shift 2 ;;
         --version=* ) version="${1#*=}"; shift ;;
+        --install) install_stack=true; shift ;;
+        --config=*) profile="${1#*=}"; shift ;;
+        --yes|-y) yes=true; shift ;;
+        --minimal) minimal=true; shift ;;
+        --dry-run) dry=true; shift ;;
         -h|--help)
             echo "Usage: get-lemper --version VERSION [--sha256 SHA256] [--archive FILE] [--prefix DIRECTORY]"
             echo "Installs only the CLI and plugins. Existing configuration is preserved."
+            echo "Add --install --config FILE [--minimal] [--yes] for a validated full-stack install."
+            echo "--dry-run validates the archive/profile and prints the plan without system changes."
             exit 0 ;;
         *) echo "Unknown bootstrap option." >&2; exit 1 ;;
     esac
 done
 [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]] || { echo "An explicit release version is required." >&2; exit 1; }
 [[ "${prefix}" == /* && "${prefix}" != *$'\n'* ]] || { echo "Installation prefix must be absolute." >&2; exit 1; }
-if [[ "${prefix}" == / && "$(id -u)" -ne 0 ]]; then echo "Run as root to install the CLI." >&2; exit 1; fi
+if [[ "$install_stack" == true ]]; then
+    [[ "$prefix" == / && -n "$profile" && -r "$profile" ]] ||
+        { echo "--install requires --config FILE and the system prefix /." >&2; exit 1; }
+elif [[ -n "$profile" || "$minimal" == true || "$yes" == true ]]; then
+    echo "Profile/minimal/yes options require --install." >&2
+    exit 1
+fi
 work=$(mktemp -d)
 trap 'rm -rf "${work}"' EXIT
 asset="lemper-v${version}.tar.gz"
@@ -58,7 +73,7 @@ actual=$(sha256sum "${archive}" | awk '{print $1}')
 # legacy orchestrator symlink is allowed. Arbitrary links remain forbidden.
 tar -tzf "${archive}" > "${work}/members"
 while IFS= read -r member; do
-    [[ "${member}" =~ ^[A-Za-z0-9_./-]+$ && "${member}" == "LEMPer-${version}/"* ]] ||
+    [[ "${member}" =~ ^[A-Za-z0-9_./@-]+$ && "${member}" == "LEMPer-${version}/"* ]] ||
         { echo "Unsafe release archive member." >&2; exit 1; }
     case "/${member}/" in */../*|*/./*) echo "Archive traversal refused." >&2; exit 1 ;; esac
 done < "${work}/members"
@@ -72,6 +87,38 @@ source="${work}/LEMPer-${version}"
 [[ -f "${source}/bin/lemper-cli.sh" && -f "${source}/lib/core/loader.sh" &&
    -f "${source}/.env.dist" && -f "${source}/scripts/utils.sh" ]] || { echo "Incomplete CLI release." >&2; exit 1; }
 bash -n "${source}/bin/lemper-cli.sh"
+declared=$(sed -n 's/.*PROG_VERSION="\([^"]*\)".*/\1/p' "$source/bin/lemper-cli.sh" | head -n 1)
+[[ "$declared" == "$version" ]] || { echo "Release version does not match CLI version."; exit 1; }
+stack_args=()
+if [[ "$install_stack" == true ]]; then
+    [[ -f "$source/install.sh" && -f "$source/lib/runtime/stack/entry.sh" ]] ||
+        { echo "This release has no full-stack bootstrap."; exit 1; }
+    profile=$(realpath "$profile") || exit 1
+    stack_args=(--config "$profile")
+    [[ "$yes" != true ]] || stack_args+=(--yes)
+    [[ "$minimal" != true ]] || stack_args+=(--minimal)
+    # Trusted release functions validate the effective profile before CLI activation.
+    # shellcheck source=/dev/null
+    . "$source/lib/core/loader.sh" || exit 1
+    # shellcheck source=/dev/null
+    . "$source/lib/runtime/stack/entry.sh" || exit 1
+    effective_profile="$work/effective-profile"
+    touch "$effective_profile" && chmod 0600 "$effective_profile"
+    export DRYRUN=false
+    lemper_entry_profile "$source" "$profile" "$effective_profile" install "$yes" "$minimal" || exit 1
+    while IFS=$'\t' read -r profile_key profile_value; do
+        [[ "$profile_key" != DRYRUN || "$profile_value" != true ]] || dry=true
+    done < <(safe_parse_dotenv "$effective_profile")
+fi
+if [[ "$dry" == true ]]; then
+    if [[ "$install_stack" == true ]]; then
+        bash "$source/install.sh" "${stack_args[@]}" --dry-run
+    else
+        echo "Would install LEMPer $version CLI under $prefix; no system changes."
+    fi
+    exit $?
+fi
+if [[ "$prefix" == / && "$(id -u)" -ne 0 ]]; then echo "Run as root to install the CLI." >&2; exit 1; fi
 prefix="${prefix%/}"
 destination="${prefix}/opt/lemper/${version}"
 if [[ -e "${destination}" ]]; then
@@ -91,10 +138,14 @@ configuration="${prefix}/etc/lemper"
 . "$destination/lib/core/deployment.sh"
 function error() { printf '%s\n' "$*" >&2; }
 lemper_cli_activate "$destination" "$prefix" || exit 1
-if [[ ! -e "$configuration/lemper.conf" ]]; then
+if [[ ! -e "$configuration/lemper.conf" && "$install_stack" == false ]]; then
     install -m 0600 "$destination/.env.dist" "$configuration/lemper.conf"
 fi
 printf '%s\n' "$destination" > "$configuration/update-source"
 chmod 0600 "$configuration/update-source"
 echo "LEMPer $version CLI installed."
-echo "Edit /etc/lemper/lemper.conf, then run: lemperctl stack install <service>"
+if [[ "$install_stack" == true ]]; then
+    bash "$destination/install.sh" "${stack_args[@]}"
+else
+    echo "Edit /etc/lemper/lemper.conf, then run: lemperctl stack install <service>"
+fi

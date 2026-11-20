@@ -18,15 +18,53 @@
 
 
 function lemper_recipe_components() {
-    local action="$1" service installer remover _units _key _family component php_before version
+    local action="$1" service installer remover _units _key _family component php_before version preexisting
+    local PHP_VERSIONS="${PHP_VERSIONS:-8.5}" REDIS_BACKEND="${REDIS_BACKEND:-redis}"
+    local FTP_SERVER_NAME="${FTP_SERVER_NAME:-pureftpd}"
+    local selected_php="" marker nginx_removed=false
     # shellcheck source=/dev/null
     . "$BASE_DIR/lib/core/registry.sh" || return 1
+    lemper_load_module services/inventory || return 1
     while IFS= read -r service; do
         [[ "$service" != ftp ]] || service="${FTP_SERVER_NAME:-pureftpd}"
+        [[ "$action" != install || "$service" != redis ]] || service="$REDIS_BACKEND"
         read -r installer remover _units _key _family < <(lemper_component_spec "$service")
         [[ -n "$installer" ]] || return 1
+        if [[ "$action" == install && "$_key" != - && "${!_key:-false}" != true ]]; then
+            continue
+        fi
+        if [[ "$action" == remove && "${FORCE_REMOVE:-false}" != true ]]; then
+            if [[ "$service" == php ]]; then
+                selected_php=""
+                for marker in "${LEMPER_INSTALLED_DIR:-/etc/lemper/installed}"/php-*; do
+                    [[ -f "$marker" && ! -L "$marker" ]] || continue
+                    version="${marker##*/php-}"
+                    [[ "$version" =~ ^[5-8]\.[0-9]$ ]] || continue
+                    selected_php+=" $version"
+                done
+                [[ -n "$selected_php" ]] || continue
+                PHP_VERSIONS="$selected_php"
+                lemper_load_module services/php/lifecycle || return 1
+                if [[ "$nginx_removed" == false ]]; then
+                    for version in $PHP_VERSIONS; do
+                        lemper_php_check_references "$version" || return 1
+                    done
+                fi
+            elif ! lemper_provisioned "$service"; then
+                info "Preserving component without provisioning marker: $service."
+                continue
+            fi
+        fi
+        preexisting=false
+        if [[ "$action" == install && "$service" != php ]] && lemper_component_present "$service"; then
+            preexisting=true
+        fi
         [[ "$action" != remove || "$remover" != - ]] || continue
         if [[ "$action" == install ]]; then component="$installer"; else component="$remover"; fi
+        case "$service" in
+            redis|valkey) REDIS_BACKEND="$service" ;;
+            pureftpd|vsftpd) FTP_SERVER_NAME="$service" ;;
+        esac
         component="$BASE_DIR/scripts/${action}_$component.sh"
         [[ -f "$component" ]] || { error "Recipe component missing: $component"; return 1; }
         php_before=""
@@ -37,6 +75,18 @@ function lemper_recipe_components() {
         # Components are checked independently; existing enable flags remain authoritative.
         # shellcheck source=/dev/null
         . "$component" || return 1
+        if [[ "$action" == remove && "$service" == nginx ]]; then
+            # Keep ownership until the full recipe completes, including failed/retried teardown.
+            mark_lemper_provisioned nginx || return 1
+            if ! systemctl is-active --quiet nginx >/dev/null 2>&1 && ! pgrep -x nginx >/dev/null; then
+                # Retained rollback configuration is not served by this stopped owned server.
+                nginx_removed=true
+            fi
+        fi
+        if [[ "$action" == install && "$service" != php && "$preexisting" == false &&
+              "${DRYRUN:-false}" != true ]] && lemper_component_present "$service"; then
+            mark_lemper_provisioned "$service" || return 1
+        fi
         if [[ "$action" == install && "$service" == php && "${INSTALL_PHP:-false}" == true && "${DRYRUN:-false}" != true ]]; then
             while IFS= read -r version; do
                 [[ -n "$version" ]] || continue
@@ -55,25 +105,29 @@ function lemper_install() {
     echo "Please ensure that you're on a fresh install!"
     echo -e "\nPress [Ctrl+C] to abort the installation process."
 
-    sleep 3
-
     if [[ "${AUTO_INSTALL}" != true ]]; then
+        sleep 3
         echo ""
         read -t 60 -rp "Press [Enter] to continue..." </dev/tty
     fi
 
     # Init log.
+    if [[ "$LOG_FILE" == ./install.log ]]; then
+        run mkdir -p /var/log/lemper
+        LOG_FILE=/var/log/lemper/install.log
+        set_env_value "$ENVFILE" LOG_FILE "$LOG_FILE" || return 1
+    fi
     run init_log
 
     # Init config.
-    run init_config
+    core_store_install_profile "$ENVFILE" || return 1
 
     ### Install dependencies packages ###
     if [ -f "${BASE_DIR}/scripts/install_dependencies.sh" ]; then
         echo ""
         # Component scripts are checked independently; keep this orchestrator lint bounded.
         # shellcheck source=/dev/null
-        . "${BASE_DIR}/scripts/install_dependencies.sh"
+        . "${BASE_DIR}/scripts/install_dependencies.sh" || return 1
     fi
 
     ### Server clean-up ###
@@ -81,13 +135,17 @@ function lemper_install() {
         echo ""
         # Component scripts are checked independently; keep this orchestrator lint bounded.
         # shellcheck source=/dev/null
-        . "${BASE_DIR}/scripts/server_cleanup.sh"
+        . "${BASE_DIR}/scripts/server_cleanup.sh" || return 1
     fi
 
     ### Create default account ###
     echo ""
     LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
-    create_account "${LEMPER_USERNAME}"
+    local account_present=false swap_present=false
+    getent passwd "$LEMPER_USERNAME" >/dev/null && account_present=true
+    [[ ! -e /swapfile ]] || swap_present=true
+    create_account "${LEMPER_USERNAME}" || return 1
+    [[ "$account_present" == true ]] || mark_lemper_provisioned "account-$LEMPER_USERNAME" || return 1
 
     lemper_recipe_components install || return 1
 
@@ -95,7 +153,10 @@ function lemper_install() {
         echo ""
         # Component scripts are checked independently; keep this orchestrator lint bounded.
         # shellcheck source=/dev/null
-        . "${BASE_DIR}/scripts/server_optimization.sh"
+        . "${BASE_DIR}/scripts/server_optimization.sh" || return 1
+        if [[ "$swap_present" == false && -e /swapfile && "${ENABLE_SWAP:-false}" == true ]]; then
+            mark_lemper_provisioned swap || return 1
+        fi
     fi
 
     ### Basic server security setup ###
@@ -103,7 +164,7 @@ function lemper_install() {
         echo ""
         # Component scripts are checked independently; keep this orchestrator lint bounded.
         # shellcheck source=/dev/null
-        . "${BASE_DIR}/scripts/server_security.sh"
+        . "${BASE_DIR}/scripts/server_security.sh" || return 1
     fi
 
     ### FINAL SETUP ###
@@ -193,7 +254,8 @@ function lemper_remove() {
         done
     fi
 
-    if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* || "${FORCE_REMOVE}" == true ]]; then
+    if [[ ( "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* ) &&
+          -f "/etc/lemper/installed/account-$LEMPER_USERNAME" || "${FORCE_REMOVE}" == true ]]; then
         if [[ "$(type -t delete_account)" == "function" ]]; then
             delete_account "${LEMPER_USERNAME}"
         fi
@@ -211,16 +273,15 @@ function lemper_remove() {
         done
     fi
 
-    if [[ "${REMOVE_SWAP}" == Y* || "${REMOVE_SWAP}" == y* || "${FORCE_REMOVE}" == true ]]; then
+    if [[ ( "${REMOVE_SWAP}" == Y* || "${REMOVE_SWAP}" == y* ) &&
+          -f /etc/lemper/installed/swap || "${FORCE_REMOVE}" == true ]]; then
         if [[ "$(type -t remove_swap)" == "function" ]]; then
             remove_swap
         fi
     fi
 
     ### Remove web tools ###
-    [ -L /usr/local/bin/lemperctl ] && run rm -f /usr/local/bin/lemperctl
-    [ -e /usr/bin/lemper-cli ] && run rm -f /usr/bin/lemper-cli
-    [ -f /usr/local/bin/lemper-cli ] && run rm -f /usr/local/bin/lemper-cli
+    run rm -f /usr/local/bin/lemperctl /usr/local/bin/lemper-cli /usr/bin/lemper-cli
     [ -d /usr/local/lib/lemper ] && run rm -fr /usr/local/lib/lemper
     [ -d /usr/share/nginx/html/lcp ] && run rm -fr /usr/share/nginx/html/lcp
 

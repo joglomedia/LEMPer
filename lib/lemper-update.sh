@@ -1613,7 +1613,9 @@ function update_lemper_tooling() {
     . "$src/lib/core/registry.sh" || return 1
     # shellcheck source=/dev/null
     . "$src/lib/core/deployment.sh" || return 1
-    lemper_cli_snapshot "$src" || return 1
+    if [[ "${LEMPER_TOOLING_ALREADY_INSTALLED:-false}" != true ]]; then
+        lemper_cli_snapshot "$src" || return 1
+    fi
 
     printf '%s\n' "${src}" > "${LEMPER_UPDATE_SOURCE_FILE}"
     chmod 0600 "${LEMPER_UPDATE_SOURCE_FILE}"

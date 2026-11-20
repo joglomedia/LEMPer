@@ -142,21 +142,24 @@ function install_php() {
         PHP_EXTS=($(printf "%s\n" "${PHP_EXTS[@]}" | grep -vx 'opcache' | tr '\n' ' '))
     fi
 
-    # Resolve additional PHP extensions against the distribution repository.
+    # Exact package metadata is faster than repeated repository-wide searches.
+    lemper_load_module services/php/packages || return 1
+    local extension_package
+    # Resolve extensions only for this runtime, including bundled package aliases.
     for EXT_NAME in "${PHP_EXTS[@]}"; do
         echo -n "Checking extension ${EXT_NAME}... "
 
-        if apt-cache search "php${PHPv}-${EXT_NAME}" | grep -c "php${PHPv}-${EXT_NAME}" > /dev/null; then
-            echo "[php${PHPv}-${EXT_NAME}]"
-            PHP_REPO_EXTS+=("php${PHPv}-${EXT_NAME}")
-        elif apt-cache search "php-${EXT_NAME}" | grep -c "php-${EXT_NAME}" > /dev/null; then
-            echo "[php-${EXT_NAME}]"
-            PHP_REPO_EXTS+=("php-${EXT_NAME}")
+        if extension_package=$(lemper_php_extension_package "$PHPv" "$EXT_NAME"); then
+            echo "[$extension_package]"
+            PHP_REPO_EXTS+=("$extension_package")
         else
             echo "[not available]"
             PHP_MISSING_EXTS+=("${EXT_NAME}")
         fi
     done
+    if [[ "${#PHP_REPO_EXTS[@]}" -gt 0 ]]; then
+        mapfile -t PHP_REPO_EXTS < <(printf '%s\n' "${PHP_REPO_EXTS[@]}" | sort -u)
+    fi
 
     if [[ "${PHP_ALREADY_INSTALLED}" == true ]]; then
         # Reconcile extensions added to PHP_EXTENSIONS after the initial install.
@@ -173,7 +176,7 @@ function install_php() {
 
         if [[ "${#PHP_REPO_EXTS[@]}" -gt 0 ]]; then
             run_spinner "Installing PHP ${PHPv}" apt-get install -q -y "php${PHPv}" "${PHP_REPO_EXTS[@]}" \
-                php-common php-xml fcgiwrap spawn-fcgi
+                php-common "php${PHPv}-xml" fcgiwrap spawn-fcgi
         fi
 
         if [[ -n $(command -v "php${PHPv}") ]]; then

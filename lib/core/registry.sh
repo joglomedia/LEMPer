@@ -59,7 +59,7 @@ function lemper_component_ids() {
 }
 function lemper_component_spec() {
     case "${1}" in
-        phalcon) echo 'phalcon - - INSTALL_PHP php' ;;
+        phalcon) echo 'phalcon - - INSTALL_PHP_PHALCON php' ;;
         pure-ftpd) lemper_component_spec pureftpd ;;
         nginx) echo 'nginx nginx nginx INSTALL_NGINX nginx' ;;
         php) echo 'php php PHP INSTALL_PHP php' ;;
@@ -89,8 +89,8 @@ function lemper_component_recipe() {
     case "$1" in
         install) printf '%s\n' certbot nginx php phalcon mariadb postgres redis mongodb \
             memcached imagemagick mailer ftp fail2ban crowdsec modsec tools bun ;;
-        remove) printf '%s\n' nginx mariadb postgres php redis mongodb memcached mailer \
-            ftp fail2ban crowdsec modsec certbot bun ;;
+        remove) printf '%s\n' nginx mariadb postgres php imagemagick redis valkey mongodb memcached mailer \
+            pureftpd vsftpd fail2ban crowdsec modsec certbot bun ;;
         *) return 1 ;;
     esac
 }

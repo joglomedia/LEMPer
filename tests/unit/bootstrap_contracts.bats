@@ -2,13 +2,14 @@
 setup() {
     export REAL_BASE_DIR="${BATS_TEST_DIRNAME}/../.."
     export TEST_TMPDIR="${BATS_TEST_TMPDIR}"
-    export RELEASE_VERSION=3.6.0
+    export RELEASE_VERSION=4.0.0
     export STAGE="${TEST_TMPDIR}/stage/LEMPer-${RELEASE_VERSION}"
     export ARCHIVE="${TEST_TMPDIR}/release.tar.gz"
     export PREFIX="${TEST_TMPDIR}/installed"
     mkdir -p "${STAGE}"
     cp -R "${REAL_BASE_DIR}/bin" "${REAL_BASE_DIR}/lib" "${REAL_BASE_DIR}/scripts" "${STAGE}/"
     cp "${REAL_BASE_DIR}/.env.dist" "${STAGE}/.env.dist"
+    cp "$REAL_BASE_DIR/install.sh" "$STAGE/install.sh"
 }
 make_archive() {
     tar -czf "${ARCHIVE}" -C "${TEST_TMPDIR}/stage" "LEMPer-${RELEASE_VERSION}"
@@ -48,6 +49,38 @@ bootstrap_run() {
     [[ "${output}" == *"checksum mismatch"* ]]
     [ ! -e "${PREFIX}" ]
 }
+
+@test "bootstrap CLI dry run validates the release without creating a prefix" {
+    make_archive
+    run bash "$REAL_BASE_DIR/get-lemper" --version "$RELEASE_VERSION" --archive "$ARCHIVE" \
+        --sha256 "$RELEASE_SHA" --prefix "$PREFIX" --dry-run
+    [ "$status" -eq 0 ]
+    [ ! -e "$PREFIX" ]
+}
+
+@test "bootstrap full-stack dry run accepts a configured profile without activating CLI code" {
+    printf 'SSH_PASSWORDLESS=false\nDRYRUN=true\n' > "$TEST_TMPDIR/profile"
+    make_archive
+    run bash "$REAL_BASE_DIR/get-lemper" --version "$RELEASE_VERSION" --archive "$ARCHIVE" \
+        --sha256 "$RELEASE_SHA" --install --config "$TEST_TMPDIR/profile" --minimal --yes
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"no system changes"* && "$output" == *"mariadb"* ]]
+    [ ! -e /opt/lemper/4.0.0 ]
+}
+
+@test "bootstrap rejects full-stack prefix overrides and a mislabeled release" {
+    make_archive
+    run bash "$REAL_BASE_DIR/get-lemper" --version "$RELEASE_VERSION" --archive "$ARCHIVE" \
+        --sha256 "$RELEASE_SHA" --prefix "$PREFIX" --install --config "$STAGE/.env.dist"
+    [ "$status" -ne 0 ]
+    [ ! -e "$PREFIX" ]
+    sed -i 's/PROG_VERSION="4.0.0"/PROG_VERSION="3.6.0"/' "$STAGE/bin/lemper-cli.sh"
+    make_archive
+    bootstrap_run
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Release version does not match"* ]]
+    [ ! -e "$PREFIX" ]
+}
 @test "bootstrap rejects archive symlinks and traversal before extraction" {
     ln -s /etc "${STAGE}/unsafe-link"
     make_archive
@@ -62,21 +95,33 @@ bootstrap_run() {
     [ "${status}" -ne 0 ]
     [ ! -e "${PREFIX}" ]
 }
+
+@test "bootstrap accepts ordinary systemd template filenames in complete releases" {
+    mkdir -p "$STAGE/etc/systemd"
+    printf '[Unit]\nDescription=Fixture\n' > "$STAGE/etc/systemd/memcached@.service"
+    make_archive
+    bootstrap_run
+    [ "$status" -eq 0 ]
+    [ -f "$PREFIX/opt/lemper/$RELEASE_VERSION/etc/systemd/memcached@.service" ]
+}
 @test "release builder produces repeatable checksummed archives and refuses mismatched versions" {
     local root="${TEST_TMPDIR}/repo"
     mkdir -p "${root}/scripts" "${root}/bin"
     cp "${REAL_BASE_DIR}/scripts/build_release.sh" "${root}/scripts/"
-    printf 'PROG_VERSION="3.6.0"\n' > "${root}/bin/lemper-cli.sh"
-    printf '## [3.6.0]\n' > "${root}/CHANGELOG.md"
+    cp "${REAL_BASE_DIR}/get-lemper" "${root}/get-lemper"
+    printf 'PROG_VERSION="4.0.0"\n' > "${root}/bin/lemper-cli.sh"
+    printf '## [4.0.0]\n' > "${root}/CHANGELOG.md"
     git init -q "${root}"
     git -C "${root}" add .
     git -C "${root}" -c user.name=Fixture -c user.email=fixture@example.test -c core.hooksPath=/dev/null commit -qm fixture
-    run bash "${root}/scripts/build_release.sh" 3.6.0 "${TEST_TMPDIR}/out1"
+    run bash "${root}/scripts/build_release.sh" 4.0.0 "${TEST_TMPDIR}/out1"
     [ "${status}" -eq 0 ]
-    run bash "${root}/scripts/build_release.sh" 3.6.0 "${TEST_TMPDIR}/out2"
+    run bash "${root}/scripts/build_release.sh" 4.0.0 "${TEST_TMPDIR}/out2"
     [ "${status}" -eq 0 ]
-    cmp "${TEST_TMPDIR}/out1/lemper-v3.6.0.tar.gz" "${TEST_TMPDIR}/out2/lemper-v3.6.0.tar.gz"
-    run bash "${root}/scripts/build_release.sh" 4.0.0 "${TEST_TMPDIR}/out3"
+    cmp "${TEST_TMPDIR}/out1/lemper-v4.0.0.tar.gz" "${TEST_TMPDIR}/out2/lemper-v4.0.0.tar.gz"
+    run bash -c 'cd "$1" && sha256sum -c get-lemper.sha256' _ "$TEST_TMPDIR/out1"
+    [ "$status" -eq 0 ]
+    run bash "${root}/scripts/build_release.sh" 3.6.0 "${TEST_TMPDIR}/out3"
     [ "${status}" -ne 0 ]
     [[ "${output}" == *"does not match"* ]]
 }

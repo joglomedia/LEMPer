@@ -1,7 +1,7 @@
 # LEMPer Developer Guide
 
-> **Version:** 3.6.0 + unreleased P1 implementation
-> **Last Updated:** 2026-10-22
+> **Version:** 4.0.0 (release preparation)
+> **Last Updated:** 2026-11-20
 > **Target Audience:** Contributors, maintainers, and developers working on LEMPer.
 
 ---
@@ -48,6 +48,10 @@ belong in disposable Linux environments. get-lemper --prefix DIRECTORY permits
 bootstrap staging in a fixture without changing system paths.
 
 ## 2. Project Structure
+
+The installed command is `lemperctl`; `lemper-cli` remains a compatibility alias.
+Its implementation is still `bin/lemper-cli.sh`. Use `lemperctl` in current
+command examples and retain the existing filename in source and lint references.
 
 See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full architecture overview. The key
 directories for development:
@@ -229,6 +233,25 @@ the generated CA for TLS verification.
 Per-case logs stay under `/var/log/lemper-uat/cli`.
 See [UAT_REPORT.md](docs/UAT_REPORT.md) for recorded results and environment limitations.
 
+For the v4 release bootstrap, first build the assets into `dist/v4.0.0/`
+from the reviewed committed checkout, then run the fresh-container acceptance
+script. It installs the archive through `get-lemper` and removes the stack at
+the end; use a new explicitly designated container.
+
+~~~bash
+bash scripts/build_release.sh 4.0.0 dist/v4.0.0
+podman run -d --name lemper-v4-release-uat --privileged --systemd=always \
+  --cgroupns=private --hostname lemper-v4-release.test --cpus 2 --memory 3g \
+  --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" localhost/lemper-uat:ubuntu24
+podman exec -e LEMPER_UAT_NGINX_INSTALLER=source lemper-v4-release-uat \
+  bash /source/tests/uat/prepare.sh
+podman exec lemper-v4-release-uat bash /source/tests/uat/v4_acceptance.sh
+podman stop --time 10 lemper-v4-release-uat
+~~~
+
+See [RELEASE_V4.md](docs/RELEASE_V4.md) for the final v4 results and artifact
+publication steps.
+
 #### 3.4.5 macOS vs Linux Portability Gotchas
 
 | Construct | macOS (BSD) | Linux (GNU) | Portable Alternative |
@@ -388,7 +411,7 @@ stub `requires_root`; point `PHP_ETC_DIR` at a temp tree and export
 
 ```bash
 requires_root() { :; }
-PROG_NAME="lemper-cli"
+PROG_NAME="lemperctl"
 LEMPER_UPDATE_LIB_ONLY=true
 . "${REAL_BASE_DIR}/lib/lemper-update.sh"
 php_mitigate_pool_file "${pool}" 8.4
@@ -403,8 +426,8 @@ classification, and idempotent pool-rewrite coverage.
 # tests/integration/site_create.bats
 #!/usr/bin/env bats
 
-@test "lemper-cli site add creates vhost config" {
-    run lemper-cli site add -d test.example -f default -w /tmp/test-webroot
+@test "lemperctl site add creates vhost config" {
+    run lemperctl site add -d test.example -f default -w /tmp/test-webroot
     [ "$status" -eq 0 ]
     [ -f /etc/nginx/sites-available/test.example.conf ]
 }
@@ -433,14 +456,14 @@ To add a new component (e.g., `newtool`):
 3. **Add config**: Add `[newtool]` section to `.env.dist` with
    `INSTALL_NEWTOOL=false` default.
 4. **Wire into stacks**: Add sourcing blocks to
-   `lib/core/lemper-stacks.sh` in both `lemper_install()` and
-   `lemper_remove()`.
+   `lib/core/registry.sh` for component metadata and install/remove recipes.
+   `lib/runtime/stack/entry.sh` owns profile parsing; `recipe.sh` owns full-stack orchestration.
 5. **CI**: Add `sed` line in `.github/workflows/main.yml` to toggle the
    flag for testing.
 
 ### 5.7 Adding New CLI Subcommands
 
-To add a new CLI subcommand (e.g., `lemper-cli db backup`):
+To add a new CLI subcommand (e.g., `lemperctl db backup`):
 
 1. **Create plugin file**: `lib/lemper-<command>-<subcmd>.sh` with
    `init_lemper_<command>_<subcmd>()` function.
@@ -643,13 +666,24 @@ LEMPer uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 
 ### 10.2 Release Steps
 
-1. Create a release branch: `git checkout -b release/v3.0.0`
-2. Update version strings in all files (`PROG_VERSION="3.0.0"`)
-3. Update changelog (`CHANGELOG.md`)
-4. Run full test suite
-5. Merge to `master` and tag: `git tag -a v3.0.0 -m "Release v3.0.0"`
-6. Push tag: `git push origin v3.0.0`
-7. Create GitHub Release with changelog
+1. Prepare a `release/v4.0.0` branch and commit the reviewed working tree.
+2. Ensure `bin/lemper-cli.sh` declares `PROG_VERSION="4.0.0"` and
+   `CHANGELOG.md` contains the v4 entry; set its release date when publishing.
+3. Run the Linux checks and fresh-container bootstrap UAT described in
+   [the v4 release guide](docs/RELEASE_V4.md).
+4. From a clean committed checkout, build locally:
+
+   ```bash
+   bash scripts/build_release.sh 4.0.0 /tmp/lemper-release-v4
+   ```
+
+   The builder produces the archive, archive SHA256, `get-lemper`, and bootstrap
+   SHA256. It refuses dirty checkouts and mismatched versions.
+5. Review the artifacts and release limitations. After publishing is authorized,
+   push the reviewed release commit and annotated `v4.0.0` tag. The tag workflow
+   repeats lint/Bats checks and publishes all four assets.
+6. Verify the published checksums and README one-line commands on a fresh
+   disposable server before announcing the release.
 
 ---
 
@@ -705,3 +739,19 @@ Code installation uses `lib/core/deployment.sh`. Config backup excludes code
 compatibility links and retains ownership metadata. Distinguish supported PHP
 installation targets from installed management/removal targets. Run
 `tests/unit/alignment_contracts.bats` and required checks when changing contracts.
+
+## v4 stack installation entry points
+
+`install.sh`, `remove.sh`, `update.sh`, and `lemper.sh` delegate to
+`lib/runtime/stack/entry.sh`. Public `lemperctl stack ... --all` operations use
+that same adapter before installed configuration is required. Per-service
+commands retain their driver and ownership checks. Legacy installer flags and
+updater setup are isolated in function-only `lib/compat/installer.sh` and
+`updater.sh` modules; execution is contained in child shells.
+
+Profiles merge defaults and installed credentials, then explicit settings.
+Empty template secrets do not erase generated credentials. `--yes` participates
+in SSH-key validation; `--dry-run` and profile `DRYRUN=true` return before any
+host initialization. Explicit installs back up and store their effective profile.
+`--minimal` disables optional services and `INSTALL_WEB_ADMIN`, without changing
+SSH or firewall choices. Disabled component scripts are not sourced.

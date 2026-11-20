@@ -54,6 +54,10 @@ function init_tools_install() {
 
     [ -x /usr/local/bin/lemper-cli ] && echo_ok "OK"
 
+    if [[ "${INSTALL_WEB_ADMIN:-true}" == false ]]; then
+        success "LEMPer CLI installed; web administration panels are disabled."
+        return 0
+    fi
 
     # Install Database Adminer.
     

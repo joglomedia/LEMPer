@@ -22,8 +22,12 @@ function stack_help() {
     cat <<EOF
 ${CMD_PARENT:-lemperctl} stack ${PROG_VERSION:-}
 Usage: ${CMD_PARENT:-lemperctl} stack <install|remove|update|start|stop|restart|reload|status> <service> [options]
+       ${CMD_PARENT:-lemperctl} stack <install|remove|update> --all [--config FILE] [--yes] [--dry-run]
 Services: $(lemper_component_ids | tr '\n' ' ')
 Options:
+  --all                 Run the configured full-stack recipe (install/remove/update).
+  --config FILE         Profile for a full-stack operation.
+  --minimal             Minimal full install; optional services/web panels disabled.
   --php-version VERSION  Limit the operation to one installed PHP version.
   --all-versions         Explicitly select all installed PHP versions.
   --source-dir PATH      Component source checkout.
@@ -54,7 +58,7 @@ function stack_source_root() {
 
 function lemper_stack_execute() {
     local action="$1" service="$2" php="$3" source="$4" yes="$5" force="$6"
-    local installer remover units key family unit component preexisting=false binary marker
+    local installer remover units key family unit component preexisting=false marker
     read -r installer remover units key family < <(stack_service_spec "$service")
     [[ -n "$installer" ]] || return 1
     local state="${LEMPER_INSTALLED_DIR:-/etc/lemper/installed}"
@@ -86,23 +90,8 @@ function lemper_stack_execute() {
                 component="$source/scripts/install_$installer.sh"
             fi
             [[ -f "$component" ]] || { error "Component script is missing."; return 1; }
-            binary="${units%%,*}"
-            case "$service" in
-                php) binary="php$php" ;;
-                postgres|postgresql) binary=psql ;;
-                mariadb|mysql) binary=mariadb ;;
-                bun) binary=bun ;;
-                certbot) binary=certbot ;;
-            esac
-            if [[ "$action" == install ]] && command -v "$binary" >/dev/null 2>&1; then
+            if [[ "$action" == install ]] && lemper_component_present "$service" "$php"; then
                 preexisting=true
-            fi
-            if [[ "$action" == install && "$family" != - ]]; then
-                local package state_text
-                while IFS=$'\t' read -r package state_text; do
-                    [[ "$state_text" == 'install ok installed' ]] && preexisting=true
-                done < <(dpkg-query -W -f='${binary:Package}\t${Status}\n' \
-                    "$([[ "$service" == php ]] && printf 'php%s-*' "$php" || printf '%s*' "$family")" 2>/dev/null)
             fi
             stack_run_component "$action" "$service" "$source" "$php" "$key" "$component" "$force" || return 1
             if [[ "${DRYRUN:-false}" != true ]]; then
@@ -190,6 +179,7 @@ function init_lemper_stack() {
     esac
     stack_service_spec "$service" >/dev/null || return 1
     lemper_load_module services/systemd || return 1
+    lemper_load_module services/inventory || return 1
     lemper_load_module compat/components || return 1
     if [[ "$service" == php ]]; then
         lemper_load_module services/php/lifecycle || return 1
