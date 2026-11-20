@@ -18,6 +18,7 @@
 # Version control.
 CMD_PARENT="${PROG_NAME}"
 CMD_NAME="site"
+export CMD_PARENT CMD_NAME
 
 # Make sure only root can access and not direct access.
 if [[ "$(type -t requires_root)" != "function" ]]; then
@@ -25,63 +26,25 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
+# Load shared argument/validation helpers when this plugin is sourced in isolation.
+if ! declare -F lemper_load_module >/dev/null; then
+    PLUGIN_SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    if [[ -f "${PLUGIN_SOURCE_DIR}/core/loader.sh" ]]; then
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/core/loader.sh" || return 1
+    else
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/../core/loader.sh" || return 1
+    fi
+fi
+
+
+
 if [ -z "${CLI_PLUGINS_DIR}" ]; then
     CLI_PLUGINS_DIR="/etc/lemper/cli-plugins"
 fi
 
-function site_subcmd_help() {
-    cmd_help
-}
-
-function site_subcmd_version() {
-    cmd_version
-}
-
-##
-# LEMPer CLI 'site' subcommand wrapper.
-#
-# Usage:
-#   lemper-cli site <command> [options] [<args>...]
-##
-function init_lemper_site() {
-    # Check command line arguments.
-    if [[ -n "${1}" ]]; then
-        CMD="${1}"
-        shift # Pass the remaining arguments to the next subcommand.
-
-        case ${CMD} in
-            help | -h | --help)
-                site_subcmd_help
-                exit 0
-            ;;
-            version | -v | --version)
-                site_subcmd_version
-                exit 0
-            ;;
-            *)
-                if declare -f "site_subcmd_${CMD}" &>/dev/null 2>&1; then
-                    # Run subcommand function if exists.
-                    "site_subcmd_${CMD}" "$@"
-                    exit 0
-                elif [[ -x "${CLI_PLUGINS_DIR}/lemper-site-${CMD}" ]]; then
-                    # Source the plugin executable file.
-                    # shellcheck disable=SC1090
-                    . "${CLI_PLUGINS_DIR}/lemper-site-${CMD}" "$@"
-                    exit 0
-                else
-                    echo "${CMD_PARENT} ${CMD_NAME}: '${CMD}' is not ${CMD_NAME} subcommand"
-                    echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information"
-                    exit 1
-                fi
-            ;;
-        esac
-    else
-        echo "${CMD_PARENT} ${CMD_NAME}: missing required arguments"
-        echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information"
-        exit 1
-    fi
-}
-
-# Start running things from a call at the end so if this script is executed
-# after a partial download it doesn't do anything.
+lemper_load_module runtime/site/commands || return 1
 init_lemper_site "$@"

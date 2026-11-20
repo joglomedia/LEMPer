@@ -31,6 +31,22 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
+# Load shared argument/validation helpers when this plugin is sourced in isolation.
+if ! declare -F lemper_parse_args >/dev/null; then
+    PLUGIN_SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    if [[ -f "${PLUGIN_SOURCE_DIR}/core/loader.sh" ]]; then
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/core/loader.sh" || return 1
+    else
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/../core/loader.sh" || return 1
+    fi
+fi
+
+
+
 ##
 # TUI Color palette.
 ##
@@ -922,9 +938,16 @@ EOL
 ##
 function init_lemper_tui() {
     local arg
+    case "${1:-}" in
+        help) tui_help; return 0 ;;
+        version) echo "${CMD_PARENT} ${CMD_NAME} version ${PROG_VERSION}"; return 0 ;;
+    esac
+    lemper_parse_args hv 'help,version' "$@" || { tui_help; return 1; }
+    set -- "${LEMPER_PARSED_ARGS[@]}"
 
     for arg in "$@"; do
         case "${arg}" in
+            --) continue ;;
             help | -h | --help)
                 tui_help
                 return 0

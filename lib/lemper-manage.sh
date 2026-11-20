@@ -25,6 +25,22 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
+# Load shared argument/validation helpers when this plugin is sourced in isolation.
+if ! declare -F lemper_parse_args >/dev/null; then
+    PLUGIN_SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    if [[ -f "${PLUGIN_SOURCE_DIR}/core/loader.sh" ]]; then
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/core/loader.sh" || return 1
+    else
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/../core/loader.sh" || return 1
+    fi
+fi
+
+
+
 ##
 # Main Functions
 ##
@@ -155,6 +171,21 @@ function remove_vhost() {
     local WEBROOT && \
     WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${DOMAIN}.conf" | awk '{print $3}' | cut -d'"' -f2)
 
+    # Deleting data is a separate opt-in from deleting the vhost config.
+    local SITE_OWNER
+    SITE_OWNER=$(getent passwd "${LEMPER_USERNAME:-lemper}" | cut -d: -f1)
+    if [[ "${WEBROOT}" == /home/* ]]; then
+        SITE_OWNER="${WEBROOT#/home/}"
+        SITE_OWNER="${SITE_OWNER%%/*}"
+    fi
+    read -rp "Do you want to delete website root directory? [y/n]: " -e DELETE_DIR
+    if [[ "${DELETE_DIR}" == Y* || "${DELETE_DIR}" == y* ]]; then
+        # The configured document root is the boundary; never silently broaden
+        # /app/public to /app or fall back to an unrelated directory.
+        [[ -n "${SITE_OWNER}" ]] || { error "Cannot establish site owner; data kept."; return 1; }
+        WEBROOT=$(safe_webroot "${WEBROOT}" "${SITE_OWNER}") || { error "Refusing unsafe website root; configuration kept."; return 1; }
+    fi
+
     # Remove Nginx's vhost config.
     [[ -f "/etc/nginx/sites-enabled/${DOMAIN}.conf" ]] && \
         run unlink "/etc/nginx/sites-enabled/${DOMAIN}.conf"
@@ -181,23 +212,9 @@ function remove_vhost() {
 
     success "Virtual host configuration file removed."
 
-    # Remove vhost root directory.
-    read -rp "Do you want to delete website root directory? [y/n]: " -e DELETE_DIR
-
-    # Fix web root path for framework apps that use 'public' directory.
-    WEBROOT=$(echo "${WEBROOT}" | sed '$ s|\/public$||')
-
     if [[ "${DELETE_DIR}" == Y* || "${DELETE_DIR}" == y* ]]; then
-        if [[ ! -d "${WEBROOT}" ]]; then
-            read -rp "Enter real path to website root directory: " -i "${WEBROOT}" -e WEBROOT
-        fi
-
-        if [[ -d "${WEBROOT}" ]]; then
-            run rm -fr "${WEBROOT}"
-            success "Virtual host root directory removed."
-        else
-            info "Sorry, directory couldn't be found. Skipped..."
-        fi
+        delete_site_webroot "${WEBROOT}" "${SITE_OWNER}" || return 1
+        success "Virtual host root directory removed."
     fi
 
     # Drop MySQL database.
@@ -236,7 +253,7 @@ function remove_vhost() {
 
         if [[ -d "/var/lib/mysql/${DBNAME}" ]]; then
             echo "Deleting database ${DBNAME}..."
-            run env MYSQL_PWD="${MYSQL_PASS}" mysql -u "${MYSQL_USER}" -e "DROP DATABASE ${DBNAME}"
+            MYSQL_PWD="${MYSQL_PASS}" run mysql -u "${MYSQL_USER}" -e "DROP DATABASE ${DBNAME}"
             success "Database '${DBNAME}' dropped."
         else
             info "Sorry, database ${DBNAME} not found. Skipped..."
@@ -326,6 +343,7 @@ function enable_fastcgi_cache() {
         sed_inplace "s|#include\ /etc/nginx/includes/fastcgi_cache.conf|include\ /etc/nginx/includes/fastcgi_cache.conf|g" \
             "/etc/nginx/sites-available/${DOMAIN}.conf"
 
+        if [[ "${DRYRUN:-false}" != true ]]; then sync_site_cors_includes "${DOMAIN}" || return 1; fi
         # Reload Nginx.
         reload_nginx
     else
@@ -369,6 +387,12 @@ function enable_ssl() {
     local DOMAIN=${1}
     verify_vhost "${DOMAIN}"
 
+    if grep -qE '^[[:space:]]*listen[[:space:]]+([^[:space:]]*:)?443[[:space:]]+ssl([[:space:];]|$)' \
+        "/etc/nginx/sites-available/${DOMAIN}.conf"; then
+        info "HTTPS is already enabled for ${DOMAIN}."
+        return 0
+    fi
+
     if [[ ! -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
         if [[ "${ENVIRONMENT}" == prod* ]]; then
             echo "Certbot: Get Let's Encrypt certificate..."
@@ -381,9 +405,7 @@ function enable_ssl() {
             if [[ -n $(command -v certbot) ]]; then
                 # Is it wildcard vhost?
                 if grep -qwE "${DOMAIN}\ \*.${DOMAIN}" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-                    run certbot certonly --force-renewal --manual --noninteractive --manual-public-ip-logging-ok \
-                        --preferred-challenges dns --server https://acme-v02.api.letsencrypt.org/directory --agree-tos \
-                        --webroot-path="${WEBROOT}" -d "${DOMAIN}" -d "*.${DOMAIN}"
+                    request_dns01_certificate "${DOMAIN}" true || return 1
                 else
                     run certbot certonly --force-renewal --webroot --noninteractive --preferred-challenges http --agree-tos \
                         --webroot-path="${WEBROOT}" -d "${DOMAIN}"
@@ -414,8 +436,7 @@ function enable_ssl() {
                 -out /etc/nginx/ssl/dhparam-2048.pem
         fi
     else
-        info "SSL certificates is already exists for ${DOMAIN}, trying to renew."
-        renew_ssl "${DOMAIN}"
+        info "Reusing the existing SSL certificate for ${DOMAIN}."
     fi
 
     # Update vhost config.
@@ -607,9 +628,7 @@ function renew_ssl() {
             if [[ -n $(command -v certbot) ]]; then
                 # Is it wildcard vhost?
                 if grep -qwE "${DOMAIN}\ \*.${DOMAIN}" "/etc/nginx/sites-available/${DOMAIN}.conf"; then
-                    run certbot certonly --manual --agree-tos --preferred-challenges dns \
-                        --server https://acme-v02.api.letsencrypt.org/directory \
-                        --manual-public-ip-logging-ok --webroot-path="${WEBROOT}" -d "${DOMAIN}" -d "*.${DOMAIN}"
+                    request_dns01_certificate "${DOMAIN}" true || return 1
                 else
                     run certbot renew --cert-name "${DOMAIN}"
                 fi
@@ -790,6 +809,29 @@ function disable_modsec() {
 ##
 # Enable CORS for a virtual host.
 ##
+
+# Cache locations declare their own headers, so they must carry CORS headers too.
+# Rebuild only this site's includes; preserve its user-edited origin policy file.
+function sync_site_cors_includes() {
+    local domain="$1" vhost="/etc/nginx/sites-available/$1.conf"
+    local include_line="include /etc/nginx/includes/cors-$1.conf;"
+    [[ -f "/etc/nginx/includes/cors-$domain.conf" ]] || return 0
+    awk -v target="$include_line" '
+        { trimmed=$0; sub(/^[[:space:]]+/, "", trimmed); sub(/[[:space:]]+$/, "", trimmed) }
+        trimmed == target { next }
+        {
+            print
+            if (!server_added && /^[[:space:]]*server_name[[:space:]]/) {
+                print "    " target
+                server_added=1
+            }
+            if (/^[[:space:]]*include[[:space:]]+\/etc\/nginx\/includes\/fastcgi_cache[.]conf;/)
+                print "        " target
+        }
+    ' "$vhost" > "$vhost.tmp" || { rm -f "$vhost.tmp"; return 1; }
+    run mv "$vhost.tmp" "$vhost"
+}
+
 function enable_cors() {
     local DOMAIN=${1}
     verify_vhost "${DOMAIN}"
@@ -805,8 +847,9 @@ function enable_cors() {
     fi
 
     if grep -qF "${INCLUDE_LINE}" "${VHOST_FILE}"; then
+        sync_site_cors_includes "${DOMAIN}" || return 1
         info "CORS is already enabled for ${DOMAIN}."
-        exit 0
+        return 0
     fi
 
     warning "Enabling CORS with a wildcard origin allows requests from any website."
@@ -826,17 +869,7 @@ set \$cors "*";
 include /etc/nginx/includes/cors.conf;
 EOL
 
-    # Insert the include only into the first server block.
-    awk -v include_line="${INCLUDE_LINE}" '
-        !inserted && /^[[:space:]]*server_name[[:space:]]/ {
-            print
-            print include_line
-            inserted = 1
-            next
-        }
-        { print }
-    ' "${VHOST_FILE}" > "${VHOST_FILE}.tmp" || { rm -f "${VHOST_FILE}.tmp"; fail "Failed to update ${VHOST_FILE}."; exit 1; }
-    run mv "${VHOST_FILE}.tmp" "${VHOST_FILE}"
+    sync_site_cors_includes "${DOMAIN}" || return 1
 
     if grep -qF "${INCLUDE_LINE}" "${VHOST_FILE}"; then
         success "CORS has been enabled for ${DOMAIN}."
@@ -1078,12 +1111,8 @@ function get_ip_public() {
 # Main Manage CLI Wrapper
 ##
 function init_lemper_manage() {
-    OPTS=$(getopt -o c:d:e:f:r:s:bghv \
-      -l enable:,disable:,remove:,enable-fail2ban:,disable-fail2ban:,enable-fastcgi-cache:,disable-fastcgi-cache: \
-      -l enable-ssl:,disable-ssl:,remove-ssl:,renew-ssl:,enable-brotli:,enable-gzip:,disable-compression:,enable-modsec:,disable-modsec:,enable-cors:,disable-cors:,help,version \
-      -n "${PROG_NAME}" -- "$@")
-
-    eval set -- "${OPTS}"
+    lemper_parse_args 'c:d:e:f:r:s:bghv' 'enable:,disable:,remove:,enable-fail2ban:,disable-fail2ban:,enable-fastcgi-cache:,disable-fastcgi-cache:,enable-ssl:,disable-ssl:,remove-ssl:,renew-ssl:,enable-brotli:,enable-gzip:,disable-compression:,enable-modsec:,disable-modsec:,enable-cors:,disable-cors:,help,version' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
 
     while true
     do
@@ -1206,4 +1235,6 @@ function init_lemper_manage() {
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-init_lemper_manage "$@"
+if [[ "${LEMPER_MANAGE_LIB_ONLY:-false}" != true ]]; then
+    init_lemper_manage "$@"
+fi

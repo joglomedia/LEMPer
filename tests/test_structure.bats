@@ -10,6 +10,7 @@
 
 setup() {
     export BASE_DIR="${BATS_TEST_DIRNAME}/.."
+    export LEMPER_CORE_DIR="${BASE_DIR}/lib/core"
 }
 
 # Assert that grep finds no match. Unlike "! grep", this fails the test reliably.
@@ -71,11 +72,11 @@ refute_grep() {
 }
 
 @test "lemper_stacks.sh contains lemper_install function" {
-    grep -q 'function lemper_install()' "${BASE_DIR}/lib/core/lemper-stacks.sh"
+    grep -q 'function lemper_install()' "${BASE_DIR}/lib/runtime/stack/recipe.sh"
 }
 
 @test "lemper_stacks.sh contains lemper_remove function" {
-    grep -q 'function lemper_remove()' "${BASE_DIR}/lib/core/lemper-stacks.sh"
+    grep -q 'function lemper_remove()' "${BASE_DIR}/lib/runtime/stack/recipe.sh"
 }
 
 @test "lemper.sh preserves CLI argument parsing (init_lemper_install)" {
@@ -127,8 +128,12 @@ refute_grep() {
 }
 
 @test "lemper-stacks.sh wires in Bun.js install/remove" {
-    grep -q 'install_bun.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
-    grep -q 'remove_bun.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
+    run bash -c '. "$1/lib/core/registry.sh"; lemper_component_recipe "$2"' _ "${BASE_DIR}" install
+    [ "${status}" -eq 0 ]
+    [[ " ${output//$'\n'/ } " == *" bun "* ]]
+    run bash -c '. "$1/lib/core/registry.sh"; lemper_component_recipe "$2"' _ "${BASE_DIR}" remove
+    [ "${status}" -eq 0 ]
+    [[ " ${output//$'\n'/ } " == *" bun "* ]]
 }
 
 @test "site-list plugin has validate_fqdn function" {
@@ -170,7 +175,7 @@ refute_grep() {
 }
 
 @test "CLI resolves the config key file before LEMPER_PASSWORD" {
-    local cli="${BASE_DIR}/bin/lemper-cli.sh"
+    local cli="${BASE_DIR}/lib/core/config.sh"
     local key_line pass_line
     key_line=$(grep -n '/etc/lemper/.config_key' "${cli}" | head -1 | cut -d: -f1)
     pass_line=$(grep -n 'if \[\[ -n "${LEMPER_PASSWORD}" \]\]' "${cli}" | head -1 | cut -d: -f1)
@@ -198,8 +203,8 @@ refute_grep() {
 }
 
 @test "install_tools.sh wires site-list and site-show plugins" {
-    grep -q 'lemper-site-list' "${BASE_DIR}/scripts/install_tools.sh"
-    grep -q 'lemper-site-show' "${BASE_DIR}/scripts/install_tools.sh"
+    grep -q 'lemper-site-list:lemper-site-list' "${BASE_DIR}/lib/core/registry.sh"
+    grep -q 'lemper-site-show:lemper-site-show' "${BASE_DIR}/lib/core/registry.sh"
 }
 
 @test "bunjs install and remove scripts exist" {
@@ -208,7 +213,7 @@ refute_grep() {
 }
 
 @test "lemper-cli.sh help lists tui command" {
-    grep -q 'tui' "${BASE_DIR}/bin/lemper-cli.sh"
+    grep -q 'tui' "${BASE_DIR}/lib/runtime/help.sh"
 }
 
 @test "lemper-tui.sh provides interactive dashboard" {
@@ -250,8 +255,12 @@ refute_grep() {
 }
 
 @test "lemper-stacks.sh wires in CrowdSec install/remove" {
-    grep -q 'install_crowdsec.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
-    grep -q 'remove_crowdsec.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
+    run bash -c '. "$1/lib/core/registry.sh"; lemper_component_recipe "$2"' _ "${BASE_DIR}" install
+    [ "${status}" -eq 0 ]
+    [[ " ${output//$'\n'/ } " == *" crowdsec "* ]]
+    run bash -c '. "$1/lib/core/registry.sh"; lemper_component_recipe "$2"' _ "${BASE_DIR}" remove
+    [ "${status}" -eq 0 ]
+    [[ " ${output//$'\n'/ } " == *" crowdsec "* ]]
 }
 
 @test "CrowdSec install includes WordPress web app scenarios" {
@@ -292,7 +301,7 @@ refute_grep() {
     [ -f "${BASE_DIR}/lib/lemper-modsec.sh" ]
     grep -q 'function modsec_report' "${BASE_DIR}/lib/lemper-modsec.sh"
     grep -q -- '--auto' "${BASE_DIR}/lib/lemper-modsec.sh"
-    grep -q 'lemper-modsec' "${BASE_DIR}/scripts/install_tools.sh"
+    grep -q 'lemper-modsec:lemper-modsec' "${BASE_DIR}/lib/core/registry.sh"
 }
 
 @test "install_modsec.sh generates tuning config without placeholders" {
@@ -337,8 +346,12 @@ refute_grep() {
 }
 
 @test "lemper-stacks.sh wires in ModSecurity install/remove" {
-    grep -q 'install_modsec.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
-    grep -q 'remove_modsec.sh' "${BASE_DIR}/lib/core/lemper-stacks.sh"
+    run bash -c '. "$1/lib/core/registry.sh"; lemper_component_recipe "$2"' _ "${BASE_DIR}" install
+    [ "${status}" -eq 0 ]
+    [[ " ${output//$'\n'/ } " == *" modsec "* ]]
+    run bash -c '. "$1/lib/core/registry.sh"; lemper_component_recipe "$2"' _ "${BASE_DIR}" remove
+    [ "${status}" -eq 0 ]
+    [[ " ${output//$'\n'/ } " == *" modsec "* ]]
 }
 
 @test "ModSecurity nginx include and OWASP CRS config exist" {
@@ -396,7 +409,7 @@ refute_grep() {
 }
 
 @test "Ubuntu 20.04 is rejected as unsupported" {
-    local utils="${BASE_DIR}/scripts/utils.sh"
+    local utils="${BASE_DIR}/lib/core/distro.sh"
     refute_grep -q '20\.04' "${utils}"
     refute_grep -q 'focal' "${utils}"
     grep -qF '"22.04" | "LM21"' "${utils}"
@@ -741,7 +754,8 @@ refute_grep() {
     grep -qF 'set_env_value .env RSA_PUB_KEY "${RSA_PUB_KEY}"' "${cli}"
     refute_grep -q 'SSH_PUB_KEY' "${cli}"
 
-    grep -qF 'is_ssh_public_key "${RSA_PUB_KEY}"' "${security}"
+    grep -qF 'valid_ssh_key_material "${key}"' "${security}"
+    grep -qF 'is_ssh_public_key "${key}"' "${BASE_DIR}/lib/core/ssh.sh"
     refute_grep -q 'RSA_PUB_KEY} =~ ssh-rsa' "${security}"
 }
 

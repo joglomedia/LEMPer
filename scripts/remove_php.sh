@@ -28,6 +28,34 @@ if [[ "$(type -t run)" != "function" ]]; then
     preflight_system_check
 fi
 
+
+# Shared PHP assets belong to all installed branches, not just this removal list.
+function php_removal_has_remaining_runtime() {
+    local package state binary executable
+    while IFS=$'\t' read -r package state; do
+        [[ "$state" == 'install ok installed' ]] || continue
+        package="${package%%:*}"
+        [[ "$package" =~ ^php[0-9]+\.[0-9]+($|-) ]] && return 0
+    done < <(dpkg-query -W -f='${binary:Package}\t${Status}\n' 'php[0-9]*' 2>/dev/null)
+    # Also preserve source-built runtimes outside dpkg.
+    while IFS= read -r binary; do
+        [[ "$binary" =~ ^php(-fpm)?([0-9]+\.[0-9]+)?$ ]] || continue
+        executable=$(command -v "$binary") || continue
+        [[ -x "$executable" ]] && return 0
+    done < <(compgen -c)
+    return 1
+}
+
+function php_removal_packages() {
+    local version="$1" package state base
+    [[ "$version" =~ ^[0-9]+\.[0-9]+$ ]] || return 1
+    while IFS=$'\t' read -r package state; do
+        [[ "$state" == 'install ok installed' ]] || continue
+        base="${package%%:*}"
+        case "$base" in "php$version"|"php$version"-*) printf '%s\n' "$package" ;; esac
+    done < <(dpkg-query -W -f='${binary:Package}\t${Status}\n' "php$version*" 2>/dev/null)
+}
+
 ##
 # Remove PHP & FPM installation from system.
 ##
@@ -40,6 +68,10 @@ function remove_php() {
         PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
     fi
 
+    [[ "${PHPv}" =~ ^[0-9]+\.[0-9]+$ ]] || { error "Invalid PHP removal version."; return 1; }
+    local packages=()
+    mapfile -t packages < <(php_removal_packages "${PHPv}")
+
     # Stop default PHP FPM process.
     if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
         echo "Stopping php${PHPv}-fpm..."
@@ -47,7 +79,7 @@ function remove_php() {
         run systemctl disable "php${PHPv}-fpm"
     fi
 
-    if dpkg-query -l | awk '/php/ { print $2 }' | grep -qwE "^php${PHPv}"; then
+    if [[ ${#packages[@]} -gt 0 ]]; then
         echo "Removing PHP ${PHPv} packages installation..."
 
         if [[ -n $(command -v "php${PHPv}") ]]; then
@@ -66,8 +98,7 @@ function remove_php() {
         fi
 
         # Remove PHP packages.
-        # shellcheck disable=SC2046
-        run apt-get purge -q -y $(dpkg-query -l | awk '/php/ { print $2 }' | grep -wE "^php${PHPv}")
+        run apt-get purge -q -y "${packages[@]}"
 
         # Remove PHP loaders.
         remove_php_loader "${PHPv}" "${REMOVED_PHP_LOADER}"
@@ -393,22 +424,12 @@ function init_php_removal() {
         REMOVED_PHP_VERSIONS=($(printf "%s\n" "${REMOVED_PHP_VERSIONS[@]}" | sort -u | tr '\n' ' '))
 
         for PHP_VER in "${REMOVED_PHP_VERSIONS[@]}"; do
-            if [[ -n $(command -v "php${PHP_VER}") && -n $(command -v "php-fpm${PHP_VER}") ]]; then
-                remove_php "${PHP_VER}" "${OPT_PHP_LOADER}"
-            else
-                info "PHP ${PHP_VER} packages installation not found, uninstall skipped."
-            fi
+            remove_php "${PHP_VER}" "${OPT_PHP_LOADER}" || return 1
         done
 
         # Final clean up (executed only if no PHP version installed).
         if [[ "${DRYRUN}" != true ]]; then
-            # New logic for multiple PHP removal in batch.
-            PHP_IS_EXISTS=false
-            for PHP_VER in "${REMOVED_PHP_VERSIONS[@]}"; do
-                [[ -n $(command -v "php${PHP_VER}") ]] && PHP_IS_EXISTS=true
-            done
-
-            if [[ "${PHP_IS_EXISTS}" == false ]]; then
+            if ! php_removal_has_remaining_runtime; then
                 echo "Removing additional unused PHP packages..."
                 run apt-get purge -q -y dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
 
@@ -447,18 +468,21 @@ function init_php_removal() {
     fi
 }
 
-echo "Uninstalling PHP packages..."
+# Permit isolated tests to load removal helpers without changing the system.
+if [[ "${LEMPER_PHP_REMOVAL_LIB_ONLY:-false}" != true ]]; then
+    echo "Uninstalling PHP packages..."
 
-if [[ "${AUTO_REMOVE}" == true ]]; then
-    REMOVE_PHP="y"
-else
-    while [[ "${REMOVE_PHP}" != "y" && "${REMOVE_PHP}" != "n" ]]; do
-        read -rp "Are you sure to remove PHP package? [y/n]: " -e REMOVE_PHP
-    done
-fi
+    if [[ "${AUTO_REMOVE}" == true ]]; then
+        REMOVE_PHP="y"
+    else
+        while [[ "${REMOVE_PHP}" != "y" && "${REMOVE_PHP}" != "n" ]]; do
+            read -rp "Are you sure to remove PHP package? [y/n]: " -e REMOVE_PHP
+        done
+    fi
 
-if [[ "${REMOVE_PHP}" == Y* || "${REMOVE_PHP}" == y* ]]; then
-    init_php_removal "$@"
-else
-    echo "PHP packages uninstallation skipped."
+    if [[ "${REMOVE_PHP}" == Y* || "${REMOVE_PHP}" == y* ]]; then
+        init_php_removal "$@"
+    else
+        echo "PHP packages uninstallation skipped."
+    fi
 fi

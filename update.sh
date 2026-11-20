@@ -133,8 +133,11 @@ function install_updater() {
     [[ -f "${source_dir}/bin/lemper-cli.sh" && -f "${source_dir}/lib/lemper-update.sh" ]] ||
         fail "No usable LEMPer checkout at ${source_dir} (need bin/lemper-cli.sh and lib/lemper-update.sh)."
 
+    install -d -m 0700 /etc/lemper/core
+    install -m 0600 "${source_dir}"/lib/core/*.sh /etc/lemper/core/
+
     info "Installing LEMPer CLI from ${source_dir}..."
-    install -m 0755 "${source_dir}/bin/lemper-cli.sh" "${CLI_BIN}"
+    install_cli_binary "${source_dir}/bin/lemper-cli.sh" "${CLI_BIN}"
     ln -sfn "${CLI_BIN}" "${CLI_ALIAS}"
 
     install -d -m 0700 /etc/lemper "${PLUGINS_DIR}"

@@ -31,6 +31,22 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
+# Load shared argument/validation helpers when this plugin is sourced in isolation.
+if ! declare -F lemper_parse_args >/dev/null; then
+    PLUGIN_SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    if [[ -f "${PLUGIN_SOURCE_DIR}/core/loader.sh" ]]; then
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/core/loader.sh" || return 1
+    else
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/../core/loader.sh" || return 1
+    fi
+fi
+
+
+
 PHP_ETC_DIR="${PHP_ETC_DIR:-/etc/php}"
 LEMPER_BACKUP_DIR="${LEMPER_BACKUP_DIR:-/etc/lemper/backups}"
 LEMPER_UPDATE_SOURCE_FILE="${LEMPER_UPDATE_SOURCE_FILE:-/etc/lemper/update-source}"
@@ -824,6 +840,13 @@ function update_php() {
     fi
 
     branches=$(php_installed_branches)
+    if [[ -n "${PHP_UPDATE_VERSION:-}" ]]; then
+        if ! grep -Fxq "${PHP_UPDATE_VERSION}" <<< "${branches}"; then
+            error "PHP ${PHP_UPDATE_VERSION} is not installed."
+            return 1
+        fi
+        branches="${PHP_UPDATE_VERSION}"
+    fi
     if [[ -z "${branches}" ]]; then
         if [[ "${migrate}" -eq 1 ]]; then
             php_migrate_eol_sites "${PHP_MIGRATE_TO}" || return 1
@@ -1534,7 +1557,7 @@ function resolve_tools_env() {
 function reinstall_admin_tools() {
     local src="${1}"
     local envfile=""
-    local tools_rc=0
+    local tools_rc=0 cli_installed="${2:-false}"
 
     [[ -f "${src}/scripts/install_tools.sh" && -f "${src}/scripts/utils.sh" ]] || {
         error "Source at ${src} has no scripts/install_tools.sh."
@@ -1545,6 +1568,7 @@ function reinstall_admin_tools() {
 
     info "Reinstalling LEMPer CLI, plugins, and web administration tools from ${src}..."
     DRYRUN=false \
+        LEMPER_TOOLS_SKIP_CLI="${cli_installed}" \
         LEMPER_ENV_FILE="${envfile}" \
         LEMPER_TOOLS_PRESERVE_ADMIN_CONFIG="${LEMPER_TOOLS_PRESERVE_ADMIN_CONFIG}" \
         bash -c '
@@ -1571,7 +1595,7 @@ function reinstall_admin_tools() {
 # Refresh the CLI and CLI plugins from a source checkout.
 ##
 function update_lemper_tooling() {
-    local src dest name target
+    local src
 
     if ! src=$(update_resolve_source); then
         warning "No LEMPer source checkout recorded; skipping CLI/plugin refresh."
@@ -1584,51 +1608,17 @@ function update_lemper_tooling() {
         return 1
     fi
 
-    dest="/etc/lemper/cli-plugins"
-    mkdir -p "${dest}" || return 1
-    chmod 0700 "${dest}" 2>/dev/null || true
-
-    install -m 0755 "${src}/bin/lemper-cli.sh" /usr/local/bin/lemper-cli || return 1
-    ln -sfn /usr/local/bin/lemper-cli /usr/bin/lemper-cli
-
-    while IFS=: read -r name target; do
-        [[ -z "${name}" ]] && continue
-        if [[ -f "${src}/lib/${name}.sh" ]]; then
-            install -m 0755 "${src}/lib/${name}.sh" "${dest}/${target}" || return 1
-        else
-            warning "Missing ${src}/lib/${name}.sh; skipped."
-        fi
-    done <<'EOF'
-lemper-account:lemper-account
-lemper-adduser:lemper-adduser
-lemper-site:lemper-site
-lemper-site-list:lemper-site-list
-lemper-site-show:lemper-site-show
-lemper-create:lemper-site-create
-lemper-manage:lemper-site-update
-lemper-db:lemper-db
-lemper-selfssl:lemper-selfssl
-lemper-fixpermission:lemper-fixpermission
-lemper-bench:lemper-bench
-lemper-modsec:lemper-modsec
-lemper-tui:lemper-tui
-lemper-update:lemper-update
-lemper-backup:lemper-backup
-EOF
-
-    ln -sfn "${dest}/lemper-site-create" "${dest}/lemper-site-add"
-    ln -sfn "${dest}/lemper-site-update" "${dest}/lemper-site-mod"
-    ln -sfn "${dest}/lemper-db" "${dest}/lemper-site-db"
-    ln -sfn "${dest}/lemper-db" "${dest}/lemper-site-database"
-    ln -sfn "${dest}/lemper-site-create" "${dest}/lemper-create"
-    ln -sfn "${dest}/lemper-site-create" "${dest}/lemper-add"
-    ln -sfn "${dest}/lemper-site-update" "${dest}/lemper-manage"
-    ln -sfn "${dest}/lemper-site-update" "${dest}/lemper-mod"
+    # Compatibility exports: lemper-create/add/manage/mod/site-db/site-database.
+    # shellcheck source=/dev/null
+    . "$src/lib/core/registry.sh" || return 1
+    # shellcheck source=/dev/null
+    . "$src/lib/core/deployment.sh" || return 1
+    lemper_cli_snapshot "$src" || return 1
 
     printf '%s\n' "${src}" > "${LEMPER_UPDATE_SOURCE_FILE}"
     chmod 0600 "${LEMPER_UPDATE_SOURCE_FILE}"
 
-    reinstall_admin_tools "${src}" || return 1
+    reinstall_admin_tools "${src}" true || return 1
     success "LEMPer CLI, plugins, and web administration tools reinstalled from ${src}."
 }
 
@@ -1640,6 +1630,13 @@ function update_check() {
     local rows="" w_installed=17 w_state=5 w_fixed=5
 
     branches=$(php_installed_branches)
+    if [[ -n "${PHP_UPDATE_VERSION:-}" ]]; then
+        if ! grep -Fxq "${PHP_UPDATE_VERSION}" <<< "${branches}"; then
+            error "PHP ${PHP_UPDATE_VERSION} is not installed."
+            return 1
+        fi
+        branches="${PHP_UPDATE_VERSION}"
+    fi
     if [[ -n "${branches}" ]]; then
         while IFS= read -r branch; do
             [[ -z "${branch}" ]] && continue
@@ -1784,6 +1781,7 @@ Options:
                         PHP must already be installed. Old packages and pools
                         are left in place. Applies to update php and the php
                         step of update all.
+  --php-version=VERSION  Limit PHP patch/remediation to one installed branch.
   --source-dir=PATH     LEMPer checkout used for CLI/plugin refresh.
   --post-max-size=SIZE  post_max_size for EOL mitigations (default: 32M).
   -h, --help            Show this help.
@@ -1817,19 +1815,40 @@ LEMPER_HELP
 # Parse updater options. The destination version is required for a migration.
 ##
 function update_parse_args() {
+    # Keep the legacy explicit-destination diagnostic for a bare --force.
+    local argument
+    for argument in "$@"; do
+        [[ "${argument}" != --force ]] || {
+            error "A destination version is required. Use --migrate-to=8.3 or --force=8.3."
+            return 1
+        }
+    done
+    lemper_parse_args 'yhv' 'yes,source-dir:,post-max-size:,migrate-to:,force:,php-version:,help,version' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
+
     while [[ $# -gt 0 ]]; do
         case "${1}" in
+            --)
+                shift
+                [[ $# -eq 0 ]] || { error "Unexpected positional arguments."; return 1; }
+                break
+            ;;
             -y | --yes)
                 UPDATE_ASSUME_YES=true
                 shift
                 ;;
-            --source-dir=*)
-                UPDATE_SOURCE_DIR="${1#*=}"
-                shift
+            --source-dir)
+                UPDATE_SOURCE_DIR="${2}"
+                shift 2
                 ;;
-            --post-max-size=*)
-                PHP2SHELL_POST_MAX="${1#*=}"
-                shift
+            --php-version)
+                [[ "${2}" =~ ^[0-9]+\.[0-9]+$ ]] || { error "Invalid PHP version."; return 1; }
+                PHP_UPDATE_VERSION="${2}"
+                shift 2
+                ;;
+            --post-max-size)
+                PHP2SHELL_POST_MAX="${2}"
+                shift 2
                 ;;
             --migrate-to=* | --force=*)
                 PHP_MIGRATE_TO="${1#*=}"
@@ -1839,17 +1858,13 @@ function update_parse_args() {
                 fi
                 shift
                 ;;
-            --migrate-to)
+            --migrate-to | --force)
                 if [[ $# -lt 2 || -z "${2}" || "${2}" == -* ]]; then
                     error "A destination version is required. Use --migrate-to=8.3 or --force=8.3."
                     return 1
                 fi
                 PHP_MIGRATE_TO="${2}"
                 shift 2
-                ;;
-            --force)
-                error "A destination version is required. Use --migrate-to=8.3 or --force=8.3."
-                return 1
                 ;;
             -h | --help)
                 UPDATE_REQUESTED_SUBCOMMAND="help"
@@ -1875,7 +1890,12 @@ function init_lemper_update() {
     local subcommand="${1:-all}"
     [[ $# -gt 0 ]] && shift
 
+    PHP_UPDATE_VERSION=""
     update_parse_args "$@" || exit 1
+    if [[ -n "${PHP_UPDATE_VERSION}" && "${subcommand}" != php ]]; then
+        error "--php-version requires update php."
+        exit 1
+    fi
     if [[ -n "${UPDATE_REQUESTED_SUBCOMMAND}" ]]; then
         subcommand="${UPDATE_REQUESTED_SUBCOMMAND}"
     fi

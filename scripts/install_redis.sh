@@ -303,7 +303,7 @@ requirepass ${REDIS_PASSWORD}
 EOL
                     # Save data.
                     save_config "REDIS_PASSWORD=${REDIS_PASSWORD}"
-                    save_log -e "Valkey server requirepass is enabled, here is your authentication password: ${REDIS_PASSWORD}\nSave this password and use it to authenticate your Valkey connection (typically use -a parameter)."
+                    save_log "Cache authentication configured; credentials saved to protected LEMPer configuration."
                 fi
             else
                 [[ ! -f /etc/redis/redis.conf ]] && run cp -f etc/redis/redis.conf /etc/redis/
@@ -347,7 +347,7 @@ requirepass ${REDIS_PASSWORD}
 EOL
                     # Save data.
                     save_config "REDIS_PASSWORD=${REDIS_PASSWORD}"
-                    save_log -e "Redis server requirepass is enabled, here is your authentication password: ${REDIS_PASSWORD}\nSave this password and use it to authenticate your Redis connection (typically use -a parameter)."
+                    save_log "Cache authentication configured; credentials saved to protected LEMPer configuration."
                 fi
             fi
         else

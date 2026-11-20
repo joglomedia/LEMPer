@@ -31,7 +31,8 @@ SETUP="apt-get update -qq && apt-get install -qq -y shellcheck bats > /dev/null 
 SC_CMD="shellcheck -s bash -x \
     install.sh remove.sh update.sh lemper.sh \
     bin/lemper-cli.sh \
-    lib/lemper-*.sh lib/core/lemper-stacks.sh \
+    lib/lemper-*.sh lib/core/*.sh \
+    lib/runtime/*.sh lib/runtime/*/*.sh lib/services/*.sh lib/services/*/*.sh lib/compat/*.sh \
     scripts/install_*.sh scripts/remove_*.sh scripts/utils.sh \
     scripts/server_*.sh scripts/nginx/*.sh \
     tests/*.bats"
@@ -72,6 +73,7 @@ case "${MODE}" in
                 cp .env.dist .env && \
                 sed -i \
                     -e 's/AUTO_INSTALL=false/AUTO_INSTALL=true/' \
+                    -e 's/SSH_PASSWORDLESS=true/SSH_PASSWORDLESS=false/' \
                     -e 's/INSTALL_NGINX=true/INSTALL_NGINX=false/' \
                     -e 's/INSTALL_PHP=true/INSTALL_PHP=false/' \
                     -e 's/DRYRUN=false/DRYRUN=true/' .env && \

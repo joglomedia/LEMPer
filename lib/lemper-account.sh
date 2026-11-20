@@ -25,6 +25,22 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
+# Load shared argument/validation helpers when this plugin is sourced in isolation.
+if ! declare -F lemper_parse_args >/dev/null; then
+    PLUGIN_SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    if [[ -f "${PLUGIN_SOURCE_DIR}/core/loader.sh" ]]; then
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/core/loader.sh" || return 1
+    else
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/../core/loader.sh" || return 1
+    fi
+fi
+
+
+
 ##
 # Show account creation help.
 ##
@@ -38,6 +54,8 @@ Usage:
 
 Options:
   -u, --username <name>  Account name (default: LEMPER_USERNAME or 'lemper').
+  --admin                Grant restricted service-administration privileges.
+  --restrict-sudo        Migrate an existing LEMPer-owned account to restricted sudo.
   -h, --help             Print this message and exit.
   -v, --version          Output version information and exit.
 
@@ -62,6 +80,7 @@ function create_account() {
     local USERNAME="${1:-${LEMPER_USERNAME:-lemper}}"
     local PASSWORD="${LEMPER_PASSWORD:-}"
     local PASSWORD_HASH=""
+    local ROLE="${2:-hosting}"
 
     if ! validate_username "${USERNAME}"; then
         error "Invalid username '${USERNAME}'. Expected lowercase letters," \
@@ -93,7 +112,9 @@ function create_account() {
         fail "Failed to set password for '${USERNAME}'."
     fi
 
-    usermod -aG sudo "${USERNAME}"
+    if [[ "${ROLE}" == admin ]]; then
+        write_account_sudoers "${USERNAME}" || return 1
+    fi
 
     # Create default directories.
     run mkdir -p "/home/${USERNAME}/webapps" \
@@ -117,7 +138,7 @@ function create_account() {
 
     # Generate password hash.
     if command -v mkpasswd &>/dev/null; then
-        PASSWORD_HASH=$(mkpasswd --method=sha-256 "${PASSWORD}")
+        PASSWORD_HASH=$(printf '%s\n' "${PASSWORD}" | mkpasswd --method=sha-256 --stdin)
     elif command -v htpasswd &>/dev/null; then
         printf '%s\n' "${PASSWORD}" | htpasswd -i /srv/.htpasswd "${USERNAME}"
     else
@@ -129,13 +150,12 @@ function create_account() {
         echo "${USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
     fi
 
-    # Save config.
-    printf 'LEMPER_USERNAME=%s\nLEMPER_PASSWORD=%s\nLEMPER_ADMIN_EMAIL=%s\n' \
-        "${USERNAME}" "${PASSWORD}" "${LEMPER_ADMIN_EMAIL:-}"
-
-    # Save data to log file.
-    printf 'Your default system account information:\nUsername: %s\nPassword: %s\n' \
-        "${USERNAME}" "${PASSWORD}"
+    # Account credentials are kept separately; creating a hosting account must
+    # never overwrite the administrator's global username/password.
+    run install -d -m 0700 /etc/lemper/accounts
+    ( umask 077; printf 'USERNAME=%s\nPASSWORD=%s\n' "${USERNAME}" "${PASSWORD}" > "/etc/lemper/accounts/${USERNAME}.conf" ) || return 1
+    run chmod 0600 "/etc/lemper/accounts/${USERNAME}.conf"
+    info "Account credentials saved to /etc/lemper/accounts/${USERNAME}.conf (root-only)."
 
     echo "Username ${USERNAME} created."
 }
@@ -144,20 +164,24 @@ function create_account() {
 # Main App
 ##
 function init_lemper_account() {
-    local USERNAME=""
-    local OPTS
+    local USERNAME="" ROLE=hosting MIGRATE=false
 
-    if ! OPTS=$(getopt -o u:hv -l username:,help,version -n "${PROG_NAME}" -- "$@"); then
-        echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information."
-        exit 1
-    fi
-    eval set -- "${OPTS}"
+    lemper_parse_args 'u:hv' 'username:,admin,restrict-sudo,help,version' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
 
     while true; do
         case "${1}" in
             -u | --username)
                 USERNAME="${2}"
                 shift 2
+            ;;
+            --admin)
+                ROLE="admin"
+                shift
+            ;;
+            --restrict-sudo)
+                MIGRATE=true
+                shift
             ;;
             -h | --help)
                 account_show_usage
@@ -186,7 +210,11 @@ function init_lemper_account() {
         fail "Unexpected argument: ${1}"
     fi
 
-    create_account "${USERNAME}"
+    if [[ "${MIGRATE}" == true ]]; then
+        restrict_account_sudo "${USERNAME:-${LEMPER_USERNAME:-lemper}}"
+    else
+        create_account "${USERNAME}" "${ROLE}"
+    fi
 }
 
 # Start running things from a call at the end so if this script is executed

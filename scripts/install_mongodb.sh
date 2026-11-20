@@ -131,14 +131,13 @@ function init_mongodb_install() {
                 export MONGODB_ADMIN_USER=${MONGODB_ADMIN_USER:-"lemperdb"}
                 export MONGODB_ADMIN_PASSWORD=${MONGODB_ADMIN_PASSWORD:-"$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"}
 
-                run mongosh admin \
-                    --eval "\"db.createUser({'user': '${MONGODB_ADMIN_USER}', 'pwd': '${MONGODB_ADMIN_PASSWORD}', 'roles':[{'role': 'root', 'db': 'admin'}]});\""
+                printf '%s\n' "db.createUser({user: '${MONGODB_ADMIN_USER}', pwd: '${MONGODB_ADMIN_PASSWORD}', roles:[{role: 'root', db: 'admin'}]});" | run mongosh admin --quiet
 
                 # Save config.
                 save_config -e "MONGODB_HOST=127.0.0.1\nMONGODB_PORT=27017\nMONGODB_ADMIN_USER=${MONGODB_ADMIN_USER}\nMONGODB_ADMIN_PASS=${MONGODB_ADMIN_PASSWORD}"
 
                 # Save log.
-                save_log -e "MongoDB default admin user is enabled, here is your admin credentials:\nAdmin username: ${MONGODB_ADMIN_USER} | Admin password: ${MONGODB_ADMIN_PASSWORD}\nSave this credentials and use it to authenticate your MongoDB connection."
+                save_log "MongoDB configured; credentials saved to protected LEMPer configuration."
             else
                 echo "MongoDB installation completed with errors on start-up, please check the log file."
                 echo -e "After installation finished, you can add a MongoDB administrative user.\nExample command lines below:";

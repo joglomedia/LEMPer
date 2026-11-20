@@ -45,6 +45,7 @@ db_unit_exec() {
         MOCK_DB_LOG="${TEST_TMPDIR}/db.log" \
         DB_UNIT_PLUGIN="${TEST_TMPDIR}/lemper-db-unit.sh" \
         bash -c '
+            . "${REAL_BASE_DIR}/lib/core/loader.sh"
             requires_root() { :; }
             fail() { echo "FAIL: $*" >&2; exit 1; }
             error() { echo "ERROR: $*" >&2; }

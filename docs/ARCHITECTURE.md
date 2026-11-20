@@ -111,13 +111,18 @@ LEMPer/
 │   └── init.d/                    # SysV init scripts
 ├── share/
 │   └── nginx/html/                # Static files (error pages, index)
+├── docs/                          # Architecture, roadmap, audits, and UAT reports
+│   ├── ARCHITECTURE.md
+│   ├── ARCHITECTURE_ALIGNMENT.md
+│   ├── ROADMAP.md
+│   ├── ROADMAP_AUDIT.md
+│   └── UAT_REPORT.md
 ├── .env.dist                      # Configuration template (INI format)
 ├── .gitignore
 ├── CONTRIBUTING.md
 ├── DEVELOPER.md
-├── AGENTIC.md
-├── ARCHITECTURE.md
-├── ROADMAP.md
+├── AGENTS.md
+├── CHANGELOG.md
 ├── LICENSE.md
 ├── README.md
 ├── install.sh                     # Standalone installer (~47 lines, wrapper)
@@ -317,9 +322,9 @@ The GitHub Actions workflow (`.github/workflows/main.yml`) runs on every push/PR
    Toggled for CI: `REDIS_BACKEND="valkey"`, `INSTALL_CROWDSEC=true`,
    `ACME_WILDCARD=true`, `INSTALL_MODSEC=true`, `ENCRYPT_CONFIG_AT_REST=true`.
 2. **ShellCheck:** Runs `shellcheck -s bash -x` on every script file — **exit 0**.
-3. **Bats Tests:** Runs `bats tests/ tests/unit/` — **198/198 pass** across 15 test files.
+3. **Bats Tests:** Runs `bats tests/ tests/unit/` — see current Bats/CI results.
 
-**Test coverage (198 tests):**
+**Representative test coverage (historical listing):**
 - `test_sanitization.bats` — 9 tests (FQDN, IPv4, username, sed injection sanitization)
 - `test_structure.bats` — 100 tests (project structure, wiring, config flags, temp-dir isolation, Nginx/PHP hardening, resource profiles)
 - `test_syntax.bats` — 2 tests (bash -n + shellcheck on all scripts)
@@ -482,7 +487,16 @@ up every FPM pool to `/etc/lemper/backups/php2shell-<UTC>/<branch>/` and admin-l
 
 ---
 
-## 4. Proposed Target Architecture (v3.0)
+## 4. Target Architecture (v4.0; CLI alignment implemented)
+
+The working tree now implements the shared core modules, schema validation,
+array parser, per-service CLI, guarded site removal, key-only SSH policy,
+provider-backed wildcard issuance/renewal, pinned release bootstrap, and release/
+host-audit workflows. Public wrappers and installed paths retain compatibility.
+Site/stack use cases and service drivers now occupy runtime/services, with
+legacy scripts retained behind compatibility adapters. Further extraction of
+legacy account/database/TUI internals and explicit nftables integration remain pending. Workflow publication and live service deployment have not been
+performed as part of this implementation.
 
 ### 4.1 Guiding Principles
 
@@ -495,107 +509,88 @@ up every FPM pool to `/etc/lemper/backups/php2shell-<UTC>/<branch>/` and admin-l
 
 ### 4.2 Layered Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    LEMPer CLI (bin/)                     │
-│                    lemper-cli.sh                          │
-├─────────────────────────────────────────────────────────┤
-│                    Plugin Dispatcher                      │
-│                    (init_lemper_cli)                      │
-├─────────────────────────────────────────────────────────┤
-│                    Core Library (lib/)                    │
-│                    ┌───────────┬───────────┬───────────┐ │
-│                    │  Account  │  Site     │  Database │ │
-│                    │  Mgmt     │  Mgmt     │  Mgmt     │ │
-│                    └───────────┴───────────┴───────────┘ │
-├─────────────────────────────────────────────────────────┤
-│                    Shared Utils (scripts/)                │
-│                    utils.sh, config.sh, logging.sh        │
-│                    distro.sh, network.sh, security.sh     │
-├─────────────────────────────────────────────────────────┤
-│              OS / Package Manager (apt) / systemd        │
-└─────────────────────────────────────────────────────────┘
-```
+~~~text
+bin/lemper-cli.sh (lemperctl; lemper-cli compatibility alias)
+    → shared command registry and command adapters
+    → lib/runtime/site/ and lib/runtime/stack/ use cases
+    → lib/services/php/, lib/services/nginx/, and systemd driver
+    → OS packages, files, databases and services
+
+lib/core/: configuration/schema, arguments, execution/locks, registries,
+           logging, validation, deployment and legacy shared primitives
+lib/compat/: isolated adapters for self-dispatching component/site scripts
+~~~
+
+Public help/version loads static command definitions before root checks or private
+configuration. New operations use status-returning execution and a shared lock.
+Site batches validate targets before mutation, restore site configuration on
+failure, and reload Nginx after the batch. External certificate/database effects
+are separate from configuration recovery.
+
+CLI-only bootstrap, full installation and tooling refresh share a command registry
+and deployment helper. Root-owned code lives under `/opt/lemper`; an atomic
+`current` symlink selects one release. Configuration, credentials, ownership
+metadata and provisioning markers stay outside the code tree. Historical installed
+paths are compatibility symlinks; config backup excludes these code links.
+Selecting older code does not undo service or database changes.
 
 ### 4.3 Key Architectural Changes
 
-| Area | Current | Proposed (v3.0) |
+| Area | Historical baseline | Target (v4.0) |
 |---|---|---|
 | **Config format** | `.env` INI-style, `eval`-loaded | Structured `.env` or YAML with schema validation |
 | **Secrets** | Plaintext files | Encrypted config or secret file references, no credential display |
-| **CLI** | Sourced plugins, no arg validation library | Consistent `getopt`-based or bash-argparsing framework |
-| **Tests** | shunit2 integration tests only | shunit2 unit tests + shellcheck + bashate + lynis as code-scanning |
+| **CLI** | Sourced plugins, no arg validation library | Shared array parser and normalized site/stack requests |
+| **Tests** | shunit2 integration tests only | Bats behavior/contract tests, ShellCheck and Bashate; disposable Linux lifecycle checks |
 | **Security** | Optional fail2ban, commented encryption | Fail2ban + CrowdSec, encrypted secrets, secure defaults |
 | **CI** | ShellCheck + install tests on Ubuntu | Multi-distro matrix, security audit, dependency scan, release automation |
-| **Documentation** | Minimal README + CONTRIBUTING | Full ARCHITECTURE, DEVELOPER, AGENTIC, ROADMAP docs |
-| **PHP support** | 5.6–8.4 (many EOL) | 8.2+ only (EOL versions removed) |
+| **Documentation** | Minimal README + CONTRIBUTING | ARCHITECTURE, DEVELOPER, AGENTS, ROADMAP and alignment audit |
+| **PHP support** | 5.6–8.4 (many EOL) | Install PHP 8.2–8.5; inventory-based EOL management/removal |
 | **SSH** | Password or key auth | Key-only by default, ed25519 |
 | **Firewall** | UFW/CSF/APF | UFW + nftables backend, optional CrowdSec |
 | **SSL** | RSA 2048 self-signed | RSA 4096 or ed25519, OCSP stapling, ACME v2 |
 
-### 4.4 Module Decomposition (Planned → Partially Implemented)
+### 4.4 Module Decomposition (CLI contracts implemented; legacy internals retained)
 
-The current flat structure (`lib/lemper-*.sh`, `scripts/install_*.sh`) was intended to be
-reorganized into clear functional modules. **Status: scaffolds created but migration incomplete.**
+~~~text
+lib/
+├── core/
+│   ├── args.sh, config.sh, schema.sh, validation.sh
+│   ├── registry.sh                 command exports, aliases, components, recipes
+│   ├── execution.sh                returned statuses, dry-run, operation locking
+│   ├── deployment.sh               snapshots, compatibility exports, atomic selector
+│   ├── cli.sh                      dispatcher and compatibility helpers
+│   ├── lemper-stacks.sh             compatibility loader for full-stack entry points
+│   └── ...                         existing shared primitives
+├── runtime/
+│   ├── help.sh
+│   ├── site/commands.sh             create/update/remove/adopt normalization and batches
+│   ├── site/state.sh                site ownership and guarded purge
+│   ├── stack/commands.sh            independent component lifecycle orchestration
+│   └── stack/recipe.sh              full-stack orchestration over the component registry
+├── services/
+│   ├── php/lifecycle.sh             installed inventory, selection, references, updates
+│   ├── nginx/site.sh                site configuration snapshots/removal/reload
+│   └── systemd.sh                  service validation and control
+├── compat/
+│   ├── components.sh               installer/remover child-process boundary
+│   └── site.sh                     isolated legacy site/application actions
+└── lemper-*.sh                     retained public plugins and legacy implementations
+scripts/install_*.sh, remove_*.sh   retained component entry points behind adapters
+~~~
 
-```
-LEMPer/
-├── bin/
-│   └── lemper-cli.sh              # CLI entry point
-├── lib/
-│   ├── core/                      # ✅ Scaffold created · ⚠️ Only lemper-stacks.sh present
-│   │   ├── lemper-stacks.sh       # ✅ Done: lemper_install() + lemper_remove() orchestrator
-│   │   ├── .gitkeep               # ✅ Dir marker (lib/core, runtime, services)
-│   │   ├── config.sh              # ❌ Not migrated — utils.sh still holds config logic
-│   │   ├── logging.sh             # ❌ Not migrated — utils.sh holds logging
-│   │   ├── colors.sh              # ❌ Not migrated — utils.sh holds colors
-│   │   └── cli.sh                 # ❌ Not migrated — bin/lemper-cli.sh holds dispatcher
-│   ├── runtime/                   # ⚠️ Scaffold only — all plugins still in lib/ (flat)
-│   │   ├── .gitkeep
-│   │   ├── account.sh             # ❌ lib/lemper-account.sh
-│   │   ├── site_create.sh         # ❌ lib/lemper-create.sh
-│   │   ├── site_manage.sh         # ❌ lib/lemper-manage.sh
-│   │   ├── database.sh            # ❌ lib/lemper-db.sh
-│   │   ├── ssl.sh                 # ❌ lib/lemper-selfssl.sh
-│   │   ├── util.sh                # ❌ lib/lemper-bench.sh, lemper-fixpermission.sh
-│   │   ├── site_list.sh           # ❌ lib/lemper-site-list.sh
-│   │   ├── site_show.sh           # ❌ lib/lemper-site-show.sh
-│   │   ├── site.sh                # ❌ lib/lemper-site.sh
-│   │   ├── tui.sh                 # ❌ lib/lemper-tui.sh
-│   │   └── encrypt.sh             # ❌ lib/lemper-encrypt.sh
-│   └── services/                  # ⚠️ Scaffold only — all installers still in scripts/
-│       ├── .gitkeep
-│       ├── nginx.sh               # ❌ scripts/install_nginx.sh
-│       ├── php.sh                 # ❌ scripts/install_php.sh
-│       ├── mariadb.sh             # ❌ scripts/install_mariadb.sh
-│       ├── redis.sh               # ❌ scripts/install_redis.sh
-│       ├── postgres.sh            # ❌ scripts/install_postgres.sh
-│       ├── memcached.sh           # ❌ scripts/install_memcached.sh
-│       ├── mongodb.sh             # ❌ scripts/install_mongodb.sh
-│       ├── bun.sh                 # ❌ scripts/install_bun.sh
-│       ├── ftp.sh                 # ❌ scripts/install_pureftpd.sh, install_vsftpd.sh
-│       ├── certbot.sh             # ❌ scripts/install_certbotle.sh
-│       ├── fail2ban.sh            # ❌ scripts/install_fail2ban.sh
-│       ├── firewall.sh            # ❌ scripts/server_security.sh
-│       ├── mailer.sh              # ❌ scripts/install_mailer.sh
-│       └── tools.sh               # ❌ scripts/install_tools.sh
-├── scripts/                       # ✅ Active — scripts sourced by lemper-stacks.sh
-├── etc/                           # ✅ Active — configuration templates
-├── share/                         # ✅ Active — static assets
-├── tests/                         # ✅ Active — bats test suite
-└── docs/                          # ⚠️ Docs in repo root (not docs/ subdir)
-    ├── ARCHITECTURE.md            # ✅ Root
-    ├── DEVELOPER.md               # ✅ Root
-    ├── AGENTIC.md                 # ✅ Root
-    └── ROADMAP.md                 # ✅ Root
-```
+New runtime/service modules define functions without dispatching on source. Site
+creation accepts the issue #92 positional syntax and aliases; site update supports
+multiple domains and actions. Feature-first flags and legacy verb-first flags
+normalize to the same request. PHP selection is operation-specific: supported
+versions for installation, installed versions for management/removal, all installed
+FPM instances for versionless control. Removal refuses referenced PHP versions.
 
-**Migration decision:** The proposed directory restructuring would require renaming and
-moving ~50+ script files while maintaining backward-compatible symlink/destination paths
-on target systems. Given the scope and risk, the project should prioritize the **functional
-improvements already delivered** (security, PHP 8.5, Valkey, Bun.js, CrowdSec, ModSecurity,
-encrypted config, TUI) over a purely structural refactor. The directory scaffolds remain
-in place as a future-enhancement path.
+Existing application installers and some service internals remain in their
+original files. Extract these gradually behind the established interfaces.
+Account/database/TUI internal migration remains open; the TUI invokes the same
+public CLI. Preserve old import and installed paths throughout extraction.
+Native nftables work is a separate remaining roadmap requirement.
 
 ---
 

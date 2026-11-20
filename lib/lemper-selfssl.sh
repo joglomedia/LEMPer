@@ -25,6 +25,22 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
+# Load shared argument/validation helpers when this plugin is sourced in isolation.
+if ! declare -F lemper_parse_args >/dev/null; then
+    PLUGIN_SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    if [[ -f "${PLUGIN_SOURCE_DIR}/core/loader.sh" ]]; then
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/core/loader.sh" || return 1
+    else
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/../core/loader.sh" || return 1
+    fi
+fi
+
+
+
 ## 
 # Show usage
 # output to STDERR.
@@ -190,11 +206,8 @@ function generate_selfsigned_ssl() {
 #
 function init_lemper_selfssl() {
     # Command line arguments.
-    OPTS=$(getopt -o d:4:6:hv \
-      -l domain-name:,ipv4:,ipv6:,help,version \
-      -n "${PROG_NAME}" -- "$@")
-
-    eval set -- "${OPTS}"
+    lemper_parse_args 'd:4:6:hv' 'domain-name:,ipv4:,ipv6:,help,version' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
 
     # Default parameter values.
     DOMAIN=""

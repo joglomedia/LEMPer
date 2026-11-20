@@ -25,6 +25,22 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
+# Load shared argument/validation helpers when this plugin is sourced in isolation.
+if ! declare -F lemper_parse_args >/dev/null; then
+    PLUGIN_SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    if [[ -f "${PLUGIN_SOURCE_DIR}/core/loader.sh" ]]; then
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/core/loader.sh" || return 1
+    else
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/../core/loader.sh" || return 1
+    fi
+fi
+
+
+
 # Check pre-requisite packages when the command actually runs (help/version
 # must work on hosts that are only partially provisioned).
 function check_required_packages() {
@@ -821,7 +837,7 @@ function install_wordpress() {
             if [[ -z $(command -v "wp-cli") ]]; then
                 info "WP CLI command not found, trying to install it first."
                 run curl -sSL -o /usr/local/bin/wp-cli https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
-                run chmod ugo+x /usr/local/bin/wp-cli && \
+                run chmod 0755 /usr/local/bin/wp-cli && \
                 run ln -sf /usr/local/bin/wp-cli /usr/bin/wp-cli
             fi
 
@@ -864,12 +880,8 @@ function install_wordpress() {
 #
 function init_lemper_create() {
     # Command line arguments.
-    OPTS=$(getopt -o u:d:e:f:4:6:w:p:iScsFWDhv \
-      -l username:,domain-name:,admin-email:,framework:,ipv4:,ipv6:,webroot:,php-version:,install-app,subdomains \
-      -l enable-fastcgi-cache,enable-ssl,enable-fail2ban,wildcard-domain,dryrun,help,version \
-      -n "${PROG_NAME}" -- "$@")
-
-    eval set -- "${OPTS}"
+    lemper_parse_args 'u:d:e:f:4:6:w:p:iScsFWDhv' 'username:,domain-name:,admin-email:,framework:,ipv4:,ipv6:,webroot:,php-version:,install-app,subdomains,enable-fastcgi-cache,enable-ssl,enable-fail2ban,wildcard-domain,dryrun,help,version' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
 
     # Default parameter values.
     IPv4=""
@@ -1027,6 +1039,10 @@ function init_lemper_create() {
             fi
 
             # Additional Check - are user account exist?
+            if ! is_valid_username "${USERNAME}"; then
+                fail "Invalid system username."
+            fi
+
             if [[ -z $(getent passwd "${USERNAME}") ]]; then
                 fail "User account '${USERNAME}' does not exist. Create the account first. Aborting..."
             fi
@@ -1321,9 +1337,9 @@ function init_lemper_create() {
                     APP_ADMIN_USER="wpadmin"
 
                     if command -v wp-cli &> /dev/null; then
-                        run sudo -u "${USERNAME}" -i -- wp-cli core install --url="${SERVERNAME}" \
+                        printf '%s\n' "${APP_ADMIN_PASS}" | run sudo -u "${USERNAME}" -i -- wp-cli core install --url="${SERVERNAME}" \
                             --title="WordPress Managed by LEMPer Stack" \
-                            --admin_user="${APP_ADMIN_USER}" --admin_password="${APP_ADMIN_PASS}" \
+                            --admin_user="${APP_ADMIN_USER}" --prompt=admin_password \
                             --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
                         run sudo -u "${USERNAME}" -i -- wp-cli plugin install \
                             akismet autoptimize nginx-helper redis-cache --activate --path="${WEBROOT}"
@@ -1367,9 +1383,9 @@ function init_lemper_create() {
                     APP_ADMIN_USER="wpadmin"
 
                     if command -v wp-cli &> /dev/null; then
-                        run sudo -u "${USERNAME}" -i -- wp-cli core multisite-install "${WPMS_SUBDOMAINS}" --url="${SERVERNAME}" \
+                        printf '%s\n' "${APP_ADMIN_PASS}" | run sudo -u "${USERNAME}" -i -- wp-cli core multisite-install "${WPMS_SUBDOMAINS}" --url="${SERVERNAME}" \
                             --title="WordPress Multisite Managed by LEMPer Stack" --admin_user="${APP_ADMIN_USER}" \
-                            --admin_password="${APP_ADMIN_PASS}" --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
+                            --prompt=admin_password --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
                         run sudo -u "${USERNAME}" -i -- wp-cli plugin install \
                             akismet autoptimize nginx-helper redis-cache --activate-network --path="${WEBROOT}"
                     fi
@@ -1621,10 +1637,9 @@ EOL
 
                 # Save app installation details.
                 if [[ ${INSTALL_APP} == true ]]; then
-                    echo -e "\nYour application's login details:\nAdmin Username: ${APP_ADMIN_USER}\nAdmin Password: ${APP_ADMIN_PASS}\nAdmin Email   : ${APP_ADMIN_EMAIL}"
-                    echo -e "DB Username: ${APP_DB_USER}\nDB Password: ${APP_DB_PASS}\nDB Name    : ${APP_DB_NAME}"
+                    info "Application credentials are saved in /etc/lemper/vhost.d/${SERVERNAME}.conf (root-only)."
                     echo -e "Site Address: ${APP_HTTP_PROTO}://${SERVERNAME}"
-                    cat > "/etc/lemper/vhost.d/${SERVERNAME}.conf" <<EOL
+                    ( umask 077; cat > "/etc/lemper/vhost.d/${SERVERNAME}.conf" <<EOL
 [${SERVERNAME}]
 APP_UID="${APP_UID}"
 APP_FRAMEWORK="${FRAMEWORK}"
@@ -1636,7 +1651,8 @@ APP_ADMIN_PASS="${APP_ADMIN_PASS}"
 APP_ADMIN_EMAIL="${APP_ADMIN_EMAIL}"
 APP_WEBROOT="${WEBROOT}"
 EOL
-                    chmod 0600 "/etc/lemper/vhost.d/${SERVERNAME}.conf"
+                    )
+                    run chmod 0600 "/etc/lemper/vhost.d/${SERVERNAME}.conf"
                 fi
             else
                 if [[ ${DRYRUN} == true ]]; then

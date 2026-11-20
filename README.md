@@ -84,6 +84,13 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * Checkout to the desired version, ```git checkout 3.x.x```
 * Make a copy of .env.dist to .env ```cp .env.dist .env``` and replace the values
 
+Unattended installation now defaults to key-only SSH. Generate an ed25519 key
+on your local computer and set RSA_PUB_KEY in .env to its public key before
+installing. The installer rejects a missing or invalid key before changing the
+server. An explicit SSH_PASSWORDLESS=false supports a staged migration.
+Previous SSH firewall ports remain allowed until you confirm a working login
+and deliberately retire those allowances.
+
 ### Install LEMPer Stack
 
 ```bash
@@ -244,6 +251,10 @@ pre-restore snapshot to the same directory, runs `nginx -t` afterwards, and
 rolls back automatically if the test fails. Archives contain credentials and
 private keys, so they are created root-only (mode 0600).
 
+Custom legacy checkout `.env` paths are accepted only when recorded locally in
+`/etc/lemper/update-source` or supplied with `LEMPER_LEGACY_DIR`. Restoring an
+archive on another host may require that explicit checkout-directory override.
+
 ##### LEMPer CLI benchmark the server
 
 `lemper-cli bench` reports hardware details, measures disk write/read speed,
@@ -269,6 +280,82 @@ sudo lemper-cli help
 ```
 
 Note: LEMPer CLI automagically create new PHP-FPM user's pool configuration if it doesn't exists. You must add the user account first.
+
+### Site/service commands and release bootstrap
+
+`lemperctl` is the preferred CLI name; `lemper-cli` remains compatible.
+
+~~~bash
+sudo lemperctl site create example.com --type=wordpress --runtime=php@8.5 \
+  --runtime-user="$USER" --install-skeleton --webroot="$HOME/example.com"
+sudo lemperctl site update example.com second.example.com --ssl-enable --cors-enable
+sudo lemperctl site enable example.com
+sudo lemperctl site remove example.com              # retain application data
+sudo lemperctl site remove example.com --purge       # remove recorded site-owned data
+sudo lemperctl stack install nginx
+sudo lemperctl stack restart php                     # all installed PHP-FPM versions
+sudo lemperctl stack restart php --php-version 8.5
+sudo lemperctl stack update php --php-version 8.4
+sudo lemperctl stack remove php --php-version 8.1 --yes
+sudo lemperctl stack status valkey
+sudo lemperctl config check
+~~~
+
+`site add`, `manage/mod`, and `delete` alias create, update, and remove.
+Feature-first flags such as `--ssl-enable` and legacy `--enable-ssl` share
+behavior. Legacy create flags remain accepted. Batches reject conflicting actions
+and invalid domains before mutation, return failure if any target fails, and
+validate/reload Nginx after the batch.
+
+Removal retains application data by default. `--purge` deletes the recorded
+document root and site-owned application database after ownership/reference
+checks. Shared accounts, PHP pools, certificate state and service packages are
+retained. `--yes` bypasses confirmation separately; `--dry-run` makes no
+changes. Existing sites can explicitly adopt ownership metadata before purge:
+
+~~~bash
+sudo lemperctl site adopt example.com --runtime-user="$USER" --runtime=php@8.1
+~~~
+
+Adoption checks the configured document root and its owner, then asks you to assert
+ownership of that root and the application's recorded database. An explicit
+`--webroot` must match the configured root. Adoption changes metadata; it
+does not install or migrate PHP.
+
+PHP installation permits 8.2–8.5. Management/removal resolves installed versions,
+including EOL. Versionless update/control targets all installed versions (FPM
+instances for control). Multi-version removal requires `--php-version` or
+`--all-versions`; site references block removal. Supported PHP updates combine
+package upgrades and security remediation; EOL updates retain the explicit
+mitigation/migration policy of `update php`.
+
+Install/remove uses recorded source and installed configuration. Removal requires
+provisioning markers (per version for PHP); `--force` permits removal of a
+pre-existing component while retaining site reference checks. Source builds
+requiring a rebuild are reported.
+
+`get-lemper --version VERSION` verifies the release SHA256 and installs CLI code
+under `/opt/lemper/VERSION`. An atomic `/opt/lemper/current` selector and
+compatibility links keep CLI/library code on one release. Configuration stays
+under `/etc/lemper`. Full installation and tooling refresh share this registry
+and export path. Selecting older code does not restore packages, databases or
+service configuration. Bootstrap installs no services; release assets are
+published by the version-tag workflow.
+
+Configuration values are validated before loading. config check also rejects
+unknown options and unsupported PHP versions; normal runtime loading preserves
+unknown legacy settings so existing installations can still be upgraded.
+
+Hosting accounts created by account have no sudo privileges. account --admin
+grants a new account restricted service administration; account --restrict-sudo
+USERNAME deliberately migrates a recorded LEMPer account away from broad sudo.
+Account credentials are saved in root-only /etc/lemper/accounts/USERNAME.conf.
+App and service credentials are no longer printed in installation output or logs.
+
+Wildcard SSL uses Cloudflare or DigitalOcean DNS-01 credentials for both issuance
+and renewal. Set ACME_DNS_PROVIDER and ACME_DNS_API_TOKEN; unattended wildcard
+installation also requires a configured server hostname. Credentials are stored
+in a root-only provider file.
 
 ### Web-based Administration
 
@@ -387,3 +474,10 @@ LEMPer Stack is open-source project licensed under the GNU GPLv3 license.
 (c) 2014-2026 | [MasEDI.Net](https://masedi.net/)
 
 ### Enjoy LEMPer Stack ;)
+
+Real installation/CLI UAT is documented in
+[DEVELOPER.md §3.4.4](DEVELOPER.md#344-real-installation-and-cli-uat). Native
+ARM64 testing uses the source Nginx profile while the MyGuard repository lacks
+an ARM64 binary candidate. `ACME_REGISTER_ACCOUNT=false` installs Certbot and
+renewal hooks without creating an external account.
+See [UAT_REPORT.md](docs/UAT_REPORT.md) for the tested profile, results, and limitations.

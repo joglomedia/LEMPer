@@ -117,9 +117,9 @@ function decrypt_config() {
 
     # Decrypt using AES-256-CBC (GCM was never supported by `openssl enc`).
     if ! openssl enc -aes-256-cbc -d -a -salt -md sha256 -pbkdf2 \
-        -k "${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
+        -pass fd:3 3<<<"${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
         if ! openssl enc -aes-256-cbc -d -a -salt -md sha256 \
-            -k "${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
+            -pass fd:3 3<<<"${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
             secure_shred "${output_file}"
             fail "Failed to decrypt config: incorrect password or corrupted file."
         fi
@@ -147,7 +147,7 @@ function encrypt_config() {
 
     # Encrypt using AES-256-CBC.
     if openssl enc -aes-256-cbc -a -salt -md sha256 -pbkdf2 \
-        -k "${password}" -in "${plaintext_file}" -out "${encrypted_file}"; then
+        -pass fd:3 3<<<"${password}" -in "${plaintext_file}" -out "${encrypted_file}"; then
         # Zero out the plaintext file before removing.
         secure_shred "${plaintext_file}"
         # Move encrypted file to replace original.
@@ -235,7 +235,7 @@ function save_config_encrypted() {
         local password
         password=$(resolve_config_password)
         openssl enc -aes-256-cbc -a -salt -md sha256 -pbkdf2 \
-            -k "${password}" -in "${working_file}" -out "${config_file}"
+            -pass fd:3 3<<<"${password}" -in "${working_file}" -out "${config_file}"
         secure_shred "${working_file}"
     fi
 }

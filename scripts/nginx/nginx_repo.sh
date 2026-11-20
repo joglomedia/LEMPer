@@ -28,6 +28,19 @@ function add_nginx_repo_ondrej() {
     add_nginx_repo_myguard
 }
 
+
+# Do not mix MyGuard's architecture-independent config with a distro binary ABI.
+function nginx_myguard_binary_available() {
+    local candidate
+    candidate=$(apt-cache policy nginx | awk '/^[[:space:]]*Candidate:/ { print $2; exit }')
+    [[ -n "$candidate" && "$candidate" != "(none)" ]] || return 1
+    apt-cache madison nginx | awk -F'|' -v expected="$candidate" '
+        { version=$2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", version) }
+        version == expected && $3 ~ /deb[.]myguard[.]nl/ { found=1 }
+        END { exit !found }
+    '
+}
+
 ##
 # Add MyGuard's nginx-only repository.
 # Keyring path and source line match https://deb.myguard.nl/how-to-use/
@@ -96,6 +109,9 @@ Pin-Priority: 501
 EOF
 
     run apt-get update -q -y
+    if [[ "${DRYRUN:-false}" != true ]] && ! nginx_myguard_binary_available; then
+        fail "No MyGuard nginx binary candidate for ${arch} on ${codename}; use NGINX_INSTALLER=source or a supported architecture."
+    fi
     NGINX_PKGS=("nginx" "nginx-common")
 }
 

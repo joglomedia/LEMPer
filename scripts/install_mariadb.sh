@@ -354,7 +354,7 @@ open_files_limit=65535
         save_config -e "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}\nMARIABACKUP_USERNAME=${MARIABACKUP_USER}\nMARIABACKUP_PASSWORD=${MARIABACKUP_PASS}"
 
         # Save log.
-        save_log -e "MariaDB server credentials.\nMySQL Root Password: ${MYSQL_ROOT_PASSWORD}, MariaBackup DB Username: ${MARIABACKUP_USER}, MariaBackup DB Password: ${MARIABACKUP_PASS}\nSave this credential and use it to authenticate your MySQL database connection."
+        save_log "MariaDB configured; credentials saved to protected LEMPer configuration."
     else
         info "It seems that user '${MARIABACKUP_USER}' already exists. You can add mariabackup user manually!"
     fi

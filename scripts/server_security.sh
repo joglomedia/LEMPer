@@ -32,146 +32,56 @@ fi
 # Securing SSH server.
 #
 function securing_ssh() {
-    LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
-    SSH_PASSWORDLESS=${SSH_PASSWORDLESS:-false}
-
-    if [[ "${SSH_PASSWORDLESS}" == true ]]; then
-        echo "
-Before starting, let's create a pair of keys that some hosts ask for during installation of the server.
-
-On your local machine, open new terminal and create an SSH key pair using the ssh-keygen tool,
-use the following command:
-
-ssh-keygen -t rsa -b ${KEY_HASH_LENGTH}
-
-After this step, you will have the following files: id_rsa and id_rsa.pub (private and public keys).
-Never share your private key.
-"
-
-        #read -rt 120 -p "Press [Enter] to continue..." </dev/tty
-        #echo ""
-        sleep 3
-
-        echo "Open your public key (id_rsa.pub) file, copy paste the key here..."
-
-        RSA_PUB_KEY=${RSA_PUB_KEY:-""}
-        while ! is_ssh_public_key "${RSA_PUB_KEY}"; do
-            IFS= read -rp ": " -e RSA_PUB_KEY
-        done
-
-        # Grand access to SSH with key.
-        if is_ssh_public_key "${RSA_PUB_KEY}"; then
-            echo -e "\nSecuring your SSH server with public key..."
-
-            if [ ! -d "/home/${LEMPER_USERNAME}/.ssh" ]; then
-                run mkdir -p "/home/${LEMPER_USERNAME}/.ssh" && \
-                run chmod 700 "/home/${LEMPER_USERNAME}/.ssh"
+    local username="${LEMPER_USERNAME:-lemper}" key="${RSA_PUB_KEY:-}"
+    local key_only="${SSH_PASSWORDLESS:-true}" port="${SSH_PORT:-22}"
+    local config=/etc/ssh/sshd_config profile=/etc/ssh/sshd_config.d/90-lemper.conf
+    local snapshot
+    is_valid_username "${username}" && [[ "${username}" != root ]] || return 1
+    if [[ "${key_only}" == true ]]; then
+        if ! valid_ssh_key_material "${key}"; then
+            if [[ "${AUTO_INSTALL:-true}" == true ]]; then
+                error "Set RSA_PUB_KEY to a valid public key before unattended key-only SSH setup."
+                info 'Generate it locally with: ssh-keygen -t ed25519'
+                return 1
             fi
-
-            if [ ! -f "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" ]; then
-                run touch "/home/${LEMPER_USERNAME}/.ssh/authorized_keys" && \
-                run chmod 600 "/home/${LEMPER_USERNAME}/.ssh/authorized_keys"
-            fi
-
-            # Create authorized_keys file and copy your public key here.
-            if [[ "${DRYRUN}" != true ]]; then
-                printf '%s\n' "${RSA_PUB_KEY}" >> "/home/${LEMPER_USERNAME}/.ssh/authorized_keys"
-                success "RSA public key added to the authorized_keys."
-            else
-                info "RSA public key added in dry run mode."
-            fi
-
-            # Fix authorized_keys file ownership and permission.
-            run chown -hR "${LEMPER_USERNAME}:${LEMPER_USERNAME}" "/home/${LEMPER_USERNAME}/.ssh"
-            run chmod 700 "/home/${LEMPER_USERNAME}/.ssh"
-            run chmod 600 "/home/${LEMPER_USERNAME}/.ssh/authorized_keys"
-
-            echo -e "\nEnable SSH password-less login..."
-
-            run bash -c "echo -e '\n\n#LEMPer custom config' >> /etc/ssh/sshd_config"
-
-            # Restrict root login directly, use sudo user instead.
-            SSH_ROOT_LOGIN=${SSH_ROOT_LOGIN:-false}
-            if [[ "${SSH_ROOT_LOGIN}" == false ]]; then
-                echo "Restricting SSH root login..."
-
-                if grep -qwE "^PermitRootLogin\ [a-z]*" /etc/ssh/sshd_config; then
-                    sed_inplace "s/^PermitRootLogin\ [a-z]*/PermitRootLogin\ no/g" /etc/ssh/sshd_config
-                else
-                    #run sed -i "/^#PermitRootLogin/a PermitRootLogin\ no" /etc/ssh/sshd_config
-                    run bash -c "echo 'PermitRootLogin no' >> /etc/ssh/sshd_config"
-                fi
-            fi
-
-            # Enable RSA key authentication.
-            if grep -qwE "^RSAAuthentication\ no" /etc/ssh/sshd_config; then
-                sed_inplace "s/^RSAAuthentication\ no/RSAAuthentication\ yes/g" /etc/ssh/sshd_config
-            else
-                #run sed -i "/^#RSAAuthentication/a RSAAuthentication\ yes" /etc/ssh/sshd_config
-                run bash -c "echo 'RSAAuthentication yes' >> /etc/ssh/sshd_config"
-            fi
-
-            # Enable pub key authentication.
-            if grep -qwE "^PubkeyAuthentication\ no" /etc/ssh/sshd_config; then
-                sed_inplace "s/^PubkeyAuthentication\ no/PubkeyAuthentication\ yes/g" /etc/ssh/sshd_config
-            else
-                #run sed -i "/^#PubkeyAuthentication/a PubkeyAuthentication\ yes" /etc/ssh/sshd_config
-                run bash -c "echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config"
-            fi
-
-            # Disable password authentication for password-less login using key.
-            if grep -qwE "^PasswordAuthentication\ [a-z]*" /etc/ssh/sshd_config; then
-                sed_inplace "s/^PasswordAuthentication\ [a-z]*/PasswordAuthentication\ no/g" /etc/ssh/sshd_config
-            else
-                #run sed -i "/^#PasswordAuthentication/a PasswordAuthentication\ no" /etc/ssh/sshd_config
-                run bash -c "echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config"
-            fi
-
-            if grep -qwE "^ClientAliveInterval\ [0-9]*" /etc/ssh/sshd_config; then
-                sed_inplace "s/^ClientAliveInterval\ [0-9]*/ClientAliveInterval\ 600/g" /etc/ssh/sshd_config
-            else
-                #run sed -i "/^#ClientAliveInterval/a ClientAliveInterval\ 600" /etc/ssh/sshd_config
-                run bash -c "echo 'ClientAliveInterval 600' >> /etc/ssh/sshd_config"
-            fi
-
-            if grep -qwE "^ClientAliveCountMax\ [0-9]*" /etc/ssh/sshd_config; then
-                sed_inplace "s/^ClientAliveCountMax\ [0-9]*/ClientAliveCountMax\ 3/g" /etc/ssh/sshd_config
-            else
-                #run sed -i "/^#ClientAliveCountMax/a ClientAliveCountMax\ 3" /etc/ssh/sshd_config
-                run bash -c "echo 'ClientAliveCountMax 3' >> /etc/ssh/sshd_config"
-            fi
+            info 'Generate a key locally with: ssh-keygen -t ed25519; paste id_ed25519.pub.'
+            while ! valid_ssh_key_material "${key}"; do
+                IFS= read -rp "SSH public key: " key || return 1
+            done
         fi
     fi
-
-    # Securing the SSH server.
-    echo "Securing your SSH server with custom port..."
-
-    SSH_PORT=${SSH_PORT:-""}
-    while ! [[ ${SSH_PORT} =~ ^[0-9]+$ ]]; do
-        read -rp "Custom SSH port (default SSH port is 22): " -e SSH_PORT
-    done
-
-    if [[ ${SSH_PORT} =~ ^[0-9]+$ ]]; then
-        if grep -qwE "^Port\ [0-9]*" /etc/ssh/sshd_config; then
-            sed_inplace "s/^Port\ [0-9]*/Port\ ${SSH_PORT}/g" /etc/ssh/sshd_config
-        else
-            sed_inplace "/^#Port\ [0-9]*/a Port\ ${SSH_PORT}" /etc/ssh/sshd_config
-        fi
-
-        # Save config.
-        #save_config -e "HOSTNAME=${HOSTNAME}\nSERVER_IP=${SERVER_IP}\nSSH_PORT=${SSH_PORT}"
-        sed_inplace "s|^SERVER_SSH_PORT=[0-9]*|SERVER_SSH_PORT=${SSH_PORT}|g" /etc/lemper/lemper.conf
-
-        # Save log.
-        save_log "Default SSH port updated to ${SSH_PORT}."
-
-        success "SSH port updated to ${SSH_PORT}."
-    else
-        info "Unable to update SSH port."
+    if [[ "${DRYRUN:-false}" == true ]]; then
+        info "Would configure SSH port ${port}; key-only=${key_only}."
+        return 0
     fi
-
-    # Restart SSH service after LEMPer installation completed.
-    run service sshd restart
+    getent passwd "${username}" >/dev/null || { error "SSH account does not exist."; return 1; }
+    command -v sshd >/dev/null || { error "OpenSSH server is required."; return 1; }
+    local previous_ports active_port
+    previous_ports=$(sshd -T 2>/dev/null | awk '$1 == "port" {print $2}')
+    active_port="${SSH_CONNECTION##* }"
+    [[ -n "${SSH_CONNECTION:-}" ]] || active_port=""
+    LEMPER_SSH_ALLOWED_PORTS=$(ssh_transition_ports "${port}" "${previous_ports:-22}" "${active_port}") || return 1
+    if [[ "${key_only}" == true ]]; then
+        install_managed_ssh_key "${username}" "${key}" || return 1
+    fi
+    install -d -m 0755 /etc/ssh/sshd_config.d || return 1
+    snapshot=$(mktemp -d /tmp/lemper-ssh.XXXXXX) || return 1
+    LEMPER_SSH_SNAPSHOT="${snapshot}"
+    cp -p "${config}" "${snapshot}/sshd_config" || { rm -rf "${snapshot}"; return 1; }
+    if [[ -f "${profile}" ]]; then
+        cp -p "${profile}" "${snapshot}/profile" || return 1
+    fi
+    # OpenSSH takes the first value; put this include before older directives.
+    if ! grep -qF 'Include /etc/ssh/sshd_config.d/90-lemper.conf' "${config}"; then
+        { printf 'Include /etc/ssh/sshd_config.d/90-lemper.conf\n'; cat "${snapshot}/sshd_config"; } > "${config}"
+    fi
+    if ! write_ssh_profile "${profile}" "${port}" "${key_only}" "${SSH_ROOT_LOGIN:-false}" || ! sshd -t; then
+        restore_ssh_configuration || return 1
+        error "SSH policy validation failed; previous configuration restored."
+        return 1
+    fi
+    save_config "SSH_PORT=${port}"
+    save_log "Validated SSH configuration: key-only=${key_only}; port=${port}."
 }
 
 ##
@@ -206,7 +116,11 @@ function install_ufw() {
         run ufw default allow outgoing
 
         # Open SSH port.
-        run ufw allow "${SSH_PORT}/tcp"
+        local allowed_port
+        for allowed_port in ${LEMPER_SSH_ALLOWED_PORTS//,/ }; do
+            run ufw allow "${allowed_port}/tcp"
+        done
+        [[ -n "${LEMPER_SSH_ALLOWED_PORTS:-}" ]] || run ufw allow "${SSH_PORT}/tcp"
 
         # Open HTTP port.
         run ufw allow 80
@@ -323,7 +237,7 @@ function install_csf() {
         sed_inplace 's/^TESTING\ =\ "1"/TESTING\ =\ "0"/g' /etc/csf/csf.conf
 
         # Allowed ports.
-        CSF_ALLOW_PORTS="53,80,8081,8082,8083,8443,25,465,587,110,143,993,995"
+        CSF_ALLOW_PORTS="${LEMPER_SSH_ALLOWED_PORTS:-${SSH_PORT}},53,80,8081,8082,8083,8443,25,465,587,110,143,993,995"
 
         # Open MySQL port for remote client access.
         if [[ "${MYSQL_ALLOW_REMOTE}" == true ]]; then
@@ -439,6 +353,11 @@ function install_apf() {
 
         # Set ethernet interface to monitor.
         sed_inplace "s/^IFACE_UNTRUSTED=\"[0-9a-zA-Z]*\"/IFACE_UNTRUSTED=\"${IFACE}\"/g" /etc/apf/conf.apf
+
+        local existing_ports
+        existing_ports=$(sed -n 's/^IG_TCP_CPORTS="\([^"]*\)".*/\1/p' /etc/apf/conf.apf)
+        [[ "${existing_ports}" =~ ^[0-9,:]*$ ]] || { error "Invalid APF port list."; return 1; }
+        set_env_value /etc/apf/conf.apf IG_TCP_CPORTS "${LEMPER_SSH_ALLOWED_PORTS:-${SSH_PORT}}${existing_ports:+,${existing_ports}}" || return 1
 
         # Enable fast load.
         sed_inplace 's/^SET_FASTLOAD="0"/SET_FASTLOAD="1"/g' /etc/apf/conf.apf
@@ -589,8 +508,23 @@ function init_secure_server() {
     fi
 
     if [[ "${DO_SECURE_SERVER}" == Y* || "${DO_SECURE_SERVER}" == y* ]]; then
-        securing_ssh "$@"
-        install_firewall "$@"
+        securing_ssh "$@" || return 1
+        if ! ( install_firewall "$@" ); then
+            restore_ssh_configuration
+            return 1
+        fi
+        # Keep the previous policy until both the firewall and reload succeed.
+        if [[ "${DRYRUN:-false}" != true ]]; then
+            if ! apply_ssh_service_policy; then
+                restore_ssh_configuration
+                apply_ssh_service_policy || error "Could not apply restored SSH listener configuration."
+                error "SSH reload failed; previous configuration restored."
+                return 1
+            fi
+            info "Previous SSH firewall ports remain allowed; retire them after confirming the new login."
+            rm -rf "${LEMPER_SSH_SNAPSHOT}"
+            LEMPER_SSH_SNAPSHOT=""
+        fi
 
         if [[ ${SSH_PORT} -ne 22 ]]; then
             echo -e "\nYou're running SSH server with modified configuration, restart to apply your changes.

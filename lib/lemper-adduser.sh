@@ -25,6 +25,22 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
+# Load shared argument/validation helpers when this plugin is sourced in isolation.
+if ! declare -F lemper_parse_args >/dev/null; then
+    PLUGIN_SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    if [[ -f "${PLUGIN_SOURCE_DIR}/core/loader.sh" ]]; then
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/core/loader.sh" || return 1
+    else
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/../core/loader.sh" || return 1
+    fi
+fi
+
+
+
 ##
 # Show interactive user creation help.
 ##
@@ -145,17 +161,7 @@ function prompt_for_user() {
     echo -n "Add user ${namauser} to sudoers? [y/n]: "
     read -r setsudoers || return 1
     if [[ "${setsudoers}" == y* || "${setsudoers}" == Y* ]]; then
-        # Use restricted sudoers instead of full sudo group membership.
-        cat > "/etc/sudoers.d/90-${namauser}" <<SUDOERS_EOF
-# Restricted sudoers for LEMPer admin user.
-${namauser} ALL=(root) NOPASSWD: /bin/systemctl reload nginx, /bin/systemctl reload php*, /bin/systemctl restart nginx, /bin/systemctl restart php*
-SUDOERS_EOF
-        chmod 0440 "/etc/sudoers.d/90-${namauser}"
-        if command -v visudo &>/dev/null && ! visudo -cf "/etc/sudoers.d/90-${namauser}" >/dev/null 2>&1; then
-            error "Generated sudoers file failed validation; removing it."
-            rm -f "/etc/sudoers.d/90-${namauser}"
-            return 1
-        fi
+        write_account_sudoers "${namauser}" || return 1
     fi
 
     success "User '${namauser}' created."
@@ -165,13 +171,9 @@ SUDOERS_EOF
 # Main App
 ##
 function init_lemper_adduser() {
-    local OPTS
 
-    if ! OPTS=$(getopt -o hv -l help,version -n "${PROG_NAME}" -- "$@"); then
-        echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information."
-        exit 1
-    fi
-    eval set -- "${OPTS}"
+    lemper_parse_args 'hv' 'help,version' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
 
     while true; do
         case "${1}" in

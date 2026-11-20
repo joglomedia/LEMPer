@@ -29,6 +29,22 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
+# Load shared argument/validation helpers when this plugin is sourced in isolation.
+if ! declare -F lemper_parse_args >/dev/null; then
+    PLUGIN_SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    if [[ -f "${PLUGIN_SOURCE_DIR}/core/loader.sh" ]]; then
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/core/loader.sh" || return 1
+    else
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/../core/loader.sh" || return 1
+    fi
+fi
+
+
+
 MODSEC_CONF_DIR="${MODSEC_CONF_DIR:-/etc/modsecurity}"
 MODSEC_MAIN_CONF="${MODSEC_CONF_DIR}/modsecurity.conf"
 MODSEC_TUNING_CONF="${MODSEC_CONF_DIR}/lemper-tuning.conf"
@@ -320,8 +336,16 @@ function modsec_tune() {
     local engine="" paranoia="" inbound="" outbound=""
     local auto=false apply=false
 
+    lemper_parse_args 'e:p:h' 'engine:,paranoia:,inbound:,outbound:,auto,apply,help' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
+
     while [[ $# -gt 0 ]]; do
         case "${1}" in
+            --)
+                shift
+                [[ $# -eq 0 ]] || { error "Unexpected positional arguments."; return 1; }
+                break
+            ;;
             -e | --engine)
                 engine="${2:-}"
                 shift 2

@@ -7,7 +7,7 @@
 .codex/
 .claude/
 .qoder/
-dev-notes.md
+dev*.md
 install.log
 lemper.log
 lemper_install.log
@@ -23,3 +23,4 @@ scripts/createssl.sh
 scripts/mysqltuner.pl
 .DS_Store
 tests/.env.test
+.firecrawl/

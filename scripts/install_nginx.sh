@@ -117,25 +117,24 @@ function select_install_method() {
 # Determine Nginx version to install
 ##
 function determine_nginx_version() {
-    local NGINX_VERSION="${NGINX_VERSION:-stable}"
-    local VERSION=""
-
-    # Get latest version from nginx.org
-    case "${NGINX_VERSION}" in
-        mainline|latest)
-            VERSION=$(curl -sL https://nginx.org/en/download.html 2>&1 | \
-                grep -oE 'nginx-[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -d'-' -f2)
-            ;;
-        stable|*)
-            VERSION=$(curl -sL https://nginx.org/en/download.html 2>&1 | \
-                grep -oE 'Stable version.*nginx-[0-9]+\.[0-9]+\.[0-9]+' | \
-                grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-            ;;
-    esac
-
-    # Fallback
-    [[ -z "${VERSION}" ]] && VERSION="1.24.0"
-    echo "${VERSION}"
+    local requested="${NGINX_VERSION:-stable}" version
+    if [[ "$requested" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        printf '%s\n' "$requested"
+        return 0
+    fi
+    case "$requested" in stable|lts|mainline|latest) ;; *) error "Invalid Nginx version."; return 1 ;; esac
+    # Official GitHub tags avoid depending on the formatting of nginx.org HTML.
+    version=$(curl -fsSL --connect-timeout 10 --max-time 30 \
+        'https://api.github.com/repos/nginx/nginx/tags?per_page=100' |
+        grep -oE '"name"[[:space:]]*:[[:space:]]*"release-[0-9]+\.[0-9]+\.[0-9]+"' |
+        sed -E 's/.*release-([0-9]+\.[0-9]+\.[0-9]+)".*/\1/' |
+        awk -v selected="$requested" '
+            { split($0, parts, /[.]/) }
+            selected == "latest" || selected == "mainline" || parts[2] % 2 == 0 { print }
+        ' | sort -Vu | tail -n 1)
+    [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
+        { error "Unable to resolve Nginx source version; set an explicit NGINX_VERSION."; return 1; }
+    printf '%s\n' "$version"
 }
 
 ##
@@ -158,7 +157,7 @@ function init_nginx_install() {
 
             source)
                 # Build from source (function from nginx_build.sh)
-                build_nginx_from_source
+                build_nginx_from_source || return 1
                 ;;
 
             *)

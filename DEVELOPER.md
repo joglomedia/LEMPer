@@ -1,6 +1,6 @@
 # LEMPer Developer Guide
 
-> **Version:** 3.0.0 (proposed)
+> **Version:** 3.6.0 + unreleased P1 implementation
 > **Last Updated:** 2026-10-22
 > **Target Audience:** Contributors, maintainers, and developers working on LEMPer.
 
@@ -32,9 +32,24 @@
 
 ---
 
+The shared implementation now lives in lib/core: configuration/schema,
+logging/colors, distro/network, validation/security, resources, SSH, accounts,
+ACME, option parsing, and CLI dispatch. scripts/utils.sh and the CLI retain
+compatibility wrappers. Runtime/service directory migration remains separate.
+
+Core modules and each component are linted independently to avoid repeatedly
+expanding the shared dependency graph through every installer.
+Run the existing Bats suite in Linux; new tests exercise unsafe inputs,
+legitimate controls, failure handling, provider arguments, and release integrity.
+
+Full-install fixtures must explicitly configure SSH keys or set
+SSH_PASSWORDLESS=false when testing unrelated services. Package/service tests
+belong in disposable Linux environments. get-lemper --prefix DIRECTORY permits
+bootstrap staging in a fixture without changing system paths.
+
 ## 2. Project Structure
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full architecture overview. The key
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full architecture overview. The key
 directories for development:
 
 | Directory | Purpose | Files to Edit |
@@ -45,7 +60,7 @@ directories for development:
 | `etc/` | Configuration templates | `*.conf`, `*.ini`, service files |
 | `share/` | Static assets | HTML error pages, index, tool configs |
 | `tests/` | Unit & integration tests | New in v3.0 |
-| `docs/` | Documentation | This guide and companions |
+| `docs/` | Documentation | Architecture, roadmap, audits, and UAT reports |
 
 ---
 
@@ -123,7 +138,7 @@ shellcheck -s bash lib/core/lemper-stacks.sh
 # (In v3.0, a .editorconfig will enforce tab-vs-space, line length, etc.)
 
 # 3. Unit tests (when applicable)
-cd tests && ./run_tests.sh
+bats tests/ tests/unit/
 
 # 4. Verify .env is not tracked
 git status --porcelain | grep '.env' && echo "ERROR: .env is tracked!" && exit 1
@@ -166,24 +181,55 @@ podman run --rm \
     '
 ```
 
-#### 3.4.3 Run Full Installation (Dry-Run)
+#### 3.4.3 Installation dry-run fixture
 
-```bash
-podman run --rm --privileged \
-    -v "${PWD}:/lemper:rw" \
-    -w /lemper \
-    ubuntu:24.04 bash -c '
-        apt-get update -qq && apt-get install -qq -y shellcheck > /dev/null 2>&1 && \
-        cp .env.dist .env && \
-        sed -i "s/AUTO_INSTALL=false/AUTO_INSTALL=true/" .env && \
-        sed -i "s/ENVIRONMENT=\"production\"/ENVIRONMENT=\"local\"/" .env && \
-        sed -i "s/INSTALL_NGINX=true/INSTALL_NGINX=false/" .env && \
-        sed -i "s/INSTALL_PHP=true/INSTALL_PHP=false/" .env && \
-        DRYRUN=true bash install.sh
-    '
-```
+Use bash scripts/test_podman.sh --dry-run after inspecting that mode. It copies
+the checkout and creates a synthetic configuration in a disposable Linux
+container. The mode requests a privileged container; it does not prove a live
+installation or make all sourced code harmless outside that container.
 
-#### 3.4.4 macOS vs Linux Portability Gotchas
+#### 3.4.4 Real installation and CLI UAT
+
+The real UAT uses systemd as PID 1 and performs package installation, site
+creation, HTTP/TLS requests, SSH key login, backup/restore, and destructive removal inside an
+explicitly marked disposable Podman container. The checkout stays read-only.
+
+On ARM64, MyGuard currently advertises the architecture but supplies no Nginx
+binary candidate; use the supported source installer for the native UAT. The
+source profile builds PAM and cache-purge modules. MyGuard repository behavior
+must be reported separately from a successful source-profile run.
+
+~~~bash
+podman build -t localhost/lemper-uat:ubuntu24 -f tests/uat/Containerfile tests/uat
+podman run -d --name lemper-uat-ubuntu24 --privileged --systemd=always \
+  --cgroupns=private --hostname lemper-uat.test --cpus 2 --memory 3g \
+  --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" localhost/lemper-uat:ubuntu24
+podman exec -e LEMPER_UAT_NGINX_INSTALLER=source lemper-uat-ubuntu24 \
+  bash /source/tests/uat/prepare.sh
+podman exec -w /checkout lemper-uat-ubuntu24 bash scripts/server_cleanup.sh
+podman exec -w /checkout lemper-uat-ubuntu24 bash scripts/install_dependencies.sh
+podman exec -w /checkout lemper-uat-ubuntu24 bash shunit2/run_test.sh
+podman exec lemper-uat-ubuntu24 certbot register --non-interactive \
+  --register-unsafely-without-email --agree-tos
+podman exec -w /checkout lemper-uat-ubuntu24 bash tests/uat/cli_acceptance.sh
+podman stop --time 10 lemper-uat-ubuntu24
+~~~
+
+The profile generates a synthetic key and credentials in the container. Certbot
+uses the staging directory and package-only installation; the explicit staging
+registration uses no real mailbox. Public ACME HTTP/DNS challenges need their
+own routable domain/provider setup and are outside this local UAT.
+
+`cli_acceptance.sh` checks real installed services, WordPress/PHP HTTP,
+multi-version PHP install/update/control/removal, CORS/cache headers, site state
+and TLS, SSH key authentication, configuration backup, and database/webroot purge.
+It waits for graceful Nginx reloads, requires a real FastCGI cache hit with CORS
+headers, restores a modified synthetic configuration file from backup, and uses
+the generated CA for TLS verification.
+Per-case logs stay under `/var/log/lemper-uat/cli`.
+See [UAT_REPORT.md](docs/UAT_REPORT.md) for recorded results and environment limitations.
+
+#### 3.4.5 macOS vs Linux Portability Gotchas
 
 | Construct | macOS (BSD) | Linux (GNU) | Portable Alternative |
 |---|---|---|---|
@@ -192,9 +238,10 @@ podman run --rm --privileged \
 | `date +%N` | Nanoseconds always 0 | Real nanoseconds | Use `gdate` from coreutils on macOS |
 | `stat -f` | BSD `stat -f` | GNU `stat -c` | Check `uname` or use `stat --format=` |
 
-> **Current status:** The codebase still uses GNU `sed -i` (210 usages across 20 files)
-> and was migrated from `grep -oP` to `grep -qE` (ERE) during Phase 2. The `sed -i`
-> portability is tracked as **STACK-08** / **Task 2.35** in the v3.5.0 roadmap.
+Host-side edits use the portable sed_inplace helper. GNU sed remains appropriate
+inside Debian/Ubuntu CI and container commands. Validate runtime behavior on
+Linux rather than relying on macOS command compatibility.
+
 
 ---
 
@@ -283,7 +330,7 @@ fi
 
 | Framework | Purpose | Tests |
 |---|---|---|
-| **bats-core** | Structural, syntax, and mock-based unit tests | **107 tests** (primary) |
+| **bats-core** | Structural, syntax, and mock-based unit tests | See current Bats suite (primary) |
 | **shunit2** | Legacy unit tests (still present) | `shunit2/run_test.sh` |
 
 ### 5.2 Running Tests
@@ -530,9 +577,9 @@ The CI pipeline runs on every push/PR to `2.x.x` and `master` branches:
    Toggled for CI: `REDIS_BACKEND="valkey"`, `INSTALL_CROWDSEC=true`,
    `ACME_WILDCARD=true`, `INSTALL_MODSEC=true`, `ENCRYPT_CONFIG_AT_REST=true`.
 2. **ShellCheck:** Runs `shellcheck -s bash -x` on every script file — **exit 0**.
-3. **Bats Tests:** Runs `bats tests/ tests/unit/` — **198/198 tests pass**.
+3. **Bats Tests:** Runs `bats tests/ tests/unit/` — see current CI/Bats results.
 
-**CI runs on `ubuntu-latest`** with ShellCheck v0.10.0 and bats-core 1.14.0.
+CI includes Ubuntu 24.04, a Debian 12 container, FTP build jobs, and a version-tag release workflow.
 
 ### 8.2 Planned v3.0 Enhancements
 
@@ -549,19 +596,13 @@ The CI pipeline runs on every push/PR to `2.x.x` and `master` branches:
 
 ## 9. Common Pitfalls
 
-### 9.1 `eval` in Configuration Loading
+### 9.1 Configuration is data
 
-The config loader uses `eval` to source key=value pairs from `.env`/`.env.conf`:
-
-```bash
-source <(grep -v '^#' "${ENVFILE}" | grep -v '^\[' | \
-    sed -E 's|^(.+)=(.*)$|: ${\1=\2}; export \1|g')
-```
-
-> **⚠️ SECURITY:** This is a known injection vector if config values contain shell
-> metacharacters. **Status:** Partially addressed in v3.4.0 — `lib/lemper-encrypt.sh`
-> provides `load_config()` which adds decryption support but still uses `eval` internally.
-> **Planned fix (v3.5.0, Task 2.33):** Replace with a safe `while IFS='=' read` parser.
+Core configuration/schema modules validate values and load literal key/value
+pairs. Never reintroduce eval or shell-source loading of private configuration.
+Compatible runtime loading accepts legacy extension keys but refuses shell and
+source-path control variables; config check and full installation use stricter
+validation.
 
 ### 9.2 `exit` in Sourced Scripts
 
@@ -648,3 +689,19 @@ podman run --rm --privileged \
 - [shunit2 Documentation](https://github.com/kward/shunit2)
 - [Bash Hackers Wiki](https://wiki.bash-hackers.org/)
 - [GNU Bash Manual](https://www.gnu.org/software/bash/manual/)
+
+## CLI/module contracts
+
+Prefer `lemperctl` and preserve `lemper-cli`, legacy flags and site aliases.
+Command exports, aliases, components and recipes belong in
+`lib/core/registry.sh`; do not add another installer/updater mapping.
+
+Use cases belong in `lib/runtime/`, drivers in `lib/services/`, and
+self-dispatching legacy boundaries in `lib/compat/`. New modules define functions
+without dispatching when sourced. Return statuses, use `lemper_exec` for
+mutations, and pass literal arrays and explicit inputs/context.
+
+Code installation uses `lib/core/deployment.sh`. Config backup excludes code
+compatibility links and retains ownership metadata. Distinguish supported PHP
+installation targets from installed management/removal targets. Run
+`tests/unit/alignment_contracts.bats` and required checks when changing contracts.

@@ -78,13 +78,17 @@ function init_certbotle_install() {
 
         if [[ "${DRYRUN}" != true ]]; then
             if certbot --version | grep -q "certbot"; then
-                # Register a new Letsencrypt's account.
-                local LE_EMAIL=${LEMPER_ADMIN_EMAIL:-"cert@lemper.cloud"}
-
-                if [[ -d /etc/letsencrypt/accounts/acme-v02.api.letsencrypt.org/directory ]]; then
-                    run certbot update_account --email "${LE_EMAIL}" --no-eff-email --agree-tos
-                else
-                    run certbot register --email "${LE_EMAIL}" --no-eff-email --agree-tos
+                # Account registration is optional for package-only/bootstrap use.
+                if [[ "${ACME_REGISTER_ACCOUNT:-true}" == true ]]; then
+                    local LE_EMAIL="${LEMPER_ADMIN_EMAIL:-cert@lemper.cloud}"
+                    local account_args=(--email "${LE_EMAIL}" --no-eff-email --agree-tos)
+                    [[ "${AUTO_INSTALL:-false}" != true ]] || account_args+=(--non-interactive)
+                    # Let Certbot resolve its configured server/account (including staging).
+                    if certbot show_account --non-interactive >/dev/null 2>&1; then
+                        run certbot update_account "${account_args[@]}"
+                    else
+                        run certbot register "${account_args[@]}"
+                    fi
                 fi
 
                 add_certbot_cron
@@ -94,7 +98,7 @@ function init_certbotle_install() {
 
                 # Request wildcard certificate if enabled.
                 if [[ "${ACME_WILDCARD}" == true ]]; then
-                    request_wildcard_certificate
+                    request_wildcard_certificate "${SERVER_HOSTNAME:-}"
                 fi
 
                 success "Certbot successfully installed."
@@ -118,6 +122,7 @@ function install_certbot_pip() {
 
     # Install ACME v2 DNS-01 provider plugin for wildcard certificates.
     if [[ "${ACME_WILDCARD}" == true && -n "${ACME_DNS_PROVIDER}" ]]; then
+        dns01_provider_key "${ACME_DNS_PROVIDER}" >/dev/null || return 1
         local dns_plugin="certbot-dns-${ACME_DNS_PROVIDER}"
         echo "Installing DNS-01 provider plugin: ${dns_plugin}"
         run /opt/certbot/bin/pip install --upgrade "${dns_plugin}"
@@ -171,69 +176,19 @@ EOL
 # Configure ACME v2 DNS-01 DNS provider credentials.
 ##
 function add_dns01_credentials() {
-    if [[ "${ACME_WILDCARD}" != true ]]; then
-        return 0
-    fi
-
-    if [[ -z "${ACME_DNS_PROVIDER}" ]]; then
-        info "ACME_DNS_PROVIDER is not set, skipping DNS-01 configuration."
-        return 0
-    fi
-
-    local creds_dir="/etc/lemper/acme"
-    run mkdir -p "${creds_dir}"
-    local creds_file="${creds_dir}/dns-${ACME_DNS_PROVIDER}.ini"
-
-    # Write DNS provider credentials.
-    cat > "${creds_file}" <<EOL
-dns_${ACME_DNS_PROVIDER}_api_token = ${ACME_DNS_API_TOKEN}
-EOL
-
-    run chmod 0600 "${creds_file}"
-    success "DNS-01 credentials configured at ${creds_file}"
+    [[ "${ACME_WILDCARD:-false}" == true ]] || return 0
+    dns01_credentials "${ACME_DNS_PROVIDER:-cloudflare}" "${ACME_DNS_API_TOKEN:-}" >/dev/null
 }
 
 ##
 # Request a wildcard certificate via ACME v2 DNS-01 challenge.
 ##
 function request_wildcard_certificate() {
-    if [[ "${ACME_WILDCARD}" != true ]]; then
-        return 0
-    fi
-
-    if [[ -z "${LEMPER_DOMAIN}" ]]; then
-        info "LEMPER_DOMAIN is not set, skipping wildcard certificate request."
-        return 0
-    fi
-
-    local domain="${LEMPER_DOMAIN}"
-    local creds_dir="/etc/lemper/acme"
-    local creds_file="${creds_dir}/dns-${ACME_DNS_PROVIDER}.ini"
-
-    echo "Requesting wildcard certificate for *.${domain} via DNS-01..."
-
-    # Drop any cached negative lookups before validating the challenge.
-    flush_dns_cache
-
-    if [[ -f "${creds_file}" ]]; then
-        run certbot certonly \
-            --dns-"${ACME_DNS_PROVIDER}" \
-            --dns-"${ACME_DNS_PROVIDER}"-credentials "${creds_file}" \
-            --dns-"${ACME_DNS_PROVIDER}"-propagation-seconds "${ACME_DNS_PROPAGATION_WAIT:-30}" \
-            --nginx \
-            -d "*.${domain}" \
-            -d "${domain}" \
-            --email "${LEMPER_ADMIN_EMAIL:-cert@lemper.cloud}" \
-            --agree-tos \
-            --no-eff-email \
-            --non-interactive \
-            --redirect
-
-        # Refresh cached DNS records after the challenge completes.
-        flush_dns_cache
-    else
-        fail "DNS-01 credentials file not found: ${creds_file}"
-    fi
+    [[ "${ACME_WILDCARD:-false}" == true ]] || return 0
+    # The server hostname is declared in .env.dist and available during install.
+    local domain="${1:-${SERVER_HOSTNAME:-}}"
+    [[ -n "${domain}" ]] || { error "SERVER_HOSTNAME is required for wildcard issuance."; return 1; }
+    request_dns01_certificate "${domain}"
 }
 
 ##

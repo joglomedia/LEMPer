@@ -26,6 +26,22 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
+# Load shared argument/validation helpers when this plugin is sourced in isolation.
+if ! declare -F lemper_parse_args >/dev/null; then
+    PLUGIN_SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    if [[ -f "${PLUGIN_SOURCE_DIR}/core/loader.sh" ]]; then
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/core/loader.sh" || return 1
+    else
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/../core/loader.sh" || return 1
+    fi
+fi
+
+
+
 BENCH_TIMEOUT="${LEMPER_BENCH_TIMEOUT:-60}"
 BENCH_DOWNLOAD_MB="${LEMPER_BENCH_DOWNLOAD_MB:-32}"
 BENCH_DISK_MB="${LEMPER_BENCH_DISK_MB:-512}"
@@ -488,8 +504,17 @@ function init_lemper_bench() {
     local run_network=false
     local explicit=false
 
+    case "${1:-}" in help) bench_help; return 0 ;; version) echo "${PROG_VERSION}"; return 0 ;; esac
+    lemper_parse_args 'hv' 'help,version,hardware,disk,network,size:,disk-size:,timeout:' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
+
     while [[ $# -gt 0 ]]; do
         case "${1}" in
+            --)
+                shift
+                [[ $# -eq 0 ]] || { error "Unexpected positional arguments."; return 1; }
+                break
+            ;;
             help | -h | --help)
                 bench_help
                 return 0

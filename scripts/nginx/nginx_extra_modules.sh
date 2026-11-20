@@ -63,7 +63,7 @@ function install_ngx_brotli() {
 function install_ngx_cache_purge() {
     echo "Adding ngx-http-cache-purge module..."
 
-    clone_or_update_repo "https://github.com/nginx-modules/ngx_cache_purge.git" "ngx_cache_purge" "master"
+    clone_or_update_repo "https://github.com/nginx-modules/ngx_cache_purge.git" "ngx_cache_purge" "main"
     add_ngx_module_arg "${NGINX_EXTRA_MODULE_DIR}/ngx_cache_purge"
 }
 

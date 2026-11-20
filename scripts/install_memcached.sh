@@ -206,7 +206,7 @@ EOL
                     save_config -e "MEMCACHED_SASL=${MEMCACHED_SASL}\nMEMCACHED_USERNAME=${MEMCACHED_USERNAME}\nMEMCACHED_PASSWORD=${MEMCACHED_PASSWORD}\nMEMCACHED_INSTANCE=memcache"
 
                     # Save log.
-                    save_log -e "Memcached SASL auth is enabled, below is your default auth credential.\nUsername: ${MEMCACHED_USERNAME}, password: ${MEMCACHED_PASSWORD}\nSave this credential and use it to authenticate your Memcached connection."
+                    save_log "Memcached authentication configured; credentials saved to protected LEMPer configuration."
                 else
                     info "Memcahed SASL-auth configured in dry run mode."
                 fi

@@ -119,6 +119,29 @@ make_archive() {
     [ "${status}" -eq 0 ]
 }
 
+@test "custom legacy checkout backup verifies and restores only its exact env path" {
+    export LEMPER_LEGACY_DIR=/checkout
+    mkdir -p "${BACKUP_ROOT}/checkout"
+    printf 'LEGACY_SETTING=original\n' > "${BACKUP_ROOT}/checkout/.env"
+    local archive
+    archive=$(make_archive)
+    backup_unit_exec backup_verify "${archive}"
+    [ "${status}" -eq 0 ]
+    printf 'LEGACY_SETTING=changed\n' > "${BACKUP_ROOT}/checkout/.env"
+    backup_unit_exec backup_restore --file "${archive}" --yes
+    [ "${status}" -eq 0 ]
+    grep -qx 'LEGACY_SETTING=original' "${BACKUP_ROOT}/checkout/.env"
+    backup_unit_exec backup_member_allowed checkout/other/.env
+    [ "${status}" -ne 0 ]
+    backup_unit_exec backup_member_allowed checkout/../.env
+    [ "${status}" -ne 0 ]
+    backup_unit_exec backup_member_allowed checkout/script.sh
+    [ "${status}" -ne 0 ]
+    unset LEMPER_LEGACY_DIR
+    backup_unit_exec backup_member_allowed checkout/.env
+    [ "${status}" -ne 0 ]
+}
+
 @test "backup restore overwrites config and keeps a pre-restore snapshot" {
     local archive marker
     archive=$(make_archive)
@@ -196,12 +219,32 @@ make_archive() {
 
 @test "backup plugin is installed and refreshed with the other plugins" {
     [ -f "${REAL_BASE_DIR}/lib/lemper-backup.sh" ]
-    grep -q 'lemper-backup.sh /etc/lemper/cli-plugins/lemper-backup' \
-        "${REAL_BASE_DIR}/scripts/install_tools.sh"
-    grep -q 'lemper-backup:lemper-backup' "${REAL_BASE_DIR}/lib/lemper-update.sh"
-    grep -q 'help_entry backup' "${REAL_BASE_DIR}/bin/lemper-cli.sh"
+    grep -q 'lemper-backup:lemper-backup' \
+        "${REAL_BASE_DIR}/lib/core/registry.sh"
+    grep -q 'lemper_cli_snapshot' "${REAL_BASE_DIR}/lib/lemper-update.sh"
+    grep -q 'help_entry backup' "${REAL_BASE_DIR}/lib/runtime/help.sh"
 }
 
 find_archive() {
     ls "${BACKUP_DIR}"/lemper-config-*.tar.gz 2>/dev/null | grep -v 'pre-restore' | head -n 1
+}
+
+@test "config archives retain site ownership and exclude release-code compatibility links" {
+    mkdir -p "$BACKUP_ROOT/etc/lemper/sites" "$TEST_TMPDIR/code"
+    printf 'OWNER_MARKER=lemper-site-v1\n' > "$BACKUP_ROOT/etc/lemper/sites/example.com.conf"
+    for module in runtime services compat; do
+        ln -s "$TEST_TMPDIR/code" "$BACKUP_ROOT/etc/lemper/$module"
+    done
+    backup_unit_exec backup_create --output "$BACKUP_DIR"
+    [ "$status" -eq 0 ]
+    local archive
+    archive=$(find_archive)
+    run tar -tzf "$archive"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"etc/lemper/sites/example.com.conf"* ]]
+    [[ "$output" != *"etc/lemper/runtime"* ]]
+    [[ "$output" != *"etc/lemper/services"* ]]
+    [[ "$output" != *"etc/lemper/compat"* ]]
+    backup_unit_exec backup_verify "$archive"
+    [ "$status" -eq 0 ]
 }

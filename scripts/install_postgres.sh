@@ -242,7 +242,7 @@ PGSQL
                 save_config -e "POSTGRES_SUPERUSER=${POSTGRES_SUPERUSER}\nPSQL_DB_USER=${POSTGRES_DB_USER}\nPSQL_DB_PASS=${POSTGRES_DB_PASS}\nPSQL_DB_TEST=${POSTGRES_TEST_DB}"
 
                 # Save log.
-                save_log -e "Postgres server credentials.\nPostgres default user: ${POSTGRES_SUPERUSER}, Postgres DB Username: ${POSTGRES_DB_USER}, Postgres DB Password: ${POSTGRES_DB_PASS}, Postgres DB Test: ${POSTGRES_TEST_DB}\nSave this credential and use it to authenticate your PostgreSQL test database connection."
+                save_log "PostgreSQL configured; credentials saved to protected LEMPer configuration."
             else
                 info "Something went wrong with PostgreSQL server installation."
             fi

@@ -24,25 +24,28 @@ fi
 # Download and extract Nginx source
 ##
 function download_nginx_source() {
-    local VERSION="${1:-${NGINX_RELEASE_VERSION}}"
-    local NGINX_URL="https://nginx.org/download/nginx-${VERSION}.tar.gz"
-    local NGINX_TARBALL="${NGINX_BUILD_DIR}/nginx-${VERSION}.tar.gz"
-
-    echo "Downloading Nginx ${VERSION}..."
-
-    if [[ -f "${NGINX_TARBALL}" ]]; then
-        echo "Using cached Nginx tarball..."
-    else
-        if ! curl -sLI "${NGINX_URL}" | grep -q "HTTP/[.12]* [2].."; then
-            fail "Unable to download Nginx ${VERSION}. Check if version exists at nginx.org"
+    local VERSION="${1:-${NGINX_RELEASE_VERSION}}" temporary
+    [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { error "Invalid Nginx source version."; return 1; }
+    local NGINX_URL="https://nginx.org/download/nginx-$VERSION.tar.gz"
+    local NGINX_TARBALL="$NGINX_BUILD_DIR/nginx-$VERSION.tar.gz"
+    NGINX_SRC_DIR="$NGINX_BUILD_DIR/nginx-$VERSION"
+    if [[ "${DRYRUN:-false}" == true ]]; then info "Would download Nginx $VERSION."; return 0; fi
+    echo "Downloading Nginx $VERSION..."
+    if [[ ! -f "$NGINX_TARBALL" ]] || ! tar -tzf "$NGINX_TARBALL" >/dev/null 2>&1; then
+        temporary=$(mktemp "$NGINX_TARBALL.XXXXXXXX") || return 1
+        if ! curl -fsSL --connect-timeout 10 --max-time 120 -o "$temporary" "$NGINX_URL"; then
+            warning "nginx.org unavailable; using the official nginx/nginx release tag."
+            if ! curl -fsSL --connect-timeout 10 --max-time 120 -o "$temporary" \
+                "https://github.com/nginx/nginx/archive/refs/tags/release-$VERSION.tar.gz"; then
+                rm -f "$temporary"
+                return 1
+            fi
         fi
-        run curl -sSL -o "${NGINX_TARBALL}" "${NGINX_URL}"
+        if ! tar -tzf "$temporary" >/dev/null 2>&1; then rm -f "$temporary"; error "Invalid Nginx source archive."; return 1; fi
+        mv "$temporary" "$NGINX_TARBALL" || return 1
     fi
-
-    echo "Extracting Nginx..."
-    run tar -zxf "${NGINX_TARBALL}" -C "${NGINX_BUILD_DIR}"
-
-    NGINX_SRC_DIR="${NGINX_BUILD_DIR}/nginx-${VERSION}"
+    run mkdir -p "$NGINX_SRC_DIR"
+    run tar -zxf "$NGINX_TARBALL" --strip-components=1 -C "$NGINX_SRC_DIR"
 }
 
 ##
@@ -60,19 +63,13 @@ function configure_nginx() {
 
     echo "Configuring Nginx with modules..."
 
-    # Build configure command from NGX_CONFIGURE_ARGS array
-    local CONFIGURE_CMD="./configure"
-    
-    for arg in "${NGX_CONFIGURE_ARGS[@]}"; do
-        CONFIGURE_CMD="${CONFIGURE_CMD} ${arg}"
-    done
-
-    echo "Running: ${CONFIGURE_CMD}"
-    
+    local configure="./configure"
+    [[ -f "$configure" ]] || configure="./auto/configure"
+    [[ -f "$configure" ]] || { error "Nginx configure script missing."; return 1; }
     if [[ "${DRYRUN:-false}" == true ]]; then
-        echo "[DRY-RUN] ${CONFIGURE_CMD}"
+        printf '[DRY-RUN] %s\n' "$configure"
     else
-        eval "${CONFIGURE_CMD}"
+        "$configure" "${NGX_CONFIGURE_ARGS[@]}" || return 1
     fi
 }
 
@@ -140,13 +137,13 @@ function build_nginx_from_source() {
     fi
 
     # Download nginx source
-    download_nginx_source "${NGINX_RELEASE_VERSION}"
+    download_nginx_source "${NGINX_RELEASE_VERSION}" || return 1
 
     # Configure with all modules
-    configure_nginx
+    configure_nginx || return 1
 
     # Compile and install
-    compile_nginx
+    compile_nginx || return 1
 
     # Configure dynamic modules
     echo "Configuring Nginx dynamic modules..."

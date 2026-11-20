@@ -31,6 +31,22 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
+# Load shared argument/validation helpers when this plugin is sourced in isolation.
+if ! declare -F lemper_parse_args >/dev/null; then
+    PLUGIN_SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    if [[ -f "${PLUGIN_SOURCE_DIR}/core/loader.sh" ]]; then
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/core/loader.sh" || return 1
+    else
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/../core/loader.sh" || return 1
+    fi
+fi
+
+
+
 LEMPER_BACKUP_ROOT="${LEMPER_BACKUP_ROOT:-/}"
 LEMPER_BACKUP_DIR="${LEMPER_BACKUP_DIR:-/var/backups/lemper/config}"
 LEMPER_BACKUP_KEEP="${LEMPER_BACKUP_KEEP:-10}"
@@ -84,6 +100,10 @@ LEMPER_BACKUP_PATHS_DEFAULT=(
 # Package-managed trees and LEMPer's own rollback copies are excluded.
 # CLI plugins are code, so restoring them could silently downgrade the CLI.
 LEMPER_BACKUP_EXCLUDES_DEFAULT=(
+    etc/lemper/core
+    etc/lemper/runtime
+    etc/lemper/services
+    etc/lemper/compat
     etc/lemper/cli-plugins
     etc/lemper/backups
     etc/modsecurity/crs
@@ -232,6 +252,7 @@ function backup_sha256() {
 ##
 function backup_member_allowed() {
     local member="${1}"
+    local candidate
 
     if [[ -z "${member}" ]]; then
         return 1
@@ -249,7 +270,7 @@ function backup_member_allowed() {
 
     # Keep restore from reintroducing CLI code or LEMPer's rollback copies.
     case "${member}" in
-        etc/lemper/cli-plugins*|etc/lemper/backups*|etc/modsecurity/crs*)
+        etc/lemper/core*|etc/lemper/runtime*|etc/lemper/services*|etc/lemper/compat*|etc/lemper/cli-plugins*|etc/lemper/backups*|etc/modsecurity/crs*)
             return 1
         ;;
     esac
@@ -271,6 +292,18 @@ function backup_member_allowed() {
             return 1
         ;;
     esac
+
+    # Custom checkout locations come from local installer state or an explicit
+    # operator override, never from the archive's untrusted manifest. Permit
+    # only that exact legacy file, preserving the traversal/code checks above.
+    if [[ "${member}" == */.env ]]; then
+        while IFS= read -r candidate; do
+            [[ "${candidate}" == /* ]] || continue
+            if [[ "${member}" == "${candidate#/}" ]]; then
+                return 0
+            fi
+        done < <(backup_legacy_candidates)
+    fi
 
     return 1
 }
@@ -525,8 +558,16 @@ function backup_create() {
     local label=""
     local archive
 
+    lemper_parse_args 'h' 'output:,dir:,label:,help' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
+
     while [[ $# -gt 0 ]]; do
         case "${1}" in
+            --)
+                shift
+                [[ $# -eq 0 ]] || { error "Unexpected positional arguments."; return 1; }
+                break
+            ;;
             --output=* | --dir=*)
                 output_dir="${1#*=}"
                 shift
@@ -585,8 +626,16 @@ function backup_list() {
     local dir="${LEMPER_BACKUP_DIR}"
     local file found=false
 
+    lemper_parse_args 'h' 'dir:,help' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
+
     while [[ $# -gt 0 ]]; do
         case "${1}" in
+            --)
+                shift
+                [[ $# -eq 0 ]] || { error "Unexpected positional arguments."; return 1; }
+                break
+            ;;
             --dir=*)
                 dir="${1#*=}"
                 shift
@@ -629,8 +678,17 @@ function backup_show() {
     local arg=""
     local file
 
+    lemper_parse_args 'h' 'dir:,help' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
+
     while [[ $# -gt 0 ]]; do
         case "${1}" in
+            --)
+                shift
+                [[ $# -le 1 ]] || { error "Unexpected positional arguments."; return 1; }
+                [[ $# -eq 0 ]] || arg="${1}"
+                break
+            ;;
             --dir=*)
                 dir="${1#*=}"
                 shift
@@ -684,8 +742,17 @@ function backup_verify() {
     local arg=""
     local file
 
+    lemper_parse_args 'h' 'dir:,help' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
+
     while [[ $# -gt 0 ]]; do
         case "${1}" in
+            --)
+                shift
+                [[ $# -le 1 ]] || { error "Unexpected positional arguments."; return 1; }
+                [[ $# -eq 0 ]] || arg="${1}"
+                break
+            ;;
             --dir=*)
                 dir="${1#*=}"
                 shift
@@ -737,8 +804,17 @@ function backup_restore() {
     local reload=false
     local root snapshot_archive answer unit excludes=()
 
+    lemper_parse_args 'hy' 'dir:,file:,latest,yes,dry-run,no-snapshot,reload,help' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
+
     while [[ $# -gt 0 ]]; do
         case "${1}" in
+            --)
+                shift
+                [[ $# -le 1 ]] || { error "Unexpected positional arguments."; return 1; }
+                [[ $# -eq 0 ]] || arg="${1}"
+                break
+            ;;
             --dir=*)
                 dir="${1#*=}"
                 shift
@@ -849,6 +925,10 @@ function backup_restore() {
 
     excludes=(
         "--exclude=${LEMPER_BACKUP_MANIFEST}"
+        "--exclude=etc/lemper/core"
+        "--exclude=etc/lemper/runtime"
+        "--exclude=etc/lemper/services"
+        "--exclude=etc/lemper/compat"
         "--exclude=etc/lemper/cli-plugins"
         "--exclude=etc/lemper/backups"
     )
@@ -910,8 +990,16 @@ function backup_prune() {
     local file index=0 removed=0 answer
     local doomed=()
 
+    lemper_parse_args 'hy' 'dir:,keep:,yes,help' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
+
     while [[ $# -gt 0 ]]; do
         case "${1}" in
+            --)
+                shift
+                [[ $# -eq 0 ]] || { error "Unexpected positional arguments."; return 1; }
+                break
+            ;;
             --dir=*)
                 dir="${1#*=}"
                 shift

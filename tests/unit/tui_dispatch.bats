@@ -58,7 +58,7 @@ tui_exec() {
 
 @test "tui entry point is not guarded by BASH_SOURCE" {
     # The CLI sources plugins; a BASH_SOURCE guard would silence the TUI.
-    run grep -c 'BASH_SOURCE\[0\]' "${TUI_PLUGIN}"
+    run grep -cE '^[[:space:]]*if.*BASH_SOURCE.*(==|!=)' "${TUI_PLUGIN}"
     [ "${output}" -eq 0 ]
 
     run tail -n 1 "${TUI_PLUGIN}"

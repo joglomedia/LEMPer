@@ -211,8 +211,8 @@ EOF
 }
 
 @test "installer ships the update plugin and records the source checkout" {
-    run grep -q 'lib/lemper-update.sh /etc/lemper/cli-plugins/lemper-update' \
-        "${REAL_BASE_DIR}/scripts/install_tools.sh"
+    run grep -q 'lemper-update:lemper-update' \
+        "${REAL_BASE_DIR}/lib/core/registry.sh"
     [ "${status}" -eq 0 ]
 
     run grep -q '/etc/lemper/update-source' "${REAL_BASE_DIR}/scripts/install_tools.sh"
@@ -221,7 +221,7 @@ EOF
 
 @test "CLI help documents the update command as a nested subcommand" {
     run grep -q 'help_subentry all "Run every update step\."' \
-        "${REAL_BASE_DIR}/bin/lemper-cli.sh"
+        "${REAL_BASE_DIR}/lib/runtime/help.sh"
     [ "${status}" -eq 0 ]
 }
 

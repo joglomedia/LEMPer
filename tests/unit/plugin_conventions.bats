@@ -41,7 +41,7 @@ skip_if_no_gnu_getopt() {
 
 command_plugins() {
     printf '%s\n' account adduser backup bench create db fixpermission \
-        manage modsec selfssl site site-list site-show tui update
+        manage modsec selfssl site site-list site-show stack tui update
 }
 
 @test "every CLI file carries the 2014-2026 copyright banner" {
@@ -107,6 +107,7 @@ command_plugins() {
             site)          expected="Usage: lemper-cli site" ;;
             site-list)     expected="Lists all configured virtual hosts" ;;
             site-show)     expected="Displays the full configuration" ;;
+            stack)         expected="Usage: lemper-cli stack" ;;
             tui)           expected="Usage: lemper-cli tui" ;;
             update)        expected="patch PHP2Shell" ;;
         esac
@@ -175,7 +176,7 @@ command_plugins() {
 
 @test "CLI aliases are wired to the installed site plugins" {
     local f alias
-    for f in scripts/install_tools.sh lib/lemper-update.sh; do
+    for f in lib/core/registry.sh; do
         for alias in create add manage mod site-db site-database; do
             run grep -q "lemper-${alias}" "${REAL_BASE_DIR}/${f}"
             [ "${status}" -eq 0 ]
@@ -195,9 +196,9 @@ command_plugins() {
 }
 
 @test "CLI help describes account and adduser accurately" {
-    run grep -q 'help_entry account "Create a system user account."' "${REAL_BASE_DIR}/bin/lemper-cli.sh"
+    run grep -q 'help_entry account "Create a system user account."' "${REAL_BASE_DIR}/lib/runtime/help.sh"
     [ "${status}" -eq 0 ]
 
-    run grep -q "help_entry adduser \"Interactively add a system user.\"" "${REAL_BASE_DIR}/bin/lemper-cli.sh"
+    run grep -q "help_entry adduser \"Interactively add a system user.\"" "${REAL_BASE_DIR}/lib/runtime/help.sh"
     [ "${status}" -eq 0 ]
 }

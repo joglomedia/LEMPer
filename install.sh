@@ -49,6 +49,7 @@ fi
 requires_root "$@"
 
 # Make sure only supported distribution can run this installer script.
+validate_config_file "${ENVFILE}" install || exit 1
 preflight_system_check
 
 # Source shared install/remove functions (eliminates code duplication with lemper.sh).

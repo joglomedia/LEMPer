@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Disposable systemd/Podman UAT fixtures and real CLI acceptance checks covering
+  service lifecycle, HTTP/TLS, SSH, backup and ownership-based removal.
+- Optional `ACME_REGISTER_ACCOUNT` for package-only Certbot installation.
+- Issue #92 positional site creation, feature aliases, multi-domain updates,
+  direct enable/disable, guarded purge, and explicit ownership adoption.
+- Function-only site/stack runtime modules, PHP/Nginx/systemd drivers, isolated
+  legacy adapters, shared command/component registries, and operation locking.
+- Contract tests for normalization, batches, rollback, PHP scope and ownership.
+- Per-service stack lifecycle commands, site remove, compatibility aliases,
+  and strict config check.
+- Shared Bash core modules, an array-based option parser, configuration schema,
+  and focused security/lifecycle/bootstrap regression tests.
+- Pinned CLI-only get-lemper bootstrap, reproducible release archives/checksums,
+  tag-driven release automation, and provisioned-host/dependency audit reports.
+
+### Changed
+- Preferred `lemperctl`, with legacy names/flags retained and public help/version
+  handled before root checks or private configuration loading.
+- PHP selection distinguishes supported installation from installed management.
+  Selected updates upgrade packages; EOL removal checks site references.
+- Full-stack recipes, bootstrap and tooling refresh share registries. Root-owned
+  snapshots use an atomic release selector; backups exclude code links.
+- Key-only SSH defaults with ed25519 guidance, validated public keys, root-managed
+  key storage, configuration validation, and rollback across firewall/reload failures.
+- Hosting accounts no longer gain full sudo automatically; restricted administrator
+  access and explicit, backed-up legacy privilege migration are available.
+- Wildcard certificate issuance/renewal shares protected provider-specific DNS-01
+  credentials across installers and site commands.
+- CLI refresh replaces its pathname atomically without writing through versioned
+  release symlinks.
+
+### Fixed
+- UAT-discovered installation problems: checkout-root helper paths, installed
+  configuration seeding/metadata validation, lock umask leakage, public WP CLI
+  permissions, idempotent site enabling and Ubuntu SSH socket activation.
+- Nginx source version resolution/downloading now uses official release tags
+  when nginx.org is unavailable, and the cache-purge source uses its main branch.
+- MyGuard binary availability is verified before mixing package ABIs; CORS
+  snippets work at server scope and keep headers in cached PHP locations.
+- Detailed legacy command help no longer falls back to the global CLI help.
+- Configuration backups from a custom recorded legacy checkout now pass the
+  restore allow-list for that exact `.env` path.
+- Selected PHP removal preserves shared PHP libraries/repositories while any
+  other branch remains; package selection matches only the chosen version.
+- Credential disclosure in service logs, account/app output and encryption/hash
+  subprocess arguments; diagnostics redact secrets and log files are owner-only.
+- Recursive website deletion now checks canonical targets and ownership before
+  removing either data or site configuration.
+
 ## [3.6.0] - 2026-10-27
 
 ### Added
@@ -114,7 +164,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `includes/php_handlers.conf` and the loopback status endpoints from
   `includes/monitoring.conf` instead of repeating 18 handler and status blocks
   in each file. The security/restriction/static-file include order is
-  documented in `etc/nginx/includes/README.md` and ARCHITECTURE.md, and stale
+  documented in `etc/nginx/includes/README.md` and `docs/ARCHITECTURE.md`, and stale
   comments in `nginx.conf` and `nginx-lowend.conf` now point at the real
   per-vhost include paths.
 
@@ -309,7 +359,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented that PIE is the manual path, not an installer dependency:
   `php/pie` requires Composer package names (`vendor/package`) and cannot
   target Debian's per-version `php_suffix` layout, so it is not a drop-in
-  replacement for this installer's bare extension names. See `ARCHITECTURE.md`.
+  replacement for this installer's bare extension names. See `docs/ARCHITECTURE.md`.
 - CI workflows use `actions/checkout@v6` (Node 24) so the runner no longer
   prints the Node 20 deprecation warning.
 - Fail2ban installs set `PYTHONWARNINGS=ignore::SyntaxWarning` for the package

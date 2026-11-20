@@ -12,6 +12,7 @@ setup() {
 
 # Collect all .sh files that should be syntax-validated.
 _get_script_files() {
+    echo "${BASE_DIR}/get-lemper"
     echo "${BASE_DIR}/install.sh"
     echo "${BASE_DIR}/remove.sh"
     echo "${BASE_DIR}/update.sh"

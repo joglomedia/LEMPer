@@ -32,89 +32,18 @@ fi
 # LEMPer CLI & web admin install.
 ##
 function init_tools_install() {
-    # Install Lemper CLI tool.
-    echo -n "Installing LEMPer CLI tool..."
-
-    run cp -f bin/lemper-cli.sh /usr/local/bin/lemper-cli && \
-    run chmod ugo+x /usr/local/bin/lemper-cli && \
-    run ln -sf /usr/local/bin/lemper-cli /usr/bin/lemper-cli
-
-    [ ! -d /etc/lemper/cli-plugins ] && run mkdir -p /etc/lemper/cli-plugins
-
-    run cp -f lib/lemper-account.sh /etc/lemper/cli-plugins/lemper-account && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-account
-
-    run cp -f lib/lemper-adduser.sh /etc/lemper/cli-plugins/lemper-adduser && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-adduser
-
-    run cp -f lib/lemper-site.sh /etc/lemper/cli-plugins/lemper-site && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site
-
-    run cp -f lib/lemper-site-list.sh /etc/lemper/cli-plugins/lemper-site-list && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-list
-
-    run cp -f lib/lemper-site-show.sh /etc/lemper/cli-plugins/lemper-site-show && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-show
-
-    run cp -f lib/lemper-create.sh /etc/lemper/cli-plugins/lemper-site-create && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-create
-
-    [ -f /etc/lemper/cli-plugins/lemper-site-create ] && \
-        run ln -fs /etc/lemper/cli-plugins/lemper-site-create /etc/lemper/cli-plugins/lemper-site-add
-
-    [ -f /etc/lemper/cli-plugins/lemper-site-create ] && \
-        run ln -fs /etc/lemper/cli-plugins/lemper-site-create /etc/lemper/cli-plugins/lemper-create
-
-    [ -f /etc/lemper/cli-plugins/lemper-site-create ] && \
-        run ln -fs /etc/lemper/cli-plugins/lemper-site-create /etc/lemper/cli-plugins/lemper-add
-
-    run cp -f lib/lemper-manage.sh /etc/lemper/cli-plugins/lemper-site-update && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-site-update
-
-    [ -f /etc/lemper/cli-plugins/lemper-site-update ] && \
-        run ln -fs /etc/lemper/cli-plugins/lemper-site-update /etc/lemper/cli-plugins/lemper-site-mod
-
-    [ -f /etc/lemper/cli-plugins/lemper-site-update ] && \
-        run ln -fs /etc/lemper/cli-plugins/lemper-site-update /etc/lemper/cli-plugins/lemper-manage
-
-    [ -f /etc/lemper/cli-plugins/lemper-site-update ] && \
-        run ln -fs /etc/lemper/cli-plugins/lemper-site-update /etc/lemper/cli-plugins/lemper-mod
-
-    run cp -f lib/lemper-db.sh /etc/lemper/cli-plugins/lemper-db && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-db
-
-    [ -f /etc/lemper/cli-plugins/lemper-db ] && \
-        run ln -fs /etc/lemper/cli-plugins/lemper-db /etc/lemper/cli-plugins/lemper-site-db && \
-        run ln -fs /etc/lemper/cli-plugins/lemper-db /etc/lemper/cli-plugins/lemper-site-database
-
-    run cp -f lib/lemper-selfssl.sh /etc/lemper/cli-plugins/lemper-selfssl && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-selfssl
-
-    run cp -f lib/lemper-fixpermission.sh /etc/lemper/cli-plugins/lemper-fixpermission && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-fixpermission
-
-    run cp -f lib/lemper-bench.sh /etc/lemper/cli-plugins/lemper-bench && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-bench
-
-    run cp -f lib/lemper-modsec.sh /etc/lemper/cli-plugins/lemper-modsec && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-modsec
-
-    # Install TUI plugin.
-    run cp -f lib/lemper-tui.sh /etc/lemper/cli-plugins/lemper-tui && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-tui
-
-    # Install stack/security updater.
-    run cp -f lib/lemper-update.sh /etc/lemper/cli-plugins/lemper-update && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-update
-
-    # Install configuration backup/restore plugin.
-    run cp -f lib/lemper-backup.sh /etc/lemper/cli-plugins/lemper-backup && \
-    run chmod ugo+x /etc/lemper/cli-plugins/lemper-backup
-
-    # Record the source checkout so 'lemper update lemper' can refresh plugins.
-    if [[ -f "${BASE_DIR}/bin/lemper-cli.sh" ]]; then
-        run bash -c 'printf "%s\n" "$1" > /etc/lemper/update-source' _ "${BASE_DIR}"
-        run chmod 0600 /etc/lemper/update-source
+    # Registry exports include legacy lemper-create/add/manage/mod/site-db/site-database
+    # and lemper-site-list/site-show paths without duplicating their mappings here.
+    # shellcheck source=/dev/null
+    . "$BASE_DIR/lib/core/registry.sh" || return 1
+    # shellcheck source=/dev/null
+    . "$BASE_DIR/lib/core/deployment.sh" || return 1
+    if [[ "${LEMPER_TOOLS_SKIP_CLI:-false}" != true ]]; then
+        lemper_cli_snapshot "$BASE_DIR" || return 1
+    fi
+    if [[ "${DRYRUN:-false}" != true ]]; then
+        printf '%s\n' "$BASE_DIR" > /etc/lemper/update-source || return 1
+        chmod 0600 /etc/lemper/update-source || return 1
     fi
 
     # Remove old LEMPer CLI tool.

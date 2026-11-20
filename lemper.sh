@@ -503,6 +503,9 @@ function init_lemper_install() {
     set_dryrun_mode "${DRYRUN}"
 
     # Make sure only supported distribution can run this installer script.
+    if [[ "${CMD}" == install ]]; then
+        validate_config_file "${ENVFILE}" install || return 1
+    fi
     preflight_system_check
 
     # Go action.

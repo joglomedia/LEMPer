@@ -25,6 +25,22 @@ if [[ "$(type -t requires_root)" != "function" ]]; then
     exit 1
 fi
 
+# Load shared argument/validation helpers when this plugin is sourced in isolation.
+if ! declare -F lemper_parse_args >/dev/null; then
+    PLUGIN_SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    if [[ -f "${PLUGIN_SOURCE_DIR}/core/loader.sh" ]]; then
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/core/loader.sh" || return 1
+    else
+        # The dispatcher provides core helpers; isolated loading is covered by core lint/tests.
+        # shellcheck source=/dev/null
+        . "${PLUGIN_SOURCE_DIR}/../core/loader.sh" || return 1
+    fi
+fi
+
+
+
 ##
 # Main Functions
 ##
@@ -393,12 +409,8 @@ function db_restore_database() {
 # Database Operations.
 ##
 function db_operations() {
-    OPTS=$(getopt -o a:H:P:u:p:n:b:C:g:f:q:x:DrhVv \
-      -l action:,dbhost:,dbport:,dbuser:,dbpass:,dbpass-file:,dbname:,dbprefix:,dbcollation:,dbprivileges:,dbfile:,dbquery:,dbschedule:,extra-args: \
-      -l dry-run,root,help,verbose,version \
-      -n "${PROG_NAME}" -- "$@")
-
-    eval set -- "${OPTS}"
+    lemper_parse_args 'a:H:P:u:p:n:b:C:g:f:q:x:DrhVv' 'action:,dbhost:,dbport:,dbuser:,dbpass:,dbpass-file:,dbname:,dbprefix:,dbcollation:,dbprivileges:,dbfile:,dbquery:,dbschedule:,extra-args:,dry-run,root,help,verbose,version' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
 
     # Args counter
     local MAIN_ARGS=0

@@ -1,8 +1,9 @@
 # LEMPer — Roadmap &amp; Improvement Plan
 
 > **Version:** 3.6.0
-> **Last Updated:** 2026-10-27
-> **Status:** v3.6.0 released. Phases 0–8 are done. The next major is v4.0
+> **Last Updated:** 2026-11-20
+> **Status:** v3.6.0 released; audited P1 fixes and v4.0 foundations are implemented
+> in the working tree. Deferred migration and P2/P3 work remain. The next major is v4.0
 > (issue #92 and ARCHITECTURE.md section 4).
 >
 > v3.6.0 ships the TUI log viewer and site wizard, ModSecurity tuning, opt-in
@@ -13,6 +14,45 @@
 > This document presents the audit findings and improvement recommendations for the LEMPer
 > codebase. It is organized by priority area (Security, Architecture, Functionality,
 > UX, Stack Currency) and includes a phased rollout plan.
+
+---
+
+## Current P1 implementation
+
+The 2026-11-20 source audit is recorded in ROADMAP_AUDIT.md. Its P1 ranks 1–12
+now have source changes and regression coverage in the working tree:
+
+| Priority area | Implementation |
+|---|---|
+| Credentials | Removed secret recaps/log entries, protected credential files, diagnostic redaction, protected encryption/hash input |
+| Destructive paths | Canonical path and ownership checks before site configuration/data deletion |
+| Accounts | Hosting/admin roles and explicit validated, backed-up legacy privilege migration |
+| ACME | Shared Cloudflare/DigitalOcean DNS-01 credentials for issuance and renewal |
+| Configuration | Typed schema, cross-option install preflight, strict config check, compatible legacy runtime loading |
+| SSH | Key-only default, ed25519 guidance, root-managed keys, validation and rollback through reload |
+| Shared code | Core modules and one array parser with existing option aliases preserved |
+| Service/site CLI | Per-service lifecycle commands, PHP branch control, new site remove verb |
+| Bootstrap/releases | Pinned CLI-only installation, immutable version directories, checksums, reproducible release workflow |
+| CI audits | Provisioned-host Lynis report and package/source-pin dependency review |
+
+These changes are unreleased. Package-managed updates are supported; source-built
+components requiring a rebuild are reported. Live service installation, real DNS
+issuance, and GitHub publication require their own deployment validation.
+
+Local verification (2026-11-20): all 262 Bats tests passed in a disposable
+Ubuntu 24.04 container. ShellCheck 0.11.0, repository-configured Bashate, workflow
+YAML parsing, and whitespace/diff checks passed. A fixture release was installed
+inside that container; CLI help, per-service dry-run, and strict config check
+succeeded. The security re-review found no remaining confirmed issues within
+the reviewed boundaries. Live production installation, real DNS challenges,
+SSH/firewall transitions, and GitHub publication were not performed.
+
+Site/stack use cases, service drivers and adapters now implement the issue #92
+alignment. Remaining work includes deeper legacy internals extraction (2.12/2.37),
+explicit nftables integration, application backup and SQL retention, managed
+monitoring, hosting quotas, and optional coverage/formatting/progress improvements.
+Authenticated encryption remains a separate format/provider design decision;
+the delivered encryption uses AES-256-CBC/PBKDF2, not GCM.
 
 ---
 
@@ -220,7 +260,7 @@ self-signed SSL generation) do not validate.
 #### 2.10 Enable Encrypted Config at Rest (Security — High)  ✅**COMPLETE**
 
 **Issue:** `/etc/lemper/lemper.conf` stores all credentials in plaintext. A
-`secure_config()` function (AES-256-GCM) exists but is commented out.
+`secure_config()` function (AES-256-CBC) exists but is commented out.
 
 **Files:** `scripts/utils.sh:854-861`, `lib/lemper-encrypt.sh`, `bin/lemper-cli.sh`
 
@@ -228,7 +268,7 @@ self-signed SSL generation) do not validate.
 
 - Created `lib/lemper-encrypt.sh` with `encrypt_config()`, `decrypt_config()`,
 `is_config_encrypted()`, `resolve_config_password()`, `secure_shred()`
-- Uses AES-256-GCM (with CBC fallback for backward compatibility)
+- Uses AES-256-CBC/PBKDF2 (with a legacy KDF fallback where needed)
 - `--password`/`-P` CLI flag added to `bin/lemper-cli.sh`; falls back to
 `LEMPER_PASSWORD` env var or `/etc/lemper/.config_key` key file
   - Added `ENCRYPT_CONFIG_AT_REST` and `LEMPER_CONFIG_PASSWORD` to `.env.dist`
@@ -563,7 +603,7 @@ ModSecurity v3 with OWASP CRS.
 | 2.1  | Fix `fial` → `fail` typo                 | Critical | Trivial | &lt; 1h        |
 | 2.2  | Fix `cgi.fix_pathinfo = 0`               | High     | Low     | 2h             |
 | 2.3  | Remove NOPASSWD:ALL sudo                 | Critical | Low     | 2h             |
-| 2.6  | Fix CI references to non-existent vars   | Medium   | Low     | 1h             |
+| 2.14 | Fix CI references to non-existent vars   | Medium   | Low     | 1h             |
 | 2.13 | Add ShellCheck to nginx submodules in CI | Medium   | Low     | 1h             |
 
 
@@ -643,7 +683,7 @@ ModSecurity v3 with OWASP CRS.
 
 | #    | Task                                          | Priority | Effort  | Estimated Time | Status   |
 | ---- | --------------------------------------------- | -------- | ------- | -------------- | -------- |
-| 2.10 | Enable encrypted config at rest (AES-256-GCM) | High     | High    | 20h            | ✅ v3.4.0 |
+| 2.10 | Enable encrypted config at rest (AES-256-CBC) | High     | High    | 20h            | ✅ v3.4.0 |
 | 2.29 | Modernize WAF (ModSecurity v3 + OWASP CRS)    | Medium   | High    | 16h            | ✅ v3.4.0 |
 | 2.30 | Fix certbot renewal cron                      | Low      | Trivial | 1h             | ✅ v2.8.0 |
 
@@ -729,13 +769,15 @@ The installer floor is now 8.2. Shipped templates are 8.2–8.5. `update php --m
 
 ---
 
-#### 2.37 Modular Directory Restructuring (Architecture — High)  ⏳ **Deferred**
+#### 2.37 Modular Directory Restructuring (Architecture — High) — **Partially Implemented**
 
-**Issue:** `lib/runtime/` and `lib/services/` still empty.
+**Status:** Site/stack use cases, recipes, PHP/Nginx/systemd drivers and adapters
+now populate these directories. Shared registries govern commands, components
+and deployment. Account/database/TUI and remaining installer internals still
+require gradual extraction.
 
-**Status:** ⏳ **Deferred** — 50+ files need coordinated path updates.
-Scaffolding (`lib/core/lemper-stacks.sh`) provides foundation; full migration
-planned for v3.6+ with symlink compatibility layer.
+**Status:** **Partially implemented** — public command contracts and compatibility
+layers are implemented; remaining legacy internals extraction stays open.
 
 **Effort:** High — ⏳ Planned
 
@@ -837,7 +879,7 @@ CVE-2026-109618 / CVE-2026-109619 and keep the rest of the stack current.
 
 ---
 
-### Phase 9: Next Major (v4.0) — Planned
+### Phase 9: Next Major (v4.0) — P1 implemented, deployment validation pending
 
 v3.6.0 stops before this work. Two documents describe it: GitHub issue
 [#92](https://github.com/joglomedia/LEMPer/issues/92) and ARCHITECTURE.md
@@ -868,7 +910,8 @@ ShellCheck and bashate, Fail2ban and CrowdSec, optional encrypted config,
 the documentation set, multi-distro CI, and ACME with RSA-4096
 certificates.
 
-v4.0 still has to:
+The original v4.0 scope below now has P1 implementations described above;
+deeper legacy runtime/services extraction and the nftables backend remain open:
 
 - Validate the config with a schema. The format can stay `.env` or move to
   YAML. `safe_parse_dotenv()` remains the loader underneath.
@@ -892,7 +935,7 @@ v4.0 still has to:
 | ------------------------------------------------------------------------ | ------ | ---------- | -------------------------------------------------------------------- | ----------- |
 | Removing NOPASSWD:ALL breaks user scripts that rely on passwordless sudo | High   | Medium     | Document migration, add restricted sudoers config as opt-in          | ✅ Mitigated |
 | Replacing `eval` config loader breaks existing `.env` parsing            | Medium | High       | Maintain backward-compatible fallback, test all key types            | ✅ Mitigated |
-| Reorganizing directory structure breaks CI and user automation           | High   | Medium     | Provide symlink compatibility layer, update CI in same PR            | ✅ Mitigated |
+| Reorganizing directory structure breaks CI and user automation           | High   | Medium     | Core wrappers implemented; runtime/services compatibility migration remains | Pending |
 | Removing PHP 5.6–7.4 breaks existing vhost configs                       | Medium | Medium     | Auto-detect installed PHP, warn on upgrade, provide migration script | ✅ Mitigated |
 | Encrypted config breaks non-interactive CLI use                          | High   | Medium     | Add `--password` flag and environment variable fallback              | ✅ Mitigated |
 | bats-core migration requires rewriting all tests                         | Medium | High       | Keep shunit2 tests running alongside, migrate gradually              | ✅ Mitigated |
@@ -935,7 +978,7 @@ bats-core test suite (107 tests passing)
 - **v3.2.0**: CrowdSec HIPS (+ WordPress scenarios), Valkey drop-in, ACME DNS-01 wildcard
 - **v3.3.0**: Interactive TUI dashboard, progress indicators, improved CLI help,
 PHP 8.4 default, Fail2ban enabled by default
-- **v3.4.0**: ModSecurity v3 WAF + OWASP CRS, AES-256-GCM encrypted config, TUI
+- **v3.4.0**: ModSecurity v3 WAF + OWASP CRS, AES-256-CBC encrypted config, TUI
 - **v3.5.0**: Restricted sudoers (replaces NOPASSWD:ALL), credential display suppression,
 safe config loader (no eval), `sed_inplace()` portable wrapper, removed stale PHP 5.6-8.0
 templates, bashate linting, Debian 12 CI matrix, ShellCheck v0.11.0, Ubuntu 24.04 runner

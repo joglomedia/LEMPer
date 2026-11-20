@@ -12,6 +12,7 @@ unit_setup() {
     mkdir -p "${TEST_TMPDIR}"
     cp "${REAL_BASE_DIR}/.env.dist" "${TEST_TMPDIR}/.env"
     export BASE_DIR="${TEST_TMPDIR}"
+    export LEMPER_CORE_DIR="${REAL_BASE_DIR}/lib/core"
     export DRYRUN=false
 }
 
