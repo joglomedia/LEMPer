@@ -175,16 +175,23 @@ function create_php_temp_dirs() {
 ##
 PROGRESS_TOTAL=${PROGRESS_TOTAL:-0}
 PROGRESS_CURRENT=${PROGRESS_CURRENT:-0}
+lemper_load_module core/progress || return 1
 
 function progress() {
     local description="${1}"
+    local eta=""
+    if [[ "${PROGRESS_ETA:-true}" == true && -t 1 && "${DRYRUN:-false}" != true && -n "${PROGRESS_STARTED:-}" ]]; then
+        eta=$(lemper_progress_eta "$PROGRESS_CURRENT" "$PROGRESS_TOTAL" "$PROGRESS_STARTED") || eta=""
+    fi
     PROGRESS_CURRENT=$((PROGRESS_CURRENT + 1))
     if [[ "${PROGRESS_TOTAL}" -gt 0 ]]; then
-        echo_color "${BLUE}" -n "[${PROGRESS_CURRENT}/${PROGRESS_TOTAL}] "
+        if [[ -t 1 ]]; then echo_color "${BLUE}" -n "[${PROGRESS_CURRENT}/${PROGRESS_TOTAL}] "
+        else printf '[%s/%s] ' "$PROGRESS_CURRENT" "$PROGRESS_TOTAL"; fi
     else
-        echo_color "${BLUE}" -n "▸ "
+        if [[ -t 1 ]]; then echo_color "${BLUE}" -n "▸ "
+        else printf '> '; fi
     fi
-    echo "${description}"
+    echo "${description}${eta:+ (ETA $eta)}"
 }
 
 ##
@@ -202,11 +209,11 @@ function spinner_start() {
 
     echo -n "${message} "
     local spinner_chars='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-    local i=0
+    local i=0 started=$SECONDS
     (
         while true; do
             local idx=$((i % ${#spinner_chars}))
-            echo -ne "\b${spinner_chars:${idx}:1}"
+            printf '\r%s %s (%ds)' "$message" "${spinner_chars:${idx}:1}" "$((SECONDS - started))"
             sleep 0.1
             i=$((i + 1))
         done
@@ -216,11 +223,11 @@ function spinner_start() {
 
 function spinner_stop() {
     if [[ -n "${SPINNER_PID}" ]] && kill -0 "${SPINNER_PID}" 2>/dev/null; then
-        kill "${SPINNER_PID}" 2>/dev/null
-        wait "${SPINNER_PID}" 2>/dev/null
+        kill "${SPINNER_PID}" 2>/dev/null || true
+        wait "${SPINNER_PID}" 2>/dev/null || true
         SPINNER_PID=""
-        # Clear spinner character.
-        echo -ne "\b \b"
+        # Clear the spinner and elapsed-time line before the completion message.
+        printf '\r\033[2K'
     fi
 }
 
@@ -257,14 +264,14 @@ function lemper_provisioned() {
 ##
 function run_spinner() {
     local description="${1}"
+    local started=$SECONDS
     shift
 
     spinner_start "${description}"
 
     local status=0
     if [[ "${DRYRUN}" == true ]]; then
-        echo_color "${YELLOW}" -n "would run "
-        echo "$@"
+        info "Would run ${description}."
     else
         "$@" || status=$?
     fi
@@ -272,12 +279,12 @@ function run_spinner() {
     spinner_stop
 
     if [[ "${status}" -ne 0 ]]; then
-        error "Failure running '$*', exiting."
+        error "Failure during ${description}, exiting."
         exit 1
     fi
 
     if [[ "${DRYRUN}" != true ]]; then
-        success "${description} — done"
+        success "${description} — done ($((SECONDS - started))s)"
     fi
 }
 

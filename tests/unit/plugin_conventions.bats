@@ -41,7 +41,7 @@ skip_if_no_gnu_getopt() {
 
 command_plugins() {
     printf '%s\n' account adduser backup bench create db fixpermission \
-        mail manage modsec selfssl site site-list site-show stack tui update data monitor firewall
+        mail manage modsec selfssl site site-list site-show stack tui update data monitor firewall hosting
 }
 
 @test "every CLI file carries the 2014-2026 copyright banner" {
@@ -96,6 +96,7 @@ command_plugins() {
         case "${name}" in
             data)          expected="Usage: lemperctl data" ;;
             monitor)       expected="Usage: lemperctl monitor" ;;
+            hosting)       expected="Usage: lemperctl hosting" ;;
             firewall)      expected="Usage: lemperctl firewall" ;;
             account)       expected="Create a system user account" ;;
             adduser)       expected="Interactively add a system user" ;;

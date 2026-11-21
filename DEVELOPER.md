@@ -686,16 +686,77 @@ The CI pipeline runs on every push/PR to `2.x.x` and `master` branches:
 
 CI includes Ubuntu 24.04, a Debian 12 container, FTP build jobs, and a version-tag release workflow.
 
-### 8.2 Planned v3.0 Enhancements
+### 8.2 Formatting and coverage
 
-| Enhancement | Description |
-|---|---|
-| Multi-distro matrix | Test on Debian 12 + Ubuntu 24.04 |
-| Security scanning | Add `shellspec` or `bandit` for shell security |
-| Dependency audit | Check for outdated package versions |
-| Release automation | Semantic versioning with git tags + changelog |
-| Coverage reporting | Track test coverage of critical functions |
-| Linting gate | `bashate` + `shfmt` for formatting enforcement |
+`.editorconfig` defines editor defaults. `shfmt` checks the explicit file list in
+`tools/shfmt-files.txt`; add new modules to that list and format only those files.
+Existing Bashate/ShellCheck checks still cover all scripts. This avoids an unrelated
+repository-wide formatting diff.
+
+```bash
+bash scripts/check_format.sh          # check; requires shfmt (CI package 3.8)
+bash scripts/check_format.sh --write  # format the opted-in files
+bash scripts/test_coverage.sh         # requires Bash 5+, Bats and Python 3
+```
+
+Use Linux/Podman on macOS. With the project mounted read-only as `/source`, run
+checks there and pass `/run/coverage` to `test_coverage.sh` for writable output.
+Copy the files back with `podman cp` if needed. Coverage runs the synthetic Bats
+suite with explicit DEBUG function-entry instrumentation. It records only source
+paths and function names, never command text or arguments; temporary traces are
+deleted. JSON/Markdown artifacts cover the files declared in
+`tests/coverage_scope.txt`. This is function-entry coverage, not line/branch coverage
+or evidence of live installation. The `formatting-and-coverage` CI job publishes
+these artifacts; generated `/coverage/` is ignored, while documentation stays tracked.
+
+Current CI also includes Debian/Ubuntu validation, host/dependency audits and
+version-tag release automation. `bandit` targets Python; `shellspec` is a testing
+framework. Neither is treated as a shell security scanner.
+
+Installer component counters estimate remaining time from completed work when
+`PROGRESS_ETA=true` and stdout is a terminal; component durations can vary. Spinners
+show elapsed time and return cleanly under errexit. Configuration archive restoration
+uses optional `pv` byte/rate/ETA feedback when `TRANSFER_PROGRESS=true`, stderr is a
+terminal, and `pv` is installed (`sudo apt-get install pv`). Without it, restoration
+uses the same validated archive stream without progress output. Both switches default
+to true; non-TTY step output remains plain and dry runs emit no archive bytes.
+
+### 8.3 Hosting quota UAT (issue #39)
+
+Read `tests/uat/p3_acceptance.sh` first. The fixture requires a disposable systemd
+container, a read-only project mount, an authorization marker, and a loop-backed
+ext4 `/home`. Privilege is required specifically to create/mount this disposable
+filesystem and exercise kernel quotas. Do not run this on a workstation/live server.
+The CI `hosting-quota-uat` job uses the same procedure on Ubuntu 24.04 and Debian 12.
+
+```bash
+podman build -f tests/uat/Containerfile -t lemper-p3-uat tests/uat
+podman run -d --name lemper-p3-uat --privileged --systemd=always \
+  --cgroupns=private --hostname p3.lemper-uat.test --cpus 2 --memory 2g \
+  --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" lemper-p3-uat
+podman exec lemper-p3-uat bash -c '
+  set -e
+  apt-get update -qq
+  apt-get install -q -y quota pv
+  touch /run/lemper-p3-uat-authorized
+  truncate -s 192M /run/p3-quota.img
+  mkfs.ext4 -q -O quota /run/p3-quota.img
+  quota_loop=$(losetup -f)
+  [[ "$quota_loop" =~ ^/dev/loop[0-9]+$ ]] || exit 1
+  [[ -e "$quota_loop" ]] || mknod "$quota_loop" b 7 "${quota_loop#/dev/loop}"
+  mount -o loop,usrquota /run/p3-quota.img /home
+  bash /source/tests/uat/p3_acceptance.sh
+'
+podman exec lemper-p3-uat umount /home
+podman stop --time 10 lemper-p3-uat
+```
+
+Use a fresh container for each acceptance run; the test deliberately retains
+synthetic accounts/data. No modules/kernel packages are installed to hide a
+missing capability. Kernel EDQUOT failures, active-plan protection, downgrade
+rejection, locked failed provisioning, recovery, retained data and actual `pv`
+TTY transfer are checked. Loop device nodes created in a container use only the
+unused device chosen by `losetup -f`; unmount releases the loop when finished.
 
 ---
 

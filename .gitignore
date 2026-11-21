@@ -25,3 +25,4 @@ scripts/mysqltuner.pl
 tests/.env.test
 .firecrawl/
 /dist/
+/coverage/

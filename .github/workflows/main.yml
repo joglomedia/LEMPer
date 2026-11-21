@@ -357,3 +357,65 @@ jobs:
         run: |
           set -ex
           bats tests/ tests/unit/
+  formatting-and-coverage:
+    name: Scoped formatting and function coverage
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install test tooling
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -q -y bats shfmt python3 sudo openssh-server nginx bc rsync jq git curl iproute2 quota
+          curl -fSL https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz \
+            -o "$RUNNER_TEMP/shellcheck.tar.xz"
+          tar -xf "$RUNNER_TEMP/shellcheck.tar.xz" -C "$RUNNER_TEMP"
+          sudo install -m0755 "$RUNNER_TEMP/shellcheck-v0.11.0/shellcheck" /usr/local/bin/shellcheck
+      - name: Check opted-in Bash formatting
+        run: bash scripts/check_format.sh
+      - name: Measure declared critical-function coverage
+        env:
+          TERM: xterm-256color
+        run: sudo bash scripts/test_coverage.sh "$PWD/coverage"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: critical-function-coverage
+          path: coverage/
+  hosting-quota-uat:
+    name: Hosting quotas (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:24.04', 'debian:12']
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build disposable quota test environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -q -y podman
+          sudo podman build --build-arg BASE_IMAGE="${{ matrix.image }}" \
+            -f tests/uat/Containerfile -t lemper-p3-uat tests/uat
+          sudo podman run -d --name lemper-p3-uat --privileged --systemd=always \
+            --cgroupns=private --hostname p3.lemper-uat.test --cpus 2 --memory 2g \
+            --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" lemper-p3-uat
+      - name: Prepare a disposable ext4 volume and test enforcement
+        run: |
+          sudo podman exec lemper-p3-uat bash -c '
+            set -e
+            apt-get update -qq
+            apt-get install -q -y quota pv
+            touch /run/lemper-p3-uat-authorized
+            truncate -s 192M /run/p3-quota.img
+            mkfs.ext4 -q -O quota /run/p3-quota.img
+            quota_loop=$(losetup -f)
+            [[ "$quota_loop" =~ ^/dev/loop[0-9]+$ ]] || exit 1
+            [[ -e "$quota_loop" ]] || mknod "$quota_loop" b 7 "${quota_loop#/dev/loop}"
+            mount -o loop,usrquota /run/p3-quota.img /home
+            bash /source/tests/uat/p3_acceptance.sh
+          '
+      - name: Release disposable quota volume
+        if: always()
+        run: |
+          sudo podman exec lemper-p3-uat umount /home || true
+          sudo podman stop --time 10 lemper-p3-uat

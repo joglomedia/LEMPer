@@ -2,7 +2,7 @@
 
 > **Latest published version:** 3.6.0
 > **Last Updated:** 2026-11-21
-> **Code baseline:** 363945d plus P2 implementation changes on `release/v4.0.0`
+> **Code baseline:** 736c5e5 plus P3 implementation changes on `release/v4.0.0`
 > **Status:** v4.0 foundations, mail hosting and PHP/Laravel enhancements are
 > implemented but unreleased. Partial tasks, deferred plans and release
 > validation remain; see [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
@@ -49,10 +49,14 @@ Monit monitoring/alert configuration. Runtime extraction covers account, databas
 SSL, TUI and vhost creation handlers while retaining installed wrappers. See the
 [current audit](ROADMAP_AUDIT.md) for source evidence and validation limits.
 
-Remaining delivery order:
+P3 now delivers hosting disk/inode plans and guarded quota lifecycle (issue #39),
+EditorConfig/opt-in shfmt checks, published scoped function-entry coverage, and
+interactive ETA/optional pv restoration progress. See [HOSTING.md](HOSTING.md).
+Quota enforcement currently supports explicitly enabled ext4 user quotas; broader
+resource limits and other filesystem backends remain optional enhancements.
 
-1. Further extraction of legacy site-management and component installer internals.
-2. Hosting packages/quotas, optional formatting/coverage tooling, and richer progress.
+Remaining architecture work: further extraction of legacy site-management and
+component installer internals. Release validation/publication gates remain below.
 
 Authenticated encryption and custom TLS pins remain explicit policy/format
 decisions. The delivered encryption uses AES-256-CBC/PBKDF2. Full evidence,

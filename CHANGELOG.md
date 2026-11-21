@@ -10,6 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0] - Unreleased
 
 ### Added
+- Hosting disk/inode plans and `lemperctl hosting` check/assign/status/detach/recover
+  commands for quota-ready ext4 filesystems (issue #39), with locked provisioning,
+  preserved quota baselines, UID/filesystem identity checks and interrupted-operation recovery.
+- Optional quota-tool install/remove lifecycle; active assignments guard removal.
+- EditorConfig, opt-in shfmt checks and published scoped function-entry coverage.
+- Interactive component ETA, spinner elapsed time and optional pv progress for
+  configuration archive restoration, with plain non-TTY step output.
 - Optional Restic application/mail data backups, authenticated repositories,
   staged restoration, tag-scoped retention and daily systemd scheduling through `data`.
 - Native nftables `firewall` commands, scoped inet rules, explicit UFW migration,

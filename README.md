@@ -269,6 +269,25 @@ Laravel mounts expose only `public/`, preserve their URL base path, and retain
 project data on removal. See [the PHP/Laravel guide](docs/PHP_RUNTIME_LARAVEL.md)
 for pool requirements, root-domain sites, redirects, migration, and recovery.
 
+##### Hosting plans and quotas
+
+Use a quota-ready ext4 filesystem for tenant disk and inode limits:
+
+```bash
+sudo lemperctl stack install quota
+sudo lemperctl hosting check
+sudo lemperctl hosting plan put starter \
+  --disk-soft=1G --disk-hard=2G --files-soft=50000 --files-hard=60000
+sudo lemperctl account alice --plan=starter
+sudo lemperctl hosting status
+sudo lemperctl hosting detach alice --yes
+```
+
+Enable filesystem user quotas through your distribution/provider before assigning
+plans. LEMPer checks support and preserves existing limits; it does not remount
+filesystems or replace the kernel. See [the hosting guide](docs/HOSTING.md) for
+upgrades, recovery, unsupported filesystems and resources outside the quota.
+
 ##### Mail hosting
 
 Host multiple mail domains with Postfix, Dovecot, and per-domain DKIM keys.
@@ -562,9 +581,9 @@ Further capabilities implemented:
 
 * [x] Add encrypted application/mail file backups (Restic), scheduling, retention and staged restore
 * [x] Add managed Monit health checks, authenticated loopback status and opt-in SMTP alerts
-Planned:
+* [x] Add hosting disk/inode plans, per-user quota enforcement and guarded provisioning
 
-* [ ] Add hosting package management (per-user quotas and provisioning)
+Broader CPU/RAM/bandwidth limits and additional filesystem quota backends remain optional follow-up work.
 
 Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new)!
 

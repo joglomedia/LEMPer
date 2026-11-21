@@ -25,6 +25,19 @@ function lemper_recipe_components() {
     # shellcheck source=/dev/null
     . "$BASE_DIR/lib/core/registry.sh" || return 1
     lemper_load_module services/inventory || return 1
+    lemper_load_module core/progress || return 1
+    local total=0
+    while IFS= read -r service; do
+        read -r installer remover _units _key _family < <(lemper_component_spec "$service")
+        [[ "$action" != install || "$_key" == - || "${!_key:-false}" == true ]] || continue
+        if [[ "$action" == remove && "${FORCE_REMOVE:-false}" != true ]]; then
+            if [[ "$service" == php ]]; then
+                compgen -G "${LEMPER_INSTALLED_DIR:-/etc/lemper/installed}/php-*" >/dev/null || continue
+            else lemper_provisioned "$service" || continue; fi
+        fi
+        total=$((total + 1))
+    done < <(lemper_component_recipe "$action")
+    lemper_progress_reset "$total" || return 1
     while IFS= read -r service; do
         [[ "$service" != ftp ]] || service="${FTP_SERVER_NAME:-pureftpd}"
         [[ "$action" != install || "$service" != redis ]] || service="$REDIS_BACKEND"
@@ -67,6 +80,7 @@ function lemper_recipe_components() {
         esac
         component="$BASE_DIR/scripts/${action}_$component.sh"
         [[ -f "$component" ]] || { error "Recipe component missing: $component"; return 1; }
+        progress "$action $service"
         php_before=""
         if [[ "$action" == install && "$service" == php && "${INSTALL_PHP:-false}" == true ]]; then
             lemper_load_module services/php/lifecycle || return 1
@@ -218,6 +232,14 @@ Keep this file secure and delete the installation log after setup."
 # Main LEMPer Uninstaller
 ##
 function lemper_remove() {
+    # Quota ownership must remain recoverable until all tenants are detached.
+    lemper_load_module services/hosting/plans || return 1
+    local hosting_root assignment
+    hosting_root=$(lemper_hosting_root) || return 1
+    [[ ! -L "$hosting_root/assignments" ]] || return 1
+    for assignment in "$hosting_root"/assignments/*.conf; do
+        [[ ! -e "$assignment" && ! -L "$assignment" ]] || { error "Detach hosting accounts before removing LEMPer."; return 1; }
+    done
     echo "Are you sure to remove LEMPer Stack installation?"
     echo "Please ensure that you've backed up your critical data!"
     echo ""

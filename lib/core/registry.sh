@@ -40,6 +40,7 @@ lemper-backup:lemper-backup
 lemper-data:lemper-data
 lemper-monitor:lemper-monitor
 lemper-firewall:lemper-firewall
+lemper-hosting:lemper-hosting
 REGISTRY
 }
 
@@ -59,7 +60,7 @@ REGISTRY
 
 function lemper_component_ids() {
     printf '%s\n' nginx php mariadb redis valkey postgres memcached mongodb \
-        pureftpd vsftpd crowdsec fail2ban certbot bun mailer modsec imagemagick tools restic monit nftables
+        pureftpd vsftpd crowdsec fail2ban certbot bun mailer modsec imagemagick tools restic monit nftables quota
 }
 function lemper_component_spec() {
     case "${1}" in
@@ -86,6 +87,7 @@ function lemper_component_spec() {
         restic) echo 'restic restic - INSTALL_RESTIC restic' ;;
         monit) echo 'monit monit lemper-monit INSTALL_MONITORING monit' ;;
         nftables) echo 'nftables nftables lemper-nftables INSTALL_FW nftables' ;;
+        quota) echo 'quota quota - INSTALL_QUOTA quota' ;;
         tools) echo 'tools tools - - -' ;;
         *) error "Unknown stack service: ${1}"; return 1 ;;
     esac
@@ -95,9 +97,9 @@ function lemper_component_spec() {
 function lemper_component_recipe() {
     case "$1" in
         install) printf '%s\n' certbot nginx php phalcon mariadb postgres redis mongodb \
-            memcached imagemagick mailer ftp fail2ban crowdsec modsec tools bun restic monit ;;
+            memcached imagemagick mailer ftp fail2ban crowdsec modsec tools bun restic monit quota ;;
         remove) printf '%s\n' nginx mariadb postgres php imagemagick redis valkey mongodb memcached mailer \
-            pureftpd vsftpd fail2ban crowdsec modsec certbot bun restic monit ;;
+            pureftpd vsftpd fail2ban crowdsec modsec certbot bun restic monit quota ;;
         *) return 1 ;;
     esac
 }

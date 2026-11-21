@@ -60,7 +60,8 @@ installer_files() {
     local f
     for f in "${REAL_BASE_DIR}"/scripts/install_*.sh "${REAL_BASE_DIR}"/scripts/remove_*.sh; do
         [[ -s "${f}" ]] || continue
-        run grep -q 'dirname "${BASH_SOURCE\[0\]}" )/.."' "${f}"
+        # shfmt normalizes whitespace; retain the quoted checkout-root contract.
+        run grep -Eq 'dirname "\$\{BASH_SOURCE\[0\]\}"[[:space:]]*\)/\.\."' "${f}"
         [ "${status}" -eq 0 ]
         run grep -q 'scripts/utils.sh' "${f}"
         [ "${status}" -eq 0 ]

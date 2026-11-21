@@ -47,7 +47,7 @@ function lemper_load_module() {
     local module="$1" root
     case "$module" in
         runtime/site/create|runtime/site/commands|runtime/site/apps|runtime/stack/commands|runtime/stack/config|runtime/mail/commands|services/mail/store|services/mail/configure|services/php/lifecycle|services/php/packages|services/php/defaults|services/nginx/apps|core/config-update|\
-        runtime/account/commands|runtime/database/commands|runtime/ssl/commands|runtime/tui/commands|services/accounts/user|services/restic/backup|services/monitoring/monit|services/firewall/nftables|runtime/data/commands|runtime/firewall/commands|services/optional|services/systemd|services/inventory|services/mariadb/database|services/apt/repositories|compat/components|core/deployment) ;;
+        runtime/account/commands|runtime/database/commands|runtime/ssl/commands|runtime/tui/commands|services/accounts/user|services/restic/backup|services/monitoring/monit|services/firewall/nftables|runtime/data/commands|runtime/firewall/commands|services/optional|services/systemd|services/inventory|services/mariadb/database|services/apt/repositories|compat/components|core/deployment|services/hosting/quota|services/hosting/plans|runtime/hosting/commands|core/progress) ;;
         *) error "Unknown library module."; return 1 ;;
     esac
     root=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd) || return 1

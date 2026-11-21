@@ -23,8 +23,18 @@ function lemper_optional_lifecycle() {
         restic) unit=lemper-data-backup.timer ;;
         monit) unit=lemper-monit.service ;;
         nftables) unit=lemper-nftables.service ;;
+        quota) unit="" ;;
         *) error "Unknown optional component."; return 1 ;;
     esac
+    if [[ "$action" == remove && "$component" == quota ]]; then
+        lemper_load_module services/hosting/plans || return 1
+        local hosting_root assignment
+        hosting_root=$(lemper_hosting_root) || return 1
+        [[ ! -L "$hosting_root/assignments" ]] || return 1
+        for assignment in "$hosting_root"/assignments/*.conf; do
+            [[ ! -e "$assignment" && ! -L "$assignment" ]] || { error "Detach hosting accounts before removing quota tools."; return 1; }
+        done
+    fi
     marker="$root/$component"
     if [[ "${DRYRUN:-false}" == true ]]; then info "Would $action $component; repository/data retained."; return 0; fi
     case "$action" in
@@ -53,6 +63,7 @@ function lemper_optional_lifecycle() {
                     lemper_restic_init ;;
                 monit) lemper_load_module services/monitoring/monit || return 1; lemper_monit_configure ;;
                 nftables) lemper_load_module services/firewall/nftables || return 1; lemper_nft_apply ;;
+                quota) info "Quota tools installed; enable filesystem quotas explicitly before assigning hosting plans." ;;
             esac || return 1
             # Configuration ownership is distinct from package ownership. Whole-stack
             # removal can stop our units while preserving pre-existing packages.
@@ -64,7 +75,7 @@ function lemper_optional_lifecycle() {
             if [[ "$component" == nftables ]]; then
                 lemper_load_module services/firewall/nftables || return 1
                 lemper_nft_remove || return 1
-            elif systemctl cat "$unit" >/dev/null 2>&1; then lemper_exec systemctl disable --now "$unit" || return 1; fi
+            elif [[ -n "$unit" ]] && systemctl cat "$unit" >/dev/null 2>&1; then lemper_exec systemctl disable --now "$unit" || return 1; fi
             [[ -f "$marker" || "${FORCE_REMOVE:-false}" == true ]] || { info "Managed unit removed; unowned $package package retained."; return 0; }
             lemper_exec apt-get remove -q -y "$package" || return 1
             rm -f "$marker"

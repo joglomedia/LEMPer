@@ -29,6 +29,7 @@ Options:
   -u, --username <name>  Account name (default: LEMPER_USERNAME or 'lemper').
   --admin                Grant restricted service-administration privileges.
   --restrict-sudo        Migrate an existing LEMPer-owned account to restricted sudo.
+  --plan <name>          Provision with disk/inode limits on a quota-ready filesystem.
   -h, --help             Print this message and exit.
   -v, --version          Output version information and exit.
 
@@ -50,9 +51,9 @@ function validate_username() {
 # Create a system account and its web application directories.
 ##
 function lemper_account_command() {
-    local USERNAME="" ROLE=hosting MIGRATE=false
+    local USERNAME="" ROLE=hosting MIGRATE=false PLAN=""
 
-    lemper_parse_args 'u:hv' 'username:,admin,restrict-sudo,help,version' "$@" || return 1
+    lemper_parse_args 'u:hv' 'username:,admin,restrict-sudo,plan:,help,version' "$@" || return 1
     set -- "${LEMPER_PARSED_ARGS[@]}"
 
     while true; do
@@ -64,6 +65,10 @@ function lemper_account_command() {
             --admin)
                 ROLE="admin"
                 shift
+            ;;
+            --plan)
+                PLAN="$2"
+                shift 2
             ;;
             --restrict-sudo)
                 MIGRATE=true
@@ -96,12 +101,27 @@ function lemper_account_command() {
         fail "Unexpected argument: ${1}"
     fi
 
-    if [[ "${MIGRATE}" == true ]]; then
+    if [[ -n "$PLAN" ]]; then
+        [[ "$ROLE" == hosting && "$MIGRATE" == false ]] || { error "Hosting plans apply only to hosting accounts."; return 1; }
+        lemper_load_module services/hosting/quota || return 1
+        lemper_load_module services/hosting/plans || return 1
+        lemper_with_lock lemper_account_with_plan "${USERNAME:-${LEMPER_USERNAME:-lemper}}" "$PLAN"
+    elif [[ "${MIGRATE}" == true ]]; then
         restrict_account_sudo "${USERNAME:-${LEMPER_USERNAME:-lemper}}"
     else
         lemper_load_module services/accounts/user || return 1
         lemper_with_lock create_account "${USERNAME}" "${ROLE}"
     fi
+}
+
+function lemper_account_with_plan() {
+    local user="$1" plan="$2"
+    lemper_hosting_preflight "$plan" || return 1
+    if getent passwd "$user" >/dev/null; then
+        error "Account already exists; use hosting assign for an owned account."; return 1
+    fi
+    lemper_load_module services/accounts/user || return 1
+    create_account "$user" hosting "$plan"
 }
 
 # Start running things from a call at the end so if this script is executed

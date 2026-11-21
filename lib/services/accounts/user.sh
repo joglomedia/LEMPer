@@ -22,6 +22,7 @@ function create_account() {
     local PASSWORD="${LEMPER_PASSWORD:-}"
     local PASSWORD_HASH=""
     local ROLE="${2:-hosting}"
+    local PLAN="${3:-}"
 
     if ! validate_username "${USERNAME}"; then
         error "Invalid username '${USERNAME}'. Expected lowercase letters," \
@@ -49,10 +50,6 @@ function create_account() {
         fail "Failed to create system account '${USERNAME}'."
     fi
 
-    if ! printf '%s:%s\n' "${USERNAME}" "${PASSWORD}" | chpasswd; then
-        fail "Failed to set password for '${USERNAME}'."
-    fi
-
     if [[ "${ROLE}" == admin ]]; then
         write_account_sudoers "${USERNAME}" || return 1
     fi
@@ -67,6 +64,19 @@ function create_account() {
     run chmod 600 "/home/${USERNAME}/.ssh/authorized_keys"
     create_php_temp_dirs "${USERNAME}"
     run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
+
+    # Account credentials are kept separately; creating a hosting account must
+    # never overwrite the administrator's global username/password.
+    run install -d -m 0700 /etc/lemper/accounts
+    ( umask 077; printf 'USERNAME=%s\nPASSWORD=%s\n' "${USERNAME}" "${PASSWORD}" > "/etc/lemper/accounts/${USERNAME}.conf" ) || return 1
+    run chmod 0600 "/etc/lemper/accounts/${USERNAME}.conf"
+    # useradd starts password-locked. Apply the plan before enabling login.
+    if [[ -n "$PLAN" ]]; then
+        lemper_hosting_assign "$USERNAME" "$PLAN" || {
+            error "Account retained with its password locked; recover hosting quotas before enabling login."
+            return 1
+        }
+    fi
 
     # Add account credentials to /srv/.htpasswd.
     if [[ ! -f "/srv/.htpasswd" ]]; then
@@ -91,11 +101,10 @@ function create_account() {
         echo "${USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
     fi
 
-    # Account credentials are kept separately; creating a hosting account must
-    # never overwrite the administrator's global username/password.
-    run install -d -m 0700 /etc/lemper/accounts
-    ( umask 077; printf 'USERNAME=%s\nPASSWORD=%s\n' "${USERNAME}" "${PASSWORD}" > "/etc/lemper/accounts/${USERNAME}.conf" ) || return 1
-    run chmod 0600 "/etc/lemper/accounts/${USERNAME}.conf"
+    if ! printf '%s:%s\n' "${USERNAME}" "${PASSWORD}" | chpasswd; then
+        error "Failed to set password for '${USERNAME}'. Account retained for recovery."
+        return 1
+    fi
     info "Account credentials saved to /etc/lemper/accounts/${USERNAME}.conf (root-only)."
 
     echo "Username ${USERNAME} created."

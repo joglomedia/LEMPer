@@ -807,3 +807,13 @@ filenames and initialization contract while handlers occupy `lib/runtime/` and
 account provisioning occupies `lib/services/accounts/`. Legacy site-management
 and component installer business internals remain candidates for further extraction;
 this is an incremental migration, not a claim that every legacy file is empty.
+
+## Hosting plans and quota drivers
+
+`lib/runtime/hosting/commands.sh` orchestrates the public `hosting` plugin.
+`lib/services/hosting/plans.sh` owns validated plan/assignment data and transactional
+lifecycle; `quota.sh` owns ext4 capability/reporting/enforcement. Both are function-only
+modules loaded through the shared registry/loader and exported with the CLI.
+Account provisioning delegates before password activation. No driver edits filesystem
+mount configuration or installs a kernel. See [HOSTING.md](HOSTING.md) for limits,
+rollback, filesystem identity and external-change behavior.

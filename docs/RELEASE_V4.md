@@ -149,3 +149,18 @@ Remote backup destinations and external SMTP delivery remain separately scoped.
 The final full Bats suite passed 394 cases, with ShellCheck 0.11.0, Bashate,
 Bash syntax and documentation/diff checks passing.
 See [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md) for current checks and further extraction.
+
+## P3 candidate additions (unreleased)
+
+The candidate adds hosting disk/inode plans for administrator-enabled ext4 quotas
+(issue #39), guarded quota/account provisioning and recovery, scoped formatting
+and function-entry coverage artifacts, and interactive ETA/pv restore feedback.
+See [HOSTING.md](HOSTING.md) for the enforced scope and filesystem prerequisites.
+These changes require a fresh final committed-candidate asset build and exact
+archive/bootstrap verification before release; no publication is implied.
+
+Local P3 verification passed 418 Bats tests, the declared function-entry coverage
+report (33/35), ShellCheck 0.11/Bashate/syntax/shfmt checks, and 41 real quota UAT
+checks on each of Ubuntu 24.04 and Debian 12 ARM64. Project mounts stayed read-only;
+quota test volumes were released afterward. These results cover the working tree,
+not a published v4 archive or remote GitHub Actions run.

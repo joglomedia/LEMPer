@@ -1,6 +1,6 @@
 # LEMPer roadmap implementation audit
 
-Date: **2026-11-21**. Code baseline: **363945d** plus the P2 implementation
+Date: **2026-11-21**. Code baseline: **736c5e5** plus the P3 implementation
 working tree, `release/v4.0.0`.
 Latest GitHub release checked: **v3.6.0**. v4.0.0 is not published.
 
@@ -70,17 +70,18 @@ P2 UAT passed 37 checks; the extended fresh-container suite passed 51, including
 actual SSH login, IPv4/IPv6 enforcement, UFW migration/rollback and recovery while
 the shared backup lock is held. Full Bats results are recorded below.
 
-## Remaining implementation work, in priority order
+## P3 implementation follow-through
 
-Ranks retain their audit IDs. R8's next step is further legacy management and
-installer extraction; it is an incremental architecture workstream. Remaining
-product/tooling proposals are:
+| Rank | Delivered behavior | Source / validation |
+|---|---|---|
+| R10 | Hosting disk/inode plans; preflighted account provisioning; ext4 user-quota enforcement; assignment/upgrade/downgrade checks; original numeric quota restoration; interrupted-operation recovery and removal guards (issue #39) | [hosting guide](HOSTING.md), [plan driver](../lib/services/hosting/plans.sh), [quota driver](../lib/services/hosting/quota.sh), [runtime commands](../lib/runtime/hosting/commands.sh), [UAT](../tests/uat/p3_acceptance.sh). Requires administrator-enabled ext4 quotas. CPU/RAM/bandwidth and additional filesystem backends are separate enhancements. |
+| R11 | EditorConfig and scoped shfmt enforcement without mass-formatting; synthetic Bats function-entry instrumentation and JSON/Markdown coverage publishing | [format gate](../scripts/check_format.sh), [scope](../tools/shfmt-files.txt), [coverage runner](../scripts/test_coverage.sh), [CI](../.github/workflows/main.yml). Function-entry coverage does not claim line/branch coverage or installation correctness. |
+| R12 | Component step counters with interactive ETA, spinner elapsed/completion time, and optional pv byte/rate/ETA feedback during configuration archive restore | [progress module](../lib/core/progress.sh), [utils](../scripts/utils.sh), [recipe](../lib/runtime/stack/recipe.sh), [backup](../lib/lemper-backup.sh). TTY-only ETA/transfer feedback; deterministic fallback without pv. |
 
-| Rank | Priority | Plan / current status | Evidence and next deliverable |
-|---|---|---|---|
-| R10 | P3 | Hosting packages, per-user quotas and provisioning — README plan, unimplemented | Account roles and per-user FPM isolation are present; no hosting-plan schema, quota enforcement or package-provisioning lifecycle is implemented. Define limits and ownership first, then enforcement, upgrade and teardown behavior. Server-wide resource profiles do not implement tenant quotas. |
-| R11 | P3 | Formatting/coverage tooling — developer §8.2, unfinished optional proposals | Bashate and ShellCheck are in CI. No tracked `.editorconfig`, `shfmt` enforcement or code-coverage publishing is present. Choose consistent tooling and add it without an unrelated mass-format change. The developer table's proposed `bandit`/`shellspec` examples need clarification: current host audit and dependency review are implemented, while a separate source-security workflow needs an explicit definition if desired. |
-| R12 | P3 | Rich progress feedback — optional remainder of 2.22 | [utils.sh](../scripts/utils.sh), `run_spinner` and step progress are implemented. Integrated ETA and the suggested `pv` transfer progress are not. These are optional enhancements; the basic progress feature should remain marked delivered. |
+The remaining implementation work is R8: incremental extraction of legacy
+site-management and component installer internals. The P3 disk/inode package
+contract is implemented; broader resource plans were not specified by issue #39
+and are not implied by the server-wide resource profiles.
 
 ## Release gates and validation, not missing code features
 
@@ -148,7 +149,7 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.19B | Implemented | Valkey repo/source branches and shared removal; separate filenames are unnecessary. |
 | 2.20 | Implemented | CrowdSec lifecycle, options and collections. |
 | 2.21 | Implemented in source | Protected provider DNS-01 wiring; public issuance/renewal validation is a release gate. |
-| 2.22 | Basic feature implemented | Spinners/counters delivered; optional ETA/transfer enhancement is R12. |
+| 2.22 | Implemented | Spinners/counters delivered; ETA and optional pv restoration progress delivered with R12. |
 | 2.23 | Implemented, consistency follow-through remains | Expanded/public help and common parser; site-show flag fixed in R2; public-path parser adoption is delivered in R7; compatibility adapters retain their grammar. |
 | 2.24 | Implemented | TUI dashboard/logs/wizard; current command is `tui`. |
 | 2.25 | Implemented and superseded | Shipped install templates now PHP 8.2–8.5. |
@@ -255,3 +256,19 @@ created inside those containers, and no workstation/live service was changed.
   fixtures were corrected and the extended 51-case suite rerun successfully.
 - P1 was committed as `363945d`; this report records the P2 follow-through. No push, release
   publication or final release-archive rebuild was performed.
+
+## P3 validation — 2026-11-21
+
+- Final full synthetic Bats run with coverage instrumentation: **418 tests passed**.
+- Scoped function-entry coverage: **33/35 (94.3%)**. This is not line/branch coverage.
+- ShellCheck **0.11.0** with sourced-file analysis, Bashate using CI options,
+  Bash syntax checks, and the opted-in shfmt **3.8.0** gate passed.
+- Real Podman ARM64 UAT: **41 checks on Ubuntu 24.04** and **41 on Debian 12**,
+  including kernel disk/inode enforcement, plan upgrades/downgrade rejection,
+  locked failed provisioning, interrupted recovery, retained data and pv TTY transfer.
+- Project mounts were read-only. Disposable loop-backed ext4 volumes were
+  unmounted and both quota UAT containers stopped after validation.
+- Workflow YAML, affected documentation references and tracked/new-file whitespace
+  were checked. New GitHub Actions jobs are configured but have not been run remotely.
+- Validation covered the P3 working tree before commit; final clean-candidate release
+  assets and publication still require the release workflow and authorization described above.

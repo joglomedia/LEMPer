@@ -934,7 +934,8 @@ function backup_restore() {
         "--exclude=etc/lemper/backups"
     )
 
-    if ! tar -xzf "${file}" -C "${root}" --numeric-owner "${excludes[@]}"; then
+    lemper_load_module core/progress || return 1
+    if ! (set -o pipefail; lemper_transfer_read "${file}" | tar -xz -C "${root}" --numeric-owner "${excludes[@]}"); then
         error "Restore failed while extracting ${file}."
         if [[ -n "${snapshot_archive}" ]]; then
             warning "Pre-restore snapshot: ${snapshot_archive}"
