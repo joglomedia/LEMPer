@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0] - Unreleased
 
 ### Added
+- `lemperctl mail` domain, account, alias, DNS, check, and status commands,
+  with virtual multi-domain mailboxes, protected password input, login controls,
+  atomic map publication/rollback, and explicit mailbox purge.
 - Shared profile-based full-stack entry adapter for install/remove/update and
   `lemperctl stack ... --all`, with config validation before host changes.
 - Optional `get-lemper --install --config FILE`, `--minimal`, `--yes` and
@@ -31,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tag-driven release automation, and provisioned-host/dependency audit reports.
 
 ### Changed
+- Mail installation uses maintained Postfix/Dovecot IMAP/LMTP packages and
+  tracked templates, TLS submission, a restricted SASL socket, retained DKIM
+  keys, and ownership-based package removal that preserves mail and configuration.
 - Compatibility scripts delegate to one lifecycle entry path; legacy installer
   flags remain isolated in adapters. Disabled components are skipped.
 - Minimal service profiles omit optional services and web panels while keeping

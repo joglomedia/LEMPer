@@ -34,6 +34,7 @@ lemper-bench:lemper-bench
 lemper-modsec:lemper-modsec
 lemper-tui:lemper-tui
 lemper-stack:lemper-stack
+lemper-mail:lemper-mail
 lemper-update:lemper-update
 lemper-backup:lemper-backup
 REGISTRY

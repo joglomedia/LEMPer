@@ -51,6 +51,7 @@ EOL
     echo
     echo "System Administration:"
     help_entry config "Validate configuration with config check."
+    help_entry mail "Manage mail domains, mailbox accounts, aliases, and DNS records."
     help_entry account "Create a system user account."
     help_entry adduser "Interactively add a system user."
     help_entry tui "Launch interactive TUI dashboard."

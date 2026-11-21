@@ -41,7 +41,7 @@ skip_if_no_gnu_getopt() {
 
 command_plugins() {
     printf '%s\n' account adduser backup bench create db fixpermission \
-        manage modsec selfssl site site-list site-show stack tui update
+        mail manage modsec selfssl site site-list site-show stack tui update
 }
 
 @test "every CLI file carries the 2014-2026 copyright banner" {
@@ -101,6 +101,7 @@ command_plugins() {
             create)        expected="Usage: lemper-cli create" ;;
             db)            expected="Usage: lemper-cli db" ;;
             fixpermission) expected="Recursively set directories" ;;
+            mail)          expected="Usage: lemper-cli mail" ;;
             manage)        expected="lemper-cli manage [OPTION]" ;;
             modsec)        expected="Usage: lemper-cli modsec" ;;
             selfssl)       expected="Generates self-signed SSL certificate" ;;

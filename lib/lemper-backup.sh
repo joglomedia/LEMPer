@@ -81,6 +81,7 @@ LEMPER_BACKUP_PATHS_DEFAULT=(
     etc/pam.d/pure-ftpd
     etc/pam.d/vsftpd
     etc/default/pure-ftpd-common
+    etc/lemper-mail
     etc/postfix
     etc/dovecot
     etc/aliases

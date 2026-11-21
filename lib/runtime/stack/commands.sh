@@ -61,16 +61,26 @@ function lemper_stack_execute() {
     local installer remover units key family unit component preexisting=false marker
     read -r installer remover units key family < <(stack_service_spec "$service")
     [[ -n "$installer" ]] || return 1
+    if [[ "$service" == mailer ]]; then
+        lemper_load_module services/mail/store || return 1
+        if [[ -f "$(lemper_mail_root)/dkim-enabled" ]]; then units="opendkim,dovecot,postfix"; fi
+    fi
     local state="${LEMPER_INSTALLED_DIR:-/etc/lemper/installed}"
     marker="$state/$service"
     [[ "$service" != php ]] || marker="$state/php-$php"
     case "$action" in
         start|stop|restart|reload|status)
+            if [[ "$service" == mailer && "$action" =~ ^(restart|reload)$ && "${DRYRUN:-false}" != true &&
+                  -f "$(lemper_mail_root)/managed" ]]; then lemper_mail_check || return 1; fi
             [[ "$units" != PHP ]] || units="php$php-fpm"
             [[ "$units" != - ]] || { error "This component has no systemd service."; return 1; }
             local unit_list=() rc=0
             IFS=',' read -r -a unit_list <<< "$units"
-            for unit in "${unit_list[@]}"; do stack_control "$action" "$unit" || rc=1; done
+            for unit in "${unit_list[@]}"; do
+                if [[ "$unit" == opendkim && "$action" == reload ]]; then
+                    stack_control restart "$unit" || rc=1
+                else stack_control "$action" "$unit" || rc=1; fi
+            done
             return "$rc" ;;
         install|remove)
             source=$(stack_source_root "$source") || return 1
@@ -105,6 +115,9 @@ function lemper_stack_execute() {
         update)
             case "$service" in
                 php) lemper_php_update "$php" ;;
+                mailer)
+                    lemper_load_module services/mail/configure || return 1
+                    lemper_mail_update ;;
                 nginx|mariadb) lemper_exec "${LEMPER_CLI_BIN:-lemperctl}" update "$service" ;;
                 tools) lemper_exec "${LEMPER_CLI_BIN:-lemperctl}" update lemper ;;
                 *)

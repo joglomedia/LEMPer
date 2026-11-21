@@ -252,6 +252,29 @@ podman stop --time 10 lemper-v4-release-uat
 See [RELEASE_V4.md](docs/RELEASE_V4.md) for the final v4 results and artifact
 publication steps.
 
+#### Mail hosting acceptance tests
+
+The mail acceptance suite installs only the mail component in a designated
+systemd container. It exercises SMTP/IMAP TLS, multi-domain delivery and DKIM,
+account/alias changes, session revocation, package updates, backups, and removal
+that retains mail. The CI mailer matrix runs Ubuntu 22.04/24.04 and Debian 12.
+
+```bash
+podman build --build-arg BASE_IMAGE=ubuntu:24.04 -t lemper-mail-uat \
+  -f tests/uat/Containerfile tests/uat
+podman run -d --name lemper-mail-uat --privileged --systemd=always \
+  --cgroupns=private --hostname mail.lemper-uat.test --cpus 2 --memory 2g \
+  --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" lemper-mail-uat
+podman exec lemper-mail-uat bash -c \
+  'touch /run/lemper-mail-uat-authorized; cp /source/tests/uat/mail_acceptance.sh /run/mail-uat.sh; bash /run/mail-uat.sh'
+podman stop --time 10 lemper-mail-uat
+```
+
+Use a fresh designated container and a read-only project mount. Copy the UAT
+script inside it before execution so ongoing checkout edits cannot change a
+running test. Per-case logs and synthetic secrets stay inside the container;
+see [the mail guide](docs/MAIL.md) for requirements and validation limits.
+
 #### 3.4.5 macOS vs Linux Portability Gotchas
 
 | Construct | macOS (BSD) | Linux (GNU) | Portable Alternative |

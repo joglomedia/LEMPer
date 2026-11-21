@@ -234,6 +234,31 @@ jobs:
           set -ex
           sudo bash "${{ matrix.installer }}"
           systemctl is-active --quiet "${{ matrix.service }}"
+  mailer-uat:
+    name: mailer (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:22.04', 'ubuntu:24.04', 'debian:12']
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build disposable mail test environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq podman
+          sudo podman build --build-arg BASE_IMAGE="${{ matrix.image }}" \
+            -f tests/uat/Containerfile -t lemper-mail-uat tests/uat
+      - name: Verify mail installation and administration
+        run: |
+          sudo podman run -d --name lemper-mail-uat --privileged --systemd=always \
+            --cgroupns=private --hostname mail.lemper-uat.test --cpus 2 --memory 2g \
+            --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" lemper-mail-uat
+          sudo podman exec lemper-mail-uat bash -c \
+            'touch /run/lemper-mail-uat-authorized; cp /source/tests/uat/mail_acceptance.sh /run/mail-uat.sh; bash /run/mail-uat.sh'
+      - name: Stop disposable mail test container
+        if: always()
+        run: sudo podman stop --time 10 lemper-mail-uat
   debian-12:
     runs-on: ubuntu-24.04
     container:

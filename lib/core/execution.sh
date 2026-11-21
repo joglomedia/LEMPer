@@ -46,7 +46,7 @@ function lemper_with_lock() {
 function lemper_load_module() {
     local module="$1" root
     case "$module" in
-        runtime/site/commands|runtime/stack/commands|services/php/lifecycle|services/php/packages|\
+        runtime/site/commands|runtime/stack/commands|runtime/mail/commands|services/mail/store|services/mail/configure|services/php/lifecycle|services/php/packages|\
         services/systemd|services/inventory|compat/components|core/deployment) ;;
         *) error "Unknown library module."; return 1 ;;
     esac

@@ -737,3 +737,18 @@ scripts are compatibility entry points. Runtime modules define functions only;
 legacy source-time behavior is contained by executed adapters.
 
 See [RELEASE_V4.md](RELEASE_V4.md) for artifacts, validation, and publication steps.
+
+## Mail hosting modules
+
+`lib/lemper-mail.sh` loads the function-only `lib/runtime/mail/commands.sh`
+use cases. `lib/services/mail/store.sh` validates identities, renders virtual
+maps and protected password files, and publishes a complete generation through
+one atomic selector with service rollback. `lib/services/mail/configure.sh`
+manages package ownership, TLS, Postfix/Dovecot/OpenDKIM templates, installation,
+and removal. `scripts/install_mailer.sh` and `scripts/remove_mailer.sh` are
+compatibility entrypoints. The plugin is exported by the shared registry.
+
+Mutable configuration is under `/etc/lemper-mail`; messages are under
+`/var/vmail`. Keeping this state outside the versioned code and `/etc/lemper`
+allows CLI refresh and full-stack removal to preserve mail. See
+[MAIL.md](MAIL.md) for the operational contract and migration requirements.

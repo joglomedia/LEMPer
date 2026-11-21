@@ -245,6 +245,27 @@ sudo lemperctl tui
 
 Here are some examples of using LEMPer CLI.
 
+##### Mail hosting
+
+Host multiple mail domains with Postfix, Dovecot, and per-domain DKIM keys.
+Prepare a certificate for `MAILER_HOSTNAME`, configure `SENDER_DOMAIN` and
+`MAILER_CERT_PATH`, then install the mail component:
+
+```bash
+sudo lemperctl stack install mailer
+sudo lemperctl mail account add admin@example.com
+sudo lemperctl mail alias add postmaster@example.com admin@example.com
+sudo lemperctl mail domain add example.net
+sudo lemperctl mail account add sales@example.net
+sudo lemperctl mail account edit sales@example.net --disable
+sudo lemperctl mail dns example.net
+```
+
+Mailbox passwords are prompted securely. Clients use authenticated STARTTLS on
+port 587 and IMAP TLS on port 993. Removing an account retains its mail unless
+`--purge --yes` is specified. See [the mail guide](docs/MAIL.md) for DNS,
+certificates, aliases, account deletion, existing-server migration, and backups.
+
 ##### LEMPer CLI add new vhost / website
 
 ```bash
