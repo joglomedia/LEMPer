@@ -71,7 +71,11 @@ if [[ "$CLI_HELP" == true || "${1:-}" == help || $# -eq 0 ]]; then
         site|create|add|manage|mod)
             # shellcheck source=/dev/null
             . "$CLI_LIBRARY_DIR/runtime/site/commands.sh"
-            lemper_site_help ;;
+            if [[ "${2:-}" == app ]]; then
+                # shellcheck source=/dev/null
+                . "$CLI_LIBRARY_DIR/runtime/site/apps.sh"
+                lemper_site_app_help
+            else lemper_site_help; fi ;;
         stack)
             # shellcheck source=/dev/null
             . "$CLI_LIBRARY_DIR/runtime/stack/commands.sh"

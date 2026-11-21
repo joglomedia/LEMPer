@@ -19,13 +19,14 @@
 
 function lemper_site_help() {
     cat <<EOF
-Usage: ${CMD_PARENT:-lemperctl} site <create|list|show|update|enable|disable|remove|adopt> [OPTIONS] DOMAIN [DOMAIN...]
+Usage: ${CMD_PARENT:-lemperctl} site <create|list|show|update|enable|disable|remove|adopt|app> [OPTIONS] DOMAIN [DOMAIN...]
 Create: --type TYPE --runtime php@VERSION --runtime-user USER --install-skeleton --webroot PATH
 Update: --ssl-enable/disable/remove/renew, --cors-enable/disable, --fastcgi-cache-enable/disable
         --enable/disable; verb-first legacy flags remain accepted.
 Remove: --purge deletes recorded site-owned data; --yes bypasses confirmation.
 Adopt: DOMAIN --runtime-user USER --runtime php@VERSION [--webroot PATH] records existing ownership.
 All mutation commands accept --dry-run. Aliases: add, manage, mod, delete.
+App: add/update/remove/list DOMAIN --mount /NAME; existing Laravel projects only. See site app --help.
 EOF
 }
 function lemper_site_action_name() {
@@ -108,6 +109,7 @@ function lemper_site_create_execute() {
     local domain="$1" owner="$2" webroot="$3" php="$4" skeleton="$5" ssl="$6"
     shift 6
     lemper_nginx_site_exists "$domain" && { error "Site already exists."; return 1; }
+    lemper_exec install -d -m 0755 "${LEMPER_NGINX_DIR:-/etc/nginx}/site-apps" || return 1
     lemper_legacy_site_create "$@" || return 1
     lemper_nginx_site_exists "$domain" || { error "Site creation did not produce configuration."; return 1; }
     if [[ "$ssl" == true ]]; then
@@ -329,6 +331,9 @@ function init_lemper_site() {
     # shellcheck source=/dev/null
     . "$root/runtime/site/state.sh" || return 1
     case "$operation" in
+        app)
+            lemper_load_module runtime/site/apps || return 1
+            init_lemper_site_app "$@" ;;
         create) lemper_site_create "$@" ;;
         adopt) lemper_site_adopt "$@" ;;
         update|remove) lemper_site_change "$operation" "$@" ;;

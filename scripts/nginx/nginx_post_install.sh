@@ -81,6 +81,7 @@ function configure_nginx_directories() {
     # Create vhost directories
     [[ ! -d /etc/nginx/sites-available ]] && run mkdir -p /etc/nginx/sites-available
     [[ ! -d /etc/nginx/sites-enabled ]] && run mkdir -p /etc/nginx/sites-enabled
+    [[ ! -d /etc/nginx/site-apps ]] && run mkdir -p /etc/nginx/site-apps
 
     # Create stream vhost directories (only when the stream module is usable).
     if "${NGX_STREAM:-false}"; then

@@ -245,6 +245,30 @@ sudo lemperctl tui
 
 Here are some examples of using LEMPer CLI.
 
+##### PHP runtime defaults and Laravel applications
+
+Select an installed PHP default for the system CLI and new sites:
+
+```bash
+sudo lemperctl stack config php --default-runtime=php@8.4
+```
+
+Existing vhosts keep their explicit FPM runtimes. The command preserves profile
+encryption and rolls back alternatives if the change fails.
+
+Mount an existing Laravel project under a managed domain:
+
+```bash
+sudo lemperctl site app add example.com --mount /demo \
+  --webroot /home/lemper/apps/demo --runtime php@8.4 --runtime-user lemper
+sudo lemperctl site app update example.com --mount /demo --runtime php@8.3
+sudo lemperctl site app remove example.com --mount /demo --yes
+```
+
+Laravel mounts expose only `public/`, preserve their URL base path, and retain
+project data on removal. See [the PHP/Laravel guide](docs/PHP_RUNTIME_LARAVEL.md)
+for pool requirements, root-domain sites, redirects, migration, and recovery.
+
 ##### Mail hosting
 
 Host multiple mail domains with Postfix, Dovecot, and per-domain DKIM keys.

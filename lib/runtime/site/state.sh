@@ -63,6 +63,20 @@ function lemper_site_purge_preflight() {
     lemper_site_read_state "$domain" || return 1
     LEMPER_SITE_WEBROOT=$(safe_webroot "$LEMPER_SITE_WEBROOT" "$LEMPER_SITE_OWNER") ||
         { error "Refusing unsafe or incorrectly owned website root."; return 1; }
+    # Mounted applications have independent ownership and must be detached first.
+    for file in "${LEMPER_SITE_APP_STATE_DIR:-/etc/lemper/site-apps}/$domain"/*.conf \
+        "${LEMPER_NGINX_DIR:-/etc/nginx}/site-apps/$domain"/*.conf; do
+        [[ ! -f "$file" ]] || { error "Remove application mounts before purging their parent site."; return 1; }
+    done
+    for file in "${LEMPER_SITE_APP_STATE_DIR:-/etc/lemper/site-apps}"/*/*.conf; do
+        [[ -f "$file" ]] || continue
+        while IFS=$'\t' read -r key value; do
+            [[ "$key" == WEBROOT && "$value" == /* ]] || continue
+            value=$(realpath -m -- "$value") || return 1
+            case "$value/" in "$LEMPER_SITE_WEBROOT/"|"$LEMPER_SITE_WEBROOT/"*) error "Mounted application data overlaps this webroot."; return 1 ;; esac
+            case "$LEMPER_SITE_WEBROOT/" in "$value/"*) error "Mounted application data overlaps this webroot."; return 1 ;; esac
+        done < <(safe_parse_dotenv "$file")
+    done
     # Protect shared roots and ancestor/descendant trees, including legacy sites.
     for file in "${LEMPER_NGINX_DIR:-/etc/nginx}"/sites-available/*.conf; do
         [[ -f "$file" && "$file" != */"$domain.conf" ]] || continue
@@ -98,7 +112,7 @@ function lemper_site_purge_data() {
     fi
     # Drop privileges for the entire recursive operation, preserving the existing guard.
     # Legacy deletion calls run() indirectly; keep its dry-run semantics.
-    # shellcheck disable=SC2329
+    # shellcheck disable=SC2329,SC2317 # Invoked indirectly by the legacy deletion callback.
     ( function run() { lemper_exec "$@"; }; delete_site_webroot "$LEMPER_SITE_WEBROOT" "$LEMPER_SITE_OWNER" ) || return 1
     lemper_exec rm -f -- "${LEMPER_SITE_STATE_DIR:-/etc/lemper/sites}/$domain.conf" \
         "/etc/lemper/vhost.d/$domain.conf"

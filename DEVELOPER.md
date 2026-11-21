@@ -275,6 +275,23 @@ script inside it before execution so ongoing checkout edits cannot change a
 running test. Per-case logs and synthetic secrets stay inside the container;
 see [the mail guide](docs/MAIL.md) for requirements and validation limits.
 
+#### PHP defaults and Laravel routing acceptance
+
+The `runtime-routing-uat` CI job prepares a disposable Ubuntu 24.04 systemd
+container with PHP 8.3/8.4, Nginx, and Laravel 13. It runs
+`tests/uat/runtime_routing_acceptance.sh` against installed CLI code. The checks
+cover encrypted-profile/default changes, independent FPM runtimes, root/mounted
+Laravel requests, static files, redirects, authentication, and guarded removal.
+
+For local UAT, use the same Podman/container commands and package preparation
+from `.github/workflows/main.yml`. The PHP PPA is the existing supported
+Ondřej source used by LEMPer. Copy the acceptance script into `/run` before
+execution and mount only the project, read-only. Mark the designated disposable
+container with `/run/lemper-runtime-uat-authorized`; the script refuses an
+unmarked/non-systemd environment. Logs stay in `/var/log/lemper-runtime-uat`.
+See [PHP_RUNTIME_LARAVEL.md](docs/PHP_RUNTIME_LARAVEL.md) for the contracts and
+recorded validation limits.
+
 #### 3.4.5 macOS vs Linux Portability Gotchas
 
 | Construct | macOS (BSD) | Linux (GNU) | Portable Alternative |

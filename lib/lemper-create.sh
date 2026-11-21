@@ -153,6 +153,7 @@ server {
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}";
     root \$root_path;
+    include /etc/nginx/site-apps/${DOMAIN}/*.conf;
     index index.php index.html index.htm;
     client_max_body_size 50m;
 
@@ -249,6 +250,7 @@ server {
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}";
     root \$root_path;
+    include /etc/nginx/site-apps/${DOMAIN}/*.conf;
     index index.php index.html index.htm;
     client_max_body_size 50m;
 
@@ -345,6 +347,7 @@ server {
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}/public";
     root \$root_path;
+    include /etc/nginx/site-apps/${DOMAIN}/*.conf;
     index index.php index.html index.htm;
     client_max_body_size 50m;
 
@@ -373,7 +376,7 @@ server {
     ## End of custom site directives. 
 
     ## Pass the PHP scripts to FastCGI server listening on Unix socket.
-    location ~ \.php$ {
+    location = /index.php {
         try_files \$uri =404;
 
         fastcgi_split_path_info ^(.+\.php)(/.+)$;
@@ -390,6 +393,11 @@ server {
 
         # Uncomment to Enable PHP FastCGI cache.
         #include /etc/nginx/includes/fastcgi_cache.conf;
+    }
+
+    # Laravel executes only its public front controller.
+    location ~* \.(?:php[0-9]*|phtml|phar)(?:/|$) {
+        return 404;
     }
 
     ## PHP-FPM status monitoring (local only).
@@ -441,6 +449,7 @@ server {
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}/public";
     root \$root_path;
+    include /etc/nginx/site-apps/${DOMAIN}/*.conf;
     index index.php index.html index.htm;
     client_max_body_size 50m;
 

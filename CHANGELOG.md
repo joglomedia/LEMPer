@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0] - Unreleased
 
 ### Added
+- Issue #91 `stack config php --default-runtime=php@VERSION` with registered
+  alternatives validation, encrypted-profile persistence, and rollback.
+- Issue #170 Laravel application mounts with independent ownership/runtime,
+  validation before reload, rollback, and removal that retains project data.
 - `lemperctl mail` domain, account, alias, DNS, check, and status commands,
   with virtual multi-domain mailboxes, protected password input, login controls,
   atomic map publication/rollback, and explicit mailbox purge.
@@ -34,6 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tag-driven release automation, and provisioned-host/dependency audit reports.
 
 ### Changed
+- Laravel routing preserves methods/query strings when canonicalizing trailing
+  slashes, and newly generated vhosts restrict PHP execution to the front controller.
+- The PHP installer shares its alternatives driver with runtime configuration;
+  mounted apps participate in PHP-reference and parent-purge checks.
 - Mail installation uses maintained Postfix/Dovecot IMAP/LMTP packages and
   tracked templates, TLS submission, a restricted SASL socket, retained DKIM
   keys, and ownership-based package removal that preserves mail and configuration.

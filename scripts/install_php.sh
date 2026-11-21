@@ -1197,10 +1197,9 @@ init_php_install "$@"
 # Set default PHP.
 if [[ -n $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then
     echo "Set default PHP command line to version ${DEFAULT_PHP_VERSION}..."
-
-    run update-alternatives --set php "$(command -v "php${DEFAULT_PHP_VERSION}")"
-    run update-alternatives --set phar "$(command -v "phar${DEFAULT_PHP_VERSION}")"
-    run update-alternatives --set phar.phar "$(command -v "phar.phar${DEFAULT_PHP_VERSION}")"
-    run update-alternatives --set php-config "$(command -v "php-config${DEFAULT_PHP_VERSION}")"
-    run update-alternatives --set phpize "$(command -v "phpize${DEFAULT_PHP_VERSION}")"
+    lemper_load_module services/php/lifecycle || { if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 1; else return 1; fi; }
+    lemper_load_module services/php/defaults || { if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 1; else return 1; fi; }
+    if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+        lemper_with_lock lemper_php_default_switch "${DEFAULT_PHP_VERSION}"
+    else lemper_php_default_switch "${DEFAULT_PHP_VERSION}"; fi
 fi

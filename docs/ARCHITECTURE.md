@@ -752,3 +752,17 @@ Mutable configuration is under `/etc/lemper-mail`; messages are under
 `/var/vmail`. Keeping this state outside the versioned code and `/etc/lemper`
 allows CLI refresh and full-stack removal to preserve mail. See
 [MAIL.md](MAIL.md) for the operational contract and migration requirements.
+
+## PHP defaults and mounted applications (#91, #170)
+
+`runtime/stack/config.sh` owns the PHP default request; `services/php/defaults.sh`
+validates and switches alternatives with rollback, while `core/config-update.sh`
+prepares a protected profile replacement preserving encryption and credentials.
+The installer delegates to the same alternatives driver. Existing FPM/vhost
+selections remain explicit.
+
+`runtime/site/apps.sh` validates Laravel mount requests and records ownership.
+`services/nginx/apps.sh` renders the tracked template, reconciles include hooks
+across SSL/non-SSL variants, validates/reloads Nginx, and restores snapshots on
+failure. Parent-site purge and PHP-reference checks include mounted applications.
+See [PHP_RUNTIME_LARAVEL.md](PHP_RUNTIME_LARAVEL.md) for the public contracts.

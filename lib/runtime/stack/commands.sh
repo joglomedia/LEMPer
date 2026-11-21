@@ -23,6 +23,7 @@ function stack_help() {
 ${CMD_PARENT:-lemperctl} stack ${PROG_VERSION:-}
 Usage: ${CMD_PARENT:-lemperctl} stack <install|remove|update|start|stop|restart|reload|status> <service> [options]
        ${CMD_PARENT:-lemperctl} stack <install|remove|update> --all [--config FILE] [--yes] [--dry-run]
+       ${CMD_PARENT:-lemperctl} stack config php --default-runtime=php@VERSION [--dry-run]
 Services: $(lemper_component_ids | tr '\n' ' ')
 Options:
   --all                 Run the configured full-stack recipe (install/remove/update).
@@ -165,6 +166,9 @@ function init_lemper_stack() {
     case "$action" in
         help|-h|--help) stack_help; return 0 ;;
         version|-v|--version) echo "${CMD_PARENT:-lemperctl} stack version ${PROG_VERSION:-}"; return 0 ;;
+        config)
+            lemper_load_module runtime/stack/config || return 1
+            lemper_stack_config "$@"; return $? ;;
         install|remove|update|start|stop|restart|reload|status) ;;
         *) error "Unknown stack operation."; return 1 ;;
     esac

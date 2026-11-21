@@ -27,9 +27,11 @@ EOL
     echo
     echo "LEMP Stack Management:"
     help_entry stack "Install, remove, update, and control one service."
+    help_subentry "config php --default-runtime" "Choose the CLI and new-site PHP default."
     help_entry create "Create a new virtual host (add a domain)."
     help_entry add "Alias of 'create'."
     help_entry site "Virtual host management."
+    help_subentry "app add|update|remove|list" "Manage Laravel mounts under an existing domain."
     help_subentry "list [options]" "List all vhosts (table or JSON)."
     help_subentry "show <domain> [options]" "Show detailed vhost config."
     help_subentry "enable <domain>" "Enable a vhost."

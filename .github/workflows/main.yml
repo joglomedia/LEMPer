@@ -259,6 +259,40 @@ jobs:
       - name: Stop disposable mail test container
         if: always()
         run: sudo podman stop --time 10 lemper-mail-uat
+  runtime-routing-uat:
+    name: PHP defaults and Laravel routing
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare disposable runtime test environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq podman
+          sudo podman build -f tests/uat/Containerfile -t lemper-runtime-uat tests/uat
+          sudo podman run -d --name lemper-runtime-uat --privileged --systemd=always \
+            --cgroupns=private --hostname issues-uat.test --cpus 2 --memory 3g \
+            --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" lemper-runtime-uat
+          sudo podman exec lemper-runtime-uat bash -c '
+            set -e
+            apt-get update -qq
+            apt-get install -y -qq nginx composer gnupg software-properties-common rsync unzip wget
+            add-apt-repository -y ppa:ondrej/php
+            apt-get update -qq
+            apt-get install -y -qq php8.3-cli php8.3-fpm php8.3-dev php8.4-cli php8.4-fpm php8.4-dev \
+              php8.3-curl php8.3-mbstring php8.3-sqlite3 php8.3-xml php8.3-zip \
+              php8.4-curl php8.4-mbstring php8.4-sqlite3 php8.4-xml php8.4-zip
+            useradd --create-home --shell /bin/bash lemper
+            runuser -u lemper -- composer create-project "laravel/laravel:^13.0" \
+              /home/lemper/laravel-real --no-interaction --prefer-dist --no-dev
+            touch /run/lemper-runtime-uat-authorized
+          '
+      - name: Verify PHP configuration and Laravel mounts
+        run: |
+          sudo podman exec lemper-runtime-uat bash -c \
+            'cp /source/tests/uat/runtime_routing_acceptance.sh /run/runtime-uat.sh; bash /run/runtime-uat.sh'
+      - name: Stop disposable runtime test container
+        if: always()
+        run: sudo podman stop --time 10 lemper-runtime-uat
   debian-12:
     runs-on: ubuntu-24.04
     container:
