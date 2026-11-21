@@ -356,7 +356,7 @@ SQL dumps publish atomically with mode `0600`; failures leave no incomplete
 backup. Use root-owned backup directories and protected password files.
 `site show` redacts stored passwords; `--json` implies `--all`.
 See [database management](docs/DATABASE.md) for input limits, password changes,
-scheduling, restoration, and repository-key migration. SQL retention remains planned.
+scheduling, restoration, and repository-key migration. SQL retention is available with `db prune --keep=COUNT` or `SQL_BACKUP_KEEP`.
 
 ##### LEMPer CLI back up and restore configuration
 
@@ -382,6 +382,27 @@ private keys, so they are created root-only (mode 0600).
 Custom legacy checkout `.env` paths are accepted only when recorded locally in
 `/etc/lemper/update-source` or supplied with `LEMPER_LEGACY_DIR`. Restoring an
 archive on another host may require that explicit checkout-directory override.
+
+##### Optional data backups, firewall and monitoring
+
+```bash
+sudo lemperctl stack install restic --yes
+sudo lemperctl data backup /home/lemper/webapps /var/vmail
+sudo lemperctl data schedule /home/lemper/webapps /var/vmail
+sudo lemperctl data prune --keep=7
+sudo lemperctl stack install monit --yes
+sudo lemperctl monitor status
+sudo lemperctl stack install nftables --yes
+sudo lemperctl firewall status
+```
+
+Restic encrypts application/mail backups and restores into empty staging directories.
+Monit provides authenticated loopback health status and opt-in SMTP alerts. Native
+nftables preserves unrelated tables and arms SSH recovery until confirmation;
+active UFW requires explicit `--migrate-from-ufw`. Both optional services default
+to disabled and minimal profiles skip them. Read [data backups](docs/DATA_BACKUP.md),
+[firewall migration](docs/FIREWALL.md), and [monitoring](docs/MONITORING.md) before
+configuring repositories, retention, firewall changes or alerts.
 
 ##### LEMPer CLI benchmark the server
 
@@ -537,10 +558,12 @@ Implemented:
 * [x] Add interactive TUI dashboard and site-creation wizard
 * [x] Add user account management (`lemperctl account`, PHP-FPM pool isolation)
 
+Further capabilities implemented:
+
+* [x] Add encrypted application/mail file backups (Restic), scheduling, retention and staged restore
+* [x] Add managed Monit health checks, authenticated loopback status and opt-in SMTP alerts
 Planned:
 
-* [ ] Add file backup tool (Borg, Duplicati, Rclone, Restic, Rsnapshot, else?)
-* [ ] Add server monitoring (Netdata, Monit, Nagios, Zabbix, else?); loopback Nginx/PHP-FPM status endpoints are already shipped
 * [ ] Add hosting package management (per-user quotas and provisioning)
 
 Add your feature [request here](https://github.com/joglomedia/LEMPer/issues/new)!

@@ -174,10 +174,14 @@ function init_lemper_mail() {
         dns|check|status) action="$kind" ;;
         *) error "Unknown mail command."; return 1 ;;
     esac
+    lemper_parse_args 'hv' 'dry-run,yes,purge,enable,disable,password-file:,help,version' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
     while [[ $# -gt 0 ]]; do
         argument="$1"; shift
         case "$argument" in
             --help|-h) lemper_mail_help; return 0 ;;
+            --version|-v) echo "${CMD_PARENT:-lemperctl} mail version ${PROG_VERSION:-}"; return 0 ;;
+            --) positional+=("$@"); break ;;
             --dry-run) DRYRUN=true ;;
             --yes) yes=true ;;
             --purge) purge=true ;;

@@ -66,7 +66,7 @@ other jobs. Generated commands use `lemperctl`, retain host/port/output settings
 and store explicit credentials under `/etc/lemper/backup-credentials/` with
 mode `0600`. Root backups without an explicit password use the configured root
 credential or local socket authentication. Changing a schedule does not prune
-old dumps: SQL retention remains planned work.
+old unmanaged dumps. Use `db prune` or opt into managed SQL retention as below.
 
 `--dry-run` validates inputs without creating backup directories, replacing
 exports, restoring SQL, or writing credentials/crontabs. Configuration backups
@@ -100,3 +100,18 @@ Dedicated legacy key files are retired only when all fingerprints belong to the
 scoped keyring and no active source still references the filename. Shared and
 unrelated keyrings are preserved for explicit review. Migration errors stop
 installation; failed key downloads do not replace an existing key.
+
+## SQL retention
+
+```bash
+sudo lemperctl db backup --dbname=appdb --keep=7
+sudo lemperctl db prune --dbname=appdb --dbfile=/var/backups/lemper --keep=7
+```
+
+`SQL_BACKUP_KEEP=0` defaults to no automatic rotation. Set a positive count in
+configuration or pass `--keep` when backing up to prune after a successful dump.
+New gzip dumps receive a root-only SHA256 sidecar. Pruning checks ownership,
+filename shape, checksum and gzip validity, then keeps the newest successful
+archives for that exact database. Same-second dumps use file timestamps to break
+ties. Other databases, plain SQL exports, symlinks, corrupt dumps and unmanaged
+legacy archives are preserved. Use `--dry-run` to review deletion selections.

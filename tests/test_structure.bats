@@ -215,36 +215,36 @@ refute_grep() {
 }
 
 @test "lemper-tui.sh provides interactive dashboard" {
-    [ -f "${BASE_DIR}/lib/lemper-tui.sh" ]
-    grep -q 'function init_lemper_tui' "${BASE_DIR}/lib/lemper-tui.sh"
-    grep -q 'tui_menu' "${BASE_DIR}/lib/lemper-tui.sh"
-    grep -q 'tui_system_status' "${BASE_DIR}/lib/lemper-tui.sh"
+    [ -f "${BASE_DIR}/lib/runtime/tui/commands.sh" ]
+    grep -q 'function lemper_tui_command' "${BASE_DIR}/lib/runtime/tui/commands.sh"
+    grep -q 'tui_menu' "${BASE_DIR}/lib/runtime/tui/commands.sh"
+    grep -q 'tui_system_status' "${BASE_DIR}/lib/runtime/tui/commands.sh"
 }
 
 @test "lemper-db.sh has backup, restore, backup-schedule commands" {
-    grep -q 'function cmd_backup' "${BASE_DIR}/lib/lemper-db.sh"
-    grep -q 'function cmd_restore' "${BASE_DIR}/lib/lemper-db.sh"
-    grep -q 'function cmd_backup_schedule' "${BASE_DIR}/lib/lemper-db.sh"
+    grep -q 'function cmd_backup' "${BASE_DIR}/lib/runtime/database/commands.sh"
+    grep -q 'function cmd_restore' "${BASE_DIR}/lib/runtime/database/commands.sh"
+    grep -q 'function cmd_backup_schedule' "${BASE_DIR}/lib/runtime/database/commands.sh"
 }
 
 @test "lemper-db.sh help documents backup and restore subcommands" {
-    grep -q 'backup' "${BASE_DIR}/lib/lemper-db.sh"
-    grep -q 'restore' "${BASE_DIR}/lib/lemper-db.sh"
+    grep -q 'backup' "${BASE_DIR}/lib/runtime/database/commands.sh"
+    grep -q 'restore' "${BASE_DIR}/lib/runtime/database/commands.sh"
 }
 
 @test "database passwords are not passed as mysql CLI arguments" {
-    grep -q 'MYSQL_PWD=' "${BASE_DIR}/lib/lemper-db.sh"
+    grep -q 'MYSQL_PWD=' "${BASE_DIR}/lib/runtime/database/commands.sh"
     refute_grep -rqE '(mariadb|mysql|mysqldump)[^|]*(-p"|--password=)' "${BASE_DIR}/lib" "${BASE_DIR}/scripts"
 }
 
 @test "scheduled database backups keep passwords out of crontab" {
-    grep -q -- '--dbpass-file=' "${BASE_DIR}/lib/lemper-db.sh"
-    refute_grep -q 'CRON_CMD=.*--dbpass=' "${BASE_DIR}/lib/lemper-db.sh"
+    grep -q -- '--dbpass-file=' "${BASE_DIR}/lib/runtime/database/commands.sh"
+    refute_grep -q 'CRON_CMD=.*--dbpass=' "${BASE_DIR}/lib/runtime/database/commands.sh"
 }
 
 @test "installer supplies app database password via environment" {
-    grep -q 'LEMPER_DB_PASSWORD=' "${BASE_DIR}/lib/lemper-create.sh"
-    refute_grep -q 'db account create.*--dbpass=' "${BASE_DIR}/lib/lemper-create.sh"
+    grep -q 'LEMPER_DB_PASSWORD=' "${BASE_DIR}/lib/runtime/site/create.sh"
+    refute_grep -q 'db account create.*--dbpass=' "${BASE_DIR}/lib/runtime/site/create.sh"
 }
 
 @test "install_crowdsec.sh and remove_crowdsec.sh exist" {
@@ -290,9 +290,9 @@ refute_grep() {
 }
 
 @test "TUI provides live log streaming and site creation wizard" {
-    grep -q 'function tui_logs' "${BASE_DIR}/lib/lemper-tui.sh"
-    grep -q 'function tui_follow_log' "${BASE_DIR}/lib/lemper-tui.sh"
-    grep -q 'function tui_site_create_wizard' "${BASE_DIR}/lib/lemper-tui.sh"
+    grep -q 'function tui_logs' "${BASE_DIR}/lib/runtime/tui/commands.sh"
+    grep -q 'function tui_follow_log' "${BASE_DIR}/lib/runtime/tui/commands.sh"
+    grep -q 'function tui_site_create_wizard' "${BASE_DIR}/lib/runtime/tui/commands.sh"
 }
 
 @test "modsec plugin provides auto-tuning" {
@@ -426,9 +426,9 @@ refute_grep() {
 }
 
 @test "PHP-FPM pools keep temp files outside user homes (SEC-12)" {
-    grep -q 'var/lib/php/lemper' "${BASE_DIR}/lib/lemper-create.sh"
+    grep -q 'var/lib/php/lemper' "${BASE_DIR}/lib/runtime/site/create.sh"
     grep -q 'var/lib/php/lemper' "${BASE_DIR}/scripts/install_php.sh"
-    refute_grep -q '\.lemper/tmp' "${BASE_DIR}/lib/lemper-create.sh"
+    refute_grep -q '\.lemper/tmp' "${BASE_DIR}/lib/runtime/site/create.sh"
     refute_grep -q '\.lemper/tmp' "${BASE_DIR}/scripts/install_php.sh"
     refute_grep -rq '\.lemper/php' "${BASE_DIR}/etc/php"
 }
@@ -437,8 +437,8 @@ refute_grep() {
     [ -f "${BASE_DIR}/tests/unit/validators.bats" ]
     [ -f "${BASE_DIR}/tests/unit/php_temp_dirs.bats" ]
     [ -f "${BASE_DIR}/tests/unit/db_backup_restore.bats" ]
-    grep -q 'db_backup_database' "${BASE_DIR}/lib/lemper-db.sh"
-    grep -q 'db_restore_database' "${BASE_DIR}/lib/lemper-db.sh"
+    grep -q 'db_backup_database' "${BASE_DIR}/lib/runtime/database/commands.sh"
+    grep -q 'db_restore_database' "${BASE_DIR}/lib/runtime/database/commands.sh"
 }
 
 @test "nginx blocks hidden files but keeps ACME challenges reachable (SEC-13)" {
@@ -452,7 +452,7 @@ refute_grep() {
 }
 
 @test "restriction rules are included before static-file rules" {
-    local gen="${BASE_DIR}/lib/lemper-create.sh"
+    local gen="${BASE_DIR}/lib/runtime/site/create.sh"
     local restrict_line static_line
     restrict_line=$(grep -n 'rules_restriction.conf' "${gen}" | head -1 | cut -d: -f1)
     static_line=$(grep -n 'rules_staticfiles.conf' "${gen}" | head -1 | cut -d: -f1)
@@ -484,13 +484,13 @@ refute_grep() {
             refute_grep -qF 'php_value[session.save_path]' "${conf}"
         done
     done
-    grep -qF 'php_admin_flag[display_errors] = off' "${BASE_DIR}/lib/lemper-create.sh"
+    grep -qF 'php_admin_flag[display_errors] = off' "${BASE_DIR}/lib/runtime/site/create.sh"
     grep -qF 'php_admin_flag[display_errors] = off' "${BASE_DIR}/scripts/install_php.sh"
-    refute_grep -qF 'php_flag[display_errors] = on' "${BASE_DIR}/lib/lemper-create.sh"
+    refute_grep -qF 'php_flag[display_errors] = on' "${BASE_DIR}/lib/runtime/site/create.sh"
     refute_grep -qF 'php_flag[display_errors] = on' "${BASE_DIR}/scripts/install_php.sh"
     # FPM php_flag only accepts on/off-style booleans, not "0".
     refute_grep -rqF 'php_flag[cgi.fix_pathinfo] = 0' "${BASE_DIR}/lib" "${BASE_DIR}/scripts" "${BASE_DIR}/etc/php"
-    grep -qF 'php_flag[cgi.fix_pathinfo] = off' "${BASE_DIR}/lib/lemper-create.sh"
+    grep -qF 'php_flag[cgi.fix_pathinfo] = off' "${BASE_DIR}/lib/runtime/site/create.sh"
 }
 
 @test "FastCGI cache respects application cache headers (SEC-15)" {
@@ -507,7 +507,7 @@ refute_grep() {
 }
 
 @test "generated PHP locations reject missing scripts and scope FPM status" {
-    local gen="${BASE_DIR}/lib/lemper-create.sh"
+    local gen="${BASE_DIR}/lib/runtime/site/create.sh"
     # shellcheck disable=SC2016 # generator escapes the literal $uri
     [ "$(grep -cF 'try_files \$uri =404;' "${gen}")" -ge 4 ]
     refute_grep -q 'allow all;' "${gen}"
@@ -591,7 +591,7 @@ refute_grep() {
 }
 
 @test "generated vhosts enable gzip compression" {
-    local gen="${BASE_DIR}/lib/lemper-create.sh"
+    local gen="${BASE_DIR}/lib/runtime/site/create.sh"
     [ "$(grep -c '^    include /etc/nginx/includes/compression_gzip.conf;' "${gen}")" -ge 4 ]
     grep -qF 'include /etc/nginx/includes/compression_gzip.conf;' \
         "${BASE_DIR}/etc/nginx/sites-available/default"
@@ -627,7 +627,7 @@ refute_grep() {
     grep -qF 'tune_php_pool' "${install}"
     # shellcheck disable=SC2016
     grep -qF 'opcache.memory_consumption=${OPCACHE_MEM}' "${install}"
-    grep -qF 'calc_php_pool_sizing' "${BASE_DIR}/lib/lemper-create.sh"
+    grep -qF 'calc_php_pool_sizing' "${BASE_DIR}/lib/runtime/site/create.sh"
 }
 
 @test "PHP extensions come from the repository only, without PECL or PEAR" {
@@ -711,7 +711,7 @@ refute_grep() {
     done
     # shellcheck disable=SC2016
     grep -qF 'php_admin_value[session.cookie_secure] = ${COOKIE_SECURE}' \
-        "${BASE_DIR}/lib/lemper-create.sh"
+        "${BASE_DIR}/lib/runtime/site/create.sh"
     grep -qF 'php_admin_value[session.cookie_secure]' "${BASE_DIR}/scripts/install_php.sh"
 }
 
@@ -731,8 +731,8 @@ refute_grep() {
 
 
 @test "WordPress config creation skips the masked-password DB check" {
-    grep -qF -- '--dbpass="__LEMPER_DB_PASS__"' "${BASE_DIR}/lib/lemper-create.sh"
-    grep -qF -- '--skip-check' "${BASE_DIR}/lib/lemper-create.sh"
+    grep -qF -- '--dbpass="__LEMPER_DB_PASS__"' "${BASE_DIR}/lib/runtime/site/create.sh"
+    grep -qF -- '--skip-check' "${BASE_DIR}/lib/runtime/site/create.sh"
 }
 
 @test "CLI provides helpers required by the site plugin" {

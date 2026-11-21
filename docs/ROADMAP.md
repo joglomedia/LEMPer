@@ -2,7 +2,7 @@
 
 > **Latest published version:** 3.6.0
 > **Last Updated:** 2026-11-21
-> **Code baseline:** 523d686 plus P1 implementation changes on `release/v4.0.0`
+> **Code baseline:** 363945d plus P2 implementation changes on `release/v4.0.0`
 > **Status:** v4.0 foundations, mail hosting and PHP/Laravel enhancements are
 > implemented but unreleased. Partial tasks, deferred plans and release
 > validation remain; see [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
@@ -43,12 +43,16 @@ P1 follow-through is implemented: protected DB operations/scheduling, redacted
 site diagnostics with working JSON, and scoped PHP/MariaDB signing keys. See
 [DATABASE.md](DATABASE.md) and the audit for compatibility and validation limits.
 
+P2 now delivers SQL retention, Restic application/mail backups and staged restore,
+native nftables with SSH/UFW recovery, shared parsing across public paths, and
+Monit monitoring/alert configuration. Runtime extraction covers account, database,
+SSL, TUI and vhost creation handlers while retaining installed wrappers. See the
+[current audit](ROADMAP_AUDIT.md) for source evidence and validation limits.
+
 Remaining delivery order:
 
-1. **P2:** SQL retention, application/file backups, explicit nftables integration,
-   shared-parser adoption, deeper module extraction, and managed monitoring.
-2. **P3:** hosting packages/quotas, optional formatting/coverage tooling, and
-   richer progress feedback.
+1. Further extraction of legacy site-management and component installer internals.
+2. Hosting packages/quotas, optional formatting/coverage tooling, and richer progress.
 
 Authenticated encryption and custom TLS pins remain explicit policy/format
 decisions. The delivered encryption uses AES-256-CBC/PBKDF2. Full evidence,
@@ -412,10 +416,10 @@ status, and linked credentials.
 
 ---
 
-#### 2.18 Add Database Backup &amp; Restore Commands — Partial
+#### 2.18 Add Database Backup &amp; Restore Commands — Implemented
 
 **Current status:** Timestamped SQL dumps, restore and cron scheduling exist.
-Protected execution is delivered in R1; SQL retention/rotation remains R4.
+Protected execution is delivered in R1; Verified SQL retention is now delivered in R4.
 
 **Issue:** The README mentions "database backup tool" as a TODO, and `lemper-db.sh`
 has export/import but no scheduled backup rotation.
@@ -681,7 +685,7 @@ ModSecurity v3 with OWASP CRS.
 | ----- | --------------------------------------- | -------- | ------ | -------------- | -------- |
 | 2.16  | Add `site list` subcommand              | Medium   | Medium | 6h             | ✅ v3.1.0 |
 | 2.17  | Add `site show` subcommand              | Medium   | Medium | 6h             | Delivered; diagnostic follow-through R2 implemented |
-| 2.18  | Add DB backup/restore commands          | Medium   | Medium | 8h             | Delivered; R1 implemented, retention R4 remains |
+| 2.18  | Add DB backup/restore commands          | Medium   | Medium | 8h             | Delivered; protected execution and retention implemented |
 | 2.19  | Add Bun.js runtime integration          | Medium   | Medium | 6h             | ✅ v3.1.0 |
 | 2.19B | Add Valkey as Redis drop-in replacement | Medium   | Medium | 6h             | ✅ v3.1.0 |
 | 2.21  | Add ACME v2 DNS-01 wildcard support     | Medium   | Medium | 8h             | ✅ v3.2.0 |
@@ -943,11 +947,11 @@ host/dependency audit jobs and release automation are implemented. PHP 8.2–8.5
 Bats/ShellCheck/Bashate, Fail2ban/CrowdSec, optional CBC encrypted configuration,
 documentation, multi-distro CI and ACME helpers also exist.
 
-Remaining scope is deeper legacy extraction, universal shared-parser adoption,
-and explicit nftables integration. Public ACME and selected live migrations
+Further legacy extraction remains. Public parser adoption and native nftables
+are implemented, along with managed data backups and monitoring. Public ACME and selected live migrations
 need further deployment validation. YAML is optional; AEAD is a separate
 encryption-format decision. See [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md) for evidence.
-The current release guide defers deep extraction/nftables; these are not
+The current release scope retains further extraction as follow-up; these are not
 automatically publication blockers. Final candidate CI, asset rebuild and
 exact-archive validation remain release follow-through.
 
@@ -985,7 +989,7 @@ exact-archive validation remain release follow-through.
 | **v3.5.1** | PHP2Shell remediation    | Legacy `update.sh` bootstrap, `lemper update` plugin, EOL pool mitigations, apt version verification |
 | **v3.5.2** | PHP 8.5 support          | 8.5 FPM templates, 8.5 default, install/remove menus, nginx handlers and phpinfo endpoints |
 | **v3.6.0** | Current release          | TUI logs and site wizard, ModSecurity tuning, HTTP/3, CORS, resource profiles, MyGuard nginx, PHP 8.1 removed from defaults, EOL vhost migration (`--migrate-to`), Adminer 6.2.0, config backup, CrowdSec installer, FTP fixes |
-| **v4.0.0** | Unreleased candidate | Implemented issue #92 CLI, pinned bootstrap, unified/minimal lifecycle flows, core/runtime/service foundations, schema, key-only SSH, release automation, mail hosting and PHP/Laravel enhancements; deep extraction/nftables deferred; remaining follow-through in ROADMAP_AUDIT.md |
+| **v4.0.0** | Unreleased candidate | Implemented issue #92 CLI, pinned bootstrap, unified/minimal lifecycle flows, core/runtime/service foundations, schema, key-only SSH, release automation, mail hosting and PHP/Laravel enhancements; Restic data backups, native nftables, Monit monitoring and expanded runtime extraction implemented; further legacy extraction remains; remaining follow-through in ROADMAP_AUDIT.md |
 
 
 ---
@@ -994,7 +998,7 @@ exact-archive validation remain release follow-through.
 
 Latest published release is **v3.6.0**. Delivery history below does not imply
 every original task's full scope is complete. The unreleased **v4.0** branch
-has implemented foundations, with the current P1/P2/P3 backlog above.
+has implemented foundations, with the remaining architecture/P3 backlog above.
 
 P1 follow-through is implemented. For release preparation, rebuild assets from
 the final clean commit, validate that archive and candidate CI, then tag/publish
@@ -1101,7 +1105,7 @@ The v4 entry points now share profile validation and full-stack lifecycle
 orchestration. Bootstrap defaults to CLI-only; an explicit `--install --config`
 selects full installation. A minimal service profile skips optional services
 and panels. The version/tag workflow produces both archive and bootstrap
-checksums. Remaining deeper driver migrations and nftables are follow-up work,
+checksums. Further legacy driver migration remains follow-up work,
 not claimed as completed by this release.
 
 Validation and publication steps are recorded in [RELEASE_V4.md](RELEASE_V4.md).

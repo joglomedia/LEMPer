@@ -55,6 +55,7 @@ function lemper_db_validate() {
             esac
         done
     fi
+    [[ -z "${DBKEEP:-}" || "${DBKEEP:-}" =~ ^[0-9]{1,5}$ ]] || { error "Invalid SQL retention count."; return 1; }
     for name in DBPASS DBPASS2 DBROOTPASS; do
         value="${!name:-}"
         [[ "$value" != *$'\n'* && "$value" != *$'\r'* ]] || {
@@ -157,6 +158,15 @@ function lemper_db_dump() (
     fi
     [[ -s "$temporary" ]] || { error "Empty database dump."; return 1; }
     lemper_exec mv -T -- "$temporary" "$target" || return 1
+    if [[ "$format" == gzip ]]; then
+        local digest
+        digest=$(sha256sum -- "$target") || return 1
+        printf '%s\n' "${digest%% *}" > "$target.sha256" || return 1
+        chmod 0600 "$target.sha256" || return 1
+        if [[ "${DBKEEP:-${SQL_BACKUP_KEEP:-0}}" != 0 ]]; then
+            DBFILE="$directory" lemper_db_prune || return 1
+        fi
+    fi
     success "Database '$DBNAME' backed up to '$target' (mode 0600)."
 )
 
@@ -271,4 +281,40 @@ function lemper_db_schedule() (
         error "Cannot install database backup schedule."; return 1
     fi
     success "Backup scheduled for '$DBNAME': $schedule."
+)
+
+# Only complete, checksummed dumps created by this driver are retention candidates.
+function lemper_db_prune() (
+    lemper_db_validate || return 1
+    local directory="${DBFILE:-/var/backups/lemper}" keep="${DBKEEP:-${SQL_BACKUP_KEEP:-0}}"
+    if [[ -z "${DBNAME:-}" || ! "$keep" =~ ^[0-9]{1,5}$ ]]; then
+        error "Pruning requires --dbname and a positive --keep count."; return 1
+    fi
+    ((10#$keep > 0)) || { error "Retention must be positive."; return 1; }
+    lemper_db_directory_safe "$directory" || { error "Unsafe SQL backup directory."; return 1; }
+    [[ -d "$directory" ]] || { error "SQL backup directory not found."; return 1; }
+    local file name owner mode expected actual files=() candidates=() index key
+    for file in "$directory/${DBNAME}_"*.sql.gz; do
+        [[ -f "$file" && ! -L "$file" && -f "$file.sha256" && ! -L "$file.sha256" ]] || continue
+        name="${file##*/}"
+        [[ "$name" =~ ^${DBNAME}_[0-9]{8}_[0-9]{6}_[A-Za-z0-9]{8}\.sql\.gz$ ]] || continue
+        read -r owner mode < <(stat -c '%u %a' "$file") || return 1
+        [[ "$owner" == "$EUID" && "$mode" == 600 ]] || continue
+        read -r owner mode < <(stat -c '%u %a' "$file.sha256") || return 1
+        [[ "$owner" == "$EUID" && "$mode" == 600 ]] || continue
+        IFS= read -r expected < "$file.sha256" || continue
+        [[ "$expected" =~ ^[a-f0-9]{64}$ ]] || continue
+        actual=$(sha256sum "$file") || return 1
+        [[ "${actual%% *}" == "$expected" ]] || { error "Corrupt dump retained and excluded from retention: $name"; continue; }
+        gzip -t -- "$file" || continue
+        key="${name#"${DBNAME}"_}"
+        key="${key:0:15}|$(stat -c %y "$file")"
+        candidates+=("$key"$'\t'"$file")
+    done
+    [[ ${#candidates[@]} -gt 0 ]] || { info "No managed SQL dumps to prune."; return 0; }
+    mapfile -t files < <(printf '%s\n' "${candidates[@]}" | sort -r -t $'\t' -k1,1 | cut -f2-)
+    for ((index=10#$keep; index<${#files[@]}; index++)); do
+        lemper_exec rm -f -- "${files[index]}" "${files[index]}.sha256" || return 1
+    done
+    success "SQL retention keeps $keep successful dumps for '$DBNAME'."
 )

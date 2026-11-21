@@ -66,13 +66,13 @@ tui_exec() {
 }
 
 @test "tui exposes the performance benchmark menu" {
-    run grep -q 'function tui_bench' "${TUI_PLUGIN}"
+    run grep -q 'function tui_bench' "${REAL_BASE_DIR}/lib/runtime/tui/commands.sh"
     [ "${status}" -eq 0 ]
 
-    run grep -q 'Benchmark|Hardware, disk I/O, and network speed' "${TUI_PLUGIN}"
+    run grep -q 'Benchmark|Hardware, disk I/O, and network speed' "${REAL_BASE_DIR}/lib/runtime/tui/commands.sh"
     [ "${status}" -eq 0 ]
 
-    run grep -q 'tui_cli bench --network' "${TUI_PLUGIN}"
+    run grep -q 'tui_cli bench --network' "${REAL_BASE_DIR}/lib/runtime/tui/commands.sh"
     [ "${status}" -eq 0 ]
 }
 
@@ -81,15 +81,15 @@ tui_exec() {
     run grep -c 'CLI_PLUGINS_DIR}/lemper-' "${TUI_PLUGIN}"
     [ "${output}" -eq 0 ]
 
-    run grep -q 'function tui_cli' "${TUI_PLUGIN}"
+    run grep -q 'function tui_cli' "${REAL_BASE_DIR}/lib/runtime/tui/commands.sh"
     [ "${status}" -eq 0 ]
 
-    run grep -q 'tui_cli site-list --all' "${TUI_PLUGIN}"
+    run grep -q 'tui_cli site-list --all' "${REAL_BASE_DIR}/lib/runtime/tui/commands.sh"
     [ "${status}" -eq 0 ]
 }
 
 @test "tui menu exit selection quits" {
-    run grep -q '8 | 0)' "${TUI_PLUGIN}"
+    run grep -q '8 | 0)' "${REAL_BASE_DIR}/lib/runtime/tui/commands.sh"
     [ "${status}" -eq 0 ]
 }
 

@@ -2,7 +2,7 @@
 
 Status checked 2026-11-21: v4.0.0 is unpublished; latest GitHub release is
 v3.6.0. Local preparation below records an earlier baseline. Current code is
-523d686 plus P1 working-tree fixes on `release/v4.0.0`; final candidate
+363945d plus P2 working-tree changes on `release/v4.0.0`; final candidate
 rebuild/validation remains.
 
 ## Release contract
@@ -127,8 +127,8 @@ MyGuard currently provides no compatible ARM64 Nginx binary, so native ARM64
 validation uses the source profile. Public ACME HTTP/DNS challenges require
 routable domains and provider credentials and are outside the local fixture.
 Other distributions/architectures and interactive legacy installer flags were
-not exercised by the final native UAT. Deep driver extraction and an nftables
-backend remain future work. The previous broader service UAT is recorded
+not exercised by the final native UAT. Further legacy driver extraction remains future work; native nftables is now
+implemented with separate P2 component UAT. The previous broader service UAT is recorded
 separately in [UAT_REPORT.md](UAT_REPORT.md).
 
 After reviewing and committing the changes, set the changelog release date,
@@ -136,3 +136,16 @@ create the annotated `v4.0.0` tag, and push it only when publication is
 authorized. The tag workflow runs checks and publishes all four assets.
 Then verify the download/checksum and README commands against the published
 release on a disposable server.
+
+## P2 validation follow-through
+
+The P2 component suite `tests/uat/p2_acceptance.sh` passed 51 checks on a fresh
+Ubuntu 24.04 ARM64 Podman/systemd container. It exercised Restic data restoration,
+SQL/data retention, scheduled jobs, Monit health/authentication and alert syntax,
+real SSH key login, IPv4/IPv6 filtering, explicit UFW migration and independent
+recovery during a held backup lock. Configuration/repositories remained after
+component removal. These results do not replace final archive/bootstrap testing.
+Remote backup destinations and external SMTP delivery remain separately scoped.
+The final full Bats suite passed 394 cases, with ShellCheck 0.11.0, Bashate,
+Bash syntax and documentation/diff checks passing.
+See [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md) for current checks and further extraction.

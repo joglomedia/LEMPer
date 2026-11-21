@@ -1,6 +1,6 @@
 # LEMPer roadmap implementation audit
 
-Date: **2026-11-21**. Code baseline: **523d686** plus the P1 implementation
+Date: **2026-11-21**. Code baseline: **363945d** plus the P2 implementation
 working tree, `release/v4.0.0`.
 Latest GitHub release checked: **v3.6.0**. v4.0.0 is not published.
 
@@ -41,7 +41,7 @@ The three P1 findings below are implemented in the current working tree:
 
 | Rank | Delivered behavior | Source / validation |
 |---|---|---|
-| R1 | Shared DB identifier/host/port/privilege validation; restricted legacy extra fields; literal SQL password handling; locked, argument-safe backup/restore/import/export; atomic mode-0600 dumps and propagated failures; validated repeatable cron scheduling with protected credentials and rollback | [database driver](../lib/services/mariadb/database.sh), [DB plugin](../lib/lemper-db.sh), [regression tests](../tests/unit/db_backup_restore.bats). Default localhost retains socket auth; the broken `backup-schedule` dispatcher mapping is fixed. SQL retention remains R4. |
+| R1 | Shared DB identifier/host/port/privilege validation; restricted legacy extra fields; literal SQL password handling; locked, argument-safe backup/restore/import/export; atomic mode-0600 dumps and propagated failures; validated repeatable cron scheduling with protected credentials and rollback | [database driver](../lib/services/mariadb/database.sh), [DB plugin](../lib/lemper-db.sh), [regression tests](../tests/unit/db_backup_restore.bats). Default localhost retains socket auth; the broken `backup-schedule` dispatcher mapping is fixed. SQL retention is delivered in the P2 R4 follow-through. |
 | R2 | Text/JSON metadata diagnostics redact passwords and expose only known public fields; `--json`/`-j` emit one JSON object and imply `--all`; parse errors do not disclose metadata values | [site-show plugin](../lib/lemper-site-show.sh), [diagnostic tests](../tests/unit/site_diagnostics.bats). Root-only metadata storage is retained for deliberate private recovery. |
 | R3 | PHP/Sury/PPA and MariaDB scoped signing keys; source-file backups and `.list`/deb822 migration; verified selective retirement of dedicated old keys; no downloaded MariaDB shell helper execution | [APT driver](../lib/services/apt/repositories.sh), [PHP installer](../scripts/install_php.sh), [MariaDB installer](../scripts/install_mariadb.sh), [retained bundled helper](../scripts/mariadb_repo_setup), [key-scope tests](../tests/unit/repository_keys.bats). Mixed-URI stanzas/shared keyrings require explicit review. Debian live PHP package validation encountered an upstream signed-index checksum mismatch; verification stayed enabled. |
 
@@ -51,18 +51,33 @@ passed 30 checks on Ubuntu 24.04 ARM64, including real MariaDB data restoration,
 scheduled execution, quote/backslash passwords and installed CLI diagnostics.
 This is scoped component UAT, not a rebuilt final release archive.
 
+## P2 implementation follow-through
+
+P1 is committed as `363945d`. The current P2 working tree delivers:
+
+| Rank | Status | Delivered behavior / remaining qualification |
+|---|---|---|
+| R4 | Implemented | Checksummed SQL dumps, per-database `db prune --keep`, optional rotation after successful backups, preservation of corrupt/unmanaged/foreign artifacts. Default `SQL_BACKUP_KEEP=0` keeps automatic pruning opt-in. |
+| R5 | Implemented | Registered Restic lifecycle and `data` commands, encrypted local/remote repositories, protected credentials, snapshot integrity, host/path/tag retention, daily systemd scheduling and empty staged restoration of applications/uploads/mail. Local repositories were tested; external destinations need their own validation. |
+| R6 | Implemented | Native scoped nftables table, persistence, IPv4/IPv6 filtering, existing/active SSH ports, independent timed recovery, explicit UFW migration and rollback. Foreign tables and CSF/APF remain protected; provider firewalls and other platforms need separate UAT. |
+| R7 | Implemented for public paths | Mail and full-stack adapters now use the shared parser with equals-value options and `--`. GNU getopt remains only in intentional compatibility boundaries; historical aliases are preserved. |
+| R8 | Advanced; further extraction remains | Account, database, SSL, TUI and vhost creation handlers moved into function-only runtime modules. Account provisioning, backups, monitoring and firewall logic use service drivers. Installed wrappers/exports stay compatible. Legacy site-management and older component installer internals remain candidates for the next extraction. |
+| R9 | Implemented | Optional Monit lifecycle, system/filesystem/web checks, authenticated loopback HTTP, CLI status/check/reload/logs and opt-in SMTP alert configuration. Local health/authentication/configuration were tested; external alert delivery was not. |
+
+See [DATA_BACKUP.md](DATA_BACKUP.md), [DATABASE.md](DATABASE.md),
+[FIREWALL.md](FIREWALL.md), and [MONITORING.md](MONITORING.md). The first native
+P2 UAT passed 37 checks; the extended fresh-container suite passed 51, including
+actual SSH login, IPv4/IPv6 enforcement, UFW migration/rollback and recovery while
+the shared backup lock is held. Full Bats results are recorded below.
+
 ## Remaining implementation work, in priority order
 
-Ranks retain their original audit IDs so references remain stable.
+Ranks retain their audit IDs. R8's next step is further legacy management and
+installer extraction; it is an incremental architecture workstream. Remaining
+product/tooling proposals are:
 
 | Rank | Priority | Plan / current status | Evidence and next deliverable |
 |---|---|---|---|
-| R4 | P2 | SQL backup retention/rotation — unfinished scope of 2.18 | [lemper-db.sh](../lib/lemper-db.sh) implements timestamped dumps, restore, and cron scheduling, but no SQL retention/prune operation. [lemper-backup.sh](../lib/lemper-backup.sh) pruning applies to configuration archives. Add validated retention and safe pruning of successful database backups, with failure and restore checks. R1 is now delivered. |
-| R5 | P2 | Application/file backups — README plan, unimplemented | [README.md](../README.md) still plans a file backup tool. [lemper-backup.sh](../lib/lemper-backup.sh) explicitly excludes web content and database data. Select one backend, protect repositories/credentials, add scheduling and retention, and test restoration of projects/uploads and, where included, `/var/vmail` messages. Configuration archives and SQL dumps do not fulfill this feature. |
-| R6 | P2 | Explicit nftables integration — Phase 9/Architecture §4, unimplemented | [server_security.sh](../scripts/server_security.sh) selects UFW/CSF/APF and installs `iptables`; [schema.sh](../lib/core/schema.sh) accepts only those configurators. There is no native nftables driver, rule-persistence contract, migration or IPv4/IPv6 regression suite. Define whether the requirement means a native backend or explicit UFW compatibility verification, then implement/test it with SSH recovery. Existing UFW may operate through iptables-nft; this audit does not establish that hosts use legacy kernel rules. |
-| R7 | P2 | Complete shared-parser adoption — Phase 9/Architecture §4, partial | [mail commands](../lib/runtime/mail/commands.sh), `init_lemper_mail`, still use a hand-written parser: `--password-file FILE` is accepted, while `--password-file=FILE` and the standard `--` delimiter are not. [stack entry](../lib/runtime/stack/entry.sh) also parses manually. Normalize public option grammar through the core parser with compatibility tests. The update plugin already uses the core parser; legacy getopt adapters are a separate compatibility boundary, not executable configuration loading. |
-| R8 | P2 | Deeper module decomposition — 2.12/2.37/Phase 9, partially implemented | [runtime](../lib/runtime/) and [services](../lib/services/) contain site/stack/mail/PHP/Nginx modules. Substantial account, DB, TUI, SSL, application-installer and component logic remains in [legacy plugins](../lib/) and [scripts](../scripts/). Extract one use case/driver at a time, preserve the installed/source entrypoints, and test upgrade and sourced-shell contracts. This is one shared migration workstream, not three missing features. |
-| R9 | P2 | Managed monitoring and alerts — README plan, unimplemented | TUI logs/benchmarks and [loopback status endpoints](../etc/nginx/includes/monitoring.conf) exist. No selected monitoring backend is registered in [registry.sh](../lib/core/registry.sh) or public defaults. Choose one metrics/health/alerting backend with protected access and install/update/remove support. |
 | R10 | P3 | Hosting packages, per-user quotas and provisioning — README plan, unimplemented | Account roles and per-user FPM isolation are present; no hosting-plan schema, quota enforcement or package-provisioning lifecycle is implemented. Define limits and ownership first, then enforcement, upgrade and teardown behavior. Server-wide resource profiles do not implement tenant quotas. |
 | R11 | P3 | Formatting/coverage tooling — developer §8.2, unfinished optional proposals | Bashate and ShellCheck are in CI. No tracked `.editorconfig`, `shfmt` enforcement or code-coverage publishing is present. Choose consistent tooling and add it without an unrelated mass-format change. The developer table's proposed `bandit`/`shellspec` examples need clarification: current host audit and dependency review are implemented, while a separate source-security workflow needs an explicit definition if desired. |
 | R12 | P3 | Rich progress feedback — optional remainder of 2.22 | [utils.sh](../scripts/utils.sh), `run_spinner` and step progress are implemented. Integrated ETA and the suggested `pv` transfer progress are not. These are optional enhancements; the basic progress feature should remain marked delivered. |
@@ -76,9 +91,8 @@ Ranks retain their original audit IDs so references remain stable.
 | Publication | Exact `gh release view v4.0.0` returned `release not found`; no local `v4*` tag was found. Latest published release is v3.6.0. | Set the release date, review/tag/publish after authorization, and verify published downloads and README one-liners. |
 | Remaining deployment validation | Recorded native full-bootstrap UAT used Ubuntu 24.04 ARM64 with a source Nginx profile. Public DNS/ACME, broader architecture/distribution installation coverage, and some live legacy transitions remain unverified. | Test representative supported profiles and upgrades, real issuance/renewal with controlled domains, and SSH/firewall recovery in designated disposable environments. These are validation gates, not absent schema/bootstrap/SSH implementations. |
 
-The release guide already treats deep migration and nftables as follow-up work.
-Their presence in the backlog does not automatically make them v4 publication
-blockers. An explicit release-scope decision is needed before claiming all of
+Native nftables is now implemented. Further legacy extraction remains follow-up
+work and does not automatically make it a v4 publication blocker. An explicit release-scope decision is needed before claiming all of
 Architecture §4 is complete.
 
 ## Decisions and specification differences
@@ -129,13 +143,13 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.15 | Implemented | Bats behavior/fixture tests and Linux CI; directory-name deviation is intentional. |
 | 2.16 | Implemented | Site-list plugin and registry/export wiring. |
 | 2.17 | Implemented | Views, JSON flag/object output and diagnostic credential redaction are delivered in R2. |
-| 2.18 | Partial | Protected SQL backup/restore/import/export/scheduling delivered in R1; retention remains R4. |
+| 2.18 | Implemented | Protected SQL backup/restore/import/export/scheduling and verified per-database retention are delivered. |
 | 2.19 | Implemented | Bun installer/remover, options and recipe wiring. |
 | 2.19B | Implemented | Valkey repo/source branches and shared removal; separate filenames are unnecessary. |
 | 2.20 | Implemented | CrowdSec lifecycle, options and collections. |
 | 2.21 | Implemented in source | Protected provider DNS-01 wiring; public issuance/renewal validation is a release gate. |
 | 2.22 | Basic feature implemented | Spinners/counters delivered; optional ETA/transfer enhancement is R12. |
-| 2.23 | Implemented, consistency follow-through remains | Expanded/public help and common parser; site-show flag fixed in R2; broader parser adoption remains R7. |
+| 2.23 | Implemented, consistency follow-through remains | Expanded/public help and common parser; site-show flag fixed in R2; public-path parser adoption is delivered in R7; compatibility adapters retain their grammar. |
 | 2.24 | Implemented | TUI dashboard/logs/wizard; current command is `tui`. |
 | 2.25 | Implemented and superseded | Shipped install templates now PHP 8.2–8.5. |
 | 2.26 | Implemented and superseded | Default is 8.5; supported defaults can now be configured. |
@@ -150,7 +164,7 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.35 | Implemented | Portable host-edit helpers; GNU sed in Linux CI/UAT is appropriate. |
 | 2.36 | Implemented | Active shell code no longer depends on grep PCRE as described in the historical task. |
 | 2.37 | Partial | Same migration workstream as 2.12 and Phase 9, R8. |
-| 2.38 | Implemented | Current tree has 31 Bats files and 386 `@test` declarations; original audit baseline was 29/358. |
+| 2.38 | Implemented | Current tree has 32 Bats files and 394 `@test` declarations; original audit baseline was 29/358. |
 | 2.39 | Implemented | Debian 12 CI exists; its distro ShellCheck version need not match the explicitly pinned Ubuntu/release tool. |
 | 2.40 | Implemented | Bashate in CI/release checks. |
 | 2.41 | Implemented | TUI log streaming and refresh controls. |
@@ -216,3 +230,28 @@ created inside those containers, and no workstation/live service was changed.
 - Test containers were stopped after verification; their private synthetic logs
   remain available. No commit, push, release publication or archive rebuild was
   performed.
+
+## P2 implementation validation
+
+- Existing command, account, TUI, mail, bootstrap and full-stack behavior tests
+  passed after wrapper/module migration; source-only modules remain inert.
+- Full Bats suite: **394/394 passed** after the final ownership regression and
+  recovery changes. Focused migration/entrypoint/lifecycle tests also passed.
+- Real UAT passed 51 checks on Ubuntu 24.04 ARM64 in a fresh designated systemd
+  Podman container, with a read-only project mount and an internal code snapshot.
+  Checks cover restored application/mail bytes, SQL/data retention, real scheduled
+  jobs, Monit health/authentication and alert syntax, actual SSH key authentication,
+  IPv4/IPv6 allowed/blocked connections, scoped rule reload/removal, UFW migration,
+  recovery callbacks during a held shared lock, and preserved data/configuration.
+- Remote Restic destination permissions/integrity and external SMTP delivery were
+  not exercised. Broader distro/architecture/provider networking remains deployment
+  validation. No workstation or live-service changes were made.
+- ShellCheck 0.11.0 with sourced-file analysis, Bash syntax checks and Bashate
+  with repository CI options passed for changed code and the recovery/UAT scripts.
+- `git diff --check` passed; all 68 local Markdown references in changed guides
+  resolve. Initial structural test failures were corrected to inspect moved
+  implementations; behavior checks still exercise the installed wrappers.
+- UAT exposed IPv6 listener readiness and repeat-fixture key setup issues; those
+  fixtures were corrected and the extended 51-case suite rerun successfully.
+- P1 was committed as `363945d`; this report records the P2 follow-through. No push, release
+  publication or final release-archive rebuild was performed.

@@ -436,6 +436,11 @@ function remove_apf() {
 # Install IP-tables based firewall.
 #
 function install_firewall() {
+    if [[ "${FW_CONFIGURATOR:-ufw}" == nftables && "${INSTALL_FW:-false}" == true ]]; then
+        lemper_load_module services/optional || return 1
+        lemper_optional_lifecycle install nftables
+        return $?
+    fi
     echo -e "\nIPtables-based Firewall Installation\n"
     info "Do Not Run any other iptables firewall configuration script.
 Any other iptables based firewall will be removed otherwise they will conflict."
@@ -538,9 +543,15 @@ echo "[LEMPer Stack Basic Server Security]"
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ "${1}" == "--remove" || "${1}" == "--uninstall" ]]; then
-    remove_apf
-    remove_csf
-    remove_ufw
+    if [[ "${FW_CONFIGURATOR:-ufw}" == nftables || -f /etc/lemper/firewall/managed ]]; then
+        lemper_load_module services/optional || { if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 1; else return 1; fi; }
+        lemper_optional_lifecycle remove nftables || { if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 1; else return 1; fi; }
+    fi
+    if [[ "${FW_CONFIGURATOR:-ufw}" != nftables ]]; then
+        remove_apf
+        remove_csf
+        remove_ufw
+    fi
 else
     init_secure_server "$@"
 fi

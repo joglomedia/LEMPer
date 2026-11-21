@@ -82,7 +82,7 @@ function lemper_entry_profile() {
     if [[ "$minimal" == true ]]; then
         for key in INSTALL_IMAGEMAGICK INSTALL_POSTGRES INSTALL_MEMCACHED INSTALL_MONGODB \
             INSTALL_REDIS INSTALL_BUNJS INSTALL_FTP_SERVER INSTALL_MAILER INSTALL_SPFDKIM \
-            INSTALL_CROWDSEC INSTALL_MODSEC INSTALL_WEB_ADMIN NGX_HTTP_BROTLI \
+            INSTALL_RESTIC INSTALL_MONITORING INSTALL_CROWDSEC INSTALL_MODSEC INSTALL_WEB_ADMIN NGX_HTTP_BROTLI \
             NGX_HTTP_FANCYINDEX NGX_HTTP_GEOIP NGX_HTTP_HEADERS_MORE NGX_HTTP_IMAGE_FILTER \
             NGX_HTTP_SUBS_FILTER NGX_HTTP_VTS NGX_HTTP_XSLT_FILTER NGX_MAIL NGX_STREAM; do
             set_env_value "$target" "$key" false || return 1
@@ -139,32 +139,50 @@ function lemper_entry_main() (
     for argument in "$@"; do
         case "$argument" in --help|-h) lemper_entry_help; return 0 ;; esac
     done
-    while [[ $# -gt 0 ]]; do
-        argument="$1"; shift
-        case "$argument" in
-            --config)
-                [[ -z "$config" && $# -gt 0 && -n "$1" ]] || { echo "Missing or duplicate --config." >&2; return 1; }
-                config="$1"; shift ;;
-            --config=*)
-                [[ -z "$config" ]] || { echo "Duplicate --config." >&2; return 1; }
-                config="${argument#*=}"
-                [[ -n "$config" ]] || { echo "Missing --config value." >&2; return 1; } ;;
-            --yes|-y|--unattended) yes=true; update_args+=(--yes) ;;
-            --dry-run) dry=true ;;
-            --check-config) check=true ;;
-            --minimal) minimal=true ;;
-            --source-dir)
-                [[ "$action" == update && $# -gt 0 && -n "$1" ]] || { echo "Invalid --source-dir." >&2; return 1; }
-                update_args+=("--source-dir=$1"); shift ;;
-            --check|--install-only|--source-dir=*|--post-max-size=*)
-                [[ "$action" == update ]] || { echo "Update option requires update." >&2; return 1; }
-                update_args+=("$argument") ;;
-            *)
-                [[ "${LEMPER_ENTRY_CANONICAL:-false}" != true && "$action" != update ]] ||
-                    { echo "Unknown stack option." >&2; return 1; }
-                legacy=true ;;
-        esac
-    done
+    # Load pure core functions before parsing, without reading any profile.
+    # shellcheck source=/dev/null
+    . "$root/lib/core/loader.sh" || return 1
+    local parser_status=0
+    if [[ "${LEMPER_ENTRY_CANONICAL:-false}" == true || "$action" == update ]]; then
+        lemper_parse_args 'yh' 'config:,yes,unattended,dry-run,check-config,minimal,source-dir:,check,install-only,post-max-size:,help' "$@" || return 1
+    else
+        # A legacy grammar mismatch is handled by its adapter, not reported as a
+        # canonical command failure before the compatibility parser sees it.
+        lemper_parse_args 'yh' 'config:,yes,unattended,dry-run,check-config,minimal,source-dir:,check,install-only,post-max-size:,help' "$@" >/dev/null || parser_status=1
+    fi
+    if [[ "$parser_status" != 0 ]]; then
+        # Compatibility-only getopt grammar remains in the isolated adapter.
+        for argument in "${original[@]}"; do
+            case "$argument" in --config|--config=*|--dry-run|--check-config|--minimal)
+                error "Do not mix legacy installer flags with profile options."; return 1 ;;
+            esac
+        done
+        legacy=true
+    else
+        set -- "${LEMPER_PARSED_ARGS[@]}"
+        while [[ $# -gt 0 ]]; do
+            argument="$1"; shift
+            case "$argument" in
+                --config)
+                    [[ -z "$config" ]] || { error "Duplicate --config."; return 1; }
+                    config="$1"; shift ;;
+                --yes|-y|--unattended) yes=true; update_args+=(--yes) ;;
+                --dry-run) dry=true ;;
+                --check-config) check=true ;;
+                --minimal) minimal=true ;;
+                --source-dir|--post-max-size)
+                    [[ "$action" == update ]] || { error "Update option requires update."; return 1; }
+                    update_args+=("$argument=$1"); shift ;;
+                --check|--install-only)
+                    [[ "$action" == update ]] || { error "Update option requires update."; return 1; }
+                    update_args+=("$argument") ;;
+                --help|-h) lemper_entry_help; return 0 ;;
+                --)
+                    [[ $# -eq 0 ]] || { error "Unexpected stack operand."; return 1; }
+                    break ;;
+            esac
+        done
+    fi
     [[ "$minimal" == false || "$action" == install ]] || { echo "--minimal requires install." >&2; return 1; }
     if [[ "$legacy" == true && "$action" != update ]]; then
         [[ -z "$config" && "$dry" == false && "$check" == false && "$minimal" == false ]] ||

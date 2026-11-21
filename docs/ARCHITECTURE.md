@@ -498,9 +498,11 @@ widely adopted array parser, per-service CLI, guarded site removal, key-only SSH
 policy, provider-backed wildcard issuance/renewal, pinned release bootstrap, and release/
 host-audit workflows. Public wrappers and installed paths retain compatibility.
 Site/stack use cases and service drivers now occupy runtime/services, with
-legacy scripts retained behind compatibility adapters. Further extraction of
-legacy account/database/TUI internals, universal parser adoption and explicit
-nftables integration remain pending. Local bootstrap, mail and PHP/Laravel
+legacy scripts retained behind compatibility adapters.
+Account/database/SSL/TUI/vhost-creation internals now use function-only runtime
+modules. Mail/full-stack parser adoption and native nftables are implemented.
+Further extraction of legacy management and installer internals remains.
+Local bootstrap, mail and PHP/Laravel
 service UAT is recorded in [RELEASE_V4.md](RELEASE_V4.md), [MAIL.md](MAIL.md) and
 [PHP_RUNTIME_LARAVEL.md](PHP_RUNTIME_LARAVEL.md). Candidate publication, public
 ACME and broader platform/live-transition validation remain. See the
@@ -600,7 +602,7 @@ Existing application installers and some service internals remain in their
 original files. Extract these gradually behind the established interfaces.
 Account/database/TUI internal migration remains open; the TUI invokes the same
 public CLI. Preserve old import and installed paths throughout extraction.
-Native nftables work is a separate remaining roadmap requirement.
+Native nftables now uses a scoped driver with validated persistence and SSH recovery.
 
 ---
 
@@ -786,3 +788,22 @@ operation locking and explicit failure handling. Signing-key downloads and sourc
 migration use `lib/services/apt/repositories.sh`. Site diagnostics redact metadata
 in both text and JSON. See [DATABASE.md](DATABASE.md) and
 [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md) for delivered behavior and UAT limits.
+
+## P2 lifecycle and data services
+
+`data`, `monitor` and `firewall` are registered public plugins, backed by Restic,
+Monit and native nftables service modules. Full recipes and per-service operations
+share install/remove contracts; optional backups/monitoring remain disabled by
+default. SQL/data retention is scoped to verified managed artifacts. Configuration,
+repositories, credentials and recovery state remain outside exported code trees.
+
+The firewall recovery runner copies reviewed root-owned code into protected state
+and reads only recovery data. It works before CLI/bootstrap completion and without
+loading encrypted configuration. A firewall mutex serializes apply/confirm/recovery
+without waiting for unrelated long-running shared-lock operations.
+
+Account, database, self-SSL, TUI and vhost-creation wrappers retain their original
+filenames and initialization contract while handlers occupy `lib/runtime/` and
+account provisioning occupies `lib/services/accounts/`. Legacy site-management
+and component installer business internals remain candidates for further extraction;
+this is an incremental migration, not a claim that every legacy file is empty.

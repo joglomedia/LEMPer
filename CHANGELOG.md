@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0] - Unreleased
 
 ### Added
+- Optional Restic application/mail data backups, authenticated repositories,
+  staged restoration, tag-scoped retention and daily systemd scheduling through `data`.
+- Native nftables `firewall` commands, scoped inet rules, explicit UFW migration,
+  boot persistence and independent timed SSH recovery while backup operations run.
+- Optional Monit health monitoring, authenticated loopback status and SMTP alert configuration.
+- SQL dump checksums and per-database retention with `db prune` / `--keep`.
 - Issue #91 `stack config php --default-runtime=php@VERSION` with registered
   alternatives validation, encrypted-profile persistence, and rollback.
 - Issue #170 Laravel application mounts with independent ownership/runtime,
@@ -38,6 +44,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tag-driven release automation, and provisioned-host/dependency audit reports.
 
 ### Changed
+- Account, database, SSL, TUI and vhost creation handlers now occupy function-only
+  runtime modules; account provisioning and optional components use service drivers.
+  Public wrappers, aliases and installed module destinations remain compatible.
+- Mail and canonical full-stack options use the shared array parser, including
+  equals-value options and `--` delimiters. Legacy getopt stays in isolated adapters.
 - Laravel routing preserves methods/query strings when canonicalizing trailing
   slashes, and newly generated vhosts restrict PHP execution to the front controller.
 - The PHP installer shares its alternatives driver with runtime configuration;

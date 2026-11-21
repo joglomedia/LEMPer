@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+
+# +-------------------------------------------------------------------------+
+# | LEMPer Shared Security Helpers                                          |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
+
+
+
+function account_show_usage() {
+    cat <<- EOL
+${CMD_PARENT} ${CMD_NAME} ${PROG_VERSION}
+Create a system user account for LEMPer-managed web applications.
+
+Usage:
+  ${CMD_PARENT} ${CMD_NAME} [OPTIONS] [username]
+
+Options:
+  -u, --username <name>  Account name (default: LEMPER_USERNAME or 'lemper').
+  --admin                Grant restricted service-administration privileges.
+  --restrict-sudo        Migrate an existing LEMPer-owned account to restricted sudo.
+  -h, --help             Print this message and exit.
+  -v, --version          Output version information and exit.
+
+The password is taken from LEMPER_PASSWORD or generated randomly.
+Use '${CMD_PARENT} adduser' for an interactive prompt.
+EOL
+}
+
+##
+# Validate a Linux username: lowercase letters, digits, '_' and '-',
+# starting with a letter or underscore, max 32 characters.
+##
+function validate_username() {
+    local NAME=${1}
+    [[ "${NAME}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]
+}
+
+##
+# Create a system account and its web application directories.
+##
+function lemper_account_command() {
+    local USERNAME="" ROLE=hosting MIGRATE=false
+
+    lemper_parse_args 'u:hv' 'username:,admin,restrict-sudo,help,version' "$@" || return 1
+    set -- "${LEMPER_PARSED_ARGS[@]}"
+
+    while true; do
+        case "${1}" in
+            -u | --username)
+                USERNAME="${2}"
+                shift 2
+            ;;
+            --admin)
+                ROLE="admin"
+                shift
+            ;;
+            --restrict-sudo)
+                MIGRATE=true
+                shift
+            ;;
+            -h | --help)
+                account_show_usage
+                return 0
+            ;;
+            -v | --version)
+                echo "${PROG_NAME} version ${PROG_VERSION}"
+                return 0
+            ;;
+            --)
+                shift
+                break
+            ;;
+            *)
+                fail "Invalid argument: ${1}"
+            ;;
+        esac
+    done
+
+    if [[ -n "${1:-}" ]]; then
+        USERNAME="${1}"
+        shift
+    fi
+
+    if [[ $# -gt 0 ]]; then
+        fail "Unexpected argument: ${1}"
+    fi
+
+    if [[ "${MIGRATE}" == true ]]; then
+        restrict_account_sudo "${USERNAME:-${LEMPER_USERNAME:-lemper}}"
+    else
+        lemper_load_module services/accounts/user || return 1
+        lemper_with_lock create_account "${USERNAME}" "${ROLE}"
+    fi
+}
+
+# Start running things from a call at the end so if this script is executed
+# after a partial download it doesn't do anything.

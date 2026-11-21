@@ -273,6 +273,27 @@ Logs and synthetic passwords remain inside the container. Signature, fingerprint
 and checksum failures must remain failures; report upstream repository outages
 separately from successful local tests. See [database management](docs/DATABASE.md).
 
+#### P2 backup, monitoring and firewall acceptance
+
+Use a fresh designated systemd container. The suite validates real encrypted data
+backup/restore, SQL/data retention, timers, Monit authentication, IPv4/IPv6 packet
+filtering, SSH key login, independent recovery and explicit UFW migration/rollback.
+It creates a private veth network and changes firewall rules only in that container.
+
+```bash
+podman run -d --name lemper-p2-ubuntu24 --privileged --systemd=always \
+  --cgroupns=private --hostname lemper-p2.test --cpus 2 --memory 3g \
+  --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" localhost/lemper-uat:ubuntu24
+podman exec lemper-p2-ubuntu24 bash -c \
+  'apt-get update -qq && apt-get install -y -qq gnupg mariadb-server nftables && systemctl start mariadb && touch /run/lemper-p2-uat-authorized && cp /source/tests/uat/p2_acceptance.sh /run/p2-uat.sh && bash /run/p2-uat.sh'
+podman stop --time 10 lemper-p2-ubuntu24
+```
+
+The test copies source to an internal checkout and keeps synthetic logs/credentials
+inside the container. Remote Restic destinations and external SMTP alert delivery
+require separate destination/provider tests. See [data backups](docs/DATA_BACKUP.md),
+[firewall](docs/FIREWALL.md) and [monitoring](docs/MONITORING.md).
+
 #### Mail hosting acceptance tests
 
 The mail acceptance suite installs only the mail component in a designated

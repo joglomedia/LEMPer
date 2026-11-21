@@ -47,11 +47,15 @@ EOL
     help_subentry "export [options]" "Export a database to SQL."
     help_subentry "backup [options]" "Create a timestamped backup (.sql.gz)."
     help_subentry "restore [options]" "Restore from a backup file."
+    help_subentry "prune --dbname NAME --keep COUNT" "Rotate verified SQL dumps for one database."
     help_subentry "backup-schedule [options]" "Schedule automated backups via cron."
     help_subentry "account <subcommand>" "Manage database user accounts."
 
     echo
     echo "System Administration:"
+    help_entry data "Encrypted application/mail backups, retention and staged restore."
+    help_entry monitor "Authenticated local health monitoring, alerts and logs."
+    help_entry firewall "Scoped native nftables policy, migration and SSH recovery."
     help_entry config "Validate configuration with config check."
     help_entry mail "Manage mail domains, mailbox accounts, aliases, and DNS records."
     help_entry account "Create a system user account."

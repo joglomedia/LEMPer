@@ -31,7 +31,7 @@ alignment_child='
 }
 @test "source-only runtime and driver modules neither dispatch nor initialize" {
     run bash -c '
-        for module in "$1"/lib/runtime/site/*.sh "$1"/lib/runtime/stack/*.sh "$1"/lib/services/**/*.sh "$1"/lib/compat/*.sh; do
+        for module in "$1"/lib/runtime/*/*.sh "$1"/lib/services/**/*.sh "$1"/lib/compat/*.sh; do
             . "$module" || exit 1
         done
         echo SOURCED
