@@ -343,6 +343,21 @@ For more info
 sudo lemperctl site mod --help
 ```
 
+##### LEMPer CLI SQL backups and site diagnostics
+
+```bash
+sudo lemperctl db backup --dbname=appdb
+sudo lemperctl db restore --dbname=appdb --dbfile=/var/backups/lemper/ARCHIVE.sql.gz
+sudo lemperctl db backup-schedule --dbname=appdb --dbschedule='0 2 * * *'
+sudo lemperctl site show example.com --json
+```
+
+SQL dumps publish atomically with mode `0600`; failures leave no incomplete
+backup. Use root-owned backup directories and protected password files.
+`site show` redacts stored passwords; `--json` implies `--all`.
+See [database management](docs/DATABASE.md) for input limits, password changes,
+scheduling, restoration, and repository-key migration. SQL retention remains planned.
+
 ##### LEMPer CLI back up and restore configuration
 
 `lemperctl backup` archives the configuration LEMPer manages — Nginx, PHP,

@@ -493,14 +493,18 @@ up every FPM pool to `/etc/lemper/backups/php2shell-<UTC>/<branch>/` and admin-l
 
 ## 4. Target Architecture (v4.0; CLI alignment implemented)
 
-The working tree now implements the shared core modules, schema validation,
-array parser, per-service CLI, guarded site removal, key-only SSH policy,
-provider-backed wildcard issuance/renewal, pinned release bootstrap, and release/
+The v4 candidate implements the shared core modules, schema validation,
+widely adopted array parser, per-service CLI, guarded site removal, key-only SSH
+policy, provider-backed wildcard issuance/renewal, pinned release bootstrap, and release/
 host-audit workflows. Public wrappers and installed paths retain compatibility.
 Site/stack use cases and service drivers now occupy runtime/services, with
 legacy scripts retained behind compatibility adapters. Further extraction of
-legacy account/database/TUI internals and explicit nftables integration remain pending. Workflow publication and live service deployment have not been
-performed as part of this implementation.
+legacy account/database/TUI internals, universal parser adoption and explicit
+nftables integration remain pending. Local bootstrap, mail and PHP/Laravel
+service UAT is recorded in [RELEASE_V4.md](RELEASE_V4.md), [MAIL.md](MAIL.md) and
+[PHP_RUNTIME_LARAVEL.md](PHP_RUNTIME_LARAVEL.md). Candidate publication, public
+ACME and broader platform/live-transition validation remain. See the
+[2026-11-21 roadmap audit](ROADMAP_AUDIT.md) for current task reconciliation.
 
 ### 4.1 Guiding Principles
 
@@ -699,7 +703,14 @@ User runs: lemperctl site add -d example.com -f wordpress
 
 ---
 
-## 7. Risk Assessment (Updated v3.4.0)
+## 7. Historical Risk Assessment (v3.4.0; superseded)
+
+This table preserves the original risk snapshot. Its open/partial labels,
+file counts and mitigation suggestions are not current findings. Account
+privileges, literal configuration loading, default credential suppression, EOL
+template cleanup and mock-based tests have since been implemented. Remaining
+DB boundaries, explicit diagnostic output and repository key scope are
+qualified in [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md); use that report for current status.
 
 | Risk | Impact | Likelihood | Mitigation Planned | Status |
 |---|---|---|---|---|
@@ -766,3 +777,12 @@ selections remain explicit.
 across SSL/non-SSL variants, validates/reloads Nginx, and restores snapshots on
 failure. Parent-site purge and PHP-reference checks include mounted applications.
 See [PHP_RUNTIME_LARAVEL.md](PHP_RUNTIME_LARAVEL.md) for the public contracts.
+
+## P1 database and repository boundaries
+
+Legacy DB commands now delegate backup/restore/import/export and scheduling to
+`lib/services/mariadb/database.sh`, sharing input validation, protected outputs,
+operation locking and explicit failure handling. Signing-key downloads and source
+migration use `lib/services/apt/repositories.sh`. Site diagnostics redact metadata
+in both text and JSON. See [DATABASE.md](DATABASE.md) and
+[ROADMAP_AUDIT.md](ROADMAP_AUDIT.md) for delivered behavior and UAT limits.

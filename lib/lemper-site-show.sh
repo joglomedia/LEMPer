@@ -74,10 +74,10 @@ Usage:
 Options:
   -c, --config      Show Nginx vhost config (default).
   -f, --fpm         Show PHP-FPM pool configuration.
-  -a, --app         Show application metadata (credentials, DB, etc.).
+  -a, --app         Show application metadata with secrets redacted.
   -s, --ssl         Show SSL certificate information.
   -A, --all         Show all (config + FPM + app + SSL).
-  -j, --json        Output as JSON instead of plain text.
+  -j, --json        Output all site information as JSON (implies --all).
   -h, --help        Print this message and exit.
   -v, --version     Output version information and exit.
 
@@ -204,7 +204,14 @@ function show_app_metadata() {
     echo ""
 
     if [[ -f "${META_FILE}" ]]; then
-        cat "${META_FILE}"
+        local key value
+        while IFS=$'\t' read -r key value; do
+            case "$key" in
+                APP_DB_PASS|APP_ADMIN_PASS) printf '%s="[REDACTED]"\n' "$key" ;;
+                APP_UID|APP_FRAMEWORK|APP_DB_USER|APP_DB_NAME|APP_ADMIN_USER|APP_ADMIN_EMAIL|APP_WEBROOT)
+                    printf '%s=%s\n' "$key" "$value" ;;
+            esac
+        done < <(safe_parse_dotenv "$META_FILE")
     else
         info "No application metadata found for ${DOMAIN}."
         info "Metadata is created when installing an application (WordPress, Laravel, etc.) via 'lemper-cli create'."
@@ -265,56 +272,56 @@ function show_ssl_info() {
 # Show all information for a domain in JSON format.
 ##
 function show_all_json() {
-    local DOMAIN=${1}
-    local VHOST_FILE="/etc/nginx/sites-available/${DOMAIN}.conf"
-    local META_FILE="/etc/lemper/vhost.d/${DOMAIN}.conf"
-    local SSL_DIR="/etc/lemper/ssl/${DOMAIN}"
+    local domain="$1"
+    # Paths/values are arguments, never Python source. Emit exactly one JSON object.
+    python3 - "$domain" <<'PYTHON'
+import configparser
+import json
+import re
+import sys
+from pathlib import Path
 
-    echo "{"
-    echo "  \"domain\": \"${DOMAIN}\","
-    echo "  \"vhost_file\": \"${VHOST_FILE}\","
-    echo "  \"enabled\": $([[ -L /etc/nginx/sites-enabled/${DOMAIN}.conf ]] && echo "true" || echo "false"),"
-
-    # Nginx config
-    if [[ -f "${VHOST_FILE}" ]]; then
-        echo "  \"nginx_config\": {"
-        echo "    \"php_version\": \"$(extract_vhost_php_version "${VHOST_FILE}")\","
-        echo "    \"framework\": \"$(extract_vhost_framework "${VHOST_FILE}")\","
-        echo "    \"fpm_user\": \"$(extract_vhost_fpm_user "${VHOST_FILE}")\""
-        echo "  },"
-    else
-        echo "  \"nginx_config\": null,"
-    fi
-
-    # App metadata
-    if [[ -f "${META_FILE}" ]]; then
-        echo "  \"app_metadata\": "
-        # Parse the INI-like config file.
-        python3 -c "
-import configparser, json, sys
-config = configparser.ConfigParser()
-config.read('${META_FILE}')
-for section in config.sections():
-    print('  {\"' + section + '\": ' + json.dumps(dict(config[section])) + '}')" 2>/dev/null || echo "  null"
-    else
-        echo "  \"app_metadata\": null,"
-    fi
-
-    # SSL info
-    if [[ -f "${SSL_DIR}/cert.pem" ]]; then
-        echo "  \"ssl\": {"
-        echo "    \"type\": \"self-signed\","
-        echo "    \"cert_path\": \"${SSL_DIR}/cert.pem\""
-        echo "  }"
-    elif [[ -d "/etc/letsencrypt/live/${DOMAIN}" ]]; then
-        echo "  \"ssl\": {"
-        echo "    \"type\": \"letsencrypt\","
-        echo "    \"cert_path\": \"/etc/letsencrypt/live/${DOMAIN}/fullchain.pem\""
-        echo "  }"
-    else
-        echo "  \"ssl\": null"
-    fi
-    echo "}"
+domain = sys.argv[1]
+vhost = Path('/etc/nginx/sites-available') / (domain + '.conf')
+metadata = Path('/etc/lemper/vhost.d') / (domain + '.conf')
+ssl_dir = Path('/etc/lemper/ssl') / domain
+result = {'domain': domain, 'vhost_file': str(vhost),
+          'enabled': (Path('/etc/nginx/sites-enabled') / (domain + '.conf')).is_symlink(),
+          'nginx_config': None, 'app_metadata': None, 'ssl': None}
+try:
+    if vhost.is_file():
+        text = vhost.read_text()
+        patterns = {'php_version': r'fastcgi_pass[^;]*php([0-9]+\.[0-9]+)-fpm',
+                    'framework': r'include[^;]*vhost/site_([^.]+)\.conf',
+                    'fpm_user': r'fastcgi_pass[^;]*fpm\.([a-zA-Z0-9_-]+)\.sock'}
+        result['nginx_config'] = {}
+        for key, pattern in patterns.items():
+            match = re.search(pattern, text)
+            result['nginx_config'][key] = match.group(1) if match else ''
+    if metadata.is_file():
+        parser = configparser.ConfigParser(interpolation=None)
+        parser.read_string(metadata.read_text())
+        public = {'app_uid', 'app_framework', 'app_db_user', 'app_db_name',
+                  'app_admin_user', 'app_admin_email', 'app_webroot'}
+        sections = {}
+        for section in parser.sections():
+            values = {}
+            for key, value in parser.items(section):
+                if key in {'app_db_pass', 'app_admin_pass'}:
+                    values[key] = '[REDACTED]'
+                elif key in public:
+                    values[key] = value
+            sections[section] = values
+        result['app_metadata'] = sections
+    if (ssl_dir / 'cert.pem').is_file():
+        result['ssl'] = {'type': 'self-signed', 'cert_path': str(ssl_dir / 'cert.pem')}
+    elif (Path('/etc/letsencrypt/live') / domain).is_dir():
+        result['ssl'] = {'type': 'letsencrypt', 'cert_path': '/etc/letsencrypt/live/' + domain + '/fullchain.pem'}
+except (OSError, UnicodeError, configparser.Error):
+    print('Unable to read site diagnostics.', file=sys.stderr)
+    sys.exit(1)
+print(json.dumps(result))
+PYTHON
 }
 
 ##
@@ -354,7 +361,7 @@ function init_lemper_site_show() {
     local OUTPUT_FORMAT="text"
 
     if [[ $# -gt 0 ]]; then
-        lemper_parse_args 'cafAsAjv' 'config,fpm,app,ssl,all,help,version' "$@" || return 1
+        lemper_parse_args 'cafsAjhv' 'config,fpm,app,ssl,all,json,help,version' "$@" || return 1
         set -- "${LEMPER_PARSED_ARGS[@]}"
 
         while true; do
@@ -418,6 +425,9 @@ function init_lemper_site_show() {
             esac
         done
     fi
+
+    [[ "$OUTPUT_FORMAT" != json ]] || SHOW_ALL=true
+    [[ $# -eq 0 ]] || { error "Unexpected site show argument."; return 1; }
 
     if [[ "${SHOW_ALL}" == true ]]; then
         if [[ "${OUTPUT_FORMAT}" == "json" ]]; then

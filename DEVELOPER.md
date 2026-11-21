@@ -22,7 +22,7 @@
 
 > **macOS developers:** Use Podman Machine to test scripts in a real Linux environment.
 > macOS `sed -i` and `grep -P` behave differently from GNU/Linux. Podman eliminates
-> this gap (see [§3.4](#34-container-based-testing-with-podman-machine)).
+> this gap (see [§3.4](#34-container-based-testing-with-podman-machine-macos)).
 
 ### 1.2 System Requirements (Target)
 
@@ -251,6 +251,27 @@ podman stop --time 10 lemper-v4-release-uat
 
 See [RELEASE_V4.md](docs/RELEASE_V4.md) for the final v4 results and artifact
 publication steps.
+
+#### Database, diagnostics and repository-key acceptance
+
+The scoped P1 suite installs real MariaDB/PHP packages, activates a CLI snapshot,
+and verifies SQL backup/restore, protected credentials, cron execution and repeat
+scheduling, diagnostic redaction/JSON, and signing-key migration. Use a fresh
+designated systemd container and copy the test before running it:
+
+```bash
+podman run -d --name lemper-p1-ubuntu24 --privileged --systemd=always \
+  --cgroupns=private --hostname lemper-p1.test --cpus 2 --memory 3g \
+  --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" localhost/lemper-uat:ubuntu24
+podman exec lemper-p1-ubuntu24 bash -c \
+  'apt-get update -qq && apt-get install -y -qq gnupg && touch /run/lemper-p1-uat-authorized && cp /source/tests/uat/p1_acceptance.sh /run/p1-uat.sh && bash /run/p1-uat.sh'
+podman stop --time 10 lemper-p1-ubuntu24
+```
+
+Build the base image using the existing `tests/uat/Containerfile` instructions.
+Logs and synthetic passwords remain inside the container. Signature, fingerprint
+and checksum failures must remain failures; report upstream repository outages
+separately from successful local tests. See [database management](docs/DATABASE.md).
 
 #### Mail hosting acceptance tests
 

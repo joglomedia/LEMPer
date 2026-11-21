@@ -1,6 +1,9 @@
 # v4.0.0 release preparation
 
-Status: prepared locally; publication is a separate authorized step.
+Status checked 2026-11-21: v4.0.0 is unpublished; latest GitHub release is
+v3.6.0. Local preparation below records an earlier baseline. Current code is
+523d686 plus P1 working-tree fixes on `release/v4.0.0`; final candidate
+rebuild/validation remains.
 
 ## Release contract
 
@@ -34,7 +37,9 @@ before publishing.
 
 ## Validation
 
-Validated on 2026-11-20 against the v4 working tree.
+The results below were recorded on 2026-11-20 against the earlier v4 working
+tree and its temporary public-source archive. They are historical preparation
+results, not a rerun against the latest candidate.
 
 | Check | Result |
 |---|---|
@@ -47,6 +52,16 @@ Validated on 2026-11-20 against the v4 working tree.
 | Local Markdown links | 39 links resolve |
 | Whitespace/diff checks | Passed |
 | Archive and bootstrap integrity/reproducibility | SHA256 verified; repeated builds match |
+
+Subsequent mail and PHP/Laravel commits advanced the source to 523d686.
+Separate records cover 358 Bats tests, 55 mail acceptance checks and 11
+PHP/Laravel checks; see [MAIL.md](MAIL.md) and
+[PHP_RUNTIME_LARAVEL.md](PHP_RUNTIME_LARAVEL.md). Rebuild all four assets from
+the final clean committed candidate and test that exact archive before
+publication. GitHub Actions returned no runs for 523d686 on 2026-11-21.
+The [current roadmap audit](ROADMAP_AUDIT.md) separates remaining implementation
+scope from release/deployment validation. Podman was unreachable during that
+documentation audit, so no runtime checks were rerun then.
 
 The final UAT used `lemper-v4-release-uat`, Ubuntu 24.04 ARM64 with systemd
 PID 1, 2 CPU quota and 3 GiB memory, on the existing running Podman machine.
@@ -93,6 +108,20 @@ encrypted effective configuration, disabled optional services/web panels, HTTP,
 repeat bootstrap, update checks, and full-stack removal.
 
 ## Limits and publication
+
+P1 follow-through now has a separate component UAT suite in
+`tests/uat/p1_acceptance.sh`. On 2026-11-21 its final source snapshot passed
+30 checks on Ubuntu 24.04 ARM64, covering real SQL restoration, scheduled
+execution, protected credentials, site diagnostics/JSON and scoped signing-key
+migration. Debian 12's PHP package validation was blocked by upstream signed
+package-index checksum mismatches; verification remained enabled. The retained
+bundled helper renders scoped Debian 12 sources but retains its older distro
+table; current MariaDB installation uses the new direct APT driver.
+Validation also includes 385/385 full Bats cases followed by nine final key-scope
+regressions, CI-pinned ShellCheck 0.11.0, Bashate and Bash syntax checks.
+See [DATABASE.md](DATABASE.md) and [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
+These checks validate components from the working tree; the final release
+archive still needs rebuilding and its own bootstrap UAT after commit.
 
 MyGuard currently provides no compatible ARM64 Nginx binary, so native ARM64
 validation uses the source profile. Public ACME HTTP/DNS challenges require

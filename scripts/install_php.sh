@@ -32,62 +32,54 @@ fi
 # Add PHP repository.
 ##
 function add_php_repo() {
-    echo "Add Ondrej's PHP repository..."
-
-    DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
-    RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
-
-    case "${DISTRIB_NAME}" in
+    local DISTRIB_NAME="${DISTRIB_NAME:-$(get_distrib_name)}"
+    local RELEASE_NAME="${RELEASE_NAME:-$(get_release_name)}"
+    local root="${LEMPER_APT_ROOT:-/etc/apt}" key url fingerprint="" repo
+    [[ "$RELEASE_NAME" =~ ^[a-z]+$ ]] || { error "Invalid PHP distribution codename."; return 1; }
+    lemper_load_module services/apt/repositories || return 1
+    case "$DISTRIB_NAME" in
         debian)
-            if [[ ! -f "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" ]]; then
-                run curl -sSL -o "/etc/apt/trusted.gpg.d/ondrej-php-${RELEASE_NAME}.gpg" https://packages.sury.org/php/apt.gpg && \
-                run touch "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" && \
-                run bash -c "echo 'deb https://packages.sury.org/php/ ${RELEASE_NAME} main' > /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" && \
-                run bash -c "echo 'deb-src https://packages.sury.org/php/ ${RELEASE_NAME} main' >> /etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
-
-                # Add openswoole official repository.
-                case "${RELEASE_NAME}" in
-                    buster)
-                        OPENSWOOLE_RELEASE_NAME="bionic"
-                    ;;
-                    bullseye)
-                        OPENSWOOLE_RELEASE_NAME="focal"
-                    ;;
-                    bookworm)
-                        OPENSWOOLE_RELEASE_NAME="jammy"
-                    ;;
-                esac
-
-                run gpg --lock-never --keyserver hkp://keyserver.ubuntu.com:80 --no-default-keyring --keyring "/usr/share/keyrings/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.gpg" --recv-keys 73414442D33E80F9C7E15E7F1F00974B7E59CCAC && \
-                run touch "/etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.list" && \
-                run bash -c "echo 'deb [signed-by=/usr/share/keyrings/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.gpg] https://ppa.launchpadcontent.net/openswoole/ppa/ubuntu/ ${OPENSWOOLE_RELEASE_NAME} main' > /etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.list" && \
-                run bash -c "echo 'deb-src [signed-by=/usr/share/keyrings/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.gpg] https://ppa.launchpadcontent.net/openswoole/ppa/ubuntu/ ${OPENSWOOLE_RELEASE_NAME} main' >> /etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.list"
-            else
-                info "PHP package repository already exists."
-            fi
-        ;;
+            url=https://packages.sury.org/php/apt.gpg
+            repo=https://packages.sury.org/php/ ;;
         ubuntu)
-            if [[ ! -f "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list" ]]; then
-                #run apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
-                run gpg --lock-never --keyserver hkp://keyserver.ubuntu.com:80 --no-default-keyring --keyring "/etc/apt/trusted.gpg.d/ondrej-php-${RELEASE_NAME}" --recv-keys 14AA40EC0831756756D7F66C4F4EA0AAE5267A6C && \
-                run add-apt-repository -y ppa:ondrej/php
-
-                # Add openswoole official repository.
-                if echo "${PHP_EXTENSIONS}" | grep -qwE "openswoole"; then
-                    run add-apt-repository -y ppa:openswoole/ppa
-                fi
-            else
-                info "PHP package repository already exists."
-            fi
-        ;;
-        *)
-            fail "Unable to install PHP, this GNU/Linux distribution is not supported."
-        ;;
+            fingerprint=14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
+            url="https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x$fingerprint"
+            repo=https://ppa.launchpadcontent.net/ondrej/php/ubuntu/ ;;
+        *) error "Unsupported PHP distribution."; return 1 ;;
     esac
-
-    info "Updating repository, please wait..."
-    run apt-get update -q -y && \
-    run apt-get install -q -y libgd-dev libsodium-dev
+    key="$root/keyrings/ondrej-php.gpg"
+    lemper_apt_install_key "$url" "$key" "$fingerprint" || return 1
+    lemper_apt_scope_sources php "$key" || return 1
+    if ! lemper_apt_has_source php; then
+        lemper_apt_write_source "$root/sources.list.d/ondrej-php-$RELEASE_NAME.list" \
+            "deb [signed-by=$key] $repo $RELEASE_NAME main
+deb-src [signed-by=$key] $repo $RELEASE_NAME main" || return 1
+    fi
+    local legacy
+    for legacy in "$root/trusted.gpg.d/ondrej-php-$RELEASE_NAME" "$root/trusted.gpg.d/ondrej-php-$RELEASE_NAME.gpg"; do
+        lemper_apt_retire_key "$legacy" "$key" || return 1
+    done
+    if [[ " ${PHP_EXTENSIONS:-} " == *' openswoole '* ]]; then
+        local openswoole_release="$RELEASE_NAME"
+        if [[ "$DISTRIB_NAME" == debian ]]; then
+            case "$RELEASE_NAME" in
+                buster) openswoole_release=bionic ;;
+                bullseye) openswoole_release=focal ;;
+                bookworm) openswoole_release=jammy ;;
+                *) error "No OpenSwoole PPA mapping for this Debian release."; return 1 ;;
+            esac
+        fi
+        key="$root/keyrings/openswoole-ppa.gpg"
+        fingerprint=73414442D33E80F9C7E15E7F1F00974B7E59CCAC
+        lemper_apt_install_key "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x$fingerprint" "$key" "$fingerprint" || return 1
+        lemper_apt_scope_sources openswoole "$key" || return 1
+        if ! lemper_apt_has_source openswoole; then
+            lemper_apt_write_source "$root/sources.list.d/openswoole-ppa-$openswoole_release.list" \
+                "deb [signed-by=$key] https://ppa.launchpadcontent.net/openswoole/ppa/ubuntu/ $openswoole_release main" || return 1
+        fi
+    fi
+    lemper_exec apt-get update -q -y || return 1
+    lemper_exec apt-get install -q -y libgd-dev libsodium-dev
 }
 
 ##
@@ -1131,7 +1123,7 @@ function init_php_install() {
     SELECTED_PHP_VERSIONS=($(printf "%s\n" "${SELECTED_PHP_VERSIONS[@]}" | sort -u | tr '\n' ' '))
 
     # Add Ondrej's PHP repository.
-    add_php_repo
+    add_php_repo || return $?
 
     # Install all selected PHP versions and extensions.
     local PHP_WAS_INSTALLED
@@ -1192,7 +1184,7 @@ echo "[PHP & Extensions Installation]"
 
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
-init_php_install "$@"
+init_php_install "$@" || { if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 1; else return 1; fi; }
 
 # Set default PHP.
 if [[ -n $(command -v "php${DEFAULT_PHP_VERSION}") ]]; then

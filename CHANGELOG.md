@@ -71,6 +71,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   release symlinks.
 
 ### Fixed
+- P1 roadmap follow-through: validated DB inputs and restricted extra arguments,
+  protected atomic SQL dumps, reliable restore/import/export failures, and safe
+  repeatable scheduling through the working `backup-schedule` command.
+- Database passwords with quotes/backslashes remain literal SQL data; account
+  password changes accept protected files and default local backups keep socket auth.
+- Site metadata diagnostics redact credentials in text and JSON; `--json` is
+  registered, implies `--all`, and emits one valid object.
+- PHP/PPA/MariaDB signing keys are repository-scoped, with backed-up source
+  migration and selective legacy-key retirement. MariaDB setup no longer runs
+  a downloaded shell helper; its retained fallback also uses `signed-by`.
 - Full-stack removal retains ownership through partial teardown and permits
   removal of PHP referenced only by a stopped, owned Nginx being removed.
 - Explicit profile replacement preserves configuration on failure and follows

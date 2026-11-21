@@ -1,10 +1,11 @@
 # LEMPer — Roadmap &amp; Improvement Plan
 
-> **Version:** 3.6.0
-> **Last Updated:** 2026-11-20
-> **Status:** v3.6.0 released; audited P1 fixes and v4.0 foundations are implemented
-> in the working tree. Deferred migration and P2/P3 work remain. The next major is v4.0
-> (issue #92 and ARCHITECTURE.md section 4).
+> **Latest published version:** 3.6.0
+> **Last Updated:** 2026-11-21
+> **Code baseline:** 523d686 plus P1 implementation changes on `release/v4.0.0`
+> **Status:** v4.0 foundations, mail hosting and PHP/Laravel enhancements are
+> implemented but unreleased. Partial tasks, deferred plans and release
+> validation remain; see [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
 >
 > v3.6.0 ships the TUI log viewer and site wizard, ModSecurity tuning, opt-in
 > HTTP/3, per-site CORS, resource profiles, the MyGuard nginx archive, PHP 8.1
@@ -17,48 +18,62 @@
 
 ---
 
-## Current P1 implementation
+## Current implementation and remaining work
 
-The 2026-11-20 source audit is recorded in ROADMAP_AUDIT.md. Its P1 ranks 1–12
-now have source changes and regression coverage in the working tree:
+The [2026-11-21 source audit](ROADMAP_AUDIT.md) reconciles all 48 numbered
+task IDs, Architecture §4 and the README/developer plans. It supersedes the
+previous audit's ranks and distinguishes implemented foundations from remaining
+scope inside tasks historically marked complete.
 
 | Priority area | Implementation |
 |---|---|
-| Credentials | Removed secret recaps/log entries, protected credential files, diagnostic redaction, protected encryption/hash input |
+| Credentials | Removed default secret recaps/log entries, protected credential files and encryption/hash input; explicit site metadata views now redact secrets |
 | Destructive paths | Canonical path and ownership checks before site configuration/data deletion |
 | Accounts | Hosting/admin roles and explicit validated, backed-up legacy privilege migration |
 | ACME | Shared Cloudflare/DigitalOcean DNS-01 credentials for issuance and renewal |
 | Configuration | Typed schema, cross-option install preflight, strict config check, compatible legacy runtime loading |
 | SSH | Key-only default, ed25519 guidance, root-managed keys, validation and rollback through reload |
-| Shared code | Core modules and one array parser with existing option aliases preserved |
+| Shared code | Core modules and a widely adopted array parser; mail/full-stack entry parsing still needs normalization |
 | Service/site CLI | Per-service lifecycle commands, PHP branch control, new site remove verb |
 | Bootstrap/releases | Pinned CLI-only installation, immutable version directories, checksums, reproducible release workflow |
 | CI audits | Provisioned-host Lynis report and package/source-pin dependency review |
+| Mail/PHP/apps | Multi-domain incoming/outgoing mail, account/alias management, persistent PHP default selection and Laravel application mounts |
 
-These changes are unreleased. Package-managed updates are supported; source-built
-components requiring a rebuild are reported. Live service installation, real DNS
-issuance, and GitHub publication require their own deployment validation.
+P1 follow-through is implemented: protected DB operations/scheduling, redacted
+site diagnostics with working JSON, and scoped PHP/MariaDB signing keys. See
+[DATABASE.md](DATABASE.md) and the audit for compatibility and validation limits.
 
-Local verification (2026-11-20): all 262 Bats tests passed in a disposable
-Ubuntu 24.04 container. ShellCheck 0.11.0, repository-configured Bashate, workflow
-YAML parsing, and whitespace/diff checks passed. A fixture release was installed
-inside that container; CLI help, per-service dry-run, and strict config check
-succeeded. The security re-review found no remaining confirmed issues within
-the reviewed boundaries. Live production installation, real DNS challenges,
-SSH/firewall transitions, and GitHub publication were not performed.
+Remaining delivery order:
 
-Site/stack use cases, service drivers and adapters now implement the issue #92
-alignment. Remaining work includes deeper legacy internals extraction (2.12/2.37),
-explicit nftables integration, application backup and SQL retention, managed
-monitoring, hosting quotas, and optional coverage/formatting/progress improvements.
-Authenticated encryption remains a separate format/provider design decision;
-the delivered encryption uses AES-256-CBC/PBKDF2, not GCM.
+1. **P2:** SQL retention, application/file backups, explicit nftables integration,
+   shared-parser adoption, deeper module extraction, and managed monitoring.
+2. **P3:** hosting packages/quotas, optional formatting/coverage tooling, and
+   richer progress feedback.
+
+Authenticated encryption and custom TLS pins remain explicit policy/format
+decisions. The delivered encryption uses AES-256-CBC/PBKDF2. Full evidence,
+dependencies and task-by-task qualifications are in [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
+
+Previously recorded validation includes 358 Bats tests, 13 archive-bootstrap UAT
+cases, 55 mail checks and 11 PHP/Laravel checks on their respective baselines;
+see [RELEASE_V4.md](RELEASE_V4.md), [MAIL.md](MAIL.md) and
+[PHP_RUNTIME_LARAVEL.md](PHP_RUNTIME_LARAVEL.md). The original documentation audit
+could not reach Podman. Subsequent P1 work
+used the restarted machine; 30 real Ubuntu 24.04 ARM64 checks passed. Debian's
+live PHP package validation encountered an upstream index checksum mismatch.
+Final clean-candidate assets
+need rebuilding and exact-archive validation. GitHub returned no Actions runs
+for 523d686, and v4.0.0 is not published. Public ACME, broader native platform
+coverage and selected legacy transitions remain validation work.
 
 ---
 
-## 1. Audit Summary
+## 1. Historical Audit Summary
 
-A comprehensive audit of the LEMPer codebase was conducted, covering:
+The original audit covered the areas below. Its findings, file/line references,
+effort estimates and version targets are historical; they do not describe the
+current source. Sections 2–3 retain the original task definitions and delivery
+history. Use the current audit above for implementation status.
 
 
 | Area           | Files Audited                                                         | Issues Found                             |
@@ -76,7 +91,8 @@ A comprehensive audit of the LEMPer codebase was conducted, covering:
 
 ### Phase 0 — Immediate Security Fixes (P0 — Critical)
 
-These are **blocking issues** that must be fixed before any other work.
+The original plan treated these as blocking issues. Their current implementation
+status and any remaining follow-through are recorded in ROADMAP_AUDIT.md.
 
 #### 2.1 Fix `fial` Typo (Bug)
 
@@ -215,7 +231,10 @@ defaults.
 
 ---
 
-#### 2.8 Replace `apt-key` with Keyring Files (Security — Low)
+#### 2.8 Replace `apt-key` with Keyring Files (Security — Low) — Implemented
+
+**Current status:** Scoped signing keys and backed-up migration are implemented for
+PHP and MariaDB in audit R3; shared keyrings require explicit review.
 
 **Issue:** `apt-key` is deprecated and stores all repository keys in a single keyring,
 creating trust-confusion vulnerabilities.
@@ -239,7 +258,10 @@ curl -sSL https://... | gpg --dearmor -o /usr/share/keyrings/repo.gpg
 
 ---
 
-#### 2.9 Add Input Sanitization Layer (Security — Medium)
+#### 2.9 Add Input Sanitization Layer (Security — Medium) — Implemented for audited boundaries
+
+**Current status:** Site/account/SSH validators and the legacy DB validation/
+execution follow-through are implemented; see audit R1 and DATABASE.md.
 
 **Issue:** Domain names are passed directly to `sed`, `openssl`, and file paths without
 sanitization. While `validate_fqdn()` is called in some paths, other paths (e.g.,
@@ -376,7 +398,10 @@ domain names, framework, SSL status, PHP version.
 
 ---
 
-#### 2.17 Add `lemperctl site show <domain>` Subcommand  ✅**COMPLETE**
+#### 2.17 Add `lemperctl site show <domain>` Subcommand — Implemented
+
+**Current status:** Metadata is redacted in text and JSON; `--json` is registered
+and implies `--all`. Malformed metadata fails without exposing values. See audit R2.
 
 **Issue:** No way to display the full configuration for a specific vhost.
 
@@ -387,7 +412,10 @@ status, and linked credentials.
 
 ---
 
-#### 2.18 Add Database Backup &amp; Restore Commands  ✅**COMPLETE**
+#### 2.18 Add Database Backup &amp; Restore Commands — Partial
+
+**Current status:** Timestamped SQL dumps, restore and cron scheduling exist.
+Protected execution is delivered in R1; SQL retention/rotation remains R4.
 
 **Issue:** The README mentions "database backup tool" as a TODO, and `lemper-db.sh`
 has export/import but no scheduled backup rotation.
@@ -538,7 +566,11 @@ add maintenance burden and could mislead users into installing insecure versions
 
 ---
 
-#### 2.27 Remove Deprecated `apt-key` and Update Repository Setup  ✅**COMPLETE**
+#### 2.27 Remove Deprecated `apt-key` and Update Repository Setup — Partial / policy decision
+
+**Current status:** MariaDB 11.4 and several scoped keyrings are implemented.
+Key scoping is delivered in audit R3; the opt-in custom TLS pin differs from the
+historical target and needs a maintained TLS/QUIC-library policy decision.
 
 **Issue:** Ubuntu 24.04 (Noble) drops `apt-key`. Source builds reference old OpenSSL
 versions.
@@ -648,8 +680,8 @@ ModSecurity v3 with OWASP CRS.
 | #     | Task                                    | Priority | Effort | Estimated Time | Status   |
 | ----- | --------------------------------------- | -------- | ------ | -------------- | -------- |
 | 2.16  | Add `site list` subcommand              | Medium   | Medium | 6h             | ✅ v3.1.0 |
-| 2.17  | Add `site show` subcommand              | Medium   | Medium | 6h             | ✅ v3.1.0 |
-| 2.18  | Add DB backup/restore commands          | Medium   | Medium | 8h             | ✅ v3.1.0 |
+| 2.17  | Add `site show` subcommand              | Medium   | Medium | 6h             | Delivered; diagnostic follow-through R2 implemented |
+| 2.18  | Add DB backup/restore commands          | Medium   | Medium | 8h             | Delivered; R1 implemented, retention R4 remains |
 | 2.19  | Add Bun.js runtime integration          | Medium   | Medium | 6h             | ✅ v3.1.0 |
 | 2.19B | Add Valkey as Redis drop-in replacement | Medium   | Medium | 6h             | ✅ v3.1.0 |
 | 2.21  | Add ACME v2 DNS-01 wildcard support     | Medium   | Medium | 8h             | ✅ v3.2.0 |
@@ -669,7 +701,7 @@ ModSecurity v3 with OWASP CRS.
 | 2.23 | Improve CLI help output         | Medium   | Medium     | 6h             | ✅ v3.2.0 |
 | 2.25 | Remove PHP 5.6–7.4 support      | Medium   | Low–Medium | 4h             | ✅ v3.2.0 |
 | 2.26 | Update default PHP to 8.4       | Low      | Trivial    | 1h             | ✅ v3.2.0 |
-| 2.27 | Update OpenSSL/MariaDB versions | Medium   | Low–Medium | 4h             | ✅ v3.2.0 |
+| 2.27 | Update OpenSSL/MariaDB versions | Medium   | Low–Medium | 4h             | Key scope R3 implemented; TLS policy remains |
 | 2.28 | Enable Fail2ban by default      | Medium   | Trivial    | 1h             | ✅ v3.2.0 |
 | 2.24 | Add interactive TUI mode        | Low      | High       | 20h            | ✅ v3.3.0 |
 
@@ -879,12 +911,12 @@ CVE-2026-109618 / CVE-2026-109619 and keep the rest of the stack current.
 
 ---
 
-### Phase 9: Next Major (v4.0) — P1 implemented, deployment validation pending
+### Phase 9: Next Major (v4.0) — Foundations implemented; follow-through and release validation remain
 
-v3.6.0 stops before this work. Two documents describe it: GitHub issue
-[#92](https://github.com/joglomedia/LEMPer/issues/92) and ARCHITECTURE.md
-section 4, "Proposed Target Architecture (v3.0)". The section title is the
-old target name. The implementation version is v4.0.
+GitHub issue [#92](https://github.com/joglomedia/LEMPer/issues/92) and
+[Architecture §4](ARCHITECTURE.md#4-target-architecture-v40-cli-alignment-implemented)
+describe the command/module alignment. The current branch implements its
+foundations; deeper migration and selected requirements remain unfinished.
 
 **CLI structure (issue #92).** `lemperctl` is the preferred installed command.
 Retain `lemper-cli` as a compatibility symlink so existing scripts keep working.
@@ -905,27 +937,19 @@ The implementation filename remains `bin/lemper-cli.sh`.
   that config, then run `lemperctl stack install SERVICE` or opt into the
   shared full recipe with `stack install --all --config FILE`.
 
-**Architecture section 4, still open.** These rows from that section are
-already on the 3.x line and are not part of v4.0: PHP 8.2–8.5, bats plus
-ShellCheck and bashate, Fail2ban and CrowdSec, optional encrypted config,
-the documentation set, multi-distro CI, and ACME with RSA-4096
-certificates.
+**Architecture status.** Schema-validated dotenv, core helper modules, working
+runtime/service layers and compatibility adapters, key-only SSH defaults,
+host/dependency audit jobs and release automation are implemented. PHP 8.2–8.5,
+Bats/ShellCheck/Bashate, Fail2ban/CrowdSec, optional CBC encrypted configuration,
+documentation, multi-distro CI and ACME helpers also exist.
 
-The original v4.0 scope below now has P1 implementations described above;
-deeper legacy runtime/services extraction and the nftables backend remain open:
-
-- Validate the config with a schema. The format can stay `.env` or move to
-  YAML. `safe_parse_dotenv()` remains the loader underneath.
-- Split `scripts/utils.sh` into the modules section 4.4 names: `config.sh`,
-  `logging.sh`, `colors.sh`, and the distro, network, and security helpers.
-- Move plugins into `lib/runtime/` and installers into `lib/services/`.
-  The paths installed on a host stay where they are, so an upgrade does not
-  break a running server.
-- Use one argument parser for every plugin.
-- Make SSH key-only the default, with ed25519 as the generated key type.
-- Offer UFW with an nftables backend.
-- Add a host audit (lynis or the same class of check) and release
-  automation to CI.
+Remaining scope is deeper legacy extraction, universal shared-parser adoption,
+and explicit nftables integration. Public ACME and selected live migrations
+need further deployment validation. YAML is optional; AEAD is a separate
+encryption-format decision. See [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md) for evidence.
+The current release guide defers deep extraction/nftables; these are not
+automatically publication blockers. Final candidate CI, asset rebuild and
+exact-archive validation remain release follow-through.
 
 ---
 
@@ -961,17 +985,22 @@ deeper legacy runtime/services extraction and the nftables backend remain open:
 | **v3.5.1** | PHP2Shell remediation    | Legacy `update.sh` bootstrap, `lemper update` plugin, EOL pool mitigations, apt version verification |
 | **v3.5.2** | PHP 8.5 support          | 8.5 FPM templates, 8.5 default, install/remove menus, nginx handlers and phpinfo endpoints |
 | **v3.6.0** | Current release          | TUI logs and site wizard, ModSecurity tuning, HTTP/3, CORS, resource profiles, MyGuard nginx, PHP 8.1 removed from defaults, EOL vhost migration (`--migrate-to`), Adminer 6.2.0, config backup, CrowdSec installer, FTP fixes |
-| **v4.0.0** | Next major               | Issue #92 command structure (`stack` and `site` verbs, old commands kept as aliases), pinned get-lemper bootstrap, and the remaining ARCHITECTURE.md section 4 work (config schema, utils split, runtime/services layout, SSH key-only, nftables, release automation) |
+| **v4.0.0** | Unreleased candidate | Implemented issue #92 CLI, pinned bootstrap, unified/minimal lifecycle flows, core/runtime/service foundations, schema, key-only SSH, release automation, mail hosting and PHP/Laravel enhancements; deep extraction/nftables deferred; remaining follow-through in ROADMAP_AUDIT.md |
 
 
 ---
 
 ## 6. Next Steps
 
-Phases 0–8 are released as **v3.6.0**. The next implementation is **v4.0**
-(Phase 9): issue #92 and the unfinished rows of ARCHITECTURE.md section 4.
+Latest published release is **v3.6.0**. Delivery history below does not imply
+every original task's full scope is complete. The unreleased **v4.0** branch
+has implemented foundations, with the current P1/P2/P3 backlog above.
 
-Shipped through v3.6.0:
+P1 follow-through is implemented. For release preparation, rebuild assets from
+the final clean commit, validate that archive and candidate CI, then tag/publish
+only when authorized. Keep deferred architecture/product scope explicit.
+
+Delivery history and unreleased candidate:
 
 - **v3.0.0**: Architecture overhaul — `lemper-stacks.sh` orchestrator, validation functions,
 bats-core test suite (107 tests passing)
@@ -992,11 +1021,10 @@ systemd-resolved ACME hooks, opt-in HTTP/3, per-site CORS, resource profiles
 and `nginx-lowend.conf`, SEC-20 … SEC-27, MyGuard nginx, PHP 8.1 removed
 from the default install, `update php --migrate-to`, Adminer 6.2.0, config
 backup, CrowdSec installer, and the Pure-FTPd / VSFTPD fixes
-- **v4.0.0**: issue #92 (`lemperctl stack` and the new `site` verbs, with
-today's commands kept as aliases) and the remaining ARCHITECTURE.md section 4
-work: config schema, splitting `utils.sh`, moving plugins and installers into
-`lib/runtime` and `lib/services`, SSH key-only, nftables, and a pinned
-get-lemper bootstrap that stops before the stack install
+- **v4.0.0 (unreleased)**: issue #92 CLI, shared core/schema and runtime/service
+layers, key-only SSH, pinned bootstrap and unified/minimal stack flows, mail
+hosting and PHP/Laravel enhancements. Follow-through, deferred decomposition/
+nftables and final release validation are detailed in ROADMAP_AUDIT.md.
 
 ---
 

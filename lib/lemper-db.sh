@@ -121,7 +121,7 @@ function cmd_account_access() {
         DBPRIVILEGES="ALL PRIVILEGES"
     fi
 
-    if MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+    if MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root -e "SHOW DATABASES;" | grep -Fxq -- "${DBNAME}"; then
         echo "Grants database '${DBNAME}' privileges to '${DBUSER}'@'${DBHOST}'"
         MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" run "${MYSQLCLI}" -u root -e "GRANT ${DBPRIVILEGES} ON ${DBNAME}.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
     else
@@ -137,8 +137,10 @@ function cmd_account_create() {
         DBUSER=${DBUSER:-"${LEMPER_USERNAME}_$(openssl rand -base64 32 | tr -dc 'a-z0-9' | fold -w 8 | head -n 1)"}
         DBPASS=${DBPASS:-"$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"}
 
+        lemper_db_validate || return 1
+
         # Create database account.
-        if MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
+        if MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -Fxq -- "${DBUSER}"; then
             fail "MySQL account ${DBUSER} is already exist. Please use another one!"
         else
             echo "Creating new MySQL account '${DBUSER}'@'${DBHOST}'..."
@@ -147,12 +149,12 @@ function cmd_account_create() {
             # up in the mysql process arguments.
             if [[ "${DRYRUN}" == true ]]; then
                 info "Would create MySQL account '${DBUSER}'@'${DBHOST}'."
-            elif ! printf '%s\n' "CREATE USER '${DBUSER}'@'${DBHOST}' IDENTIFIED BY '${DBPASS}';" \
+            elif ! printf '%s\n' "SET SESSION sql_mode='NO_BACKSLASH_ESCAPES'; CREATE USER '${DBUSER}'@'${DBHOST}' IDENTIFIED BY $(lemper_db_password_sql "$DBPASS");" \
                 | MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root; then
                 fail "Unable to create MySQL account '${DBUSER}'@'${DBHOST}'."
             fi
 
-            if MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -qwE "${DBUSER}"; then
+            if MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root -e "SELECT User FROM mysql.user WHERE user='${DBUSER}';" | grep -Fxq -- "${DBUSER}"; then
                 success "MySQL account ${DBUSER} has been created."
                 
                 if [[ ${VERBOSE} == true ]]; then
@@ -194,19 +196,20 @@ function cmd_account_delete() {
 
 # Update password.
 function cmd_account_passwd() {
-    DBPASS2=${DBPASS2:-"$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)"}
+    DBPASS2=${DBPASS2:-"${DBPASS}"}
 
     if [ -z "${DBUSER}" ]; then
         fail "Please specify the account's username using --dbuser parameter."
     fi
 
     if [ -z "${DBPASS2}" ]; then
-        error "Please specify the new password using --extra-args parameter (dbpass2)."
-        echo "An example for passing extra arguments: --extra-args=\"dbpass2=newpass\""
+        error "Please specify the new password using --dbpass-file."
+        echo "Example: account passwd --dbuser=user --dbpass-file=/root/new-db.pass"
         exit 1
     fi
 
-    local SQL_QUERY="UPDATE mysql.user SET Password=PASSWORD('${DBPASS2}') WHERE USER='${DBUSER}' AND Host='${DBHOST}';"
+    local SQL_QUERY
+    SQL_QUERY="SET SESSION sql_mode='NO_BACKSLASH_ESCAPES'; ALTER USER '${DBUSER}'@'${DBHOST}' IDENTIFIED BY $(lemper_db_password_sql "$DBPASS2");"
 
     if [[ "${DRYRUN}" != true ]]; then
         if printf '%s\n' "${SQL_QUERY}" | MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root; then
@@ -327,94 +330,29 @@ function sub_cmd_account() {
 # Back up a database to a timestamped gzip dump.
 ##
 function db_backup_database() {
-    if [[ -z "${DBNAME}" ]]; then
-        fail "Please specify the database name using the --dbname parameter."
-    fi
-
-    DBUSER=${DBUSER:-"root"}
-    [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
-
-    # Determine dump tool (mariadb-dump or mysqldump).
-    local DUMP_TOOL=""
-    if [[ -n $(command -v mariadb-dump) ]]; then
-        DUMP_TOOL=$(command -v mariadb-dump)
-    elif [[ -n $(command -v mysqldump) ]]; then
-        DUMP_TOOL=$(command -v mysqldump)
-    else
-        fail "mysqldump/mariadb-dump is required to backup database, but it is not available. Please install it first."
-    fi
-
-    # Backup directory.
-    local BACKUP_DIR="${DBFILE:-/var/backups/lemper}"
-    if [[ ! -d "${BACKUP_DIR}" ]]; then
-        run mkdir -p "${BACKUP_DIR}"
-    fi
-
-    # Timestamped backup file.
-    local BACKUP_FILE
-    BACKUP_FILE="${BACKUP_DIR}/${DBNAME}_$(date '+%Y%m%d_%H%M%S').sql.gz"
-
-    echo "Backing up database '${DBNAME}' to '${BACKUP_FILE}'..."
-
-    if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
-        MYSQL_PWD="${DBPASS}" run bash -c "${DUMP_TOOL} -u '${DBUSER}' --databases '${DBNAME}' | gzip > '${BACKUP_FILE}'"
-
-        if [[ -f "${BACKUP_FILE}" ]]; then
-            success "Database '${DBNAME}' has been successfully backed up to '${BACKUP_FILE}'."
-            echo "    Size: $(du -h "${BACKUP_FILE}" | cut -f1)"
-            echo "    Path: ${BACKUP_FILE}"
-        else
-            fail "Failed to backup database '${DBNAME}'."
-        fi
-    else
-        fail "The specified database '${DBNAME}' does not exist."
-    fi
+    lemper_load_module services/mariadb/database || return 1
+    lemper_with_lock lemper_db_dump gzip
 }
 
-##
-# Restore a database from a SQL or gzip SQL dump.
-##
 function db_restore_database() {
-    if [[ -z "${DBNAME}" ]]; then
-        fail "Please specify the database name using the --dbname parameter."
-    fi
-
-    if [[ -z "${DBFILE}" ]]; then
-        fail "Please specify the backup file using the --dbfile parameter."
-    fi
-
-    if [[ ! -f "${DBFILE}" ]]; then
-        fail "Backup file not found: '${DBFILE}'"
-    fi
-
-    DBUSER=${DBUSER:-"root"}
-    [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
-
-    echo "Restoring database '${DBNAME}' from '${DBFILE}'..."
-
-    if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
-        if [[ "${DBFILE}" == *.gz ]]; then
-            MYSQL_PWD="${DBPASS}" run bash -c "gunzip -c '${DBFILE}' | ${MYSQLCLI} -u '${DBUSER}' '${DBNAME}'"
-        else
-            MYSQL_PWD="${DBPASS}" run "${MYSQLCLI}" -u "${DBUSER}" "${DBNAME}" < "${DBFILE}"
-        fi
-
-        success "Database '${DBNAME}' has been successfully restored from '${DBFILE}'."
-    else
-        fail "The specified database '${DBNAME}' does not exist."
-    fi
+    lemper_load_module services/mariadb/database || return 1
+    lemper_with_lock lemper_db_restore
 }
 
 ##
 # Database Operations.
 ##
 function db_operations() {
+    local DBHOST="" DBPORT="" DBUSER="" DBPASS="" DBPASS_FILE="" DBNAME="" DBPREFIX=""
+    local DBCOLLATION="" DBPRIVILEGES="" DBFILE="" DBQUERY="" DBSCHEDULE="" EXTRA_ARGS=""
+    local DBUSER2="" DBHOST2="" DBPASS2="" DBROOTPASS="" USEROOT=false
+    local DRYRUN="${DRYRUN:-false}" VERBOSE="${VERBOSE:-false}"
     lemper_parse_args 'a:H:P:u:p:n:b:C:g:f:q:x:DrhVv' 'action:,dbhost:,dbport:,dbuser:,dbpass:,dbpass-file:,dbname:,dbprefix:,dbcollation:,dbprivileges:,dbfile:,dbquery:,dbschedule:,extra-args:,dry-run,root,help,verbose,version' "$@" || return 1
     set -- "${LEMPER_PARSED_ARGS[@]}"
 
     # Args counter
     local MAIN_ARGS=0
-    local BYPASSED_ARGS=""
+    local BYPASSED_ARGS=()
 
     # Parse flags
     while true
@@ -508,12 +446,12 @@ function db_operations() {
             -h | --help) 
                 shift
                 # Bypass args.
-                BYPASSED_ARGS="${BYPASSED_ARGS} --help"
+                BYPASSED_ARGS+=(--help)
             ;;
             -v | --version) 
                 shift
                 # Bypass args.
-                BYPASSED_ARGS="${BYPASSED_ARGS} --version"
+                BYPASSED_ARGS+=(--version)
             ;;
             --) 
                 shift
@@ -525,6 +463,10 @@ function db_operations() {
             ;;
         esac
     done
+
+    if [[ ${#BYPASSED_ARGS[@]} -gt 0 ]]; then
+        if [[ "${BYPASSED_ARGS[0]}" == --help ]]; then cmd_help; else cmd_version; fi
+    fi
 
     if [[ "${MAIN_ARGS}" -ge 1 ]]; then
         # Set default value.
@@ -543,37 +485,35 @@ function db_operations() {
         DRYRUN=${DRYRUN:-false}
         USEROOT=${USEROOT:-false}
 
-        # Resolve the password from a root-only file or an environment
-        # variable, so it never needs to appear in process arguments.
-        if [[ -z "${DBPASS}" && -n "${DBPASS_FILE}" ]]; then
-            if [[ ! -r "${DBPASS_FILE}" ]]; then
-                fail "Cannot read database password file: ${DBPASS_FILE}"
-            fi
-            DBPASS=$(head -n 1 "${DBPASS_FILE}")
-        fi
-        if [[ -z "${DBPASS}" && -n "${LEMPER_DB_PASSWORD}" ]]; then
-            DBPASS="${LEMPER_DB_PASSWORD}"
-        fi
-
-        # Parse and export extra arguments.
-        EXTRA_ARGS=${EXTRA_ARGS:-""}
-        if [ -n "${EXTRA_ARGS}" ]; then
-            SAVEIFS=${IFS}  # Save current IFS
-            IFS=', ' read -r -a FIELDS <<< "${EXTRA_ARGS}"
-            IFS=${SAVEIFS}    # Restore IFS
-
-            for FIELD in "${FIELDS[@]}"; 
-            do
-                #export "${FIELD}"
-                SAVEIFS=${IFS}  # Save current IFS
-                IFS='= ' read -r -a ARG_PARTS <<< "${FIELD}"
-                IFS=${SAVEIFS}    # Restore IFS
-                #ARG=$(str_to_upper "${ARG_PARTS[0]}")
-                ARG=${ARG_PARTS[0]}
-                VAL=${ARG_PARTS[1]}
-                export "${ARG^^}=${VAL}"
+        # Extra arguments remain data and cannot overwrite command paths or process state.
+        local fields=() field key value
+        if [[ -n "$EXTRA_ARGS" ]]; then
+            IFS=, read -r -a fields <<< "$EXTRA_ARGS"
+            for field in "${fields[@]}"; do
+                [[ "$field" == *=* ]] || { error "Invalid extra database argument."; return 1; }
+                key="${field%%=*}"; value="${field#*=}"
+                key="${key#"${key%%[![:space:]]*}"}"
+                case "${key^^}" in
+                    DBUSER2|DBHOST2|DBPASS2|DBROOTPASS) printf -v "${key^^}" '%s' "$value" ;;
+                    *) error "Unsupported extra database argument."; return 1 ;;
+                esac
             done
         fi
+        lemper_load_module services/mariadb/database || return 1
+        lemper_db_validate || return 1
+        if [[ -z "$DBPASS" && -n "$DBPASS_FILE" ]]; then
+            local owner mode
+            [[ -f "$DBPASS_FILE" && -r "$DBPASS_FILE" && ! -L "$DBPASS_FILE" ]] || {
+                error "Cannot read database password file."; return 1;
+            }
+            read -r owner mode < <(stat -c '%u %a' -- "$DBPASS_FILE") || return 1
+            if [[ "$owner" != "$EUID" ]] || (( (8#$mode & 0077) != 0 )); then
+                error "Database password file must be owned by the caller and private (0600)."; return 1
+            fi
+            IFS= read -r DBPASS < "$DBPASS_FILE" || [[ -n "$DBPASS" ]] || return 1
+        fi
+        [[ -n "$DBPASS" ]] || DBPASS="${LEMPER_DB_PASSWORD:-}"
+        lemper_db_validate || return 1
 
         # Ensure mariadb / mysql command is available before performing database operations.
         if [[ -n $(command -v mariadb) ]]; then
@@ -588,69 +528,24 @@ function db_operations() {
         case "${ACTION}" in
             # Database account operations.
             "account")
-                sub_cmd_account "$@" "${BYPASSED_ARGS}"
+                sub_cmd_account "$@" "${BYPASSED_ARGS[@]}"
             ;;
 
             # Backup database with timestamped dump + optional scheduling.
             "backup")
-                db_backup_database
+                db_backup_database || return $?
                 exit 0
             ;;
 
             # Restore database from a SQL dump file.
             "restore")
-                db_restore_database
+                db_restore_database || return $?
                 exit 0
             ;;
 
             # Schedule database backup via cron.
             "backup-schedule")
-                if [[ -z "${DBNAME}" ]]; then
-                    fail "Please specify the database name using the --dbname parameter."
-                fi
-
-                DBUSER=${DBUSER:-"root"}
-                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
-
-                local SCHEDULE="${DBSCHEDULE:-"0 2 * * *"}"
-                local CRON_CMD="/usr/local/bin/lemper-cli db backup --dbname=${DBNAME}"
-
-                # Root backups read MYSQL_ROOT_PASSWORD from the config file.
-                # Other accounts get a root-only password file, keeping the
-                # secret out of the crontab and the process list.
-                if [[ "${DBUSER}" != "root" ]]; then
-                    if [[ -z "${DBPASS}" ]]; then
-                        fail "Please specify the account password using --dbpass or --dbpass-file."
-                    fi
-
-                    local SAFE_DBNAME=${DBNAME//[^A-Za-z0-9_.-]/_}
-                    local SAFE_DBUSER=${DBUSER//[^A-Za-z0-9_.-]/_}
-                    local DBPASS_FILE_PATH="/etc/lemper/db-backup-${SAFE_DBNAME}-${SAFE_DBUSER}.pass"
-
-                    if [[ "${DRYRUN}" != true ]]; then
-                        if [[ ! -d /etc/lemper ]]; then
-                            run install -d -m 0700 /etc/lemper
-                        fi
-                        ( umask 077 && printf '%s\n' "${DBPASS}" > "${DBPASS_FILE_PATH}" )
-                        run chmod 0600 "${DBPASS_FILE_PATH}"
-                    fi
-
-                    CRON_CMD+=" --dbuser=${DBUSER} --dbpass-file=${DBPASS_FILE_PATH}"
-                fi
-
-                # Remove existing entry for this database (if any).
-                local TMP_CRON
-                TMP_CRON=$(mktemp)
-                # shellcheck disable=SC2016
-                crontab -l 2>/dev/null | grep -v "lemper-cli db backup.*dbname=${DBNAME}" > "${TMP_CRON}" 2>/dev/null || true
-                echo "${SCHEDULE} ${CRON_CMD}" >> "${TMP_CRON}"
-                run crontab "${TMP_CRON}"
-                run rm -f "${TMP_CRON}"
-
-                success "Scheduled backup for database '${DBNAME}' with cron schedule: '${SCHEDULE}'"
-                echo "    Command: ${CRON_CMD}"
-                echo "    Next run: $(crontab -l 2>/dev/null | grep "dbname=${DBNAME}" | head -1 | awk '{print $1, $2, $3, $4, $5}')"
-
+                lemper_with_lock lemper_db_schedule || return $?
                 exit 0
             ;;
 
@@ -663,10 +558,12 @@ function db_operations() {
 
                 DBNAME=${DBNAME:-"${LEMPER_USERNAME}_db$(openssl rand -base64 32 | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)"}
 
+                lemper_db_validate || return 1
+
                 # Create database name.
                 echo "Creating new MySQL database '${DBNAME}' grants access to '${DBUSER}'@'${DBHOST}'..."
 
-                until ! MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; do
+                until ! MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -e "SHOW DATABASES;" | grep -Fxq -- "${DBNAME}"; do
                     echo "Database '${DBNAME}' already exist, try another one..."
                     DBNAME="${LEMPER_USERNAME}_db$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | fold -w 6 | head -n 1)"
                     echo "New auto-generated MySQL database '${DBNAME}'"
@@ -675,7 +572,7 @@ function db_operations() {
                 local SQL_QUERY="CREATE DATABASE ${DBNAME}; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
                 MYSQL_PWD="${DBPASS}" run "${MYSQLCLI}" -u root -e "${SQL_QUERY}"
 
-                if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -qwE "${DBNAME}"; then
+                if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -Fxq -- "${DBNAME}"; then
                     success "MySQL database '${DBNAME}' has been created and granted to '${DBUSER}'@'${DBHOST}'."
                 else
                     fail "Failed creating database '${DBNAME}'."
@@ -733,12 +630,12 @@ function db_operations() {
 
                 [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
 
-                if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
+                if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -e "SHOW DATABASES;" | grep -Fxq -- "${DBNAME}"; then
                     echo "Deleting database ${DBNAME}..."
 
                     MYSQL_PWD="${DBPASS}" run "${MYSQLCLI}" -u "${DBUSER}" -e "DROP DATABASE ${DBNAME};"
 
-                    if ! MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -qwE "${DBNAME}"; then
+                    if ! MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -Fxq -- "${DBNAME}"; then
                         success "Database '${DBNAME}' has been dropped."
                     else
                         fail "Failed deropping database '${DBNAME}'."
@@ -752,62 +649,13 @@ function db_operations() {
 
             # Export / dump database to file.
             "export")
-                if [[ -z "${DBNAME}" ]]; then
-                    fail "Please specify the database name using the --dbname parameter."
-                fi
-
-                DBUSER=${DBUSER:-"root"}
-
-                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
-
-                DBFILE=${DBFILE:-"${DBNAME}_$(date '+%d-%m-%Y_%T').sql"}
-
-                # Export database tables.
-                echo "Exporting database ${DBNAME}'s tables..."
-
-                if [[ -n $(command -v mysqldump) ]]; then
-                    if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
-                        MYSQL_PWD="${DBPASS}" run mysqldump -u "${DBUSER}" --databases "${DBNAME}" > "${DBFILE}"
-
-                        if [[ -f "${DBFILE}" ]]; then
-                            success "Database '${DBNAME}' has been successfully exported to '${DBFILE}'."
-                        else
-                            fail "Failed to export the database '${DBNAME}'."
-                        fi
-                    else
-                        fail "The specified database '${DBNAME}' does not exist."
-                    fi
-                else
-                    fail "Mysqldump is required to export database, but it is not available in your current stack. Please install it first."
-                fi
-
+                lemper_with_lock lemper_db_dump plain || return $?
                 exit 0
             ;;
 
-            # Import database from file.
+            # Import uses the same protected client and failure contract as restore.
             "import")
-                if [[ -z "${DBNAME}" ]]; then
-                    fail "Please specify the database name using the --dbname parameter."
-                fi
-
-                DBUSER=${DBUSER:-"root"}
-
-                [[ "${DBUSER}" = "root" && -z "${DBPASS}" ]] && DBPASS="${MYSQL_ROOT_PASSWORD}"
-
-                # Import database tables.
-                if [[ -n "${DBFILE}" && -e "${DBFILE}" ]]; then
-                    echo "Importing database ${DBNAME}'s tables..."
-
-                    if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u "${DBUSER}" -e "SHOW DATABASES;" | grep -qwE "${DBNAME}"; then
-                        MYSQL_PWD="${DBPASS}" run "${MYSQLCLI}" -u "${DBUSER}" "${DBNAME}" < "${DBFILE}"
-                        success "Database file '${DBFILE}' has been successfully imported to '${DBNAME}'."
-                    else
-                        fail "The specified database '${DBNAME}' does not exist."
-                    fi
-                else
-                    fail "Please specifiy the database file (.sql) to import using --dbfile parameter."
-                fi
-
+                lemper_with_lock lemper_db_restore || return $?
                 exit 0
             ;;
 
@@ -967,7 +815,7 @@ These are common ${CMD_PARENT} ${CMD_NAME} subcommands used in various situation
   create        Creates a new database.
   databases     Lists the databases.
   drop          Deletes the database.
-  export        Exports a database to a file or to STDOUT.
+  export        Exports a database to a private plain SQL file.
   backup        Creates a timestamped backup of a database.
   restore       Restores a database from a backup file.
   backup-schedule  Schedules automatic database backups via cron.
@@ -999,12 +847,20 @@ GLOBAL PARAMETERS
       MySQL database account password.
 
   --dbpass-file=<path>
-      Read the database account password from the first line of a file.
+      Read a single-line password from a caller-owned private file (0600).
+      For account passwd, this supplies the new password.
       Prefer this (or the LEMPER_DB_PASSWORD environment variable) over
       --dbpass, which is visible to other users in the process list.
 
   --dbname=<database_name>
       Selected database that will be used for operations.
+
+  --dbfile=<path>
+      Backup directory, export filename, or restore/import input file.
+      Backup directories must be root-owned and not writable by other users.
+
+  --dbschedule=<schedule>
+      Five numeric cron fields for backup-schedule (default: 0 2 * * *).
 
   --dbprefix=<prefix>
       Database name prefix, such as prefix_.
@@ -1051,6 +907,7 @@ function init_lemper_db() {
     # Check command line arguments.
     if [[ -n "${1}" ]]; then
         local SUBCMD="${1}"
+        [[ "$SUBCMD" != backup-schedule ]] || SUBCMD=backup_schedule
         shift # Pass the remaining arguments to the next function.
 
         case ${SUBCMD} in

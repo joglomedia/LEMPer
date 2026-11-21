@@ -60,53 +60,37 @@ EOL
 # Add MariaDB Repository.
 ##
 function add_mariadb_repo() {
-    echo "Adding MariaDB repository..."
-
-    MYSQL_SERVER=${MYSQL_SERVER:-"mariadb"}
-    MYSQL_VERSION=${MYSQL_VERSION:-"11.4"}
-
-    # Fallback to oldest version if OS release is not supported.
-    case "${RELEASE_NAME}" in
-        jessie)
-            MYSQL_VERSION="10.5"
-        ;;
-        bionic)
-           MYSQL_VERSION="11.4"
-        ;;
-    esac
-
-    if [[ "${MYSQL_REPO_MIRROR_URL}x" == "x" ]]; then
-        # Add MariaDB official repo.
-        MARIADB_REPO_SETUP_URL="https://downloads.mariadb.com/MariaDB/mariadb_repo_setup"
-
-        if curl -sLI "${MARIADB_REPO_SETUP_URL}" | grep -q "HTTP/[.12]* [2].."; then
-            run curl -sSL -o "${BUILD_DIR}/mariadb_repo_setup" "${MARIADB_REPO_SETUP_URL}" && \
-            run bash "${BUILD_DIR}/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
-                --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}" --skip-maxscale --skip-tools && \
-            run apt-get update -q -y
-        elif [[ -f "${BASE_DIR}/scripts/mariadb_repo_setup" ]]; then
-            info "MariaDB repo installer download failed, using bundled copy."
-            run bash "${BASE_DIR}/scripts/mariadb_repo_setup" --mariadb-server-version="mariadb-${MYSQL_VERSION}" \
-                --os-type="${DISTRIB_NAME}" --os-version="${RELEASE_NAME}" --skip-maxscale --skip-tools && \
-            run apt-get update -q -y
-        else
-            error "MariaDB repository installer is unavailable. Configure MYSQL_REPO_MIRROR_URL or install MariaDB manually."
-        fi
+    local version="${MYSQL_VERSION:-11.4}" distro="${DISTRIB_NAME:-}" release="${RELEASE_NAME:-}"
+    local root="${LEMPER_APT_ROOT:-/etc/apt}" key repo mirror="${MYSQL_REPO_MIRROR_URL:-}"
+    [[ "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ && "$release" =~ ^[a-z]+$ ]] || {
+        error "Invalid MariaDB repository version/codename."; return 1;
+    }
+    case "$distro" in debian|ubuntu) ;; *) error "Unsupported MariaDB distribution."; return 1 ;; esac
+    case "$release" in jessie) version=10.5 ;; bionic) version=11.4 ;; esac
+    key="$root/keyrings/mariadb.gpg"
+    lemper_load_module services/apt/repositories || return 1
+    # Keep the upstream keyring checksum verification; no downloaded helper executes.
+    lemper_apt_install_key https://supplychain.mariadb.com/mariadb-keyring-2019.gpg "$key" "" \
+        https://supplychain.mariadb.com/mariadb-keyring-2019.gpg.sha256 || return 1
+    if [[ -n "$mirror" ]]; then
+        [[ "$mirror" =~ ^https?://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9_./-]*)?$ ]] || {
+            error "MariaDB mirror must be an HTTP(S) URL without shell/query characters."; return 1;
+        }
+        repo="${mirror%/}/repo/$version/$distro"
     else
-        # Add MariaDB mirror repo.
-        local MARIADB_REPO_URL="${MYSQL_REPO_MIRROR_URL}/repo/${MYSQL_VERSION}/${DISTRIB_NAME}"
-
-        if curl -sLI "${MARIADB_REPO_URL}/dists/${RELEASE_NAME}/Release" | grep -q "HTTP/[.12]* [2].."; then
-            run bash -c "curl -fsSL https://mariadb.org/mariadb_release_signing_key.pgp | gpg --dearmor --yes -o /usr/share/keyrings/mariadb-keyring.gpg" && \
-            run chmod 644 "/usr/share/keyrings/mariadb-keyring.gpg" && \
-            run touch "/etc/apt/sources.list.d/mariadb.list" && \
-            run bash -c "echo 'deb [signed-by=/usr/share/keyrings/mariadb-keyring.gpg] ${MARIADB_REPO_URL} ${RELEASE_NAME} main' > /etc/apt/sources.list.d/mariadb.list" && \
-            run bash -c "echo '#deb-src [signed-by=/usr/share/keyrings/mariadb-keyring.gpg] ${MARIADB_REPO_URL} ${RELEASE_NAME} main' >> /etc/apt/sources.list.d/mariadb.list" && \
-            run apt-get update --allow-releaseinfo-change -q -y
-        else
-            error "MariaDB ${MYSQL_VERSION} release at mirror ${MYSQL_REPO_MIRROR_URL} not found."
-        fi
+        repo="https://deb.mariadb.org/$version/$distro"
     fi
+    lemper_apt_scope_sources mariadb "$key" || return 1
+    # Preserve pre-existing repository choices and other entries in the helper's file.
+    if ! lemper_apt_has_source mariadb; then
+        lemper_apt_write_source "$root/sources.list.d/lemper-mariadb.list" \
+            "deb [signed-by=$key] $repo $release main" || return 1
+    fi
+    local legacy
+    for legacy in "$root/trusted.gpg.d/mariadb-keyring-2019.gpg" "$root/trusted.gpg.d/mariadb.gpg"; do
+        lemper_apt_retire_key "$legacy" "$key" || return 1
+    done
+    lemper_exec apt-get update --allow-releaseinfo-change -q -y
 }
 
 ##
@@ -128,7 +112,7 @@ function init_mariadb_install() {
     # Do MariaDB server installation here...
     if [[ ${DO_INSTALL_MYSQL} == y* || ${DO_INSTALL_MYSQL} == Y* ]]; then
         # Add repository.
-        add_mariadb_repo
+        add_mariadb_repo || return $?
 
         echo "Installing MariaDB (MySQL drop-in replacement) server..."
 
