@@ -22,7 +22,7 @@
 function validate_config_value() {
     local key="${1}" value="${2}" mode="${3:-compatible}" version
     case "${key}" in
-        LEMPER_BUN_PREFIX|LEMPER_SITE_STATE_DIR|LEMPER_SITE_METADATA_ROOT|LEMPER_SITE_INSPECT_ROOT|LEMPER_SSL_ROOT|LEMPER_SSL_TEMPLATE_DIR|LEMPER_HOSTING_ROOT|LEMPER_HOSTING_ACCOUNT_ROOT) return 1 ;;
+        LEMPER_OPERATION_LOCK|LEMPER_MYSQL_MAIN_CONFIG|LEMPER_MYSQL_CONFIG_DIR|LEMPER_MARIADB_PROFILE|LEMPER_BUN_PREFIX|LEMPER_SITE_STATE_DIR|LEMPER_SITE_METADATA_ROOT|LEMPER_SITE_INSPECT_ROOT|LEMPER_SSL_ROOT|LEMPER_SSL_TEMPLATE_DIR|LEMPER_HOSTING_ROOT|LEMPER_HOSTING_ACCOUNT_ROOT) return 1 ;;
         HOSTING_QUOTA_MOUNT) [[ "$value" =~ ^/[a-zA-Z0-9_./-]*$ && "$value" != *..* ]] || return 1 ;;
         INSTALL_QUOTA|PROGRESS_ETA|TRANSFER_PROGRESS) [[ "$value" == true || "$value" == false ]] || return 1 ;;
         HOME|PATH|IFS|ENV|CDPATH|GLOBIGNORE|SHELLOPTS|BASHOPTS|BASH_*|LEMPER_CORE_DIR|LEMPER_CORE_SOURCE_DIR|BASE_DIR|SCRIPTS_DIR|CLI_SOURCE_DIR|CLI_SCRIPT_PATH|CLI_PLUGINS_DIR|CONFIG_FILE|ENVFILE|LEMPER_ENV_FILE|LEMPER_CLI_BIN|LEMPER_ROOT|LEMPER_INSTALL_ROOT|LEMPER_ENTRY_CANONICAL|LEMPER_TOOLING_ALREADY_INSTALLED|LEMPER_TOOLS_SKIP_CLI|LEMPER_MAIL_ROOT|LEMPER_MAIL_HOME_ROOT|LEMPER_SITE_APP_STATE_DIR|LEMPER_PHP_DIR|LD_*)
@@ -49,6 +49,10 @@ function validate_config_value() {
         FW_CONFIGURATOR) [[ "${value}" =~ ^(ufw|csf|apf|nftables)$ ]] || return 1 ;;
         NGINX_CUSTOMSSL_VERSION) [[ -z "$value" ]] || core_is_valid_custom_ssl_version "$value" || return 1 ;;
         NGINX_ETAG) [[ "${value}" == on || "${value}" == off ]] || return 1 ;;
+        MARIABACKUP_USER|MARIABACKUP_USERNAME)
+            [[ -z "$value" || ( "$value" != root && ${#value} -le 32 && "$value" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*$ ) ]] || return 1 ;;
+        MYSQL_ROOT_PASSWORD|MARIABACKUP_PASS|MARIABACKUP_PASSWORD)
+            [[ ${#value} -le 1024 && ! "$value" =~ [[:cntrl:]] ]] || return 1 ;;
         LEMPER_USERNAME) is_valid_username "${value}" && [[ "${value}" != root ]] || return 1 ;;
         HOSTNAME) [[ "${value}" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*$ && ${#value} -le 253 ]] || return 1 ;;
         MAILER_HOSTNAME|SENDER_DOMAIN|SERVER_HOSTNAME) [[ -z "${value}" ]] || is_valid_domain "${value}" || return 1 ;;
@@ -63,7 +67,7 @@ function validate_config_value() {
                 fi
             done ;;
         PHP_MEMORY_LIMIT) [[ "${value}" =~ ^(-1|[0-9]+[KkMmGg]?)$ ]] || return 1 ;;
-        RESTIC_REPOSITORY|RESTIC_PASSWORD_FILE|MONITOR_ALERT_EMAIL|MONITOR_SMTP_HOST|LOG_FILE|BUILD_DIR|ENVIRONMENT|TIMEZONE|LEMPER_PASSWORD|LEMPER_CONFIG_PASSWORD|LEMPER_ADMIN_EMAIL|ADMINER_VERSION|RSA_PUB_KEY|NGINX_REPO_SRC|NGINX_VERSION|NGINX_PCRE_VERSION|GEOLITE2_LICENSE_KEY|LUA_JIT_VERSION|LUA_RESTY_CORE_VERSION|LUA_RESTY_LRUCACHE_VERSION|LUA_NGINX_MODULE_VERSION|LUA_NGINX_STREAM_MODULE_VERSION|PHP_EXTENSIONS|PHP_LOADER|PHP_PHALCON_VERSION|PHP_ZEPHIR_VERSION|IMAGEMAGICK_VERSION|MYSQL_SERVER|MYSQL_VERSION|MYSQL_REPO_MIRROR_URL|MYSQL_ROOT_PASSWORD|MARIABACKUP_USER|MARIABACKUP_PASS|POSTGRES_VERSION|POSTGRES_PGDATA|POSTGRES_SUPERUSER|POSTGRES_DB_USER|POSTGRES_DB_PASS|MEMCACHED_VERSION|MEMCACHED_USERNAME|MEMCACHED_PASSWORD|MONGODB_VERSION|MONGODB_ADMIN_USER|MONGODB_ADMIN_PASSWORD|REDIS_VERSION|REDIS_PASSWORD|BUNJS_VERSION|FTP_SERVER_VERSION|HOSTNAME_CERT_PATH|DH_PARAM_GROUP|DEFAULT_PYTHON_VERSION|ACME_DNS_API_TOKEN|FAIL2BAN_INSTALLER|FAIL2BAN_VERSION|CROWDSEC_VERSION|MARIABACKUP_USERNAME|MARIABACKUP_PASSWORD|PSQL_DB_USER|PSQL_DB_PASS|PSQL_DB_TEST|MONGODB_ADMIN_PASS|MONGODB_HOST|MONGODB_PORT|MEMCACHED_INSTANCE|LEMPER_CONFIG_VERSION)
+        RESTIC_REPOSITORY|RESTIC_PASSWORD_FILE|MONITOR_ALERT_EMAIL|MONITOR_SMTP_HOST|LOG_FILE|BUILD_DIR|ENVIRONMENT|TIMEZONE|LEMPER_PASSWORD|LEMPER_CONFIG_PASSWORD|LEMPER_ADMIN_EMAIL|ADMINER_VERSION|RSA_PUB_KEY|NGINX_REPO_SRC|NGINX_VERSION|NGINX_PCRE_VERSION|GEOLITE2_LICENSE_KEY|LUA_JIT_VERSION|LUA_RESTY_CORE_VERSION|LUA_RESTY_LRUCACHE_VERSION|LUA_NGINX_MODULE_VERSION|LUA_NGINX_STREAM_MODULE_VERSION|PHP_EXTENSIONS|PHP_LOADER|PHP_PHALCON_VERSION|PHP_ZEPHIR_VERSION|IMAGEMAGICK_VERSION|MYSQL_SERVER|MYSQL_VERSION|MYSQL_REPO_MIRROR_URL|POSTGRES_VERSION|POSTGRES_PGDATA|POSTGRES_SUPERUSER|POSTGRES_DB_USER|POSTGRES_DB_PASS|MEMCACHED_VERSION|MEMCACHED_USERNAME|MEMCACHED_PASSWORD|MONGODB_VERSION|MONGODB_ADMIN_USER|MONGODB_ADMIN_PASSWORD|REDIS_VERSION|REDIS_PASSWORD|BUNJS_VERSION|FTP_SERVER_VERSION|HOSTNAME_CERT_PATH|DH_PARAM_GROUP|DEFAULT_PYTHON_VERSION|ACME_DNS_API_TOKEN|FAIL2BAN_INSTALLER|FAIL2BAN_VERSION|CROWDSEC_VERSION|PSQL_DB_USER|PSQL_DB_PASS|PSQL_DB_TEST|MONGODB_ADMIN_PASS|MONGODB_HOST|MONGODB_PORT|MEMCACHED_INSTANCE|LEMPER_CONFIG_VERSION)
             return 0 ;;
         *)
             [[ "${mode}" == compatible ]] || { printf 'Unknown configuration key: %s\n' "${key}" >&2; return 1; } ;;
@@ -74,6 +78,11 @@ function validate_config_value() {
 function validate_config_file() {
     local file="${1}" mode="${2:-compatible}" line key value number=0
     [[ -r "${file}" ]] || return 1
+    # shellcheck disable=SC2094 # cmp only reads the source; the filtered stream never replaces it.
+    if ! LC_ALL=C tr -d '\000' < "$file" | cmp -s "$file" -; then
+        printf 'Binary configuration values are unsupported (values redacted).\n' >&2
+        return 1
+    fi
     while IFS= read -r line || [[ -n "${line}" ]]; do
         number=$((number+1))
         line="${line%$'\r'}"
@@ -82,7 +91,8 @@ function validate_config_file() {
         [[ "${line}" == *=* ]] || { printf 'Malformed configuration at line %s\n' "${number}" >&2; return 1; }
         key="${line%%=*}"; key="${key%"${key##*[![:space:]]}"}"
         [[ "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || return 1
-        value="${line#*=}"; value="${value#\"}"; value="${value%\"}"; value="${value#\'}"; value="${value%\'}"
+        value="${line#*=}"
+        core_unquote_dotenv_value value
         if ! validate_config_value "${key}" "${value}" "${mode}"; then
             printf 'Invalid configuration for %s at line %s (value redacted).\n' "${key}" "${number}" >&2
             return 1

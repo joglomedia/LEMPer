@@ -611,8 +611,13 @@ management/older component installers and management bodies retain business logi
 Diagnostics, shared certificate issuance, repository migration and verified Bun
 installation now have dedicated runtime/service drivers. The pre-existing Python
 JSON reader is exported as a service helper and shared by all diagnostic views.
-Extract those into service drivers while preserving old imports and installed
-paths. Tasks 2.12/2.37 track this shared partial workstream, not absent foundations.
+Extract the remaining legacy bodies into service drivers while preserving old
+imports and installed paths. Tasks 2.12/2.37 track this shared partial workstream,
+not absent foundations. The [current audit](ROADMAP_AUDIT.md#remaining-work-at-9b7511b)
+identified backup-account provisioning and app-capability drivers as the next
+boundaries. P1 now extracts protected backup-account provisioning into
+`lib/services/mariadb/backup.sh`; app capabilities, site rendering and remaining
+manager/updater/component internals are subsequent work.
 Native nftables now uses a scoped driver with validated persistence and SSH recovery.
 
 ---

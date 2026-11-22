@@ -14,12 +14,7 @@ jobs:
       - uses: actions/checkout@v6
       - name: Install checks
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq bats curl python3-pip
-          sudo pip3 install --break-system-packages bashate
-          curl -fsSL https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz -o /tmp/shellcheck.tar.xz
-          tar -xf /tmp/shellcheck.tar.xz -C /tmp
-          sudo install -m 0755 /tmp/shellcheck-v0.11.0/shellcheck /usr/local/bin/shellcheck
+          sudo bash scripts/prepare_tests.sh
       - name: Validate release
         run: |
           shellcheck -s bash -x get-lemper install.sh remove.sh update.sh lemper.sh bin/lemper-cli.sh \
@@ -29,7 +24,7 @@ jobs:
             get-lemper install.sh remove.sh update.sh lemper.sh bin/lemper-cli.sh \
             scripts/*.sh scripts/nginx/*.sh lib/lemper-*.sh lib/core/*.sh \
             lib/runtime/*.sh lib/runtime/*/*.sh lib/services/*.sh lib/services/*/*.sh lib/compat/*.sh tests/uat/*.sh
-          bats tests/ tests/unit/
+          sudo bash scripts/run_tests.sh
       - name: Build archive and checksum
         env:
           RELEASE_TAG: ${{ github.ref_name }}

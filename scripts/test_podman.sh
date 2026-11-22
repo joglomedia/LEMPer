@@ -25,10 +25,11 @@ VOLUME="${PROJECT_ROOT}:/lemper:ro"
 WORKDIR="/lemper"
 
 # Base setup command for installing tools in the container.
-SETUP="apt-get update -qq && apt-get install -qq -y shellcheck bats > /dev/null 2>&1"
+SETUP="bash scripts/prepare_tests.sh"
 
 # ShellCheck command — mirrors CI.
 SC_CMD="shellcheck -s bash -x \
+    get-lemper scripts/prepare_tests.sh scripts/run_tests.sh scripts/test_podman.sh \
     install.sh remove.sh update.sh lemper.sh \
     bin/lemper-cli.sh \
     lib/lemper-*.sh lib/core/*.sh \
@@ -38,7 +39,7 @@ SC_CMD="shellcheck -s bash -x \
     tests/*.bats"
 
 # Bats command.
-BATS_CMD="bats tests/ tests/unit/"
+BATS_CMD="bash scripts/run_tests.sh"
 
 case "${MODE}" in
     --lint)

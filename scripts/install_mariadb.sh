@@ -15,6 +15,7 @@
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
+MARIADB_STANDALONE=false
 if [[ "$(type -t run)" != "function" ]]; then
     BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
     cd "${BASE_DIR}" || { echo "Cannot enter ${BASE_DIR}."; exit 1; }
@@ -23,6 +24,7 @@ if [[ "$(type -t run)" != "function" ]]; then
 
     # Make sure only root can run this installer script.
     requires_root "$@"
+    MARIADB_STANDALONE=true
 
     # Make sure only supported distribution can run this installer script.
     preflight_system_check
@@ -118,7 +120,7 @@ function init_mariadb_install() {
 
         # Install MariaDB
         run_spinner "Installing MariaDB" apt-get install -q -y libmariadb-dev libmariadb3 libmariadbclient18 mariadb-client mariadb-client-core \
-            mariadb-common mariadb-server mariadb-server-core mariadb-backup
+            mariadb-common mariadb-server mariadb-server-core mariadb-backup python3
 
         # Configure MySQL installation.
         if [[ "${DRYRUN}" == true ]]; then
@@ -205,11 +207,20 @@ function init_mariadb_install() {
                         echo "Securing MariaDB Installation..."
 
                         # Ref: https://bertvv.github.io/notes-to-self/2015/11/16/automating-mysql_secure_installation/
-                        MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
+                        MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-$(openssl rand -hex 24)} || return 1
+                        [[ -n "$MYSQL_ROOT_PASSWORD" ]] || { error "Unable to generate MariaDB root credentials."; return 1; }
+                        lemper_load_module services/mariadb/backup || return 1
+                        lemper_load_module services/mariadb/database || return 1
+                        lemper_mariabackup_secret_valid "$MYSQL_ROOT_PASSWORD" || { error "Invalid MariaDB root credentials."; return 1; }
+                        if [[ -z "${LEMPER_MARIADB_PROFILE:-}" && ! -f /etc/lemper/lemper.conf ]]; then
+                            core_init_config || return 1
+                        fi
+                        lemper_mariadb_store_root_credential || return 1
                         local SQL_QUERY=""
 
                         # Setting the database root password.
-                        SQL_QUERY="ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';"
+                        SQL_QUERY="SET SESSION sql_mode='NO_BACKSLASH_ESCAPES';
+                                ALTER USER 'root'@'localhost' IDENTIFIED BY $(lemper_db_password_sql "$MYSQL_ROOT_PASSWORD");"
 
                         # Delete anonymous users.
                         SQL_QUERY="${SQL_QUERY}
@@ -230,10 +241,11 @@ function init_mariadb_install() {
 
                         # Root password is blank for newly installed MariaDB (MySQL).
                         # Feed the statements via stdin so credentials stay out of argv.
-                        if printf '%s\n' "${SQL_QUERY}" | MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mariadb --user=root; then
+                        if printf '%s\n' "${SQL_QUERY}" | MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mariadb --user=root >/dev/null 2>&1; then
                             success "Securing MariaDB server installation has been done."
                         else
                             error "Unable to secure MariaDB server installation."
+                            return 1
                         fi
                     fi
                 else
@@ -262,7 +274,7 @@ function init_mariadb_install() {
                 allow_remote_client_access
 
                 # Enable Mariabackup
-                enable_mariabackup
+                enable_mariabackup || return 1
 
                 # Restart MariaDB (MySQL)
                 run systemctl restart mariadb.service
@@ -292,56 +304,14 @@ function init_mariadb_install() {
 # Enable MariaDB Backup tool.
 ##
 function enable_mariabackup() {
-    echo ""
-    echo "Mariabackup will be installed and enabled by default."
-    echo "It is useful to backup and restore MySQL database."
-    echo ""
-    sleep 1
-
-    export MARIABACKUP_USER=${MARIABACKUP_USER:-"lemperdb"}
-    MARIABACKUP_PASS=${MARIABACKUP_PASS:-$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)}
-    export MARIABACKUP_PASS
-
-    #echo "Please enter your current MySQL root password to process!"
-    until [[ "${MYSQL_ROOT_PASSWORD}" != "" ]]; do
-        echo -n "MySQL root password: "; stty -echo; read -r MYSQL_ROOT_PASSWORD; stty echo; echo
-    done
-    export MYSQL_ROOT_PASSWORD
-
-    # Create default LEMPer database user if not exists.
-    if ! MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" mariadb -u root -e "SELECT User FROM mysql.user;" | grep -q "${MARIABACKUP_USER}"; then
-        # Create mariabackup user.
-        SQL_QUERY="CREATE USER '${MARIABACKUP_USER}'@'localhost' IDENTIFIED BY '${MARIABACKUP_PASS}';
-                GRANT RELOAD, PROCESS, LOCK TABLES, REPLICATION CLIENT ON *.* TO '${MARIABACKUP_USER}'@'localhost';"
-
-        printf '%s\n' "${SQL_QUERY}" | MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" run mariadb -u root
-
-        # Update my.cnf
-        MARIABACKUP_CNF="###################################
-# Custom optimization for LEMPer
-# Mariabackup credential
-#
-[mariabackup]
-user=${MARIABACKUP_USER}
-password=${MARIABACKUP_PASS}
-open_files_limit=65535
-"
-
-        if [[ -d /etc/mysql/mariadb.conf.d ]]; then
-            run touch /etc/mysql/mariadb.conf.d/50-mariabackup.cnf
-            run bash -c "echo '${MARIABACKUP_CNF}' > /etc/mysql/mariadb.conf.d/50-mariabackup.cnf"
-        else
-            run bash -c "echo -e '\n${MARIABACKUP_CNF}' >> /etc/mysql/my.cnf"
-        fi
-
-        # Save config.
-        save_config -e "MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}\nMARIABACKUP_USERNAME=${MARIABACKUP_USER}\nMARIABACKUP_PASSWORD=${MARIABACKUP_PASS}"
-
-        # Save log.
-        save_log "MariaDB configured; credentials saved to protected LEMPer configuration."
-    else
-        info "It seems that user '${MARIABACKUP_USER}' already exists. You can add mariabackup user manually!"
+    if [[ "${DRYRUN:-false}" != true ]] && ! command -v python3 >/dev/null; then
+        run apt-get install -q -y python3
     fi
+    if [[ "${DRYRUN:-false}" != true && -z "${LEMPER_MARIADB_PROFILE:-}" && ! -f /etc/lemper/lemper.conf ]]; then
+        core_init_config || return 1
+    fi
+    lemper_load_module services/mariadb/backup || return 1
+    lemper_mariabackup_provision
 }
 
 ##
@@ -389,7 +359,12 @@ echo "[MariaDB (MySQL drop-in replacement) Installation]"
 # Start running things from a call at the end so if this script is executed
 # after a partial download it doesn't do anything.
 if [[ -n $(command -v mariadb) && -n $(command -v mariadbd) && "${FORCE_INSTALL}" != true ]]; then
-    info "MariaDB server already exists, installation skipped."
+    info "MariaDB server already exists; reconciling backup configuration."
+    if [[ "${INSTALL_MYSQL:-false}" == true ]]; then
+        if [[ "${MARIADB_STANDALONE:-false}" == true ]]; then lemper_with_lock enable_mariabackup || exit 1
+        else enable_mariabackup || return 1; fi
+    fi
 else
-    init_mariadb_install "$@"
+    if [[ "${MARIADB_STANDALONE:-false}" == true ]]; then lemper_with_lock init_mariadb_install "$@"
+    else init_mariadb_install "$@"; fi
 fi

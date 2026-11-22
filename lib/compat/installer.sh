@@ -523,7 +523,7 @@ function init_lemper_install() {
         --install | install)
             #./install.sh
             header_msg
-            lemper_install
+            lemper_with_lock lemper_install || return 1
             final_time_result "${START_TIME}"
             footer_msg
             exit 0
@@ -531,7 +531,7 @@ function init_lemper_install() {
         --uninstall | --remove | uninstall | remove)
             #./remove.sh
             header_msg
-            lemper_remove
+            lemper_with_lock lemper_remove || return 1
             final_time_result "${START_TIME}"
             footer_msg
             exit 0

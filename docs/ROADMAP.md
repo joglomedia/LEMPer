@@ -2,7 +2,7 @@
 
 > **Latest published version:** 3.6.0
 > **Last Updated:** 2026-11-22
-> **Code baseline:** 14377b0 plus prioritized follow-through on `release/v4.0.0`
+> **Code baseline:** 9b7511b plus P1 implementation on `release/v4.0.0`
 > **Status:** v4.0 foundations, mail hosting and PHP/Laravel enhancements are
 > implemented but unreleased. Partial tasks, deferred plans and release
 > validation remain; see [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
@@ -20,7 +20,7 @@
 
 ## Current implementation and remaining work
 
-The [2026-11-21 source audit](ROADMAP_AUDIT.md) reconciles all 48 numbered
+The [2026-11-22 source audit](ROADMAP_AUDIT.md) reconciles all 48 numbered
 task IDs, Architecture §4 and the README/developer plans. It supersedes the
 previous audit's ranks and distinguishes implemented foundations from remaining
 scope inside tasks historically marked complete.
@@ -64,8 +64,27 @@ older management/application/installer bodies remains the partial 2.12/2.37
 architecture workstream. See [the implementation audit](ROADMAP_AUDIT.md#prioritized-implementation-follow-through--2026-11-22)
 for source evidence, checks and limits. Release validation/publication gates remain.
 
-Authenticated encryption and custom TLS pins remain explicit policy/format
-decisions. The delivered encryption uses AES-256-CBC/PBKDF2. Full evidence,
+Current delivery status:
+
+1. **P1 — implemented:** Protected MariaDB backup-account provisioning,
+   literal credential handling, canonical keys, existing-account repair and
+   legacy inline credential migration (A1).
+2. **P1 — implemented:** Shared Linux dependencies, root test fixtures and
+   isolated state across CI/release/coverage/Podman entry points (A2).
+3. **P2:** Align CLI/TUI application-install choices with actual capabilities;
+   Mautic/Roundcube/Sendy currently reach a placeholder-only creation branch (A3).
+4. **P2:** Continue the partial 2.12/2.37 extraction, beginning with those coherent
+   drivers, then site rendering and older manager/updater/installer internals (A4).
+
+See [remaining work and evidence](ROADMAP_AUDIT.md#remaining-work-at-9b7511b).
+Protected SQL backups, repository migration, diagnostic parity and domain DB
+shortcuts remain implemented. The backup-account finding in the older installer
+now has a dedicated service driver; the initial documentation audit is preserved
+with implementation follow-through in the audit report.
+
+Authenticated encryption remains an explicit format/provider decision; the
+delivered encryption uses AES-256-CBC/PBKDF2. The maintained default custom TLS
+source has been selected and tested. Full evidence,
 dependencies and task-by-task qualifications are in [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
 
 Previously recorded validation includes 358 Bats tests, 13 archive-bootstrap UAT
@@ -75,10 +94,17 @@ see [RELEASE_V4.md](RELEASE_V4.md), [MAIL.md](MAIL.md) and
 could not reach Podman. Subsequent P1 work
 used the restarted machine; 30 real Ubuntu 24.04 ARM64 checks passed. Debian's
 live PHP package validation encountered an upstream index checksum mismatch.
-Final clean-candidate assets
-need rebuilding and exact-archive validation. GitHub returned no Actions runs
-for 523d686, and v4.0.0 is not published. Public ACME, broader native platform
-coverage and selected legacy transitions remain validation work.
+Latest recorded implementation validation includes **437 passing Bats tests**,
+47 Ubuntu 24.04 ARM64 checks and 37 Debian 12 ARM64 checks; these are historical
+results before 9b7511b was committed, not a full rerun in this audit. The current
+audit reproduced the DB fixture environment difference: 18/18 pass as root,
+12/18 as an ordinary user. P1 now fixes that execution contract: the shared
+runner passed **456 tests on Ubuntu 24.04 and Debian 12 ARM64**; scoped function
+coverage is **61/68 (89.7%)**, and native provisioning UAT passed **22 checks
+on each distro**. Final assets need rebuilding and exact-archive validation. GitHub returned no Actions runs for the full
+9b7511b candidate SHA, and v4.0.0 is not published. Public ACME, native AMD64,
+HTTP/3 client negotiation, remote integrations and selected legacy transitions
+remain validation work.
 
 ---
 
@@ -274,13 +300,17 @@ curl -sSL https://... | gpg --dearmor -o /usr/share/keyrings/repo.gpg
 
 ---
 
-#### 2.9 Add Input Sanitization Layer (Security — Medium) — Identified boundaries implemented
+#### 2.9 Add Input Sanitization Layer (Security — Medium) — Reviewed runtime/backup boundaries implemented
 
 **Current status:** Site/account/SSH validators and the legacy DB validation/
 execution follow-through are implemented. Shared whole-value predicates now reject
 multiline/control input, and semantic IPv6 checks cover compression and IPv4 tails.
 Legacy text-returning wrappers delegate to the same core; site/SSL input validation
-happens before mutation. See the audit for the verified boundary and limitations.
+happens before mutation. The current audit additionally identifies configured
+backup-account names/passwords interpolated into SQL and a shell program in
+`scripts/install_mariadb.sh`; A1 now replaces this with a protected service driver.
+Shared dotenv/schema parsing preserves one matching outer quote pair. See the
+audit for verification and limitations.
 
 **Historical issue:** Domain names are passed directly to `sed`, `openssl`, and file paths without
 sanitization. While `validate_fqdn()` is called in some paths, other paths (e.g.,
@@ -840,8 +870,9 @@ The installer floor is now 8.2. Shipped templates are 8.2–8.5. `update php --m
 **Status:** **Partially implemented.** Core helpers, runtime use cases, service
 drivers, isolated legacy adapters, registries, locking and installed exports are
 working. Account/database/SSL/TUI/vhost-creation handlers now live in function-only
-runtime modules. Remaining work is gradual extraction of legacy management,
-diagnostics, application rendering/install logic and component installer internals
+runtime modules; diagnostics, certificate issuance, repositories and Bun now have
+service/runtime boundaries too. Remaining work is gradual extraction of legacy
+management/updater bodies, application rendering/install logic and component installer internals
 behind those interfaces. This is the same workstream as 2.12; retained public
 wrappers and compatibility filenames do not themselves indicate missing modules.
 
@@ -853,13 +884,20 @@ wrappers and compatibility filenames do not themselves indicate missing modules.
 
 **Issue:** Tests are structural (grep-based) only.
 
-**Fix:** ✅ Implemented — Added `tests/unit/` (12 tests) with PATH-shadowing mocks:
+**Fix:** ✅ Implemented — Added `tests/unit/` with PATH-shadowing mocks. The
+current source declares 456 tests across 36 Bats files; the original 12-case
+addition included:
+
 - `validators.bats` — `validate_fqdn()`, `validate_ipv4()`, `sanitize_sed_*`,
   and `validate_nginx_config()` against a mocked nginx binary.
 - `php_temp_dirs.bats` — `create_php_temp_dirs()` with mocked `mkdir`/`chmod`/`chown`.
 - `db_backup_restore.bats` — extracted `db_backup_database()` /
   `db_restore_database()` driven by mocked `mariadb` / `mariadb-dump`.
 - CI and `test_podman.sh` now run `bats tests/ tests/unit/`.
+
+**Execution follow-through:** A2 in the current audit records a reproduced
+root/unprivileged fixture mismatch and incomplete Podman dependency preparation.
+P1 now delivers shared root Linux setup/runner helpers and per-test locks.
 
 **Effort:** ✅ Done
 
@@ -901,6 +939,9 @@ wrappers and compatibility filenames do not themselves indicate missing modules.
 - **2.42** — `lib/lemper-tui.sh`: guided wizard validates the domain, framework,
   PHP version, system user, and web root, then invokes `lemper-site create` with
   SSL, wildcard, FastCGI cache, Fail2ban, and app-install options.
+  The current runtime wizard still offers Mautic/Roundcube/Sendy application
+  installation even though their creation branch provides only a placeholder;
+  capability alignment remains A3 in the current audit.
 - **2.43** — `lib/lemper-modsec.sh`: new `lemperctl modsec` plugin with
   `status`, `report`, and `tune` commands. `tune --auto --apply` derives CRS
   paranoia/thresholds from the audit log, writes `/etc/modsecurity/lemper-tuning.conf`,
@@ -994,7 +1035,9 @@ exact-archive validation remain release follow-through.
 | ------------------------------------------------------------------------ | ------ | ---------- | -------------------------------------------------------------------- | ----------- |
 | Removing NOPASSWD:ALL breaks user scripts that rely on passwordless sudo | High   | Medium     | Document migration, add restricted sudoers config as opt-in          | ✅ Mitigated |
 | Replacing `eval` config loader breaks existing `.env` parsing            | Medium | High       | Maintain backward-compatible fallback, test all key types            | ✅ Mitigated |
-| Reorganizing directory structure breaks CI and user automation           | High   | Medium     | Core wrappers implemented; runtime/services compatibility migration remains | Pending |
+| Reorganizing directory structure breaks CI and user automation           | High   | Medium     | Preserve working wrappers/exports during deeper service extraction (A4) | In progress |
+| Test entry points use incompatible users or missing fixture dependencies | High | Confirmed locally | Shared root Linux fixtures/tooling and isolated state (A2); remote candidate CI remains a release gate | Implemented locally |
+| Legacy backup-account credentials are written without private modes or literal serialization | High | Confirmed in isolated probe | Protected provisioning, key reconciliation and inline migration (A1) | Implemented locally |
 | Removing PHP 5.6–7.4 breaks existing vhost configs                       | Medium | Medium     | Auto-detect installed PHP, warn on upgrade, provide migration script | ✅ Mitigated |
 | Encrypted config breaks non-interactive CLI use                          | High   | Medium     | Add `--password` flag and environment variable fallback              | ✅ Mitigated |
 | bats-core migration requires rewriting all tests                         | Medium | High       | Keep shunit2 tests running alongside, migrate gradually              | ✅ Mitigated |
@@ -1028,11 +1071,14 @@ exact-archive validation remain release follow-through.
 
 Latest published release is **v3.6.0**. Delivery history below does not imply
 every original task's full scope is complete. The unreleased **v4.0** branch
-has implemented foundations, with the remaining architecture/P3 backlog above.
+has delivered P1/P2/P3 foundations and prioritized runtime follow-through.
+Additional installer, CI and app-capability gaps are listed in the current audit;
+module decomposition remains partial.
 
-P1 follow-through is implemented. For release preparation, rebuild assets from
-the final clean commit, validate that archive and candidate CI, then tag/publish
-only when authorized. Keep deferred architecture/product scope explicit.
+A1/A2 are implemented; continue with A3/A4. For release preparation, rebuild assets from
+the final clean commit after required fixes, validate that archive and candidate
+CI, then tag/publish only when authorized. Keep deferred architecture/product
+scope explicit.
 
 Delivery history and unreleased candidate:
 

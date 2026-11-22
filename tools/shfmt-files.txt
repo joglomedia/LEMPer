@@ -15,3 +15,7 @@ lib/services/ssl/certificates.sh
 lib/services/bun/binary.sh
 lib/services/site/database.sh
 tests/uat/priority_acceptance.sh
+lib/services/mariadb/backup.sh
+scripts/prepare_tests.sh
+scripts/run_tests.sh
+tests/uat/p1_provisioning_acceptance.sh

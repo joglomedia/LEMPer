@@ -9,3 +9,4 @@ lib/services/site/database.sh
 lib/runtime/site/show.sh
 lib/services/apt/catalog.sh
 lib/services/bun/binary.sh
+lib/services/mariadb/backup.sh

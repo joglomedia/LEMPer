@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck disable=SC2016 # Structural assertions intentionally match literal shell variable references.
 ##
 # Bats test suite for LEMPer architecture structure.
 #
@@ -385,7 +386,9 @@ refute_grep() {
 }
 
 @test "CI workflow uses ShellCheck v0.11.0" {
-    grep -q 'shellcheck-v0.11.0' "${BASE_DIR}/.github/workflows/main.yml"
+    grep -q 'scripts/prepare_tests.sh' "${BASE_DIR}/.github/workflows/main.yml"
+    grep -q 'scripts/prepare_tests.sh' "${BASE_DIR}/.github/workflows/release.yml"
+    grep -q 'shellcheck-v0.11.0' "${BASE_DIR}/scripts/prepare_tests.sh"
 }
 
 @test "CI workflow installs and verifies both FTP servers" {

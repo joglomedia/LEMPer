@@ -141,8 +141,8 @@ shellcheck -s bash lib/core/lemper-stacks.sh
 # 2. Shell formatting (bashate-style checks)
 # (In v3.0, a .editorconfig will enforce tab-vs-space, line length, etc.)
 
-# 3. Unit tests (when applicable)
-bats tests/ tests/unit/
+# 3. Unit tests in a disposable Linux container
+bash scripts/test_podman.sh --test
 
 # 4. Verify .env is not tracked
 git status --porcelain | grep '.env' && echo "ERROR: .env is tracked!" && exit 1
@@ -167,23 +167,28 @@ podman machine start
 #### 3.4.2 Run Full Validation (ShellCheck + Bats)
 
 ```bash
-# From the LEMPer project root:
-podman run --rm \
-    -v "${PWD}:/lemper:ro" \
-    -w /lemper \
-    ubuntu:24.04 bash -c '
-        apt-get update -qq && \
-        apt-get install -qq -y shellcheck bats > /dev/null 2>&1 && \
-        shellcheck -s bash -x \
-            install.sh remove.sh lemper.sh \
-            bin/lemper-cli.sh \
-            lib/lemper-*.sh lib/core/lemper-stacks.sh \
-            scripts/install_*.sh scripts/remove_*.sh scripts/utils.sh \
-            scripts/server_*.sh scripts/nginx/*.sh \
-            tests/*.bats && \
-        bats tests/ tests/unit/
-    '
+# From the LEMPer project root (checkout mounted read-only):
+bash scripts/test_podman.sh           # ShellCheck 0.11.0 + full Bats suite
+bash scripts/test_podman.sh --lint    # ShellCheck only
+bash scripts/test_podman.sh --test    # Bats only
 ```
+
+The helper uses `scripts/prepare_tests.sh` for the shared Debian/Ubuntu fixture
+packages, SSH host keys and pinned native ShellCheck binary. Primary CI, Debian
+CI, release checks and coverage use the same preparation. In a designated
+**disposable Linux environment**, equivalent commands are:
+
+```bash
+bash scripts/prepare_tests.sh
+bash scripts/run_tests.sh
+bash scripts/run_tests.sh --coverage /var/tmp/lemper-coverage
+```
+
+These commands require root: trusted-directory, sudoers and OpenSSH fixtures
+exercise real ownership and configuration checks. `run_tests.sh` provides private
+temporary state and a test lock; each unit fixture has its own operation lock.
+Preparation installs test dependencies and must run only inside the designated
+container/CI runner.
 
 #### 3.4.3 Installation dry-run fixture
 

@@ -16,6 +16,14 @@
 # +-------------------------------------------------------------------------+
 
 
+# Remove exactly one matching outer quote pair; inner/one-sided quotes are data.
+function core_unquote_dotenv_value() {
+    local -n dotenv_value="$1"
+    if [[ ${#dotenv_value} -ge 2 && ( "$dotenv_value" == \"*\" || "$dotenv_value" == \'*\' ) ]]; then
+        dotenv_value="${dotenv_value:1:${#dotenv_value}-2}"
+    fi
+}
+
 function core_safe_parse_dotenv() {
     local envfile="${1}"
     while IFS= read -r line || [[ -n "${line}" ]]; do
@@ -30,11 +38,7 @@ function core_safe_parse_dotenv() {
         local key="${line%%=*}"
         local value="${line#*=}"
         key="${key%"${key##*[![:space:]]}"}"  # rtrim
-        # Strip surrounding quotes from value if present.
-        value="${value#\"}"
-        value="${value%\"}"
-        value="${value#\'}"
-        value="${value%\'}"
+        core_unquote_dotenv_value value
         # Validate key name (prevent injection).
         if [[ "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
             printf '%s\t%s\n' "${key}" "${value}"
@@ -56,6 +60,11 @@ function core_set_env_value() {
         return 0
     fi
 
+    # Only add an outer wrapper when a future read would otherwise consume
+    # actual quote characters. Normal values keep their established spelling.
+    local normalized="$value"
+    core_unquote_dotenv_value normalized
+    [[ "$normalized" == "$value" ]] || value="'$value'"
     local tmp
     tmp=$(mktemp "${file}.XXXXXX") || return 1
 
@@ -67,7 +76,10 @@ function core_set_env_value() {
         END { if (!found) print k "=" v }
     ' "${file}" > "${tmp}"; then
         # Rewrite in place to keep ownership and mode.
-        cat "${tmp}" > "${file}"
+        if ! cat "${tmp}" > "${file}"; then
+            rm -f "${tmp}"
+            return 1
+        fi
         rm -f "${tmp}"
         return 0
     fi

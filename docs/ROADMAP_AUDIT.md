@@ -1,8 +1,9 @@
 # LEMPer roadmap implementation audit
 
-Date: **2026-11-22**. Code baseline: **14377b0** plus the prioritized
-implementation working tree, `release/v4.0.0`. The cross-check at 753c846 is
-preserved below; the follow-through section records the resulting implementation.
+Date: **2026-11-22**. Code baseline: **9b7511b383e6dbcb5cd3da2424b604016134c379**,
+`release/v4.0.0`, plus the P1 implementation working tree. The initial audit
+began from a clean checkout. Earlier
+cross-checks and implementation validation are preserved below as history.
 Latest GitHub release checked: **v3.6.0**. v4.0.0 is not published.
 
 This report supersedes the earlier 2026-11-20 audit; that snapshot remains in
@@ -14,6 +15,50 @@ historical problem descriptions or old file layouts as current bugs.
 Priorities below are suggested delivery priorities, not vulnerability severity
 ratings. Source presence does not prove every platform or live upgrade works.
 This audit does not constitute a new security scan or upstream dependency audit.
+
+## Remaining work at 9b7511b
+
+The previously reported runtime validation, curated repository/custom-TLS,
+diagnostic parity and domain-DB gaps are delivered in **9b7511b**. This pass found
+additional installer and test-environment scope; it does not reopen the working
+SQL backup/restore engine or treat every historical TODO as an absent feature.
+
+| Order | Priority / scope | Confirmed remaining work | Recommended completion |
+|---|---|---|---|
+| A1 | **P1 — legacy MariaDB backup provisioning; 2.9 and credential-file guardrails** | [enable_mariabackup](../scripts/install_mariadb.sh) inserts configured names/passwords directly into SQL and a generated shell program. With umask `022`, its synthetic credential drop-in was **0644**; a quoted password failed configuration generation. It saves `MARIABACKUP_USERNAME`/`MARIABACKUP_PASSWORD`, while installation reads `MARIABACKUP_USER`/`MARIABACKUP_PASS`. An existing account skips configuration repair. The schema accepts all four names but does not reconcile them. | Extract a backup-account driver using validated identifiers, literal credential serialization and protected atomic mode-0600 configuration. Reconcile canonical/legacy keys and existing-account state without silently resetting credentials. Cover quoted inputs, failures, private modes and repeat installation. |
+| A2 | **P1 — reproducible CI/release checks; 2.15/2.38 and release validation** | [Primary CI](../.github/workflows/main.yml) and [release CI](../.github/workflows/release.yml) run the full Bats suite unprivileged. The DB fixture suite had **6 failures out of 18** as an ordinary Linux user, versus **18/18 passing** as root with isolated locks/temp directories. Directory trust checks reject root-owned ancestors for an unprivileged caller. Some [core tests](../tests/unit/core_contracts.bats) also require `visudo`, `sshd` and `/run/sshd`; the [Podman helper](../scripts/test_podman.sh) installs only ShellCheck/Bats. | Align these entry points with a designated root Linux fixture, declare complete dependencies and the intended lint version, and isolate test locks/state. Preserve runtime ownership checks. Then validate the exact candidate's jobs; the formatting/coverage job already uses root and a fuller dependency list. |
+| A3 | **P2 — application capability contract; README and 2.42** | [Site normalization](../lib/runtime/site/commands.sh) accepts Mautic/Roundcube/Sendy with `--install-skeleton`, and the [TUI wizard](../lib/runtime/tui/commands.sh) offers installation by default. Their [creation branch](../lib/runtime/site/create.sh) only writes an index placeholder and generic vhost, even when installation was requested. | Distinguish vhost support from application installation. Reject unsupported installation requests before mutations, or implement verified application drivers and a user-supplied artifact path where licensing requires it. Have CLI/TUI share the capability list and verify actual application entry files in acceptance checks. |
+| A4 | **P2 — deeper decomposition; 2.12/2.37, Architecture §4.4** | Business logic remains in [management](../lib/lemper-manage.sh), [updater](../lib/lemper-update.sh), [site creation](../lib/runtime/site/create.sh) and older component installers. Site creation still combines orchestration, configuration rendering and application installation. [Compatibility adapters](../lib/compat/components.sh) isolate legacy execution but do not extract those bodies. | Move one cohesive use case at a time behind existing runtime/service contracts, starting with A1/A3, then site rendering and manager/updater/component internals. Preserve wrappers, registries, installed exports, locking, dry-run behavior and returned failures. |
+
+Publication gates are listed separately below. Finish A1/A2 before relying on
+release readiness; deeper decomposition remains incremental release follow-up.
+The app contract needs an explicit supported-capability boundary even if full
+Mautic/Roundcube/Sendy deployment is deferred.
+
+**Optional extensions, not unfinished required implementations:** authenticated
+configuration encryption, YAML, additional quota filesystems and CPU/RAM/bandwidth
+limits. MariaDB installation already includes `mariadb-backup`; the managed DB
+commands implement logical SQL dumps. A managed physical backup/prepare/restore
+workflow would be an additional capability, not evidence that SQL backups are
+missing. OCSP directives already exist in the SSL include; operational stapling
+depends on the certificate/issuer and is not an absent-template finding.
+
+## Current P1 follow-through
+
+**A1 and A2 are implemented in the working tree.** A3/A4 above remain the next
+implementation priorities; release validation/publication gates remain separate.
+
+| Finding | Delivered behavior | Source / qualification |
+|---|---|---|
+| A1 | Dedicated function-only backup-account driver; literal SQL/options/dotenv credentials; private atomic drop-in/profile updates; encryption-preserving canonical key reconciliation; existing-account authentication and configuration repair without password resets; protected recovery copies and known inline `my.cnf` migration | [driver](../lib/services/mariadb/backup.sh), [installer](../scripts/install_mariadb.sh), [regressions](../tests/unit/mariadb_backup_account.bats). Credentials are durable before account/grant mutations so partial SQL failures can be retried. Ambiguous/untrusted configuration is rejected; custom inline tuning requires reconciliation. Root credentials are saved before bootstrap SQL; write/RNG failures abort. The private inline include preserves option precedence and is synchronized with canonical credentials. [Native option preflight](../lib/services/mariadb/option_guard.py) rejects control escapes and untrusted include graphs before recovery. |
+| A2 | Shared root Linux dependency setup and native ShellCheck 0.11.0; isolated Bats/coverage runner and per-unit operation locks; primary Ubuntu CI, Debian CI, coverage, release and Podman entry points use these contracts | [setup](../scripts/prepare_tests.sh), [runner](../scripts/run_tests.sh), [Podman](../scripts/test_podman.sh), [fixture](../tests/unit/env_helper.bash), [CI](../.github/workflows/main.yml), [release](../.github/workflows/release.yml). No runtime ownership check was relaxed. Remote Actions results still require the final committed candidate. |
+
+The shared literal dotenv parser and schema now strip **one matching outer quote
+pair**. The shared writer wraps values when needed to retain actual quote
+characters during profile merging. Inner and one-sided quotes remain data; this preserves quoted passwords
+on both installer and installed CLI paths. The encrypted-profile format is unchanged.
+See [DATABASE.md](DATABASE.md#mariadb-backup-account-provisioning) and
+[DEVELOPER.md](../DEVELOPER.md) for operating and test contracts.
 
 ## Implemented foundations
 
@@ -38,7 +83,7 @@ Further extraction of business logic from legacy files is still unfinished.
 
 ## P1 implementation follow-through
 
-The three P1 findings below are implemented in the current working tree:
+The three P1 findings below were implemented in **363945d**:
 
 | Rank | Delivered behavior | Source / validation |
 |---|---|---|
@@ -54,7 +99,7 @@ This is scoped component UAT, not a rebuilt final release archive.
 
 ## P2 implementation follow-through
 
-P1 is committed as `363945d`. The current P2 working tree delivers:
+P1 is committed as `363945d`. P2 is committed as **736c5e5** and delivers:
 
 | Rank | Status | Delivered behavior / remaining qualification |
 |---|---|---|
@@ -85,6 +130,9 @@ scope. R8 remains an incremental architecture workstream; its next service
 boundaries are delivered, while older installer/management internals still remain.
 
 ## Prioritized implementation follow-through — 2026-11-22
+
+Delivered in **9b7511b**; the recorded implementation checks below preceded that
+commit. A1/A2/A3 above are additional scope found by the current audit.
 
 | Tasks | Delivered follow-through | Limits / source |
 |---|---|---|
@@ -143,10 +191,10 @@ roadmap/architecture documentation only and does not implement the open scope.
 
 | Gate | Current evidence | Required follow-through |
 |---|---|---|
-| CI for the candidate commit | GitHub Actions API returned **0 runs for 523d686**; successful runs on other commits are not candidate validation. | Run/review the candidate's jobs, including new mail and PHP/Laravel acceptance jobs. This audit does not authorize a push. |
-| Final release assets | [RELEASE_V4.md](RELEASE_V4.md) records locally reproducible assets from an earlier temporary source snapshot. The mail/runtime commits came afterward. | Build from the final clean committed candidate, verify all four assets and their contents/checksums, then validate that exact archive/bootstrap. |
+| CI for the candidate commit | `gh run list --commit 9b7511b383e6dbcb5cd3da2424b604016134c379` returned **0 runs**. A2 identifies a local reproduction of the test-environment mismatch; this is not a remotely observed Actions failure. | Correct the environment contract, then run/review the exact candidate's jobs, including service acceptance checks. This audit does not authorize a push or workflow trigger. |
+| Final release assets | [RELEASE_V4.md](RELEASE_V4.md) records locally reproducible assets from an earlier temporary source snapshot. It does not validate the archive of 9b7511b. | After the required fixes, build from the final clean committed candidate, verify all four assets and their contents/checksums, then validate that exact archive/bootstrap. |
 | Publication | Exact `gh release view v4.0.0` returned `release not found`; no local `v4*` tag was found. Latest published release is v3.6.0. | Set the release date, review/tag/publish after authorization, and verify published downloads and README one-liners. |
-| Remaining deployment validation | Recorded native full-bootstrap UAT used Ubuntu 24.04 ARM64 with a source Nginx profile. Public DNS/ACME, broader architecture/distribution installation coverage, and some live legacy transitions remain unverified. | Test representative supported profiles and upgrades, real issuance/renewal with controlled domains, and SSH/firewall recovery in designated disposable environments. These are validation gates, not absent schema/bootstrap/SSH implementations. |
+| Remaining deployment validation | Historical native checks include Ubuntu 24.04/Debian 12 ARM64 service UAT and an Ubuntu source Nginx/OpenSSL build. Public ACME, native AMD64 execution, HTTP/3 client negotiation/0-RTT, remote Restic destinations, external SMTP alerts and selected legacy upgrades remain unverified. | Validate representative supported profiles/upgrades and exact release archives, controlled-domain issuance/renewal, remote integrations and client negotiation. Existing SSH/firewall recovery UAT is recorded above; additional platform/provider checks remain. |
 
 Native nftables is now implemented. Further legacy extraction remains follow-up
 work and does not automatically make it a v4 publication blocker. An explicit release-scope decision is needed before claiming all of
@@ -191,7 +239,7 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.6 | Implemented | Literal dotenv/config loading; legacy `eval set --` parses getopt output, not user configuration. |
 | 2.7 | Implemented for named paths | RSA-4096 defaults and SAN support; newer mailer development path is a policy difference above. |
 | 2.8 | Implemented for curated sources | Deprecated calls removed; PHP/MariaDB and remaining curated repository families use backed-up scoping. Ambiguous/unsafe/unowned state requires reconciliation. |
-| 2.9 | Identified boundaries implemented | Shared whole-value validation and semantic IPv6 checks replace the reported legacy bypasses; valid legacy API behavior is preserved. |
+| 2.9 | Reviewed runtime/backup boundaries implemented | Shared whole-value and semantic validation plus literal backup-account credential handling close the identified findings. This is not a whole-repository certification. |
 | 2.10 | Implemented | Optional CBC/PBKDF2 encrypted config; AEAD is a separate decision. |
 | 2.11 | Implemented | Four compatibility entrypoints share `runtime/stack/entry.sh` and recipe logic. |
 | 2.12 | Partial | Working runtime/services layers; deeper extraction is R8. |
@@ -221,11 +269,11 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.35 | Implemented | Portable host-edit helpers; GNU sed in Linux CI/UAT is appropriate. |
 | 2.36 | Implemented | Active shell code no longer depends on grep PCRE as described in the historical task. |
 | 2.37 | Partial | Same migration workstream as 2.12 and Phase 9, R8. |
-| 2.38 | Implemented | Current tree has 32 Bats files and 394 `@test` declarations; original audit baseline was 29/358. |
+| 2.38 | Implemented with shared Linux test environment | Current tree has **36 Bats files / 456 declarations**. A2 aligns dependency preparation, root fixtures, and test locks; final verification is recorded separately from the initial audit. |
 | 2.39 | Implemented | Debian 12 CI exists; its distro ShellCheck version need not match the explicitly pinned Ubuntu/release tool. |
 | 2.40 | Implemented | Bashate in CI/release checks. |
 | 2.41 | Implemented | TUI log streaming and refresh controls. |
-| 2.42 | Implemented | TUI site wizard delegates to public CLI. |
+| 2.42 | Wizard implemented; app capability gap remains | TUI delegates to public CLI; Mautic/Roundcube/Sendy installation choices still reach a placeholder-only branch (A3). |
 | 2.43 | Implemented | ModSecurity status/report/tune and validation/rollback. |
 | 2.44 | Implemented | systemd-resolved/ACME cache and deploy hooks. |
 | 2.45 | Implemented | Shared update compatibility adapter/source bootstrap. |
@@ -350,3 +398,69 @@ created inside those containers, and no workstation/live service was changed.
 - Source mounts stayed read-only. The audit was committed as **14377b0**;
   implementation validation covered the reviewed working tree before commit. Release-archive
   rebuilding/publication and remaining deep legacy extraction are separate work.
+
+## Current audit verification — 9b7511b, 2026-11-22
+
+- Reconciled **48 unique roadmap IDs** with the audit table, current source,
+  public defaults and test/workflow wiring. Source count: **437 test declarations
+  in 35 Bats files**; this is not a new full-suite result.
+- In the existing designated Ubuntu 24.04 ARM64 Podman container, ran
+  `bats --print-output-on-failure tests/unit/db_backup_restore.bats` with separate
+  temp directories and `LEMPER_OPERATION_LOCK` paths for each identity:
+  **18/18 passed as root; 12/18 passed as nobody**. Unprivileged failures included
+  `Unsafe database backup directory.` and the public scheduling dry-run case.
+  Initial probe setup/working-directory failures were resolved; a shared lock
+  created by the unprivileged probe also interfered with the first root run.
+  The final comparisons used isolated locks. No runtime ownership check was relaxed.
+- Extracted only the inspected `enable_mariabackup` function into an isolated
+  probe. Stubbed the database, logging and configuration persistence, redirected
+  all writes into a temporary fixture, and used synthetic credentials. Observed
+  **0644** credential configuration under umask `022`, mismatched persisted/read
+  key names, quoted-password configuration failure, and no repair when an
+  existing account lacked configuration. This did not test physical backup,
+  package installation, or actual SQL account provisioning.
+- Inspected the CLI/TUI and placeholder application branch; no Mautic/Roundcube/
+  Sendy download or application installation was attempted. Existing OCSP
+  template directives and the `mariadb-backup` package mapping were cross-checked.
+- Queried GitHub with `gh` using the **full candidate SHA**: no Actions runs
+  returned. Exact v4.0.0 release lookup returned `release not found`; latest
+  published release is **v3.6.0**, published 2026-10-27. No workflow, issue,
+  release, tag, push or commit was created.
+- This audit changes documentation only. Bash lint/full Bats/UAT/build checks
+  from the preceding implementation are historical and were not rerun here.
+  Markdown paths/anchors and whitespace were checked; the final diff was reviewed.
+  Source mounts stayed read-only, temporary probe state was removed, and the
+  container started for the audit was stopped afterward.
+
+## Current P1 implementation verification
+
+- Final shared Podman test entry point: `bash scripts/test_podman.sh --test`,
+  **456/456 passed** in a fresh Ubuntu 24.04 ARM64 container with a read-only
+  checkout mount and root fixtures. Debian 12 ARM64:
+  `bash scripts/run_tests.sh --coverage /var/tmp/lemper-p1-complete-coverage`,
+  **456/456 passed**, scoped Bash function-entry coverage **61/68 (89.7%)**.
+  This does not measure Python line/branch coverage or prove whole-stack installation.
+- **19 new backup-account regressions** cover literal credential/option/profile
+  round-trips, canonical/legacy keys, safe account repair, privacy during DB
+  failure, inline migration and option precedence, encrypted profiles, read/write
+  failures, RNG failures, legacy lock enforcement, unsafe input/include paths and
+  escaped controls. The final quoted-include path correction was additionally
+  verified by its focused regression and the independent review.
+- Native Ubuntu 24.04 and Debian 12 ARM64 UAT each passed **22 checks** through
+  [the provisioning acceptance suite](../tests/uat/p1_provisioning_acceptance.sh),
+  including SQL authentication, unchanged existing password hashes, missing-file
+  repair, credential recovery, standalone installer reconciliation, actual
+  `mariadb-backup --backup`/`--prepare`, and inline credential migration.
+  These are scoped native component checks, not final release-archive UAT.
+- Independent read-only fix review is clean in the P1 scope. Confirmed review
+  concerns were fixed and exercised with synthetic fixtures; no real credentials
+  or live servers were involved.
+- Changed Bash files passed Linux syntax checks, ShellCheck **0.11.0** with
+  sourced-file analysis, Bashate with CI options, and the opted-in shfmt **3.8.0**
+  gate. Python helper syntax and actual option parsing were checked. Initial
+  fixture, structural-lint and test-environment failures were corrected without
+  relaxing runtime path, ownership, SSH or credential controls.
+- Documentation links/anchors and `git diff --check` passed. Only disposable
+  containers were used for system changes; containers started for this work were
+  stopped after verification. No commit, push, workflow trigger or publication
+  was performed. Candidate CI and final archive validation remain release gates.

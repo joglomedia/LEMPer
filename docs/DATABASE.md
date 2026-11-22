@@ -127,3 +127,46 @@ filename shape, checksum and gzip validity, then keeps the newest successful
 archives for that exact database. Same-second dumps use file timestamps to break
 ties. Other databases, plain SQL exports, symlinks, corrupt dumps and unmanaged
 legacy archives are preserved. Use `--dry-run` to review deletion selections.
+
+## MariaDB backup-account provisioning
+
+The MariaDB installer reconciles a dedicated local backup account on initial
+installation and when the server is already present. `MARIABACKUP_USER` and
+`MARIABACKUP_PASS` are the canonical settings. Legacy
+`MARIABACKUP_USERNAME`/`MARIABACKUP_PASSWORD` are accepted, then cleared when the
+canonical settings are saved. The template user `lemperdb` yields to a supplied
+legacy name; conflicting explicit names/passwords are rejected. `root` cannot
+be used as the backup account.
+
+A new account gets a generated password when none is supplied. An existing
+account requires working supplied credentials or credentials recovered from its
+legacy backup configuration; provisioning verifies authentication and preserves
+its password. It repairs a missing drop-in and grants the backup permissions.
+Configured credentials, including quotes and backslashes, remain literal data.
+Passwords must be single-line values without control characters. Dotenv loading
+and schema validation remove one matching outer quote pair and preserve inner
+quotes. The shared writer adds an outer wrapper when required to preserve actual
+quote characters through repeated profile updates/merges.
+
+The installer writes `/etc/mysql/mariadb.conf.d/50-mariabackup.cnf` and the
+updated LEMPer profile atomically with mode `0600`, preserving profile encryption
+and unrelated settings. Previous files have protected `.pre-backup.*`,
+`.pre-root.*` or `.pre-inline.*` recovery copies. Known legacy inline credentials
+are moved into `.lemper-inline-mariabackup.cnf` with mode `0600`; `my.cnf` includes
+that file at the original position so intervening tuning keeps its precedence.
+The include and canonical drop-in are synchronized. Other groups and distribution
+symlinks are preserved. Inline migration precedes database authentication, and
+trusted legacy drop-ins are made private even when later authentication fails.
+Custom inline backup tuning needs explicit reconciliation rather than silent removal.
+
+Legacy option recovery uses a Python 3 guard and MariaDB's native option parser.
+The installer supplies Python 3 when needed. Untrusted includes and encoded
+control characters are rejected before recovery can truncate or reinterpret them.
+
+Root credentials are saved privately before bootstrap SQL changes. RNG and
+profile-write failures stop installation. Backup credentials are saved before
+account/grant mutations so a failed operation can
+be retried without losing a newly generated password. No existing account is
+reset or dropped. Failures return a nonzero status; dry-run creates no files,
+queries, accounts or grants. Native MariaDB backup/prepare is validated separately
+from the managed logical SQL backup/restore commands above.
