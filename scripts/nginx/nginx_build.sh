@@ -122,8 +122,8 @@ function build_nginx_from_source() {
     get_nginx_base_configure_args
 
     # Build custom SSL if required
-    if [[ "${NGINX_CUSTOMSSL:-false}" == true && -n "${NGINX_CUSTOMSSL_VERSION:-}" ]]; then
-        build_custom_ssl
+    if [[ "${NGINX_WITH_CUSTOMSSL:-${NGINX_CUSTOMSSL:-false}}" == true ]]; then
+        build_custom_ssl || return 1
     fi
 
     # Build PCRE if required

@@ -607,7 +607,10 @@ original files. Extract these gradually behind the established interfaces.
 Account/database/SSL/TUI handlers have already moved into runtime modules; the
 TUI invokes the same public CLI. Deeper decomposition remains: site creation still
 combines orchestration, rendering and application installation, while legacy
-management/diagnostics and older component installers retain business logic.
+management/older component installers and management bodies retain business logic.
+Diagnostics, shared certificate issuance, repository migration and verified Bun
+installation now have dedicated runtime/service drivers. The pre-existing Python
+JSON reader is exported as a service helper and shared by all diagnostic views.
 Extract those into service drivers while preserving old imports and installed
 paths. Tasks 2.12/2.37 track this shared partial workstream, not absent foundations.
 Native nftables now uses a scoped driver with validated persistence and SSH recovery.

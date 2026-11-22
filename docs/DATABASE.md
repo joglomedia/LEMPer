@@ -5,6 +5,18 @@ The following behavior is implemented in the v4 working tree.
 
 ## SQL backups and restoration
 
+Owned sites also support domain shortcuts:
+
+```bash
+sudo lemperctl db backup example.com
+sudo lemperctl db restore example.com /var/backups/lemper/ARCHIVE.sql.gz
+sudo lemperctl db backup-schedule example.com --dbschedule='0 2 * * *'
+```
+
+The domain must have a LEMPer ownership record with a database. Missing or
+conflicting legacy mappings fail; reconcile ownership or use the explicit DB
+flags below. The shortcut never guesses a name or reads an application's `.env`.
+
 ```bash
 sudo lemperctl db backup --dbname=appdb
 sudo lemperctl db backup --dbname=appdb --dbfile=/var/backups/lemper/sql

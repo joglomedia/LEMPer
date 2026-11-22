@@ -25,45 +25,38 @@ fi
 # Sets NGX_CONFIGURE_ARGS with SSL paths
 ##
 function build_openssl() {
-    local SSL_VERSION="${1:-${NGINX_CUSTOMSSL_VERSION}}"
-    local NB_PROC
-    NB_PROC=$(get_cpu_cores)
-
-    echo "Building OpenSSL/QuicTLS ${SSL_VERSION}..."
-
-    # Determine source URL
-    local OPENSSL_SOURCE_URL
-    if grep -iq quic <<<"${SSL_VERSION}"; then
-        OPENSSL_SOURCE_URL="https://github.com/quictls/openssl/archive/refs/tags/${SSL_VERSION}.tar.gz"
+    local version="${1:-${NGINX_CUSTOMSSL_VERSION:-openssl-3.5.9}}" source checksum="" archive expected directory
+    [[ "$version" =~ ^openssl-[0-9]+\.[0-9]+\.[0-9]+(-quic[0-9]+)?$ ]] || { error "Invalid OpenSSL source version."; return 1; }
+    [[ "${NGINX_BUILD_DIR:-}" == /* && "$NGINX_BUILD_DIR" != *$'\n'* && "$NGINX_BUILD_DIR" != *$'\r'* && ! -L "$NGINX_BUILD_DIR" ]] || return 1
+    directory="$NGINX_BUILD_DIR/$version"
+    archive="$NGINX_BUILD_DIR/$version.tar.gz"
+    if grep -iq quic <<< "$version"; then
+        # Explicit legacy QuicTLS pins retain their existing trusted source.
+        source="https://github.com/quictls/openssl/archive/refs/tags/$version.tar.gz"
     else
-        OPENSSL_SOURCE_URL="https://github.com/openssl/openssl/archive/refs/tags/${SSL_VERSION}.tar.gz"
+        source="https://github.com/openssl/openssl/releases/download/$version/$version.tar.gz"
+        checksum="$source.sha256"
     fi
-
-    if curl -sLI "${OPENSSL_SOURCE_URL}" | grep -q "HTTP/[.12]* [2].."; then
-        run curl -sSL -o "${SSL_VERSION}.tar.gz" "${OPENSSL_SOURCE_URL}" && \
-        run tar -zxf "${SSL_VERSION}.tar.gz" && \
-        run cd "${SSL_VERSION}" && \
-        run ./config --prefix=./build no-shared && \
-        run make -j"${NB_PROC}" && \
-        run make install_sw && \
-        run cd "${NGINX_BUILD_DIR}" || return 1
-
-        if [[ -d "${NGINX_BUILD_DIR}/${SSL_VERSION}" ]]; then
-            NGX_CONFIGURE_ARGS+=(
-                "--with-cc-opt=\"-I${NGINX_BUILD_DIR}/${SSL_VERSION}/build/include\""
-                "--with-ld-opt=\"-L${NGINX_BUILD_DIR}/${SSL_VERSION}/build/lib\""
-            )
-
-            # HTTP/3 requires a QUIC-capable library; plain OpenSSL is not.
-            if grep -iq quic <<<"${SSL_VERSION}"; then
-                NGX_CONFIGURE_ARGS+=("--with-http_v3_module")
-            fi
-            return 0
+    if [[ "${DRYRUN:-false}" == true ]]; then
+        info "Would prepare verified OpenSSL sources for the Nginx build."
+    else
+        lemper_exec install -d "$NGINX_BUILD_DIR" || return 1
+        lemper_exec curl -fsSL --proto '=https' --retry 3 -o "$archive" "$source" || return 1
+        if [[ -n "$checksum" ]]; then
+            expected=$(curl -fsSL --proto '=https' --retry 3 "$checksum") || return 1
+            expected="${expected%%[[:space:]]*}"
+            [[ "$expected" =~ ^[a-fA-F0-9]{64}$ && "$(sha256sum "$archive" | cut -d ' ' -f1)" == "${expected,,}" ]] || {
+                error "OpenSSL archive checksum mismatch."; return 1;
+            }
         fi
-    else
-        error "Unable to determine the OpenSSL/QuicTLS source page."
-        return 1
+        [[ ! -L "$directory" ]] || return 1
+        lemper_exec install -d "$directory" || return 1
+        lemper_exec tar --extract --gzip --file "$archive" --directory "$directory" --strip-components=1 || return 1
     fi
+    # Nginx's build system builds/links these sources, avoiding library-path and
+    # release-archive directory assumptions in the old standalone build.
+    NGX_CONFIGURE_ARGS+=("--with-openssl=$directory" "--with-openssl-opt=no-shared no-tests")
+    if [[ "${NGINX_HTTP3:-false}" == true ]]; then NGX_CONFIGURE_ARGS+=("--with-http_v3_module"); fi
 }
 
 ##
@@ -73,6 +66,7 @@ function build_openssl() {
 function build_libressl() {
     local SSL_VERSION="${1:-${NGINX_CUSTOMSSL_VERSION}}"
 
+    [[ "$SSL_VERSION" =~ ^libressl-[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 1
     echo "Building LibreSSL ${SSL_VERSION}..."
 
     local LIBRESSL_SOURCE_URL="https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/${SSL_VERSION}.tar.gz"
@@ -105,6 +99,8 @@ function build_boringssl() {
     local NB_PROC
     NB_PROC=$(get_cpu_cores)
 
+    core_is_valid_custom_ssl_version "$SSL_VERSION" || return 1
+    [[ "$SSL_VERSION" == boringssl-* ]] || return 1
     echo "Building BoringSSL ${SSL_VERSION}..."
 
     # BoringSSL requires Golang
@@ -183,7 +179,8 @@ function install_golang_if_missing() {
             fi
         ;;
         ubuntu)
-            run add-apt-repository -y ppa:longsleep/golang-backports && \
+            lemper_load_module services/apt/catalog && \
+            lemper_apt_prepare_repository golang && \
             run apt-get update -q -y && \
             run apt-get install -q -y golang-go
         ;;
@@ -225,8 +222,9 @@ function build_pcre() {
 # Build custom SSL based on configuration
 ##
 function build_custom_ssl() {
-    local SSL_VERSION="${NGINX_CUSTOMSSL_VERSION:-openssl-1.1.1l}"
+    local SSL_VERSION="${NGINX_CUSTOMSSL_VERSION:-openssl-3.5.9}"
 
+    core_is_valid_custom_ssl_version "$SSL_VERSION" || { error "Invalid custom TLS source version."; return 1; }
     echo "Building custom SSL ${SSL_VERSION^}..."
 
     run cd "${NGINX_BUILD_DIR}" || return 1

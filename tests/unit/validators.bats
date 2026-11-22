@@ -74,3 +74,65 @@ EOF
         bash -c "${load_utils_child}"' validate_nginx_config'
     [ "${output}" = "false" ]
 }
+
+@test "shared validators reject whole-value newline carriage-return and command syntax bypasses" {
+    run bash -c '
+        . "$REAL_BASE_DIR/lib/core/loader.sh"
+        for value in $'\''example.test\ninvalid-line'\'' $'\''invalid-line\nexample.test'\'' $'\''example.test\r'\'' "example.test%0aevil" "example.test;id"; do
+            [[ $(core_validate_fqdn "$value") == false ]] || exit 1
+            ! is_valid_domain "$value" || exit 1
+        done
+        [[ $(core_validate_ipv4 $'\''127.0.0.1\nevil'\'') == false ]] || exit 1
+        [[ $(core_validate_username $'\''alice\nevil'\'') == false ]] || exit 1
+        [[ $(core_validate_fqdn example.test.) == true ]] || exit 1
+        ! is_valid_domain example.test. || exit 1
+        is_valid_username alice
+    '
+    [ "$status" -eq 0 ]
+}
+
+@test "semantic IPv6 validator handles compression and IPv4 tails and rejects malformed addresses" {
+    run bash -c '
+        . "$REAL_BASE_DIR/lib/core/loader.sh"
+        for value in :: ::1 2001:db8::1 2001:db8:0:1:2:3:4:5 fe80::abcd ::ffff:192.0.2.1 1:2:3:4:5:6:192.0.2.1; do
+            [[ $(core_validate_ipv6 "$value") == true ]] || { echo "Rejected valid $value"; exit 1; }
+        done
+        for value in ::: 1::2::3 1:2:3 1:2:3:4:5:6:7:8:: ::ffff:999.0.0.1 ::ffff:192.00.2.1 :1:2:3:4:5:6:7 ::1%eth0 $'\''::1\nevil'\''; do
+            [[ $(core_validate_ipv6 "$value") == false ]] || { echo "Accepted invalid $value"; exit 1; }
+        done
+        [[ $(core_validate_ipv4 008.009.010.011) == true ]]
+    '
+    [ "$status" -eq 0 ]
+}
+
+@test "selfssl rejects hostile domains and malformed IPv6 before mutation and keeps valid dry-run behavior" {
+    run bash -c '
+        . "$REAL_BASE_DIR/lib/core/loader.sh"
+        lemper_load_module runtime/ssl/commands
+        fail() { echo REJECTED; exit 1; }
+        info() { echo "$*"; }
+        DRYRUN=true
+        generate_selfsigned_ssl example.test 127.0.0.1 2001:db8::1
+    '
+    [ "$status" -eq 0 ]
+    run bash -c '
+        . "$REAL_BASE_DIR/lib/core/loader.sh"
+        lemper_load_module runtime/ssl/commands
+        fail() { echo REJECTED; exit 1; }
+        mkdir() { echo MUTATION; }
+        sed_inplace() { echo MUTATION; }
+        generate_selfsigned_ssl "$1" 127.0.0.1 "$2"
+    ' _ $'example.test\ninvalid-line' ::1
+    [ "$status" -ne 0 ]
+    [[ "$output" == *REJECTED* && "$output" != *MUTATION* ]]
+    run bash -c '
+        . "$REAL_BASE_DIR/lib/core/loader.sh"
+        lemper_load_module runtime/ssl/commands
+        fail() { echo REJECTED; exit 1; }
+        mkdir() { echo MUTATION; }
+        sed_inplace() { echo MUTATION; }
+        generate_selfsigned_ssl example.test 127.0.0.1 :::
+    '
+    [ "$status" -ne 0 ]
+    [[ "$output" == *REJECTED* && "$output" != *MUTATION* ]]
+}

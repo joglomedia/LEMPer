@@ -1,7 +1,8 @@
 # LEMPer roadmap implementation audit
 
-Date: **2026-11-21**. Code baseline: **753c846**, `release/v4.0.0`. The targeted cross-check below
-revisits the original scope of 2.8/2.9/2.17/2.18/2.27 and decomposition 2.12/2.37.
+Date: **2026-11-22**. Code baseline: **14377b0** plus the prioritized
+implementation working tree, `release/v4.0.0`. The cross-check at 753c846 is
+preserved below; the follow-through section records the resulting implementation.
 Latest GitHub release checked: **v3.6.0**. v4.0.0 is not published.
 
 This report supersedes the earlier 2026-11-20 audit; that snapshot remains in
@@ -78,13 +79,31 @@ the shared backup lock is held. Full Bats results are recorded below.
 | R11 | EditorConfig and scoped shfmt enforcement without mass-formatting; synthetic Bats function-entry instrumentation and JSON/Markdown coverage publishing | [format gate](../scripts/check_format.sh), [scope](../tools/shfmt-files.txt), [coverage runner](../scripts/test_coverage.sh), [CI](../.github/workflows/main.yml). Function-entry coverage does not claim line/branch coverage or installation correctness. |
 | R12 | Component step counters with interactive ETA, spinner elapsed/completion time, and optional pv byte/rate/ETA feedback during configuration archive restore | [progress module](../lib/core/progress.sh), [utils](../scripts/utils.sh), [recipe](../lib/runtime/stack/recipe.sh), [backup](../lib/lemper-backup.sh). TTY-only ETA/transfer feedback; deterministic fallback without pv. |
 
-The P3 disk/inode package contract is implemented; broader resource plans were
-not specified by issue #39 and are not implied by server-wide resource profiles.
-R8 remains an incremental architecture workstream. The targeted cross-check also
-identifies unfinished scope in earlier numbered tasks; P3 completion does not mean
-all original roadmap requirements are complete.
+The P3 disk/inode package contract is implemented. The prioritized follow-through
+below closes the identified validation, repository/TLS, diagnostic and domain-DB
+scope. R8 remains an incremental architecture workstream; its next service
+boundaries are delivered, while older installer/management internals still remain.
 
-## Targeted completion cross-check (753c846)
+## Prioritized implementation follow-through — 2026-11-22
+
+| Tasks | Delivered follow-through | Limits / source |
+|---|---|---|
+| 2.9 | Whole-value shared FQDN/IPv4/username validation, semantic IPv6 compression/IPv4-tail checks, legacy wrappers using the same core, validation before site/SSL mutations, typed TLS source tags | [core predicates](../lib/core/validation.sh), [regressions](../tests/unit/validators.bats). Legacy text-result APIs and stricter status APIs retain their caller contracts. This is closure of the identified input boundaries, not a whole-repository security certification. |
+| 2.8 / 2.27 | Shared backed-up repository reconciliation for PGDG/Redis/MongoDB/deadsnakes/MaxMind/Go PPAs, pinned published key identities, preflight of mixed stanzas/signature-bypass options, preservation of unrelated/shared trust; corrected custom TLS enablement and verified OpenSSL 3.5.9 LTS source integration | [catalog](../lib/services/apt/catalog.sh), [migration](../lib/services/apt/repositories.sh), [TLS builder](../scripts/nginx/nginx_ssl_builders.sh). MongoDB major changes require explicit reconciliation; unowned/shared keyrings are retained. The former Bun APT endpoint returns 404: its lifecycle now uses [checksummed official release binaries](../lib/services/bun/binary.sh) with native architecture selection and ownership checks. |
+| 2.12 / 2.37 | Diagnostics extracted into a function-only runtime adapter and the existing Python JSON reader exported as a service helper; shared staged certificate issuance replaces CLI/manager duplication; repository and Bun lifecycle logic moved into service drivers | [show runtime](../lib/runtime/site/show.sh), [inspection](../lib/services/site/inspect.py), [certificate driver](../lib/services/ssl/certificates.sh). Installed exports include these helpers. Deeper extraction of legacy application rendering and older installer/manager bodies remains; decomposition stays partial. |
+| 2.17 | Text/JSON views share Nginx/FPM content, certificate path/SAN/expiry/hostname details, legacy metadata, ownership state and nested application mounts; secret-bearing fields are redacted; Python import-path isolation and recovery views are preserved | [inspection driver](../lib/services/site/inspect.py), [diagnostic tests](../tests/unit/site_diagnostics.bats). Certificate trust-chain verification is not implied by a readable certificate; variable paths and indirect upstreams can remain unresolved. |
+| 2.18 | Positional `db backup DOMAIN`, `db restore DOMAIN FILE` and `db backup-schedule DOMAIN` resolve an ownership record, reject conflicting legacy state and retain the protected engine and explicit DB flags | [resolver](../lib/services/site/database.sh), [runtime](../lib/runtime/database/commands.sh). Sites without a recorded database require explicit `--dbname` or ownership reconciliation. Mount-specific application databases are not guessed from private `.env` files. |
+
+The custom TLS default uses the **OpenSSL 3.5 LTS** line, supported through April
+2030. Nginx recommends OpenSSL 3.5.1+ for QUIC. Release 3.5.9 and its published
+SHA-256 artifact were verified through the official OpenSSL release metadata;
+explicit legacy QuicTLS pins keep their existing source route. Source builds
+omit generation of upstream test executables; application validation remains
+separate. Sources: [Nginx QUIC](https://nginx.org/en/docs/quic.html),
+[OpenSSL LTS policy](https://openssl-library.org/post/2025-02-20-openssl-3.5-lts/),
+[OpenSSL 3.5.9](https://github.com/openssl/openssl/releases/tag/openssl-3.5.9).
+
+## Historical targeted completion cross-check (753c846)
 
 P1/P2 delivered the previously identified database, diagnostic and PHP/MariaDB
 repository safeguards. The original tasks also contain broader scope:
@@ -139,10 +158,10 @@ Architecture §4 is complete.
   AES-256-CBC/PBKDF2. Authenticated encryption/GCM is a deferred format/provider
   decision, not implemented by the current `openssl enc` path. Preserve existing
   reads and add tamper tests if that migration is selected.
-- **TLS pins:** 2.27 proposed OpenSSL 3.3/3.4; the opt-in custom TLS pin is still
-  `openssl-3.2.4-quic1`, and custom TLS defaults off. Resolve the maintained
-  TLS/QUIC-library policy before treating a literal historical version as the
-  next target. Upstream currency/advisories were not checked in this audit.
+- **TLS pins:** Historical 3.3/3.4 proposals are superseded by the verified
+  OpenSSL 3.5.9 LTS selection. Custom TLS remains opt-in; explicit older library
+  pins retain compatibility routes. This source policy is not an advisory scan
+  of every optional TLS library.
 - **RSA defaults:** The originally named Nginx/self-SSL paths use configurable
   RSA-4096 defaults/SANs. New mailer development certificates explicitly use
   RSA-2048. Decide whether the generic Architecture §4 SSL target should cover
@@ -171,8 +190,8 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.5 | Implemented | Credential recap email delivery removed; mail hosting is a separate feature. |
 | 2.6 | Implemented | Literal dotenv/config loading; legacy `eval set --` parses getopt output, not user configuration. |
 | 2.7 | Implemented for named paths | RSA-4096 defaults and SAN support; newer mailer development path is a policy difference above. |
-| 2.8 | Partial convergence | Deprecated calls removed and scoped PHP/MariaDB migration delivered in R3; remaining PPA families and pre-existing PGDG sources lack the same migration contract. |
-| 2.9 | Partial validation | Protected DB and strict modern boundaries are delivered; duplicated legacy grep validators accept multiline input and self-SSL IPv6 validation is shape-only. |
+| 2.8 | Implemented for curated sources | Deprecated calls removed; PHP/MariaDB and remaining curated repository families use backed-up scoping. Ambiguous/unsafe/unowned state requires reconciliation. |
+| 2.9 | Identified boundaries implemented | Shared whole-value validation and semantic IPv6 checks replace the reported legacy bypasses; valid legacy API behavior is preserved. |
 | 2.10 | Implemented | Optional CBC/PBKDF2 encrypted config; AEAD is a separate decision. |
 | 2.11 | Implemented | Four compatibility entrypoints share `runtime/stack/entry.sh` and recipe logic. |
 | 2.12 | Partial | Working runtime/services layers; deeper extraction is R8. |
@@ -180,8 +199,8 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.14 | Implemented | Obsolete CI variable references removed. |
 | 2.15 | Implemented | Bats behavior/fixture tests and Linux CI; directory-name deviation is intentional. |
 | 2.16 | Implemented | Site-list plugin and registry/export wiring. |
-| 2.17 | Partial view coverage | Existing views/JSON/redaction are delivered; FPM/config/certificate JSON parity and modern site/app state coverage remain. |
-| 2.18 | Implemented engine; partial CLI specification | Protected SQL operations/scheduling/retention are delivered; proposed positional domain shortcuts and metadata resolution are absent. |
+| 2.17 | Implemented | Shared text/JSON config/FPM/certificate/modern-state views, credential redaction and recovery behavior. |
+| 2.18 | Implemented | Protected SQL operations/scheduling/retention plus ownership-resolved positional domain shortcuts. |
 | 2.19 | Implemented | Bun installer/remover, options and recipe wiring. |
 | 2.19B | Implemented | Valkey repo/source branches and shared removal; separate filenames are unnecessary. |
 | 2.20 | Implemented | CrowdSec lifecycle, options and collections. |
@@ -191,7 +210,7 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.24 | Implemented | TUI dashboard/logs/wizard; current command is `tui`. |
 | 2.25 | Implemented and superseded | Shipped install templates now PHP 8.2–8.5. |
 | 2.26 | Implemented and superseded | Default is 8.5; supported defaults can now be configured. |
-| 2.27 | Partial convergence / TLS wiring and policy | MariaDB 11.4 and scoped keys are delivered; remaining repository migration, custom-TLS flag wiring and maintained TLS/QUIC selection remain. |
+| 2.27 | Implemented selected policy | MariaDB 11.4, curated repository reconciliation, canonical custom-TLS flag and checksummed OpenSSL 3.5.9 LTS source integration. |
 | 2.28 | Implemented | Fail2ban enabled by default. |
 | 2.29 | Implemented | ModSecurity/CRS present; NAXSI is opt-in/off by default. Public option is `INSTALL_MODSEC`. |
 | 2.30 | Implemented | Certbot renewal deploy hook uses systemctl reload. |
@@ -309,3 +328,25 @@ created inside those containers, and no workstation/live service was changed.
   were checked. New GitHub Actions jobs are configured but have not been run remotely.
 - Validation covered the P3 working tree before commit; final clean-candidate release
   assets and publication still require the release workflow and authorization described above.
+
+## Prioritized follow-through validation — 2026-11-22
+
+- Full synthetic Bats suite: **437 tests passed**; scoped Bash function-entry
+  coverage: **54/62 (87.1%)**. This does not measure Python line/branch coverage.
+- ShellCheck **0.11.0** with sourced-file analysis, Bashate using CI options,
+  Bash syntax checks and shfmt **3.8.0** checks passed.
+- Final real Ubuntu 24.04 ARM64 UAT: **47 checks passed**, including actual
+  certificate issuance/verification, preserved templates, HTTPS/FPM, domain DB
+  backup/restore/scheduling, signed PGDG/Redis indexes, verified native Bun, and
+  Nginx 1.30.7 built against OpenSSL 3.5.9 with live HTTPS and QUIC configuration.
+- Fresh Debian 12 ARM64 UAT: **37 service/CLI checks passed**, including real
+  SQL recovery, certificates, FPM/diagnostics, signed indexes and native Bun.
+- Earlier fixture failures were corrected: distribution-specific PHP-FPM naming,
+  frozen script/core logging setup, and `/run` exhaustion from upstream test binary
+  builds. Final compilation used `/var/tmp` and omitted those unused executables;
+  application tests and live TLS checks were retained. No TLS/signature checks were disabled.
+- HTTP/3 module loading/UDP binding were validated; client HTTP/3 negotiation and
+  0-RTT were not tested. Native amd64 CI jobs are configured but were not run remotely.
+- Source mounts stayed read-only. The audit was committed as **14377b0**;
+  implementation validation covered the reviewed working tree before commit. Release-archive
+  rebuilding/publication and remaining deep legacy extraction are separate work.

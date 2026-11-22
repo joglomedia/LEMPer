@@ -9,3 +9,9 @@ scripts/check_format.sh
 scripts/test_coverage.sh
 tests/coverage_hook.bash
 tests/uat/p3_acceptance.sh
+lib/runtime/site/show.sh
+lib/services/apt/catalog.sh
+lib/services/ssl/certificates.sh
+lib/services/bun/binary.sh
+lib/services/site/database.sh
+tests/uat/priority_acceptance.sh

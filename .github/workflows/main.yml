@@ -419,3 +419,39 @@ jobs:
         run: |
           sudo podman exec lemper-p3-uat umount /home || true
           sudo podman stop --time 10 lemper-p3-uat
+  priority-followthrough-uat:
+    name: Priority lifecycle and TLS (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:24.04', 'debian:12']
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare a disposable service environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -q -y podman
+          sudo podman build --build-arg BASE_IMAGE="${{ matrix.image }}" \
+            -f tests/uat/Containerfile -t lemper-priority-uat tests/uat
+          sudo podman run -d --name lemper-priority-uat --privileged --systemd=always \
+            --cgroupns=private --hostname priority.lemper-uat.test --cpus 2 --memory 3g \
+            --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" lemper-priority-uat
+          sudo podman exec lemper-priority-uat bash -c '
+            set -e
+            apt-get update -qq
+            apt-get install -q -y nginx php-fpm php-cli mariadb-server cron gnupg \
+              build-essential libpcre2-dev zlib1g-dev libssl-dev
+            touch /run/lemper-priority-uat-authorized
+            cp /source/tests/uat/priority_acceptance.sh /run/priority-acceptance.sh
+          '
+      - name: Verify service commands and compiled TLS integration
+        run: |
+          if [[ "${{ matrix.image }}" == ubuntu:24.04 ]]; then
+            sudo podman exec lemper-priority-uat bash /run/priority-acceptance.sh --build-tls
+          else
+            sudo podman exec lemper-priority-uat bash /run/priority-acceptance.sh
+          fi
+      - name: Stop disposable services
+        if: always()
+        run: sudo podman stop --time 10 lemper-priority-uat

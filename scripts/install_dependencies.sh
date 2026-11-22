@@ -121,7 +121,8 @@ case "${DISTRIB_NAME}" in
         # deadsnake ppa only supports Jammy & Noble
         case "${RELEASE_NAME}" in
             noble | jammy)
-                run add-apt-repository ppa:deadsnakes/ppa -y && \
+                lemper_load_module services/apt/catalog && \
+                lemper_apt_prepare_repository deadsnakes && \
                 run apt-get update -q -y && \
                 run apt-get install -q -y python3.13 python3.13-dev python3.13-venv && \
                 run update-alternatives --install /usr/bin/python python "$(command -v python3.13)" 313 && \

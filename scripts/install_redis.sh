@@ -32,24 +32,9 @@ fi
 # Add Redis repository.
 ##
 function add_redis_repo() {
-    echo "Adding Redis repository..."
-
-    case "${DISTRIB_NAME}" in
-        debian | ubuntu)
-            if [[ ! -f "/etc/apt/sources.list.d/redis-${RELEASE_NAME}.list" ]]; then
-                run bash -c "curl -fsSL https://packages.redis.io/gpg | gpg --dearmor --yes -o /usr/share/keyrings/redis-${RELEASE_NAME}.gpg" && \
-                run chmod 644 "/usr/share/keyrings/redis-${RELEASE_NAME}.gpg" && \
-                run touch "/etc/apt/sources.list.d/redis-${RELEASE_NAME}.list" && \
-                run bash -c "echo 'deb [signed-by=/usr/share/keyrings/redis-${RELEASE_NAME}.gpg] https://packages.redis.io/deb ${RELEASE_NAME} main' | tee /etc/apt/sources.list.d/redis-${RELEASE_NAME}.list" && \
-                run apt-get update --allow-releaseinfo-change -q -y
-            else
-                info "Redis repository already exists."
-            fi
-        ;;
-        *)
-            fail "Unable to add Redis repo, this GNU/Linux distribution is not supported."
-        ;;
-    esac
+    lemper_load_module services/apt/catalog || return 1
+    lemper_apt_prepare_repository redis || return 1
+    lemper_exec apt-get update -q -y
 }
 
 ##

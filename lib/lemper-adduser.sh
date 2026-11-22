@@ -64,10 +64,6 @@ EOL
 # Validate a Linux username: lowercase letters, digits, '_' and '-',
 # starting with a letter or underscore, max 32 characters.
 ##
-function validate_username() {
-    local NAME=${1}
-    [[ "${NAME}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]
-}
 
 function header_msg() {
     if [[ -t 1 ]]; then
@@ -93,7 +89,7 @@ function prompt_for_user() {
 
     echo -en "\nUsername: "
     read -r namauser || return 1
-    if ! validate_username "${namauser}"; then
+    if ! is_valid_username "${namauser}"; then
         error "Invalid username '${namauser}'. Expected lowercase letters," \
             "digits, '_' or '-', starting with a letter or '_'."
         return 1

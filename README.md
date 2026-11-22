@@ -52,7 +52,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 * NoSQL database with MongoDB.
 * Key-value store database with Redis or Valkey (`REDIS_BACKEND`).
 * In-memory cache with Memcached.
-* Modern JavaScript/TypeScript runtime with Bun.js, including an npm-compatible client and bundler (`INSTALL_BUNJS`, enabled by default).
+* Modern JavaScript/TypeScript runtime with Bun.js, including an npm-compatible client and bundler (`INSTALL_BUNJS`, enabled by default). Official amd64/arm64 release binaries use published checksums; `BUNJS_INSTALLER="source"` is the preferred method and legacy `repo` selects the same release path.
 * FTP server with VSFTPD or Pure-FTPd.
 * Web-based administration tools:
   * [Adminer](https://github.com/vrana/adminer) web-based SQL database manager (PhpMyAdmin replacement).
@@ -268,6 +268,22 @@ sudo lemperctl site app remove example.com --mount /demo --yes
 Laravel mounts expose only `public/`, preserve their URL base path, and retain
 project data on removal. See [the PHP/Laravel guide](docs/PHP_RUNTIME_LARAVEL.md)
 for pool requirements, root-domain sites, redirects, migration, and recovery.
+
+##### Site diagnostics and domain database backups
+
+```bash
+sudo lemperctl site show example.com --all
+sudo lemperctl site show example.com --json
+sudo lemperctl db backup example.com
+sudo lemperctl db restore example.com /var/backups/lemper/ARCHIVE.sql.gz
+sudo lemperctl db backup-schedule example.com --dbschedule='0 2 * * *'
+```
+
+Diagnostics include FPM configuration, certificate validity and site/application
+ownership, with credential-bearing fields redacted. Python 3 supports both text
+and JSON views. Domain DB commands require recorded site ownership and a database
+mapping; explicit `--dbname`/`--dbfile` commands remain supported. See
+[DATABASE.md](docs/DATABASE.md) for restore and retention behavior.
 
 ##### Hosting plans and quotas
 

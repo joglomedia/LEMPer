@@ -1,8 +1,8 @@
 # LEMPer — Roadmap &amp; Improvement Plan
 
 > **Latest published version:** 3.6.0
-> **Last Updated:** 2026-11-21
-> **Code baseline:** 753c846 on `release/v4.0.0`
+> **Last Updated:** 2026-11-22
+> **Code baseline:** 14377b0 plus prioritized follow-through on `release/v4.0.0`
 > **Status:** v4.0 foundations, mail hosting and PHP/Laravel enhancements are
 > implemented but unreleased. Partial tasks, deferred plans and release
 > validation remain; see [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
@@ -55,12 +55,14 @@ interactive ETA/optional pv restoration progress. See [HOSTING.md](HOSTING.md).
 Quota enforcement currently supports explicitly enabled ext4 user quotas; broader
 resource limits and other filesystem backends remain optional enhancements.
 
-Remaining delivery work includes consistent validation (2.9), repository
-convergence and custom-TLS wiring/policy (2.8/2.27), diagnostic view parity (2.17),
-and the original domain-based DB shortcuts (2.18). Further extraction of legacy
-management/installer internals is the shared 2.12/2.37 architecture workstream.
-See the [targeted cross-check](ROADMAP_AUDIT.md#targeted-completion-cross-check-753c846)
-for evidence and priority order. Release validation/publication gates remain below.
+Prioritized follow-through now delivers shared whole-value/semantic input
+validation (2.9), curated repository migration and maintained custom TLS source
+selection (2.8/2.27), complete diagnostic views (2.17), and ownership-resolved DB
+domain shortcuts (2.18). Diagnostics, certificate issuance, repository setup and
+Bun binary installation occupy service/runtime modules. Further extraction of
+older management/application/installer bodies remains the partial 2.12/2.37
+architecture workstream. See [the implementation audit](ROADMAP_AUDIT.md#prioritized-implementation-follow-through--2026-11-22)
+for source evidence, checks and limits. Release validation/publication gates remain.
 
 Authenticated encryption and custom TLS pins remain explicit policy/format
 decisions. The delivered encryption uses AES-256-CBC/PBKDF2. Full evidence,
@@ -243,19 +245,19 @@ defaults.
 
 ---
 
-#### 2.8 Replace `apt-key` with Keyring Files (Security — Low) — Partial convergence
+#### 2.8 Replace `apt-key` with Keyring Files (Security — Low) — Implemented for curated sources
 
 **Current status:** Scoped signing keys and backed-up migration are implemented for
-PHP and MariaDB in audit R3. Remaining PPA paths do not use that migration
-contract, and PGDG skips existing sources. Shared keyrings require explicit review;
-removing deprecated calls does not prove every existing repository is migrated.
+PHP and MariaDB in audit R3. PGDG/Redis/MongoDB and remaining PPAs now use the
+shared backed-up migration contract. Ambiguous MongoDB upgrades and unsafe
+source options fail preflight; unowned/shared keyrings remain for explicit review.
 
-**Issue:** `apt-key` is deprecated and stores all repository keys in a single keyring,
+**Historical issue:** `apt-key` is deprecated and stores all repository keys in a single keyring,
 creating trust-confusion vulnerabilities.
 
 **File:** `scripts/nginx/nginx_repo.sh:45`, `scripts/install_php.sh:62`
 
-**Fix:** Replace:
+**Original proposal:** Replace:
 
 ```bash
 apt-key adv --keyserver ...
@@ -272,20 +274,21 @@ curl -sSL https://... | gpg --dearmor -o /usr/share/keyrings/repo.gpg
 
 ---
 
-#### 2.9 Add Input Sanitization Layer (Security — Medium) — Partial validation
+#### 2.9 Add Input Sanitization Layer (Security — Medium) — Identified boundaries implemented
 
 **Current status:** Site/account/SSH validators and the legacy DB validation/
-execution follow-through are implemented; see audit R1 and DATABASE.md. Legacy
-grep-based validators still accept multiline input, and self-SSL IPv6 validation
-is shape-only. Consolidation and strict checks before all mutations remain.
+execution follow-through are implemented. Shared whole-value predicates now reject
+multiline/control input, and semantic IPv6 checks cover compression and IPv4 tails.
+Legacy text-returning wrappers delegate to the same core; site/SSL input validation
+happens before mutation. See the audit for the verified boundary and limitations.
 
-**Issue:** Domain names are passed directly to `sed`, `openssl`, and file paths without
+**Historical issue:** Domain names are passed directly to `sed`, `openssl`, and file paths without
 sanitization. While `validate_fqdn()` is called in some paths, other paths (e.g.,
 self-signed SSL generation) do not validate.
 
 **Files:** `lib/lemper-selfssl.sh`, `lib/lemper-create.sh`, `lib/lemper-manage.sh`
 
-**Fix:**
+**Original proposal:**
 
 - Validate all user inputs (domain names, IP addresses, usernames) before use.
 - Use `printf '%q'` or manual escaping when interpolating into `sed`/`openssl` commands.
@@ -419,35 +422,36 @@ domain names, framework, SSL status, PHP version.
 
 ---
 
-#### 2.17 Add `lemperctl site show <domain>` Subcommand — Partial view coverage
+#### 2.17 Add `lemperctl site show <domain>` Subcommand — Implemented
 
 **Current status:** Metadata is redacted in text and JSON; `--json` is registered
 and implies `--all`. Malformed metadata fails without exposing values. See audit R2.
-JSON omits full Nginx/FPM content and certificate details, and diagnostics do not
-read modern site ownership/mounted-app state. View parity remains. Plaintext
-linked credentials are intentionally excluded from the original proposal.
+Text and JSON share Nginx/FPM configuration, certificate details and modern
+site ownership/nested-app metadata. Credential-bearing fields are redacted,
+Python import-path isolation is enabled, and retained metadata remains readable
+for recovery. Plaintext linked credentials are intentionally excluded.
 
-**Issue:** No way to display the full configuration for a specific vhost.
+**Historical issue:** No way to display the full configuration for a specific vhost.
 
-**Fix:** Add `site show` that displays the vhost config, FPM pool, app metadata, SSL
+**Original proposal:** Add `site show` that displays the vhost config, FPM pool, app metadata, SSL
 status, and linked credentials.
 
 **Effort:** Medium
 
 ---
 
-#### 2.18 Add Database Backup &amp; Restore Commands — Implemented engine; partial CLI specification
+#### 2.18 Add Database Backup &amp; Restore Commands — Implemented
 
 **Current status:** Timestamped SQL dumps, restore and cron scheduling exist.
 Protected execution is delivered in R1; verified SQL retention is delivered in R4.
-The engine uses `--dbname`/`--dbfile`; the proposed positional domain shortcuts
-below and domain-to-database metadata resolution are absent. Implement an
-unambiguous mapping or explicitly revise the original CLI specification.
+The engine accepts `--dbname`/`--dbfile` and the positional domain forms below.
+Domain lookup requires recorded ownership and a database mapping; mismatches
+with legacy metadata or conflicting explicit DB flags fail before operations.
 
-**Issue:** The README mentions "database backup tool" as a TODO, and `lemper-db.sh`
+**Historical issue:** The README mentions "database backup tool" as a TODO, and `lemper-db.sh`
 has export/import but no scheduled backup rotation.
 
-**Fix:**
+**Original proposal:**
 
 - Add `lemperctl db backup <domain>` — creates timestamped SQL dump.
 - Add `lemperctl db restore <domain> <file>` — restores from dump.
@@ -593,19 +597,19 @@ add maintenance burden and could mislead users into installing insecure versions
 
 ---
 
-#### 2.27 Remove Deprecated `apt-key` and Update Repository Setup — Partial convergence / TLS wiring and policy
+#### 2.27 Remove Deprecated `apt-key` and Update Repository Setup — Implemented selected TLS/repository policy
 
 **Current status:** MariaDB 11.4 and several scoped keyrings are implemented.
-PHP/MariaDB key migration is delivered in audit R3; broader convergence remains
-in 2.8. The builder checks `NGINX_CUSTOMSSL`, but public defaults/schema define
-`NGINX_WITH_CUSTOMSSL`; enablement wiring needs correction. The opt-in custom
-TLS pin differs from the historical target and needs a maintained TLS/QUIC-library
-policy decision and source-build compatibility checks.
+Remaining curated repositories now share backed-up scoping. The builder honors
+`NGINX_WITH_CUSTOMSSL`; the maintained opt-in default is OpenSSL 3.5.9 LTS, with
+verified release SHA-256 downloads and Nginx-managed source integration. HTTP/3
+module selection remains opt-in. Older explicit library selections keep their
+compatibility routes with validated source tags.
 
-**Issue:** Ubuntu 24.04 (Noble) drops `apt-key`. Source builds reference old OpenSSL
+**Historical issue:** Ubuntu 24.04 (Noble) drops `apt-key`. Source builds reference old OpenSSL
 versions.
 
-**Fix:**
+**Original proposal:**
 
 - Replace all `apt-key` usage with `signed-by` keyring files.
 - Update `NGINX_CUSTOMSSL_VERSION` to `openssl-3.3.1` or `openssl-3.4.x`.
@@ -710,8 +714,8 @@ ModSecurity v3 with OWASP CRS.
 | #     | Task                                    | Priority | Effort | Estimated Time | Status   |
 | ----- | --------------------------------------- | -------- | ------ | -------------- | -------- |
 | 2.16  | Add `site list` subcommand              | Medium   | Medium | 6h             | ✅ v3.1.0 |
-| 2.17  | Add `site show` subcommand              | Medium   | Medium | 6h             | Partial: JSON/FPM/SSL/new-state parity remains |
-| 2.18  | Add DB backup/restore commands          | Medium   | Medium | 8h             | Engine delivered; domain shortcuts absent |
+| 2.17  | Add `site show` subcommand              | Medium   | Medium | 6h             | Delivered: shared diagnostic views and redaction |
+| 2.18  | Add DB backup/restore commands          | Medium   | Medium | 8h             | Delivered: protected engine and owned domain shortcuts |
 | 2.19  | Add Bun.js runtime integration          | Medium   | Medium | 6h             | ✅ v3.1.0 |
 | 2.19B | Add Valkey as Redis drop-in replacement | Medium   | Medium | 6h             | ✅ v3.1.0 |
 | 2.21  | Add ACME v2 DNS-01 wildcard support     | Medium   | Medium | 8h             | ✅ v3.2.0 |
@@ -731,7 +735,7 @@ ModSecurity v3 with OWASP CRS.
 | 2.23 | Improve CLI help output         | Medium   | Medium     | 6h             | ✅ v3.2.0 |
 | 2.25 | Remove PHP 5.6–7.4 support      | Medium   | Low–Medium | 4h             | ✅ v3.2.0 |
 | 2.26 | Update default PHP to 8.4       | Low      | Trivial    | 1h             | ✅ v3.2.0 |
-| 2.27 | Update OpenSSL/MariaDB versions | Medium   | Low–Medium | 4h             | Partial: repository convergence, TLS wiring/policy |
+| 2.27 | Update OpenSSL/MariaDB versions | Medium   | Low–Medium | 4h             | Delivered: scoped migration and OpenSSL 3.5.9 LTS |
 | 2.28 | Enable Fail2ban by default      | Medium   | Trivial    | 1h             | ✅ v3.2.0 |
 | 2.24 | Add interactive TUI mode        | Low      | High       | 20h            | ✅ v3.3.0 |
 

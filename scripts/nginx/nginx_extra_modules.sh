@@ -143,7 +143,8 @@ function install_maxmind_library() {
         if dpkg-query -l | awk '/libmaxminddb0/ { print $2 }' | grep -qwE "^libmaxminddb0"; then
             echo "MaxMind GeoIP2 library is already installed."
         else
-            run add-apt-repository -y ppa:maxmind/ppa && \
+            lemper_load_module services/apt/catalog && \
+            lemper_apt_prepare_repository maxmind && \
             run apt-get update -q -y && \
             run apt-get install -q -y libmaxminddb0 libmaxminddb-dev mmdb-bin
         fi

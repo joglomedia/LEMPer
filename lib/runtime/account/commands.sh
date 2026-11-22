@@ -42,10 +42,6 @@ EOL
 # Validate a Linux username: lowercase letters, digits, '_' and '-',
 # starting with a letter or underscore, max 32 characters.
 ##
-function validate_username() {
-    local NAME=${1}
-    [[ "${NAME}" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]
-}
 
 ##
 # Create a system account and its web application directories.

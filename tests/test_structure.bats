@@ -195,9 +195,11 @@ refute_grep() {
     grep -q 'function list_vhosts' "${BASE_DIR}/lib/lemper-site-list.sh"
 }
 
-@test "site-show plugin exists and has show_vhost_config function" {
+@test "site-show adapter wires the runtime handler and exported inspection driver" {
     [ -f "${BASE_DIR}/lib/lemper-site-show.sh" ]
-    grep -q 'function show_vhost_config' "${BASE_DIR}/lib/lemper-site-show.sh"
+    grep -q 'lemper_load_module runtime/site/show' "${BASE_DIR}/lib/lemper-site-show.sh"
+    grep -q 'function lemper_site_show_command' "${BASE_DIR}/lib/runtime/site/show.sh"
+    [ -f "${BASE_DIR}/lib/services/site/inspect.py" ]
 }
 
 @test "install_tools.sh wires site-list and site-show plugins" {

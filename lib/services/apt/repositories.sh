@@ -60,6 +60,17 @@ function lemper_apt_source_uri_matches() {
         php:http://ppa.launchpadcontent.net/ondrej/php/ubuntu|php:https://ppa.launchpadcontent.net/ondrej/php/ubuntu|\
         openswoole:http://ppa.launchpad.net/openswoole/ppa/ubuntu|openswoole:https://ppa.launchpad.net/openswoole/ppa/ubuntu|\
         openswoole:http://ppa.launchpadcontent.net/openswoole/ppa/ubuntu|openswoole:https://ppa.launchpadcontent.net/openswoole/ppa/ubuntu) return 0 ;;
+        pgdg:http://apt.postgresql.org/pub/repos/apt|pgdg:https://apt.postgresql.org/pub/repos/apt|\
+        redis:http://packages.redis.io/deb|redis:https://packages.redis.io/deb|\
+        bun:http://bun.sh/apt|bun:https://bun.sh/apt|\
+        mongodb:http://repo.mongodb.org/apt/debian|mongodb:https://repo.mongodb.org/apt/debian|\
+        mongodb:http://repo.mongodb.org/apt/ubuntu|mongodb:https://repo.mongodb.org/apt/ubuntu|\
+        deadsnakes:http://ppa.launchpad.net/deadsnakes/ppa/ubuntu|deadsnakes:https://ppa.launchpad.net/deadsnakes/ppa/ubuntu|\
+        deadsnakes:http://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu|deadsnakes:https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu|\
+        maxmind:http://ppa.launchpad.net/maxmind/ppa/ubuntu|maxmind:https://ppa.launchpad.net/maxmind/ppa/ubuntu|\
+        maxmind:http://ppa.launchpadcontent.net/maxmind/ppa/ubuntu|maxmind:https://ppa.launchpadcontent.net/maxmind/ppa/ubuntu|\
+        golang:http://ppa.launchpad.net/longsleep/golang-backports/ubuntu|golang:https://ppa.launchpad.net/longsleep/golang-backports/ubuntu|\
+        golang:http://ppa.launchpadcontent.net/longsleep/golang-backports/ubuntu|golang:https://ppa.launchpadcontent.net/longsleep/golang-backports/ubuntu) return 0 ;;
         mariadb:*)
             [[ "$uri" =~ ^https?://(deb\.mariadb\.org|dlm\.mariadb\.com|downloads\.mariadb\.com|mirror\.mariadb\.org|[a-z0-9.-]+\.mariadb\.com)/ ]] ;;
         *) return 1 ;;
@@ -93,6 +104,13 @@ function lemper_apt_scope_file() {
             [[ "$count" == 0 || "$other" == 0 ]] || {
                 error "Split mixed-repository URIs before assigning Signed-By."; return 1;
             }
+            if [[ "$count" -gt 0 ]]; then
+                for field in "${block[@]}"; do
+                    if [[ "${field,,}" =~ ^(trusted|allow-insecure|allow-weak):[[:space:]]*(yes|true|1|on)[[:space:]]*$ ]]; then
+                        error "Repository source bypasses signature verification; reconcile it before migration."; return 1
+                    fi
+                done
+            fi
             for ((index=0; index<${#block[@]}; index++)); do
                 field="${block[index]}"
                 if [[ "$count" -gt 0 && "${field,,}" == signed-by:* ]]; then
@@ -117,7 +135,9 @@ function lemper_apt_scope_file() {
                 rewritten=""; local option
                 read -r -a source_options <<< "$options"
                 for option in "${source_options[@]}"; do
-                    [[ "$option" == signed-by=* ]] || rewritten+="$option "
+                    case "${option,,}" in trusted=yes|trusted=true|trusted=1|trusted=on|allow-insecure=yes|allow-insecure=true|allow-insecure=1|allow-insecure=on|allow-weak=yes|allow-weak=true|allow-weak=1|allow-weak=on)
+                        error "Repository source bypasses signature verification; reconcile it before migration."; return 1 ;; esac
+                    [[ "${option,,}" == signed-by=* ]] || rewritten+="$option "
                 done
                 printf '%s[%ssigned-by=%s] %s%s\n' "$prefix" "$rewritten" "$key" "$uri" "$tail"
                 continue

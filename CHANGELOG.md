@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0] - Unreleased
 
 ### Added
+- Ownership-resolved domain shortcuts for DB backup, restore and scheduling.
+- Shared diagnostics with full config/FPM views, modern site/app state and certificate details.
+- Shared staged self-signed issuance, template preservation and protected one-year server certificates.
+
 - Hosting disk/inode plans and `lemperctl hosting` check/assign/status/detach/recover
   commands for quota-ready ext4 filesystems (issue #39), with locked provisioning,
   preserved quota baselines, UID/filesystem identity checks and interrupted-operation recovery.
@@ -51,6 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tag-driven release automation, and provisioned-host/dependency audit reports.
 
 ### Changed
+- Legacy input checks delegate to whole-value core validators with semantic IPv6 validation.
+- Remaining curated repository installers share backed-up key scoping and source preflight.
+- Custom Nginx TLS honors the canonical flag and uses checksummed OpenSSL 3.5.9 LTS sources.
+- Bun installation uses checksummed official amd64/arm64 binaries; the unavailable APT route is retired.
+
 - Account, database, SSL, TUI and vhost creation handlers now occupy function-only
   runtime modules; account provisioning and optional components use service drivers.
   Public wrappers, aliases and installed module destinations remain compatible.

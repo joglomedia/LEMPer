@@ -45,18 +45,7 @@ fi
 # Validate FQDN domain name (portable, no PCRE dependency).
 ##
 function validate_fqdn() {
-    local FQDN=${1}
-
-    if [[ ${#FQDN} -lt 4 || ${#FQDN} -gt 253 ]]; then
-        echo false
-        return
-    fi
-
-    if grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}\.?$' <<< "${FQDN}"; then
-        echo true
-    else
-        echo false
-    fi
+    core_validate_fqdn "$@"
 }
 
 ##

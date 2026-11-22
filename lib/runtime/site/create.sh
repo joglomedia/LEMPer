@@ -716,34 +716,14 @@ function get_ip_addr() {
 # Check whether IPv4 is valid.
 #
 function validate_ipv4() {
-    local ip=${1}
-    local return=false
-
-    if [[ ${ip} =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-        OIFS=${IFS}
-        IFS='.' read -r -a ips <<< "${ip}"
-        IFS=${OIFS}
-
-        if [[ ${ips[0]} -le 255 && ${ips[1]} -le 255 && ${ips[2]} -le 255 && ${ips[3]} -le 255 ]]; then
-            return=true
-        fi
-    fi
-
-    echo ${return}
+    core_validate_ipv4 "$@"
 }
 
 ##
 # Check whether IPv6 is valid.
 #
 function validate_ipv6() {
-    local ip=${1}
-    local return=false
-
-    if [[ ${ip} =~ ^([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}$ ]]; then
-        return=true
-    fi
-
-    echo ${return}
+    core_validate_ipv6 "$@"
 }
 
 ##
@@ -752,21 +732,7 @@ function validate_ipv6() {
 # PCRE (grep -P) lookahead/lookbehind is not available on all platforms.
 ##
 function validate_fqdn() {
-    local FQDN=${1}
-
-    # Length check: 4-253 characters (RFC 1035 / RFC 1123).
-    if [[ ${#FQDN} -lt 4 || ${#FQDN} -gt 253 ]]; then
-        echo false # error
-        return
-    fi
-
-    # Validate format: labels of 1-63 chars separated by dots,
-    # no leading/trailing dashes, TLD is 2-63 letters, optional trailing dot.
-    if grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}\.?$' <<< "${FQDN}"; then
-        echo true # success
-    else
-        echo false # error
-    fi
+    core_validate_fqdn "$@"
 }
 
 ##
@@ -985,6 +951,9 @@ function lemper_site_create_command() {
             ;;
         esac
     done
+
+    if [[ -n "$IPv4" ]] && ! core_is_valid_ipv4 "$IPv4"; then error "Invalid site IPv4 address."; return 1; fi
+    if [[ -n "$IPv6" ]] && ! core_is_valid_ipv6 "$IPv6"; then error "Invalid site IPv6 address."; return 1; fi
 
     if [[ "${MAIN_ARGS}" -ge 1 ]]; then
         check_required_packages || return 1

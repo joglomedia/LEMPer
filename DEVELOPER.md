@@ -1,7 +1,7 @@
 # LEMPer Developer Guide
 
 > **Version:** 4.0.0 (release preparation)
-> **Last Updated:** 2026-11-20
+> **Last Updated:** 2026-11-22
 > **Target Audience:** Contributors, maintainers, and developers working on LEMPer.
 
 ---
@@ -18,7 +18,7 @@
 | shunit2 | Latest | Unit testing framework |
 | bats-core | 1.14.0 | Integration/CLI structural testing |
 | **Podman Machine** | 4.0+ | **Recommended for macOS** — see §3.4 for Linux container testing |
-| EditorConfig | — | See `.editorconfig` (to be added in v3.0) |
+| EditorConfig | — | Tracked editor defaults; scoped shfmt enforcement is in CI |
 
 > **macOS developers:** Use Podman Machine to test scripts in a real Linux environment.
 > macOS `sed -i` and `grep -P` behave differently from GNU/Linux. Podman eliminates
@@ -898,3 +898,33 @@ in SSH-key validation; `--dry-run` and profile `DRYRUN=true` return before any
 host initialization. Explicit installs back up and store their effective profile.
 `--minimal` disables optional services and `INSTALL_WEB_ADMIN`, without changing
 SSH or firewall choices. Disabled component scripts are not sourced.
+
+## Prioritized roadmap follow-through UAT
+
+The `priority-followthrough-uat` job runs `tests/uat/priority_acceptance.sh` on
+Ubuntu 24.04 and Debian 12. Read the fixture before running it. It installs a CLI
+snapshot, provisions only synthetic users/databases/certificates, tests owned-domain
+DB commands, verifies real signed repository indexes and checks the native Bun
+release binary. Ubuntu also compiles Nginx 1.30.7 against checksummed OpenSSL 3.5.9,
+validates QUIC configuration and performs verified HTTPS with that exact binary.
+
+Run it only in a fresh disposable systemd/Podman container, with the project
+mounted read-only as `/source` and `/run/lemper-priority-uat-authorized` present.
+Prepare the distribution's nginx/php-fpm/php-cli/mariadb-server/cron/gnupg packages;
+for compilation also install build-essential/libpcre2-dev/zlib1g-dev/libssl-dev.
+The complete container setup is in `.github/workflows/main.yml`.
+
+```bash
+podman exec lemper-priority-uat bash -c '
+  touch /run/lemper-priority-uat-authorized
+  cp /source/tests/uat/priority_acceptance.sh /run/priority-acceptance.sh
+  bash /run/priority-acceptance.sh --build-tls
+'
+podman stop --time 10 lemper-priority-uat
+```
+
+Always run a frozen copy of the fixture: editing a mounted Bash script while it
+runs can change read offsets. The fixture also reads subsequent helpers/templates
+from the immutable CLI snapshot. Compilation uses `/var/tmp`, not the limited
+memory-backed `/run`; runtime SSL builds omit unused OpenSSL test executables.
+Do not copy private `.env` files into UAT or disable TLS/signature checks to pass it.

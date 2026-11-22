@@ -191,7 +191,7 @@ function init_lemper_install() {
             --with-nginx-custom-ssl)
                 exit_if_optarg_is_empty "${1}" "${2}"
                 shift
-                NGINX_CUSTOMSSL_VERSION=${1-"openssl-1.1.1l"}
+                NGINX_CUSTOMSSL_VERSION=${1-"openssl-3.5.9"}
                 sed_inplace "s/NGINX_WITH_CUSTOMSSL=[a-zA-Z]*/NGINX_WITH_CUSTOMSSL=true/g" .env
                 sed_inplace "s/NGINX_CUSTOMSSL_VERSION=\"[a-zA-Z0-9\ ._-]*\"/NGINX_CUSTOMSSL_VERSION=\"${NGINX_CUSTOMSSL_VERSION}\"/g" .env
                 shift

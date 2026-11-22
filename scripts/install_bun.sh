@@ -40,7 +40,7 @@ function init_bunjs_install() {
     if [[ "${AUTO_INSTALL}" == true ]]; then
         if [[ "${INSTALL_BUNJS}" == true ]]; then
             DO_INSTALL_BUNJS="y"
-            SELECTED_INSTALLER=${BUNJS_INSTALLER:-"repo"}
+            SELECTED_INSTALLER=${BUNJS_INSTALLER:-"source"}
         else
             DO_INSTALL_BUNJS="n"
         fi
@@ -59,47 +59,18 @@ function init_bunjs_install() {
 
         while [[ "${SELECTED_INSTALLER}" != "1" && "${SELECTED_INSTALLER}" != "2" && \
             "${SELECTED_INSTALLER}" != "repo" && "${SELECTED_INSTALLER}" != "source" ]]; do
-            read -rp "Select an option [1-2]: " -i "${BUNJS_INSTALLER:-repo}" -e SELECTED_INSTALLER
+            read -rp "Select an option [1-2]: " -i "${BUNJS_INSTALLER:-source}" -e SELECTED_INSTALLER
         done
 
         case "${SELECTED_INSTALLER}" in
             1 | "repo")
-                echo "Installing Bun.js from apt repository..."
-
-                # Add Bun.js apt repository.
-                run bash -c "curl -fsSL https://bun.sh/bun.key | gpg --dearmor --yes -o /usr/share/keyrings/bun-archive-keyring.gpg" && \
-                run bash -c "echo 'deb [signed-by=/usr/share/keyrings/bun-archive-keyring.gpg] https://bun.sh/apt stable main' | tee /etc/apt/sources.list.d/bun.list" && \
-                run apt-get update --allow-releaseinfo-change -q -y && \
-                run_spinner "Installing Bun.js" apt-get install -q -y bun
+                warning "The former Bun APT endpoint is retired; using the verified official release binary."
+                lemper_load_module services/bun/binary || return 1
+                lemper_bun_install_binary || return 1
             ;;
             2 | "source")
-                echo "Installing Bun.js from official binary release..."
-
-                local CURRENT_DIR && \
-                CURRENT_DIR=$(pwd)
-                run cd "${BUILD_DIR}" || error "Cannot change directory to ${BUILD_DIR}"
-
-                BUNJS_VERSION=${BUNJS_VERSION:-"latest"}
-
-                if [[ "${BUNJS_VERSION}" == "latest" ]]; then
-                    BUNJS_API_URL="https://api.github.com/repos/oven-sh/bun-release/latest"
-                    BUNJS_DOWNLOAD_URL=$(curl -fsSL "${BUNJS_API_URL}" | grep -o '"browser_download_url": *"[^"]*linux-x64\[^"]*"' | head -1 | cut -d'"' -f4)
-                else
-                    BUNJS_DOWNLOAD_URL="https://github.com/oven-sh/bun-release/releases/download/${BUNJS_VERSION}/bun-linux-x64.tar.gz"
-                fi
-
-                if [[ -n "${BUNJS_DOWNLOAD_URL}" ]] && \
-                    curl -sLI "${BUNJS_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                    run curl -sSL -o bun.tar.gz "${BUNJS_DOWNLOAD_URL}" && \
-                    run tar -zxf bun.tar.gz && \
-                    run cp -rf bun-linux-x64 /opt/bun && \
-                    run ln -sf /opt/bun/bun /usr/local/bin/bun && \
-                    run chmod 755 /usr/local/bin/bun
-                else
-                    error "An error occured while downloading Bun.js binary."
-                fi
-
-                run cd "${CURRENT_DIR}" || return 1
+                lemper_load_module services/bun/binary || return 1
+                lemper_bun_install_binary || return 1
             ;;
             *)
                 # Skip unsupported installation mode.

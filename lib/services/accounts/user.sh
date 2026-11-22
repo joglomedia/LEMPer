@@ -24,7 +24,7 @@ function create_account() {
     local ROLE="${2:-hosting}"
     local PLAN="${3:-}"
 
-    if ! validate_username "${USERNAME}"; then
+    if ! is_valid_username "${USERNAME}"; then
         error "Invalid username '${USERNAME}'. Expected lowercase letters," \
             "digits, '_' or '-', starting with a letter or '_'."
         return 1

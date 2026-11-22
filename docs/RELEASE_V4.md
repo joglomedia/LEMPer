@@ -164,3 +164,16 @@ report (33/35), ShellCheck 0.11/Bashate/syntax/shfmt checks, and 41 real quota U
 checks on each of Ubuntu 24.04 and Debian 12 ARM64. Project mounts stayed read-only;
 quota test volumes were released afterward. These results cover the working tree,
 not a published v4 archive or remote GitHub Actions run.
+
+## Prioritized follow-through (2026-11-22, working tree)
+
+The earlier partial scope for 2.8/2.9/2.17/2.18/2.27 now has shared validation,
+curated repository migration, maintained/checksummed TLS builds, diagnostic view
+parity and owned domain DB shortcuts. The next decomposition boundaries for
+2.12/2.37 are extracted; older installer/manager internals remain partial.
+
+Verification passed 437 Bats tests, ShellCheck/Bashate/syntax/shfmt checks, 47 real
+Ubuntu 24.04 ARM64 UAT checks and 37 Debian 12 ARM64 checks. Ubuntu compiled and
+ran Nginx 1.30.7 with OpenSSL 3.5.9, verified HTTPS and QUIC configuration. Client
+HTTP/3/0-RTT and native amd64 execution remain unverified locally. These results
+cover the reviewed working tree, not an immutable release archive or remote CI.

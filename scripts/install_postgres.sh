@@ -34,36 +34,9 @@ fi
 # Ref: https://wiki.postgresql.org/wiki/Apt
 ##
 function add_postgres_repo() {
-    local POSTGRES_REPO_KEY_URL="https://www.postgresql.org/media/keys/ACCC4CF8.asc"
-    local POSTGRES_REPO_KEY_PATH="/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc"
-    local POSTGRES_REPO_FILE="/etc/apt/sources.list.d/pgdg.list"
-
-    case "${DISTRIB_NAME}" in
-        debian | ubuntu)
-            if [[ ! -f "${POSTGRES_REPO_FILE}" ]]; then
-                echo "Adding PostgreSQL PGDG repository..."
-
-                # Create directory for the key.
-                run install -d /usr/share/postgresql-common/pgdg
-
-                # Download and install the repository signing key.
-                run curl -fsSL -o "${POSTGRES_REPO_KEY_PATH}" "${POSTGRES_REPO_KEY_URL}"
-
-                # Add the repository to sources list.
-                run bash -c "echo 'deb [signed-by=${POSTGRES_REPO_KEY_PATH}] https://apt.postgresql.org/pub/repos/apt ${RELEASE_NAME}-pgdg main' > ${POSTGRES_REPO_FILE}"
-
-                # Update package lists.
-                run apt-get update -q -y
-            else
-                info "PostgreSQL PGDG repository already exists."
-            fi
-        ;;
-        *)
-            error "Unable to add PostgreSQL repo, unsupported release: ${DISTRIB_NAME^} ${RELEASE_NAME^}."
-            echo "Sorry your system is not supported yet, installing from source may fix the issue."
-            exit 1
-        ;;
-    esac
+    lemper_load_module services/apt/catalog || return 1
+    lemper_apt_prepare_repository pgdg || return 1
+    lemper_exec apt-get update -q -y
 }
 
 ##

@@ -914,42 +914,21 @@ function disable_cors() {
 # Uses ERE (grep -E) with a separate length check for portability.
 ##
 function validate_fqdn() {
-    local FQDN=${1}
-
-    # Length check: 4-253 characters (RFC 1035 / RFC 1123).
-    if [[ ${#FQDN} -lt 4 || ${#FQDN} -gt 253 ]]; then
-        echo false # error
-        return
-    fi
-
-    # Validate format: labels of 1-63 chars separated by dots,
-    # no leading/trailing dashes, TLD is 2-63 letters, optional trailing dot.
-    if grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}\.?$' <<< "${FQDN}"; then
-        echo true # success
-    else
-        echo false # error
-    fi
+    core_validate_fqdn "$@"
 }
 
 ##
 # Validate IPv4 address.
 ##
 function validate_ipv4() {
-    local IP=${1}
-
-    if grep -qE '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$' <<< "${IP}"; then
-        echo true # success
-    else
-        echo false # error
-    fi
+    core_validate_ipv4 "$@"
 }
 
 ##
 # Sanitize a string for safe use in sed replacement patterns.
 ##
 function sanitize_sed_replacement() {
-    local INPUT=${1}
-    printf '%s' "${INPUT}" | sed -e 's/[\\&]/\\&/g' -e 's/\//\\\//g'
+    core_sanitize_sed_replacement "$@"
 }
 
 ##
@@ -1023,59 +1002,11 @@ function reload_nginx() {
 # Generate sel-signed certificate.
 ##
 function generate_selfsigned_ssl() {
-    # Verify user input hostname (domain name).
-    local DOMAIN=${1}
-    local SERVER_IP=${2:-$(get_ip_public)}
-    verify_vhost "${DOMAIN}"
-
-    # Validate IPv4 address — get_ip_public() should return valid IPv4,
-    # but we check defensively in case the network source is compromised.
-    if [ -n "${SERVER_IP}" ] && [[ $(validate_ipv4 "${SERVER_IP}") == false ]]; then
-        fail "Invalid IPv4 address: '${SERVER_IP}' is not a valid IPv4 address."
-    fi
-
-    if [ ! -d "/etc/lemper/ssl/${DOMAIN}" ]; then
-        run mkdir -p "/etc/lemper/ssl/${DOMAIN}"
-    fi
-
-    sed_inplace "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/ca.conf && \
-    sed_inplace "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    sed_inplace "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    sed_inplace -r "s|^IP.1\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.1\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
-    sed_inplace -r "s|^IP.2\ =\ (\b[0-9]{1,3}\.){3}[0-9]{1,3}\b$|IP.2\ =\ ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
-    sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
-
-    # Create Certificate Authority (CA).
-    run openssl req -x509 -sha256 -days 365000 -nodes -newkey rsa:4096 \
-        -keyout "/etc/lemper/ssl/${DOMAIN}/ca.key" -out "/etc/lemper/ssl/${DOMAIN}/ca.crt" \
-        -config /etc/lemper/ssl/ca.conf
-
-    CA_KEY_FILE="/etc/lemper/ssl/${DOMAIN}/ca.key"
-    CA_CRT_FILE="/etc/lemper/ssl/${DOMAIN}/ca.crt"
-
-    # Create Server Private Key.
-    run openssl genrsa -out "/etc/lemper/ssl/${DOMAIN}/privkey.pem" 4096 && \
-
-    # Generate Certificate Signing Request (CSR) using Server Private Key.
-    run openssl req -new -key "/etc/lemper/ssl/${DOMAIN}/privkey.pem" \
-        -out "/etc/lemper/ssl/${DOMAIN}/csr.csr" -config /etc/lemper/ssl/csr.conf
-
-    # Generate SSL certificate With self signed CA.
-    run openssl x509 -req -sha256 -days 365000 -CAcreateserial \
-        -CA "${CA_CRT_FILE}" -CAkey "${CA_KEY_FILE}" \
-        -in "/etc/lemper/ssl/${DOMAIN}/csr.csr" -out "/etc/lemper/ssl/${DOMAIN}/cert.pem" \
-        -extfile /etc/lemper/ssl/cert.conf
-
-    # Create chain file.
-    run cat "/etc/lemper/ssl/${DOMAIN}/cert.pem" "${CA_CRT_FILE}" >> \
-        "/etc/lemper/ssl/${DOMAIN}/fullchain.pem"
-
-    if [ -f "/etc/lemper/ssl/${DOMAIN}/cert.pem" ]; then
-        success "Self-signed SSL certificate has been successfully generated."
-    else
-        fail "An error occurred while generating self-signed SSL certificate."
-    fi
+    local domain="$1" ipv4="${2:-$(get_ip_public)}"
+    verify_vhost "$domain" || return 1
+    lemper_load_module services/ssl/certificates || return 1
+    # The site orchestrator holds the lock; legacy direct access is isolated.
+    lemper_ssl_generate_selfsigned "$domain" "$ipv4"
 }
 
 ##

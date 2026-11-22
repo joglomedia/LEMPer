@@ -54,34 +54,14 @@ EOL
 # Uses ERE (grep -E) with a separate length check for portability.
 ##
 function validate_fqdn() {
-    local FQDN=${1}
-
-    # Length check: 4-253 characters (RFC 1035 / RFC 1123).
-    if [[ ${#FQDN} -lt 4 || ${#FQDN} -gt 253 ]]; then
-        echo false # error
-        return
-    fi
-
-    # Validate format: labels of 1-63 chars separated by dots,
-    # no leading/trailing dashes, TLD is 2-63 letters, optional trailing dot.
-    if grep -qE '^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,63}\.?$' <<< "${FQDN}"; then
-        echo true # success
-    else
-        echo false # error
-    fi
+    core_validate_fqdn "$@"
 }
 
 ##
 # Validate IPv4 address.
 ##
 function validate_ipv4() {
-    local IP=${1}
-
-    if grep -qE '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$' <<< "${IP}"; then
-        echo true # success
-    else
-        echo false # error
-    fi
+    core_validate_ipv4 "$@"
 }
 
 ##
@@ -90,88 +70,19 @@ function validate_ipv4() {
 # when interpolating user input into sed s/.../.../ commands.
 ##
 function sanitize_sed_replacement() {
-    local INPUT=${1}
-    printf '%s' "${INPUT}" | sed -e 's/[\\&]/\\&/g' -e 's/\//\\\//g'
+    core_sanitize_sed_replacement "$@"
 }
 
 ##
 # Usage: generate_selfsigned_ssl <domain> <ipv4> <ipv6>
 ##
 function generate_selfsigned_ssl() {
-    DOMAIN=${1}
-    SERVER_IP=${2:-$(hostname -I | awk '{print $1}')}
-    SERVER_IPV6=${3:-}
-    KEY_HASH_LENGTH=4096
-
-    if [ -z "${DOMAIN}" ]; then
-        fail "Please specify domain name."
-    fi
-
-    if [[ $(validate_fqdn "${DOMAIN}") == false ]]; then
-        fail "Your Domain name is not valid 'Fully Qualified Domain Name (FQDN)' format!"
-    fi
-
-    # Validate IPv4 address when provided via CLI --ipv4 flag.
-    if [ -n "${SERVER_IP}" ] && [[ $(validate_ipv4 "${SERVER_IP}") == false ]]; then
-        fail "Invalid IPv4 address: '${SERVER_IP}' is not a valid IPv4 address."
-    fi
-
-    # Validate the shape of an explicitly provided IPv6 address.
-    if [ -n "${SERVER_IPV6}" ] && [[ ! "${SERVER_IPV6}" =~ ^[0-9A-Fa-f:]+$ || "${SERVER_IPV6}" != *:* ]]; then
-        fail "Invalid IPv6 address: '${SERVER_IPV6}' is not a valid IPv6 address."
-    fi
-
-    # Without an explicit IPv6 address, keep the historic IPv4 value.
-    local CERT_IPV6="${SERVER_IPV6:-${SERVER_IP}}"
-
-    if [[ "${DRYRUN:-false}" == true ]]; then info "Would generate self-signed certificate for $DOMAIN."; return 0; fi
-    if [ ! -d "/etc/lemper/ssl/${DOMAIN}" ]; then
-        mkdir -p "/etc/lemper/ssl/${DOMAIN}"
-    fi
-
-    # Self-signed certificate for local development environment.
-    sed_inplace "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/ca.conf && \
-    sed_inplace "s|^CN\ =\ .*|CN\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    sed_inplace "s|^DNS\.2\ =\ .*|DNS\.2\ =\ www\.${DOMAIN}|g" /etc/lemper/ssl/csr.conf && \
-    sed_inplace -r "s|^IP\.1\s*=\s*.*$|IP.1 = ${SERVER_IP}|g" /etc/lemper/ssl/csr.conf && \
-    sed_inplace -r "s|^IP\.2\s*=\s*.*$|IP.2 = ${CERT_IPV6}|g" /etc/lemper/ssl/csr.conf && \
-    sed_inplace "s|^DNS\.1\ =\ .*|DNS\.1\ =\ ${DOMAIN}|g" /etc/lemper/ssl/cert.conf
-
-    # Create Certificate Authority (CA).
-    run openssl req -x509 -sha256 -days 365000 -nodes -newkey "rsa:${KEY_HASH_LENGTH}" \
-        -keyout "/etc/lemper/ssl/${DOMAIN}/ca.key" -out "/etc/lemper/ssl/${DOMAIN}/ca.crt" \
-        -config /etc/lemper/ssl/ca.conf
-
-    CA_KEY_FILE="/etc/lemper/ssl/${DOMAIN}/ca.key"
-    CA_CRT_FILE="/etc/lemper/ssl/${DOMAIN}/ca.crt"
-
-    # Create Server Private Key.
-    run openssl genrsa -out "/etc/lemper/ssl/${DOMAIN}/privkey.pem" "${KEY_HASH_LENGTH}" && \
-
-    # Generate Certificate Signing Request (CSR) using Server Private Key.
-    run openssl req -new -key "/etc/lemper/ssl/${DOMAIN}/privkey.pem" \
-        -out "/etc/lemper/ssl/${DOMAIN}/csr.csr" -config /etc/lemper/ssl/csr.conf
-
-    # Generate SSL certificate With self signed CA.
-    run openssl x509 -req -sha256 -days 365000 -CAcreateserial \
-        -CA "${CA_CRT_FILE}" -CAkey "${CA_KEY_FILE}" \
-        -in "/etc/lemper/ssl/${DOMAIN}/csr.csr" -out "/etc/lemper/ssl/${DOMAIN}/cert.pem" \
-        -extfile /etc/lemper/ssl/cert.conf
-
-    # Create chain file.
-    run cat "/etc/lemper/ssl/${DOMAIN}/cert.pem" "${CA_CRT_FILE}" >> \
-        "/etc/lemper/ssl/${DOMAIN}/fullchain.pem"
-
-    if [ -f "/etc/lemper/ssl/${DOMAIN}/cert.pem" ]; then
-        info "Self-signed SSL certificate has been successfully generated."
-        echo "Certificate file: /etc/lemper/ssl/${DOMAIN}/cert.pem"
-        echo "Private key file: /etc/lemper/ssl/${DOMAIN}/privkey.pem"
-        echo "Full chain file:  /etc/lemper/ssl/${DOMAIN}/fullchain.pem"
-        return 0
-    else
-        fail "An error occurred while generating self-signed SSL certificate."
-    fi
+    local domain="${1:-}" ipv4="${2:-$(hostname -I | awk '{print $1}')}" ipv6="${3:-}"
+    [[ $(core_validate_fqdn "$domain") == true ]] || { fail "Invalid certificate domain."; return 1; }
+    core_is_valid_ipv4 "$ipv4" || { fail "Invalid certificate IPv4 address."; return 1; }
+    [[ -z "$ipv6" ]] || core_is_valid_ipv6 "$ipv6" || { fail "Invalid certificate IPv6 address."; return 1; }
+    lemper_load_module services/ssl/certificates || return 1
+    lemper_with_lock lemper_ssl_generate_selfsigned "$domain" "$ipv4" "$ipv6"
 }
 
 ##

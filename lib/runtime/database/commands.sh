@@ -440,6 +440,19 @@ function db_operations() {
         return 0
     fi
 
+    if [[ "${ACTION:-}" =~ ^(backup|restore|backup-schedule)$ && $# -gt 0 ]]; then
+        [[ -z "$DBNAME" ]] || { error "Choose either a site domain or --dbname."; return 1; }
+        if [[ "$ACTION" == restore ]]; then
+            [[ $# == 2 && -z "$DBFILE" ]] || { error "Usage: db restore <domain> <file>."; return 1; }
+            DBFILE="$2"
+        else
+            [[ $# == 1 ]] || { error "Expected one database site domain."; return 1; }
+        fi
+        lemper_load_module services/site/database || return 1
+        DBNAME=$(lemper_site_database_for_domain "$1") || return 1
+        shift "$#"
+    fi
+
     if [[ "${MAIN_ARGS}" -ge 1 ]]; then
         # Set default value.
         DBHOST=${DBHOST:-"localhost"}
@@ -796,10 +809,10 @@ These are common ${CMD_PARENT} ${CMD_NAME} subcommands used in various situation
   databases     Lists the databases.
   drop          Deletes the database.
   export        Exports a database to a private plain SQL file.
-  backup        Creates a timestamped backup of a database.
-  restore       Restores a database from a backup file.
+  backup [domain] Creates a timestamped backup; domain resolves recorded site ownership.
+  restore [domain file] Restores a database from a backup file.
   prune         Prunes verified SQL dumps according to --keep.
-  backup-schedule  Schedules automatic database backups via cron.
+  backup-schedule [domain] Schedules automatic database backups via cron.
   import        Imports a database from a file or from STDIN.
   list          An aliases of databases sub command.
   optimize      Optimizes the database.
@@ -870,6 +883,9 @@ GLOBAL PARAMETERS
 
 
 Example:
+  ${CMD_PARENT} ${CMD_NAME} backup example.com
+  ${CMD_PARENT} ${CMD_NAME} restore example.com /var/backups/lemper/ARCHIVE.sql.gz
+  ${CMD_PARENT} ${CMD_NAME} backup-schedule example.com --dbschedule='0 2 * * *'
   ${CMD_PARENT} ${CMD_NAME} account create --dbuser=user --dbpass-file=/root/app-db.pass
 
 For help with each command run:

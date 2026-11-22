@@ -3,3 +3,9 @@ lib/core/progress.sh
 lib/services/hosting/plans.sh
 lib/services/hosting/quota.sh
 lib/services/mariadb/database.sh
+lib/core/validation.sh
+lib/services/ssl/certificates.sh
+lib/services/site/database.sh
+lib/runtime/site/show.sh
+lib/services/apt/catalog.sh
+lib/services/bun/binary.sh
