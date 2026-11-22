@@ -2,7 +2,7 @@
 
 > **Latest published version:** 3.6.0
 > **Last Updated:** 2026-11-21
-> **Code baseline:** 736c5e5 plus P3 implementation changes on `release/v4.0.0`
+> **Code baseline:** 753c846 on `release/v4.0.0`
 > **Status:** v4.0 foundations, mail hosting and PHP/Laravel enhancements are
 > implemented but unreleased. Partial tasks, deferred plans and release
 > validation remain; see [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
@@ -33,7 +33,7 @@ scope inside tasks historically marked complete.
 | ACME | Shared Cloudflare/DigitalOcean DNS-01 credentials for issuance and renewal |
 | Configuration | Typed schema, cross-option install preflight, strict config check, compatible legacy runtime loading |
 | SSH | Key-only default, ed25519 guidance, root-managed keys, validation and rollback through reload |
-| Shared code | Core modules and a widely adopted array parser; mail/full-stack entry parsing still needs normalization |
+| Shared code | Core modules and shared parsing across public paths; legacy adapters retain isolated parsing |
 | Service/site CLI | Per-service lifecycle commands, PHP branch control, new site remove verb |
 | Bootstrap/releases | Pinned CLI-only installation, immutable version directories, checksums, reproducible release workflow |
 | CI audits | Provisioned-host Lynis report and package/source-pin dependency review |
@@ -55,8 +55,12 @@ interactive ETA/optional pv restoration progress. See [HOSTING.md](HOSTING.md).
 Quota enforcement currently supports explicitly enabled ext4 user quotas; broader
 resource limits and other filesystem backends remain optional enhancements.
 
-Remaining architecture work: further extraction of legacy site-management and
-component installer internals. Release validation/publication gates remain below.
+Remaining delivery work includes consistent validation (2.9), repository
+convergence and custom-TLS wiring/policy (2.8/2.27), diagnostic view parity (2.17),
+and the original domain-based DB shortcuts (2.18). Further extraction of legacy
+management/installer internals is the shared 2.12/2.37 architecture workstream.
+See the [targeted cross-check](ROADMAP_AUDIT.md#targeted-completion-cross-check-753c846)
+for evidence and priority order. Release validation/publication gates remain below.
 
 Authenticated encryption and custom TLS pins remain explicit policy/format
 decisions. The delivered encryption uses AES-256-CBC/PBKDF2. Full evidence,
@@ -239,10 +243,12 @@ defaults.
 
 ---
 
-#### 2.8 Replace `apt-key` with Keyring Files (Security — Low) — Implemented
+#### 2.8 Replace `apt-key` with Keyring Files (Security — Low) — Partial convergence
 
 **Current status:** Scoped signing keys and backed-up migration are implemented for
-PHP and MariaDB in audit R3; shared keyrings require explicit review.
+PHP and MariaDB in audit R3. Remaining PPA paths do not use that migration
+contract, and PGDG skips existing sources. Shared keyrings require explicit review;
+removing deprecated calls does not prove every existing repository is migrated.
 
 **Issue:** `apt-key` is deprecated and stores all repository keys in a single keyring,
 creating trust-confusion vulnerabilities.
@@ -266,10 +272,12 @@ curl -sSL https://... | gpg --dearmor -o /usr/share/keyrings/repo.gpg
 
 ---
 
-#### 2.9 Add Input Sanitization Layer (Security — Medium) — Implemented for audited boundaries
+#### 2.9 Add Input Sanitization Layer (Security — Medium) — Partial validation
 
 **Current status:** Site/account/SSH validators and the legacy DB validation/
-execution follow-through are implemented; see audit R1 and DATABASE.md.
+execution follow-through are implemented; see audit R1 and DATABASE.md. Legacy
+grep-based validators still accept multiline input, and self-SSL IPv6 validation
+is shape-only. Consolidation and strict checks before all mutations remain.
 
 **Issue:** Domain names are passed directly to `sed`, `openssl`, and file paths without
 sanitization. While `validate_fqdn()` is called in some paths, other paths (e.g.,
@@ -332,7 +340,12 @@ removal logic. When one is updated, the other is often missed.
 
 ---
 
-#### 2.12 Reorganize into Modular Directory Structure
+#### 2.12 Reorganize into Modular Directory Structure — Partially implemented
+
+**Current status:** Core/runtime/service/compatibility layers and their installed
+exports exist. Account/database/SSL/TUI handlers have moved into function-only
+runtime modules. This shares the remaining business-logic extraction with 2.37:
+legacy management, diagnostics and component installers still need decomposition.
 
 **Issue:** The project mixes installation scripts (`scripts/`), CLI plugins (`lib/`),
 and configuration templates (`etc/`) in a flat structure that is hard to navigate.
@@ -406,10 +419,13 @@ domain names, framework, SSL status, PHP version.
 
 ---
 
-#### 2.17 Add `lemperctl site show <domain>` Subcommand — Implemented
+#### 2.17 Add `lemperctl site show <domain>` Subcommand — Partial view coverage
 
 **Current status:** Metadata is redacted in text and JSON; `--json` is registered
 and implies `--all`. Malformed metadata fails without exposing values. See audit R2.
+JSON omits full Nginx/FPM content and certificate details, and diagnostics do not
+read modern site ownership/mounted-app state. View parity remains. Plaintext
+linked credentials are intentionally excluded from the original proposal.
 
 **Issue:** No way to display the full configuration for a specific vhost.
 
@@ -420,10 +436,13 @@ status, and linked credentials.
 
 ---
 
-#### 2.18 Add Database Backup &amp; Restore Commands — Implemented
+#### 2.18 Add Database Backup &amp; Restore Commands — Implemented engine; partial CLI specification
 
 **Current status:** Timestamped SQL dumps, restore and cron scheduling exist.
-Protected execution is delivered in R1; Verified SQL retention is now delivered in R4.
+Protected execution is delivered in R1; verified SQL retention is delivered in R4.
+The engine uses `--dbname`/`--dbfile`; the proposed positional domain shortcuts
+below and domain-to-database metadata resolution are absent. Implement an
+unambiguous mapping or explicitly revise the original CLI specification.
 
 **Issue:** The README mentions "database backup tool" as a TODO, and `lemper-db.sh`
 has export/import but no scheduled backup rotation.
@@ -574,11 +593,14 @@ add maintenance burden and could mislead users into installing insecure versions
 
 ---
 
-#### 2.27 Remove Deprecated `apt-key` and Update Repository Setup — Partial / policy decision
+#### 2.27 Remove Deprecated `apt-key` and Update Repository Setup — Partial convergence / TLS wiring and policy
 
 **Current status:** MariaDB 11.4 and several scoped keyrings are implemented.
-Key scoping is delivered in audit R3; the opt-in custom TLS pin differs from the
-historical target and needs a maintained TLS/QUIC-library policy decision.
+PHP/MariaDB key migration is delivered in audit R3; broader convergence remains
+in 2.8. The builder checks `NGINX_CUSTOMSSL`, but public defaults/schema define
+`NGINX_WITH_CUSTOMSSL`; enablement wiring needs correction. The opt-in custom
+TLS pin differs from the historical target and needs a maintained TLS/QUIC-library
+policy decision and source-build compatibility checks.
 
 **Issue:** Ubuntu 24.04 (Noble) drops `apt-key`. Source builds reference old OpenSSL
 versions.
@@ -688,8 +710,8 @@ ModSecurity v3 with OWASP CRS.
 | #     | Task                                    | Priority | Effort | Estimated Time | Status   |
 | ----- | --------------------------------------- | -------- | ------ | -------------- | -------- |
 | 2.16  | Add `site list` subcommand              | Medium   | Medium | 6h             | ✅ v3.1.0 |
-| 2.17  | Add `site show` subcommand              | Medium   | Medium | 6h             | Delivered; diagnostic follow-through R2 implemented |
-| 2.18  | Add DB backup/restore commands          | Medium   | Medium | 8h             | Delivered; protected execution and retention implemented |
+| 2.17  | Add `site show` subcommand              | Medium   | Medium | 6h             | Partial: JSON/FPM/SSL/new-state parity remains |
+| 2.18  | Add DB backup/restore commands          | Medium   | Medium | 8h             | Engine delivered; domain shortcuts absent |
 | 2.19  | Add Bun.js runtime integration          | Medium   | Medium | 6h             | ✅ v3.1.0 |
 | 2.19B | Add Valkey as Redis drop-in replacement | Medium   | Medium | 6h             | ✅ v3.1.0 |
 | 2.21  | Add ACME v2 DNS-01 wildcard support     | Medium   | Medium | 8h             | ✅ v3.2.0 |
@@ -709,7 +731,7 @@ ModSecurity v3 with OWASP CRS.
 | 2.23 | Improve CLI help output         | Medium   | Medium     | 6h             | ✅ v3.2.0 |
 | 2.25 | Remove PHP 5.6–7.4 support      | Medium   | Low–Medium | 4h             | ✅ v3.2.0 |
 | 2.26 | Update default PHP to 8.4       | Low      | Trivial    | 1h             | ✅ v3.2.0 |
-| 2.27 | Update OpenSSL/MariaDB versions | Medium   | Low–Medium | 4h             | Key scope R3 implemented; TLS policy remains |
+| 2.27 | Update OpenSSL/MariaDB versions | Medium   | Low–Medium | 4h             | Partial: repository convergence, TLS wiring/policy |
 | 2.28 | Enable Fail2ban by default      | Medium   | Trivial    | 1h             | ✅ v3.2.0 |
 | 2.24 | Add interactive TUI mode        | Low      | High       | 20h            | ✅ v3.3.0 |
 
@@ -811,15 +833,15 @@ The installer floor is now 8.2. Shipped templates are 8.2–8.5. `update php --m
 
 #### 2.37 Modular Directory Restructuring (Architecture — High) — **Partially Implemented**
 
-**Status:** Site/stack use cases, recipes, PHP/Nginx/systemd drivers and adapters
-now populate these directories. Shared registries govern commands, components
-and deployment. Account/database/TUI and remaining installer internals still
-require gradual extraction.
+**Status:** **Partially implemented.** Core helpers, runtime use cases, service
+drivers, isolated legacy adapters, registries, locking and installed exports are
+working. Account/database/SSL/TUI/vhost-creation handlers now live in function-only
+runtime modules. Remaining work is gradual extraction of legacy management,
+diagnostics, application rendering/install logic and component installer internals
+behind those interfaces. This is the same workstream as 2.12; retained public
+wrappers and compatibility filenames do not themselves indicate missing modules.
 
-**Status:** **Partially implemented** — public command contracts and compatibility
-layers are implemented; remaining legacy internals extraction stays open.
-
-**Effort:** High — ⏳ Planned
+**Effort:** High — incremental extraction remains.
 
 ---
 

@@ -562,7 +562,7 @@ Selecting older code does not undo service or database changes.
 | **Firewall** | UFW/CSF/APF | UFW + nftables backend, optional CrowdSec |
 | **SSL** | RSA 2048 self-signed | RSA 4096 or ed25519, OCSP stapling, ACME v2 |
 
-### 4.4 Module Decomposition (CLI contracts implemented; legacy internals retained)
+### 4.4 Module Decomposition (partially implemented; runtime/service foundations delivered)
 
 ~~~text
 lib/
@@ -578,11 +578,15 @@ lib/
 │   ├── help.sh
 │   ├── site/commands.sh             create/update/remove/adopt normalization and batches
 │   ├── site/state.sh                site ownership and guarded purge
+│   ├── account/, database/, ssl/, tui/ function-only public command handlers
+│   ├── mail/, hosting/, data/        service use cases
 │   ├── stack/commands.sh            independent component lifecycle orchestration
 │   └── stack/recipe.sh              full-stack orchestration over the component registry
 ├── services/
 │   ├── php/lifecycle.sh             installed inventory, selection, references, updates
 │   ├── nginx/site.sh                site configuration snapshots/removal/reload
+│   ├── accounts/, mariadb/, mail/    provisioning, database and mail drivers
+│   ├── apt/, hosting/               repository migration and quota lifecycle
 │   └── systemd.sh                  service validation and control
 ├── compat/
 │   ├── components.sh               installer/remover child-process boundary
@@ -600,8 +604,12 @@ FPM instances for versionless control. Removal refuses referenced PHP versions.
 
 Existing application installers and some service internals remain in their
 original files. Extract these gradually behind the established interfaces.
-Account/database/TUI internal migration remains open; the TUI invokes the same
-public CLI. Preserve old import and installed paths throughout extraction.
+Account/database/SSL/TUI handlers have already moved into runtime modules; the
+TUI invokes the same public CLI. Deeper decomposition remains: site creation still
+combines orchestration, rendering and application installation, while legacy
+management/diagnostics and older component installers retain business logic.
+Extract those into service drivers while preserving old imports and installed
+paths. Tasks 2.12/2.37 track this shared partial workstream, not absent foundations.
 Native nftables now uses a scoped driver with validated persistence and SSH recovery.
 
 ---

@@ -1,7 +1,7 @@
 # LEMPer roadmap implementation audit
 
-Date: **2026-11-21**. Code baseline: **736c5e5** plus the P3 implementation
-working tree, `release/v4.0.0`.
+Date: **2026-11-21**. Code baseline: **753c846**, `release/v4.0.0`. The targeted cross-check below
+revisits the original scope of 2.8/2.9/2.17/2.18/2.27 and decomposition 2.12/2.37.
 Latest GitHub release checked: **v3.6.0**. v4.0.0 is not published.
 
 This report supersedes the earlier 2026-11-20 audit; that snapshot remains in
@@ -78,10 +78,47 @@ the shared backup lock is held. Full Bats results are recorded below.
 | R11 | EditorConfig and scoped shfmt enforcement without mass-formatting; synthetic Bats function-entry instrumentation and JSON/Markdown coverage publishing | [format gate](../scripts/check_format.sh), [scope](../tools/shfmt-files.txt), [coverage runner](../scripts/test_coverage.sh), [CI](../.github/workflows/main.yml). Function-entry coverage does not claim line/branch coverage or installation correctness. |
 | R12 | Component step counters with interactive ETA, spinner elapsed/completion time, and optional pv byte/rate/ETA feedback during configuration archive restore | [progress module](../lib/core/progress.sh), [utils](../scripts/utils.sh), [recipe](../lib/runtime/stack/recipe.sh), [backup](../lib/lemper-backup.sh). TTY-only ETA/transfer feedback; deterministic fallback without pv. |
 
-The remaining implementation work is R8: incremental extraction of legacy
-site-management and component installer internals. The P3 disk/inode package
-contract is implemented; broader resource plans were not specified by issue #39
-and are not implied by the server-wide resource profiles.
+The P3 disk/inode package contract is implemented; broader resource plans were
+not specified by issue #39 and are not implied by server-wide resource profiles.
+R8 remains an incremental architecture workstream. The targeted cross-check also
+identifies unfinished scope in earlier numbered tasks; P3 completion does not mean
+all original roadmap requirements are complete.
+
+## Targeted completion cross-check (753c846)
+
+P1/P2 delivered the previously identified database, diagnostic and PHP/MariaDB
+repository safeguards. The original tasks also contain broader scope:
+
+| Tasks | Delivered | Unfinished scope and source evidence |
+|---|---|---|
+| 2.8 | Active installer code no longer invokes deprecated `apt-key`; fresh Nginx/PHP/MariaDB and several optional-service repositories use scoped keys. | Repository convergence is incomplete. The [shared migration driver](../lib/services/apt/repositories.sh) recognizes PHP/OpenSwoole/MariaDB families. [PGDG setup](../scripts/install_postgres.sh) skips an existing `pgdg.list` rather than validating/migrating it; [Python](../scripts/install_dependencies.sh), [Go](../scripts/nginx/nginx_ssl_builders.sh) and [MaxMind](../scripts/nginx/nginx_extra_modules.sh) still delegate PPA setup without the shared scoping/migration contract. Shared legacy keys must be retired only when ownership/reference checks prove it safe. |
+| 2.9 | Validators, quoting helpers, protected DB inputs and strict modern site/account paths exist. | Single-line and semantic validation are not consistent across legacy paths. [Shared FQDN/IP validators](../lib/core/validation.sh), [self-SSL](../lib/runtime/ssl/commands.sh), [legacy site creation](../lib/runtime/site/create.sh), [management](../lib/lemper-manage.sh) and [site-show](../lib/lemper-site-show.sh) retain duplicated checks. Linux probes confirmed a multiline FQDN is accepted by shared/self-SSL grep validators while `is_valid_domain` rejects it; self-SSL's IPv6 shape check accepts `:::`. Consolidate strict validation before filesystem, sed and certificate operations; existing valid-input tests do not close this scope. |
+| 2.17 | Text views for vhost/FPM/app/SSL, parseable JSON and credential redaction work. | [JSON](../lib/lemper-site-show.sh) returns extracted Nginx attributes, not full config or FPM pool data, and SSL type/path rather than certificate details. Both diagnostics paths use legacy `vhost.d` metadata and miss modern [ownership state](../lib/runtime/site/state.sh) and [mounted-app state](../lib/runtime/site/apps.sh). Complete view parity and certificate discovery using actual vhost directives. Plaintext linked credentials are intentionally excluded; redaction is a deliberate specification adjustment. |
+| 2.18 | Explicit `--dbname`/`--dbfile` SQL backup, restore, cron scheduling and checksummed retention are implemented and tested. | The proposed `db backup <domain>`, `db restore <domain> <file>` and `db backup-schedule <domain>` shortcuts are absent. [DB dispatch](../lib/runtime/database/commands.sh) does not resolve domain metadata to a database; dry-run probes reject these forms with `Specify --dbname.` Add an unambiguous ownership-aware mapping over the existing DB driver, or explicitly revise the original requirement to the accepted flag interface. This is a CLI/specification gap; protected backup/rotation is already delivered. |
+| 2.27 | MariaDB defaults to 11.4 and scoped repository setup is available. | Shares the remaining repository-convergence work in 2.8. The [source builder](../scripts/nginx/nginx_build.sh) checks `NGINX_CUSTOMSSL`, while public defaults/schema expose `NGINX_WITH_CUSTOMSSL`; no assignment bridging these flags was found. A fully stubbed source-build probe confirmed that the public flag does not invoke `build_custom_ssl`, while the alternate internal flag does. The opt-in [custom TLS pin](../.env.dist) remains `openssl-3.2.4-quic1`; select a maintained TLS/QUIC source and validate its builder/HTTP3 compatibility before changing the pin. No live upstream version/advisory assessment was performed here. |
+| 2.12 / 2.37 | Core, runtime, services and compatibility layers contain working code, with shared registries, locking and [installed exports](../lib/core/deployment.sh). Account/database/SSL/TUI handlers have already moved into function-only runtime modules. | Decomposition is partial. [Legacy management](../lib/lemper-manage.sh), diagnostics and older `scripts/install_*.sh` business logic remain; [component adapters](../lib/compat/components.sh) still execute those installers in children. [Site creation](../lib/runtime/site/create.sh) is function-only but still combines orchestration, rendering and application installation. Extract business logic into drivers incrementally while preserving public wrappers and installed paths. Directory presence alone is not completed decomposition. |
+
+Suggested next delivery order (priority reflects the next work, not vulnerability severity):
+
+1. **P1 — 2.9:** Reject control/newline input consistently, use semantic IP checks,
+   and remove validator shadowing on all affected legacy/public paths.
+2. **P2 — 2.8 / 2.27:** Extend backed-up repository migration to remaining families;
+   fix custom-TLS enablement wiring, then resolve and validate the maintained TLS/QUIC policy.
+3. **P2 — R8 / 2.12 / 2.37:** Continue targeted service extraction alongside those
+   fixes; diagnostics and certificate drivers provide a coherent next boundary.
+4. **P3 — 2.17:** Complete text/JSON/FPM/certificate/new-state diagnostic parity.
+5. **P3 — 2.18:** Implement domain resolution or explicitly approve the flag-based
+   specification. Preserve the working backup/restore/scheduling/retention engine.
+
+
+Cross-check validation: **59 focused Bats tests passed** (diagnostics, repository
+migration, DB backup/restore and alignment contracts). Disposable Linux probes
+confirmed validator edge cases, rejected domain shortcuts, missing JSON view/state
+fields, and the custom-TLS flag mismatch. Runtime/service modules loaded without
+dispatch. No installers, live configuration changes, network downloads or TLS
+compilation were performed; source-build commands were stubbed. This update changes
+roadmap/architecture documentation only and does not implement the open scope.
+
 
 ## Release gates and validation, not missing code features
 
@@ -134,8 +171,8 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.5 | Implemented | Credential recap email delivery removed; mail hosting is a separate feature. |
 | 2.6 | Implemented | Literal dotenv/config loading; legacy `eval set --` parses getopt output, not user configuration. |
 | 2.7 | Implemented for named paths | RSA-4096 defaults and SAN support; newer mailer development path is a policy difference above. |
-| 2.8 | Implemented | Deprecated calls removed and scoped PHP/MariaDB migration delivered in R3; shared legacy keyrings require review. |
-| 2.9 | Implemented for audited boundaries | Site/account/SSH/domain validators and DB validation/execution follow-through R1 are delivered. |
+| 2.8 | Partial convergence | Deprecated calls removed and scoped PHP/MariaDB migration delivered in R3; remaining PPA families and pre-existing PGDG sources lack the same migration contract. |
+| 2.9 | Partial validation | Protected DB and strict modern boundaries are delivered; duplicated legacy grep validators accept multiline input and self-SSL IPv6 validation is shape-only. |
 | 2.10 | Implemented | Optional CBC/PBKDF2 encrypted config; AEAD is a separate decision. |
 | 2.11 | Implemented | Four compatibility entrypoints share `runtime/stack/entry.sh` and recipe logic. |
 | 2.12 | Partial | Working runtime/services layers; deeper extraction is R8. |
@@ -143,8 +180,8 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.14 | Implemented | Obsolete CI variable references removed. |
 | 2.15 | Implemented | Bats behavior/fixture tests and Linux CI; directory-name deviation is intentional. |
 | 2.16 | Implemented | Site-list plugin and registry/export wiring. |
-| 2.17 | Implemented | Views, JSON flag/object output and diagnostic credential redaction are delivered in R2. |
-| 2.18 | Implemented | Protected SQL backup/restore/import/export/scheduling and verified per-database retention are delivered. |
+| 2.17 | Partial view coverage | Existing views/JSON/redaction are delivered; FPM/config/certificate JSON parity and modern site/app state coverage remain. |
+| 2.18 | Implemented engine; partial CLI specification | Protected SQL operations/scheduling/retention are delivered; proposed positional domain shortcuts and metadata resolution are absent. |
 | 2.19 | Implemented | Bun installer/remover, options and recipe wiring. |
 | 2.19B | Implemented | Valkey repo/source branches and shared removal; separate filenames are unnecessary. |
 | 2.20 | Implemented | CrowdSec lifecycle, options and collections. |
@@ -154,7 +191,7 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.24 | Implemented | TUI dashboard/logs/wizard; current command is `tui`. |
 | 2.25 | Implemented and superseded | Shipped install templates now PHP 8.2–8.5. |
 | 2.26 | Implemented and superseded | Default is 8.5; supported defaults can now be configured. |
-| 2.27 | Partial policy | MariaDB 11.4 and scoped keys are delivered; the custom-TLS target decision remains. |
+| 2.27 | Partial convergence / TLS wiring and policy | MariaDB 11.4 and scoped keys are delivered; remaining repository migration, custom-TLS flag wiring and maintained TLS/QUIC selection remain. |
 | 2.28 | Implemented | Fail2ban enabled by default. |
 | 2.29 | Implemented | ModSecurity/CRS present; NAXSI is opt-in/off by default. Public option is `INSTALL_MODSEC`. |
 | 2.30 | Implemented | Certbot renewal deploy hook uses systemctl reload. |
