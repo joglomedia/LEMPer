@@ -1,11 +1,54 @@
 # v4.0.0 release preparation
 
 Status checked 2026-11-24: v4.0.0 is unpublished; latest GitHub release is
-v3.6.0. The module-decomposition candidate is committed as `a39e5f9` on
-`release/v4.0.0`. Its four assets have been built and verified; exact-archive
-native acceptance is recorded below. Earlier results remain historical.
+v3.6.0. The current fixed candidate is `d21b293`, following module decomposition
+in `a39e5f9`, on `release/v4.0.0`. Its four assets have been built and verified;
+exact-archive native acceptance is recorded below. Earlier results remain historical.
+
+## Fixed release candidate d21b293
+
+Commit **d21b29317f816e592bf8f76892a5759199de9afa** includes the shared release
+acceptance gate and the Debian Fail2ban journal fix. Two clean Linux builds
+produced identical archives, bootstraps and checksum files; both checksums verify,
+and the archived Fail2ban driver matches the committed implementation.
+
+Artifacts are retained under `dist/v4.0.0/d21b293/` (ignored by Git):
+
+| Asset | SHA-256 |
+|---|---|
+| `lemper-v4.0.0.tar.gz` | `a113015032db9247600dbc467556d84a358292e5ca8054402071e116180fc446` |
+| `get-lemper` | `775f1a528f5c6578e2f021368d45dec90f90f7bdf4c6c82938ad5fce3ed8e2b6` |
+
+The full Ubuntu 24.04 ARM64 CI-instrumented run passed **524/524 tests**, with
+**86/94 (91.5%)** scoped function-entry coverage. Coverage JSON/Markdown is retained
+under `coverage/d21b293/`. Sourced ShellCheck, Bashate, scoped shfmt, workflow YAML
+and embedded Bash checks pass; the affected installer/module/structural suite
+passed **111/111**.
+
+| Fresh archive acceptance | Result |
+|---|---|
+| Debian 12 ARM64/systemd | **13/13 passed**, including the running journal SSH jail and full removal |
+| Ubuntu 26.04 ARM64/systemd | **13/13 passed**, including the running journal SSH jail and full removal |
+
+The stopped fixture names are `lemper-release-d21-debian12` and
+`lemper-release-d21-resolute`; private case logs remain under
+`/var/log/lemper-uat/v4/`. Only public source/artifacts are mounted read-only.
+Native acceptance uses source Nginx, PHP 8.5, native/scoped MariaDB selection and
+package-only Certbot. The source Fail2ban installer retains its file backend;
+new or forced repository installs select the journal backend.
+
+GitHub returned no Actions runs for this full SHA; the release branch has not
+been pushed. The committed gate runs Ubuntu 24.04/26.04 and Debian 12 on native
+GitHub runners before tagged publication. Local acceptance is ARM64; native AMD64,
+public ACME, remote integrations and live migrations remain separate validation.
+No push, tag or publication occurred. These final verification notes are later
+than the tested commit; after committing notes or other changes, rebuild/review
+the final candidate through the archive gate before authorized publication.
 
 ## Committed candidate follow-through
+
+This section records `a39e5f9` before the Fail2ban correction; use the fixed
+candidate above for current release evidence.
 
 Two Linux builds from the clean **a39e5f9b85f5dd78956b4b458fb87b1e6d9ae2f9**
 checkout produced byte-identical archives, bootstraps and checksum files. Both
@@ -39,7 +82,7 @@ repository installs, validates configuration before restart, and requires a live
 client response before success. Source installs retain the file backend. The
 archive suite now checks the running SSH jail and journal match. Six isolated
 regressions cover configuration validation, dry-run dependencies and daemon
-readiness; fresh full-archive acceptance of the fixed candidate follows.
+readiness; full-archive acceptance of the fixed candidate passed as recorded above.
 
 Read-only GitHub checks found no Actions runs for the full candidate SHA and no
 remote `release/v4.0.0` branch. `main.yml` already supports `release/**`; remote

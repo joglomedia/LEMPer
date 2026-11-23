@@ -2,7 +2,7 @@
 
 > **Latest published version:** 3.6.0
 > **Last Updated:** 2026-11-24
-> **Code baseline:** a39e5f9 with release-validation follow-through on `release/v4.0.0`
+> **Code baseline:** d21b293 with release-validation follow-through on `release/v4.0.0`
 > **Status:** v4.0 foundations, mail hosting and PHP/Laravel enhancements are
 > implemented but unreleased. A4 decomposition is delivered; deferred plans and release
 > validation remain; see [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
@@ -122,8 +122,13 @@ checks** against an uncommitted source snapshot; broader platforms, optional
 services and application deployments were not rerun for A4. See
 [MODULE_DECOMPOSITION.md](MODULE_DECOMPOSITION.md).
 The committed A4 candidate now has reproducible, checksummed assets; see
-[release follow-through](RELEASE_V4.md#committed-candidate-follow-through) for
+[release follow-through](RELEASE_V4.md#fixed-release-candidate-d21b293) for
 exact-archive results and the remaining remote CI/publication gates.
+The fixed `d21b293` candidate passed **524 Bats tests** with scoped function-entry
+coverage **86/94 (91.5%)**, and **13/13 exact-archive acceptance checks on each of
+Debian 12 and Ubuntu 26.04 ARM64**. Tagged publication now requires the shared
+archive acceptance gate; source and final verification notes are kept separate
+from authorization to push/tag/publish.
 GitHub returned no Actions runs for the full
 9b7511b candidate SHA, and v4.0.0 is not published. Public ACME, native AMD64,
 HTTP/3 client negotiation, remote integrations and selected legacy transitions

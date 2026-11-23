@@ -1,7 +1,8 @@
 # LEMPer roadmap implementation audit
 
 Date: **2026-11-24**. Architecture baseline: **a39e5f9b85f5dd78956b4b458fb87b1e6d9ae2f9**,
-`release/v4.0.0`; release-workflow/Fail2ban verification follow-through is recorded below.
+`release/v4.0.0`; release-workflow/Fail2ban follow-through is committed as `d21b293`
+and verification is recorded below.
 The baseline audit inspected **21e27ab32fa18e16d576cc79228a386b307042a4** from a clean checkout. The initial audit
 used **9b7511b383e6dbcb5cd3da2424b604016134c379** and
 began from a clean checkout. Earlier
@@ -77,11 +78,11 @@ release gates from the baseline audit, rather than adding optional product scope
 
 | Priority | Result / remaining action |
 |---|---|
-| P1 — committed assets | Built all four assets twice from clean `a39e5f9`; byte-identical results, verified archive/bootstrap checksums and expected public-source contents. Assets are retained in `dist/v4.0.0/a39e5f9/`; hashes are in [the release guide](RELEASE_V4.md#committed-candidate-follow-through). |
-| P1 — exact-archive acceptance | `a39e5f9` passed 13/13 on Ubuntu 26.04 ARM64 and 12/13 on Debian 12. Fail2ban requires an auth log that a journal-only Debian image lacks. The focused journal repair passed real configuration, jail and repeat-restart checks; the fixed candidate needs fresh archive acceptance. |
+| P1 — committed assets | Built all four assets twice from clean `d21b293`; byte-identical results, verified archive/bootstrap checksums and the archived fix matches source. Assets are retained in `dist/v4.0.0/d21b293/`; hashes are in [the release guide](RELEASE_V4.md#fixed-release-candidate-d21b293). |
+| P1 — exact-archive acceptance | The fixed `d21b293` archive passed 13/13 on both Debian 12 and Ubuntu 26.04 ARM64, including the running journal SSH jail and full removal. Historical `a39e5f9` passed 13/13 on Ubuntu 26.04 and 12/13 on Debian; its missing-auth-log defect is corrected in the follow-up. |
 | P1 — CI enforcement | [Reusable acceptance](../.github/workflows/release-acceptance.yml) verifies committed asset reproducibility and runs archive UAT on Ubuntu 24.04/26.04 and Debian 12. Candidate CI calls it; tagged publication requires success. YAML, embedded Bash syntax/ShellCheck, release-command lint/formatting and 112 affected bootstrap/structural tests pass locally. The existing full 518-test result covers the committed runtime source. |
-| P1 — remote candidate CI | Read-only checks returned no runs for the full `a39e5f9` SHA. The release branch is not pushed; the existing `release/**` trigger is present. Commit/review the follow-through and push only when authorized, then review that exact candidate's configured jobs. No workflow was triggered here. |
-| P1 — publication | v4.0.0 remains unpublished. After follow-through is committed, rebuild the final assets and run/review final CI before setting the release date and authorized tagging/publication. |
+| P1 — remote candidate CI | Read-only checks returned no runs for the full `d21b293` SHA. The release branch is not pushed; the existing `release/**` trigger is present. Review/push the final candidate only when authorized, then review its configured jobs. No workflow was triggered here. |
+| P1 — publication | v4.0.0 remains unpublished. After final verification notes are committed, rebuild/review the final assets and CI before setting the release date and authorized tagging/publication. |
 | P2 — wider deployment validation | The new matrix provides native AMD64 coverage when run on GitHub; local tests are ARM64. Public ACME, HTTP/3 client negotiation/0-RTT, remote Restic destinations, external SMTP and selected live transitions still need their designated environments. |
 
 Local source and artifact mounts remain read-only; service changes stay in the
