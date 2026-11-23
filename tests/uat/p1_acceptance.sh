@@ -34,7 +34,7 @@ check() {
 check php-scoped-repository add_php_repo
 check mariadb-scoped-repository add_mariadb_repo
 repo_repeat() {
-    cp /etc/apt/keyrings/ondrej-php.gpg "/etc/apt/trusted.gpg.d/ondrej-php-$RELEASE_NAME.gpg"
+    cp /usr/share/keyrings/debsuryorg-archive-keyring.gpg "/etc/apt/trusted.gpg.d/ondrej-php-$RELEASE_NAME.gpg"
     cp /etc/apt/keyrings/mariadb.gpg /etc/apt/trusted.gpg.d/mariadb-keyring-2019.gpg
     local before
     before=$(find /etc/apt/sources.list.d -type f \( -name '*.list' -o -name '*.sources' \) -exec sha256sum {} + | sort)

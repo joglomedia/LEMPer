@@ -34,7 +34,7 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
   * Free SSL certificates from [Let's Encrypt](https://letsencrypt.org/).
   * Get an A+ grade on several SSL Security Test ([Qualys SSL Labs](https://www.ssllabs.com/ssltest/analyze.html?d=masedi.net), [ImmuniWeb](https://www.immuniweb.com/ssl/?id=bVrykFnK), and Wormly).
 * PHP - Most used language that [powers 78.9% of all websites](https://w3techs.com/technologies/details/pl-php) around the universe.
-  * Community packages from [Ondřej's PHP repository](https://launchpad.net/~ondrej/+archive/ubuntu/php) (Sury on Debian).
+  * Community packages from [Sury's PHP archive](https://packages.sury.org/php/README.txt) on Debian and Ubuntu, using its managed signing-key package.
   * Multiple PHP versions: 8.2 [Security], 8.3 [Security], 8.4 [Active], 8.5 [Latest, default]. PHP 8.1 is EOL and has no PHP2Shell patch.
   * PHP extensions are installed from apt repositories (Ondřej/Sury, plus the OpenSwoole PPA when selected). PECL/PEAR is no longer bundled: `geoip` and `mcrypt` are abandoned and excluded, and extensions with no package are reported so they can be built manually with [PIE](https://github.com/php/pie).
   * In-place security updater (`lemperctl update`) with compensating controls for EOL branches.
@@ -76,9 +76,13 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
 
 ### Requirements
 
-* Debian 11 (Bullseye) or 12 (Bookworm), or Ubuntu 22.04 or 24.04 (Linux Mint 21–22), on a 64-bit architecture.
+* Debian 11 (Bullseye) or 12 (Bookworm), or Ubuntu 22.04 (Jammy), 24.04 (Noble), or 26.04 (Resolute), on a 64-bit architecture. Linux Mint 21–22 retains its existing Ubuntu-base support.
 * A fresh server with root (sudo) access. LEMPer is designed for a clean install and configures system services directly.
 * Bash 5+, curl, tar, SHA256 tools, and a working apt repository connection.
+
+Resolute uses native MariaDB 11.8 with `MYSQL_VERSION="auto"` and a Dovecot 2.4
+mail template. Older systems retain their existing defaults. PHP uses the maintained
+Sury archive on all supported distributions. See [Ubuntu 26.04 choices and validation](docs/UBUNTU_26_04.md).
 
 ### Install v4 from a release
 
@@ -621,7 +625,7 @@ http://YOUR_IP_ADDRESS:8082/lcp/redisadmin/
 
 Implemented:
 
-* [x] Add support for Debian (Bullseye, Bookworm) & Ubuntu (Jammy, Noble) distro
+* [x] Add support for Debian (Bullseye, Bookworm) & Ubuntu (Jammy, Noble, Resolute) distro
 * [x] Add custom build latest [Nginx](https://nginx.org/en/) from source
 * [x] Add [Let's Encrypt SSL](https://letsencrypt.org/)
 * [x] Add network security (iptable rules, firewall configurator, else?)

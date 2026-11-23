@@ -237,7 +237,7 @@ function remove_vhost() {
         # Show user's databases
         #MYSQL_PWD="${MYSQL_PASS}" mysql -u "${MYSQL_USER}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema"
         local DATABASES && \
-        DATABASES=$(MYSQL_PWD="${MYSQL_PASS}" mysql -u "${MYSQL_USER}" -e "SHOW DATABASES;" | grep -vE "Database|mysql|*_schema")
+        DATABASES=$(MYSQL_PWD="${MYSQL_PASS}" mysql -u "${MYSQL_USER}" -N -B -e "SHOW DATABASES;" | grep -vE "^mysql$|_schema$")
 
         if [[ -n "${DATABASES}" ]]; then
             printf '%s\n' "${DATABASES}"
@@ -251,9 +251,12 @@ function remove_vhost() {
             read -rp "MySQL Database: " -e DBNAME
 		done
 
-        if [[ -d "/var/lib/mysql/${DBNAME}" ]]; then
+        [[ "${DBNAME}" =~ ^[A-Za-z_][A-Za-z0-9_]{0,63}$ ]] || {
+            error "Invalid database identifier."; return 1;
+        }
+        if grep -Fxq -- "${DBNAME}" <<< "${DATABASES}"; then
             echo "Deleting database ${DBNAME}..."
-            MYSQL_PWD="${MYSQL_PASS}" run mysql -u "${MYSQL_USER}" -e "DROP DATABASE ${DBNAME}"
+            MYSQL_PWD="${MYSQL_PASS}" run mysql -u "${MYSQL_USER}" -e "DROP DATABASE \`${DBNAME}\`"
             success "Database '${DBNAME}' dropped."
         else
             info "Sorry, database ${DBNAME} not found. Skipped..."

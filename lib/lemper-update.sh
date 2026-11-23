@@ -1273,7 +1273,22 @@ function refresh_stack_apt() {
         error "Could not disable the retired Ondřej nginx repository."
         return 1
     fi
+    refresh_php_apt_source || return 1
     apt-get update -q
+}
+
+# Reuse the installer driver without adding a source on hosts without PHP.
+function refresh_php_apt_source() {
+    local root
+    root=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd) || return 1
+    if [[ "$(type -t lemper_load_module)" != function ]]; then
+        # shellcheck source=lib/core/loader.sh
+        . "$root/core/loader.sh" || return 1
+    fi
+    lemper_load_module services/apt/repositories || return 1
+    if ! lemper_apt_has_source php && [[ -z "$(php_installed_branches)" ]]; then return 0; fi
+    lemper_load_module services/php/repository || return 1
+    lemper_php_prepare_repository
 }
 
 ##
@@ -1290,6 +1305,7 @@ function refresh_nginx_apt() {
             return 1
         fi
     fi
+    refresh_php_apt_source || return 1
     if ! apt-get update -q; then
         error "apt-get update failed."
         return 1
@@ -1729,6 +1745,7 @@ function update_all() {
             rc=1
         fi
     fi
+    refresh_php_apt_source || return 1
     if ! apt-get update -q; then
         error "apt-get update failed; aborting."
         return 1
@@ -1768,8 +1785,8 @@ Commands:
                         FPM pools. Without it, mitigate EOL pools.
   nginx                 Upgrade package-managed nginx from the MyGuard
                         nginx-only repository and reload it. Retired Ondřej
-                        nginx sources are disabled first. The Ondřej PHP
-                        repository stays enabled.
+                        nginx sources are disabled first. Existing PHP sources
+                        migrate to the maintained Sury archive.
   mariadb               Upgrade MariaDB packages and restart if changed.
   lemper                Reinstall the CLI, plugins, and web administration tools
                         from the recorded source (scripts/install_tools.sh).

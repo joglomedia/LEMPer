@@ -34,31 +34,9 @@ fi
 function add_php_repo() {
     local DISTRIB_NAME="${DISTRIB_NAME:-$(get_distrib_name)}"
     local RELEASE_NAME="${RELEASE_NAME:-$(get_release_name)}"
-    local root="${LEMPER_APT_ROOT:-/etc/apt}" key url fingerprint="" repo
-    [[ "$RELEASE_NAME" =~ ^[a-z]+$ ]] || { error "Invalid PHP distribution codename."; return 1; }
-    lemper_load_module services/apt/repositories || return 1
-    case "$DISTRIB_NAME" in
-        debian)
-            url=https://packages.sury.org/php/apt.gpg
-            repo=https://packages.sury.org/php/ ;;
-        ubuntu)
-            fingerprint=14AA40EC0831756756D7F66C4F4EA0AAE5267A6C
-            url="https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x$fingerprint"
-            repo=https://ppa.launchpadcontent.net/ondrej/php/ubuntu/ ;;
-        *) error "Unsupported PHP distribution."; return 1 ;;
-    esac
-    key="$root/keyrings/ondrej-php.gpg"
-    lemper_apt_install_key "$url" "$key" "$fingerprint" || return 1
-    lemper_apt_scope_sources php "$key" || return 1
-    if ! lemper_apt_has_source php; then
-        lemper_apt_write_source "$root/sources.list.d/ondrej-php-$RELEASE_NAME.list" \
-            "deb [signed-by=$key] $repo $RELEASE_NAME main
-deb-src [signed-by=$key] $repo $RELEASE_NAME main" || return 1
-    fi
-    local legacy
-    for legacy in "$root/trusted.gpg.d/ondrej-php-$RELEASE_NAME" "$root/trusted.gpg.d/ondrej-php-$RELEASE_NAME.gpg"; do
-        lemper_apt_retire_key "$legacy" "$key" || return 1
-    done
+    lemper_load_module services/php/repository || return 1
+    lemper_php_prepare_repository || return 1
+    local root="${LEMPER_APT_ROOT:-/etc/apt}" key fingerprint
     if [[ " ${PHP_EXTENSIONS:-} " == *' openswoole '* ]]; then
         local openswoole_release="$RELEASE_NAME"
         if [[ "$DISTRIB_NAME" == debian ]]; then

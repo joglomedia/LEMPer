@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0] - Unreleased
 
 ### Added
+- Ubuntu 26.04 (Resolute) support, native MariaDB 11.8 selection and a dedicated
+  Dovecot 2.4 configuration with the existing virtual-mail account commands.
 - SnappyMail, Nextcloud, MyBB, phpList, OJS and Slim deployments through shared
   release drivers and Unix-socket vhosts; XenForo licensed manual vhosts with
   friendly URLs. phpList uses the GitHub release archive (issue #66); OJS uses
@@ -66,6 +68,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tag-driven release automation, and provisioned-host/dependency audit reports.
 
 ### Changed
+- PHP installation and updates use the maintained Sury archive and managed
+  keyring package on Ubuntu and Debian. Legacy PHP sources migrate with backups
+  and rollback; unrelated sources and shared signing keys are retained.
+- `MYSQL_VERSION=auto` selects native MariaDB 11.8 on Resolute and MariaDB 11.4
+  elsewhere. Explicit versions and existing database majors require deliberate migration.
 - CodeIgniter's Composer path installs production dependencies from distribution
   archives as the site's runtime user.
 - Legacy input checks delegate to whole-value core validators with semantic IPv6 validation.

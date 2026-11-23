@@ -27,7 +27,7 @@ function core_get_distrib_name() {
         [ -f /etc/lsb-release ] && . /etc/lsb-release
 
         # Get distribution name.
-        if [[ "${ID_LIKE}" == "ubuntu" ]]; then
+        if [[ "${ID_LIKE:-}" == "ubuntu" ]]; then
             DISTRIB_NAME="ubuntu"
         else
             DISTRIB_NAME=${ID:-"unsupported"}
@@ -42,6 +42,15 @@ function core_get_distrib_name() {
     echo "${DISTRIB_NAME}"
 }
 
+function core_ubuntu_release_codename() {
+    case "${1:-}" in
+        22.04 | LM21) printf 'jammy\n' ;;
+        24.04 | LM22) printf 'noble\n' ;;
+        26.04) printf 'resolute\n' ;;
+        *) printf 'unsupported\n' ;;
+    esac
+}
+
 function core_get_release_name() {
     if [ -f /etc/os-release ]; then
         # Export os-release vars.
@@ -53,14 +62,14 @@ function core_get_release_name() {
         [ -f /etc/lsb-release ] && . /etc/lsb-release
 
         # Get distribution name.
-        if [[ "${ID_LIKE}" == "ubuntu" ]]; then
+        if [[ "${ID_LIKE:-}" == "ubuntu" ]]; then
             DISTRIB_NAME="ubuntu"
         else
             DISTRIB_NAME=${ID:-"unsupported"}
         fi
 
         # Get distribution release / version ID.
-        DISTRIB_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE}"}
+        DISTRIB_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE:-}"}
         MAJOR_RELEASE_VERSION=$(echo "${DISTRIB_VERSION}" | awk -F. '{print $1}')
 
         case ${DISTRIB_NAME} in
@@ -85,22 +94,15 @@ function core_get_release_name() {
             ;;
             ubuntu)
                 # Hack for Linux Mint release number.
-                [[ "${DISTRIB_ID}" == "LinuxMint" || "${ID}" == "linuxmint" ]] && \
+                [[ "${DISTRIB_ID:-}" == "LinuxMint" || "${ID:-}" == "linuxmint" ]] && \
                     DISTRIB_RELEASE="LM${MAJOR_RELEASE_VERSION}"
 
-                case "${DISTRIB_RELEASE}" in
-                    "22.04" | "LM21")
-                        # Ubuntu release 22.04, LinuxMint 21
-                        RELEASE_NAME=${UBUNTU_CODENAME:-"jammy"}
-                    ;;
-                    "24.04" | "LM22")
-                        # Ubuntu release 24.04, LinuxMint 24
-                        RELEASE_NAME=${UBUNTU_CODENAME:-"noble"}
-                    ;;
-                    *)
-                        RELEASE_NAME="unsupported"
-                    ;;
-                esac
+                # os-release is available even when lsb-release is absent.
+                if [[ "${ID:-}" == linuxmint || "${DISTRIB_ID:-}" == LinuxMint ]]; then
+                    RELEASE_NAME=$(core_ubuntu_release_codename "${DISTRIB_RELEASE}")
+                else
+                    RELEASE_NAME=$(core_ubuntu_release_codename "${DISTRIB_VERSION}")
+                fi
             ;;
             *)
                 RELEASE_NAME="unsupported"
@@ -127,7 +129,7 @@ function core_get_release_version() {
         [ -f /etc/lsb-release ] && . /etc/lsb-release
 
         # Get distribution release / version ID.
-        RELEASE_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE}"}
+        RELEASE_VERSION=${VERSION_ID:-"${DISTRIB_RELEASE:-0.0}"}
     elif [ -f /etc/system-release ]; then
         RELEASE_VERSION="0.0"
     else

@@ -415,7 +415,7 @@ refute_grep() {
     local utils="${BASE_DIR}/lib/core/distro.sh"
     refute_grep -q '20\.04' "${utils}"
     refute_grep -q 'focal' "${utils}"
-    grep -qF '"22.04" | "LM21"' "${utils}"
+    grep -qF '22.04 | LM21' "${utils}"
 }
 
 @test "nginx repo installer honors NGINX_REPO_SRC" {

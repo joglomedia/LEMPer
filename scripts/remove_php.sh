@@ -439,6 +439,8 @@ function init_php_removal() {
                 [ -d /var/lib/php ] && run rm -fr /var/lib/php
 
                 # Remove repository.
+                lemper_load_module services/php/repository || return 1
+                lemper_php_remove_repository || return 1
                 case "${DISTRIB_NAME}" in
                     debian)
                         if echo "${PHP_EXTENSIONS}" | grep -qwE "openswoole"; then
@@ -446,15 +448,12 @@ function init_php_removal() {
                             run rm -f "/usr/share/keyrings/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.gpg"
                         fi
 
-                        run rm -f "/etc/apt/sources.list.d/ondrej-php-${RELEASE_NAME}.list"
-                        run rm -f "/etc/apt/trusted.gpg.d/ondrej-php-${RELEASE_NAME}.gpg"
                     ;;
                     ubuntu)
                         if echo "${PHP_EXTENSIONS}" | grep -qwE "openswoole"; then
                             run add-apt-repository -y --remove ppa:openswoole/ppa
                         fi
 
-                        run add-apt-repository -y --remove ppa:ondrej/php
                     ;;
                 esac
 

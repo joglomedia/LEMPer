@@ -823,6 +823,13 @@ migration use `lib/services/apt/repositories.sh`. Site diagnostics redact metada
 in both text and JSON. See [DATABASE.md](DATABASE.md) and
 [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md) for delivered behavior and UAT limits.
 
+`lib/services/php/repository.sh` shares maintained Sury setup and legacy PHP
+source migration between installation and CLI updates, using the generic APT
+parser and scoped trust. `lib/services/mariadb/repository.sh` selects database
+defaults and guards native Resolute MariaDB 11.8 against accidental major-series
+migration. Mail configuration selects separate Dovecot 2.3/2.4 templates from the
+installed version. See [UBUNTU_26_04.md](UBUNTU_26_04.md) for platform checks.
+
 ## P2 lifecycle and data services
 
 `data`, `monitor` and `firewall` are registered public plugins, backed by Restic,

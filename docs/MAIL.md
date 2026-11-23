@@ -1,10 +1,14 @@
 # Mail hosting and administration
 
-LEMPer hosts mail with distro Postfix and Dovecot 2.3 packages, Dovecot LMTP
+LEMPer hosts mail with distro Postfix and Dovecot 2.3/2.4 packages, Dovecot LMTP
 mail delivery, and optional OpenDKIM/SPF policy checking. Mailbox identities are
 full email addresses; a dedicated `vmail` service account owns Maildir storage.
 There is no Linux login account per mailbox and no dependency on a database or
 webmail panel.
+
+Ubuntu 26.04 selects a dedicated Dovecot 2.4 template; existing supported releases
+continue to use their installed Dovecot version. See [the Resolute guide](UBUNTU_26_04.md)
+for template changes and the distinction between configuration backup and storage migration.
 
 For production, use a dedicated mail hostname and preferably a separate mail
 server/VM. Confirm that the provider permits incoming and outgoing TCP port 25,

@@ -232,7 +232,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: ['ubuntu:22.04', 'ubuntu:24.04', 'debian:12']
+        image: ['ubuntu:22.04', 'ubuntu:24.04', 'ubuntu:26.04', 'debian:12']
     steps:
       - uses: actions/checkout@v6
       - name: Build disposable mail test environment
@@ -251,6 +251,45 @@ jobs:
       - name: Stop disposable mail test container
         if: always()
         run: sudo podman stop --time 10 lemper-mail-uat
+  resolute-validation:
+    name: Ubuntu 26.04 Bash validation
+    runs-on: ubuntu-24.04
+    container:
+      image: ubuntu:26.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare Linux test dependencies
+        run: bash scripts/prepare_tests.sh
+      - name: Validate Ubuntu 26.04
+        run: |
+          bash scripts/run_tests.sh
+          shellcheck -s bash -x lib/core/distro.sh lib/services/php/repository.sh scripts/install_php.sh scripts/install_dependencies.sh
+  php-repository-uat:
+    name: maintained PHP archive (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:22.04', 'ubuntu:24.04', 'ubuntu:26.04', 'debian:12']
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build disposable PHP test environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -q -y podman
+          sudo podman build --build-arg BASE_IMAGE="${{ matrix.image }}" -f tests/uat/Containerfile -t lemper-php-uat tests/uat
+          sudo podman run -d --name lemper-php-uat --privileged --systemd=always --cgroupns=private --hostname php.lemper-uat.test \
+            --cpus 2 --memory 2g --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" lemper-php-uat
+          sudo podman exec lemper-php-uat bash -e -c '
+            apt-get update -qq
+            apt-get install -q -y gnupg
+            touch /run/lemper-php-repository-uat-authorized
+            cp /source/tests/uat/php_repository_acceptance.sh /run/php-acceptance.sh
+            bash /run/php-acceptance.sh
+          '
+      - name: Stop disposable PHP test environment
+        if: always()
+        run: sudo podman stop --time 10 lemper-php-uat
   runtime-routing-uat:
     name: PHP defaults and Laravel routing
     runs-on: ubuntu-24.04
@@ -268,7 +307,7 @@ jobs:
             set -e
             apt-get update -qq
             apt-get install -y -qq nginx composer gnupg software-properties-common rsync unzip wget
-            add-apt-repository -y ppa:ondrej/php
+            bash -c '. /source/lib/core/loader.sh; lemper_load_module services/php/repository; lemper_php_prepare_repository' || exit
             apt-get update -qq
             apt-get install -y -qq php8.3-cli php8.3-fpm php8.3-dev php8.4-cli php8.4-fpm php8.4-dev \
               php8.3-curl php8.3-mbstring php8.3-sqlite3 php8.3-xml php8.3-zip \

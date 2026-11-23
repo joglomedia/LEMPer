@@ -62,12 +62,19 @@ EOL
 # Add MariaDB Repository.
 ##
 function add_mariadb_repo() {
-    local version="${MYSQL_VERSION:-11.4}" distro="${DISTRIB_NAME:-}" release="${RELEASE_NAME:-}"
+    local version distro="${DISTRIB_NAME:-}" release="${RELEASE_NAME:-}"
     local root="${LEMPER_APT_ROOT:-/etc/apt}" key repo mirror="${MYSQL_REPO_MIRROR_URL:-}"
+    lemper_load_module services/mariadb/repository || return 1
+    version=$(lemper_mariadb_default_version "$distro" "$release" "${MYSQL_VERSION:-auto}") || return 1
     [[ "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ && "$release" =~ ^[a-z]+$ ]] || {
         error "Invalid MariaDB repository version/codename."; return 1;
     }
     case "$distro" in debian|ubuntu) ;; *) error "Unsupported MariaDB distribution."; return 1 ;; esac
+    if [[ "$distro/$release" == ubuntu/resolute ]]; then
+        [[ -z "$mirror" ]] || { error "Resolute uses distribution MariaDB packages; reconcile the custom mirror first."; return 1; }
+        lemper_mariadb_prepare_native "$version"
+        return $?
+    fi
     case "$release" in jessie) version=10.5 ;; bionic) version=11.4 ;; esac
     key="$root/keyrings/mariadb.gpg"
     lemper_load_module services/apt/repositories || return 1
@@ -119,8 +126,9 @@ function init_mariadb_install() {
         echo "Installing MariaDB (MySQL drop-in replacement) server..."
 
         # Install MariaDB
-        run_spinner "Installing MariaDB" apt-get install -q -y libmariadb-dev libmariadb3 libmariadbclient18 mariadb-client mariadb-client-core \
-            mariadb-common mariadb-server mariadb-server-core mariadb-backup
+        local MARIADB_INSTALL_PACKAGES=()
+        mapfile -t MARIADB_INSTALL_PACKAGES < <(lemper_mariadb_install_packages)
+        run_spinner "Installing MariaDB" apt-get install -q -y "${MARIADB_INSTALL_PACKAGES[@]}"
 
         # Configure MySQL installation.
         if [[ "${DRYRUN}" == true ]]; then
@@ -142,7 +150,8 @@ function init_mariadb_install() {
                 [[ ! -f /etc/mysql/debian.cnf ]] && run cp -f etc/mysql/debian.cnf /etc/mysql/
 
                 # Debian start service.
-                if [[ ! -f /etc/mysql/debian-start || "${MYSQL_SECURE_INSTALL}" == true ]]; then
+                if [[ "${DISTRIB_NAME}/${RELEASE_NAME}" != ubuntu/resolute && \
+                    ( ! -f /etc/mysql/debian-start || "${MYSQL_SECURE_INSTALL}" == true ) ]]; then
                     run cp -f etc/mysql/debian-start /etc/mysql/
                     run chmod ugo+x /etc/mysql/debian-start
                 fi
@@ -177,11 +186,9 @@ function init_mariadb_install() {
 
                 # Install default table.
                 if [[ -n $(command -v mariadb-install-db) ]]; then
-                    run mariadb-install-db && \
-                    run chown -hR mysql:mysql /var/lib/mysql
+                    run mariadb-install-db --user=mysql
                 elif [[ -n $(command -v mysql_install_db) ]]; then
-                    run mysql_install_db && \
-                    run chown -hR mysql:mysql /var/lib/mysql
+                    run mysql_install_db --user=mysql
                 else
                     error "Unable to secure MariaDB installation."
                 fi

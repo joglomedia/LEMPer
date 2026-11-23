@@ -169,6 +169,8 @@ provision() {
     [ ! -e "$MOCK_SQL" ]
 }
 @test "encrypted profiles remain encrypted and unrelated settings survive reconciliation" {
+    # A stored explicit series must survive even when new profiles default to auto.
+    sed -i 's/^MYSQL_VERSION=.*/MYSQL_VERSION="11.4"/' "$LEMPER_MARIADB_PROFILE"
     openssl enc -aes-256-cbc -a -salt -md sha256 -pbkdf2 -pass fd:3 3<<<synthetic-profile-key \
         -in "$LEMPER_MARIADB_PROFILE" -out "$TEST_TMPDIR/encrypted"
     mv "$TEST_TMPDIR/encrypted" "$LEMPER_MARIADB_PROFILE"

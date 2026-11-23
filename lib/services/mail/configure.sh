@@ -68,9 +68,16 @@ function lemper_mail_template() {
     sed -e "s|@CERT@|$certificate|g" -e "s|@HOSTNAME@|$hostname|g" -e "s|@DOMAIN@|$domain|g" \
         -e "s|@ROOT@|$root|g" -e "s|@HOME@|$home|g" -e "s|@UID@|$uid|g" "$template" > "$destination"
 }
+function lemper_mail_dovecot_template() {
+    case "${1:-}" in
+        2.3.*) printf 'dovecot.conf\n' ;;
+        2.4.*) printf 'dovecot-2.4.conf\n' ;;
+        *) error "Unsupported Dovecot configuration version; use maintained 2.3 or 2.4 packages."; return 1 ;;
+    esac
+}
 function lemper_mail_install() {
     local hostname="${MAILER_HOSTNAME:-${SERVER_HOSTNAME:-}}" domain="${SENDER_DOMAIN:-${SERVER_HOSTNAME:-}}"
-    local certificate="${MAILER_CERT_PATH:-${HOSTNAME_CERT_PATH:-}}" root home backup stage uid existing=false
+    local certificate="${MAILER_CERT_PATH:-${HOSTNAME_CERT_PATH:-}}" root home backup stage uid existing=false dovecot_template
     root=$(lemper_mail_root); home=$(lemper_mail_home_root)
     if ! lemper_mail_domain_valid "$hostname" || ! lemper_mail_domain_valid "$domain"; then
         error "Set MAILER_HOSTNAME/SERVER_HOSTNAME and SENDER_DOMAIN to valid lowercase domains."; return 1
@@ -116,7 +123,7 @@ function lemper_mail_install() {
         mv -f "$ownership" "$root/owned-packages" || return 1
     fi
     lemper_exec env DEBIAN_FRONTEND=noninteractive apt-get install -q -y "${packages[@]}" || return 1
-    [[ "$(dovecot --version)" == 2.3.* ]] || { error "This mail configuration supports distro Dovecot 2.3; migration to 2.4 needs its own template."; return 1; }
+    dovecot_template=$(lemper_mail_dovecot_template "$(dovecot --version)") || return 1
     backup=$(mktemp -d "$root/backup.XXXXXXXX") || return 1
     chmod 0700 "$backup" || return 1
     cp -p /etc/postfix/main.cf /etc/postfix/master.cf /etc/dovecot/dovecot.conf "$backup/" || return 1
@@ -150,7 +157,7 @@ function lemper_mail_install() {
     local previous="" rc=0
     previous=$(readlink "$root/current") || previous=""
     lemper_mail_select "$root" "$stage" || return 1
-    if ! lemper_mail_template "$BASE_DIR/etc/mail/dovecot.conf" /etc/dovecot/dovecot.conf "$certificate" "$hostname" "$domain" "$root" "$home" "$uid" ||
+    if ! lemper_mail_template "$BASE_DIR/etc/mail/$dovecot_template" /etc/dovecot/dovecot.conf "$certificate" "$hostname" "$domain" "$root" "$home" "$uid" ||
         ! lemper_mail_postfix_configure "$hostname" "$certificate" "$root"; then rc=1; fi
     if [[ "$rc" -eq 0 && -f "$root/dkim-enabled" ]]; then
         lemper_mail_template "$BASE_DIR/etc/mail/opendkim.conf" /etc/opendkim.conf "$certificate" "$hostname" "$domain" "$root" "$home" "$uid" || rc=1

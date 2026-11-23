@@ -29,6 +29,8 @@ if [[ "$(type -t run)" != "function" ]]; then
 fi
 
 function mariadb_remove_config() {
+    local MYSQL_DATA_DIRECTORY="${1:-/var/lib/mysql}"
+    case "$MYSQL_DATA_DIRECTORY" in /var/lib/mysql|/var/lib/mariadb) ;; *) return 1 ;; esac
     # Remove MariaDB server config files.
     echo "Removing MariaDB (MySQL) configuration..."
     warning "!! This action is not reversible !!"
@@ -47,7 +49,7 @@ function mariadb_remove_config() {
 
     if [[ "${REMOVE_MYSQL_CONFIG}" == y* || "${REMOVE_MYSQL_CONFIG}" == Y* ]]; then
         [ -d /etc/mysql ] && run rm -fr /etc/mysql
-        [ -d /var/lib/mysql ] && run rm -fr /var/lib/mysql
+        [ -d "$MYSQL_DATA_DIRECTORY" ] && run rm -fr "$MYSQL_DATA_DIRECTORY"
 
         echo "All database and configuration files deleted permanently."
     fi
@@ -63,15 +65,18 @@ function init_mariadb_removal() {
         run systemctl disable mariadb.service
     fi
 
-    if dpkg-query -l | awk '/mariadb/ { print $2 }' | grep -qwE "^mariadb-server-${MYSQL_VERSION}"; then
+    if [[ "$(dpkg-query -W -f='${Status}' mariadb-server 2>/dev/null)" == 'install ok installed' ]] || \
+        dpkg-query -l | awk '/mariadb/ { print $2 }' | grep -qwE "^mariadb-server-${MYSQL_VERSION}"; then
         echo "Found MariaDB ${MYSQL_VERSION} packages installation, removing..."
 
         # Remove MariaDB server.
-        run apt-get purge -q -y libmariadb-dev libmariadb3 libmariadbclient18 mariadb-client mariadb-client-core \
-            mariadb-common mariadb-server mariadb-server-core mariadb-backup
+        lemper_load_module services/mariadb/repository || return 1
+        local MARIADB_REMOVE_PACKAGES=()
+        mapfile -t MARIADB_REMOVE_PACKAGES < <(lemper_mariadb_install_packages)
+        run apt-get purge -q -y "${MARIADB_REMOVE_PACKAGES[@]}"
 
         # Remove config.
-        mariadb_remove_config
+        mariadb_remove_config "$(lemper_mariadb_default_data_directory)" || return 1
 
         # Remove repository.
         if [[ "${FORCE_REMOVE}" == true ]]; then

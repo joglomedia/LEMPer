@@ -32,6 +32,10 @@ fi
 # Initialize Memcached Installation.
 ##
 function init_memcached_install() {
+    local MEMCACHED_LIBRARY_PACKAGES=(libmemcached11 libmemcachedutil2)
+    if [[ "${DISTRIB_NAME}/${RELEASE_NAME}" == ubuntu/resolute ]]; then
+        MEMCACHED_LIBRARY_PACKAGES=(libmemcached11t64 libmemcachedutil2t64)
+    fi
     local SELECTED_INSTALLER=""
 
     if [[ "${AUTO_INSTALL}" == true ]]; then
@@ -66,13 +70,13 @@ function init_memcached_install() {
                 echo "Installing Memcached server from repository..."
 
                 run apt-get install -q -y \
-                    libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2 memcached socat
+                    libevent-dev libsasl2-dev libmemcached-tools "${MEMCACHED_LIBRARY_PACKAGES[@]}" memcached socat
             ;;
             2 | source)
                 echo "Installing Memcached server from source..."
 
                 run apt-get install -q -y \
-                    libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2 socat
+                    libevent-dev libsasl2-dev libmemcached-tools "${MEMCACHED_LIBRARY_PACKAGES[@]}" socat
 
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)

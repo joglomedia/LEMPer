@@ -1,11 +1,17 @@
 # v4.0.0 release preparation
 
 Status checked 2026-11-21: v4.0.0 is unpublished; latest GitHub release is
-v3.6.0. Local preparation below records an earlier baseline. Current code is
-363945d plus P2 working-tree changes on `release/v4.0.0`; final candidate
-rebuild/validation remains.
+v3.6.0. Local preparation below records earlier baselines. The current candidate
+is based on `87b75b3` with the Ubuntu/Sury upgrade on
+`release/v4.0.0`, checked 2026-11-23. A final clean release build and validation
+of its exact artifacts remain pending.
 
 ## Release contract
+
+The candidate now includes Ubuntu 26.04, the maintained Sury PHP archive,
+native Resolute MariaDB 11.8 and a Dovecot 2.4 template. See
+[the platform choices and native checks](UBUNTU_26_04.md); historical baselines
+below are not evidence of an in-place OS/database migration.
 
 - `lemperctl` is the public CLI; `lemper-cli` and legacy command aliases remain.
 - `get-lemper --version 4.0.0` installs only the CLI and preserves configuration.

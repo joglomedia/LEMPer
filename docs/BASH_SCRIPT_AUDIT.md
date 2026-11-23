@@ -40,7 +40,8 @@ is parsed as data, filtered/redacted before rendering, and never shell sourced.
 
 Base installation supplies jq, unzip and libxml2-utils. Test setup supplies zip
 for fixtures and socat for firewall UAT. Bashate is installed as a distribution
-package; LEMPer does not maintain a Python coverage or test runner.
+package when available; Resolute uses an isolated environment for this third-party
+lint tool. LEMPer does not maintain a Python coverage or test runner.
 
 Python/Perl packages still required by upstream Certbot, Fail2ban, SPF policy
 services, CSF, Bashate or distribution tools remain supported. Embedded PHP in application

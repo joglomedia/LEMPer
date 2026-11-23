@@ -276,7 +276,7 @@ function init_vsftpd_install() {
 
                 # Install build dependencies for the supported releases.
                 case "${DISTRIB_NAME}/${RELEASE_NAME}" in
-                    debian/bullseye | debian/bookworm | ubuntu/jammy | ubuntu/noble)
+                    debian/bullseye | debian/bookworm | ubuntu/jammy | ubuntu/noble | ubuntu/resolute)
                         run env DEBIAN_FRONTEND=noninteractive apt-get install -q -y \
                             build-essential libssl-dev libpam0g-dev libcap-dev
                     ;;

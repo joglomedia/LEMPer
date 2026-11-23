@@ -23,8 +23,18 @@ set -euo pipefail
 }
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
+test_lint_packages=(bashate)
+if ! apt-cache show bashate >/dev/null 2>&1; then
+    # Resolute no longer packages the upstream Python-based lint tool.
+    test_lint_packages=(python3-venv)
+fi
 apt-get install -q -y bash bats bc ca-certificates curl git gnupg iproute2 jq mariadb-client nginx \
-    openssh-server bashate libxml2-utils quota rsync shfmt socat sudo unzip zip xz-utils
+    openssh-server "${test_lint_packages[@]}" libxml2-utils quota rsync shfmt socat sudo unzip zip xz-utils
+if [[ "${test_lint_packages[0]}" != bashate ]]; then
+    python3 -m venv /opt/lemper-test-tools/bashate
+    /opt/lemper-test-tools/bashate/bin/pip install --disable-pip-version-check bashate
+    ln -sfn /opt/lemper-test-tools/bashate/bin/bashate /usr/local/bin/bashate
+fi
 mkdir -p /run/sshd
 ssh-keygen -A
 if ! shellcheck --version 2>/dev/null | grep -qx 'version: 0.11.0'; then

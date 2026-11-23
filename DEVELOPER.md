@@ -26,7 +26,7 @@
 
 ### 1.2 System Requirements (Target)
 
-- Debian 12 or Ubuntu 22.04/24.04 (amd64 or arm64)
+- Debian 11/12 or Ubuntu 22.04/24.04/26.04 (amd64 or arm64)
 - Root/sudo access for installation testing
 - At least 2GB RAM, 20GB disk (swap auto-created for low-RAM systems)
 
@@ -304,7 +304,7 @@ require separate destination/provider tests. See [data backups](docs/DATA_BACKUP
 The mail acceptance suite installs only the mail component in a designated
 systemd container. It exercises SMTP/IMAP TLS, multi-domain delivery and DKIM,
 account/alias changes, session revocation, package updates, backups, and removal
-that retains mail. The CI mailer matrix runs Ubuntu 22.04/24.04 and Debian 12.
+that retains mail. The CI mailer matrix runs Ubuntu 22.04/24.04/26.04 and Debian 12.
 
 ```bash
 podman build --build-arg BASE_IMAGE=ubuntu:24.04 -t lemper-mail-uat \
@@ -873,6 +873,12 @@ podman run --rm --privileged \
 - [GNU Bash Manual](https://www.gnu.org/software/bash/manual/)
 
 ## CLI/module contracts
+
+Ubuntu 26.04 support uses the maintained Sury PHP driver, native MariaDB 11.8
+and a Dovecot 2.4 template; see [the Resolute guide](docs/UBUNTU_26_04.md).
+The `php-repository-uat` matrix checks real PHP installation/update on Ubuntu
+22.04/24.04/26.04 and Debian 12. Its fixture requires a disposable systemd host,
+a read-only `/source` mount and `/run/lemper-php-repository-uat-authorized`.
 
 Repository-owned script functionality stays in Bash, including extensionless
 wrappers and test clients. See [the Bash audit](docs/BASH_SCRIPT_AUDIT.md) for the

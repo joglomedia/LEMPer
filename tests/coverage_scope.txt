@@ -15,3 +15,5 @@ lib/services/site/inspect.sh
 lib/services/site/release_metadata.sh
 lib/services/site/release_archive.sh
 lib/services/site/release_prepare.sh
+lib/services/php/repository.sh
+lib/services/mariadb/repository.sh

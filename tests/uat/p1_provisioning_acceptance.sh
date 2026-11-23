@@ -80,8 +80,10 @@ MARIABACKUP_PASS=
 check recover-dropin lemper_with_lock lemper_mariabackup_provision
 MARIABACKUP_PASS="$original_password"
 check recovered-login login
+datadir=$(mariadb -N -B -e 'SELECT @@datadir;')
+[[ "$datadir" == /* && "$datadir" != / ]] || exit 1
 check physical-backup mariadb-backup --defaults-file="$work/mysql/50-mariabackup.cnf" \
-    --backup --datadir=/var/lib/mysql --target-dir="$work/physical"
+    --backup --datadir="$datadir" --target-dir="$work/physical"
 check physical-prepare mariadb-backup --defaults-file="$work/mysql/50-mariabackup.cnf" \
     --prepare --target-dir="$work/physical"
 printf '[mysqld]\nport=3306\n' >"$work/my.cnf"

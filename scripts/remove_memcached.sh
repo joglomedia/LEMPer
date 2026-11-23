@@ -42,7 +42,11 @@ function init_memcached_removal() {
         echo "Found Memcached package installation. Removing..."
 
         # Remove Memcached server.
-        run apt-get purge -q -y libmemcached11 memcached
+        if [[ "${DISTRIB_NAME}/${RELEASE_NAME}" == ubuntu/resolute ]]; then
+            run apt-get purge -q -y libmemcached11t64 memcached
+        else
+            run apt-get purge -q -y libmemcached11 memcached
+        fi
     else
         echo "Memcached package not found, possibly installed from source."
         echo "Remove it manually."

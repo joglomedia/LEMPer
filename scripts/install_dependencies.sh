@@ -48,10 +48,16 @@ run apt-get upgrade -q -y
 
 # Install dependencies.
 echo "Installing packages, be patient..."
+DEPENDENCY_GPGME_PACKAGE=libgpgme11-dev
+DEPENDENCY_PCRE_PACKAGE=libpcre3-dev
+if [[ "${DISTRIB_NAME}/${RELEASE_NAME}" == ubuntu/resolute ]]; then
+    DEPENDENCY_GPGME_PACKAGE=libgpgme-dev
+    DEPENDENCY_PCRE_PACKAGE=libpcre2-dev
+fi
 run_spinner "Installing base packages" apt-get install -q -y \
     apt-transport-https apt-utils autoconf automake bash bc build-essential ca-certificates \
     cmake cron curl dmidecode dnsutils gcc gdb git gnupg2 htop iptables jq libc-bin libc6-dev \
-    libcurl4-openssl-dev libgpgme11-dev libssl-dev libpcre3-dev libxml2-dev libxml2-utils libxslt1-dev \
+    libcurl4-openssl-dev "$DEPENDENCY_GPGME_PACKAGE" libssl-dev "$DEPENDENCY_PCRE_PACKAGE" libxml2-dev libxml2-utils libxslt1-dev \
     libtool locales logrotate lsb-release make net-tools openssh-server openssl pkg-config \
     re2c rsync software-properties-common sasl2-bin snap snmp sqlite3 sudo sysstat tar tzdata unzip wget \
     whois xz-utils zlib1g-dev geoip-bin geoip-database gettext gettext-base libgeoip-dev libpthread-stubs0-dev uuid-dev
@@ -120,6 +126,12 @@ case "${DISTRIB_NAME}" in
         # python3.7 will be dropped on next Certbot release
         # deadsnake ppa only supports Jammy & Noble
         case "${RELEASE_NAME}" in
+            resolute)
+                # Resolute supplies a maintained Python directly; no PPA needed.
+                run apt-get install -q -y python3 python3-dev python3-pip python3-venv && \
+                run update-alternatives --install /usr/bin/python python /usr/bin/python3 3 && \
+                run update-alternatives --set python /usr/bin/python3
+            ;;
             noble | jammy)
                 lemper_load_module services/apt/catalog && \
                 lemper_apt_prepare_repository deadsnakes && \
