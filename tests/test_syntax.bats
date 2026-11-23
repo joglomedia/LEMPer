@@ -35,6 +35,7 @@ _get_script_files() {
     for f in "${BASE_DIR}"/scripts/nginx/*.sh; do
         echo "${f}"
     done
+    find "${BASE_DIR}/lib/runtime" "${BASE_DIR}/lib/services" "${BASE_DIR}/lib/compat" -type f -name '*.sh' | sort
 }
 
 @test "all scripts pass bash syntax check (bash -n)" {

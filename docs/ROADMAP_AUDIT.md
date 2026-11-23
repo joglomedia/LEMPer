@@ -1,7 +1,7 @@
 # LEMPer roadmap implementation audit
 
-Date: **2026-11-23**. Current baseline: **79d4d40**,
-`release/v4.0.0`, plus the A3 implementation working tree. The initial audit
+Date: **2026-11-23**. Current baseline: **21e27ab32fa18e16d576cc79228a386b307042a4**,
+`release/v4.0.0`, inspected from a clean checkout. The initial audit
 used **9b7511b383e6dbcb5cd3da2424b604016134c379** and
 began from a clean checkout. Earlier
 cross-checks and implementation validation are preserved below as history.
@@ -16,6 +16,140 @@ historical problem descriptions or old file layouts as current bugs.
 Priorities below are suggested delivery priorities, not vulnerability severity
 ratings. Source presence does not prove every platform or live upgrade works.
 This audit does not constitute a new security scan or upstream dependency audit.
+
+## A4 module decomposition follow-through — 2026-11-23
+
+**2.12 and 2.37 are implemented in the working tree on top of `21e27ab`.** They
+describe the same A4 workstream. The four extraction boundaries from the baseline
+audit below are delivered; all 48 numbered IDs now have their implemented or
+explicitly superseded accepted capability. Release validation and optional
+extensions remain separate. This section supersedes the older partial-decomposition
+status statements without discarding their audit history.
+
+| Boundary | Delivered implementation |
+|---|---|
+| A4.1 — site creation/rendering | [Creation runtime](../lib/runtime/site/create.sh) normalizes requests; [vhost](../lib/services/nginx/vhost.sh), [pool](../lib/services/php/pools.sh), [provisioning](../lib/services/site/provision.sh) and [skeleton](../lib/services/site/skeletons.sh) modules own the extracted work. The creation runtime shrank from 1,686 to 217 lines. |
+| A4.2 — feature management | [Manager wrapper](../lib/lemper-manage.sh) loads [runtime orchestration](../lib/runtime/site/manage.sh), [Nginx features](../lib/services/nginx/features.sh), [protection](../lib/services/nginx/protection.sh) and [SSL editing](../lib/services/ssl/site.sh). |
+| A4.3 — updater | [Updater wrapper](../lib/lemper-update.sh) loads [orchestration](../lib/runtime/stack/update.sh) and PHP, Nginx, MariaDB and tooling drivers. Explicit initialization and a function subshell contain updater state, locks and redirections. |
+| A4.4 — component lifecycles | 37 lifecycle/server scripts and eight Nginx modules become adapters to function-only service implementations. [Named driver registration](../lib/core/registry.sh) and [component application](../lib/runtime/components/lifecycle.sh) serve standalone, full-stack and CLI paths. |
+| Remaining utility plugins | Backup, benchmark, listing, permissions, account creation, ModSecurity tuning and encryption move to named runtime/service/core modules. All `lib/lemper-*.sh` files are thin wrappers/loaders. |
+
+The extraction preserves installed plugin paths, CLI aliases, standalone filenames,
+profile handling, provisioning markers and existing execution helpers. Legacy
+request globals and terminating `run`/`fail` behavior remain inside initialized
+installer/CLI process boundaries. Import safety does not authorize arbitrary
+driver execution on the workstation. See [MODULE_DECOMPOSITION.md](MODULE_DECOMPOSITION.md)
+for the contracts and tradeoffs.
+
+### Verification of the implementation
+
+- Sourced ShellCheck, CI Bashate and the scoped shfmt gate pass for the final source.
+- `bash scripts/run_tests.sh` passed **518/518 tests** on Ubuntu 24.04 ARM64,
+  including syntax and sourced ShellCheck for runtime/service/compatibility
+  modules. The affected structural suite also passed **100/100**. Earlier full
+  runs exposed assertions still inspecting the old plugin files; those now
+  inspect the owning implementations and retained loader wiring.
+- Native Ubuntu 26.04 ARM64/systemd acceptance passed **13/13 checks**: invalid
+  profile rejection, real bootstrap/minimal installation, encrypted schema,
+  active core services, disabled optional components, PHP HTTP serving, pinned
+  code, repeat preservation, aliases, SSH key login, legacy update checking,
+  site purge and full-stack removal. The final fixture was
+  `lemper-a4-complete-uat`; private logs remain under `/var/log/lemper-uat/v4/`
+  in the stopped fixture. An earlier attempt hit a PyPI download timeout; the
+  successful fresh runs used longer download timeouts/retries.
+- Native acceptance uses a public-source archive of the uncommitted working tree,
+  rather than an official clean-commit release asset. Candidate CI, final assets,
+  publication and the broader deployment matrix remain open release gates.
+  Native acceptance covers the minimal source-Nginx profile; optional service
+  installations, every application skeleton, Debian and native AMD64 were not
+  rerun for A4. Final documentation and whitespace cleanup followed the native
+  archive snapshot without changing runtime behavior.
+- All **190 local documentation references/anchors** resolve. Tracked and new-file
+  whitespace checks pass. Original named-function review confirms the extracted
+  **382** implementations remain present; the site package-preflight helper was renamed
+  to `lemper_site_required_packages` and its caller updated.
+
+## Current remaining work — 21e27ab
+
+This baseline audit predates A4 implementation. Its remaining architecture scope
+is superseded by the follow-through above; its release gates still apply.
+
+All **48 unique numbered IDs** were reconciled with the current source, public
+defaults, command/module wiring and tests. **46 IDs have their implemented or
+explicitly superseded capability; 2 IDs remain partial: 2.12 and 2.37.** These two
+IDs describe one architecture workstream, also called **A4**. No numbered feature
+was found wholly absent. This conclusion applies to the documented accepted
+scope, including the qualifications in the reconciliation table below.
+
+A1/A2 are committed in `79d4d40`; A3 and additional app/Bash-helper work are
+committed in `87b75b3`. `b17b7f7` adds Resolute, maintained Sury PHP migration,
+native MariaDB 11.8 and Dovecot 2.4. `21e27ab` simplifies the README and adds
+operating guides. Earlier findings and verification sections below are history;
+this section supersedes their remaining-work and candidate-status statements.
+
+### Required implementation follow-through
+
+The following is a suggested extraction order within A4, not four newly missing
+product features or four additional numbered tasks.
+
+| Order | Scope | Verified remaining boundary | Completion contract |
+|---|---|---|---|
+| A4.1 | **P2 — site creation/rendering** | [Creation runtime](../lib/runtime/site/create.sh) remains 1,686 lines and owns ordinary vhost rendering, FPM pool generation and older application installers. [Public creation](../lib/runtime/site/commands.sh) still calls [the legacy creation adapter](../lib/compat/site.sh). New release deployments already have dedicated drivers. | Separate ordinary Nginx/FPM rendering and remaining skeleton installers from orchestration. Preserve app catalog/markers, runtime isolation, ownership, protected configuration and repeat/failure behavior. |
+| A4.2 | **P2 — site feature management** | [Manager](../lib/lemper-manage.sh) retains SSL-vhost editing, caching, CORS, compression, Fail2ban and ModSecurity actions. [Batch updates](../lib/runtime/site/commands.sh) still invoke them through [compat/site](../lib/compat/site.sh). Enable/disable and shared certificate issuance are already extracted. | Move cohesive actions into function-only service drivers; preserve aliases, locking, validation/reload, rollback and explicit treatment of external effects. Keep the existing compatibility entrypoint. |
+| A4.3 | **P2 — updater use cases/drivers** | [Updater](../lib/lemper-update.sh) remains 1,989 lines, including PHP patch/mitigation/EOL migration, Nginx repository/package handling, MariaDB updates and tooling refresh. [PHP lifecycle](../lib/services/php/lifecycle.sh) and the shared [Sury source driver](../lib/services/php/repository.sh) exist but do not own all update internals. | Separate update orchestration from package, pool/vhost migration and repository drivers. Preserve selected/all-version scope, explicit EOL migration, dry-run behavior, recovery and compatibility commands. |
+| A4.4 | **P2 — older component lifecycles** | [Component orchestration](../lib/runtime/stack/commands.sh) routes older installers/removers through [compat/components](../lib/compat/components.sh). PHP, Phalcon, Redis/Valkey, FTP and other scripts retain business logic and source-time dispatch. New mail, backup, monitoring, firewall and quota drivers already exist. | Extract one component at a time; retain standalone scripts and registry/exports. Service modules must be inert on source and return failures without terminating the caller. |
+
+All four packages require behavior checks through the installed CLI and retained
+entrypoints, not simply moving filenames. This architecture work is the remaining
+implementation plan; it is not automatically a v4 publication blocker under the
+current incremental scope.
+
+### Release and deployment follow-through
+
+| Priority | Remaining work | Evidence / boundary |
+|---|---|---|
+| **P1 — candidate CI** | Run and review the final committed candidate's configured jobs, including native acceptance matrices. | Read-only `gh run list` for the full `21e27ab` SHA returned **0 runs**. Shared Linux setup is implemented; no current remote job failure was observed. |
+| **P1 — exact release artifacts** | Build all four assets from the final clean commit, verify contents/checksums/reproducibility and run bootstrap/service UAT against that exact archive. | [Builder](../scripts/build_release.sh) and [acceptance suite](../tests/uat/v4_acceptance.sh) exist. [Release evidence](RELEASE_V4.md) covers older archives; later component checks do not validate the latest archive. |
+| **P1 — publication** | Set the changelog date, tag/publish after authorization, then verify downloads and one-line installation. | `gh release view v4.0.0` returned **release not found**; latest published release is **v3.6.0**. No local `v4*` tag was found. [Release workflow](../.github/workflows/release.yml) exists. |
+| **P2 — deployment matrix** | Validate native AMD64/provider switches, public ACME issuance/renewal, HTTP/3 client negotiation/0-RTT, remote Restic backends, external SMTP alerts and selected live upgrades. | Local ARM64 component evidence is recorded separately. MyGuard's missing Resolute ARM64 binary is an upstream availability limit; source installation is implemented. |
+
+Publication authorization is needed only for publishing/tagging/pushing; this
+audit did not trigger any of those actions or any workflow.
+
+### Optional extensions and decisions
+
+These are absent extensions or deferred policy choices, not unfinished required
+numbered implementations:
+
+- Authenticated configuration encryption and a backward-compatible format/key
+  migration. Current configuration encryption is CBC/PBKDF2.
+- YAML profiles; the current accepted configuration contract is schema-validated
+  dotenv.
+- XFS/other quota backends and CPU/RAM/bandwidth enforcement; current hosting
+  plans enforce ext4 disk/inode quotas.
+- A managed physical MariaDB backup/prepare/restore CLI workflow. Backup packages,
+  protected account provisioning and native physical backup/prepare checks exist;
+  managed SQL backup/restore/scheduling is implemented.
+- Unattended database/admin/mail setup for deployed applications and a licensed
+  artifact import interface. App file deployment and manual Sendy/XenForo vhosts
+  meet the current capability contract; upstream setup remains explicit.
+- A direct numeric PHP-default option. Current code accepts
+  `--default-runtime=php@8.4`; the alternative spelling remains a proposal.
+
+### Audit verification
+
+- Read current roadmap/architecture plans, registries, runtime/service/legacy
+  boundaries, public defaults, tests and CI/release wiring.
+- Source count: **513 Bats declarations in 43 files**. This is a count, not a new
+  test run. The [Resolute guide](UBUNTU_26_04.md) records prior 513-check
+  verification, 72 native PHP checks, 19 Resolute mail checks and native MariaDB
+  provisioning/physical backup evidence on their implementation baseline.
+- Queried candidate Actions, v4 release, latest release and local tags read-only.
+  No runtime installation, service changes, private profile reads or new Bats/UAT
+  runs were performed for this audit.
+- Current summaries are refreshed; original findings and results below remain
+  historical evidence. All **148 local documentation paths/anchors** resolve;
+  `git diff --check` passed and the final documentation diff was reviewed.
 
 ## Remaining work at 9b7511b
 
@@ -46,7 +180,7 @@ depends on the certificate/issuer and is not an absent-template finding.
 
 ## Current P1 follow-through
 
-**A1 and A2 are committed in 79d4d40. A3 is implemented in the working tree.**
+**A1 and A2 are committed in 79d4d40. A3 is committed in 87b75b3.**
 A4 remains the next implementation priority; release validation/publication
 gates remain separate. The table above preserves the original findings at
 9b7511b; delivery below supersedes their remaining-work status.
@@ -280,11 +414,11 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.20 | Implemented | CrowdSec lifecycle, options and collections. |
 | 2.21 | Implemented in source | Protected provider DNS-01 wiring; public issuance/renewal validation is a release gate. |
 | 2.22 | Implemented | Spinners/counters delivered; ETA and optional pv restoration progress delivered with R12. |
-| 2.23 | Implemented, consistency follow-through remains | Expanded/public help and common parser; site-show flag fixed in R2; public-path parser adoption is delivered in R7; compatibility adapters retain their grammar. |
+| 2.23 | Implemented | Expanded/public help and common parser; site-show flag fixed in R2; public-path parser adoption is delivered in R7; intentional compatibility adapters retain their grammar. |
 | 2.24 | Implemented | TUI dashboard/logs/wizard; current command is `tui`. |
 | 2.25 | Implemented and superseded | Shipped install templates now PHP 8.2–8.5. |
 | 2.26 | Implemented and superseded | Default is 8.5; supported defaults can now be configured. |
-| 2.27 | Implemented selected policy | MariaDB 11.4, curated repository reconciliation, canonical custom-TLS flag and checksummed OpenSSL 3.5.9 LTS source integration. |
+| 2.27 | Implemented selected policy | Distro-aware MariaDB defaults (native 11.8 on Resolute, 11.4 elsewhere), maintained Sury PHP, curated source reconciliation, canonical custom-TLS flag and checksummed OpenSSL 3.5.9 LTS source integration. |
 | 2.28 | Implemented | Fail2ban enabled by default. |
 | 2.29 | Implemented | ModSecurity/CRS present; NAXSI is opt-in/off by default. Public option is `INSTALL_MODSEC`. |
 | 2.30 | Implemented | Certbot renewal deploy hook uses systemctl reload. |
@@ -295,8 +429,8 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.35 | Implemented | Portable host-edit helpers; GNU sed in Linux CI/UAT is appropriate. |
 | 2.36 | Implemented | Active shell code no longer depends on grep PCRE as described in the historical task. |
 | 2.37 | Partial | Same migration workstream as 2.12 and Phase 9, R8. |
-| 2.38 | Implemented with shared Linux test environment | Current tree has **39 Bats files / 482 declarations**. A2 aligns dependency preparation, root fixtures, and test locks; final verification is recorded separately from the initial audit. |
-| 2.39 | Implemented | Debian 12 CI exists; its distro ShellCheck version need not match the explicitly pinned Ubuntu/release tool. |
+| 2.38 | Implemented with shared Linux test environment | Current tree has **43 Bats files / 513 declarations**. A2 aligns dependency preparation, root fixtures, and test locks; prior verification is recorded separately from this read-only audit. |
+| 2.39 | Implemented | Debian 12 CI and native PHP acceptance exist; shared setup pins ShellCheck 0.11.0. |
 | 2.40 | Implemented | Bashate in CI/release checks. |
 | 2.41 | Implemented | TUI log streaming and refresh controls. |
 | 2.42 | Implemented, capability gap closed by A3 | TUI delegates to public CLI and shares the application catalog; manual types offer vhost creation without an installation flag. Full deployment for those types remains deferred. |

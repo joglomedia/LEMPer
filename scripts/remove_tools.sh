@@ -15,8 +15,19 @@
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
+case "${1:-}" in
+    --help | -h)
+        printf 'Usage: remove_tools.sh [--help|--version] (uses the LEMPer configuration profile)\n'
+        if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 0; else return 0; fi
+        ;;
+    --version | -v)
+        printf 'LEMPer tools remove v4.0.0\n'
+        if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 0; else return 0; fi
+        ;;
+esac
+
 if [[ "$(type -t run)" != function ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
+    BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)
     cd "${BASE_DIR}" || exit 1
     # shellcheck source=scripts/utils.sh
     . "${BASE_DIR}/scripts/utils.sh" || exit 1
@@ -24,13 +35,11 @@ if [[ "$(type -t run)" != function ]]; then
     preflight_system_check || exit 1
 fi
 
-if ! lemper_provisioned tools && [[ "${FORCE_REMOVE:-false}" != true ]]; then
-    info "Pre-existing administration tooling is preserved; force is required for removal."
+lemper_load_module services/tools/remove || {
+    if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 1; else return 1; fi
+}
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    lemper_with_lock lemper_tools_remove_entry "$@"
 else
-    run rm -f /usr/local/bin/lemper-cli /usr/local/bin/lemperctl /usr/bin/lemper-cli
-    run rm -rf /etc/lemper/cli-plugins /etc/lemper/core
-    for cli_module in runtime services compat; do
-        if [[ -L "/etc/lemper/$cli_module" ]]; then run rm -f "/etc/lemper/$cli_module"; fi
-    done
-    info "CLI entry points removed; release trees retained. Configuration, credentials, and web administration data are retained."
+    lemper_tools_remove_entry "$@"
 fi

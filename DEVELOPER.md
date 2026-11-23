@@ -1,7 +1,7 @@
 # LEMPer Developer Guide
 
 > **Version:** 4.0.0 (release preparation)
-> **Last Updated:** 2026-11-22
+> **Last Updated:** 2026-11-23
 > **Target Audience:** Contributors, maintainers, and developers working on LEMPer.
 
 ---
@@ -35,7 +35,8 @@
 The shared implementation now lives in lib/core: configuration/schema,
 logging/colors, distro/network, validation/security, resources, SSH, accounts,
 ACME, option parsing, and CLI dispatch. scripts/utils.sh and the CLI retain
-compatibility wrappers. Runtime/service directory migration remains separate.
+compatibility wrappers. Runtime/service extraction is implemented; see
+[MODULE_DECOMPOSITION.md](docs/MODULE_DECOMPOSITION.md) before adding a driver.
 
 Core modules and each component are linted independently to avoid repeatedly
 expanding the shared dependency graph through every installer.
@@ -59,8 +60,12 @@ directories for development:
 | Directory | Purpose | Files to Edit |
 |---|---|---|
 | `bin/` | CLI entry point | `lemper-cli.sh` |
-| `lib/` | CLI plugins + library code | `lemper-*.sh` |
-| `scripts/` | Installation & removal scripts | `install_*.sh`, `remove_*.sh`, `server_*.sh`, `utils.sh` |
+| `lib/` | Thin compatibility CLI plugins/loaders | `lemper-*.sh` |
+| `lib/core/` | Shared primitives, registries, locking and exports | `registry.sh`, `execution.sh`, `deployment.sh` |
+| `lib/runtime/` | Command normalization and use-case orchestration | `site/`, `stack/`, `components/`, other command modules |
+| `lib/services/` | Component lifecycles, rendering and service operations | Component drivers and service helpers |
+| `lib/compat/` | Isolated legacy process boundaries | Component/site/updater adapters |
+| `scripts/` | Standalone initialization and lifecycle adapters | `install_*.sh`, `remove_*.sh`, `server_*.sh`, `utils.sh` |
 | `etc/` | Configuration templates | `*.conf`, `*.ini`, service files |
 | `share/` | Static assets | HTML error pages, index, tool configs |
 | `tests/` | Unit & integration tests | New in v3.0 |

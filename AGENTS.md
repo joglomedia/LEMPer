@@ -22,9 +22,9 @@ check distribution detection and CI before changing compatibility claims.
 | `install.sh`, `remove.sh`, `lemper.sh`, `update.sh` | Installation, removal, interactive entry point, and updates |
 | `bin/lemper-cli.sh` | Installed CLI dispatcher, configuration loading, and runtime helpers |
 | `scripts/utils.sh` | Installer helpers, dotenv parsing, validation, logging, and resource sizing |
-| `scripts/install_*.sh`, `scripts/remove_*.sh`, `scripts/server_*.sh` | Component lifecycle and server administration |
-| `scripts/nginx/*.sh` | Sourced Nginx installer modules |
-| `lib/lemper-*.sh` | CLI plugins and shared runtime logic |
+| `scripts/install_*.sh`, `scripts/remove_*.sh`, `scripts/server_*.sh` | Standalone initialization and lifecycle adapters |
+| `scripts/nginx/*.sh` | Compatibility loaders for function-only Nginx service modules |
+| `lib/lemper-*.sh` | Thin compatibility CLI plugins and library loaders |
 | `lib/core/registry.sh`, `execution.sh`, `deployment.sh` | Command/component contracts, locking, and code exports |
 | `lib/runtime/`, `lib/services/`, `lib/compat/` | Use cases, service drivers, isolated legacy boundaries |
 | `lib/core/lemper-stacks.sh` | Compatibility loader for runtime full-stack recipes |
@@ -39,6 +39,11 @@ Read [ARCHITECTURE.md](docs/ARCHITECTURE.md), [DEVELOPER.md](DEVELOPER.md), and
 [CONTRIBUTING.md](CONTRIBUTING.md) as needed. These documents contain historical
 and proposed sections: verify paths, behavior, versions, and bug claims against
 current source and tests before acting.
+
+For component changes, read [MODULE_DECOMPOSITION.md](docs/MODULE_DECOMPOSITION.md).
+`lemper_component_driver` maps actions to modules/entry functions;
+`lemper_component_apply` is shared by full-stack recipes and CLI adapters.
+Edit the service implementation rather than restoring business logic to a wrapper.
 
 ## Working method
 

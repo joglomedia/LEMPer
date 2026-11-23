@@ -193,7 +193,7 @@ command_plugins() {
     run grep -q 'lemper-encrypt' "${REAL_BASE_DIR}/scripts/install_tools.sh"
     [ "${status}" -ne 0 ]
 
-    run grep -q 'lemper-encrypt:lemper-encrypt' "${REAL_BASE_DIR}/lib/lemper-update.sh"
+    run grep -q 'lemper-encrypt:lemper-encrypt' "${REAL_BASE_DIR}/lib/services/tools/update.sh"
     [ "${status}" -ne 0 ]
 
     run grep -q 'library module' "${REAL_BASE_DIR}/lib/lemper-encrypt.sh"

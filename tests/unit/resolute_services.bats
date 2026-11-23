@@ -56,7 +56,7 @@ setup() { unit_setup; }
     [[ "$output" == *mariadb-server* && "$output" != *libmariadbclient18* ]]
 }
 @test "MariaDB data defaults follow Resolute packaging and initialization delegates data ownership" {
-    sed '/^echo "\[MariaDB /,$d' "$REAL_BASE_DIR/scripts/install_mariadb.sh" >"$TEST_TMPDIR/installer-functions.sh"
+    cp "$REAL_BASE_DIR/lib/services/mariadb/install.sh" "$TEST_TMPDIR/installer-functions.sh"
     run bash -c '
         . "$REAL_BASE_DIR/lib/core/loader.sh"
         lemper_load_module services/mariadb/repository
@@ -84,11 +84,11 @@ setup() { unit_setup; }
     mkdir -p "$TEST_TMPDIR/config" "$TEST_TMPDIR/mysql" "$TEST_TMPDIR/mariadb" "$TEST_TMPDIR/custom"
     touch "$TEST_TMPDIR/mysql/record" "$TEST_TMPDIR/mariadb/record" "$TEST_TMPDIR/custom/record"
     LEMPER_REMOVE_FIXTURE="$TEST_TMPDIR" awk '
-        /^echo "Uninstalling MariaDB/ {exit}
+        /^function lemper_mariadb_remove_entry/ {exit}
         {gsub(/\/etc\/mysql/,ENVIRON["LEMPER_REMOVE_FIXTURE"] "/config")
          gsub(/\/var\/lib\/mysql/,ENVIRON["LEMPER_REMOVE_FIXTURE"] "/mysql")
          gsub(/\/var\/lib\/mariadb/,ENVIRON["LEMPER_REMOVE_FIXTURE"] "/mariadb"); print}
-    ' "$REAL_BASE_DIR/scripts/remove_mariadb.sh" >"$TEST_TMPDIR/remove-functions.sh"
+    ' "$REAL_BASE_DIR/lib/services/mariadb/remove.sh" >"$TEST_TMPDIR/remove-functions.sh"
     run bash -c '
         . "$REAL_BASE_DIR/lib/core/loader.sh"
         run() { lemper_exec "$@"; }
@@ -109,7 +109,7 @@ setup() { unit_setup; }
         /^    # Drop MySQL database[.]/ {active=1; print "function legacy_drop_db_fixture() {"}
         active && /^    echo "Virtual host.*has been removed[.]"/ {print "}"; exit}
         active {print}
-    ' "$REAL_BASE_DIR/lib/lemper-manage.sh" >"$TEST_TMPDIR/legacy-db-functions.sh"
+    ' "$REAL_BASE_DIR/lib/runtime/site/manage.sh" >"$TEST_TMPDIR/legacy-db-functions.sh"
     for database in resolute_db 'resolute_db;SELECT 1'; do
         run env LEGACY_DB_NAME="$database" bash -c '
             . "$REAL_BASE_DIR/lib/core/loader.sh"

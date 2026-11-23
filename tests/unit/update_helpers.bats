@@ -171,13 +171,13 @@ EOF
 }
 
 @test "update reinstalls administration tools from install_tools.sh" {
-    run grep -q 'function reinstall_admin_tools' "${REAL_BASE_DIR}/lib/lemper-update.sh"
+    run grep -q 'function reinstall_admin_tools' "${REAL_BASE_DIR}/lib/services/tools/update.sh"
     [ "${status}" -eq 0 ]
 
-    run grep -q 'scripts/install_tools.sh' "${REAL_BASE_DIR}/lib/lemper-update.sh"
+    run grep -q 'scripts/install_tools.sh' "${REAL_BASE_DIR}/lib/services/tools/update.sh"
     [ "${status}" -eq 0 ]
 
-    run grep -q 'reinstall_admin_tools "${src}"' "${REAL_BASE_DIR}/lib/lemper-update.sh"
+    run grep -q 'reinstall_admin_tools "${src}"' "${REAL_BASE_DIR}/lib/services/tools/update.sh"
     [ "${status}" -eq 0 ]
 
     run grep -q 'update_lemper_tooling' "${REAL_BASE_DIR}/lib/compat/updater.sh"
@@ -211,7 +211,7 @@ EOF
         "${REAL_BASE_DIR}/lib/core/registry.sh"
     [ "${status}" -eq 0 ]
 
-    run grep -q '/etc/lemper/update-source' "${REAL_BASE_DIR}/scripts/install_tools.sh"
+    run grep -q '/etc/lemper/update-source' "${REAL_BASE_DIR}/lib/services/tools/install.sh"
     [ "${status}" -eq 0 ]
 }
 

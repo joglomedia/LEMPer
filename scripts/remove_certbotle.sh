@@ -15,9 +15,23 @@
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
+case "${1:-}" in
+    --help | -h)
+        printf 'Usage: remove_certbotle.sh [--help|--version] (uses the LEMPer configuration profile)\n'
+        if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 0; else return 0; fi
+        ;;
+    --version | -v)
+        printf 'LEMPer certbotle remove v4.0.0\n'
+        if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 0; else return 0; fi
+        ;;
+esac
+
 if [[ "$(type -t run)" != "function" ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
-    cd "${BASE_DIR}" || { echo "Cannot enter ${BASE_DIR}."; exit 1; }
+    BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)
+    cd "${BASE_DIR}" || {
+        echo "Cannot enter ${BASE_DIR}."
+        exit 1
+    }
     # shellcheck source=scripts/utils.sh
     . "${BASE_DIR}/scripts/utils.sh"
 
@@ -28,83 +42,11 @@ if [[ "$(type -t run)" != "function" ]]; then
     preflight_system_check
 fi
 
-function init_certbotle_removal() {
-    if dpkg-query -l | awk '/certbot/ { print $2 }' | grep -qwE "^certbot$"; then
-        echo "Found Certbot package installation. Removing..."
-
-        # Remove Certbot.
-        run apt-get purge -q -y certbot
-
-        [[ "${FORCE_REMOVE}" == true ]] && \
-            run add-apt-repository -y --remove ppa:certbot/certbot
-    elif snap list | awk '/certbot/ { print $1 }' | grep -qwE "^certbot$"; then
-        echo "Found Certbot snap installation. Removing..."
-
-        # Remove Certbot.
-        [ -x /usr/bin/certbot ] && run unlink /usr/bin/certbot
-        [[ -n $(command -v snap) ]] && run snap remove certbot
-    else
-        echo "Certbot package not found, possibly installed from Python's pip or source."
-
-        CERTBOT_BIN=$(command -v certbot)
-        echo "Certbot binary executable: ${CERTBOT_BIN}"
-
-        if [[ -x /opt/certbot/bin/pip ]]; then
-            run unlink /usr/bin/certbot && \
-            run /opt/certbot/bin/pip uninstall -y certbot certbot-nginx
-        fi
-    fi
-
-    # Remove Certbot config files.
-    echo "Removing certbot configuration..."
-    warning "!! This action is not reversible !!"
-
-    if [[ "${AUTO_REMOVE}" == true ]]; then
-        if [[ ${FORCE_REMOVE} == true ]]; then
-            REMOVE_CERTBOT_CONFIG="y"
-        else
-            REMOVE_CERTBOT_CONFIG="n"
-        fi
-    else
-        while [[ "${REMOVE_CERTBOT_CONFIG}" != "y" && "${REMOVE_CERTBOT_CONFIG}" != "n" ]]; do
-            read -rp "Remove configuration and certificate files? [y/n]: " -e REMOVE_CERTBOT_CONFIG
-        done
-    fi
-
-    if [[ "${REMOVE_CERTBOT_CONFIG}" == Y* || "${REMOVE_CERTBOT_CONFIG}" == y* ]]; then
-        [ -d /etc/letsencrypt ] && run rm -fr /etc/letsencrypt
-
-        echo "All your configuration and certificate files deleted permanently."
-    fi
-
-    # Final test.
-    if [[ "${DRYRUN}" != true ]]; then
-        if [[ -z $(command -v certbot) ]]; then
-            success "Certbot Let's Encrypt client removed succesfully."
-        else
-            info "Unable to remove Certbot Let's Encrypt client."
-        fi
-    else
-        info "Certbot Let's Encrypt client removed in dry run mode."
-    fi
+lemper_load_module services/ssl/remove || {
+    if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 1; else return 1; fi
 }
-
-echo "Uninstalling Certbot Let's Encrypt..."
-
-if [[ -n $(command -v certbot) ]]; then
-    if [[ "${AUTO_REMOVE}" == true ]]; then
-        REMOVE_CERTBOT="y"
-    else
-        while [[ "${REMOVE_CERTBOT}" != "y" && "${REMOVE_CERTBOT}" != "n" ]]; do
-            read -rp "Are you sure to remove Certbot Let's Encrypt client? [y/n]: " -e REMOVE_CERTBOT
-        done
-    fi
-
-    if [[ "${REMOVE_CERTBOT}" == y* || "${REMOVE_CERTBOT}" == Y* ]]; then
-        init_certbotle_removal "$@"
-    else
-        echo "Found Certbot Let's Encrypt, but not removed."
-    fi
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    lemper_with_lock lemper_certbotle_remove_entry "$@"
 else
-    info "Oops, Certbot Let's Encrypt installation not found."
+    lemper_certbotle_remove_entry "$@"
 fi

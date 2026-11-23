@@ -175,7 +175,7 @@ run_lib() {
 }
 
 @test "stack apt refresh retires the nginx ppa before apt-get update" {
-    local update="${REAL_BASE_DIR}/lib/lemper-update.sh"
+    local update="${REAL_BASE_DIR}/lib/services/nginx/repository.sh"
     local stack nginx_refresh retire_at apt_at ensure_at
     stack=$(awk '/^function refresh_stack_apt\(\)/,/^}$/' "${update}")
     nginx_refresh=$(awk '/^function refresh_nginx_apt\(\)/,/^}$/' "${update}")
@@ -194,22 +194,22 @@ run_lib() {
     [ "${ensure_at}" -lt "${apt_at}" ]
 
     grep -qF 'https://deb.myguard.nl/apt/nginx/' "${update}"
-    grep -qF 'Dpkg::Options::=--force-confold' "${update}"
-    grep -qF 'https://deb.myguard.nl/apt/nginx/' "${REAL_BASE_DIR}/scripts/nginx/nginx_repo.sh"
-    grep -qF 'gpg --batch --with-colons --show-keys' "${REAL_BASE_DIR}/scripts/nginx/nginx_repo.sh"
+    grep -qF 'Dpkg::Options::=--force-confold' "${REAL_BASE_DIR}/lib/services/nginx/update.sh"
+    grep -qF 'https://deb.myguard.nl/apt/nginx/' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"
+    grep -qF 'gpg --batch --with-colons --show-keys' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"
     grep -qF 'gpg --batch --with-colons --show-keys' "${update}"
-    grep -qF 'key="/etc/apt/keyrings/deb.myguard.nl.gpg"' "${REAL_BASE_DIR}/scripts/nginx/nginx_repo.sh"
-    grep -qF 'signed-by=${key}' "${REAL_BASE_DIR}/scripts/nginx/nginx_repo.sh"
-    if grep -qF 'http://deb.myguard.nl ${RELEASE_NAME}' "${REAL_BASE_DIR}/scripts/nginx/nginx_repo.sh"; then
+    grep -qF 'key="/etc/apt/keyrings/deb.myguard.nl.gpg"' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"
+    grep -qF 'signed-by=${key}' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"
+    if grep -qF 'http://deb.myguard.nl ${RELEASE_NAME}' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"; then
         return 1
     fi
-    if grep -q 'add-apt-repository' "${REAL_BASE_DIR}/scripts/nginx/nginx_repo.sh"; then
+    if grep -q 'add-apt-repository' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"; then
         return 1
     fi
     if grep -q 'add_nginx_repo_ondrej' "${REAL_BASE_DIR}/scripts/install_nginx.sh"; then
         return 1
     fi
-    if grep -q 'libmaxminddb-dev"' "${REAL_BASE_DIR}/scripts/nginx/nginx_repo.sh"; then
+    if grep -q 'libmaxminddb-dev"' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"; then
         return 1
     fi
 }

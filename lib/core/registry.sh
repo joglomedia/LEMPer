@@ -15,8 +15,6 @@
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
-
-
 # Static registries are shared by packaging, dispatch, help and recipes.
 function lemper_command_plugins() {
     cat <<'REGISTRY'
@@ -68,10 +66,10 @@ function lemper_component_spec() {
         pure-ftpd) lemper_component_spec pureftpd ;;
         nginx) echo 'nginx nginx nginx INSTALL_NGINX nginx' ;;
         php) echo 'php php PHP INSTALL_PHP php' ;;
-        mariadb|mysql) echo 'mariadb mariadb mariadb INSTALL_MYSQL mariadb' ;;
+        mariadb | mysql) echo 'mariadb mariadb mariadb INSTALL_MYSQL mariadb' ;;
         redis) echo 'redis redis redis-server INSTALL_REDIS redis' ;;
         valkey) echo 'redis redis valkey-server INSTALL_REDIS valkey' ;;
-        postgres|postgresql) echo 'postgres postgres postgresql INSTALL_POSTGRES postgresql' ;;
+        postgres | postgresql) echo 'postgres postgres postgresql INSTALL_POSTGRES postgresql' ;;
         memcached) echo 'memcached memcached memcached INSTALL_MEMCACHED memcached' ;;
         mongodb) echo 'mongodb mongodb mongod INSTALL_MONGODB mongodb' ;;
         pureftpd) echo 'pureftpd pureftpd pure-ftpd INSTALL_FTP_SERVER pure-ftpd' ;;
@@ -89,7 +87,56 @@ function lemper_component_spec() {
         nftables) echo 'nftables nftables lemper-nftables INSTALL_FW nftables' ;;
         quota) echo 'quota quota - INSTALL_QUOTA quota' ;;
         tools) echo 'tools tools - - -' ;;
-        *) error "Unknown stack service: ${1}"; return 1 ;;
+        *)
+            error "Unknown stack service: ${1}"
+            return 1
+            ;;
+    esac
+}
+
+# Named driver contracts; scripts remain compatibility entrypoints.
+function lemper_component_driver() {
+    case "${1:-}:${2:-}" in
+        *:valkey) lemper_component_driver "$1" redis ;;
+        *:mysql) lemper_component_driver "$1" mariadb ;;
+        *:postgresql) lemper_component_driver "$1" postgres ;;
+        *:pure-ftpd) lemper_component_driver "$1" pureftpd ;;
+        *:bunjs) lemper_component_driver "$1" bun ;;
+        install:bun) printf '%s\n' 'services/bun/install lemper_bun_install_entry' ;;
+        install:certbot) printf '%s\n' 'services/ssl/install lemper_certbotle_install_entry' ;;
+        install:crowdsec) printf '%s\n' 'services/security/crowdsec_install lemper_crowdsec_install_entry' ;;
+        install:dependencies) printf '%s\n' 'services/system/dependencies lemper_dependencies_install_entry' ;;
+        install:fail2ban) printf '%s\n' 'services/security/fail2ban_install lemper_fail2ban_install_entry' ;;
+        install:imagemagick) printf '%s\n' 'services/imagemagick/install lemper_imagemagick_install_entry' ;;
+        install:mariadb) printf '%s\n' 'services/mariadb/install lemper_mariadb_install_entry' ;;
+        install:memcached) printf '%s\n' 'services/memcached/install lemper_memcached_install_entry' ;;
+        install:modsec) printf '%s\n' 'services/security/modsec_install lemper_modsec_install_entry' ;;
+        install:mongodb) printf '%s\n' 'services/mongodb/install lemper_mongodb_install_entry' ;;
+        install:nginx) printf '%s\n' 'services/nginx/install lemper_nginx_install_entry' ;;
+        install:phalcon) printf '%s\n' 'services/php/phalcon lemper_phalcon_install_entry' ;;
+        install:php) printf '%s\n' 'services/php/install lemper_php_install_entry' ;;
+        install:postgres) printf '%s\n' 'services/postgres/install lemper_postgres_install_entry' ;;
+        install:pureftpd) printf '%s\n' 'services/ftp/pureftpd_install lemper_pureftpd_install_entry' ;;
+        install:redis) printf '%s\n' 'services/redis/install lemper_redis_install_entry' ;;
+        install:tools) printf '%s\n' 'services/tools/install lemper_tools_install_entry' ;;
+        install:vsftpd) printf '%s\n' 'services/ftp/vsftpd_install lemper_vsftpd_install_entry' ;;
+        remove:bun) printf '%s\n' 'services/bun/remove lemper_bun_remove_entry' ;;
+        remove:certbot) printf '%s\n' 'services/ssl/remove lemper_certbotle_remove_entry' ;;
+        remove:crowdsec) printf '%s\n' 'services/security/crowdsec_remove lemper_crowdsec_remove_entry' ;;
+        remove:fail2ban) printf '%s\n' 'services/security/fail2ban_remove lemper_fail2ban_remove_entry' ;;
+        remove:imagemagick) printf '%s\n' 'services/imagemagick/remove lemper_imagemagick_remove_entry' ;;
+        remove:mariadb) printf '%s\n' 'services/mariadb/remove lemper_mariadb_remove_entry' ;;
+        remove:memcached) printf '%s\n' 'services/memcached/remove lemper_memcached_remove_entry' ;;
+        remove:modsec) printf '%s\n' 'services/security/modsec_remove lemper_modsec_remove_entry' ;;
+        remove:mongodb) printf '%s\n' 'services/mongodb/remove lemper_mongodb_remove_entry' ;;
+        remove:nginx) printf '%s\n' 'services/nginx/remove lemper_nginx_remove_entry' ;;
+        remove:php) printf '%s\n' 'services/php/remove lemper_php_remove_entry' ;;
+        remove:postgres) printf '%s\n' 'services/postgres/remove lemper_postgres_remove_entry' ;;
+        remove:pureftpd) printf '%s\n' 'services/ftp/pureftpd_remove lemper_pureftpd_remove_entry' ;;
+        remove:redis) printf '%s\n' 'services/redis/remove lemper_redis_remove_entry' ;;
+        remove:tools) printf '%s\n' 'services/tools/remove lemper_tools_remove_entry' ;;
+        remove:vsftpd) printf '%s\n' 'services/ftp/vsftpd_remove lemper_vsftpd_remove_entry' ;;
+        *) return 1 ;;
     esac
 }
 

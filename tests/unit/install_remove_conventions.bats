@@ -85,7 +85,7 @@ installer_files() {
 }
 
 @test "CrowdSec installer uses the release tarball and current hub items" {
-    local installer="${REAL_BASE_DIR}/scripts/install_crowdsec.sh"
+    local installer="${REAL_BASE_DIR}/lib/services/security/crowdsec_install.sh"
 
     grep -q 'crowdsec-release.tgz' "${installer}"
     grep -q 'wizard.sh --bininstall --force' "${installer}"
@@ -111,7 +111,7 @@ installer_files() {
 }
 
 @test "CrowdSec removal does not abort on a stopped unit" {
-    local remover="${REAL_BASE_DIR}/scripts/remove_crowdsec.sh"
+    local remover="${REAL_BASE_DIR}/lib/services/security/crowdsec_remove.sh"
 
     grep -q 'systemctl cat crowdsec.service' "${remover}"
     grep -q 'pkill -x crowdsec' "${remover}"

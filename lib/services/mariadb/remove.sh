@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+
+# +-------------------------------------------------------------------------+
+# | LEMPer Shared Security Helpers                                          |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
+
+function mariadb_remove_config() {
+    local MYSQL_DATA_DIRECTORY="${1:-/var/lib/mysql}"
+    case "$MYSQL_DATA_DIRECTORY" in /var/lib/mysql | /var/lib/mariadb) ;; *) return 1 ;; esac
+    # Remove MariaDB server config files.
+    echo "Removing MariaDB (MySQL) configuration..."
+    warning "!! This action is not reversible !!"
+
+    if [[ "${AUTO_REMOVE}" == true ]]; then
+        if [[ "${FORCE_REMOVE}" == true ]]; then
+            REMOVE_MYSQL_CONFIG="y"
+        else
+            REMOVE_MYSQL_CONFIG="n"
+        fi
+    else
+        while [[ "${REMOVE_MYSQL_CONFIG}" != "y" && "${REMOVE_MYSQL_CONFIG}" != "n" ]]; do
+            read -rp "Remove MariaDB database and configuration files? [y/n]: " -e REMOVE_MYSQL_CONFIG
+        done
+    fi
+
+    if [[ "${REMOVE_MYSQL_CONFIG}" == y* || "${REMOVE_MYSQL_CONFIG}" == Y* ]]; then
+        [ -d /etc/mysql ] && run rm -fr /etc/mysql
+        [ -d "$MYSQL_DATA_DIRECTORY" ] && run rm -fr "$MYSQL_DATA_DIRECTORY"
+
+        echo "All database and configuration files deleted permanently."
+    fi
+}
+
+function init_mariadb_removal() {
+    MYSQL_VERSION=${MYSQL_VERSION:-"10.5"}
+
+    # Stop MariaDB mysql server process.
+    if [[ $(pgrep -c mariadb) -gt 0 ]]; then
+        echo "Stopping mariadb..."
+        run systemctl stop mariadb.service
+        run systemctl disable mariadb.service
+    fi
+
+    if [[ "$(dpkg-query -W -f='${Status}' mariadb-server 2>/dev/null)" == 'install ok installed' ]] \
+        || dpkg-query -l | awk '/mariadb/ { print $2 }' | grep -qwE "^mariadb-server-${MYSQL_VERSION}"; then
+        echo "Found MariaDB ${MYSQL_VERSION} packages installation, removing..."
+
+        # Remove MariaDB server.
+        lemper_load_module services/mariadb/repository || return 1
+        local MARIADB_REMOVE_PACKAGES=()
+        mapfile -t MARIADB_REMOVE_PACKAGES < <(lemper_mariadb_install_packages)
+        run apt-get purge -q -y "${MARIADB_REMOVE_PACKAGES[@]}"
+
+        # Remove config.
+        mariadb_remove_config "$(lemper_mariadb_default_data_directory)" || return 1
+
+        # Remove repository.
+        if [[ "${FORCE_REMOVE}" == true ]]; then
+            [ -f /etc/apt/preferences.d/mariadb-enterprise.pref ] \
+                && run rm -f /etc/apt/preferences.d/mariadb-enterprise.pref
+            [ -f /etc/apt/sources.list.d/mariadb.list ] \
+                && run rm -f /etc/apt/sources.list.d/mariadb.list
+        fi
+    elif dpkg-query -l | awk '/mysql/ { print $2 }' | grep -qwE "^mysql"; then
+        echo "Found MySQL packages installation, removing..."
+
+        # Remove MySQL server.
+        run apt-get purge -q -y mysql-server mysql-client mysql-common mysql-server-core* mysql-client-core*
+
+        # Remove config.
+        mariadb_remove_config
+    else
+        echo "No installed MariaDB ${MYSQL_VERSION} or MySQL packages found."
+        echo "Possibly installed from source? Remove it manually!"
+
+        MYSQL_BIN=$(command -v mysql)
+        MYSQLD_BIN=$(command -v mysqld)
+
+        echo "MySQL binary executable: ${MYSQL_BIN}"
+        echo "MySQL daemon binary executable: ${MYSQLD_BIN}"
+    fi
+
+    # Final test.
+    if [[ "${DRYRUN}" != true ]]; then
+        if [[ -z $(command -v mysqld) ]]; then
+            success "MariaDB (MySQL) server removed."
+        else
+            info "MariaDB (MySQL) server not removed."
+        fi
+    else
+        info "MariaDB (MySQL) server removed in dry run mode."
+    fi
+}
+
+function lemper_mariadb_remove_entry() {
+    echo "Uninstalling MariaDB server..."
+    if [[ -n $(command -v mariadb) || -n $(command -v mariadbd) ]]; then
+        if [[ "${AUTO_REMOVE}" == true ]]; then
+            REMOVE_MARIADB="y"
+        else
+            while [[ "${REMOVE_MARIADB}" != "y" && "${REMOVE_MARIADB}" != "n" ]]; do
+                read -rp "Are you sure to remove MariaDB server? [y/n]: " -e REMOVE_MARIADB
+            done
+        fi
+
+        if [[ "${REMOVE_MARIADB}" == y* || "${REMOVE_MARIADB}" == Y* ]]; then
+            init_mariadb_removal "$@"
+        else
+            echo "Found MariaDB server, but not removed."
+        fi
+    else
+        info "Oops, MariaDB server installation not found."
+    fi
+}

@@ -10,9 +10,9 @@ install -d -m 0700 "$logs" /run/lemper-p1
 install -d -m 0755 /checkout
 cp -a /source/bin /source/lib /source/scripts /source/etc /source/share /checkout/
 cp /source/.env.dist /checkout/.env.dist
-# Only function definitions are sourced from legacy installers in this scoped UAT.
-sed '/^echo "\[PHP & Extensions Installation\]/,$d' /checkout/scripts/install_php.sh > /run/lemper-p1/php-functions.sh
-sed '/^echo "\[MariaDB (MySQL drop-in replacement) Installation\]/,$d' /checkout/scripts/install_mariadb.sh > /run/lemper-p1/mariadb-functions.sh
+# Only function definitions are sourced from component drivers in this scoped UAT.
+cp /checkout/lib/services/php/install.sh /run/lemper-p1/php-functions.sh
+cp /checkout/lib/services/mariadb/install.sh /run/lemper-p1/mariadb-functions.sh
 # shellcheck source=/dev/null
 . /checkout/lib/core/loader.sh
 # shellcheck source=/dev/null

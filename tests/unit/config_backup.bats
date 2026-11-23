@@ -221,7 +221,7 @@ make_archive() {
     [ -f "${REAL_BASE_DIR}/lib/lemper-backup.sh" ]
     grep -q 'lemper-backup:lemper-backup' \
         "${REAL_BASE_DIR}/lib/core/registry.sh"
-    grep -q 'lemper_cli_snapshot' "${REAL_BASE_DIR}/lib/lemper-update.sh"
+    grep -q 'lemper_cli_snapshot' "${REAL_BASE_DIR}/lib/services/tools/update.sh"
     grep -q 'help_entry backup' "${REAL_BASE_DIR}/lib/runtime/help.sh"
 }
 

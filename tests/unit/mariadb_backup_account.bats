@@ -307,7 +307,7 @@ FIXTURE
 
 @test "installer root bootstrap rejects RNG errors and empty output before SQL and retains a successful password" {
     # Load the inspected definitions with the source-time installer dispatch removed.
-    sed '/^echo "\[MariaDB /,$d' "$REAL_BASE_DIR/scripts/install_mariadb.sh" > "$TEST_TMPDIR/installer-functions.sh"
+    cp "$REAL_BASE_DIR/lib/services/mariadb/install.sh" "$TEST_TMPDIR/installer-functions.sh"
     local mode
     for mode in fail empty writefail success; do
         rm -f "$MOCK_SQL"

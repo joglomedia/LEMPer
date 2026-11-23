@@ -15,8 +15,6 @@
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
-
-
 function lemper_recipe_components() {
     local action="$1" service installer remover _units _key _family component php_before version preexisting
     local PHP_VERSIONS="${PHP_VERSIONS:-8.5}" REDIS_BACKEND="${REDIS_BACKEND:-redis}"
@@ -75,20 +73,28 @@ function lemper_recipe_components() {
         [[ "$action" != remove || "$remover" != - ]] || continue
         if [[ "$action" == install ]]; then component="$installer"; else component="$remover"; fi
         case "$service" in
-            redis|valkey) REDIS_BACKEND="$service" ;;
-            pureftpd|vsftpd) FTP_SERVER_NAME="$service" ;;
+            redis | valkey) REDIS_BACKEND="$service" ;;
+            pureftpd | vsftpd) FTP_SERVER_NAME="$service" ;;
         esac
         component="$BASE_DIR/scripts/${action}_$component.sh"
-        [[ -f "$component" ]] || { error "Recipe component missing: $component"; return 1; }
+        [[ -f "$component" ]] || {
+            error "Recipe component missing: $component"
+            return 1
+        }
         progress "$action $service"
         php_before=""
         if [[ "$action" == install && "$service" == php && "${INSTALL_PHP:-false}" == true ]]; then
             lemper_load_module services/php/lifecycle || return 1
             php_before=$(lemper_php_inventory all)
         fi
-        # Components are checked independently; existing enable flags remain authoritative.
-        # shellcheck source=/dev/null
-        . "$component" || return 1
+        # New drivers share component contracts; older/thin entrypoints remain compatible.
+        if [[ -f "$BASE_DIR/lib/runtime/components/lifecycle.sh" ]] && lemper_component_driver "$action" "$service" >/dev/null; then
+            lemper_load_module runtime/components/lifecycle || return 1
+            lemper_component_apply "$action" "$service" || return 1
+        else
+            # shellcheck source=/dev/null
+            . "$component" || return 1
+        fi
         if [[ "$action" == remove && "$service" == nginx ]]; then
             # Keep ownership until the full recipe completes, including failed/retried teardown.
             mark_lemper_provisioned nginx || return 1
@@ -98,13 +104,13 @@ function lemper_recipe_components() {
             fi
         fi
         if [[ "$action" == install && "$service" != php && "$preexisting" == false &&
-              "${DRYRUN:-false}" != true ]] && lemper_component_present "$service"; then
+            "${DRYRUN:-false}" != true ]] && lemper_component_present "$service"; then
             mark_lemper_provisioned "$service" || return 1
         fi
         if [[ "$action" == install && "$service" == php && "${INSTALL_PHP:-false}" == true && "${DRYRUN:-false}" != true ]]; then
             while IFS= read -r version; do
                 [[ -n "$version" ]] || continue
-                if ! grep -Fxq "$version" <<< "$php_before"; then mark_lemper_provisioned "php-$version" || return 1; fi
+                if ! grep -Fxq "$version" <<<"$php_before"; then mark_lemper_provisioned "php-$version" || return 1; fi
             done < <(lemper_php_inventory all)
         fi
     done < <(lemper_component_recipe "$action")
@@ -238,7 +244,10 @@ function lemper_remove() {
     hosting_root=$(lemper_hosting_root) || return 1
     [[ ! -L "$hosting_root/assignments" ]] || return 1
     for assignment in "$hosting_root"/assignments/*.conf; do
-        [[ ! -e "$assignment" && ! -L "$assignment" ]] || { error "Detach hosting accounts before removing LEMPer."; return 1; }
+        [[ ! -e "$assignment" && ! -L "$assignment" ]] || {
+            error "Detach hosting accounts before removing LEMPer."
+            return 1
+        }
     done
     echo "Are you sure to remove LEMPer Stack installation?"
     echo "Please ensure that you've backed up your critical data!"
@@ -276,8 +285,8 @@ function lemper_remove() {
         done
     fi
 
-    if [[ ( "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* ) &&
-          -f "/etc/lemper/installed/account-$LEMPER_USERNAME" || "${FORCE_REMOVE}" == true ]]; then
+    if [[ ("${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y*) &&
+        -f "/etc/lemper/installed/account-$LEMPER_USERNAME" || "${FORCE_REMOVE}" == true ]]; then
         if [[ "$(type -t delete_account)" == "function" ]]; then
             delete_account "${LEMPER_USERNAME}"
         fi
@@ -295,8 +304,8 @@ function lemper_remove() {
         done
     fi
 
-    if [[ ( "${REMOVE_SWAP}" == Y* || "${REMOVE_SWAP}" == y* ) &&
-          -f /etc/lemper/installed/swap || "${FORCE_REMOVE}" == true ]]; then
+    if [[ ("${REMOVE_SWAP}" == Y* || "${REMOVE_SWAP}" == y*) &&
+        -f /etc/lemper/installed/swap || "${FORCE_REMOVE}" == true ]]; then
         if [[ "$(type -t remove_swap)" == "function" ]]; then
             remove_swap
         fi
@@ -314,9 +323,9 @@ function lemper_remove() {
     ### Remove unnecessary packages ###
     echo -e "\nCleaning up unnecessary packages..."
 
-    run apt-get autoremove -q -y && \
-    run apt-get autoclean -q -y && \
-    run apt-get clean -q -y
+    run apt-get autoremove -q -y \
+        && run apt-get autoclean -q -y \
+        && run apt-get clean -q -y
 
     echo -e "\nLEMPer Stack has been removed completely."
     warning -e "\nDid you know? that we're so sad to see you leave :'(

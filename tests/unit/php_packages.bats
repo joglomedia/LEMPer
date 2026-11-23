@@ -37,8 +37,8 @@ setup() {
 }
 
 @test "fresh PHP installation requires versioned XML instead of a default-branch metapackage" {
-    run grep -E 'php-common[[:space:]]+php-xml' "$REAL_BASE_DIR/scripts/install_php.sh"
+    run grep -E 'php-common[[:space:]]+php-xml' "$REAL_BASE_DIR/lib/services/php/install.sh"
     [ "$status" -ne 0 ]
-    run grep -F 'php-common "php${PHPv}-xml"' "$REAL_BASE_DIR/scripts/install_php.sh"
+    run grep -F 'php-common "php${PHPv}-xml"' "$REAL_BASE_DIR/lib/services/php/install.sh"
     [ "$status" -eq 0 ]
 }

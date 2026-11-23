@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+
+# +-------------------------------------------------------------------------+
+# | LEMPer Shared Security Helpers                                          |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
+
+##
+# Install ImageMagick.
+##
+function init_imagemagick_install() {
+    local SELECTED_INSTALLER=""
+
+    if [[ "${AUTO_INSTALL}" == true ]]; then
+        if [[ "${INSTALL_IMAGEMAGICK}" == true ]]; then
+            DO_INSTALL_IMAGEMAGICK="y"
+            SELECTED_INSTALLER=${IMAGEMAGICK_INSTALLER:-"repo"}
+        else
+            DO_INSTALL_IMAGEMAGICK="n"
+        fi
+    else
+        while [[ "${DO_INSTALL_IMAGEMAGICK}" != "y" && "${DO_INSTALL_IMAGEMAGICK}" != "Y" &&
+            "${DO_INSTALL_IMAGEMAGICK}" != "n" && "${DO_INSTALL_IMAGEMAGICK}" != "N" ]]; do
+            read -rp "Do you want to install ImageMagick library? [y/n]: " -i y -e DO_INSTALL_IMAGEMAGICK
+        done
+    fi
+
+    if [[ ${DO_INSTALL_IMAGEMAGICK} == y* || ${DO_INSTALL_IMAGEMAGICK} == Y* ]]; then
+        echo "Available ImageMagick installation method:"
+        echo "  1). Install from Repository (repo)"
+        echo "  2). Compile from Source (source)"
+        echo "--------------------------------"
+
+        while [[ ${SELECTED_INSTALLER} != "1" && ${SELECTED_INSTALLER} != "2" && ${SELECTED_INSTALLER} != "none" &&
+            ${SELECTED_INSTALLER} != "repo" && ${SELECTED_INSTALLER} != "source" ]]; do
+            read -rp "Select an option [1-2]: " -e SELECTED_INSTALLER
+        done
+
+        case "${SELECTED_INSTALLER}" in
+            1 | "repo")
+                echo "Installing ImageMagick library from repository..."
+                run apt-get install -q -y imagemagick
+                ;;
+            2 | "source")
+                echo "Installing ImageMagick library from source..."
+
+                local CURRENT_DIR \
+                    && CURRENT_DIR=$(pwd)
+
+                if [[ "${IMAGEMAGICK_VERSION}" == "latest" ]]; then
+                    IMAGEMAGICK_FILENAME="ImageMagick.tar.xz"
+                    IMAGEMAGICK_ZIP_URL="https://www.imagemagick.org/download/${IMAGEMAGICK_FILENAME}"
+                else
+                    IMAGEMAGICK_FILENAME="ImageMagick-${IMAGEMAGICK_VERSION}.tar.xz"
+                    IMAGEMAGICK_ZIP_URL="https://download.imagemagick.org/ImageMagick/download/releases/${IMAGEMAGICK_FILENAME}"
+                fi
+
+                if curl -sLI "${IMAGEMAGICK_ZIP_URL}" | grep -q "HTTP/[.12]* [2].."; then
+                    run cd "${BUILD_DIR}" \
+                        && run curl -sSL -o "${IMAGEMAGICK_FILENAME}" "${IMAGEMAGICK_ZIP_URL}" \
+                        && run tar -xf "${IMAGEMAGICK_FILENAME}" \
+                        && run cd ImageMagick-*/ \
+                        && run ./configure \
+                        && run make \
+                        && run make install \
+                        && run ldconfig /usr/local/lib \
+                        && run cd "${CURRENT_DIR}" || return 1
+                else
+                    error "Something went wrong while downloading ImageMagick files."
+                fi
+                ;;
+            *)
+                # Skip installation.
+                error "Installer method not supported. ImageMagick installation skipped."
+                ;;
+        esac
+
+        if [[ "${DRYRUN}" != true ]]; then
+            if [[ -n $(command -v magick) ]]; then
+                success "ImageMagick version $(magick -version | grep ^Version | cut -d' ' -f3) has been installed."
+            elif [[ -n $(command -v convert) ]]; then
+                success "ImageMagick version $(convert -version | grep ^Version | cut -d' ' -f3) has been installed."
+            fi
+        else
+            info "ImageMagick installed in dry run mode."
+        fi
+
+        # Install PHP Imagick extension.
+        #Moved to .env file as custom PHP_EXTENSIONS.
+    else
+        info "ImageMagick installation skipped."
+    fi
+}
+
+function lemper_imagemagick_install_entry() {
+    echo "[ImageMagick Installation]"
+    if [[ -n $(command -v magick) && "${FORCE_INSTALL}" != true ]]; then
+        info "ImageMagick already exists, installation skipped."
+    else
+        init_imagemagick_install "$@"
+    fi
+}

@@ -1,0 +1,477 @@
+#!/usr/bin/env bash
+
+# +-------------------------------------------------------------------------+
+# | LEMPer Shared Security Helpers                                          |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
+
+# Shared PHP assets belong to all installed branches, not just this removal list.
+function php_removal_has_remaining_runtime() {
+    local package state binary executable
+    while IFS=$'\t' read -r package state; do
+        [[ "$state" == 'install ok installed' ]] || continue
+        package="${package%%:*}"
+        [[ "$package" =~ ^php[0-9]+\.[0-9]+($|-) ]] && return 0
+    done < <(dpkg-query -W -f='${binary:Package}\t${Status}\n' 'php[0-9]*' 2>/dev/null)
+    # Also preserve source-built runtimes outside dpkg.
+    while IFS= read -r binary; do
+        [[ "$binary" =~ ^php(-fpm)?([0-9]+\.[0-9]+)?$ ]] || continue
+        executable=$(command -v "$binary") || continue
+        [[ -x "$executable" ]] && return 0
+    done < <(compgen -c)
+    return 1
+}
+
+function php_removal_packages() {
+    local version="$1" package state base
+    [[ "$version" =~ ^[0-9]+\.[0-9]+$ ]] || return 1
+    while IFS=$'\t' read -r package state; do
+        [[ "$state" == 'install ok installed' ]] || continue
+        base="${package%%:*}"
+        case "$base" in "php$version" | "php$version"-*) printf '%s\n' "$package" ;; esac
+    done < <(dpkg-query -W -f='${binary:Package}\t${Status}\n' "php$version*" 2>/dev/null)
+}
+
+##
+# Remove PHP & FPM installation from system.
+##
+function remove_php() {
+    # PHP version.
+    local PHPv="${1}"
+    local REMOVED_PHP_LOADER="${2}"
+
+    if [ -z "${PHPv}" ]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
+    fi
+
+    [[ "${PHPv}" =~ ^[0-9]+\.[0-9]+$ ]] || {
+        error "Invalid PHP removal version."
+        return 1
+    }
+    local packages=()
+    mapfile -t packages < <(php_removal_packages "${PHPv}")
+
+    # Stop default PHP FPM process.
+    if [[ $(pgrep -c "php-fpm${PHPv}") -gt 0 ]]; then
+        echo "Stopping php${PHPv}-fpm..."
+        run systemctl stop "php${PHPv}-fpm"
+        run systemctl disable "php${PHPv}-fpm"
+    fi
+
+    if [[ ${#packages[@]} -gt 0 ]]; then
+        echo "Removing PHP ${PHPv} packages installation..."
+
+        if [[ -n $(command -v "php${PHPv}") ]]; then
+            # Remove geoip extension.
+            if "php${PHPv}" -m | grep -qw geoip; then
+                # Unlink enabled extension.
+                [ -f "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini" ] \
+                    && run unlink "/etc/php/${PHPv}/cli/conf.d/20-geoip.ini"
+
+                [ -f "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini" ] \
+                    && run unlink "/etc/php/${PHPv}/fpm/conf.d/20-geoip.ini"
+
+                # Remove extension.
+                run rm -f "/etc/php/${PHPv}/mods-available/geoip.ini"
+            fi
+        fi
+
+        # Remove PHP packages.
+        run apt-get purge -q -y "${packages[@]}"
+
+        # Remove PHP loaders.
+        remove_php_loader "${PHPv}" "${REMOVED_PHP_LOADER}"
+
+        # Remove PHP & FPM config files.
+        warning "!! This action is not reversible !!"
+
+        if [[ "${AUTO_REMOVE}" == true ]]; then
+            if [[ "${FORCE_REMOVE}" == true ]]; then
+                REMOVE_PHP_CONFIG="y"
+            else
+                REMOVE_PHP_CONFIG="n"
+            fi
+        else
+            while [[ "${REMOVE_PHP_CONFIG}" != "y" && "${REMOVE_PHP_CONFIG}" != "n" ]]; do
+                read -rp "Remove PHP ${PHPv} & FPM configuration files? [y/n]: " -e REMOVE_PHP_CONFIG
+            done
+        fi
+
+        if [[ ${REMOVE_PHP_CONFIG} == Y* || ${REMOVE_PHP_CONFIG} == y* ]]; then
+            [ -d "/etc/php/${PHPv}" ] && run rm -fr "/etc/php/${PHPv}"
+
+            echo "All your configuration files deleted permanently."
+        fi
+
+        if [[ -z $(command -v "php${PHPv}") ]]; then
+            success "PHP ${PHPv} package and it's extensions successfuly removed."
+        else
+            info "Unable to remove PHP ${PHPv} installation."
+        fi
+    else
+        info "PHP ${PHPv} package and it's extensions not found."
+    fi
+}
+
+##
+# Disable ionCube Loader.
+##
+function disable_ioncube_loader() {
+    # PHP version.
+    local PHPv="${1}"
+    if [ -z "${PHPv}" ]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
+    fi
+
+    echo "Disable ionCube loader for PHP ${PHPv}."
+
+    if [[ -f "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini" ]]; then
+        run unlink "/etc/php/${PHPv}/fpm/conf.d/05-ioncube.ini"
+    fi
+
+    if [[ -f "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini" ]]; then
+        run unlink "/etc/php/${PHPv}/cli/conf.d/05-ioncube.ini"
+    fi
+}
+
+##
+# Remove ionCube Loader.
+##
+function remove_ioncube_loader() {
+    # PHP version.
+    local PHPv="${1}"
+    if [ -z "${PHPv}" ]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
+    fi
+
+    echo "Uninstalling ionCube loader for PHP ${PHPv}..."
+
+    disable_ioncube_loader "${PHPv}"
+
+    if [[ -d /usr/lib/php/loaders/ioncube ]]; then
+        run rm -fr /usr/lib/php/loaders/ioncube
+        success "ionCube loader for PHP ${PHPv} has been removed."
+    else
+        info "ionCube loader for PHP ${PHPv} couldn't be found."
+    fi
+}
+
+##
+# Disable SourceGuardian Loader.
+##
+function disable_sourceguardian_loader() {
+    # PHP version.
+    local PHPv="${1}"
+    if [ -z "${PHPv}" ]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
+    fi
+
+    echo "Disable SourceGuardian loader for PHP ${PHPv}."
+
+    if [[ -f "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini" ]]; then
+        run unlink "/etc/php/${PHPv}/fpm/conf.d/05-sourceguardian.ini"
+    fi
+
+    if [[ -f "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini" ]]; then
+        run unlink "/etc/php/${PHPv}/cli/conf.d/05-sourceguardian.ini"
+    fi
+}
+
+##
+# Remove SourceGuardian Loader.
+##
+function remove_sourceguardian_loader() {
+    # PHP version.
+    local PHPv="${1}"
+    if [ -z "${PHPv}" ]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
+    fi
+
+    echo "Uninstalling SourceGuardian loader for PHP ${PHPv}..."
+
+    disable_sourceguardian_loader "${PHPv}"
+
+    if [[ -d /usr/lib/php/loaders/sourceguardian ]]; then
+        run rm -fr /usr/lib/php/loaders/sourceguardian
+        success "SourceGuardian loader for PHP ${PHPv} has been removed."
+    else
+        info "SourceGuardian loader for PHP ${PHPv} couldn't be found."
+    fi
+}
+
+##
+# Remove PHP Loader.
+##
+function remove_php_loader() {
+    local PHPv="${1}"
+    local REMOVED_PHP_LOADER="${2}"
+
+    if [[ -z "${PHPv}" ]]; then
+        PHPv=${DEFAULT_PHP_VERSION:-"8.5"}
+    fi
+
+    if [[ -z "${REMOVED_PHP_LOADER}" ]]; then
+        REMOVED_PHP_LOADER=${PHP_LOADER:-"ioncube"}
+    fi
+
+    # Remove PHP loader.
+    if [[ "${PHPv}" != "unsupported" && ! $(version_older_than "${PHPv}" "5.6") ]]; then
+        if [[ "${AUTO_REMOVE}" == true ]]; then
+            if [[ "${FORCE_REMOVE}" == true ]]; then
+                DO_REMOVE_PHP_LOADER="y"
+            else
+                DO_REMOVE_PHP_LOADER="n"
+            fi
+        else
+            while [[ "${DO_REMOVE_PHP_LOADER}" != "y" && "${DO_REMOVE_PHP_LOADER}" != "n" ]]; do
+                read -rp "Do you want to remove PHP Loader? [y/n]: : " -e DO_REMOVE_PHP_LOADER
+            done
+        fi
+
+        if [[ ${DO_REMOVE_PHP_LOADER} == y* || ${DO_REMOVE_PHP_LOADER} == Y* ]]; then
+            if [[ "${AUTO_INSTALL}" != true ]]; then
+                echo ""
+                echo "Available PHP Loaders:"
+                echo "  1). ionCube Loader (latest stable)"
+                echo "  2). SourceGuardian (latest stable)"
+                echo "  3). All loaders (ionCube, SourceGuardian)"
+                echo "--------------------------------------------"
+
+                while [[ ${REMOVED_PHP_LOADER} != "1" && ${REMOVED_PHP_LOADER} != "2" &&
+                    ${REMOVED_PHP_LOADER} != "3" && ${REMOVED_PHP_LOADER} != "ioncube" &&
+                    ${REMOVED_PHP_LOADER} != "sg" && ${REMOVED_PHP_LOADER} != "ic" &&
+                    ${REMOVED_PHP_LOADER} != "sourceguardian" && ${REMOVED_PHP_LOADER} != "all" ]]; do
+                    read -rp "Select an option [1-3]: " -i "${PHP_LOADER}" -e REMOVED_PHP_LOADER
+                done
+            fi
+
+            case ${REMOVED_PHP_LOADER} in
+                1 | "ic" | "ioncube")
+                    disable_ioncube_loader "${PHPv}"
+                    ;;
+                2 | "sg" | "sourceguardian")
+                    disable_sourceguardian_loader "${PHPv}"
+                    ;;
+                "all")
+                    disable_ioncube_loader "${PHPv}"
+                    disable_sourceguardian_loader "${PHPv}"
+                    ;;
+                *)
+                    error "Your selected PHP loader ${REMOVED_PHP_LOADER} is not supported yet."
+                    ;;
+            esac
+        else
+            info "PHP ${PHPv} ${REMOVED_PHP_LOADER} loader removal skipped."
+        fi
+    fi
+}
+
+##
+# Initialize PHP & FPM removal.
+##
+function init_php_removal() {
+    local REMOVED_PHP_VERSIONS=()
+    local OPT_PHP_VERSIONS=()
+    local OPT_PHP_LOADER=${PHP_LOADER:-"ioncube"}
+
+    OPTS=$(getopt -o p:l: \
+        -l php-version:,php-loader: \
+        -n "init_php_removal" -- "$@")
+
+    eval set -- "${OPTS}"
+
+    while true; do
+        case "${1}" in
+            -p | --php-version)
+                shift
+                OPT_PHP_VERSIONS+=("${1}")
+                shift
+                ;;
+            -l | --php-loader)
+                shift
+                OPT_PHP_LOADER="${1}"
+                shift
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                fail "Invalid argument: ${1}"
+                return 1
+                ;;
+        esac
+    done
+
+    if [[ "${#OPT_PHP_VERSIONS[@]}" -gt 0 ]]; then
+        REMOVED_PHP_VERSIONS+=("${OPT_PHP_VERSIONS[@]}")
+    else
+        if [[ "${AUTO_REMOVE}" == true ]]; then
+            # Include versions from config file.
+            read -r -a REMOVED_PHP_VERSIONS <<<"${PHP_VERSIONS}"
+        else
+            # Manually select PHP version in interactive mode.
+            echo "Which PHP version to be removed?"
+            echo "Available PHP versions:"
+            echo "  1). PHP 7.1 (EOL)"
+            echo "  2). PHP 7.2 (EOL)"
+            echo "  3). PHP 7.3 (EOL)"
+            echo "  4). PHP 7.4 (EOL)"
+            echo "  5). PHP 8.0 (EOL)"
+            echo "  6). PHP 8.1 (EOL)"
+            echo "  7). PHP 8.2 (Security)"
+            echo "  8). PHP 8.3 (Stable)"
+            echo "  9). PHP 8.4 (Security)"
+            echo "  10). PHP 8.5 (Latest Stable)"
+            echo "  11). All installed versions"
+            echo "  12). Do not remove!"
+            echo "--------------------------------------------"
+
+            [ -n "${DEFAULT_PHP_VERSION}" ] \
+                && info "Default version is: ${DEFAULT_PHP_VERSION}"
+
+            while [[ ${SELECTED_PHP} != "1" && ${SELECTED_PHP} != "2" && ${SELECTED_PHP} != "3" &&
+                ${SELECTED_PHP} != "4" && ${SELECTED_PHP} != "5" && ${SELECTED_PHP} != "6" &&
+                ${SELECTED_PHP} != "7" && ${SELECTED_PHP} != "8" && ${SELECTED_PHP} != "9" &&
+                ${SELECTED_PHP} != "10" && ${SELECTED_PHP} != "11" && ${SELECTED_PHP} != "12" &&
+                ${SELECTED_PHP} != "7.1" && ${SELECTED_PHP} != "7.2" && ${SELECTED_PHP} != "7.3" &&
+                ${SELECTED_PHP} != "7.4" && ${SELECTED_PHP} != "8.0" && ${SELECTED_PHP} != "8.1" &&
+                ${SELECTED_PHP} != "8.2" && ${SELECTED_PHP} != "8.3" && ${SELECTED_PHP} != "8.4" &&
+                ${SELECTED_PHP} != "8.5" &&
+                ${SELECTED_PHP} != "all" && ${SELECTED_PHP} != "none" ]] \
+                ; do
+                read -rp "Enter a PHP version from an option above [1-12]: " -i "${DEFAULT_PHP_VERSION}" -e SELECTED_PHP
+            done
+
+            case ${SELECTED_PHP} in
+                1 | "7.1")
+                    REMOVED_PHP_VERSIONS+=("7.1")
+                    ;;
+                2 | "7.2")
+                    REMOVED_PHP_VERSIONS+=("7.2")
+                    ;;
+                3 | "7.3")
+                    REMOVED_PHP_VERSIONS+=("7.3")
+                    ;;
+                4 | "7.4")
+                    REMOVED_PHP_VERSIONS+=("7.4")
+                    ;;
+                5 | "8.0")
+                    REMOVED_PHP_VERSIONS+=("8.0")
+                    ;;
+                6 | "8.1")
+                    REMOVED_PHP_VERSIONS+=("8.1")
+                    ;;
+                7 | "8.2")
+                    REMOVED_PHP_VERSIONS+=("8.2")
+                    ;;
+                8 | "8.3")
+                    REMOVED_PHP_VERSIONS+=("8.3")
+                    ;;
+                9 | "8.4")
+                    REMOVED_PHP_VERSIONS+=("8.4")
+                    ;;
+                10 | "8.5")
+                    REMOVED_PHP_VERSIONS+=("8.5")
+                    ;;
+                11 | "all")
+                    # Select all PHP versions (except EOL & Beta).
+                    REMOVED_PHP_VERSIONS=("7.1" "7.2" "7.3" "7.4" "8.0" "8.1" "8.2" "8.3" "8.4" "8.5")
+                    ;;
+                12 | n*)
+                    info "No selected PHP version will be removed."
+                    return
+                    ;;
+                *)
+                    error "Your selected PHP version ${SELECTED_PHP} is not supported yet."
+                    ;;
+            esac
+        fi
+    fi
+
+    # If FORCE_REMOVE, then remove all installed PHP versions include the default.
+    #if [[ "${FORCE_REMOVE}" == true ]]; then
+    # Also remove default LEMPer PHP.
+    #    DEFAULT_PHP_VERSION=${DEFAULT_PHP_VERSION:-"8.3"}
+    #    REMOVED_PHP_VERSIONS+=("${DEFAULT_PHP_VERSION}")
+    #fi
+
+    # Remove all selected PHP versions.
+    if [[ "${#REMOVED_PHP_VERSIONS[@]}" -gt 0 ]]; then
+        # Sort PHP versions.
+        #shellcheck disable=SC2207
+        REMOVED_PHP_VERSIONS=($(printf "%s\n" "${REMOVED_PHP_VERSIONS[@]}" | sort -u | tr '\n' ' '))
+
+        for PHP_VER in "${REMOVED_PHP_VERSIONS[@]}"; do
+            remove_php "${PHP_VER}" "${OPT_PHP_LOADER}" || return 1
+        done
+
+        # Final clean up (executed only if no PHP version installed).
+        if [[ "${DRYRUN}" != true ]]; then
+            if ! php_removal_has_remaining_runtime; then
+                echo "Removing additional unused PHP packages..."
+                run apt-get purge -q -y dh-php php-common php-pear php-xml pkg-php-tools fcgiwrap spawn-fcgi
+
+                # Remove all the rest of PHP lib files.
+                [ -d /usr/lib/php ] && run rm -fr /usr/lib/php
+                [ -d /usr/share/php ] && run rm -fr /usr/share/php
+                [ -d /var/lib/php ] && run rm -fr /var/lib/php
+
+                # Remove repository.
+                lemper_load_module services/php/repository || return 1
+                lemper_php_remove_repository || return 1
+                case "${DISTRIB_NAME}" in
+                    debian)
+                        if echo "${PHP_EXTENSIONS}" | grep -qwE "openswoole"; then
+                            run rm -f "/etc/apt/sources.list.d/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.list"
+                            run rm -f "/usr/share/keyrings/openswoole-ppa-ubuntu-${OPENSWOOLE_RELEASE_NAME}.gpg"
+                        fi
+
+                        ;;
+                    ubuntu)
+                        if echo "${PHP_EXTENSIONS}" | grep -qwE "openswoole"; then
+                            run add-apt-repository -y --remove ppa:openswoole/ppa
+                        fi
+
+                        ;;
+                esac
+
+                success "All PHP package and it's extensions completely removed."
+            fi
+        else
+            info "PHP package & it's extensions removed in dry run mode."
+        fi
+    else
+        info "No PHP version removed."
+    fi
+}
+
+function lemper_php_remove_entry() {
+    if [[ "${LEMPER_PHP_REMOVAL_LIB_ONLY:-false}" != true ]]; then
+        echo "Uninstalling PHP packages..."
+
+        if [[ "${AUTO_REMOVE}" == true ]]; then
+            REMOVE_PHP="y"
+        else
+            while [[ "${REMOVE_PHP}" != "y" && "${REMOVE_PHP}" != "n" ]]; do
+                read -rp "Are you sure to remove PHP package? [y/n]: " -e REMOVE_PHP
+            done
+        fi
+
+        if [[ "${REMOVE_PHP}" == Y* || "${REMOVE_PHP}" == y* ]]; then
+            init_php_removal "$@"
+        else
+            echo "PHP packages uninstallation skipped."
+        fi
+    fi
+}

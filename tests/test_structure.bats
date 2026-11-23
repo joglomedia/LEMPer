@@ -136,11 +136,12 @@ refute_grep() {
 }
 
 @test "site-list plugin has validate_fqdn function" {
-    grep -q 'function validate_fqdn' "${BASE_DIR}/lib/lemper-site-list.sh"
+    grep -q 'lemper_load_module services/nginx/list' "${BASE_DIR}/lib/lemper-site-list.sh"
+    grep -q 'function validate_fqdn' "${BASE_DIR}/lib/services/nginx/list.sh"
 }
 
 @test "install_redis.sh supports Valkey backend" {
-    local redis="${BASE_DIR}/scripts/install_redis.sh"
+    local redis="${BASE_DIR}/lib/services/redis/install.sh"
     grep -q 'add_valkey_repo' "${redis}"
     grep -q 'REDIS_BACKEND' "${redis}"
     grep -q 'apt-cache show valkey-server' "${redis}"
@@ -148,27 +149,27 @@ refute_grep() {
 }
 
 @test "Valkey install preserves the packaged config and paths" {
-    local redis="${BASE_DIR}/scripts/install_redis.sh"
+    local redis="${BASE_DIR}/lib/services/redis/install.sh"
     grep -q 'if \[\[ ! -f "${VALKEY_CONF}" \]\]' "${redis}"
     grep -q '/var/lib/valkey' "${redis}"
 }
 
 @test "Nginx DH params use a predefined RFC 7919 group" {
-    local post_install="${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+    local post_install="${BASE_DIR}/lib/services/nginx/configure.sh"
     grep -q 'DH_PARAM_GROUP' "${post_install}"
     grep -q 'genpkey -genparam' "${post_install}"
     refute_grep -q 'openssl dhparam -out' "${post_install}"
 }
 
 @test "Nginx repo installer is defined once and installs module packages" {
-    local repo="${BASE_DIR}/scripts/nginx/nginx_repo.sh"
+    local repo="${BASE_DIR}/lib/services/nginx/package_repository.sh"
     local build="${BASE_DIR}/scripts/nginx/nginx_build.sh"
     refute_grep -q '^function install_nginx_from_repo' "${build}"
     grep -q 'EXTRA_MODULE_PKGS\[@\]' "${repo}"
 }
 
 @test "Nginx stream config is gated on module availability" {
-    local post_install="${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+    local post_install="${BASE_DIR}/lib/services/nginx/configure.sh"
     grep -q 'STREAM_AVAILABLE' "${post_install}"
     grep -q 'ngx_stream_module' "${post_install}"
 }
@@ -193,7 +194,7 @@ refute_grep() {
 
 @test "site-list plugin exists and has list_vhosts function" {
     [ -f "${BASE_DIR}/lib/lemper-site-list.sh" ]
-    grep -q 'function list_vhosts' "${BASE_DIR}/lib/lemper-site-list.sh"
+    grep -q 'function list_vhosts' "${BASE_DIR}/lib/services/nginx/list.sh"
 }
 
 @test "site-show adapter wires the runtime handler and exported inspection driver" {
@@ -209,8 +210,8 @@ refute_grep() {
 }
 
 @test "bunjs install and remove scripts exist" {
-    [ -f "${BASE_DIR}/scripts/install_bun.sh" ]
-    [ -f "${BASE_DIR}/scripts/remove_bun.sh" ]
+    [ -f "${BASE_DIR}/lib/services/bun/install.sh" ]
+    [ -f "${BASE_DIR}/lib/services/bun/remove.sh" ]
 }
 
 @test "lemper-cli.sh help lists tui command" {
@@ -246,13 +247,13 @@ refute_grep() {
 }
 
 @test "installer supplies app database password via environment" {
-    grep -q 'LEMPER_DB_PASSWORD=' "${BASE_DIR}/lib/runtime/site/create.sh"
-    refute_grep -q 'db account create.*--dbpass=' "${BASE_DIR}/lib/runtime/site/create.sh"
+    grep -q 'LEMPER_DB_PASSWORD=' "${BASE_DIR}/lib/services/site/skeletons.sh"
+    refute_grep -q 'db account create.*--dbpass=' "${BASE_DIR}/lib/services/site/skeletons.sh"
 }
 
 @test "install_crowdsec.sh and remove_crowdsec.sh exist" {
-    [ -f "${BASE_DIR}/scripts/install_crowdsec.sh" ]
-    [ -f "${BASE_DIR}/scripts/remove_crowdsec.sh" ]
+    [ -f "${BASE_DIR}/lib/services/security/crowdsec_install.sh" ]
+    [ -f "${BASE_DIR}/lib/services/security/crowdsec_remove.sh" ]
 }
 
 @test "lemper-stacks.sh wires in CrowdSec install/remove" {
@@ -267,11 +268,11 @@ refute_grep() {
 @test "CrowdSec install includes WordPress web app scenarios" {
     # The official hub collection replaces the old local scenario files, which
     # were not valid CrowdSec scenarios and made `cscli hub install` fail.
-    grep -q 'install_crowdsec_webapp_support' "${BASE_DIR}/scripts/install_crowdsec.sh"
-    grep -q 'crowdsecurity/wordpress' "${BASE_DIR}/scripts/install_crowdsec.sh"
-    grep -q 'crowdsecurity/base-http-scenarios' "${BASE_DIR}/scripts/install_crowdsec.sh"
-    refute_grep -q 'wordpress-xmlrpc.yaml' "${BASE_DIR}/scripts/install_crowdsec.sh"
-    refute_grep -q 'wordpress-bruteforce.yaml' "${BASE_DIR}/scripts/install_crowdsec.sh"
+    grep -q 'install_crowdsec_webapp_support' "${BASE_DIR}/lib/services/security/crowdsec_install.sh"
+    grep -q 'crowdsecurity/wordpress' "${BASE_DIR}/lib/services/security/crowdsec_install.sh"
+    grep -q 'crowdsecurity/base-http-scenarios' "${BASE_DIR}/lib/services/security/crowdsec_install.sh"
+    refute_grep -q 'wordpress-xmlrpc.yaml' "${BASE_DIR}/lib/services/security/crowdsec_install.sh"
+    refute_grep -q 'wordpress-bruteforce.yaml' "${BASE_DIR}/lib/services/security/crowdsec_install.sh"
 }
 
 @test ".env.dist has CrowdSec WordPress config" {
@@ -280,16 +281,16 @@ refute_grep() {
 }
 
 @test "install_certbotle.sh supports DNS-01 wildcard certificates" {
-    grep -q 'ACME_DNS_PROVIDER' "${BASE_DIR}/scripts/install_certbotle.sh"
-    grep -q 'dns-01' "${BASE_DIR}/scripts/install_certbotle.sh" || \
-    grep -q 'DNS-01' "${BASE_DIR}/scripts/install_certbotle.sh"
-    grep -q 'request_wildcard_certificate' "${BASE_DIR}/scripts/install_certbotle.sh"
+    grep -q 'ACME_DNS_PROVIDER' "${BASE_DIR}/lib/services/ssl/install.sh"
+    grep -q 'dns-01' "${BASE_DIR}/lib/services/ssl/install.sh" || \
+    grep -q 'DNS-01' "${BASE_DIR}/lib/services/ssl/install.sh"
+    grep -q 'request_wildcard_certificate' "${BASE_DIR}/lib/services/ssl/install.sh"
 }
 
 @test "install_certbotle.sh integrates with systemd-resolved" {
-    grep -q 'function flush_dns_cache' "${BASE_DIR}/scripts/install_certbotle.sh"
-    grep -q 'resolvectl flush-caches' "${BASE_DIR}/scripts/install_certbotle.sh"
-    grep -q 'renewal-hooks/deploy' "${BASE_DIR}/scripts/install_certbotle.sh"
+    grep -q 'function flush_dns_cache' "${BASE_DIR}/lib/services/ssl/install.sh"
+    grep -q 'resolvectl flush-caches' "${BASE_DIR}/lib/services/ssl/install.sh"
+    grep -q 'renewal-hooks/deploy' "${BASE_DIR}/lib/services/ssl/install.sh"
 }
 
 @test "TUI provides live log streaming and site creation wizard" {
@@ -300,26 +301,27 @@ refute_grep() {
 
 @test "modsec plugin provides auto-tuning" {
     [ -f "${BASE_DIR}/lib/lemper-modsec.sh" ]
-    grep -q 'function modsec_report' "${BASE_DIR}/lib/lemper-modsec.sh"
-    grep -q -- '--auto' "${BASE_DIR}/lib/lemper-modsec.sh"
+    grep -q 'lemper_load_module services/security/modsec_config' "${BASE_DIR}/lib/lemper-modsec.sh"
+    grep -q 'function modsec_report' "${BASE_DIR}/lib/services/security/modsec_config.sh"
+    grep -q -- '--auto' "${BASE_DIR}/lib/runtime/modsec/commands.sh"
     grep -q 'lemper-modsec:lemper-modsec' "${BASE_DIR}/lib/core/registry.sh"
 }
 
 @test "install_modsec.sh generates tuning config without placeholders" {
-    grep -q 'lemper-tuning.conf' "${BASE_DIR}/scripts/install_modsec.sh"
-    grep -q 'MODSEC_PARANOIA_LEVEL' "${BASE_DIR}/scripts/install_modsec.sh"
-    refute_grep -q '{@SEC_BODY_LIMIT}' "${BASE_DIR}/scripts/install_modsec.sh"
+    grep -q 'lemper-tuning.conf' "${BASE_DIR}/lib/services/security/modsec_install.sh"
+    grep -q 'MODSEC_PARANOIA_LEVEL' "${BASE_DIR}/lib/services/security/modsec_install.sh"
+    refute_grep -q '{@SEC_BODY_LIMIT}' "${BASE_DIR}/lib/services/security/modsec_install.sh"
 }
 
 @test "install_modsec.sh and remove_modsec.sh exist" {
-    [ -f "${BASE_DIR}/scripts/install_modsec.sh" ]
-    [ -f "${BASE_DIR}/scripts/remove_modsec.sh" ]
+    [ -f "${BASE_DIR}/lib/services/security/modsec_install.sh" ]
+    [ -f "${BASE_DIR}/lib/services/security/modsec_remove.sh" ]
 }
 
 @test "ModSecurity uses the packaged nginx connector and CRS layout" {
-    local install="${BASE_DIR}/scripts/install_modsec.sh"
-    local remove="${BASE_DIR}/scripts/remove_modsec.sh"
-    local modsec="${BASE_DIR}/lib/lemper-modsec.sh"
+    local install="${BASE_DIR}/lib/services/security/modsec_install.sh"
+    local remove="${BASE_DIR}/lib/services/security/modsec_remove.sh"
+    local modsec="${BASE_DIR}/lib/services/security/modsec_config.sh"
 
     grep -qF 'libnginx-mod-http-modsecurity' "${install}"
     grep -qF 'modsecurity-crs' "${install}"
@@ -337,7 +339,7 @@ refute_grep() {
     refute_grep -q 'MODSEC_CRS_VERSION' "${BASE_DIR}/.env.dist"
 
     # The CLI reads the packaged CRS location and reports its version.
-    grep -qF '/etc/modsecurity/crs' "${modsec}"
+    grep -qF '/etc/modsecurity/crs' "${BASE_DIR}/lib/runtime/modsec/commands.sh"
     grep -qF 'modsecurity-crs' "${modsec}"
 
     # Removal uses the real package names and edits sites-available.
@@ -357,17 +359,18 @@ refute_grep() {
 
 @test "ModSecurity nginx include and OWASP CRS config exist" {
     [ -f "${BASE_DIR}/etc/nginx/includes/modsec.conf" ]
-    grep -q 'modsecurity' "${BASE_DIR}/scripts/install_modsec.sh"
-    grep -q 'crs-setup.conf' "${BASE_DIR}/scripts/install_modsec.sh"
+    grep -q 'modsecurity' "${BASE_DIR}/lib/services/security/modsec_install.sh"
+    grep -q 'crs-setup.conf' "${BASE_DIR}/lib/services/security/modsec_install.sh"
 }
 
 @test "lemper-encrypt.sh provides config encryption utilities" {
     [ -f "${BASE_DIR}/lib/lemper-encrypt.sh" ]
-    grep -q 'function is_config_encrypted' "${BASE_DIR}/lib/lemper-encrypt.sh"
-    grep -q 'function decrypt_config' "${BASE_DIR}/lib/lemper-encrypt.sh"
-    grep -q 'function encrypt_config' "${BASE_DIR}/lib/lemper-encrypt.sh"
-    grep -q 'function resolve_config_password' "${BASE_DIR}/lib/lemper-encrypt.sh"
-    grep -q 'aes-256-cbc' "${BASE_DIR}/lib/lemper-encrypt.sh"
+    grep -q 'lemper_load_module core/encryption' "${BASE_DIR}/lib/lemper-encrypt.sh"
+    grep -q 'function is_config_encrypted' "${BASE_DIR}/lib/core/encryption.sh"
+    grep -q 'function decrypt_config' "${BASE_DIR}/lib/core/encryption.sh"
+    grep -q 'function encrypt_config' "${BASE_DIR}/lib/core/encryption.sh"
+    grep -q 'function resolve_config_password' "${BASE_DIR}/lib/core/encryption.sh"
+    grep -q 'aes-256-cbc' "${BASE_DIR}/lib/core/encryption.sh"
 }
 
 @test "bin/lemper-cli.sh supports --password flag for encrypted config" {
@@ -419,7 +422,7 @@ refute_grep() {
 }
 
 @test "nginx repo installer honors NGINX_REPO_SRC" {
-    local nginx="${BASE_DIR}/scripts/install_nginx.sh"
+    local nginx="${BASE_DIR}/lib/services/nginx/install.sh"
     grep -qF 'NGINX_REPO_SRC:-myguard' "${nginx}"
     grep -qF 'NGINX_REPO_SOURCE="${SELECTED_REPO}"' "${nginx}"
     grep -qF 'NGINX_REPO_SRC="myguard"' "${BASE_DIR}/.env.dist"
@@ -427,14 +430,14 @@ refute_grep() {
 
 @test "nginx post-install ships the CORS origin map" {
     grep -qF 'etc/nginx/cors" /etc/nginx/' \
-        "${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+        "${BASE_DIR}/lib/services/nginx/configure.sh"
 }
 
 @test "PHP-FPM pools keep temp files outside user homes (SEC-12)" {
-    grep -q 'var/lib/php/lemper' "${BASE_DIR}/lib/runtime/site/create.sh"
-    grep -q 'var/lib/php/lemper' "${BASE_DIR}/scripts/install_php.sh"
-    refute_grep -q '\.lemper/tmp' "${BASE_DIR}/lib/runtime/site/create.sh"
-    refute_grep -q '\.lemper/tmp' "${BASE_DIR}/scripts/install_php.sh"
+    grep -q 'var/lib/php/lemper' "${BASE_DIR}/lib/services/php/pools.sh"
+    grep -q 'var/lib/php/lemper' "${BASE_DIR}/lib/services/php/install.sh"
+    refute_grep -q '\.lemper/tmp' "${BASE_DIR}/lib/services/php/pools.sh"
+    refute_grep -q '\.lemper/tmp' "${BASE_DIR}/lib/services/php/install.sh"
     refute_grep -rq '\.lemper/php' "${BASE_DIR}/etc/php"
 }
 
@@ -457,7 +460,7 @@ refute_grep() {
 }
 
 @test "restriction rules are included before static-file rules" {
-    local gen="${BASE_DIR}/lib/runtime/site/create.sh"
+    local gen="${BASE_DIR}/lib/services/nginx/vhost.sh"
     local restrict_line static_line
     restrict_line=$(grep -n 'rules_restriction.conf' "${gen}" | head -1 | cut -d: -f1)
     static_line=$(grep -n 'rules_staticfiles.conf' "${gen}" | head -1 | cut -d: -f1)
@@ -489,13 +492,13 @@ refute_grep() {
             refute_grep -qF 'php_value[session.save_path]' "${conf}"
         done
     done
-    grep -qF 'php_admin_flag[display_errors] = off' "${BASE_DIR}/lib/runtime/site/create.sh"
-    grep -qF 'php_admin_flag[display_errors] = off' "${BASE_DIR}/scripts/install_php.sh"
-    refute_grep -qF 'php_flag[display_errors] = on' "${BASE_DIR}/lib/runtime/site/create.sh"
-    refute_grep -qF 'php_flag[display_errors] = on' "${BASE_DIR}/scripts/install_php.sh"
+    grep -qF 'php_admin_flag[display_errors] = off' "${BASE_DIR}/lib/services/php/pools.sh"
+    grep -qF 'php_admin_flag[display_errors] = off' "${BASE_DIR}/lib/services/php/install.sh"
+    refute_grep -qF 'php_flag[display_errors] = on' "${BASE_DIR}/lib/services/php/pools.sh"
+    refute_grep -qF 'php_flag[display_errors] = on' "${BASE_DIR}/lib/services/php/install.sh"
     # FPM php_flag only accepts on/off-style booleans, not "0".
     refute_grep -rqF 'php_flag[cgi.fix_pathinfo] = 0' "${BASE_DIR}/lib" "${BASE_DIR}/scripts" "${BASE_DIR}/etc/php"
-    grep -qF 'php_flag[cgi.fix_pathinfo] = off' "${BASE_DIR}/lib/runtime/site/create.sh"
+    grep -qF 'php_flag[cgi.fix_pathinfo] = off' "${BASE_DIR}/lib/services/php/pools.sh"
 }
 
 @test "FastCGI cache respects application cache headers (SEC-15)" {
@@ -512,7 +515,7 @@ refute_grep() {
 }
 
 @test "generated PHP locations reject missing scripts and scope FPM status" {
-    local gen="${BASE_DIR}/lib/runtime/site/create.sh"
+    local gen="${BASE_DIR}/lib/services/nginx/vhost.sh"
     # shellcheck disable=SC2016 # generator escapes the literal $uri
     [ "$(grep -cF 'try_files \$uri =404;' "${gen}")" -ge 4 ]
     refute_grep -q 'allow all;' "${gen}"
@@ -527,8 +530,8 @@ refute_grep() {
 }
 
 @test "installer enables opcache for every PHP version" {
-    grep -q 'opcache.enable=1' "${BASE_DIR}/scripts/install_php.sh"
-    grep -q 'Custom Optimization for LEMPer' "${BASE_DIR}/scripts/install_php.sh"
+    grep -q 'opcache.enable=1' "${BASE_DIR}/lib/services/php/install.sh"
+    grep -q 'Custom Optimization for LEMPer' "${BASE_DIR}/lib/services/php/install.sh"
 }
 
 @test "admin vhosts apply the same restriction rules" {
@@ -596,7 +599,7 @@ refute_grep() {
 }
 
 @test "generated vhosts enable gzip compression" {
-    local gen="${BASE_DIR}/lib/runtime/site/create.sh"
+    local gen="${BASE_DIR}/lib/services/nginx/vhost.sh"
     [ "$(grep -c '^    include /etc/nginx/includes/compression_gzip.conf;' "${gen}")" -ge 4 ]
     grep -qF 'include /etc/nginx/includes/compression_gzip.conf;' \
         "${BASE_DIR}/etc/nginx/sites-available/default"
@@ -611,8 +614,8 @@ refute_grep() {
     refute_grep -qE '^[[:space:]]*aio[[:space:]]+threads' "${lowend}"
     grep -qF 'fastcgi_https_map' "${lowend}"
     grep -qF 'sites-enabled' "${lowend}"
-    grep -qF 'nginx-lowend.conf' "${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
-    grep -qF 'detect_resource_profile' "${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+    grep -qF 'nginx-lowend.conf' "${BASE_DIR}/lib/services/nginx/configure.sh"
+    grep -qF 'detect_resource_profile' "${BASE_DIR}/lib/services/nginx/configure.sh"
 }
 
 @test "resource profile knobs are documented in .env.dist" {
@@ -627,16 +630,16 @@ refute_grep() {
 }
 
 @test "PHP installer applies the resource profile to pools and opcache" {
-    local install="${BASE_DIR}/scripts/install_php.sh"
+    local install="${BASE_DIR}/lib/services/php/install.sh"
     grep -qF 'detect_resource_profile' "${install}"
     grep -qF 'tune_php_pool' "${install}"
     # shellcheck disable=SC2016
     grep -qF 'opcache.memory_consumption=${OPCACHE_MEM}' "${install}"
-    grep -qF 'calc_php_pool_sizing' "${BASE_DIR}/lib/runtime/site/create.sh"
+    grep -qF 'calc_php_pool_sizing' "${BASE_DIR}/lib/services/php/pools.sh"
 }
 
 @test "PHP extensions come from the repository only, without PECL or PEAR" {
-    local install="${BASE_DIR}/scripts/install_php.sh"
+    local install="${BASE_DIR}/lib/services/php/install.sh"
     refute_grep -qE '^[[:space:]]*(run )?pecl( |$)' "${install}"
     refute_grep -q 'php-pear' "${install}"
     grep -qF 'not available from the distribution repository' "${install}"
@@ -644,14 +647,14 @@ refute_grep() {
 }
 
 @test "bundled json and PHP 8.5 opcache are not resolved as packages" {
-    local install="${BASE_DIR}/scripts/install_php.sh"
+    local install="${BASE_DIR}/lib/services/php/install.sh"
     grep -qF "grep -vx 'json'" "${install}"
-    grep -qF '${PHPv//.} >= 85' "${install}"
+    grep -qF '${PHPv//./} >= 85' "${install}"
     grep -qF "grep -vx 'opcache'" "${install}"
 }
 
 @test "PHP extensions are enabled for both SAPIs and verified through FPM" {
-    local install="${BASE_DIR}/scripts/install_php.sh"
+    local install="${BASE_DIR}/lib/services/php/install.sh"
 
     grep -qE '^function enable_php_extension\(\)' "${install}"
 
@@ -669,7 +672,7 @@ refute_grep() {
 }
 
 @test "re-running the PHP installer reconciles extensions for installed versions" {
-    local install="${BASE_DIR}/scripts/install_php.sh"
+    local install="${BASE_DIR}/lib/services/php/install.sh"
 
     grep -qF 'is already installed, reconciling its extensions' "${install}"
     grep -qF 'PHP_WAS_INSTALLED' "${install}"
@@ -681,7 +684,7 @@ refute_grep() {
 }
 
 @test "memcache tuning is only appended once" {
-    local install="${BASE_DIR}/scripts/install_php.sh"
+    local install="${BASE_DIR}/lib/services/php/install.sh"
     grep -qF "grep -q 'Optimized for LEMPer stack.'" "${install}"
 }
 
@@ -695,11 +698,11 @@ refute_grep() {
 }
 
 @test "Fail2ban install suppresses upstream Python SyntaxWarning noise" {
-    grep -qF 'PYTHONWARNINGS=ignore::SyntaxWarning' "${BASE_DIR}/scripts/install_fail2ban.sh"
+    grep -qF 'PYTHONWARNINGS=ignore::SyntaxWarning' "${BASE_DIR}/lib/services/security/fail2ban_install.sh"
 }
 
 @test "MariaDB installer applies the resource profile" {
-    local install="${BASE_DIR}/scripts/install_mariadb.sh"
+    local install="${BASE_DIR}/lib/services/mariadb/install.sh"
     grep -qF 'tune_mariadb_config' "${install}"
     grep -qF 'calc_mariadb_sizing' "${install}"
     grep -qF '99-lemper-tuning.cnf' "${install}"
@@ -716,28 +719,28 @@ refute_grep() {
     done
     # shellcheck disable=SC2016
     grep -qF 'php_admin_value[session.cookie_secure] = ${COOKIE_SECURE}' \
-        "${BASE_DIR}/lib/runtime/site/create.sh"
-    grep -qF 'php_admin_value[session.cookie_secure]' "${BASE_DIR}/scripts/install_php.sh"
+        "${BASE_DIR}/lib/services/php/pools.sh"
+    grep -qF 'php_admin_value[session.cookie_secure]' "${BASE_DIR}/lib/services/php/install.sh"
 }
 
 @test "archive deny rules are shipped but opt-in" {
     [ -f "${BASE_DIR}/etc/nginx/includes/rules_archives.conf" ]
     grep -qF '#include /etc/nginx/includes/rules_archives.conf;' \
         "${BASE_DIR}/etc/nginx/includes/rules_restriction.conf"
-    grep -qF 'DENY_ARCHIVE_FILES' "${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+    grep -qF 'DENY_ARCHIVE_FILES' "${BASE_DIR}/lib/services/nginx/configure.sh"
 }
 
 @test "rate limiting is wired through the shared security include" {
     local sec="${BASE_DIR}/etc/nginx/includes/rules_security.conf"
     grep -qF '#limit_req zone=req_limit_per_ip' "${sec}"
     grep -qF '#limit_conn conn_limit_per_ip' "${sec}"
-    grep -qF 'rules_security.conf' "${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+    grep -qF 'rules_security.conf' "${BASE_DIR}/lib/services/nginx/configure.sh"
 }
 
 
 @test "WordPress config creation skips the masked-password DB check" {
-    grep -qF -- '--dbpass="__LEMPER_DB_PASS__"' "${BASE_DIR}/lib/runtime/site/create.sh"
-    grep -qF -- '--skip-check' "${BASE_DIR}/lib/runtime/site/create.sh"
+    grep -qF -- '--dbpass="__LEMPER_DB_PASS__"' "${BASE_DIR}/lib/services/site/skeletons.sh"
+    grep -qF -- '--skip-check' "${BASE_DIR}/lib/services/site/skeletons.sh"
 }
 
 @test "CLI provides helpers required by the site plugin" {
@@ -751,7 +754,7 @@ refute_grep() {
 
 @test "SSH public key option updates RSA_PUB_KEY without sed" {
     local cli="${BASE_DIR}/lib/compat/installer.sh"
-    local security="${BASE_DIR}/scripts/server_security.sh"
+    local security="${BASE_DIR}/lib/services/system/security.sh"
 
     grep -qF -- '--with-ssh-pub-key)' "${cli}"
     grep -qF 'set_env_value .env RSA_PUB_KEY "${RSA_PUB_KEY}"' "${cli}"
@@ -764,7 +767,7 @@ refute_grep() {
 
 @test "HTTP/2 uses the http2 directive instead of the deprecated listen parameter" {
     local ssl_conf="${BASE_DIR}/etc/nginx/sites-available/default-ssl"
-    local manage="${BASE_DIR}/lib/lemper-manage.sh"
+    local manage="${BASE_DIR}/lib/services/ssl/site.sh"
 
     grep -qF 'http2 on;' "${ssl_conf}"
     refute_grep -rqE '^[[:space:]]*listen[^;]*http2' "${BASE_DIR}/etc/nginx"
@@ -780,18 +783,18 @@ refute_grep() {
     grep -qF '#rewrite_log on;' "${BASE_DIR}/etc/nginx/nginx-lowend.conf"
     grep -qF 'NGINX_REWRITE_LOG' "${BASE_DIR}/.env.dist"
 
-    local post="${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
+    local post="${BASE_DIR}/lib/services/nginx/configure.sh"
     grep -qF 'rewrite_log on;' "${post}"
     grep -qF 'error.log notice;' "${post}"
 }
 
 @test "CORS can be enabled and disabled from the CLI" {
-    local manage="${BASE_DIR}/lib/lemper-manage.sh"
+    local manage="${BASE_DIR}/lib/services/nginx/features.sh"
 
     grep -qE '^function enable_cors\(\)' "${manage}"
     grep -qE '^function disable_cors\(\)' "${manage}"
-    grep -qF -- '--enable-cors)' "${manage}"
-    grep -qF -- '--disable-cors)' "${manage}"
+    grep -qF -- '--enable-cors)' "${BASE_DIR}/lib/runtime/site/manage.sh"
+    grep -qF -- '--disable-cors)' "${BASE_DIR}/lib/runtime/site/manage.sh"
 
     # Per-vhost wrapper defaults to a wildcard origin and pulls in the
     # shared header include; disabling removes the wrapper again.
@@ -802,8 +805,8 @@ refute_grep() {
 }
 
 @test "uninstall leaves a pre-existing Nginx untouched unless forced" {
-    local install="${BASE_DIR}/scripts/install_nginx.sh"
-    local remove="${BASE_DIR}/scripts/remove_nginx.sh"
+    local install="${BASE_DIR}/lib/services/nginx/install.sh"
+    local remove="${BASE_DIR}/lib/services/nginx/remove.sh"
     local utils="${BASE_DIR}/scripts/utils.sh"
 
     grep -qE '^function mark_lemper_provisioned\(\)' "${utils}"
@@ -816,8 +819,8 @@ refute_grep() {
 }
 
 @test "HTTP/3 is opt-in and gated on the nginx v3 module" {
-    local post="${BASE_DIR}/scripts/nginx/nginx_post_install.sh"
-    local manage="${BASE_DIR}/lib/lemper-manage.sh"
+    local post="${BASE_DIR}/lib/services/nginx/configure.sh"
+    local manage="${BASE_DIR}/lib/services/ssl/site.sh"
 
     grep -qF 'NGINX_HTTP3' "${BASE_DIR}/.env.dist"
 
@@ -830,15 +833,15 @@ refute_grep() {
     grep -qF 'includes/http3.conf' "${manage}"
 
     # The quictls builder requests v3, plain OpenSSL does not.
-    grep -qF 'grep -iq quic' "${BASE_DIR}/scripts/nginx/nginx_ssl_builders.sh"
-    grep -qF -- '--with-http_v3_module' "${BASE_DIR}/scripts/nginx/nginx_ssl_builders.sh"
+    grep -qF 'grep -iq quic' "${BASE_DIR}/lib/services/nginx/ssl_builders.sh"
+    grep -qF -- '--with-http_v3_module' "${BASE_DIR}/lib/services/nginx/ssl_builders.sh"
 
     # QUIC needs UDP 443 through CSF.
-    grep -qF 'UDP_IN' "${BASE_DIR}/scripts/server_security.sh"
+    grep -qF 'UDP_IN' "${BASE_DIR}/lib/services/system/security.sh"
 }
 
 @test "Adminer is installed from the official upstream release" {
-    local tools="${BASE_DIR}/scripts/install_tools.sh"
+    local tools="${BASE_DIR}/lib/services/tools/install.sh"
 
     grep -qF 'github.com/vrana/adminer/releases/download' "${tools}"
     grep -qF 'adminer-${ADMINER_VERSION}.php' "${tools}"

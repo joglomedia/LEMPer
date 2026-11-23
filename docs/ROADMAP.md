@@ -2,9 +2,9 @@
 
 > **Latest published version:** 3.6.0
 > **Last Updated:** 2026-11-23
-> **Code baseline:** 79d4d40 plus A3 implementation on `release/v4.0.0`
+> **Code baseline:** 21e27ab plus uncommitted A4 implementation on `release/v4.0.0`
 > **Status:** v4.0 foundations, mail hosting and PHP/Laravel enhancements are
-> implemented but unreleased. Partial tasks, deferred plans and release
+> implemented but unreleased. A4 decomposition is delivered; deferred plans and release
 > validation remain; see [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
 >
 > v3.6.0 ships the TUI log viewer and site wizard, ModSecurity tuning, opt-in
@@ -20,10 +20,12 @@
 
 ## Current implementation and remaining work
 
-The [2026-11-22 source audit](ROADMAP_AUDIT.md) reconciles all 48 numbered
+The [2026-11-23 source audit](ROADMAP_AUDIT.md#current-remaining-work--21e27ab) reconciles all 48 numbered
 task IDs, Architecture §4 and the README/developer plans. It supersedes the
 previous audit's ranks and distinguishes implemented foundations from remaining
-scope inside tasks historically marked complete.
+scope inside tasks historically marked complete. The subsequent
+[A4 implementation](ROADMAP_AUDIT.md#a4-module-decomposition-follow-through--2026-11-23)
+completes the remaining 2.12/2.37 extraction; release gates stay separate.
 
 | Priority area | Implementation |
 |---|---|
@@ -59,9 +61,9 @@ Prioritized follow-through now delivers shared whole-value/semantic input
 validation (2.9), curated repository migration and maintained custom TLS source
 selection (2.8/2.27), complete diagnostic views (2.17), and ownership-resolved DB
 domain shortcuts (2.18). Diagnostics, certificate issuance, repository setup and
-Bun binary installation occupy service/runtime modules. Further extraction of
-older management/application/installer bodies remains the partial 2.12/2.37
-architecture workstream. See [the implementation audit](ROADMAP_AUDIT.md#prioritized-implementation-follow-through--2026-11-22)
+Bun binary installation occupy service/runtime modules. A4 now also extracts
+older management/application/installer bodies, completing the accepted 2.12/2.37
+architecture scope. See [the implementation audit](ROADMAP_AUDIT.md#a4-module-decomposition-follow-through--2026-11-23)
 for source evidence, checks and limits. Release validation/publication gates remain.
 
 Current delivery status:
@@ -78,10 +80,11 @@ Current delivery status:
    Additional delivery includes SnappyMail, Nextcloud, MyBB, phpList, OJS and
    Slim automatic deployment, plus XenForo licensed manual vhosts (issues #66,
    #35 and #149). Application/database configuration remains upstream-managed.
-4. **P2:** Continue the partial 2.12/2.37 extraction with site rendering and older
-   manager/updater/installer internals (A4).
+4. **P2 — implemented:** Site rendering, feature management, update drivers,
+   component lifecycles and remaining utility plugins use function-only modules.
+   Public wrappers and installed exports remain compatible (A4; 2.12/2.37).
 
-See [remaining work and evidence](ROADMAP_AUDIT.md#remaining-work-at-9b7511b).
+See [remaining work and evidence](ROADMAP_AUDIT.md#current-remaining-work--21e27ab).
 Protected SQL backups, repository migration, diagnostic parity and domain DB
 shortcuts remain implemented. The backup-account finding in the older installer
 now has a dedicated service driver; the initial documentation audit is preserved
@@ -112,6 +115,12 @@ page. Other automatic application installers and Debian A3 UAT were not rerun.
 The 2026-11-23 Mautic/Roundcube extension passed **473 Bats tests** and **57 native
 acceptance checks** on Ubuntu 24.04 ARM64, including complete release packages,
 upstream setup pages/assets, access restrictions and repeat preservation.
+A4's final Ubuntu 24.04 ARM64 run passed **518 Bats tests**, including import and
+compatibility contracts plus syntax/sourced ShellCheck. Fresh native Ubuntu 26.04
+ARM64 acceptance passed **13/13 minimal bootstrap/install/HTTP/SSH/repeat/remove
+checks** against an uncommitted source snapshot; broader platforms, optional
+services and application deployments were not rerun for A4. See
+[MODULE_DECOMPOSITION.md](MODULE_DECOMPOSITION.md).
 Final assets need rebuilding and exact-archive validation. GitHub returned no Actions runs for the full
 9b7511b candidate SHA, and v4.0.0 is not published. Public ACME, native AMD64,
 HTTP/3 client negotiation, remote integrations and selected legacy transitions
@@ -384,12 +393,13 @@ removal logic. When one is updated, the other is often missed.
 
 ---
 
-#### 2.12 Reorganize into Modular Directory Structure — Partially implemented
+#### 2.12 Reorganize into Modular Directory Structure — Implemented (unreleased)
 
-**Current status:** Core/runtime/service/compatibility layers and their installed
-exports exist. Account/database/SSL/TUI handlers have moved into function-only
-runtime modules. This shares the remaining business-logic extraction with 2.37:
-legacy management, diagnostics and component installers still need decomposition.
+**Current status:** Core/runtime/service/compatibility layers and installed
+exports are implemented. A4 extracts ordinary site rendering, framework setup,
+feature management, updater internals, component lifecycles and utility plugins.
+Retained public wrappers contain initialization/compatibility dispatch. This is
+the same completed workstream as 2.37; see [MODULE_DECOMPOSITION.md](MODULE_DECOMPOSITION.md).
 
 **Issue:** The project mixes installation scripts (`scripts/`), CLI plugins (`lib/`),
 and configuration templates (`etc/`) in a flat structure that is hard to navigate.
@@ -402,7 +412,7 @@ lib/runtime/   — CLI plugins (account, site, db, ssl, util)
 lib/services/  — Service installation modules
 ```
 
-**Effort:** High — requires updating all import/sourcing paths. Plan for v3.0.
+**Effort:** Delivered incrementally for v4, with retained imports and exports.
 
 ---
 
@@ -876,18 +886,16 @@ The installer floor is now 8.2. Shipped templates are 8.2–8.5. `update php --m
 
 ---
 
-#### 2.37 Modular Directory Restructuring (Architecture — High) — **Partially Implemented**
+#### 2.37 Modular Directory Restructuring (Architecture — High) — **Implemented (unreleased)**
 
-**Status:** **Partially implemented.** Core helpers, runtime use cases, service
-drivers, isolated legacy adapters, registries, locking and installed exports are
-working. Account/database/SSL/TUI/vhost-creation handlers now live in function-only
-runtime modules; diagnostics, certificate issuance, repositories and Bun now have
-service/runtime boundaries too. Remaining work is gradual extraction of legacy
-management/updater bodies, application rendering/install logic and component installer internals
-behind those interfaces. This is the same workstream as 2.12; retained public
-wrappers and compatibility filenames do not themselves indicate missing modules.
+**Status:** **Implemented.** A4 completes the service/runtime extraction described
+in 2.12. Named component-driver contracts connect standalone scripts, full-stack
+recipes and CLI adapters. Import-safety and compatibility behavior have regression
+coverage; legacy configuration and execution helpers remain behind their process
+boundaries. Further API/state cleanup is optional refinement, separate from this
+accepted decomposition scope and final release validation.
 
-**Effort:** High — incremental extraction remains.
+**Effort:** Delivered for v4; see [Architecture §4.4](ARCHITECTURE.md#44-module-decomposition-implemented-for-v4-tasks-212237).
 
 ---
 
@@ -896,7 +904,7 @@ wrappers and compatibility filenames do not themselves indicate missing modules.
 **Issue:** Tests are structural (grep-based) only.
 
 **Fix:** ✅ Implemented — Added `tests/unit/` with PATH-shadowing mocks. The
-current source declares 456 tests across 36 Bats files; the original 12-case
+current source declares 518 tests across 44 Bats files; the original 12-case
 addition included:
 
 - `validators.bats` — `validate_fqdn()`, `validate_ipv4()`, `sanitize_sed_*`,
@@ -1047,7 +1055,7 @@ exact-archive validation remain release follow-through.
 | ------------------------------------------------------------------------ | ------ | ---------- | -------------------------------------------------------------------- | ----------- |
 | Removing NOPASSWD:ALL breaks user scripts that rely on passwordless sudo | High   | Medium     | Document migration, add restricted sudoers config as opt-in          | ✅ Mitigated |
 | Replacing `eval` config loader breaks existing `.env` parsing            | Medium | High       | Maintain backward-compatible fallback, test all key types            | ✅ Mitigated |
-| Reorganizing directory structure breaks CI and user automation           | High   | Medium     | Preserve working wrappers/exports during deeper service extraction (A4) | In progress |
+| Reorganizing directory structure breaks CI and user automation           | High   | Medium     | Preserve working wrappers/exports during deeper service extraction (A4) | Implemented; candidate CI pending |
 | Test entry points use incompatible users or missing fixture dependencies | High | Confirmed locally | Shared root Linux fixtures/tooling and isolated state (A2); remote candidate CI remains a release gate | Implemented locally |
 | Legacy backup-account credentials are written without private modes or literal serialization | High | Confirmed in isolated probe | Protected provisioning, key reconciliation and inline migration (A1) | Implemented locally |
 | Removing PHP 5.6–7.4 breaks existing vhost configs                       | Medium | Medium     | Auto-detect installed PHP, warn on upgrade, provide migration script | ✅ Mitigated |
@@ -1074,7 +1082,7 @@ exact-archive validation remain release follow-through.
 | **v3.5.1** | PHP2Shell remediation    | Legacy `update.sh` bootstrap, `lemper update` plugin, EOL pool mitigations, apt version verification |
 | **v3.5.2** | PHP 8.5 support          | 8.5 FPM templates, 8.5 default, install/remove menus, nginx handlers and phpinfo endpoints |
 | **v3.6.0** | Current release          | TUI logs and site wizard, ModSecurity tuning, HTTP/3, CORS, resource profiles, MyGuard nginx, PHP 8.1 removed from defaults, EOL vhost migration (`--migrate-to`), Adminer 6.2.0, config backup, CrowdSec installer, FTP fixes |
-| **v4.0.0** | Unreleased candidate | Implemented issue #92 CLI, pinned bootstrap, unified/minimal lifecycle flows, core/runtime/service foundations, schema, key-only SSH, release automation, mail hosting and PHP/Laravel enhancements; Restic data backups, native nftables, Monit monitoring and expanded runtime extraction implemented; further legacy extraction remains; remaining follow-through in ROADMAP_AUDIT.md |
+| **v4.0.0** | Unreleased candidate | Implemented issue #92 CLI, pinned bootstrap, unified/minimal lifecycle flows, core/runtime/service decomposition, schema, key-only SSH, release automation, mail hosting and PHP/Laravel enhancements; Restic data backups, native nftables and Monit monitoring; release follow-through in ROADMAP_AUDIT.md |
 
 
 ---
@@ -1085,10 +1093,13 @@ Latest published release is **v3.6.0**. Delivery history below does not imply
 every original task's full scope is complete. The unreleased **v4.0** branch
 has delivered P1/P2/P3 foundations and prioritized runtime follow-through.
 The current audit records the installer, CI and app-capability follow-through;
-module decomposition remains partial.
+module decomposition is now implemented in the working tree.
 
-A1/A2 are committed in 79d4d40; A3 is implemented in the working tree. Continue
-with A4. For release preparation, rebuild assets from
+A1/A2 are committed in 79d4d40; A3 and additional application deployment are
+committed in 87b75b3. Resolute/Sury support is committed in b17b7f7 and the
+documentation refresh in 21e27ab. A4 completes the four extraction boundaries
+in [the implementation follow-through](ROADMAP_AUDIT.md#a4-module-decomposition-follow-through--2026-11-23).
+For release preparation, rebuild assets from
 the final clean commit after required fixes, validate that archive and candidate
 CI, then tag/publish only when authorized. Keep deferred architecture/product
 scope explicit.
@@ -1116,8 +1127,9 @@ from the default install, `update php --migrate-to`, Adminer 6.2.0, config
 backup, CrowdSec installer, and the Pure-FTPd / VSFTPD fixes
 - **v4.0.0 (unreleased)**: issue #92 CLI, shared core/schema and runtime/service
 layers, key-only SSH, pinned bootstrap and unified/minimal stack flows, mail
-hosting and PHP/Laravel enhancements. Follow-through, deferred decomposition/
-nftables and final release validation are detailed in ROADMAP_AUDIT.md.
+hosting and PHP/Laravel enhancements, expanded application deployments, native
+nftables and Resolute/Sury support. A4 decomposition is delivered; final release
+validation and optional extensions are detailed in ROADMAP_AUDIT.md.
 
 ---
 

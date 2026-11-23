@@ -4,6 +4,7 @@ setup() { unit_setup; }
 
 # shellcheck disable=SC2016 # Evaluated in isolated child shells.
 certbot_child='
+    . "$REAL_BASE_DIR/lib/core/loader.sh"
     run() { "$@"; }
     info() { :; }
     success() { :; }
@@ -71,6 +72,7 @@ certbot_child='
 
 @test "Nginx source selection honors explicit versions and selects stable tags without HTML scraping" {
     run bash -c '
+        . "$REAL_BASE_DIR/lib/core/loader.sh"
         run() { "$@"; }
         requires_root() { :; }
         info() { :; }

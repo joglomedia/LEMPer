@@ -18,8 +18,14 @@
 function lemper_legacy_component() {
     local action="${1}" service="${2}" source="${3}" php="${4}" key="${5}" component="${6}" force="${7}"
     local config="${CONFIG_FILE:-/etc/lemper/lemper.conf}" decrypted="" rc=0
-    [[ "${DRYRUN:-false}" != true ]] || { info "Would ${action} stack component ${service}."; return 0; }
-    [[ -r "${config}" ]] || { error "Installed configuration is required."; return 1; }
+    [[ "${DRYRUN:-false}" != true ]] || {
+        info "Would ${action} stack component ${service}."
+        return 0
+    }
+    [[ -r "${config}" ]] || {
+        error "Installed configuration is required."
+        return 1
+    }
     if is_config_encrypted "${config}"; then
         decrypted=$(decrypt_config_file "${config}") || return 1
         config="${decrypted}"
@@ -45,10 +51,16 @@ function lemper_legacy_component() {
         fi
         requires_root
         preflight_system_check || exit 1
-        # Only registry-derived, existing component paths reach this source.
-        # shellcheck disable=SC1090
-        . "$6"
-    ' stack-component "${source}" "${config}" "${key}" "${service}" "${php}" "${component}" "${force}" || rc=$?
+        if [[ -f "$BASE_DIR/lib/runtime/components/lifecycle.sh" ]] && lemper_component_driver "$8" "$4" >/dev/null; then
+            lemper_load_module runtime/components/lifecycle || exit 1
+            lemper_component_apply "$8" "$4"
+        else
+            # Older recorded checkouts and existing thin adapters remain supported.
+            # Only registry-derived, existing component paths reach this source.
+            # shellcheck disable=SC1090
+            . "$6"
+        fi
+    ' stack-component "${source}" "${config}" "${key}" "${service}" "${php}" "${component}" "${force}" "$action" || rc=$?
     [[ -z "${decrypted}" ]] || secure_shred "${decrypted}"
     return "${rc}"
 }

@@ -21,68 +21,69 @@
 # +-------------------------------------------------------------------------+
 
 function lemper_legacy_updater_main() (
-set -e -o pipefail
+    set -e -o pipefail
 
-export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+    export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-BASE_DIR=${LEMPER_INSTALL_ROOT:-$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." >/dev/null 2>&1 && pwd )}
-ORIGINAL_ARGS=("$@")
+    BASE_DIR=${LEMPER_INSTALL_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." >/dev/null 2>&1 && pwd)}
+    ORIGINAL_ARGS=("$@")
 
-CLI_BIN="/usr/local/bin/lemperctl"
-CONFIG_FILE="${LEMPER_CONFIG_FILE:-/etc/lemper/lemper.conf}"
-UPDATE_SOURCE_FILE="/etc/lemper/update-source"
+    CLI_BIN="/usr/local/bin/lemperctl"
+    CONFIG_FILE="${LEMPER_CONFIG_FILE:-/etc/lemper/lemper.conf}"
+    UPDATE_SOURCE_FILE="/etc/lemper/update-source"
 
-MODE="install-and-update"
-UPDATE_SUBCOMMAND="all"
-UPDATE_ARGS=()
+    MODE="install-and-update"
+    UPDATE_SUBCOMMAND="all"
+    UPDATE_ARGS=()
 
-RED=31
-GREEN=32
-YELLOW=33
+    RED=31
+    GREEN=32
+    YELLOW=33
 
-function begin_color() {
-    echo -e -n "\e[${1}m"
-}
+    function begin_color() {
+        echo -e -n "\e[${1}m"
+    }
 
-function end_color() {
-    echo -e -n "\e[0m"
-}
+    function end_color() {
+        echo -e -n "\e[0m"
+    }
 
-function info() {
-    begin_color "${YELLOW}"
-    echo -n "Info: "
-    end_color
-    echo "$@"
-}
+    function info() {
+        begin_color "${YELLOW}"
+        echo -n "Info: "
+        end_color
+        echo "$@"
+    }
 
-function success() {
-    begin_color "${GREEN}"
-    echo -n "Success: "
-    end_color
-    echo "$@"
-}
+    function success() {
+        begin_color "${GREEN}"
+        echo -n "Success: "
+        end_color
+        echo "$@"
+    }
 
-function error() {
-    begin_color "${RED}"
-    echo -n "Error: " >&2
-    end_color
-    echo "$@" >&2
-}
+    function error() {
+        begin_color "${RED}"
+        echo -n "Error: " >&2
+        end_color
+        echo "$@" >&2
+    }
 
-function warning() {
-    begin_color "${YELLOW}"
-    echo -n "Warning: " >&2
-    end_color
-    echo "$@" >&2
-}
+    # shellcheck disable=SC2329 # Loaded service update drivers call this compatibility logger.
+    function warning() {
+        begin_color "${YELLOW}"
+        echo -n "Warning: " >&2
+        end_color
+        echo "$@" >&2
+    }
 
-function fail() {
-    error "$@"
-    exit 1
-}
+    function fail() {
+        error "$@"
+        exit 1
+    }
 
-function show_help() {
-    cat <<EOF
+    function show_help() {
+        cat <<EOF
 LEMPer security update bootstrap
 
 Usage: sudo ./update.sh [mode] [options]
@@ -110,113 +111,113 @@ configured apt repositories. EOL PHP branches receive admin-locked
 compensating controls in every FPM pool and are reported as requiring
 migration; they cannot be fully fixed by this script.
 EOF
-}
+    }
 
-function requires_root() {
-    if [[ "$(id -u)" -ne 0 ]]; then
-        if ! command -v sudo >/dev/null 2>&1; then
-            fail "This script must be run as root (or install sudo)."
+    function requires_root() {
+        if [[ "$(id -u)" -ne 0 ]]; then
+            if ! command -v sudo >/dev/null 2>&1; then
+                fail "This script must be run as root (or install sudo)."
+            fi
+            info "Switching to root to install the LEMPer updater..."
+            exec sudo -E "$0" "$@"
         fi
-        info "Switching to root to install the LEMPer updater..."
-        exec sudo -E "$0" "$@"
+    }
+
+    function check_prerequisites() {
+        command -v apt-get >/dev/null 2>&1 || fail "apt-get not found; LEMPer updates require Debian/Ubuntu."
+    }
+
+    function install_updater() {
+        local source_dir="${1:-${BASE_DIR}}"
+
+        [[ -f "${source_dir}/bin/lemper-cli.sh" && -f "${source_dir}/lib/lemper-update.sh" ]] \
+            || fail "No usable LEMPer checkout at ${source_dir} (need bin/lemper-cli.sh and lib/lemper-update.sh)."
+
+        # Export the complete CLI through the shared registry/release path.
+        # shellcheck source=/dev/null
+        . "${source_dir}/lib/core/registry.sh" || return 1
+        # shellcheck source=/dev/null
+        . "${source_dir}/lib/core/deployment.sh" || return 1
+        lemper_cli_snapshot "${source_dir}" || return 1
+        export LEMPER_TOOLING_ALREADY_INSTALLED=true
+
+        printf '%s\n' "${source_dir}" >"${UPDATE_SOURCE_FILE}"
+        chmod 0600 "${UPDATE_SOURCE_FILE}"
+
+        success "Updater installed. Re-run 'lemperctl update all' at any time."
+    }
+
+    function run_updater() {
+        [[ -f "${CONFIG_FILE}" ]] || fail "No LEMPer configuration at ${CONFIG_FILE}; this host does not look like a LEMPer installation."
+
+        # Encrypted configs are decrypted with /etc/lemper/.config_key by the CLI.
+        if head -n 1 "${CONFIG_FILE}" | grep -q '^Salted__'; then
+            export ENCRYPT_CONFIG_AT_REST=true
+        fi
+
+        info "Running: lemperctl update ${UPDATE_SUBCOMMAND} ${UPDATE_ARGS[*]:-}"
+        "${CLI_BIN}" update "${UPDATE_SUBCOMMAND}" "${UPDATE_ARGS[@]}"
+    }
+
+    export PROG_NAME="${PROG_NAME:-lemperctl}"
+    export LEMPER_UPDATE_LIB_ONLY=true
+    # shellcheck source=lib/lemper-update.sh
+    . "${BASE_DIR}/lib/lemper-update.sh"
+
+    # Argument parsing.
+    PARSED_ARGS=()
+    UPDATE_SOURCE_DIR=""
+    while [[ $# -gt 0 ]]; do
+        case "${1}" in
+            --install-only)
+                MODE="install-only"
+                shift
+                ;;
+            --check)
+                UPDATE_SUBCOMMAND="check"
+                shift
+                ;;
+            --source-dir=*)
+                UPDATE_SOURCE_DIR="${1#*=}"
+                shift
+                ;;
+            --post-max-size=*)
+                UPDATE_ARGS+=("${1}")
+                shift
+                ;;
+            -y | --yes)
+                UPDATE_ARGS+=("${1}")
+                shift
+                ;;
+            -h | --help)
+                show_help
+                exit 0
+                ;;
+            *)
+                PARSED_ARGS+=("${1}")
+                shift
+                ;;
+        esac
+    done
+
+    if [[ "${#PARSED_ARGS[@]}" -gt 0 ]]; then
+        fail "Unknown option: ${PARSED_ARGS[0]} (use --help)"
     fi
-}
 
-function check_prerequisites() {
-    command -v apt-get >/dev/null 2>&1 || fail "apt-get not found; LEMPer updates require Debian/Ubuntu."
-}
+    requires_root "${ORIGINAL_ARGS[@]}"
+    check_prerequisites
+    install_updater "${UPDATE_SOURCE_DIR:-${BASE_DIR}}"
+    UPDATE_SOURCE_DIR="${UPDATE_SOURCE_DIR:-${BASE_DIR}}"
 
-function install_updater() {
-    local source_dir="${1:-${BASE_DIR}}"
-
-    [[ -f "${source_dir}/bin/lemper-cli.sh" && -f "${source_dir}/lib/lemper-update.sh" ]] ||
-        fail "No usable LEMPer checkout at ${source_dir} (need bin/lemper-cli.sh and lib/lemper-update.sh)."
-
-    # Export the complete CLI through the shared registry/release path.
-    # shellcheck source=/dev/null
-    . "${source_dir}/lib/core/registry.sh" || return 1
-    # shellcheck source=/dev/null
-    . "${source_dir}/lib/core/deployment.sh" || return 1
-    lemper_cli_snapshot "${source_dir}" || return 1
-    export LEMPER_TOOLING_ALREADY_INSTALLED=true
-
-    printf '%s\n' "${source_dir}" > "${UPDATE_SOURCE_FILE}"
-    chmod 0600 "${UPDATE_SOURCE_FILE}"
-
-    success "Updater installed. Re-run 'lemperctl update all' at any time."
-}
-
-function run_updater() {
-    [[ -f "${CONFIG_FILE}" ]] || fail "No LEMPer configuration at ${CONFIG_FILE}; this host does not look like a LEMPer installation."
-
-    # Encrypted configs are decrypted with /etc/lemper/.config_key by the CLI.
-    if head -n 1 "${CONFIG_FILE}" | grep -q '^Salted__'; then
-        export ENCRYPT_CONFIG_AT_REST=true
-    fi
-
-    info "Running: lemperctl update ${UPDATE_SUBCOMMAND} ${UPDATE_ARGS[*]:-}"
-    "${CLI_BIN}" update "${UPDATE_SUBCOMMAND}" "${UPDATE_ARGS[@]}"
-}
-
-export PROG_NAME="${PROG_NAME:-lemperctl}"
-export LEMPER_UPDATE_LIB_ONLY=true
-# shellcheck source=lib/lemper-update.sh
-. "${BASE_DIR}/lib/lemper-update.sh"
-
-# Argument parsing.
-PARSED_ARGS=()
-UPDATE_SOURCE_DIR=""
-while [[ $# -gt 0 ]]; do
-    case "${1}" in
-        --install-only)
-            MODE="install-only"
-            shift
+    case "${MODE}" in
+        install-only)
+            update_lemper_tooling
+            info "Administration tools reinstalled. Stack packages were not changed."
             ;;
-        --check)
-            UPDATE_SUBCOMMAND="check"
-            shift
-            ;;
-        --source-dir=*)
-            UPDATE_SOURCE_DIR="${1#*=}"
-            shift
-            ;;
-        --post-max-size=*)
-            UPDATE_ARGS+=("${1}")
-            shift
-            ;;
-        -y | --yes)
-            UPDATE_ARGS+=("${1}")
-            shift
-            ;;
-        -h | --help)
-            show_help
-            exit 0
-            ;;
-        *)
-            PARSED_ARGS+=("${1}")
-            shift
+        install-and-update)
+            run_updater
             ;;
     esac
-done
-
-if [[ "${#PARSED_ARGS[@]}" -gt 0 ]]; then
-    fail "Unknown option: ${PARSED_ARGS[0]} (use --help)"
-fi
-
-requires_root "${ORIGINAL_ARGS[@]}"
-check_prerequisites
-install_updater "${UPDATE_SOURCE_DIR:-${BASE_DIR}}"
-UPDATE_SOURCE_DIR="${UPDATE_SOURCE_DIR:-${BASE_DIR}}"
-
-case "${MODE}" in
-    install-only)
-        update_lemper_tooling
-        info "Administration tools reinstalled. Stack packages were not changed."
-        ;;
-    install-and-update)
-        run_updater
-        ;;
-esac
 
 )
 

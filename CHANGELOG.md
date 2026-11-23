@@ -68,6 +68,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tag-driven release automation, and provisioned-host/dependency audit reports.
 
 ### Changed
+- Complete the v4 module decomposition (roadmap 2.12/2.37): site rendering,
+  framework setup, feature management, update drivers, component lifecycles and
+  utility plugins now live in function-only Bash modules. Retain public scripts,
+  CLI aliases and installed plugin paths; share component-driver dispatch across
+  standalone, CLI and full-stack paths with explicit initialization and locking.
 - PHP installation and updates use the maintained Sury archive and managed
   keyring package on Ubuntu and Debian. Legacy PHP sources migrate with backups
   and rollback; unrelated sources and shared signing keys are retained.

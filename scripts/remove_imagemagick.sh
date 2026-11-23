@@ -15,8 +15,19 @@
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
+case "${1:-}" in
+    --help | -h)
+        printf 'Usage: remove_imagemagick.sh [--help|--version] (uses the LEMPer configuration profile)\n'
+        if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 0; else return 0; fi
+        ;;
+    --version | -v)
+        printf 'LEMPer imagemagick remove v4.0.0\n'
+        if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 0; else return 0; fi
+        ;;
+esac
+
 if [[ "$(type -t run)" != function ]]; then
-    BASE_DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." >/dev/null 2>&1 && pwd )
+    BASE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)
     cd "${BASE_DIR}" || exit 1
     # shellcheck source=scripts/utils.sh
     . "${BASE_DIR}/scripts/utils.sh" || exit 1
@@ -24,12 +35,11 @@ if [[ "$(type -t run)" != function ]]; then
     preflight_system_check || exit 1
 fi
 
-if ! lemper_provisioned imagemagick && [[ "${FORCE_REMOVE:-false}" != true ]]; then
-    info "Pre-existing ImageMagick is preserved; force is required for removal."
+lemper_load_module services/imagemagick/remove || {
+    if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 1; else return 1; fi
+}
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    lemper_with_lock lemper_imagemagick_remove_entry "$@"
 else
-    if dpkg-query -W -f='${Status}' imagemagick 2>/dev/null | grep -q 'install ok installed'; then
-        run apt-get purge -y imagemagick imagemagick-6-common imagemagick-6.q16
-    else
-        [[ ! -x /usr/local/bin/magick ]] || run rm -f /usr/local/bin/magick
-    fi
+    lemper_imagemagick_remove_entry "$@"
 fi

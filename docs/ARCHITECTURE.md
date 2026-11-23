@@ -1,7 +1,7 @@
 # LEMPer — Architecture Document
 
 > **Version:** 4.0.0 (release preparation; historical audit sections retained)
-> **Last Updated:** 2026-11-20
+> **Last Updated:** 2026-11-23
 > **Author:** Senior Engineering Audit
 
 ---
@@ -25,7 +25,7 @@ symlink. The implementation filename is still `bin/lemper-cli.sh`.
 - Teams looking for a free, scriptable alternative to cPanel/Plesk/RunCloud/Cloudways.
 
 **Supported distributions:**
-- Ubuntu: Jammy (22.04), Noble (24.04) — **Noble (24.04) is the primary test target**
+- Ubuntu: Jammy (22.04), Noble (24.04), Resolute (26.04); native platform checks are documented in [the Resolute guide](UBUNTU_26_04.md).
 - Debian: Bullseye (11), Bookworm (12)
 
 ---
@@ -580,7 +580,7 @@ Selecting older code does not undo service or database changes.
 | **Firewall** | UFW/CSF/APF | UFW + nftables backend, optional CrowdSec |
 | **SSL** | RSA 2048 self-signed | RSA 4096 or ed25519, OCSP stapling, ACME v2 |
 
-### 4.4 Module Decomposition (partially implemented; runtime/service foundations delivered)
+### 4.4 Module Decomposition (implemented for v4; tasks 2.12/2.37)
 
 ~~~text
 lib/
@@ -595,22 +595,32 @@ lib/
 ├── runtime/
 │   ├── help.sh
 │   ├── site/commands.sh             create/update/remove/adopt normalization and batches
+│   ├── site/create.sh, manage.sh    compatibility request parsing and feature orchestration
 │   ├── site/state.sh                site ownership and guarded purge
 │   ├── account/, database/, ssl/, tui/ function-only public command handlers
 │   ├── mail/, hosting/, data/        service use cases
 │   ├── stack/commands.sh            independent component lifecycle orchestration
+│   ├── components/lifecycle.sh      named component-driver dispatch
+│   ├── stack/update.sh              update/check orchestration
 │   └── stack/recipe.sh              full-stack orchestration over the component registry
 ├── services/
 │   ├── php/lifecycle.sh             installed inventory, selection, references, updates
 │   ├── nginx/site.sh                site configuration snapshots/removal/reload
+│   ├── nginx/vhost.sh, php/pools.sh ordinary vhost and FPM pool rendering
+│   ├── site/provision.sh, skeletons.sh site provisioning and framework setup
+│   ├── nginx/features.sh, protection.sh, ssl/site.sh site feature drivers
+│   ├── php/update.sh, migrate.sh    patching, mitigation and EOL migration
+│   ├── */install.sh, */remove.sh    component implementations; security/FTP use named variants
+│   ├── configuration/, system/     backup, benchmark and host administration
 │   ├── accounts/, mariadb/, mail/    provisioning, database and mail drivers
 │   ├── apt/, hosting/               repository migration and quota lifecycle
 │   └── systemd.sh                  service validation and control
 ├── compat/
 │   ├── components.sh               installer/remover child-process boundary
 │   └── site.sh                     isolated legacy site/application actions
-└── lemper-*.sh                     retained public plugins and legacy implementations
-scripts/install_*.sh, remove_*.sh   retained component entry points behind adapters
+└── lemper-*.sh                     thin public compatibility plugins/loaders
+scripts/install_*.sh, remove_*.sh   retained initialization and dispatch adapters
+scripts/nginx/*.sh                 compatibility loaders for Nginx service modules
 ~~~
 
 New runtime/service modules define functions without dispatching on source. Site
@@ -620,23 +630,29 @@ normalize to the same request. PHP selection is operation-specific: supported
 versions for installation, installed versions for management/removal, all installed
 FPM instances for versionless control. Removal refuses referenced PHP versions.
 
-Existing application installers and some service internals remain in their
-original files. Extract these gradually behind the established interfaces.
-Account/database/SSL/TUI handlers have already moved into runtime modules; the
-TUI invokes the same public CLI. Deeper decomposition remains: site creation still
-combines orchestration, rendering and application installation, while legacy
-management/older component installers and management bodies retain business logic.
-Diagnostics, shared certificate issuance, repository migration and verified Bun
-installation now have dedicated runtime/service drivers. The Bash diagnostics
-driver uses jq for structured output and OpenSSL for public certificate details.
-Extract the remaining legacy bodies into service drivers while preserving old
-imports and installed paths. Tasks 2.12/2.37 track this shared partial workstream,
-not absent foundations. The [current audit](ROADMAP_AUDIT.md#remaining-work-at-9b7511b)
-identified backup-account provisioning and app-capability drivers as the next
-boundaries. P1 now extracts protected backup-account provisioning into
-`lib/services/mariadb/backup.sh`; app capabilities, site rendering and remaining
-manager/updater/component internals are subsequent work.
-Native nftables now uses a scoped driver with validated persistence and SSH recovery.
+Tasks 2.12 and 2.37 describe the same workstream. Its remaining A4 boundaries are
+now extracted: ordinary site rendering/framework setup, site feature management,
+updater internals and older component lifecycles. Backup, benchmark, site listing,
+permissions, account creation, ModSecurity tuning and configuration encryption
+also use named modules. Public CLI names, aliases, plugin paths and standalone
+script filenames remain compatible; the TUI invokes the same public CLI.
+
+`lemper_component_driver` resolves a registered action/component to a service
+module and entry function. Both full-stack recipes and the CLI component adapter
+call `lemper_component_apply`; standalone scripts initialize the profile and take
+the shared lock before calling the same driver. Modules import without host
+initialization or dispatch. Build defaults and updater state initialize explicitly.
+
+This extraction preserves existing installer `run`/`fail` helpers and legacy
+request context. Their terminating failure behavior remains confined to the
+installer/CLI process boundaries; direct driver invocation requires that context.
+It does not make legacy installers safe to execute on a workstation or establish
+an independent public API for every internal function. New mutations continue to
+use returned statuses, `lemper_exec` and the shared operation lock.
+
+See [MODULE_DECOMPOSITION.md](MODULE_DECOMPOSITION.md) for the contracts, tradeoffs
+and verification, and [the implementation follow-through](ROADMAP_AUDIT.md#a4-module-decomposition-follow-through--2026-11-23)
+for acceptance evidence and remaining release gates.
 
 ---
 
@@ -664,6 +680,11 @@ Native nftables now uses a scoped driver with validated persistence and SSH reco
 ---
 
 ## 6. Data Flow Diagrams
+
+These diagrams preserve the earlier installer/CLI flow. Their executable-config
+loading, unrestricted sudo and credential-display steps are historical and
+superseded by the core/runtime/service contracts above; they are not current
+implementation findings. Use §4 and [the current audit](ROADMAP_AUDIT.md) for v4.
 
 ### 6.1 Install Data Flow
 
