@@ -1,7 +1,8 @@
 # LEMPer roadmap implementation audit
 
-Date: **2026-11-23**. Current baseline: **21e27ab32fa18e16d576cc79228a386b307042a4**,
-`release/v4.0.0`, inspected from a clean checkout. The initial audit
+Date: **2026-11-24**. Architecture baseline: **a39e5f9b85f5dd78956b4b458fb87b1e6d9ae2f9**,
+`release/v4.0.0`; release-workflow/Fail2ban verification follow-through is recorded below.
+The baseline audit inspected **21e27ab32fa18e16d576cc79228a386b307042a4** from a clean checkout. The initial audit
 used **9b7511b383e6dbcb5cd3da2424b604016134c379** and
 began from a clean checkout. Earlier
 cross-checks and implementation validation are preserved below as history.
@@ -19,7 +20,7 @@ This audit does not constitute a new security scan or upstream dependency audit.
 
 ## A4 module decomposition follow-through — 2026-11-23
 
-**2.12 and 2.37 are implemented in the working tree on top of `21e27ab`.** They
+**2.12 and 2.37 are implemented in commit `a39e5f9`.** They
 describe the same A4 workstream. The four extraction boundaries from the baseline
 audit below are delivered; all 48 numbered IDs now have their implemented or
 explicitly superseded accepted capability. Release validation and optional
@@ -68,6 +69,35 @@ for the contracts and tradeoffs.
   whitespace checks pass. Original named-function review confirms the extracted
   **382** implementations remain present; the site package-preflight helper was renamed
   to `lemper_site_required_packages` and its caller updated.
+
+## Release priority follow-through — candidate a39e5f9
+
+The numbered implementation scope is complete. Follow-through now addresses the
+release gates from the baseline audit, rather than adding optional product scope.
+
+| Priority | Result / remaining action |
+|---|---|
+| P1 — committed assets | Built all four assets twice from clean `a39e5f9`; byte-identical results, verified archive/bootstrap checksums and expected public-source contents. Assets are retained in `dist/v4.0.0/a39e5f9/`; hashes are in [the release guide](RELEASE_V4.md#committed-candidate-follow-through). |
+| P1 — exact-archive acceptance | `a39e5f9` passed 13/13 on Ubuntu 26.04 ARM64 and 12/13 on Debian 12. Fail2ban requires an auth log that a journal-only Debian image lacks. The focused journal repair passed real configuration, jail and repeat-restart checks; the fixed candidate needs fresh archive acceptance. |
+| P1 — CI enforcement | [Reusable acceptance](../.github/workflows/release-acceptance.yml) verifies committed asset reproducibility and runs archive UAT on Ubuntu 24.04/26.04 and Debian 12. Candidate CI calls it; tagged publication requires success. YAML, embedded Bash syntax/ShellCheck, release-command lint/formatting and 112 affected bootstrap/structural tests pass locally. The existing full 518-test result covers the committed runtime source. |
+| P1 — remote candidate CI | Read-only checks returned no runs for the full `a39e5f9` SHA. The release branch is not pushed; the existing `release/**` trigger is present. Commit/review the follow-through and push only when authorized, then review that exact candidate's configured jobs. No workflow was triggered here. |
+| P1 — publication | v4.0.0 remains unpublished. After follow-through is committed, rebuild the final assets and run/review final CI before setting the release date and authorized tagging/publication. |
+| P2 — wider deployment validation | The new matrix provides native AMD64 coverage when run on GitHub; local tests are ARM64. Public ACME, HTTP/3 client negotiation/0-RTT, remote Restic destinations, external SMTP and selected live transitions still need their designated environments. |
+
+Local source and artifact mounts remain read-only; service changes stay in the
+designated disposable fixtures. Native acceptance uses source Nginx and package-only
+Certbot, without public ACME issuance. Private installer logs are retained in stopped
+fixtures; the CI workflow exposes case summaries and public commit/checksum metadata.
+
+The follow-up Fail2ban driver installs native journal bindings for repository
+installs, renders a validated journal SSH jail, validates configuration before
+restart and waits for a client response. Source installs retain their file backend.
+Six isolated regressions and the strengthened native SSH-jail acceptance check
+cover the defect and failure/dry-run behavior. The full CI-instrumented baseline
+run passed 518 tests with **86/94 (91.5%)** scoped function-entry coverage; the
+updated run passed **524/524**, with the same **86/94 (91.5%)** scoped coverage.
+The 111 affected installer/module/structural tests also passed, as did workflow
+YAML, embedded Bash syntax/ShellCheck and formatting checks.
 
 ## Current remaining work — 21e27ab
 

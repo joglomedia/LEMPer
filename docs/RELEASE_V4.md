@@ -1,10 +1,64 @@
 # v4.0.0 release preparation
 
-Status checked 2026-11-21: v4.0.0 is unpublished; latest GitHub release is
-v3.6.0. Local preparation below records earlier baselines. The current candidate
-is based on `87b75b3` with the Ubuntu/Sury upgrade on
-`release/v4.0.0`, checked 2026-11-23. A final clean release build and validation
-of its exact artifacts remain pending.
+Status checked 2026-11-24: v4.0.0 is unpublished; latest GitHub release is
+v3.6.0. The module-decomposition candidate is committed as `a39e5f9` on
+`release/v4.0.0`. Its four assets have been built and verified; exact-archive
+native acceptance is recorded below. Earlier results remain historical.
+
+## Committed candidate follow-through
+
+Two Linux builds from the clean **a39e5f9b85f5dd78956b4b458fb87b1e6d9ae2f9**
+checkout produced byte-identical archives, bootstraps and checksum files. Both
+checksums verify, the bootstrap matches the committed source, and the archive
+contains the extracted modules/docs without local profiles or keys.
+
+Artifacts are retained under `dist/v4.0.0/a39e5f9/` (ignored by Git):
+
+| Asset | SHA-256 |
+|---|---|
+| `lemper-v4.0.0.tar.gz` | `4356c086b861b2249da7f04ec4934b98009b3b52511be333aca8181e6d638ff7` |
+| `get-lemper` | `775f1a528f5c6578e2f021368d45dec90f90f7bdf4c6c82938ad5fce3ed8e2b6` |
+
+Release-command ShellCheck with sourced analysis, Bashate and scoped shfmt pass.
+The original committed runtime passed **518/518** full Bats tests and **112/112**
+bootstrap/structural regressions. The Fail2ban follow-up passed **524/524** with
+CI instrumentation and **86/94 (91.5%)** scoped function-entry coverage, plus
+**111/111** affected installer/module/structural regressions. Workflow YAML and
+embedded Bash syntax/ShellCheck also pass.
+Fresh Ubuntu 26.04 ARM64 exact-archive acceptance passed **13/13** checks,
+including real installation, HTTP/SSH, repeat preservation and full removal.
+The fixture `lemper-candidate-a39-resolute` is stopped; private case logs remain
+under `/var/log/lemper-uat/v4/`. Debian 12 passed **12/13**: the SSH Fail2ban jail
+failed because the journal-only image has no `/var/log/auth.log`. Package, PHP,
+MariaDB, HTTP/SSH, preservation and full removal checks passed. A focused repair
+with native journal bindings passed configuration validation, live SSH-jail
+status and repeat restart while the auth log remained absent.
+
+The follow-up service driver uses `backend = systemd` and `python3-systemd` for
+repository installs, validates configuration before restart, and requires a live
+client response before success. Source installs retain the file backend. The
+archive suite now checks the running SSH jail and journal match. Six isolated
+regressions cover configuration validation, dry-run dependencies and daemon
+readiness; fresh full-archive acceptance of the fixed candidate follows.
+
+Read-only GitHub checks found no Actions runs for the full candidate SHA and no
+remote `release/v4.0.0` branch. `main.yml` already supports `release/**`; remote
+CI requires pushing the reviewed commit/branch. This work did not push or trigger
+a workflow.
+
+The new reusable [release acceptance workflow](../.github/workflows/release-acceptance.yml)
+builds twice, verifies both checksums, and runs the existing Bash archive suite
+in disposable Ubuntu 24.04, Ubuntu 26.04 and Debian 12 systemd environments.
+Candidate CI calls it; tagged publication depends on it passing. The suite and
+bootstrap are taken from the tested archive/assets. Source and artifact mounts
+are read-only; only case summaries enter Actions output, while private installer
+logs remain in the fixture. The native profile uses source Nginx and package-only
+Certbot. Public ACME, remote integrations and live migration remain separate.
+
+The hashes above identify `a39e5f9` before the Fail2ban fix. Build and test the
+fixed follow-up from a clean commit, then review that exact commit's CI before
+authorized publication. Further documentation commits also require an asset
+rebuild; the archive gate enforces that final source/asset relationship.
 
 ## Release contract
 
@@ -36,10 +90,9 @@ get-lemper
 get-lemper.sha256
 ```
 
-The local preparation artifacts are under `dist/v4.0.0/` (ignored by Git).
-They are generated from a temporary public-source snapshot; the main working
-tree remains available for review. Rebuild from the final reviewed commit
-before publishing.
+The committed candidate artifacts are under `dist/v4.0.0/a39e5f9/` (ignored by
+Git). Older preparation assets under `dist/v4.0.0/` came from temporary snapshots.
+Use the assets for the exact reviewed commit and rebuild after further commits.
 
 ## Validation
 
@@ -133,8 +186,8 @@ MyGuard currently provides no compatible ARM64 Nginx binary, so native ARM64
 validation uses the source profile. Public ACME HTTP/DNS challenges require
 routable domains and provider credentials and are outside the local fixture.
 Other distributions/architectures and interactive legacy installer flags were
-not exercised by the final native UAT. Further legacy driver extraction remains future work; native nftables is now
-implemented with separate P2 component UAT. The previous broader service UAT is recorded
+not exercised by that historical native UAT. A4 module decomposition and native
+nftables are now implemented with separate acceptance evidence. The previous broader service UAT is recorded
 separately in [UAT_REPORT.md](UAT_REPORT.md).
 
 After reviewing and committing the changes, set the changelog release date,

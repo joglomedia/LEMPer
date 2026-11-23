@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0] - Unreleased
 
 ### Added
+- Shared candidate/tag archive acceptance on Ubuntu 24.04, Ubuntu 26.04 and
+  Debian 12, with reproducible assets, checksum verification and real bootstrap,
+  HTTP/SSH, repeat-install and removal checks before tagged publication.
 - Ubuntu 26.04 (Resolute) support, native MariaDB 11.8 selection and a dedicated
   Dovecot 2.4 configuration with the existing virtual-mail account commands.
 - SnappyMail, Nextcloud, MyBB, phpList, OJS and Slim deployments through shared
@@ -68,6 +71,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tag-driven release automation, and provisioned-host/dependency audit reports.
 
 ### Changed
+- Repository Fail2ban installs use a journal-backed SSH jail and install native
+  systemd bindings, avoiding a missing `/var/log/auth.log` on Debian. Validate
+  configuration and wait for the daemon before reporting successful installation.
 - Complete the v4 module decomposition (roadmap 2.12/2.37): site rendering,
   framework setup, feature management, update drivers, component lifecycles and
   utility plugins now live in function-only Bash modules. Retain public scripts,

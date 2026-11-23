@@ -8,7 +8,7 @@ on:
       - 'release/**'
       - 'master'
   pull_request:
-    branches: 
+    branches:
       - '2.x.x'
       - '3.x.x'
       - '4.x.x'
@@ -16,6 +16,8 @@ on:
       - 'master'
   workflow_dispatch:
 jobs:
+  release-archive-acceptance:
+    uses: ./.github/workflows/release-acceptance.yml
   ubuntu-latest:
     runs-on: ubuntu-24.04
     steps:

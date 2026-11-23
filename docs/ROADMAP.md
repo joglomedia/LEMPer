@@ -1,8 +1,8 @@
 # LEMPer — Roadmap &amp; Improvement Plan
 
 > **Latest published version:** 3.6.0
-> **Last Updated:** 2026-11-23
-> **Code baseline:** 21e27ab plus uncommitted A4 implementation on `release/v4.0.0`
+> **Last Updated:** 2026-11-24
+> **Code baseline:** a39e5f9 with release-validation follow-through on `release/v4.0.0`
 > **Status:** v4.0 foundations, mail hosting and PHP/Laravel enhancements are
 > implemented but unreleased. A4 decomposition is delivered; deferred plans and release
 > validation remain; see [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
@@ -121,7 +121,10 @@ ARM64 acceptance passed **13/13 minimal bootstrap/install/HTTP/SSH/repeat/remove
 checks** against an uncommitted source snapshot; broader platforms, optional
 services and application deployments were not rerun for A4. See
 [MODULE_DECOMPOSITION.md](MODULE_DECOMPOSITION.md).
-Final assets need rebuilding and exact-archive validation. GitHub returned no Actions runs for the full
+The committed A4 candidate now has reproducible, checksummed assets; see
+[release follow-through](RELEASE_V4.md#committed-candidate-follow-through) for
+exact-archive results and the remaining remote CI/publication gates.
+GitHub returned no Actions runs for the full
 9b7511b candidate SHA, and v4.0.0 is not published. Public ACME, native AMD64,
 HTTP/3 client negotiation, remote integrations and selected legacy transitions
 remain validation work.
@@ -904,7 +907,7 @@ accepted decomposition scope and final release validation.
 **Issue:** Tests are structural (grep-based) only.
 
 **Fix:** ✅ Implemented — Added `tests/unit/` with PATH-shadowing mocks. The
-current source declares 518 tests across 44 Bats files; the original 12-case
+current source declares 524 tests across 45 Bats files; the original 12-case
 addition included:
 
 - `validators.bats` — `validate_fqdn()`, `validate_ipv4()`, `sanitize_sed_*`,

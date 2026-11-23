@@ -39,8 +39,13 @@ function invalid_profile() {
 function services() {
     local service
     for service in nginx php8.5-fpm mariadb fail2ban; do
-        systemctl is-active --quiet "$service" || return 1
+        systemctl is-active --quiet "$service" || {
+            printf 'Core service is inactive: %s\n' "$service" >&2
+            return 1
+        }
     done
+    fail2ban-client status sshd >/dev/null || return 1
+    fail2ban-client get sshd journalmatch >/dev/null
 }
 function minimal_selection() {
     local decoded

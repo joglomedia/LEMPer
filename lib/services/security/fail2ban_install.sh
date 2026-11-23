@@ -18,8 +18,38 @@
 ##
 # Install Fail2ban.
 ##
+function lemper_fail2ban_ssh_jail() {
+    local backend="${1:-}" port="${2-22}"
+    case "$backend" in
+        auto | systemd) ;;
+        *)
+            error "Invalid SSH jail backend."
+            return 1
+            ;;
+    esac
+    if [[ ! "$port" =~ ^[0-9]+$ || ${#port} -gt 5 ]] || ((10#$port < 1 || 10#$port > 65535)); then
+        error "Invalid SSH jail port."
+        return 1
+    fi
+    printf '[sshd]\nenabled = true\nbackend = %s\nport = ssh,%s\nfilter = sshd\nmaxretry = 3\n' "$backend" "$port"
+    [[ "$backend" == systemd ]] || printf 'logpath = /var/log/auth.log\n'
+}
+
+function lemper_fail2ban_wait_ready() {
+    local attempt
+    for ((attempt = 0; attempt < 30; attempt++)); do
+        if fail2ban-client ping >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 0.2
+    done
+    error "Fail2ban did not become ready."
+    return 1
+}
+
 function init_fail2ban_install() {
     local SELECTED_INSTALLER=""
+    local SSH_JAIL_BACKEND=auto SSH_JAIL_CONFIG
 
     if [[ "${AUTO_INSTALL}" == true ]]; then
         if [[ "${INSTALL_FAIL2BAN}" == true ]]; then
@@ -52,7 +82,8 @@ function init_fail2ban_install() {
                 # The Ubuntu/Debian package byte-compiles its own test files,
                 # which emit SyntaxWarning (invalid escape sequence) noise on
                 # newer Python. Suppress only that category during install.
-                run env PYTHONWARNINGS=ignore::SyntaxWarning apt-get install -q -y fail2ban
+                run env PYTHONWARNINGS=ignore::SyntaxWarning apt-get install -q -y fail2ban python3-systemd
+                SSH_JAIL_BACKEND=systemd
                 ;;
             2 | "source")
                 echo "Installing Fail2ban from source..."
@@ -116,6 +147,7 @@ function init_fail2ban_install() {
 
         if [[ "${DRYRUN}" != true ]]; then
             SSH_PORT=${SSH_PORT:-22}
+            SSH_JAIL_CONFIG=$(lemper_fail2ban_ssh_jail "$SSH_JAIL_BACKEND" "$SSH_PORT") || return 1
 
             # Add custom filter.
             run cp -fr etc/fail2ban/filter.d/*.conf /etc/fail2ban/filter.d/
@@ -129,12 +161,7 @@ bantime = 30d
 # ignored ip (googlebot) - https://ipinfo.io/AS15169
 ignoreip = 66.249.64.0/19 66.249.64.0/20 66.249.80.0/22 66.249.84.0/23 66.249.88.0/24
 
-[sshd]
-enabled = true
-port = ssh,${SSH_PORT}
-filter = sshd
-logpath = /var/log/auth.log
-maxretry = 3
+${SSH_JAIL_CONFIG}
 
 [nginx-http-auth]
 enabled = true
@@ -160,6 +187,10 @@ maxretry = 3
 
 EOL
             fi
+            if ! fail2ban-client -t >/dev/null 2>&1; then
+                error "Fail2ban configuration validation failed."
+                return 1
+            fi
         fi
 
         # Install a systemd unit when the source build did not provide one.
@@ -182,11 +213,8 @@ EOL
         fi
 
         if [[ "${DRYRUN}" != true ]]; then
-            if [[ $(pgrep -c fail2ban-server) -gt 0 ]]; then
-                success "Fail2ban server started successfully."
-            else
-                info "Something went wrong with Fail2ban installation."
-            fi
+            lemper_fail2ban_wait_ready || return 1
+            success "Fail2ban server started successfully."
         else
             info "Fail2ban installed in dry run mode."
         fi

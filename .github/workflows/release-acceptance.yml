@@ -1,0 +1,64 @@
+name: Release archive acceptance
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  archive-uat:
+    name: Exact archive (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:24.04', 'ubuntu:26.04', 'debian:12']
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build and verify reproducible committed assets
+        run: |
+          set -euo pipefail
+          release_version=$(sed -n 's/.*PROG_VERSION="\([^"]*\)".*/\1/p' bin/lemper-cli.sh | head -1)
+          [[ "$release_version" == 4.0.0 ]] || {
+            echo 'Update the version-specific acceptance suite before releasing another version.' >&2
+            exit 1
+          }
+          bash scripts/build_release.sh "$release_version" "$RUNNER_TEMP/release-first"
+          bash scripts/build_release.sh "$release_version" "$RUNNER_TEMP/release-second"
+          for release_asset in lemper-v4.0.0.tar.gz lemper-v4.0.0.tar.gz.sha256 get-lemper get-lemper.sha256; do
+            cmp "$RUNNER_TEMP/release-first/$release_asset" "$RUNNER_TEMP/release-second/$release_asset"
+          done
+          cd "$RUNNER_TEMP/release-first"
+          sha256sum -c lemper-v4.0.0.tar.gz.sha256 get-lemper.sha256
+          printf 'Candidate: %s\n\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          cat lemper-v4.0.0.tar.gz.sha256 get-lemper.sha256 >> "$GITHUB_STEP_SUMMARY"
+      - name: Prepare disposable native service environment
+        env:
+          BASE_IMAGE: ${{ matrix.image }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -q -y podman
+          sudo podman build --build-arg BASE_IMAGE="$BASE_IMAGE" \
+            -f tests/uat/Containerfile -t lemper-release-uat tests/uat
+          sudo podman run -d --name lemper-release-uat --privileged --systemd=always \
+            --cgroupns=private --hostname lemper-v4-release.test --cpus 2 --memory 3g \
+            --tmpfs /run --tmpfs /tmp -e PIP_DEFAULT_TIMEOUT=120 -e PIP_RETRIES=5 \
+            -v "$PWD:/source:ro" -v "$RUNNER_TEMP/release-first:/artifacts:ro" lemper-release-uat
+          sudo podman exec -e LEMPER_UAT_NGINX_INSTALLER=source lemper-release-uat \
+            bash /source/tests/uat/prepare.sh
+      - name: Install and remove the exact archive
+        run: |
+          set -euo pipefail
+          sudo podman exec lemper-release-uat bash -e -c '
+            cd /artifacts
+            sha256sum -c lemper-v4.0.0.tar.gz.sha256 get-lemper.sha256
+            cp get-lemper /checkout/get-lemper
+            tar -xzOf lemper-v4.0.0.tar.gz LEMPer-4.0.0/tests/uat/v4_acceptance.sh > /run/release-acceptance.sh
+            LEMPER_UAT_ARCHIVE=/artifacts/lemper-v4.0.0.tar.gz bash /run/release-acceptance.sh
+          ' | tee "$RUNNER_TEMP/release-acceptance.txt"
+          cat "$RUNNER_TEMP/release-acceptance.txt" >> "$GITHUB_STEP_SUMMARY"
+      - name: Stop disposable release environment
+        if: always()
+        run: |
+          if sudo podman container exists lemper-release-uat; then
+            sudo podman stop --time 10 lemper-release-uat
+          fi

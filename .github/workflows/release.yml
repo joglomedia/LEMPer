@@ -6,7 +6,10 @@ on:
 permissions:
   contents: read
 jobs:
+  archive-acceptance:
+    uses: ./.github/workflows/release-acceptance.yml
   release:
+    needs: archive-acceptance
     runs-on: ubuntu-24.04
     permissions:
       contents: write

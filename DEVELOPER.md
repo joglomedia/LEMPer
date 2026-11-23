@@ -823,18 +823,21 @@ LEMPer uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 2. Ensure `bin/lemper-cli.sh` declares `PROG_VERSION="4.0.0"` and
    `CHANGELOG.md` contains the v4 entry; set its release date when publishing.
 3. Run the Linux checks and fresh-container bootstrap UAT described in
-   [the v4 release guide](docs/RELEASE_V4.md).
+   [the v4 release guide](docs/RELEASE_V4.md). Candidate CI and tagged releases
+   share `release-acceptance.yml`, which verifies reproducibility and performs
+   exact-archive installation/removal on Ubuntu 24.04/26.04 and Debian 12.
 4. From a clean committed checkout, build locally:
 
    ```bash
    bash scripts/build_release.sh 4.0.0 /tmp/lemper-release-v4
    ```
 
-   The builder produces the archive, archive SHA256, `get-lemper`, and bootstrap
+   Run the builder in Linux on macOS, using a disposable Podman fixture; it needs
+   GNU `sha256sum`. The builder produces the archive, archive SHA256, `get-lemper`, and bootstrap
    SHA256. It refuses dirty checkouts and mismatched versions.
 5. Review the artifacts and release limitations. After publishing is authorized,
    push the reviewed release commit and annotated `v4.0.0` tag. The tag workflow
-   repeats lint/Bats checks and publishes all four assets.
+   requires archive acceptance, repeats lint/Bats checks and publishes all four assets.
 6. Verify the published checksums and README one-line commands on a fresh
    disposable server before announcing the release.
 
