@@ -50,8 +50,8 @@ run apt-get upgrade -q -y
 echo "Installing packages, be patient..."
 run_spinner "Installing base packages" apt-get install -q -y \
     apt-transport-https apt-utils autoconf automake bash bc build-essential ca-certificates \
-    cmake cron curl dmidecode dnsutils gcc gdb git gnupg2 htop iptables libc-bin libc6-dev \
-    libcurl4-openssl-dev libgpgme11-dev libssl-dev libpcre3-dev libxml2-dev libxslt1-dev \
+    cmake cron curl dmidecode dnsutils gcc gdb git gnupg2 htop iptables jq libc-bin libc6-dev \
+    libcurl4-openssl-dev libgpgme11-dev libssl-dev libpcre3-dev libxml2-dev libxml2-utils libxslt1-dev \
     libtool locales logrotate lsb-release make net-tools openssh-server openssl pkg-config \
     re2c rsync software-properties-common sasl2-bin snap snmp sqlite3 sudo sysstat tar tzdata unzip wget \
     whois xz-utils zlib1g-dev geoip-bin geoip-database gettext gettext-base libgeoip-dev libpthread-stubs0-dev uuid-dev

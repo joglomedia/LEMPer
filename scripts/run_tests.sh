@@ -22,7 +22,7 @@ set -euo pipefail
     exit 1
 }
 test_source=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-for dependency in bats bc curl git gpg ip jq my_print_defaults nginx python3 quota rsync sshd ssh-keygen visudo; do
+for dependency in bats bc curl git gpg ip jq my_print_defaults nginx quota rsync sshd ssh-keygen visudo tar unzip zip zipinfo xmllint; do
     command -v "$dependency" >/dev/null || {
         echo "Missing test dependency: $dependency" >&2
         exit 1

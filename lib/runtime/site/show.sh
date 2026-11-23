@@ -31,7 +31,7 @@ Credential-bearing configuration fields are redacted. Private keys are never dis
 HELP
 }
 function lemper_site_show_command() {
-    local view=config domain="" root argument
+    local view=config domain="" argument
     lemper_parse_args cafsAjhv 'config,fpm,app,ssl,all,json,help,version' "$@" || return 1
     for argument in "${LEMPER_PARSED_ARGS[@]}"; do
         case "$argument" in -h | --help)
@@ -70,10 +70,13 @@ function lemper_site_show_command() {
         error "Invalid site domain."
         return 1
     }
-    root=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../.." && pwd) || return 1
-    command -v python3 >/dev/null || {
-        error "Python 3 is required for site diagnostics."
+    command -v jq >/dev/null || {
+        error "jq is required for site diagnostics."
         return 1
     }
-    python3 -I "$root/services/site/inspect.py" "$domain" "$view"
+    lemper_load_module services/site/inspect || return 1
+    lemper_site_inspect "$domain" "$view" || {
+        error "Unable to read site diagnostics."
+        return 1
+    }
 }

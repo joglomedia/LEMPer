@@ -40,12 +40,16 @@ LEMPer stands for Linux, Engine-X (Nginx), MariaDB and PHP installer written in 
   * In-place security updater (`lemperctl update`) with compensating controls for EOL branches.
   * Run PHP as user who own the file (Multi-user isolation via FPM pool).
   * Feel the faster Nginx with secure multi-user environment like a top-notch shared hosting.
-  * Supported PHP Framework and CMS:
-    * Vanilla PHP: default,
-    * Framework: codeigniter, laravel, lumen, phalcon, symfony,
-    * Content Management: drupal, wordpress, wordpress-ms (multi-site),
-    * Web Application: mautic, owncloud, roundcube, sendy, and
-    * more coming soon.
+  * PHP sites and application setup ([capabilities and deployment guide](docs/APPLICATIONS.md)):
+    * Vanilla PHP: `default`, without an application skeleton.
+    * Automatic skeleton paths: CodeIgniter, Laravel, Lumen, Phalcon, Symfony,
+      Drupal, WordPress, WordPress Multisite, WooCommerce and ownCloud.
+    * Mautic and Roundcube: automatic deployment of the latest stable complete release
+      packages, including dependencies; finish upstream database/mail setup.
+    * Sendy: generic PHP vhost setup with manually deployed licensed files.
+    * SnappyMail, Nextcloud, MyBB, phpList, OJS and Slim: automatic deployment
+      with application-specific routing and Unix-socket PHP-FPM.
+    * XenForo: licensed manual deployment with friendly URLs and protected private directories.
   * PHP Zend OPcache (built into the PHP 8.5 binary).
   * PHP Loader, ionCube & SourceGuardian.
 * SQL database with MariaDB (MySQL drop-in replacement) or PostgreSQL.
@@ -245,6 +249,44 @@ sudo lemperctl tui
 
 Here are some examples of using LEMPer CLI.
 
+##### Application installation and manual deployment
+
+Choose `--type` to configure the site. Add `--install-skeleton` only for a type
+with an automatic installer; `--install-app` and `-i` are equivalent flags.
+
+```bash
+sudo lemperctl account webowner
+sudo lemperctl site create example.com --type=codeigniter --runtime=php@8.4 \
+  --runtime-user=webowner --install-skeleton
+
+# Install Roundcube's complete package and its public_html vhost.
+sudo lemperctl site create mail.example.com --type=roundcube --runtime=php@8.4 \
+  --runtime-user=webowner --install-skeleton
+
+sudo lemperctl site create marketing.example.com --type=mautic --runtime=php@8.4 \
+  --runtime-user=webowner --install-skeleton
+```
+
+Sendy and vanilla PHP reject installation flags before site changes. Mautic and
+Roundcube install verified complete packages into an empty project directory;
+setup routes are restricted to loopback access through an SSH tunnel. Omitting
+the flag retains generic vhost setup for manually deployed applications.
+The TUI offers installation only for automatic types. Automatic paths
+must produce the selected application's expected files before reporting success
+and recording ownership; this file check does not replace application setup or
+health testing. See [application capabilities](docs/APPLICATIONS.md) for limits.
+
+SnappyMail, Nextcloud, MyBB, phpList, OJS and Slim also accept the same installation
+flag. XenForo accepts vhost creation for your licensed files and rejects automatic
+downloads. See [additional applications](docs/APPLICATIONS.md#additional-applications)
+for package sources, prerequisites, protected setup and private storage.
+
+```bash
+sudo lemperctl site create cloud.example.com --type=nextcloud --runtime=php@8.3 --runtime-user=webowner --install-skeleton
+sudo lemperctl site create forum.example.com --type=mybb --runtime=php@8.3 --runtime-user=webowner --install-skeleton
+sudo lemperctl site create community.example.com --type=xenforo --runtime=php@8.3 --runtime-user=webowner
+```
+
 ##### PHP runtime defaults and Laravel applications
 
 Select an installed PHP default for the system CLI and new sites:
@@ -280,7 +322,7 @@ sudo lemperctl db backup-schedule example.com --dbschedule='0 2 * * *'
 ```
 
 Diagnostics include FPM configuration, certificate validity and site/application
-ownership, with credential-bearing fields redacted. Python 3 supports both text
+ownership, with credential-bearing fields redacted. Bash and jq support text
 and JSON views. Domain DB commands require recorded site ownership and a database
 mapping; explicit `--dbname`/`--dbfile` commands remain supported. See
 [DATABASE.md](docs/DATABASE.md) for restore and retention behavior.

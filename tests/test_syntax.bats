@@ -18,6 +18,11 @@ _get_script_files() {
     echo "${BASE_DIR}/update.sh"
     echo "${BASE_DIR}/lemper.sh"
     echo "${BASE_DIR}/bin/lemper-cli.sh"
+    echo "${BASE_DIR}/sbin/pure-ftpd-wrapper"
+    echo "${BASE_DIR}/tests/report_coverage.sh"
+    for f in "${BASE_DIR}"/share/memcached/scripts/{*.bash,start-memcached,systemd-memcached-wrapper,memcached-tool,damemtop}; do
+        echo "${f}"
+    done
     for f in "${BASE_DIR}"/lib/lemper-*.sh; do
         echo "${f}"
     done

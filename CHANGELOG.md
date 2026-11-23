@@ -10,6 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0] - Unreleased
 
 ### Added
+- SnappyMail, Nextcloud, MyBB, phpList, OJS and Slim deployments through shared
+  release drivers and Unix-socket vhosts; XenForo licensed manual vhosts with
+  friendly URLs. phpList uses the GitHub release archive (issue #66); OJS uses
+  PKP production packages with private submissions (issue #35); XenForo protects
+  private directories and preserves friendly URL queries (issue #149).
+- Nextcloud DAV/OCS routing and private setup publication, MyBB friendly URLs,
+  source-package Composer builds as the runtime user and explicit integrity provenance.
+- Automatic Mautic and Roundcube latest-stable complete-package deployment with
+  GitHub release discovery, published SHA-256 verification, safe staged extraction, runtime preflight and
+  preservation of existing projects. Roundcube uses its public_html document root;
+  setup routes are loopback-only and PHP execution is limited to public entries.
 - Ownership-resolved domain shortcuts for DB backup, restore and scheduling.
 - Shared diagnostics with full config/FPM views, modern site/app state and certificate details.
 - Shared staged self-signed issuance, template preservation and protected one-year server certificates.
@@ -55,6 +66,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tag-driven release automation, and provisioned-host/dependency audit reports.
 
 ### Changed
+- CodeIgniter's Composer path installs production dependencies from distribution
+  archives as the site's runtime user.
 - Legacy input checks delegate to whole-value core validators with semantic IPv6 validation.
 - Remaining curated repository installers share backed-up key scoping and source preflight.
 - Custom Nginx TLS honors the canonical flag and uses checksummed OpenSSL 3.5.9 LTS sources.
@@ -98,6 +111,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   release symlinks.
 
 ### Fixed
+- CLI and TUI share an application capability catalog. Sendy and vanilla PHP
+  reject unavailable skeleton installation before site changes;
+  automatic paths verify application files before success and ownership recording.
+- WordPress setup, Multisite setup and plugin installation honor the application
+  installation flag during vhost creation.
 - P1 roadmap follow-through: validated DB inputs and restricted extra arguments,
   protected atomic SQL dumps, reliable restore/import/export failures, and safe
   repeatable scheduling through the working `backup-schedule` command.

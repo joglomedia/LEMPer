@@ -1,8 +1,8 @@
 # LEMPer — Roadmap &amp; Improvement Plan
 
 > **Latest published version:** 3.6.0
-> **Last Updated:** 2026-11-22
-> **Code baseline:** 9b7511b plus P1 implementation on `release/v4.0.0`
+> **Last Updated:** 2026-11-23
+> **Code baseline:** 79d4d40 plus A3 implementation on `release/v4.0.0`
 > **Status:** v4.0 foundations, mail hosting and PHP/Laravel enhancements are
 > implemented but unreleased. Partial tasks, deferred plans and release
 > validation remain; see [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
@@ -71,10 +71,15 @@ Current delivery status:
    legacy inline credential migration (A1).
 2. **P1 — implemented:** Shared Linux dependencies, root test fixtures and
    isolated state across CI/release/coverage/Podman entry points (A2).
-3. **P2:** Align CLI/TUI application-install choices with actual capabilities;
-   Mautic/Roundcube/Sendy currently reach a placeholder-only creation branch (A3).
-4. **P2:** Continue the partial 2.12/2.37 extraction, beginning with those coherent
-   drivers, then site rendering and older manager/updater/installer internals (A4).
+3. **P2 — implemented:** Shared CLI/TUI application capabilities reject unavailable
+   skeleton installation before changes and verify project files before success.
+   Mautic/Roundcube now resolve and deploy the latest stable complete releases; Sendy retains manual
+   PHP vhosts (A3). See [APPLICATIONS.md](APPLICATIONS.md).
+   Additional delivery includes SnappyMail, Nextcloud, MyBB, phpList, OJS and
+   Slim automatic deployment, plus XenForo licensed manual vhosts (issues #66,
+   #35 and #149). Application/database configuration remains upstream-managed.
+4. **P2:** Continue the partial 2.12/2.37 extraction with site rendering and older
+   manager/updater/installer internals (A4).
 
 See [remaining work and evidence](ROADMAP_AUDIT.md#remaining-work-at-9b7511b).
 Protected SQL backups, repository migration, diagnostic parity and domain DB
@@ -101,7 +106,13 @@ audit reproduced the DB fixture environment difference: 18/18 pass as root,
 12/18 as an ordinary user. P1 now fixes that execution contract: the shared
 runner passed **456 tests on Ubuntu 24.04 and Debian 12 ARM64**; scoped function
 coverage is **61/68 (89.7%)**, and native provisioning UAT passed **22 checks
-on each distro**. Final assets need rebuilding and exact-archive validation. GitHub returned no Actions runs for the full
+on each distro**. A3's final Ubuntu 24.04 ARM64 run passed **465 Bats tests** and
+**29 native application-capability checks**, including CodeIgniter's HTTP welcome
+page. Other automatic application installers and Debian A3 UAT were not rerun.
+The 2026-11-23 Mautic/Roundcube extension passed **473 Bats tests** and **57 native
+acceptance checks** on Ubuntu 24.04 ARM64, including complete release packages,
+upstream setup pages/assets, access restrictions and repeat preservation.
+Final assets need rebuilding and exact-archive validation. GitHub returned no Actions runs for the full
 9b7511b candidate SHA, and v4.0.0 is not published. Public ACME, native AMD64,
 HTTP/3 client negotiation, remote integrations and selected legacy transitions
 remain validation work.
@@ -939,9 +950,10 @@ P1 now delivers shared root Linux setup/runner helpers and per-test locks.
 - **2.42** — `lib/lemper-tui.sh`: guided wizard validates the domain, framework,
   PHP version, system user, and web root, then invokes `lemper-site create` with
   SSL, wildcard, FastCGI cache, Fail2ban, and app-install options.
-  The current runtime wizard still offers Mautic/Roundcube/Sendy application
-  installation even though their creation branch provides only a placeholder;
-  capability alignment remains A3 in the current audit.
+  The runtime wizard and CLI now share an application capability catalog.
+  Mautic/Roundcube now offer complete-package installation; Sendy remains a
+  manual vhost choice. A3's capability gap is closed; unattended database,
+  administrator and mail-endpoint setup remains upstream-managed.
 - **2.43** — `lib/lemper-modsec.sh`: new `lemperctl modsec` plugin with
   `status`, `report`, and `tune` commands. `tune --auto --apply` derives CRS
   paranoia/thresholds from the audit log, writes `/etc/modsecurity/lemper-tuning.conf`,
@@ -1072,10 +1084,11 @@ exact-archive validation remain release follow-through.
 Latest published release is **v3.6.0**. Delivery history below does not imply
 every original task's full scope is complete. The unreleased **v4.0** branch
 has delivered P1/P2/P3 foundations and prioritized runtime follow-through.
-Additional installer, CI and app-capability gaps are listed in the current audit;
+The current audit records the installer, CI and app-capability follow-through;
 module decomposition remains partial.
 
-A1/A2 are implemented; continue with A3/A4. For release preparation, rebuild assets from
+A1/A2 are committed in 79d4d40; A3 is implemented in the working tree. Continue
+with A4. For release preparation, rebuild assets from
 the final clean commit after required fixes, validate that archive and candidate
 CI, then tag/publish only when authorized. Keep deferred architecture/product
 scope explicit.

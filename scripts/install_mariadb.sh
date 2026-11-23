@@ -120,7 +120,7 @@ function init_mariadb_install() {
 
         # Install MariaDB
         run_spinner "Installing MariaDB" apt-get install -q -y libmariadb-dev libmariadb3 libmariadbclient18 mariadb-client mariadb-client-core \
-            mariadb-common mariadb-server mariadb-server-core mariadb-backup python3
+            mariadb-common mariadb-server mariadb-server-core mariadb-backup
 
         # Configure MySQL installation.
         if [[ "${DRYRUN}" == true ]]; then
@@ -304,9 +304,6 @@ function init_mariadb_install() {
 # Enable MariaDB Backup tool.
 ##
 function enable_mariabackup() {
-    if [[ "${DRYRUN:-false}" != true ]] && ! command -v python3 >/dev/null; then
-        run apt-get install -q -y python3
-    fi
     if [[ "${DRYRUN:-false}" != true && -z "${LEMPER_MARIADB_PROFILE:-}" && ! -f /etc/lemper/lemper.conf ]]; then
         core_init_config || return 1
     fi

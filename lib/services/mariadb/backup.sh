@@ -151,7 +151,7 @@ function lemper_mariabackup_provision() (
     local legacy_user="${MARIABACKUP_USERNAME:-}" legacy_password="${MARIABACKUP_PASSWORD:-}"
     local directory="${LEMPER_MYSQL_CONFIG_DIR:-/etc/mysql/mariadb.conf.d}"
     local profile="${LEMPER_MARIADB_PROFILE:-/etc/lemper/lemper.conf}" target stage="" profile_stage="" prepared="" backup
-    local exists defaults option old_user="" old_password="" sql_password input guard
+    local exists defaults option old_user="" old_password="" sql_password input
     local main="${LEMPER_MYSQL_MAIN_CONFIG:-/etc/mysql/my.cnf}" inline=false migrated="$directory/.lemper-inline-mariabackup.cnf"
     lemper_load_module services/mariadb/database || return 1
     lemper_load_module core/config-update || return 1
@@ -237,8 +237,8 @@ function lemper_mariabackup_provision() (
         lemper_exec chmod 0600 "$target" || return 1
     fi
     if [[ -f "$input" ]]; then
-        guard="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/option_guard.py"
-        python3 -I "$guard" "$input" || return 1
+        lemper_load_module services/mariadb/option_guard || return 1
+        lemper_mariadb_option_guard "$input" || return 1
         defaults=$(my_print_defaults --defaults-file="$input" mariabackup 2>/dev/null) || {
             error "Cannot parse legacy MariaDB backup configuration."
             return 1

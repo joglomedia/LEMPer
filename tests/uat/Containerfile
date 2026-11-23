@@ -1,6 +1,6 @@
 ARG BASE_IMAGE=ubuntu:24.04
 FROM ${BASE_IMAGE}
 ENV container=podman DEBIAN_FRONTEND=noninteractive TERM=xterm
-RUN apt-get update -qq && apt-get install -qq -y systemd systemd-sysv dbus bash curl ca-certificates sudo iproute2 openssh-server shunit2 git python3 locales > /dev/null && rm -f /usr/sbin/policy-rc.d && ln -s /usr/share/shunit2/shunit2 /usr/local/bin/shunit2 && mkdir -p /run/sshd
+RUN apt-get update -qq && apt-get install -qq -y systemd systemd-sysv dbus bash curl ca-certificates sudo iproute2 openssh-server shunit2 git jq libxml2-utils unzip socat locales > /dev/null && rm -f /usr/sbin/policy-rc.d && ln -s /usr/share/shunit2/shunit2 /usr/local/bin/shunit2 && mkdir -p /run/sshd
 STOPSIGNAL SIGRTMIN+3
 CMD ["/sbin/init"]

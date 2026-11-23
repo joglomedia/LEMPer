@@ -535,6 +535,24 @@ lib/compat/: isolated adapters for self-dispatching component/site scripts
 
 Public help/version loads static command definitions before root checks or private
 configuration. New operations use status-returning execution and a shared lock.
+Site creation and the TUI share the application catalog in `lib/core/registry.sh`
+and the function-only capability driver in `lib/services/site/applications.sh`.
+Complete Mautic/Roundcube distributions use `lib/services/site/releases.sh`,
+restricted archive extraction, and `lib/services/nginx/release-site.sh` with a
+tracked vhost template. New installations resolve the latest stable release and
+its asset digest from GitHub once per deployment; runtime preflight precedes
+mutations and extraction runs as the hosting user. Manual deployment remains
+available by omitting the installation flag.
+The same release contracts now cover SnappyMail, Nextcloud, MyBB, phpList, OJS
+and Slim, with application-specific tracked Nginx fragments and Unix-socket PHP.
+Nextcloud resolves its source repository's latest release to an exact production
+asset; OJS uses PKP's stable manifest. Source distributions install Composer
+dependencies as the hosting user and record HTTPS provenance separately from
+published-digest verification. XenForo's licensed files use a manual vhost driver.
+Unsupported skeleton requests fail before site mutations; automatic paths check
+project markers before success and ownership recording. Manual application types
+retain PHP vhost setup. Rendering and installer internals still require further
+extraction; see [APPLICATIONS.md](APPLICATIONS.md).
 Site batches validate targets before mutation, restore site configuration on
 failure, and reload Nginx after the batch. External certificate/database effects
 are separate from configuration recovery.
@@ -609,8 +627,8 @@ TUI invokes the same public CLI. Deeper decomposition remains: site creation sti
 combines orchestration, rendering and application installation, while legacy
 management/older component installers and management bodies retain business logic.
 Diagnostics, shared certificate issuance, repository migration and verified Bun
-installation now have dedicated runtime/service drivers. The pre-existing Python
-JSON reader is exported as a service helper and shared by all diagnostic views.
+installation now have dedicated runtime/service drivers. The Bash diagnostics
+driver uses jq for structured output and OpenSSL for public certificate details.
 Extract the remaining legacy bodies into service drivers while preserving old
 imports and installed paths. Tasks 2.12/2.37 track this shared partial workstream,
 not absent foundations. The [current audit](ROADMAP_AUDIT.md#remaining-work-at-9b7511b)

@@ -701,7 +701,7 @@ repository-wide formatting diff.
 ```bash
 bash scripts/check_format.sh          # check; requires shfmt (CI package 3.8)
 bash scripts/check_format.sh --write  # format the opted-in files
-bash scripts/test_coverage.sh         # requires Bash 5+, Bats and Python 3
+bash scripts/test_coverage.sh         # requires Bash 5+, Bats and jq
 ```
 
 Use Linux/Podman on macOS. With the project mounted read-only as `/source`, run
@@ -874,6 +874,10 @@ podman run --rm --privileged \
 
 ## CLI/module contracts
 
+Repository-owned script functionality stays in Bash, including extensionless
+wrappers and test clients. See [the Bash audit](docs/BASH_SCRIPT_AUDIT.md) for the
+inventory and native tools. Third-party services keep their upstream runtimes.
+
 Prefer `lemperctl` and preserve `lemper-cli`, legacy flags and site aliases.
 Command exports, aliases, components and recipes belong in
 `lib/core/registry.sh`; do not add another installer/updater mapping.
@@ -933,3 +937,57 @@ runs can change read offsets. The fixture also reads subsequent helpers/template
 from the immutable CLI snapshot. Compilation uses `/var/tmp`, not the limited
 memory-backed `/run`; runtime SSL builds omit unused OpenSSL test executables.
 Do not copy private `.env` files into UAT or disable TLS/signature checks to pass it.
+
+### Application capability acceptance (A3)
+
+Read `tests/uat/application_capabilities_acceptance.sh` before execution. It
+requires a designated disposable Ubuntu 24.04 systemd host, `/source` mounted
+read-only, and `/run/lemper-a3-uat-authorized`. Prepare Nginx, PHP 8.3 CLI/FPM,
+Composer, PHP curl/intl/mbstring/xml/zip/gd/imap/mysql/sockets, Git, rsync, unzip and wget, with a
+synthetic LEMPer configuration. The suite snapshots the CLI, backs up the host's
+Nginx configuration, and installs the tracked templates needed by site creation.
+It creates synthetic users/sites and downloads complete Mautic/Roundcube releases
+and a real CodeIgniter project. Setup-page tests use loopback; additional checks
+deny non-loopback setup access and arbitrary PHP/private-file requests.
+
+```bash
+# Run only inside the explicitly designated disposable host.
+podman exec lemper-apps-uat bash -e -c '
+  touch /run/lemper-a3-uat-authorized
+  cp /source/tests/uat/application_capabilities_acceptance.sh /run/apps-acceptance.sh
+  bash /run/apps-acceptance.sh
+'
+podman stop --time 10 lemper-apps-uat
+```
+
+An optional alphanumeric suffix of up to eight characters gives a fresh isolated
+workspace when investigating a failed run. Logs stay under the mode-0700
+`/var/tmp/lemper-a3-uatSUFFIX` directory. Checks distinguish installation rejection
+from working manual PHP vhosts and verify Mautic/Roundcube/CodeIgniter files,
+ownership, Nginx configuration, repeat preservation and HTTP. Other automatic installers need their own deployment
+checks; see [APPLICATIONS.md](docs/APPLICATIONS.md).
+
+### Additional application UAT
+
+`tests/uat/additional_applications_acceptance.sh` deploys the six additional
+automatic apps and a manual XenForo vhost in a designated disposable systemd
+host. Read it first. Prepare PHP 8.3/FPM with the required extensions (including
+BCMath for OJS), Composer, Git, MariaDB, Nginx, jq and libxml2-utils (xmllint).
+Mount the checkout read-only
+at `/source` and use `/run/lemper-additional-apps-uat-authorized`.
+
+```bash
+podman exec lemper-apps-uat bash -e -c '
+  touch /run/lemper-additional-apps-uat-authorized
+  cp /source/tests/uat/additional_applications_acceptance.sh /run/additional-apps.sh
+  bash /run/additional-apps.sh apps
+'
+```
+
+The optional suffix isolates users/domains and private logs. After an investigated
+failure, `SUFFIX --resume` refreshes only owned disposable fixtures and retains
+previous logs. The phpList HTTP fixture provisions its own synthetic database
+using a protected password file; production deployment leaves database setup to
+the operator. Routing probes back up/restore real MyBB and Nextcloud entry files,
+and use synthetic XenForo PHP to test friendly URLs without a license artifact.
+This checks installation/routing, not authenticated mail/forum/cloud workflows.

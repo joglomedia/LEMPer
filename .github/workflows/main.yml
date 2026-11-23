@@ -82,6 +82,9 @@ jobs:
           shellcheck -s bash -x scripts/remove_*.sh
           shellcheck -s bash -x scripts/nginx/*.sh
           shellcheck -s bash -x tests/uat/*.sh
+          shellcheck -s bash -x tests/uat/*.bash tests/report_coverage.sh sbin/pure-ftpd-wrapper \
+            share/memcached/scripts/*.bash share/memcached/scripts/start-memcached \
+            share/memcached/scripts/systemd-memcached-wrapper share/memcached/scripts/memcached-tool share/memcached/scripts/damemtop
       # Bashate Linting
       - name: Run bashate linting
         env:

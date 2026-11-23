@@ -10,3 +10,8 @@ lib/runtime/site/show.sh
 lib/services/apt/catalog.sh
 lib/services/bun/binary.sh
 lib/services/mariadb/backup.sh
+lib/services/mariadb/option_guard.sh
+lib/services/site/inspect.sh
+lib/services/site/release_metadata.sh
+lib/services/site/release_archive.sh
+lib/services/site/release_prepare.sh

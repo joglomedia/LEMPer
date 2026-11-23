@@ -92,8 +92,8 @@ setup() {
 }
 
 @test "explicit profile storage honors custom encryption and preserves config on replacement failure" {
-    CORE_SOURCE="$REAL_BASE_DIR/lib/core/config.sh" CORE_TARGET="$TEST_TMPDIR/config.sh" UAT_STATE="$TEST_TMPDIR/state" \
-        python3 -c 'import os,pathlib; pathlib.Path(os.environ["CORE_TARGET"]).write_text(pathlib.Path(os.environ["CORE_SOURCE"]).read_text().replace("/etc/lemper",os.environ["UAT_STATE"]))'
+    UAT_STATE="$TEST_TMPDIR/state" awk '{gsub(/\/etc\/lemper/,ENVIRON["UAT_STATE"]); print}' \
+        "$REAL_BASE_DIR/lib/core/config.sh" >"$TEST_TMPDIR/config.sh"
     printf 'SSH_PASSWORDLESS=false\nINSTALL_WEB_ADMIN=false\n' > "$TEST_TMPDIR/profile"
     run bash -c '
         . "$REAL_BASE_DIR/lib/core/loader.sh"

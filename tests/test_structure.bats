@@ -200,7 +200,7 @@ refute_grep() {
     [ -f "${BASE_DIR}/lib/lemper-site-show.sh" ]
     grep -q 'lemper_load_module runtime/site/show' "${BASE_DIR}/lib/lemper-site-show.sh"
     grep -q 'function lemper_site_show_command' "${BASE_DIR}/lib/runtime/site/show.sh"
-    [ -f "${BASE_DIR}/lib/services/site/inspect.py" ]
+    [ -f "${BASE_DIR}/lib/services/site/inspect.sh" ]
 }
 
 @test "install_tools.sh wires site-list and site-show plugins" {

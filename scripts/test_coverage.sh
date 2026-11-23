@@ -22,8 +22,8 @@ coverage_output="${1:-$coverage_source/coverage}"
 [[ $# == 0 ]] || shift
 coverage_tests=("$@")
 [[ ${#coverage_tests[@]} != 0 ]] || coverage_tests=("$coverage_source/tests/" "$coverage_source/tests/unit/")
-if ! command -v bats >/dev/null || ! command -v python3 >/dev/null; then
-    echo 'Coverage requires Bats and Python 3.' >&2
+if ! command -v bats >/dev/null || ! command -v jq >/dev/null; then
+    echo 'Coverage requires Bats and jq.' >&2
     exit 1
 fi
 coverage_work=$(mktemp -d)
@@ -34,5 +34,5 @@ coverage_status=0
 BASH_ENV="$coverage_source/tests/coverage_hook.bash" LEMPER_COVERAGE_SOURCE="$coverage_source" \
     bats "${coverage_tests[@]}" || coverage_status=$?
 exec 19>&-
-python3 "$coverage_source/tests/report_coverage.py" "$coverage_source" "$coverage_work/functions.tsv" "$coverage_output"
+bash "$coverage_source/tests/report_coverage.sh" "$coverage_source" "$coverage_work/functions.tsv" "$coverage_output"
 exit "$coverage_status"

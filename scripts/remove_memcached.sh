@@ -72,6 +72,8 @@ function init_memcached_removal() {
             run rm -f /lib/systemd/system/memcached@.service
 
             [ -d /usr/share/memcached ] && run rm -fr /usr/share/memcached
+            [ ! -L /usr/local/lib/lemper/memcached ] && [ -d /usr/local/lib/lemper/memcached ] && \
+            run rm -fr /usr/local/lib/lemper/memcached
 
             # Remove binary executable file.
             if [ -f "${MEMCACHED_BIN}" ]; then

@@ -64,8 +64,8 @@ refute_grep() {
         "${BASE_DIR}/scripts/install_pureftpd.sh"
     grep -q -- '--with-tls --with-pam --with-privsep' \
         "${BASE_DIR}/scripts/install_pureftpd.sh"
-    # The wrapper copied for source installs is a Perl script.
-    grep -q 'libpam0g-dev perl' "${BASE_DIR}/scripts/install_pureftpd.sh"
+    # Source installs use the repository's Bash wrapper and need no Perl helper.
+    grep -q '^#!/usr/bin/env bash' "${BASE_DIR}/sbin/pure-ftpd-wrapper"
 
     refute_grep -q -- '--with-mysql' "${BASE_DIR}/scripts/install_pureftpd.sh"
 }

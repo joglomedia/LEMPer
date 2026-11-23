@@ -284,9 +284,9 @@ function init_pureftpd_install() {
             2 | "source")
                 echo "Installing FTP server (Pure-FTPd) from source..."
 
-                if ! dpkg -s build-essential libssl-dev libpam0g-dev perl >/dev/null 2>&1; then
+                if ! dpkg -s build-essential libssl-dev libpam0g-dev >/dev/null 2>&1; then
                     run env DEBIAN_FRONTEND=noninteractive apt-get install -q -y \
-                        build-essential libssl-dev libpam0g-dev perl
+                        build-essential libssl-dev libpam0g-dev
                 fi
 
                 local CURRENT_DIR && \

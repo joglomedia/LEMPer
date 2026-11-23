@@ -68,7 +68,7 @@ Options:
       lumen, phalcon, symfony), CMS (drupal, mautic, roundcube, sendy, wordpress, wordpress-ms).
       Another framework and cms will be added soon.
   -p, --php-version
-      PHP version for selected framework. Latest recommended PHP version is "7.4".
+      PHP version for selected framework; supported installation versions are 8.2-8.5.
   -u, --username <virtual-host username>
       Use username added from useradd. Default user set as LEMPer's user, Do not use root user!!
   -w, --webroot <web root>
@@ -81,7 +81,9 @@ Options:
   -F, --enable-fail2ban
       Enable fail2ban filter.
   -i, --install-app
-      Auto install application for selected framework.
+      Install application files for a supported automatic installer.
+      Mautic and Roundcube install the latest stable complete, checksummed release packages.
+      Sendy supports vhost setup with manually deployed licensed files.
   -s, --enable-ssl
       Enable HTTPS with Let's Encrypt free SSL certificate.
   -W, --wildcard-domain
@@ -952,6 +954,25 @@ function lemper_site_create_command() {
         esac
     done
 
+    [[ -n "$FRAMEWORK" ]] || FRAMEWORK=default
+    lemper_load_module services/site/applications || return 1
+    lemper_site_application_validate_request "$FRAMEWORK" "$INSTALL_APP" || return 1
+    if [[ "$INSTALL_APP" == true ]] && lemper_site_application_uses_release "$FRAMEWORK"; then
+        lemper_load_module services/site/releases || return 1
+        lemper_site_release_preflight "$FRAMEWORK" "${WEBROOT:-/home/${USERNAME:-${LEMPER_USERNAME:-lemper}}/webapps/$SERVERNAME}" \
+            "${USERNAME:-${LEMPER_USERNAME:-lemper}}" "$PHP_VERSION" || return 1
+        if [[ "$DRYRUN" == true ]]; then
+            info "Would deploy $FRAMEWORK complete files and configure $SERVERNAME."
+            return 0
+        fi
+    elif lemper_site_application_custom_template "$FRAMEWORK"; then
+        [[ "${USERNAME:-${LEMPER_USERNAME:-lemper}}" != root ]] || { error "Application pools must use a non-root user."; return 1; }
+        lemper_load_module services/site/releases || return 1
+        lemper_site_release_target "${WEBROOT:-/home/${USERNAME:-${LEMPER_USERNAME:-lemper}}/webapps/$SERVERNAME}" \
+            "${USERNAME:-${LEMPER_USERNAME:-lemper}}" || return 1
+        [[ "$DRYRUN" != true ]] || { info "Would configure $FRAMEWORK vhost for $SERVERNAME."; return 0; }
+    fi
+
     if [[ -n "$IPv4" ]] && ! core_is_valid_ipv4 "$IPv4"; then error "Invalid site IPv4 address."; return 1; fi
     if [[ -n "$IPv6" ]] && ! core_is_valid_ipv6 "$IPv6"; then error "Invalid site IPv6 address."; return 1; fi
 
@@ -1064,7 +1085,8 @@ function lemper_site_create_command() {
 
             echo "Configuring '${FRAMEWORK^}' framework..."
 
-            # Ugly hacks for custom framework-specific configs + Skeleton auto installer.
+            local requested_type="$FRAMEWORK" project_root="$WEBROOT"
+            # Existing renderers/installers remain behind this legacy boundary.
             case "${FRAMEWORK}" in
                 codeigniter)
                     echo "Setting up CodeIgniter framework virtual host..."
@@ -1076,7 +1098,8 @@ function lemper_site_create_command() {
                             echo "Downloading CodeIgniter v4 skeleton files..."
 
                             if [[ -n "${PHP_COMPOSER_BIN}" ]]; then
-                                run "${PHP_BIN}" "${PHP_COMPOSER_BIN}" create-project --prefer-source codeigniter4/appstarter "${WEBROOT}"
+                                run sudo -u "${USERNAME}" -i -- "${PHP_BIN}" "${PHP_COMPOSER_BIN}" \
+                                    create-project --prefer-dist --no-dev codeigniter4/appstarter "${WEBROOT}"
                             else
                                 run git clone --depth=1 --branch=master "https://github.com/codeigniter4/appstarter.git" "${WEBROOT}" || \
                                 error "Something went wrong while downloading CodeIgniter v4 files."
@@ -1288,7 +1311,7 @@ function lemper_site_create_command() {
 
                     APP_ADMIN_USER="wpadmin"
 
-                    if command -v wp-cli &> /dev/null; then
+                    if [[ "$INSTALL_APP" == true ]] && command -v wp-cli &> /dev/null; then
                         printf '%s\n' "${APP_ADMIN_PASS}" | run sudo -u "${USERNAME}" -i -- wp-cli core install --url="${SERVERNAME}" \
                             --title="WordPress Managed by LEMPer Stack" \
                             --admin_user="${APP_ADMIN_USER}" --prompt=admin_password \
@@ -1298,12 +1321,12 @@ function lemper_site_create_command() {
                     fi
 
                     # Install WooCommerce.
-                    if [[ "${FRAMEWORK}" == "woocommerce" ]]; then
+                    if [[ "$INSTALL_APP" == true && "${FRAMEWORK}" == "woocommerce" ]]; then
                         if [[ -d "${WEBROOT}/wp-content/plugins" && \
                             ! -d "${WEBROOT}/wp-content/plugins/woocommerce" ]]; then
                             echo "Add WooCommerce plugin into WordPress skeleton..."
 
-                            if command -v wp-cli &> /dev/null; then
+                            if [[ "$INSTALL_APP" == true ]] && command -v wp-cli &> /dev/null; then
                                 run sudo -u "${USERNAME}" -i -- wp-cli plugin install woocommerce --activate --path="${WEBROOT}"
                                 run sudo -u "${USERNAME}" -i -- wp-cli theme install storefront --activate --path="${WEBROOT}"
                             else
@@ -1334,7 +1357,7 @@ function lemper_site_create_command() {
 
                     APP_ADMIN_USER="wpadmin"
 
-                    if command -v wp-cli &> /dev/null; then
+                    if [[ "$INSTALL_APP" == true ]] && command -v wp-cli &> /dev/null; then
                         printf '%s\n' "${APP_ADMIN_PASS}" | run sudo -u "${USERNAME}" -i -- wp-cli core multisite-install "${WPMS_SUBDOMAINS}" --url="${SERVERNAME}" \
                             --title="WordPress Multisite Managed by LEMPer Stack" --admin_user="${APP_ADMIN_USER}" \
                             --prompt=admin_password --admin_email="${APP_ADMIN_EMAIL}" --path="${WEBROOT}" && \
@@ -1342,9 +1365,10 @@ function lemper_site_create_command() {
                             akismet autoptimize nginx-helper redis-cache --activate-network --path="${WEBROOT}"
                     fi
 
-                    # Mercator domain mapping.
-                    run git clone --depth=1 --branch=master https://github.com/humanmade/Mercator.git "${WEBROOT}/wp-content/mu-plugins/mercator" && \
-                    cat > "${WEBROOT}/wp-content/sunrise.php" <<EOL
+                    if [[ "$INSTALL_APP" == true ]]; then
+                        # Mercator domain mapping.
+                        run git clone --depth=1 --branch=master https://github.com/humanmade/Mercator.git "${WEBROOT}/wp-content/mu-plugins/mercator" && \
+                        cat > "${WEBROOT}/wp-content/sunrise.php" <<EOL
 <?php
 // Default mu-plugins directory if you haven't set it
 defined( 'WPMU_PLUGIN_DIR' ) or define( 'WPMU_PLUGIN_DIR', WP_CONTENT_DIR . '/mu-plugins' );
@@ -1352,8 +1376,10 @@ defined( 'WPMU_PLUGIN_DIR' ) or define( 'WPMU_PLUGIN_DIR', WP_CONTENT_DIR . '/mu
 require WPMU_PLUGIN_DIR . '/mercator/mercator.php';
 EOL
 
-                    # Enable sunrise. (insert new line before match)
-                    sed_inplace "/\/*\ That/i define( 'SUNRISE', true );\n" "${WEBROOT}/wp-config.php"
+                        # Enable sunrise. (insert new line before match)
+                        sed_inplace "/\/*\ That/i define( 'SUNRISE', true );\n" "${WEBROOT}/wp-config.php"
+
+                    fi
 
                     # Pre-populate blog id mapping, used by Nginx vhost config.
                     if [[ ! -d "${WEBROOT}/wp-content/uploads/nginx-helper" ]]; then
@@ -1417,8 +1443,31 @@ EOL
                     create_vhost_default > "${VHOST_FILE}"
                 ;;
 
-                default | mautic | roundcube | sendy)
-                    # TODO: Auto install framework skeleton.
+                mautic | roundcube | snappymail | nextcloud | mybb | phplist | ojs | slim | xenforo)
+                    if [[ "$INSTALL_APP" == true ]]; then
+                        lemper_load_module services/site/releases || return 1
+                        lemper_site_release_install "$FRAMEWORK" "$WEBROOT" "$USERNAME" "$PHP_VERSION" "$SERVERNAME" || return 1
+                        lemper_load_module services/nginx/release-site || return 1
+                        lemper_site_release_render "$FRAMEWORK" "$SERVERNAME" "$WEBROOT" "$USERNAME" "$PHP_VERSION" > "$VHOST_FILE" || return 1
+                        # This is a complete-file deployment; upstream setup chooses
+                        # database/admin/mail settings. Do not record fictional DB ownership.
+                        APP_DB_USER="" APP_DB_PASS="" APP_DB_NAME=""
+                        APP_ADMIN_USER="" APP_ADMIN_PASS=""
+                    else
+                        [[ -e "$WEBROOT/index.html" ]] || create_index_file > "$WEBROOT/index.html"
+                        run chown -hR "$USERNAME:$USERNAME" "$WEBROOT"
+                        if [[ "$FRAMEWORK" == mautic || "$FRAMEWORK" == roundcube ]]; then
+                            create_vhost_default > "$VHOST_FILE"
+                        else
+                            lemper_load_module services/site/releases || return 1
+                            lemper_load_module services/nginx/release-site || return 1
+                            lemper_site_release_render "$FRAMEWORK" "$SERVERNAME" "$WEBROOT" "$USERNAME" "$PHP_VERSION" > "$VHOST_FILE" || return 1
+                        fi
+                    fi
+                ;;
+
+                default | sendy)
+                    # Generic PHP vhost; application deployment is managed separately.
 
                     # Create default index file.
                     if [[ ! -e "${WEBROOT}/index.html" ]]; then
@@ -1439,6 +1488,10 @@ EOL
                     return 1
                 ;;
             esac
+
+            if [[ "$INSTALL_APP" == true && "$DRYRUN" != true ]]; then
+                lemper_site_application_check_files "$requested_type" "$project_root" || return 1
+            fi
 
             if [[ ${DRYRUN} != true ]]; then
                 # Enable ModSecurity automatically when installed.
@@ -1541,7 +1594,10 @@ EOL
                 run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
                 # Fix document root permission.
-                if [[ $(ls -A "${WEBROOT}") ]]; then
+                if lemper_site_application_uses_release "$requested_type" || [[ "$requested_type" == xenforo ]]; then
+                    lemper_load_module services/site/releases || return 1
+                    lemper_site_release_permissions "$requested_type" "$project_root" "$USERNAME" || return 1
+                elif [[ $(ls -A "${WEBROOT}") ]]; then
                     run find "${WEBROOT}" -type d -print0 | xargs -0 chmod 755
                     run find "${WEBROOT}" -type f -print0 | xargs -0 chmod 644
                 fi
@@ -1589,7 +1645,11 @@ EOL
 
                 # Save app installation details.
                 if [[ ${INSTALL_APP} == true ]]; then
-                    info "Application credentials are saved in /etc/lemper/vhost.d/${SERVERNAME}.conf (root-only)."
+                    if lemper_site_application_uses_release "$requested_type"; then
+                        info "Deployment metadata is saved in /etc/lemper/vhost.d/${SERVERNAME}.conf (root-only); finish upstream setup."
+                    else
+                        info "Application credentials are saved in /etc/lemper/vhost.d/${SERVERNAME}.conf (root-only)."
+                    fi
                     echo -e "Site Address: ${APP_HTTP_PROTO}://${SERVERNAME}"
                     ( umask 077; cat > "/etc/lemper/vhost.d/${SERVERNAME}.conf" <<EOL
 [${SERVERNAME}]

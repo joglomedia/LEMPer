@@ -92,6 +92,10 @@ and Conventional Commit conventions in `DEVELOPER.md` and `CONTRIBUTING.md`.
 - New runtime/service modules define functions without source-time dispatch,
   host initialization, traps or shell-option changes. Keep legacy exits inside
   adapters. Use `lemper_exec` and the shared lock for new mutations.
+- Keep repository-owned orchestration, tooling and test drivers in Bash. Use
+  standard Linux tools (jq, awk, tar/unzip, xmllint, OpenSSL) for their native
+  formats. Upstream services and application fixtures retain their own languages;
+  do not introduce Python or other language helpers for LEMPer behavior.
 - Use `return` for recoverable failures in reusable sourced functions. `exit`
   terminates the parent shell when sourced. Existing CLI termination paths,
   direct-execution guards, `fail()`, and `run()` intentionally exit; understand

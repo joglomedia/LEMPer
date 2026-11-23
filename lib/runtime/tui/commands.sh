@@ -395,22 +395,21 @@ function tui_site_create_wizard() {
         tui_echo "${RED}" "  '${domain}' is not a valid domain name."
     done
 
-    # Framework selection.
-    local frameworks=(default wordpress wordpress-ms laravel symfony codeigniter drupal phalcon roundcube mautic sendy)
+    # Both the selectable IDs and install choices come from the shared catalog.
+    lemper_load_module services/site/applications || return 1
+    local frameworks=() framework_options=() id label capability visible _markers
+    while IFS='|' read -r id label capability visible _markers; do
+        [[ "$visible" == true ]] || continue
+        frameworks+=("$id")
+        case "$capability" in
+            automatic) framework_options+=("$label|Application installer available") ;;
+            manual) framework_options+=("$label|Vhost setup; deploy application files manually") ;;
+            none) framework_options+=("$label|Plain PHP site") ;;
+        esac
+    done < <(lemper_site_application_registry)
+    framework_options+=("Cancel|Back to site management")
     local framework_choice
-    framework_choice=$(tui_menu "Website Framework" "Select a framework:" \
-        "Vanilla PHP|Plain PHP application" \
-        "WordPress|WordPress CMS" \
-        "WordPress Multisite|WordPress network" \
-        "Laravel|Laravel framework" \
-        "Symfony|Symfony framework" \
-        "CodeIgniter|CodeIgniter framework" \
-        "Drupal|Drupal CMS" \
-        "Phalcon|Phalcon framework" \
-        "Roundcube|Webmail client" \
-        "Mautic|Marketing automation" \
-        "Sendy|Newsletter application" \
-        "Cancel|Back to site management")
+    framework_choice=$(tui_menu "Website Framework" "Select a framework:" "${framework_options[@]}")
 
     if [[ "${framework_choice}" == "0" || "${framework_choice}" == "-1" || \
           "${framework_choice}" -gt "${#frameworks[@]}" ]]; then
@@ -453,16 +452,13 @@ function tui_site_create_wizard() {
         php_version="${default_php}"
     fi
 
-    # Optional features.
-    local app_default="n"
-    case "${framework}" in
-        wordpress | wordpress-ms | laravel | symfony | codeigniter | drupal | phalcon | roundcube | mautic | sendy)
-            app_default="y"
-        ;;
-    esac
-
+    # Automatic installation is offered only when the selected type has a driver.
     local install_app="n" enable_ssl="n" wildcard="n" fastcgi_cache="n" fail2ban="n"
-    tui_confirm "Install ${framework} application files?" "${app_default}" && install_app="y"
+    if lemper_site_application_installable "$framework"; then
+        tui_confirm "Install ${framework} application files?" "y" && install_app="y"
+    elif [[ "$framework" != default ]]; then
+        tui_echo "${TUI_DIM}" "  Create the vhost, then deploy $framework application files manually."
+    fi
     tui_confirm "Enable Let's Encrypt SSL?" "n" && enable_ssl="y"
 
     if [[ "${enable_ssl}" == "y" ]]; then

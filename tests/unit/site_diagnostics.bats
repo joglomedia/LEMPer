@@ -41,7 +41,7 @@ site_exec() {
     site_exec example.test --json
     [ "${status}" -eq 0 ]
     [[ "${output}" != *"synthetic-"* && "${output}" != *"second-secret"* ]]
-    run python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert d["domain"]=="example.test"; assert len(d["app_metadata"])==2; assert d["app_metadata"]["example.test"]["app_db_pass"]=="[REDACTED]"' "${output}"
+    run jq -e '.domain == "example.test" and (.app_metadata|length) == 2 and .app_metadata["example.test"].app_db_pass == "[REDACTED]"' <<<"$output"
     [ "${status}" -eq 0 ]
 }
 @test "JSON short and long flags have equivalent behavior" {
@@ -74,7 +74,7 @@ site_exec() {
     site_exec example.test --json
     [ "$status" -eq 0 ]
     [[ "$output" != *synthetic-proxy-secret* && "$output" != *synthetic-fpm-secret* ]]
-    run python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert "pm.max_children=10" in d["fpm_pool"]["content"]; assert d["site_metadata"]["owner"]=="alice"; assert d["apps"][0]["mount"]=="/demo/nested"; assert "fastcgi_pass" in d["nginx_config"]["content"]' "$output"
+    run jq -e '(.fpm_pool.content|contains("pm.max_children=10")) and .site_metadata.owner == "alice" and .apps[0].mount == "/demo/nested" and (.nginx_config.content|contains("fastcgi_pass"))' <<<"$output"
     [ "$status" -eq 0 ]
 }
 
@@ -82,14 +82,14 @@ site_exec() {
     printf 'server_name example.test;\nssl_certificate /custom/certs/example.pem;\n' > "$TEST_TMPDIR/etc/nginx/sites-available/example.test.conf"
     site_exec example.test --json
     [ "$status" -eq 0 ]
-    run python3 -c 'import json,sys; d=json.loads(sys.argv[1]); assert d["ssl"]["cert_path"]=="/custom/certs/example.pem"; assert d["ssl"]["status"]=="missing"' "$output"
+    run jq -e '.ssl.cert_path == "/custom/certs/example.pem" and .ssl.status == "missing"' <<<"$output"
     [ "$status" -eq 0 ]
 }
 
 @test "read-only site JSON remains available when global dry-run is enabled" {
     DRYRUN=true site_exec example.test --json
     [ "$status" -eq 0 ]
-    run python3 -c 'import json,sys; assert json.loads(sys.argv[1])["domain"]=="example.test"' "$output"
+    run jq -e '.domain == "example.test"' <<<"$output"
     [ "$status" -eq 0 ]
 }
 
@@ -105,12 +105,12 @@ site_exec() {
     [[ "$output" == *laravel* ]]
 }
 
-@test "diagnostics ignore Python import-path injection while preserving normal JSON output" {
-    mkdir -p "$TEST_TMPDIR/python-shadow"
-    printf 'raise RuntimeError("unexpected import")\n' > "$TEST_TMPDIR/python-shadow/json.py"
-    PYTHONPATH="$TEST_TMPDIR/python-shadow" site_exec example.test --json
+@test "diagnostics treat shell substitutions in metadata as literal data" {
+    # shellcheck disable=SC2016 # Hostile shell syntax is literal metadata.
+    printf '[example.test]\nAPP_WEBROOT=$(touch "%s/should-not-exist")\n' "$TEST_TMPDIR" >"$TEST_TMPDIR/etc/lemper/vhost.d/example.test.conf"
+    site_exec example.test --json
     [ "$status" -eq 0 ]
-    [[ "$output" != *"unexpected import"* ]]
-    run python3 -I -c 'import json,sys; assert json.loads(sys.argv[1])["domain"]=="example.test"' "$output"
+    [ ! -e "$TEST_TMPDIR/should-not-exist" ]
+    run jq -e '.app_metadata["example.test"].app_webroot | startswith("$(touch")' <<<"$output"
     [ "$status" -eq 0 ]
 }

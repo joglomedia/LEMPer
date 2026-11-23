@@ -48,6 +48,9 @@ alignment_child='
         . "$REAL_BASE_DIR/lib/runtime/site/state.sh"
         rm "$LEMPER_NGINX_DIR/sites-available/example.com.conf"
         lemper_legacy_site_create() {
+            mkdir -p "$TEST_TMPDIR/web root/wp-includes"
+            printf "<?php // WordPress fixture\n" > "$TEST_TMPDIR/web root/wp-includes/class-wp.php"
+            printf "<?php // Entry fixture\n" > "$TEST_TMPDIR/web root/index.php"
             printf "<%s>\n" "$@"
             printf "set \$root_path \"%s\";\n" "$TEST_TMPDIR/web root" > "$LEMPER_NGINX_DIR/sites-available/example.com.conf"
         }

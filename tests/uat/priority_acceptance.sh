@@ -117,16 +117,12 @@ DATABASE=app_priority
 META
 printf 'OWNER_MARKER=lemper-app-v1\nDOMAIN=priority.test\nMOUNT=/demo/nested\nTYPE=laravel\nOWNER=uatowner\n' >/etc/lemper/site-apps/priority.test/demo/nested.conf
 lemperctl site show priority.test --json >"$work/site.json"
-check python3 - "$work/site.json" <<'PYTHON'
-import json,sys
-d=json.load(open(sys.argv[1]))
-assert d['site_metadata']['owner']=='uatowner'
-assert d['apps'][0]['mount']=='/demo/nested'
-assert 'pm.max_children=2' in d['fpm_pool']['content']
-assert d['ssl']['hostname_matches'] and not d['ssl']['expired']
-assert 'priority.test' in d['ssl']['dns_names']
-assert 360 <= d['ssl']['days_remaining'] <= 365
-PYTHON
+check jq -e '
+    .site_metadata.owner=="uatowner" and .apps[0].mount=="/demo/nested" and
+    (.fpm_pool.content|contains("pm.max_children=2")) and .ssl.hostname_matches and
+    (.ssl.expired|not) and (.ssl.dns_names|index("priority.test")!=null) and
+    .ssl.days_remaining>=360 and .ssl.days_remaining<=365
+' "$work/site.json"
 check systemctl start mariadb
 check mariadb -e 'CREATE DATABASE app_priority; CREATE TABLE app_priority.example (value VARCHAR(30)); INSERT INTO app_priority.example VALUES ("before");'
 check lemperctl db backup priority.test --dbfile="$work/sql"

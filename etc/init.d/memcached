@@ -27,7 +27,7 @@
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 DAEMON=/usr/bin/memcached
 DAEMONNAME=memcached
-DAEMONBOOTSTRAP=/usr/share/memcached/scripts/start-memcached
+DAEMONBOOTSTRAP=/usr/local/lib/lemper/memcached/start-memcached
 DESC=memcached
 
 test -x $DAEMON || exit 0

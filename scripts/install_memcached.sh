@@ -66,13 +66,13 @@ function init_memcached_install() {
                 echo "Installing Memcached server from repository..."
 
                 run apt-get install -q -y \
-                    libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2 memcached
+                    libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2 memcached socat
             ;;
             2 | source)
                 echo "Installing Memcached server from source..."
 
                 run apt-get install -q -y \
-                    libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2
+                    libevent-dev libsasl2-dev libmemcached-tools libmemcached11 libmemcachedutil2 socat
 
                 local CURRENT_DIR && \
                 CURRENT_DIR=$(pwd)
@@ -156,6 +156,11 @@ function init_memcached_install() {
 
             [ ! -f /lib/systemd/system/memcached@.service ] && \
             run cp etc/systemd/memcached@.service /lib/systemd/system/
+            if grep -Fq '/usr/share/memcached/scripts/start-memcached /etc/memcached_%i.conf /var/run/memcached_%i.pid' \
+                /lib/systemd/system/memcached@.service; then
+                run cp -p /lib/systemd/system/memcached@.service /lib/systemd/system/memcached@.service.lemper-before-bash
+                run cp etc/systemd/memcached@.service /lib/systemd/system/
+            fi
 
             [ -f /etc/systemd/system/multi-user.target.wants/memcached@.service ] && \
             run mv /etc/systemd/system/multi-user.target.wants/memcached@.service \
@@ -165,14 +170,13 @@ function init_memcached_install() {
             run ln -s /lib/systemd/system/memcached@.service \
                 /etc/systemd/system/multi-user.target.wants/memcached@.service
 
-            # Custom memcached scripts.
-            if [ ! -f /usr/share/memcached/scripts/systemd-memcached-wrapper ]; then
-                run cp -fr share/memcached /usr/share/
-                run chmod ugo+x /usr/share/memcached/scripts/systemd-memcached-wrapper
-                run chmod ugo+x /usr/share/memcached/scripts/start-memcached
-                run chmod ugo+x /usr/share/memcached/scripts/memcached-tool
-                run chmod ugo+x /usr/share/memcached/scripts/damemtop
-            fi
+            # LEMPer's Bash helpers live separately from distribution-owned scripts.
+            run install -d -m0755 /usr/local/lib/lemper/memcached
+            run install -m0755 share/memcached/scripts/systemd-memcached-wrapper \
+                share/memcached/scripts/start-memcached share/memcached/scripts/memcached-tool \
+                share/memcached/scripts/damemtop /usr/local/lib/lemper/memcached/
+            run install -m0644 share/memcached/scripts/config.bash share/memcached/scripts/client.bash \
+                share/memcached/scripts/damemtop.yaml /usr/local/lib/lemper/memcached/
 
             # Try reloading daemon.
             run systemctl daemon-reload
@@ -236,19 +240,19 @@ EOL
         if [[ "${DRYRUN}" != true ]]; then
             if [[ $(pgrep -c memcached) -gt 0 ]]; then
                 #run systemctl restart memcached@memcache
-                run /usr/share/memcached/scripts/start-memcached \
+                run /usr/local/lib/lemper/memcached/start-memcached \
                     /etc/memcached_memcache.conf /var/run/memcached_memcache.pid
                 #run systemctl restart memcached@www-data
-                run /usr/share/memcached/scripts/start-memcached \
+                run /usr/local/lib/lemper/memcached/start-memcached \
                     /etc/memcached_www-data.conf /var/run/memcached_www-data.pid
 
                 success "Memcached server restarted successfully."
             elif [[ -n $(command -v memcached) ]]; then
                 #run systemctl start memcached@memcache
-                run /usr/share/memcached/scripts/start-memcached \
+                run /usr/local/lib/lemper/memcached/start-memcached \
                     /etc/memcached_memcache.conf /var/run/memcached_memcache.pid
                 #run systemctl start memcached@www-data
-                run /usr/share/memcached/scripts/start-memcached \
+                run /usr/local/lib/lemper/memcached/start-memcached \
                     /etc/memcached_www-data.conf /var/run/memcached_www-data.pid
 
                 if [[ $(pgrep -c memcached) -gt 0 ]]; then

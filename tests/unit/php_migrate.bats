@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck disable=SC2016 # Nginx fixture variables and expected output stay literal.
 ##
 # EOL PHP migration: Nginx vhost handlers and destination FPM pools.
 # Assertions use [ ] and grep so a failing check is visible to Bash 3.2.
@@ -24,7 +25,7 @@ setup() {
         "${BATS_TEST_TMPDIR}/bin"
 
     cat > "${BATS_TEST_TMPDIR}/bin/nginx" <<'EOF'
-#!/bin/sh
+#!/usr/bin/env bash
 echo called >> "${NGINX_CALLED_LOG}"
 exit 1
 EOF

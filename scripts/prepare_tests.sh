@@ -24,8 +24,7 @@ set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get install -q -y bash bats bc ca-certificates curl git gnupg iproute2 jq mariadb-client nginx \
-    openssh-server python3 python3-pip quota rsync shfmt sudo unzip xz-utils
-python3 -m pip install --break-system-packages bashate
+    openssh-server bashate libxml2-utils quota rsync shfmt socat sudo unzip zip xz-utils
 mkdir -p /run/sshd
 ssh-keygen -A
 if ! shellcheck --version 2>/dev/null | grep -qx 'version: 0.11.0'; then

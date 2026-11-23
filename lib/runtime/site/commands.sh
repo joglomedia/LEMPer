@@ -18,9 +18,19 @@
 
 
 function lemper_site_help() {
+    if ! declare -F lemper_site_application_spec >/dev/null; then
+        local help_library
+        help_library=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd) || return 1
+        # Pure capabilities remain available through the dispatcher's minimal help path.
+        # shellcheck source=/dev/null
+        . "$help_library/services/site/applications.sh" || return 1
+    fi
     cat <<EOF
 Usage: ${CMD_PARENT:-lemperctl} site <create|list|show|update|enable|disable|remove|adopt|app> [OPTIONS] DOMAIN [DOMAIN...]
-Create: --type TYPE --runtime php@VERSION --runtime-user USER --install-skeleton --webroot PATH
+Create: --type TYPE --runtime php@VERSION --runtime-user USER [--install-skeleton] --webroot PATH
+Automatic skeletons: $(lemper_site_application_names automatic)
+Vhost only, deploy files manually: $(lemper_site_application_names manual)
+Vanilla PHP: default (no application skeleton). --install-app and -i alias --install-skeleton.
 Update: --ssl-enable/disable/remove/renew, --cors-enable/disable, --fastcgi-cache-enable/disable
         --enable/disable; verb-first legacy flags remain accepted.
 Remove: --purge deletes recorded site-owned data; --yes bypasses confirmation.
@@ -89,28 +99,37 @@ function lemper_site_create() {
     owner="${fields[owner]:-${LEMPER_USERNAME:-lemper}}"
     is_valid_username "$owner" || { error "Invalid runtime user."; return 1; }
     type="${fields[type]:-default}" php="${fields[php]:-${DEFAULT_PHP_VERSION:-8.5}}"
-    case "$type" in default|codeigniter|drupal|laravel|lumen|phalcon|phalcon-cli|phalcon-micro|phalcon-modules|wordpress|woocommerce|wordpress-ms|symfony|owncloud|mautic|roundcube|sendy) ;;
-        *) error "Unsupported site type: $type"; return 1 ;; esac
+    lemper_load_module services/site/applications || return 1
+    lemper_site_application_validate_request "$type" "$skeleton" || return 1
     lemper_load_module services/php/lifecycle || return 1
     lemper_php_supported "$php" || { error "Supported PHP versions are 8.2-8.5."; return 1; }
     webroot="${fields[webroot]:-/home/$owner/webapps/$domain}"
     [[ "$webroot" == /* && "$webroot" != *$'\n'* && "$webroot" != *$'\r'* && "$webroot" != *$'\t'* &&
        "$webroot" != *[\"\'\\\$]* ]] ||
         { error "Invalid webroot."; return 1; }
+    if [[ "$skeleton" == true ]] && lemper_site_application_uses_release "$type"; then
+        lemper_load_module services/site/releases || return 1
+        lemper_site_release_preflight "$type" "$webroot" "$owner" "$php" || return 1
+    elif lemper_site_application_custom_template "$type"; then
+        [[ "$owner" != root ]] || { error "Application pools must use a non-root user."; return 1; }
+        lemper_load_module services/site/releases || return 1
+        lemper_site_release_target "$webroot" "$owner" || return 1
+    fi
     legacy+=(--domain-name "$domain" --username "$owner" --framework "$type" --php-version "$php" --webroot "$webroot")
     [[ "$skeleton" != true ]] || legacy+=(--install-app)
     if [[ "$DRYRUN" == true ]]; then
         info "Would create $domain ($type, php@$php, user $owner, root $webroot)."
         return 0
     fi
-    lemper_with_lock lemper_site_create_execute "$domain" "$owner" "$webroot" "$php" "$skeleton" "$ssl" "${legacy[@]}"
+    lemper_with_lock lemper_site_create_execute "$domain" "$owner" "$webroot" "$php" "$skeleton" "$ssl" "$type" "${legacy[@]}"
 }
 function lemper_site_create_execute() {
-    local domain="$1" owner="$2" webroot="$3" php="$4" skeleton="$5" ssl="$6"
-    shift 6
+    local domain="$1" owner="$2" webroot="$3" php="$4" skeleton="$5" ssl="$6" type="$7"
+    shift 7
     lemper_nginx_site_exists "$domain" && { error "Site already exists."; return 1; }
     lemper_exec install -d -m 0755 "${LEMPER_NGINX_DIR:-/etc/nginx}/site-apps" || return 1
     lemper_legacy_site_create "$@" || return 1
+    [[ "$skeleton" != true ]] || lemper_site_application_check_files "$type" "$webroot" || return 1
     lemper_nginx_site_exists "$domain" || { error "Site creation did not produce configuration."; return 1; }
     if [[ "$ssl" == true ]]; then
         lemper_legacy_site_action ssl-enable "$domain" || return 1

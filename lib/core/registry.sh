@@ -103,3 +103,34 @@ function lemper_component_recipe() {
         *) return 1 ;;
     esac
 }
+
+# id|label|installation capability|wizard visibility|required project files
+# Manual types retain generic PHP vhost support; no installer is advertised.
+function lemper_site_application_registry() {
+    cat <<'APPLICATIONS'
+default|Vanilla PHP|none|true|-
+wordpress|WordPress|automatic|true|wp-includes/class-wp.php,index.php
+wordpress-ms|WordPress Multisite|automatic|true|wp-includes/class-wp.php,index.php
+laravel|Laravel|automatic|true|artisan,public/index.php
+symfony|Symfony|automatic|true|src/Kernel.php,public/index.php
+codeigniter|CodeIgniter|automatic|true|spark,public/index.php
+drupal|Drupal|automatic|true|core/lib/Drupal.php,index.php
+phalcon|Phalcon|automatic|true|app/config/config.php
+roundcube|Roundcube|automatic|true|public_html/index.php,program/include/rcmail.php,vendor/autoload.php
+mautic|Mautic|automatic|true|index.php,bin/console,app/AppKernel.php,vendor/autoload.php
+sendy|Sendy|manual|true|-
+owncloud|ownCloud|automatic|false|occ,index.php
+lumen|Lumen|automatic|false|artisan,public/index.php
+woocommerce|WooCommerce|automatic|false|wp-includes/class-wp.php,wp-content/plugins/woocommerce/woocommerce.php
+phalcon-cli|Phalcon CLI|automatic|false|app/config/config.php
+phalcon-micro|Phalcon Micro|automatic|false|app/config/config.php
+phalcon-modules|Phalcon Modules|automatic|false|app/config/config.php
+snappymail|SnappyMail|automatic|true|index.php,_include.php
+nextcloud|Nextcloud|automatic|true|index.php,occ,lib/versioncheck.php,3rdparty/autoload.php
+mybb|MyBB|automatic|true|index.php,inc/init.php,install/index.php
+phplist|phpList|automatic|true|public_html/lists/index.php,public_html/lists/admin/index.php,vendor/autoload.php
+xenforo|XenForo|manual|true|-
+ojs|Open Journal Systems|automatic|true|index.php,config.TEMPLATE.inc.php,lib/pkp/lib/vendor/autoload.php
+slim|Slim Framework|automatic|true|public/index.php,vendor/autoload.php
+APPLICATIONS
+}

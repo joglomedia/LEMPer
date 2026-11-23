@@ -1,7 +1,8 @@
 # LEMPer roadmap implementation audit
 
-Date: **2026-11-22**. Code baseline: **9b7511b383e6dbcb5cd3da2424b604016134c379**,
-`release/v4.0.0`, plus the P1 implementation working tree. The initial audit
+Date: **2026-11-23**. Current baseline: **79d4d40**,
+`release/v4.0.0`, plus the A3 implementation working tree. The initial audit
+used **9b7511b383e6dbcb5cd3da2424b604016134c379** and
 began from a clean checkout. Earlier
 cross-checks and implementation validation are preserved below as history.
 Latest GitHub release checked: **v3.6.0**. v4.0.0 is not published.
@@ -45,12 +46,14 @@ depends on the certificate/issuer and is not an absent-template finding.
 
 ## Current P1 follow-through
 
-**A1 and A2 are implemented in the working tree.** A3/A4 above remain the next
-implementation priorities; release validation/publication gates remain separate.
+**A1 and A2 are committed in 79d4d40. A3 is implemented in the working tree.**
+A4 remains the next implementation priority; release validation/publication
+gates remain separate. The table above preserves the original findings at
+9b7511b; delivery below supersedes their remaining-work status.
 
 | Finding | Delivered behavior | Source / qualification |
 |---|---|---|
-| A1 | Dedicated function-only backup-account driver; literal SQL/options/dotenv credentials; private atomic drop-in/profile updates; encryption-preserving canonical key reconciliation; existing-account authentication and configuration repair without password resets; protected recovery copies and known inline `my.cnf` migration | [driver](../lib/services/mariadb/backup.sh), [installer](../scripts/install_mariadb.sh), [regressions](../tests/unit/mariadb_backup_account.bats). Credentials are durable before account/grant mutations so partial SQL failures can be retried. Ambiguous/untrusted configuration is rejected; custom inline tuning requires reconciliation. Root credentials are saved before bootstrap SQL; write/RNG failures abort. The private inline include preserves option precedence and is synchronized with canonical credentials. [Native option preflight](../lib/services/mariadb/option_guard.py) rejects control escapes and untrusted include graphs before recovery. |
+| A1 | Dedicated function-only backup-account driver; literal SQL/options/dotenv credentials; private atomic drop-in/profile updates; encryption-preserving canonical key reconciliation; existing-account authentication and configuration repair without password resets; protected recovery copies and known inline `my.cnf` migration | [driver](../lib/services/mariadb/backup.sh), [installer](../scripts/install_mariadb.sh), [regressions](../tests/unit/mariadb_backup_account.bats). Credentials are durable before account/grant mutations so partial SQL failures can be retried. Ambiguous/untrusted configuration is rejected; custom inline tuning requires reconciliation. Root credentials are saved before bootstrap SQL; write/RNG failures abort. The private inline include preserves option precedence and is synchronized with canonical credentials. [Native option preflight](../lib/services/mariadb/option_guard.sh) rejects control escapes and untrusted include graphs before recovery. |
 | A2 | Shared root Linux dependency setup and native ShellCheck 0.11.0; isolated Bats/coverage runner and per-unit operation locks; primary Ubuntu CI, Debian CI, coverage, release and Podman entry points use these contracts | [setup](../scripts/prepare_tests.sh), [runner](../scripts/run_tests.sh), [Podman](../scripts/test_podman.sh), [fixture](../tests/unit/env_helper.bash), [CI](../.github/workflows/main.yml), [release](../.github/workflows/release.yml). No runtime ownership check was relaxed. Remote Actions results still require the final committed candidate. |
 
 The shared literal dotenv parser and schema now strip **one matching outer quote
@@ -59,6 +62,29 @@ characters during profile merging. Inner and one-sided quotes remain data; this 
 on both installer and installed CLI paths. The encrypted-profile format is unchanged.
 See [DATABASE.md](DATABASE.md#mariadb-backup-account-provisioning) and
 [DEVELOPER.md](../DEVELOPER.md) for operating and test contracts.
+
+## Current A3 follow-through
+
+CLI, legacy creation and TUI share the function-only
+[application capability catalog](../lib/core/registry.sh) and
+[driver](../lib/services/site/applications.sh). Sendy retains manual PHP vhost
+support and rejects `--install-skeleton`, `--install-app` and `-i` before site
+mutations. Vanilla PHP has no skeleton and rejects the same
+flags. The wizard offers installation only for automatic types. Existing
+automatic installers must produce nonempty application marker files before
+success and ownership recording; WordPress setup/plugin actions honor the flag.
+
+Mautic and Roundcube now use a function-only [release driver](../lib/services/site/releases.sh)
+and [vhost renderer](../lib/services/nginx/release-site.sh), with latest-stable complete
+packages, SHA-256 verification, restricted extraction, runtime/target preflight
+and idempotent preservation. Roundcube uses `public_html`; both have restricted
+PHP entry scripts and loopback-only setup endpoints. No fictitious application
+database is recorded as owned. This closes A3's advertised-capability gap and
+the 2.42 qualification. Unattended DB/admin/mail configuration and Sendy's
+licensed-artifact interface remain outside this scope.
+File checks do not establish application health; partial installer
+state can remain on failure. See [APPLICATIONS.md](APPLICATIONS.md). Deeper
+rendering/installer extraction remains A4 and partial 2.12/2.37.
 
 ## Implemented foundations
 
@@ -138,8 +164,8 @@ commit. A1/A2/A3 above are additional scope found by the current audit.
 |---|---|---|
 | 2.9 | Whole-value shared FQDN/IPv4/username validation, semantic IPv6 compression/IPv4-tail checks, legacy wrappers using the same core, validation before site/SSL mutations, typed TLS source tags | [core predicates](../lib/core/validation.sh), [regressions](../tests/unit/validators.bats). Legacy text-result APIs and stricter status APIs retain their caller contracts. This is closure of the identified input boundaries, not a whole-repository security certification. |
 | 2.8 / 2.27 | Shared backed-up repository reconciliation for PGDG/Redis/MongoDB/deadsnakes/MaxMind/Go PPAs, pinned published key identities, preflight of mixed stanzas/signature-bypass options, preservation of unrelated/shared trust; corrected custom TLS enablement and verified OpenSSL 3.5.9 LTS source integration | [catalog](../lib/services/apt/catalog.sh), [migration](../lib/services/apt/repositories.sh), [TLS builder](../scripts/nginx/nginx_ssl_builders.sh). MongoDB major changes require explicit reconciliation; unowned/shared keyrings are retained. The former Bun APT endpoint returns 404: its lifecycle now uses [checksummed official release binaries](../lib/services/bun/binary.sh) with native architecture selection and ownership checks. |
-| 2.12 / 2.37 | Diagnostics extracted into a function-only runtime adapter and the existing Python JSON reader exported as a service helper; shared staged certificate issuance replaces CLI/manager duplication; repository and Bun lifecycle logic moved into service drivers | [show runtime](../lib/runtime/site/show.sh), [inspection](../lib/services/site/inspect.py), [certificate driver](../lib/services/ssl/certificates.sh). Installed exports include these helpers. Deeper extraction of legacy application rendering and older installer/manager bodies remains; decomposition stays partial. |
-| 2.17 | Text/JSON views share Nginx/FPM content, certificate path/SAN/expiry/hostname details, legacy metadata, ownership state and nested application mounts; secret-bearing fields are redacted; Python import-path isolation and recovery views are preserved | [inspection driver](../lib/services/site/inspect.py), [diagnostic tests](../tests/unit/site_diagnostics.bats). Certificate trust-chain verification is not implied by a readable certificate; variable paths and indirect upstreams can remain unresolved. |
+| 2.12 / 2.37 | Diagnostics extracted into a function-only runtime adapter and a Bash diagnostics driver using jq for structured output; shared staged certificate issuance replaces CLI/manager duplication; repository and Bun lifecycle logic moved into service drivers | [show runtime](../lib/runtime/site/show.sh), [inspection](../lib/services/site/inspect.sh), [certificate driver](../lib/services/ssl/certificates.sh). Installed exports include these helpers. Deeper extraction of legacy application rendering and older installer/manager bodies remains; decomposition stays partial. |
+| 2.17 | Text/JSON views share Nginx/FPM content, certificate path/SAN/expiry/hostname details, legacy metadata, ownership state and nested application mounts; secret-bearing fields are redacted; literal metadata parsing and recovery views are preserved | [inspection driver](../lib/services/site/inspect.sh), [diagnostic tests](../tests/unit/site_diagnostics.bats). Certificate trust-chain verification is not implied by a readable certificate; variable paths and indirect upstreams can remain unresolved. |
 | 2.18 | Positional `db backup DOMAIN`, `db restore DOMAIN FILE` and `db backup-schedule DOMAIN` resolve an ownership record, reject conflicting legacy state and retain the protected engine and explicit DB flags | [resolver](../lib/services/site/database.sh), [runtime](../lib/runtime/database/commands.sh). Sites without a recorded database require explicit `--dbname` or ownership reconciliation. Mount-specific application databases are not guessed from private `.env` files. |
 
 The custom TLS default uses the **OpenSSL 3.5 LTS** line, supported through April
@@ -269,11 +295,11 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.35 | Implemented | Portable host-edit helpers; GNU sed in Linux CI/UAT is appropriate. |
 | 2.36 | Implemented | Active shell code no longer depends on grep PCRE as described in the historical task. |
 | 2.37 | Partial | Same migration workstream as 2.12 and Phase 9, R8. |
-| 2.38 | Implemented with shared Linux test environment | Current tree has **36 Bats files / 456 declarations**. A2 aligns dependency preparation, root fixtures, and test locks; final verification is recorded separately from the initial audit. |
+| 2.38 | Implemented with shared Linux test environment | Current tree has **39 Bats files / 482 declarations**. A2 aligns dependency preparation, root fixtures, and test locks; final verification is recorded separately from the initial audit. |
 | 2.39 | Implemented | Debian 12 CI exists; its distro ShellCheck version need not match the explicitly pinned Ubuntu/release tool. |
 | 2.40 | Implemented | Bashate in CI/release checks. |
 | 2.41 | Implemented | TUI log streaming and refresh controls. |
-| 2.42 | Wizard implemented; app capability gap remains | TUI delegates to public CLI; Mautic/Roundcube/Sendy installation choices still reach a placeholder-only branch (A3). |
+| 2.42 | Implemented, capability gap closed by A3 | TUI delegates to public CLI and shares the application catalog; manual types offer vhost creation without an installation flag. Full deployment for those types remains deferred. |
 | 2.43 | Implemented | ModSecurity status/report/tune and validation/rollback. |
 | 2.44 | Implemented | systemd-resolved/ACME cache and deploy hooks. |
 | 2.45 | Implemented | Shared update compatibility adapter/source bootstrap. |
@@ -380,7 +406,7 @@ created inside those containers, and no workstation/live service was changed.
 ## Prioritized follow-through validation — 2026-11-22
 
 - Full synthetic Bats suite: **437 tests passed**; scoped Bash function-entry
-  coverage: **54/62 (87.1%)**. This does not measure Python line/branch coverage.
+  coverage: **54/62 (87.1%)**. This does not measure line/branch coverage.
 - ShellCheck **0.11.0** with sourced-file analysis, Bashate using CI options,
   Bash syntax checks and shfmt **3.8.0** checks passed.
 - Final real Ubuntu 24.04 ARM64 UAT: **47 checks passed**, including actual
@@ -464,3 +490,132 @@ created inside those containers, and no workstation/live service was changed.
   containers were used for system changes; containers started for this work were
   stopped after verification. No commit, push, workflow trigger or publication
   was performed. Candidate CI and final archive validation remain release gates.
+
+## Initial A3 implementation verification — 2026-11-22
+
+- `podman exec -w /source lemper-p1-provision-ubuntu24 bash scripts/run_tests.sh`:
+  **465/465 Bats tests passed** on Ubuntu 24.04 ARM64, using the shared root
+  fixture and a read-only checkout. Nine capability regressions cover all install
+  aliases, rejection before mutations, invalid types, dry runs, placeholders,
+  real marker requirements, ownership recording and wizard choices.
+- The final frozen copy of
+  [application acceptance](../tests/uat/application_capabilities_acceptance.sh)
+  passed **29 checks** in the designated Ubuntu 24.04 ARM64 systemd container.
+  Unsupported Mautic/Roundcube/Sendy installation produced no vhost/project;
+  their manual vhosts served synthetic PHP through real per-user FPM pools.
+  CodeIgniter **4.7.6** installed production dependencies as the site user,
+  produced project/vendor files and ownership state, passed `nginx -t`, and
+  served its actual welcome page. This host used distro Nginx **1.24.0** and PHP
+  **8.3.6**; these functional checks do not establish current security-patch
+  currency or final release-archive readiness.
+- Installed public help also passed as `nobody`. Changed Bash files passed Linux
+  syntax checks, ShellCheck **0.11.0** with sourced-file analysis, CI Bashate
+  options and the shfmt **3.8.0** gate. Local links in all seven changed Markdown
+  files and `git diff --check` passed.
+- Initial UAT failures exposed missing distro-host LEMPer Nginx/FastCGI templates
+  and a PHP DOM prerequisite for the old development-dependency install. The
+  fixture now uses complete tracked templates from its immutable CLI snapshot;
+  CodeIgniter's Composer path uses distribution archives and `--no-dev` as the
+  runtime user. The slow old source-clone run was stopped before repeating UAT.
+- Other automatic installers, Debian A3 native deployment, public ACME and exact
+  candidate archives were not validated in this scope. Full manual-app installers
+  remain deferred, and A4 decomposition remains partial. P1 is committed in
+  **79d4d40**; A3 remains uncommitted. No push or publication was performed.
+
+## Complete Mautic/Roundcube release verification — 2026-11-23
+
+- The shared Ubuntu 24.04 ARM64 runner passed **473/473 Bats tests**. The affected
+  release/capability/alignment suites passed **44 checks** after final changes.
+  Seven release regressions cover flattened package publication, preservation,
+  checksum/download/platform/marker failures, dry runs including direct legacy
+  entry, unsafe targets, archive traversal/links/duplicates and literal rendering.
+  Wizard and CLI tests cover Mautic/Roundcube installation aliases.
+- The final frozen [native acceptance suite](../tests/uat/application_capabilities_acceptance.sh)
+  passed **57 checks** in the designated Ubuntu 24.04 ARM64 systemd container.
+  Actual pinned Mautic **7.2.2** and Roundcube **1.7.6** packages were downloaded,
+  SHA-256 verified and extracted as the hosting user. Their upstream setup pages,
+  stylesheets and Mautic favicon served through PHP-FPM/Nginx; private files,
+  real unauthorized PHP probes and non-loopback setup requests were blocked.
+  Configuration directories/receipts were private, repeated deployments retained
+  a custom configuration fixture, and ownership records contained no fictional
+  database. Manual vhosts, Sendy rejection and CodeIgniter HTTP remained covered.
+- The host used distro Nginx **1.24.0** and PHP **8.3.6**. This is functional
+  deployment evidence, not current patch-currency or release-archive certification.
+  Unattended database/admin/SMTP/IMAP setup, live mail login/delivery, other PHP
+  versions, Debian deployment and final archives were not tested in this scope.
+- Changed Bash files passed syntax checks, sourced ShellCheck **0.11.0**, CI
+  Bashate options and shfmt **3.8.0**. Python syntax, local documentation references
+  and whitespace checks passed. The initial renderer delimiter error was fixed
+  and covered by a regression. A narrow bundled-image route resolves Mautic's
+  favicon restriction while other `app/` paths remain denied.
+- Runtime/service exports include the release driver, renderer and extraction
+  helper. Documentation distinguishes complete-file deployment from upstream
+  setup and explains protected setup access. A4 decomposition and publication
+  gates remain. These changes are uncommitted; no push or publication occurred.
+
+## Latest-stable application release selection — 2026-11-23
+
+New Mautic/Roundcube installs now resolve GitHub's `releases/latest` metadata
+at installation time. The [metadata helper](../lib/services/site/release_metadata.sh)
+requires a stable release, an unambiguous complete asset, its expected official
+GitHub URL and a published SHA-256 digest. Fixed application version/digest pins
+are removed; metadata errors never fall back to a previous version. A deployment
+uses one resolved metadata snapshot. Dry runs and preservation of an existing
+valid installation do not query the API or perform upgrades.
+
+- **46/46 focused Bats tests passed**, including synthetic future Mautic and
+  Roundcube versions, optional `v` tags, complete-asset selection, malformed or
+  unstable metadata, missing/wrong digests, unsafe URLs and duplicate assets.
+  Failure, preservation and direct legacy dry-run regressions remain covered.
+- **57/57 native Podman acceptance checks passed** on Ubuntu 24.04 ARM64 through
+  the installed CLI, dynamically resolving the current stable Mautic **7.2.2**
+  and Roundcube **1.7.6** packages. HTTP/setup/assets, privacy, ownership and repeat
+  preservation checks remained unchanged. These are observed versions, not pins.
+- Changed Bash syntax, sourced ShellCheck, CI Bashate options, shfmt and Python
+  syntax checks passed. Documentation now describes dynamic latest selection.
+  The prior 473-test full suite remains historical; the full 475-test suite and
+  other distributions/PHP versions were not rerun for this scoped change.
+  Changes remain uncommitted; no push or publication occurred.
+
+## Additional application deployment verification — 2026-11-23
+
+- The shared Ubuntu 24.04 ARM64 runner passed **482/482 Bats tests**; final
+  affected suites passed **53/53 tests**. New tests cover all app installation
+  choices, licensed-download rejection, package/provider selection, exact
+  Nextcloud distribution matching, GitHub source/MyBB Upload extraction, bounded
+  internal-file alias copying, OJS default configuration/storage and Unix-socket
+  rendering. Source-only and CLI compatibility checks remain intact.
+- The [additional native suite](../tests/uat/additional_applications_acceptance.sh)
+  passed **66 checks** on Ubuntu 24.04 ARM64, PHP **8.3.6**, distro Nginx **1.24.0**.
+  It installed SnappyMail **3.1.4**, Nextcloud **35.0.3**, MyBB **1.8.41**, OJS
+  **3.5.0-6**, phpList **3.6.17**, and Slim skeleton **4.5.0** with Slim framework
+  **4.15.3**. These are observed current releases, not source pins.
+- Real setup/login pages, Slim's users API and app stylesheets served through
+  per-user Unix FPM sockets. Synthetic probes verified DAV `PROPFIND` method,
+  `PATH_INFO`, query and body preservation, MyBB friendly-URL parameters,
+  XenForo friendly-URL POST/query handling, and blocking of actual private files.
+  The probes backed up/restored MyBB/Nextcloud entry files. XenForo's vendor
+  application was not supplied or executed; its licensed manual vhost and
+  synthetic PHP routing were validated. No license artifacts are distributed.
+- phpList's admin HTTP test used a synthetic database configured with a protected
+  password file inside the disposable host. Production deployment does not
+  create or record an invented database. OJS generated its staged default with
+  an owner-only external submission directory; existing customized configuration
+  remains protected. Nextcloud's non-secret publication marker remains readable
+  by Nginx while credentials/data stay private.
+- Initial UAT exposed internal Nextcloud license-file links and expensive
+  backwards tar seeking; aliases are now materialized from bounded cached bytes
+  after one extraction pass. OJS's packaged default configuration is accepted
+  without overwriting customized files. Fixture resumes refresh owned vhosts as
+  one batch, preserving systemd's service limits; required jq is checked early.
+  No TLS, authentication, ownership or file-security controls were disabled.
+- Bash syntax, sourced ShellCheck **0.11.0**, CI Bashate options, shfmt **3.8.0**,
+  Python syntax and documentation/whitespace checks passed. phpList/Slim source
+  archives and PKP packages record verified-HTTPS provenance where no published
+  asset digest exists; complete GitHub assets retain mandatory SHA-256 checks.
+- Authenticated mailbox delivery/login, configured forum/journal/cloud workflows,
+  other distributions/PHP versions and final release archives were not validated.
+  Nextcloud setup logs warnings when it reapplies session-cookie options locked
+  by the existing FPM policy; those security settings remain unchanged. The
+  source deployment and HTTP checks do not establish security-patch currency.
+  A4 decomposition and release/publication gates remain. Work is uncommitted.

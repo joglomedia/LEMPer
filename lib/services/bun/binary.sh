@@ -48,7 +48,7 @@ function lemper_bun_install_binary() (
     trap 'rm -rf -- "$work"' EXIT
     if [[ "$version" == latest ]]; then
         curl -fsSL --proto '=https' --retry 3 -o "$work/release.json" https://api.github.com/repos/oven-sh/bun/releases/latest || return 1
-        tag=$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["tag_name"])' "$work/release.json") || return 1
+        tag=$(jq -er 'select(.draft == false and .prerelease == false) | .tag_name | strings' "$work/release.json") || return 1
     else
         version="${version#bun-}"
         version="${version#v}"
@@ -63,13 +63,9 @@ function lemper_bun_install_binary() (
         error "Bun release checksum mismatch."
         return 1
     }
-    python3 -I - "$work/$asset" "$asset" "$work/bun" <<'PYTHON'
-import sys,zipfile
-from pathlib import Path
-archive, asset, target = sys.argv[1:]
-with zipfile.ZipFile(archive) as release:
-    Path(target).write_bytes(release.read(asset[:-4] + '/bun'))
-PYTHON
+    # Extract exactly one checksummed payload as bytes, never archive paths.
+    [[ "$(zipinfo -1 "$work/$asset" | awk -v name="${asset%.zip}/bun" '$0 == name {n++} END {print n+0}')" == 1 ]] || return 1
+    unzip -p "$work/$asset" "${asset%.zip}/bun" >"$work/bun" || return 1
     [[ -s "$work/bun" ]] || return 1
     chmod 0755 "$work/bun" || return 1
     "$work/bun" --version >/dev/null || return 1

@@ -542,9 +542,8 @@ function php_migrate_realpath() {
     if command -v realpath >/dev/null 2>&1; then
         realpath "${path}" 2>/dev/null && return 0
     fi
-    if command -v python3 >/dev/null 2>&1; then
-        python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "${path}"
-        return 0
+    if command -v readlink >/dev/null 2>&1; then
+        readlink -f -- "${path}" 2>/dev/null && return 0
     fi
     if [[ -L "${path}" ]]; then
         return 1

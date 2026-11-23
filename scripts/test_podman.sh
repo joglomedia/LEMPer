@@ -36,7 +36,9 @@ SC_CMD="shellcheck -s bash -x \
     lib/runtime/*.sh lib/runtime/*/*.sh lib/services/*.sh lib/services/*/*.sh lib/compat/*.sh \
     scripts/install_*.sh scripts/remove_*.sh scripts/utils.sh \
     scripts/server_*.sh scripts/nginx/*.sh \
-    tests/*.bats"
+    tests/*.bats tests/uat/*.bash tests/report_coverage.sh sbin/pure-ftpd-wrapper \
+    share/memcached/scripts/*.bash share/memcached/scripts/start-memcached \
+    share/memcached/scripts/systemd-memcached-wrapper share/memcached/scripts/memcached-tool share/memcached/scripts/damemtop"
 
 # Bats command.
 BATS_CMD="bash scripts/run_tests.sh"

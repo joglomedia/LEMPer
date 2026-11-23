@@ -151,8 +151,8 @@ CONFIGURE
 }
 @test "fresh encrypted config seeds profile settings and preserves existing configuration on repeat init" {
     local core_fixture="$TEST_TMPDIR/config.sh"
-    CORE_SOURCE="$REAL_BASE_DIR/lib/core/config.sh" CORE_TARGET="$core_fixture" UAT_STATE="$TEST_TMPDIR/state" \
-        python3 -c 'import os,pathlib; p=pathlib.Path(os.environ["CORE_SOURCE"]); pathlib.Path(os.environ["CORE_TARGET"]).write_text(p.read_text().replace("/etc/lemper",os.environ["UAT_STATE"]))'
+    UAT_STATE="$TEST_TMPDIR/state" awk '{gsub(/\/etc\/lemper/,ENVIRON["UAT_STATE"]); print}' \
+        "$REAL_BASE_DIR/lib/core/config.sh" >"$TEST_TMPDIR/config.sh"
     printf 'INSTALL_REDIS=false\nSERVER_PROFILE=small\nSSH_PORT=2269\n' > "$TEST_TMPDIR/profile"
     run bash -c '
         . "$REAL_BASE_DIR/lib/core/loader.sh"

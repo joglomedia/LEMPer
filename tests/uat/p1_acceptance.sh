@@ -103,6 +103,6 @@ INI
 chmod 0600 /etc/lemper/vhost.d/p1.test.conf
 printf 'server_name p1.test;\n' > /etc/nginx/sites-available/p1.test.conf
 check site-text-redaction bash -c 'output=$(lemperctl site show p1.test --app); [[ "$output" == *"[REDACTED]"* && "$output" != *synthetic-diagnostic-password* && "$output" != *synthetic-admin-password* ]]'
-check site-json-redaction bash -c 'lemperctl site show p1.test --json | python3 -c '\''import json,sys; d=json.load(sys.stdin); assert d["domain"]=="p1.test"; assert d["app_metadata"]["p1.test"]["app_db_pass"]=="[REDACTED]"'\'''
+check site-json-redaction bash -c 'lemperctl site show p1.test --json | jq -e '\''.domain=="p1.test" and .app_metadata["p1.test"].app_db_pass=="[REDACTED]"'\'''
 check installed-php php8.4 -r 'exit(PHP_MAJOR_VERSION == 8 && PHP_MINOR_VERSION == 4 ? 0 : 1);'
 printf '%s checks passed on %s %s (%s).\n' "$count" "$DISTRIB_NAME" "$RELEASE_NAME" "$(dpkg --print-architecture)"
