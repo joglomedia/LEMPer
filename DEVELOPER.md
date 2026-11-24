@@ -243,6 +243,10 @@ the generated CA for TLS verification.
 Per-case logs stay under `/var/log/lemper-uat/cli`.
 See [UAT_REPORT.md](docs/UAT_REPORT.md) for recorded results and environment limitations.
 
+The PHP/Laravel policy UAT marks its fully published test configuration with a
+generation header. Assertions wait for that generation because old Nginx workers
+can finish requests during a graceful reload. The marker is confined to the fixture.
+
 For the v4 release bootstrap, first build the assets into `dist/v4.0.0/`
 from the reviewed committed checkout, then run the fresh-container acceptance
 script. It installs the archive through `get-lemper` and removes the stack at

@@ -222,35 +222,52 @@ function access_policy_guard() {
         echo 'UAT assertion: server policy mount rejected'
         return 1
     fi
-    local path code authfile _attempt
-    # A graceful reload returns before the replacement workers accept requests.
-    # Wait for activation, then verify every protected route and valid login.
-    code=000
-    for _attempt in {1..30}; do
-        code=$(curl -sS --max-time 5 -H 'Host: parent-uat.test' -o /dev/null -w '%{http_code}' http://127.0.0.1/protected/) || true
-        [[ "$code" != 401 ]] || break
-        sleep 0.2
-    done
-    if [[ "$code" != 401 ]]; then
-        printf 'UAT assertion: authentication policy did not activate (HTTP %s)\n' "$code" >&2
-        return 1
-    fi
+    local path code authfile _attempt active marker="$RANDOM-$RANDOM"
+    local headers="$backup/policy-headers" body="$backup/policy-body"
+    # Graceful reloads can serve requests through both old and new workers.
+    # Mark a generation after the mount/auth configuration is complete, then
+    # assert policy only on responses served by that generation.
+    sed "/^    root /a\\    add_header X-LEMPer-UAT-Policy $marker always;" "$parent" >"$backup/policy"
+    cat "$backup/policy" >"$parent"
+    nginx -t
+    systemctl reload nginx
     for path in /protected/ /protected/index.php; do
-        code=$(curl -sS --max-time 15 -H 'Host: parent-uat.test' -o /dev/null -w '%{http_code}' "http://127.0.0.1$path")
-        if [[ "$code" != 401 ]]; then
-            printf 'UAT assertion: unauthenticated request accepted (HTTP %s)\n' "$code"
+        active=false
+        for _attempt in {1..30}; do
+            code=$(curl -sS --max-time 5 -H 'Host: parent-uat.test' -D "$headers" -o /dev/null -w '%{http_code}' "http://127.0.0.1$path")
+            if grep -Fiq "X-LEMPer-UAT-Policy: $marker" "$headers"; then
+                if [[ "$code" != 401 ]]; then
+                    printf 'UAT assertion: unauthenticated request accepted (HTTP %s)\n' "$code"
+                    return 1
+                fi
+                active=true
+                break
+            fi
+            sleep 0.2
+        done
+        if [[ "$active" != true ]]; then
+            echo 'UAT assertion: authentication policy generation did not activate'
             return 1
         fi
     done
     authfile=$(mktemp)
     chmod 0600 "$authfile"
     printf 'user = "uat:synthetic-uat-pass"\n' >"$authfile"
-    if ! curl -fsS --max-time 15 --config "$authfile" -H 'Host: parent-uat.test' http://127.0.0.1/protected/ | jq -e '.app=="second"' >/dev/null; then
-        rm -f "$authfile"
+    active=false
+    for _attempt in {1..30}; do
+        code=$(curl -sS --max-time 5 --config "$authfile" -H 'Host: parent-uat.test' \
+            -D "$headers" -o "$body" -w '%{http_code}' http://127.0.0.1/protected/)
+        if grep -Fiq "X-LEMPer-UAT-Policy: $marker" "$headers"; then
+            [[ "$code" == 200 ]] && jq -e '.app=="second"' "$body" >/dev/null && active=true
+            break
+        fi
+        sleep 0.2
+    done
+    rm -f "$authfile"
+    if [[ "$active" != true ]]; then
         echo 'UAT assertion: authenticated access failed'
         return 1
     fi
-    rm -f "$authfile"
     if ! lemperctl site app remove parent-uat.test --mount /protected --yes; then
         echo 'UAT assertion: protected mount removal failed'
         return 1
