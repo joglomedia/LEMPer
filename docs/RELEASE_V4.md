@@ -1,22 +1,22 @@
 # v4.0.0 release preparation
 
-Status checked 2026-11-24: v4.0.0 is unpublished; latest GitHub release is
-v3.6.0. The verified candidate is `9b3963e` on the pushed `release/v4.0.0`
+Status checked 2026-11-25: v4.0.0 is unpublished; latest GitHub release is
+v3.6.0. The verified runtime candidate is `d79e4ec` on the pushed `release/v4.0.0`
 branch. Accepted module decomposition (2.12/2.37) is implemented. Candidate CI,
 reproducible assets and exact-archive acceptance passed; publication and the
 selected production checks below remain separate steps.
 
-## Verified candidate 9b3963e
+## Verified runtime candidate d79e4ec
 
-[GitHub Actions run 45318207064](https://github.com/joglomedia/LEMPer/actions/runs/45318207064)
-passed **24/24 jobs** for commit
-**9b3963e34fa144bcf67d8aa69439675bddfb16ea**. This is committed-candidate evidence;
+[GitHub Actions run 45466706385](https://github.com/joglomedia/LEMPer/actions/runs/45466706385)
+passed **25/25 jobs** for commit
+**d79e4ec7443e10d4845ab5fc8f2300070e4a78d5**. This is committed-candidate evidence;
 it supersedes older statements about missing remote CI or native AMD64 coverage.
 
 | Gate | Verified result |
 |---|---|
-| Bash validation | **534 Bats tests**; Bash syntax, sourced ShellCheck 0.11.0 and Bashate passed |
-| Formatting and coverage | Scoped shfmt passed; function-entry coverage **86/94 (91.5%)** |
+| Bash validation | Full Bash/Bats, sourced ShellCheck and Bashate CI passed; the preflight follow-through also passed **545/545 local Bats tests** |
+| Formatting and coverage | Scoped formatting and declared function coverage CI passed |
 | Exact archive on native AMD64 | **13/13** bootstrap/install/HTTP/SSH/repeat/remove checks on each of Ubuntu 24.04, Ubuntu 26.04 and Debian 12 |
 | PHP/Laravel | **11/11** runtime/default/routing/authentication checks |
 | Other native matrices | Maintained PHP archives, mail hosting, FTP source builds, hosting quotas, and priority lifecycle/TLS jobs passed |
@@ -24,14 +24,14 @@ it supersedes older statements about missing remote CI or native AMD64 coverage.
 
 Two fresh Linux builds of this clean commit produced byte-identical copies of
 all four assets. Both checksum files verify. Local copies are retained under
-`dist/v4.0.0/9b3963e/{first,second}/` (ignored by Git):
+`dist/v4.0.0/d79e4ec/{first,second}/` (ignored by Git):
 
 | Asset | SHA-256 |
 |---|---|
-| `lemper-v4.0.0.tar.gz` | `88e77d257d3cbab745af46d46cadda582de03fb7daffc507784b26a1d4461a40` |
+| `lemper-v4.0.0.tar.gz` | `b36ec83ba31596bc2d47cbc68c64eb2fd9aebcb94bf6274fe5fa71a6427b4a71` |
 | `get-lemper` | `775f1a528f5c6578e2f021368d45dec90f90f7bdf4c6c82938ad5fce3ed8e2b6` |
 
-The downloaded CI coverage artifact is retained under `coverage/9b3963e-ci/`.
+The preceding candidate's downloaded CI coverage artifact is retained under `coverage/9b3963e-ci/`.
 Coverage measures entry into the declared functions during synthetic tests;
 it is not line/branch coverage or proof of every live transition.
 
@@ -46,11 +46,12 @@ authenticated GitHub metadata without passing a token into the installer.
 
 See [production UAT](PRODUCTION_UAT.md) for protocol checks and external target
 requirements. Public DNS-01 and Internet-facing protocol checks passed in the
-2026-11-25 follow-through below. External mail/alerts, HTTP-01 and selected
-migrations still require their designated targets. Further commits change the archive
+2026-11-25 follow-through below. HTTP-01 and the representative legacy tooling
+upgrade also passed. External mail/alerts and full storage migrations still
+require their designated targets. Further commits change the archive
 hash: build and validate the final committed candidate before tagging it.
 
-Follow-through on this runtime baseline passed **537/537 local Bats tests**, **16
+Earlier baseline follow-through passed **537/537 local Bats tests**, **16
 local protocol checks**, **19 local remote-backup/alert checks**, **13 VPS SFTP
 checks over verified SSH access**, and **6 VPS-native QUIC/TLS checks**. The new
 HTTP/3 CI job makes the protocol suite repeatable for subsequent candidates.
@@ -62,8 +63,11 @@ renewal flag/certificate-preservation check. It also found and corrected redunda
 hostname preflight mutations; **545 Bats tests** passed for that correction.
 See [production UAT](PRODUCTION_UAT.md#public-follow-through-2026-11-25) for
 versions, resource boundaries, cleanup and production-preservation evidence.
-Controlled external mail, HTTP-01 and disposable legacy transition/application
-targets remain pending. Final follow-through commits need rebuilt assets and
+Follow-through of the exact `d79e4ec` archive passed **17 HTTP-01 checks** plus
+CLI issuance/repeat-enable, and **13 legacy tooling upgrade checks**. Mail
+delivery is pending outbound TCP 25 or an authenticated relay; full legacy
+storage migration and application setup need disposable targets.
+Final follow-through commits need rebuilt assets and
 fresh candidate CI before publication.
 
 ## Remaining release steps

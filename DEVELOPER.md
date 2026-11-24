@@ -312,6 +312,59 @@ VPSes require provider port mappings for Internet-facing QUIC/ACME; an existing
 verified SSH connection can tunnel SFTP without changing service/firewall routing.
 See [PRODUCTION_UAT.md](docs/PRODUCTION_UAT.md) for scope and evidence.
 
+#### HTTP-01 and legacy tooling acceptance
+
+`tests/uat/legacy_tooling_acceptance.sh` requires a fresh designated systemd
+container, public v3.6.0 source mounted at `/legacy-source:ro`, and the exact
+v4 archive/bootstrap/checksums at `/release:ro`. Mount or copy the driver,
+create `/run/lemper-legacy-uat-authorized`, and execute it as root **inside the
+container**. Use `tests/uat/Containerfile` with Ubuntu 24.04, 2 CPUs and 2 GiB RAM.
+The driver installs distro services, actual v3 CLI/plugins and synthetic data;
+it tests the CLI-only archive upgrade, preservation, invalid checksums, aliases,
+repeat runs, encrypted configuration and configuration backup. It does not run
+the full v3 installer or migrate real database/mail storage.
+
+For the HTTP-01 fixture, build `tests/uat/PublicHttp01.Containerfile` using an
+empty/public build context. Use a fresh disposable systemd container with
+`/release:ro`, the exact v4 archive/assets, and a mounted/copied
+`tests/uat/public_http01_prepare.sh`. Set `LEMPER_UAT_HTTP01_DOMAIN=lemper.eu.org`
+and create `/run/lemper-http01-uat-authorized` before running preparation. This
+installs the actual Certbot component and creates only a fixture vhost. The
+internal hostname uses development preflight during package preparation;
+the site certificate operation then uses the production HTTP-01 path.
+
+The designated public server must already serve this domain's ACME path, or
+redirect it to an existing reachable webroot. Any temporary public challenge
+file on a live host needs an explicitly authorized scope. Keep SSH/Cloudflare
+credentials outside the container. No production configuration, listener,
+certificate or mailbox is replaced by these drivers.
+
+1. Run `lemperctl site update lemper.eu.org --ssl-enable` interactively in the
+   fixture. Its test-only Certbot wrapper pauses after writing a challenge.
+2. Copy only the generated public token/validation file from
+   `/var/www/lemper-http01/.well-known/acme-challenge/` to the existing public
+   challenge directory. Refuse existing files/symlinks and verify the exact
+   content over public HTTP before continuing the fixture prompt.
+3. Run `public_http01_acceptance.sh --before-renewal` inside the fixture with
+   the same domain variable. Staging HTTPS explicitly trusts the issued staging
+   chain; system trust and wrong-hostname requests must fail verification.
+4. Run `public_http01_renew.sh`. Certbot's `renew` is noninteractive; its test-only
+   file watcher pauses the fixture process at challenge close-write. When it
+   reports `PUBLIC_CHALLENGE_READY_FOR_COPY`, read `/run/http01-renewal-token`,
+   mirror that public file, verify its HTTP content, and create
+   `/run/http01-renewal-continue` **inside the container**. The bridge times out
+   after three minutes and cleans up its child processes.
+5. After successful renewal, run `public_http01_acceptance.sh --after-renewal`.
+   Remove only the exact challenge files created for this test, revoke the
+   staging test certificate, retain private case logs, and remove task fixtures.
+   Compare the public host's service state and homepage with their pre-test baseline.
+
+The fixture's certificate keys and ACME accounts stay in its private filesystem.
+The watcher/wrapper is UAT coordination only; production scheduled renewal keeps
+its usual noninteractive behavior and random delay. See
+[the public report](docs/PRODUCTION_UAT.md#http-01-and-legacy-tooling-follow-through)
+for results and the outstanding external mail/full-migration scope.
+
 #### Public DNS-01 and protocol fixtures
 
 The public drivers require explicit disposable-container markers, root inside

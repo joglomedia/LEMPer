@@ -1,8 +1,8 @@
 # Production UAT for v4
 
-Runtime baseline: **9b3963e34fa144bcf67d8aa69439675bddfb16ea**, 2026-11-24.
-The [candidate CI](https://github.com/joglomedia/LEMPer/actions/runs/45318207064)
-passed all 24 jobs, including committed-archive acceptance, PHP/Laravel, mail,
+Runtime candidate: **d79e4ec7443e10d4845ab5fc8f2300070e4a78d5**, 2026-11-25.
+The [candidate CI](https://github.com/joglomedia/LEMPer/actions/runs/45466706385)
+passed all 25 jobs, including committed-archive acceptance, PHP/Laravel, mail,
 FTP, hosting quotas and priority lifecycle/TLS. The accepted 48 numbered tasks
 are implemented or superseded. This checklist covers selected deployment checks
 that exceed those automated results.
@@ -19,9 +19,9 @@ that exceed those automated results.
 | Internet-facing QUIC | **17/17 public protocol checks passed** | Second VPS, native AMD64 Nginx 1.30.8/OpenSSL 3.5.9; a separate ARM64 curl 8.23.0 client verified HTTPS, HTTP/2, QUIC, TLS 1.2/1.3, hostname/trust rejection and zero early-data bytes over public port 18443 |
 | Public ACME DNS-01 issuance/renewal | **23/23 passed**, plus final renewal flag/preservation check | LEMPer CLI/driver, Certbot 5.10.0, staging and production wildcard/base issuance for a reserved subdomain under lemper.eu.org, installed Nginx deploy hook and repeat-install preservation |
 | Public DNS operations | **6/6 passed** | Cloudflare TXT create/read/update/delete verified on both authoritative nameservers; complete existing record objects matched after cleanup |
-| Public ACME HTTP-01 | Pending disposable target | A separate hostname/server with available public TCP 80/443; production listeners were preserved |
-| External SMTP/IMAP and alerts | Pending external target | Controlled sender/recipient domains/mailboxes, verified TLS and routable mail endpoints |
-| Selected legacy upgrades | Pending disposable legacy baseline | A designated old installation/data snapshot and a reviewed recovery path |
+| Public ACME HTTP-01 | **17/17 checks passed**, plus CLI issuance/repeat-enable | Let’s Encrypt staging, the exact v4 archive, an isolated Ubuntu 26.04 fixture, and only temporary public challenge files on the existing production route |
+| External SMTP/IMAP and alerts | Pending transport/isolated mail endpoint | Both Gmail MX IPv4 probes failed on outbound TCP 25; Gmail submission on 587 connected, but the VPS has no configured Postfix relay |
+| Legacy tooling upgrade | **13/13 checks passed** | Actual v3.6.0 CLI/plugins with distro services and synthetic data, upgraded using the exact v4 archive; full legacy installation/storage migration remains pending |
 | Full upstream application setup | Pending selected app targets | Complete database/admin/mail/cron setup and HTTP health checks for selected application releases |
 
 The local project mount is read-only. Package/service changes, generated keys,
@@ -93,9 +93,61 @@ Renewal UAT disables Certbot's random scheduled delay; production scheduling
 defaults retain that delay. Client builds live under `/var/tmp`, so stopping a
 container does not discard them through a `/run` tmpfs.
 
-External mail, HTTP-01 and selected legacy upgrade/application setup targets
-remain pending. A production host is not the legacy installation/removal fixture;
-use a disposable snapshot clone for those transitions.
+### HTTP-01 and legacy tooling follow-through
+
+The exact `d79e4ec` archive also passed **13/13 legacy tooling checks** in a
+disposable Ubuntu 24.04 ARM64/systemd container. The baseline uses the actual
+v3.6.0 CLI and plugin mapping from tag commit
+`7d531deec3e72ef20b0c43d4e5445cf1b2590092`, with distro Nginx, PHP 8.3 and MariaDB.
+This is a representative tooling/layout fixture, not a full v3 installer run.
+The PHP endpoint queries synthetic SQL data; configuration, package versions,
+running service PIDs/startup timestamps, application data and synthetic Maildir
+content remained unchanged after the CLI-only bootstrap and its repeat run.
+Checksum rejection preserved v3, both public CLI aliases resolved to v4, and
+encrypted configuration plus configuration backup/verification passed.
+
+HTTP-01 issued a staging certificate for `lemper.eu.org` through
+`lemperctl site update --ssl-enable` in a separate Ubuntu 26.04 ARM64 fixture
+running Certbot 5.10.0 and distro Nginx 1.28.3. Only public challenge files were
+copied to the existing production `.well-known/acme-challenge` directory; the
+existing HTTP-to-HTTPS redirect served them without a configuration change or
+reload. Private ACME accounts, keys and the staging TLS endpoint stayed inside
+the disposable container. Staging HTTPS uses explicit certificate trust; the
+system trust store correctly rejects it, as does a mismatched hostname.
+
+The **17 checks** cover SAN, expiry, webroot renewal configuration, installed
+deploy hook, Nginx validation, HTTPS/body and trust/hostname rejection before
+and after a successful renewal dry-run. Repeat SSL enable preserved the
+certificate. The renewal ran the installed hook and reloaded only fixture Nginx.
+An initial manual renewal failed because `renew` cannot pause interactively;
+the test-only file watcher now pauses/resumes the fixture process while the
+operator mirrors its public challenge. Scheduled jitter is disabled only for
+this test. Production service PIDs/startup timestamps and the homepage body
+matched their new pre-test baseline. Temporary challenge files were removed,
+the staging certificate was revoked, and the task containers were removed after
+retaining protected case logs. No production mail configuration, accounts or
+DNS records changed.
+
+The new Bash drivers passed Linux Bash syntax, sourced ShellCheck and Bashate;
+all 46 local links in the affected developer/release/UAT documents resolve.
+
+The Bash drivers are [legacy tooling](../tests/uat/legacy_tooling_acceptance.sh),
+[HTTP-01 preparation](../tests/uat/public_http01_prepare.sh),
+[renewal bridge](../tests/uat/public_http01_renew.sh) and
+[HTTP-01 verification](../tests/uat/public_http01_acceptance.sh).
+See [developer instructions](../DEVELOPER.md#http-01-and-legacy-tooling-acceptance).
+
+External mail remains pending: IPv4 probes to two Gmail MX endpoints on TCP 25
+timed out, while `smtp.gmail.com:587` returned an SMTP 220 greeting. The existing
+Postfix relay is unset. No external email was sent. Direct delivery needs
+provider port-25 access; submission through a relay needs a separately supplied
+authenticated transport. SPF/DKIM/MX changes are deferred until that transport
+and an isolated mail endpoint are ready. IMAP/inbound delivery and external
+alerts have not been established by this preflight.
+
+Full legacy installation/storage migration and selected application setup
+still need disposable targets. A production host is not the legacy
+installation/removal fixture; use a disposable snapshot clone for those transitions.
 
 ## External target requirements
 
