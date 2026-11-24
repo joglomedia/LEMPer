@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0] - Unreleased
 
 ### Added
+- L-plus SVG brand assets with light/dark-background logos, color/monochrome
+  icons, a multi-size favicon and a brand usage guide.
 - Bash protocol/SFTP/alert UAT drivers and a native Ubuntu 26.04 HTTP/3 gate,
   including verified TLS, disabled early-data behavior and certificate rejection.
 - Shared candidate/tag archive acceptance on Ubuntu 24.04, Ubuntu 26.04 and
@@ -73,6 +75,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tag-driven release automation, and provisioned-host/dependency audit reports.
 
 ### Changed
+- Refresh the Nginx and new-site welcome pages with a responsive, accessible
+  layout and current v4 guides; share one static template, escape site names and
+  remove external fonts/scripts from the placeholder.
 - Repository Fail2ban installs use a journal-backed SSH jail and install native
   systemd bindings, avoiding a missing `/var/log/auth.log` on Debian. Validate
   configuration and wait for the daemon before reporting successful installation.

@@ -1,7 +1,7 @@
 # [L]inux [E]ngine-X [M]ariaDB [P]HP Install[er]
 
 <p align="center">
-  <img src="/.github/assets/lemper-logo.svg?raw=true" alt="Served by LEMPer Stack © @joglomedia"/>
+  <img src=".github/assets/lemper-welcome.png" alt="LEMPer welcome page: Your next idea starts here." width="100%"/>
 </p>
 
 <p align="center">
@@ -88,6 +88,7 @@ Browse the [documentation index](docs/README.md), [developer guide](DEVELOPER.md
 [changelog](CHANGELOG.md) and [roadmap status](docs/ROADMAP_AUDIT.md).
 [Release preparation](docs/RELEASE_V4.md) and [UAT results](docs/UAT_REPORT.md)
 record validation and release limits.
+Download the SVG [logos and icons](docs/BRAND.md) for project presentations.
 
 Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
 Report bugs and request features through [GitHub issues](https://github.com/joglomedia/LEMPer/issues).

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="424" height="96" viewBox="0 0 424 96" role="img" aria-labelledby="lemper-logo-title lemper-logo-desc">
+  <title id="lemper-logo-title">LEMPer — for dark backgrounds</title>
+  <desc id="lemper-logo-desc">A rounded green L-plus symbol beside the LEMPer wordmark.</desc>
+  <g transform="translate(8 8) scale(1.25)">
+    <rect width="64" height="64" rx="18" fill="#176b49"/>
+    <path d="M20 14v36h28" fill="none" stroke="#f8f9f4" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M36 16h14m-7-7v14" fill="none" stroke="#d9f39e" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(108 18)" fill="#f8f9f4">
+    <path d="M0 0h11v50h28v10H0Z"/>
+    <path transform="translate(47)" d="M0 0h41v10H11v14h27v10H11v16h30v10H0Z"/>
+    <path transform="translate(96)" d="M0 60V0h12l18 31L48 0h12v60H49V19L33 47h-6L11 19v41Z"/>
+    <path transform="translate(164)" fill-rule="evenodd" d="M0 60V0h24c16 0 25 8 25 21S40 42 24 42H11v18Zm11-29h13c9 0 14-4 14-10S33 10 24 10H11Z"/>
+    <path transform="translate(221)" fill-rule="evenodd" d="M23 16C9 16 1 26 1 39c0 14 9 23 23 23 8 0 15-3 20-7l-6-7c-4 3-8 5-13 5-8 0-13-4-14-11h34v-4c0-14-8-22-22-22Zm-12 18c2-6 6-10 12-10s10 4 11 10Z"/>
+    <path transform="translate(274)" d="M0 60V17h10v7c3-5 8-8 15-8h5v11h-5c-9 0-15 6-15 16v17Z"/>
+  </g>
+</svg>

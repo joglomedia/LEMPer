@@ -34,6 +34,14 @@ routes and manual licensed deployments are grouped in
 and runtime switching are covered in [PHP and Laravel](PHP_RUNTIME_LARAVEL.md).
 Diagnostics redact credential-bearing fields; `--json` implies `--all`.
 
+The Nginx default host and new sites without an installed application use the
+same self-contained welcome page, with links to the v4 guides. It loads no
+external fonts or scripts and asks search engines not to index the placeholder.
+New-site pages display the escaped domain name. Replace the placeholder
+`index.html` in the site's configured document root when publishing your content;
+an existing application's entry point should be preserved. This page indicates
+a placeholder response, not the health of PHP, databases or other services.
+
 `site add` aliases `create`; `manage`/`mod` alias `update`; `delete` aliases
 `remove`. Legacy creation flags remain accepted. Batch commands validate domains
 and conflicting actions before mutation, return failure if any target fails,

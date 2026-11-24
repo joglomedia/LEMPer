@@ -29,6 +29,7 @@ Start with the project [README](../README.md) for the overview and quick start.
 - [Release preparation](RELEASE_V4.md) and [changelog](../CHANGELOG.md).
 - [Production UAT](PRODUCTION_UAT.md): protocol checks and external release targets.
 - [UAT report](UAT_REPORT.md) and [Bash script audit](BASH_SCRIPT_AUDIT.md).
+- [Brand assets](BRAND.md): SVG logos, icons, colors and usage guidance.
 
 Architecture, roadmap and UAT documents include historical records. Read their
 implementation/status sections for current behavior and validation limits.
