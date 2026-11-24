@@ -104,6 +104,7 @@ function uat_case() {
         printf 'PASS %s\n' "$name"
     else
         printf 'FAIL %s (log: %s)\n' "$name" "$logs/$name.log"
+        grep -aE '^UAT assertion: [a-z ]+( \(HTTP [0-9]{3}\))?$' "$logs/$name.log" || true
         exit 1
     fi
 }
@@ -207,14 +208,20 @@ function access_policy_guard() {
     cp "$parent" "$backup/parent"
     # A sibling location's authentication must not be bypassed by a new prefix.
     sed 's/location \/ {/location \/ { auth_basic private;/' "$backup/framework" >"$framework"
-    if lemperctl site app add parent-uat.test --mount /protected --webroot /home/lemper/second-app --dry-run; then return 1; fi
+    if lemperctl site app add parent-uat.test --mount /protected --webroot /home/lemper/second-app --dry-run; then
+        echo 'UAT assertion: location policy unexpectedly accepted'
+        return 1
+    fi
     cat "$backup/framework" >"$framework"
     hash=$(printf '%s\n' 'synthetic-uat-pass' | openssl passwd -apr1 -stdin)
     printf 'uat:%s\n' "$hash" >/run/runtime-uat.htpasswd
     chown root:www-data /run/runtime-uat.htpasswd
     chmod 0640 /run/runtime-uat.htpasswd
     sed '/^    root /a\    auth_basic "UAT protected";\n    auth_basic_user_file /run/runtime-uat.htpasswd;' "$backup/parent" >"$parent"
-    lemperctl site app add parent-uat.test --mount /protected --webroot /home/lemper/second-app
+    if ! lemperctl site app add parent-uat.test --mount /protected --webroot /home/lemper/second-app; then
+        echo 'UAT assertion: server policy mount rejected'
+        return 1
+    fi
     local path code authfile _attempt
     # A graceful reload returns before the replacement workers accept requests.
     # Wait for activation, then verify every protected route and valid login.
@@ -225,22 +232,29 @@ function access_policy_guard() {
         sleep 0.2
     done
     if [[ "$code" != 401 ]]; then
-        printf 'UAT authentication policy did not activate (HTTP %s).\n' "$code" >&2
+        printf 'UAT assertion: authentication policy did not activate (HTTP %s)\n' "$code" >&2
         return 1
     fi
     for path in /protected/ /protected/index.php; do
         code=$(curl -sS --max-time 15 -H 'Host: parent-uat.test' -o /dev/null -w '%{http_code}' "http://127.0.0.1$path")
-        [[ "$code" == 401 ]] || return 1
+        if [[ "$code" != 401 ]]; then
+            printf 'UAT assertion: unauthenticated request accepted (HTTP %s)\n' "$code"
+            return 1
+        fi
     done
     authfile=$(mktemp)
     chmod 0600 "$authfile"
     printf 'user = "uat:synthetic-uat-pass"\n' >"$authfile"
     if ! curl -fsS --max-time 15 --config "$authfile" -H 'Host: parent-uat.test' http://127.0.0.1/protected/ | jq -e '.app=="second"' >/dev/null; then
         rm -f "$authfile"
+        echo 'UAT assertion: authenticated access failed'
         return 1
     fi
     rm -f "$authfile"
-    lemperctl site app remove parent-uat.test --mount /protected --yes
+    if ! lemperctl site app remove parent-uat.test --mount /protected --yes; then
+        echo 'UAT assertion: protected mount removal failed'
+        return 1
+    fi
     cat "$backup/parent" >"$parent"
     systemctl reload nginx
     rm -rf "$backup"

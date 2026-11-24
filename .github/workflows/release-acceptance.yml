@@ -34,7 +34,12 @@ jobs:
       - name: Prepare disposable native service environment
         env:
           BASE_IMAGE: ${{ matrix.image }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          nginx_version=$(gh api 'repos/nginx/nginx/tags?per_page=100' --jq '.[].name' \
+            | sed -nE 's/^release-([0-9]+\.[0-9]+\.[0-9]+)$/\1/p' \
+            | awk -F. '$2 % 2 == 0' | sort -V | tail -n 1)
+          [[ "$nginx_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           sudo apt-get update -qq
           sudo apt-get install -q -y podman
           sudo podman build --build-arg BASE_IMAGE="$BASE_IMAGE" \
@@ -43,7 +48,8 @@ jobs:
             --cgroupns=private --hostname lemper-v4-release.test --cpus 2 --memory 3g \
             --tmpfs /run --tmpfs /tmp -e PIP_DEFAULT_TIMEOUT=120 -e PIP_RETRIES=5 \
             -v "$PWD:/source:ro" -v "$RUNNER_TEMP/release-first:/artifacts:ro" lemper-release-uat
-          sudo podman exec -e LEMPER_UAT_NGINX_INSTALLER=source lemper-release-uat \
+          sudo podman exec -e LEMPER_UAT_NGINX_INSTALLER=source \
+            -e LEMPER_UAT_NGINX_VERSION="$nginx_version" lemper-release-uat \
             bash /source/tests/uat/prepare.sh
       - name: Install and remove the exact archive
         run: |

@@ -119,7 +119,9 @@ function build_nginx_from_source() {
     echo "Building Nginx from source..."
 
     # Get nginx version
-    NGINX_RELEASE_VERSION="${NGINX_RELEASE_VERSION:-$(determine_nginx_version)}"
+    if [[ -z "${NGINX_RELEASE_VERSION:-}" ]]; then
+        NGINX_RELEASE_VERSION=$(determine_nginx_version) || return 1
+    fi
     echo "Nginx version: ${NGINX_RELEASE_VERSION}"
 
     # Create build directory

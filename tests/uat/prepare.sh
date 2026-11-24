@@ -14,6 +14,8 @@ set -euo pipefail
 uat_wait_systemd
 installer="${LEMPER_UAT_NGINX_INSTALLER:-repo}"
 [[ "$installer" == repo || "$installer" == source ]] || exit 2
+nginx_version="${LEMPER_UAT_NGINX_VERSION:-}"
+[[ -z "$nginx_version" || "$nginx_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 2
 install -d -m 0700 /var/log/lemper-uat /run/lemper-uat
 touch /run/lemper-uat/authorized
 install -d -m 0755 /checkout /checkout/tests/uat
@@ -55,6 +57,7 @@ ACME_REGISTER_ACCOUNT|false
 PROFILE
 uat_profile_set /checkout/.env RSA_PUB_KEY "\"$(cat /run/lemper-uat/key.pub)\""
 uat_profile_set /checkout/.env NGINX_INSTALLER "\"$installer\""
+[[ -z "$nginx_version" ]] || uat_profile_set /checkout/.env NGINX_VERSION "\"$nginx_version\""
 uat_profile_set /checkout/.env INSTALL_MODSEC "$([[ "$installer" == repo ]] && echo true || echo false)"
 if [[ "$installer" == source ]]; then
     uat_profile_set /checkout/.env NGINX_PCRE_VERSION '""'

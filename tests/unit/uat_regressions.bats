@@ -128,6 +128,22 @@ CONFIGURE
     grep -q 'module path; touch' "$TEST_TMPDIR/build/nginx-1.30.7/configure.args"
 }
 
+@test "Nginx source resolver failure aborts before build directories or compilation" {
+    run bash -c '
+        . "$REAL_BASE_DIR/scripts/nginx/nginx_build.sh"
+        get_cpu_cores() { echo 1; }
+        determine_nginx_version() { return 1; }
+        run() { echo UNEXPECTED-MUTATION; return 1; }
+        NGINX_RELEASE_VERSION=""
+        NGINX_BUILD_DIR="$TEST_TMPDIR/build"
+        NGINX_EXTRA_MODULE_DIR="$TEST_TMPDIR/modules"
+        ! build_nginx_from_source
+    '
+    [ "$status" -eq 0 ]
+    [[ "$output" != *UNEXPECTED-MUTATION* ]]
+    [ ! -e "$TEST_TMPDIR/build" ]
+}
+
 @test "helper default BASE_DIR is the checkout root when sourced without an override" {
     mkdir -p "$TEST_TMPDIR/fixture/scripts"
     cp "$REAL_BASE_DIR/scripts/utils.sh" "$TEST_TMPDIR/fixture/scripts/"
