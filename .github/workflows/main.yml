@@ -345,8 +345,8 @@ jobs:
             lemper_php_prepare_repository
             apt-get update -qq
             apt-get install -y -qq php8.3-cli php8.3-fpm php8.3-dev php8.4-cli php8.4-fpm php8.4-dev \
-              php8.3-curl php8.3-mbstring php8.3-sqlite3 php8.3-xml php8.3-zip \
-              php8.4-curl php8.4-mbstring php8.4-sqlite3 php8.4-xml php8.4-zip
+              php8.3-curl php8.3-intl php8.3-mbstring php8.3-sqlite3 php8.3-xml php8.3-zip \
+              php8.4-curl php8.4-intl php8.4-mbstring php8.4-sqlite3 php8.4-xml php8.4-zip
             useradd --create-home --shell /bin/bash lemper
             runuser -u lemper -- /usr/bin/php8.4 /usr/bin/composer create-project "laravel/laravel:^13.0" \
               /home/lemper/laravel-real --no-interaction --prefer-dist --no-dev

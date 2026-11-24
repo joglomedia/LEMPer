@@ -28,6 +28,26 @@ function uat_wait_systemd() {
     return 1
 }
 
+# Report fixed APT error categories without URLs, command arguments or values.
+function uat_apt_failure_summary() {
+    local log="$1" pattern label
+    while IFS='|' read -r pattern label; do
+        if grep -aqE "$pattern" "$log"; then printf 'APT diagnostic: %s\n' "$label"; fi
+    done <<'CATEGORIES'
+Unable to locate package|package not found
+has no installation candidate|package has no candidate
+Unmet dependencies|unmet dependencies
+Unable to correct problems|dependency resolution failed
+Failed to fetch|download failed
+Temporary failure resolving|DNS resolution failed
+404[[:space:]]+Not Found|HTTP 404
+403[[:space:]]+Forbidden|HTTP 403
+429[[:space:]]+Too Many Requests|HTTP 429
+No space left on device|disk full
+Sub-process /usr/bin/dpkg returned an error code|dpkg failed
+CATEGORIES
+}
+
 # Literal fixture rewrites; failure on missing/duplicate keys catches stale UAT.
 function uat_profile_set() {
     local file="$1" key="$2" value="$3" work

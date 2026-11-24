@@ -10,6 +10,8 @@ archive="${LEMPER_UAT_ARCHIVE:-/source/dist/v4.0.0/lemper-v4.0.0.tar.gz}"
 profile=/checkout/.env
 logs=/var/log/lemper-uat/v4
 install -d -m 0700 "$logs"
+# shellcheck source=tests/uat/helpers.bash
+. /run/lemper-uat/helpers.bash
 read -r checksum _ < "$archive.sha256"
 cases=0 failures=0 config_hash=""
 
@@ -23,6 +25,7 @@ function uat_case() {
     else
         printf 'FAIL %s (exit %s; log %s)\n' "$name" "$rc" "$logs/$name.log"
         failures=$((failures+1))
+        uat_apt_failure_summary "$logs/$name.log"
     fi
 }
 function bootstrap() {
