@@ -15,9 +15,9 @@
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
-# Explicit UAT instrumentation: descriptor 19 records code locations only.
+# Explicit UAT instrumentation: descriptor 19 records locations and exit status.
 # Never include BASH_COMMAND, expansions, arguments or configuration values.
 if [[ "${LEMPER_UAT_BOOTSTRAP_TRACE:-false}" == true ]]; then
     set -T
-    trap 'printf "%s:%s:%s\n" "${BASH_SOURCE[0]:-}" "${LINENO}" "${FUNCNAME[0]:-}" >&19' DEBUG
+    trap 'printf "%s:%s:%s:%s\n" "${BASH_SOURCE[0]:-}" "${LINENO}" "${FUNCNAME[0]:-}" "$?" >&19' DEBUG
 fi

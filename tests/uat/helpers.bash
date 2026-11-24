@@ -16,11 +16,14 @@
 # +-------------------------------------------------------------------------+
 
 function uat_wait_systemd() {
-    local state
+    local state deadline=$((SECONDS + 60))
     # tmpfiles can clear /tmp during early boot; seed fixtures only afterwards.
-    timeout 60 systemctl is-system-running --wait >/dev/null 2>&1 || true
-    state=$(systemctl is-system-running 2>/dev/null) || true
-    case "$state" in running | degraded) return 0 ;; esac
+    # The system bus may not exist yet, so --wait alone can return immediately.
+    while ((SECONDS < deadline)); do
+        state=$(timeout 5 systemctl is-system-running 2>/dev/null) || true
+        case "$state" in running | degraded) return 0 ;; esac
+        sleep 1
+    done
     printf 'Systemd fixture initialization did not complete.\n' >&2
     return 1
 }

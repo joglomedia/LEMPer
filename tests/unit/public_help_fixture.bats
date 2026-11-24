@@ -38,6 +38,7 @@ PROBE
 #!/usr/bin/env bash
 probe() { local password="$1"; printf '%s' "$password" >/dev/null; }
 probe 'synthetic-secret-must-not-appear'
+false || :
 PROBE
     run bash -c '
         exec 19>"$TEST_TMPDIR/locations"
@@ -46,5 +47,6 @@ PROBE
     '
     [ "$status" -eq 0 ]
     grep -q ':probe' "$TEST_TMPDIR/locations"
+    grep -q ':1$' "$TEST_TMPDIR/locations"
     ! grep -q 'synthetic-secret\|password=\|printf' "$TEST_TMPDIR/locations"
 }

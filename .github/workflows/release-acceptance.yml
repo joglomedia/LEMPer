@@ -58,6 +58,10 @@ jobs:
               LEMPER_UAT_ARCHIVE=/artifacts/lemper-v4.0.0.tar.gz bash /run/release-acceptance.sh; then
               echo "Last code locations (no arguments or configuration values):"
               tail -n 20 /run/bootstrap-locations.log
+              echo "Last runtime/service locations:"
+              grep -E "/lib/(runtime|services)/" /run/bootstrap-locations.log | tail -n 20 || true
+              echo "Last locations following nonzero status:"
+              awk -F: "\$NF ~ /^[1-9][0-9]*$/ {print}" /run/bootstrap-locations.log | tail -n 30
               exit 1
             fi
           ' | tee "$RUNNER_TEMP/release-acceptance.txt"
