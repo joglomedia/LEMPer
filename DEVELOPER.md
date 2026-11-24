@@ -262,6 +262,52 @@ podman stop --time 10 lemper-v4-release-uat
 See [RELEASE_V4.md](docs/RELEASE_V4.md) for the final v4 results and artifact
 publication steps.
 
+#### Protocol and remote integration acceptance
+
+Use a fresh Ubuntu 26.04 fixture for the HTTP/3 client/source-TLS checks. The
+preparation script checks root, systemd, the read-only checkout and the distro
+before package changes. It verifies the published curl archive digest and uses
+the shared checksummed OpenSSL/Nginx drivers. Pins identify this test fixture.
+
+~~~bash
+podman build --build-arg BASE_IMAGE=ubuntu:26.04 \
+  -f tests/uat/Containerfile -t localhost/lemper-protocols:resolute tests/uat
+podman run -d --name lemper-protocols-uat --privileged --systemd=always \
+  --cgroupns=private --cpus 2 --memory 3g --tmpfs /run --tmpfs /tmp \
+  -v "$PWD:/source:ro" localhost/lemper-protocols:resolute
+podman exec lemper-protocols-uat bash /source/tests/uat/protocol_prepare.sh
+podman exec lemper-protocols-uat bash /source/tests/uat/protocol_acceptance.sh
+podman stop --time 10 lemper-protocols-uat
+~~~
+
+The acceptance script forces HTTP/3, checks TLS 1.3 and Alt-Svc, verifies the
+disabled early-data default with cached-session requests, and rejects an untrusted
+certificate and mismatched hostname. The upstream curl client enables its
+experimental session-export feature for this fixture; LEMPer early-data defaults
+stay unchanged.
+
+Check the client's `curl --version` feature list: distribution and standard
+container builds can omit HTTP/3 even when their version is recent.
+
+`tests/uat/remote_integrations_acceptance.sh` uses the same marked systemd client
+fixture after preparing a separate key-only SSH/SFTP backend and strict known-host
+data. It checks encrypted data backup, scheduled execution, staged restore,
+retention and host-key rejection. `--restic-only` omits the alert fixture;
+`LEMPER_UAT_RESTIC_REPOSITORY` and `LEMPER_UAT_SSH_TARGET` select its test endpoint.
+The full mode also needs a private port-25 SMTP sink named `lemper-uat-backup`
+and tests real Monit failure/recovery notifications. The sink script captures
+messages privately and does not forward them.
+
+For public-server tests, inventory existing services, use separately named/labelled
+containers and private networks, cap resources, and bind only unused test ports.
+PAM-enabled SSH test containers may need `--cap-add AUDIT_WRITE`. Launching their
+daemon through a named, collected `systemd-run` operation avoids inheriting the
+operator's already-set audit login ID; keep PAM enabled and remove only the test
+unit/container. Private-address
+VPSes require provider port mappings for Internet-facing QUIC/ACME; an existing
+verified SSH connection can tunnel SFTP without changing service/firewall routing.
+See [PRODUCTION_UAT.md](docs/PRODUCTION_UAT.md) for scope and evidence.
+
 #### Database, diagnostics and repository-key acceptance
 
 The scoped P1 suite installs real MariaDB/PHP packages, activates a CLI snapshot,

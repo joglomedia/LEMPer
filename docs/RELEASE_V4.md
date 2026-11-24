@@ -1,9 +1,77 @@
 # v4.0.0 release preparation
 
 Status checked 2026-11-24: v4.0.0 is unpublished; latest GitHub release is
-v3.6.0. The current fixed candidate is `d21b293`, following module decomposition
-in `a39e5f9`, on `release/v4.0.0`. Its four assets have been built and verified;
-exact-archive native acceptance is recorded below. Earlier results remain historical.
+v3.6.0. The verified candidate is `9b3963e` on the pushed `release/v4.0.0`
+branch. Accepted module decomposition (2.12/2.37) is implemented. Candidate CI,
+reproducible assets and exact-archive acceptance passed; publication and the
+selected production checks below remain separate steps.
+
+## Verified candidate 9b3963e
+
+[GitHub Actions run 45318207064](https://github.com/joglomedia/LEMPer/actions/runs/45318207064)
+passed **24/24 jobs** for commit
+**9b3963e34fa144bcf67d8aa69439675bddfb16ea**. This is committed-candidate evidence;
+it supersedes older statements about missing remote CI or native AMD64 coverage.
+
+| Gate | Verified result |
+|---|---|
+| Bash validation | **534 Bats tests**; Bash syntax, sourced ShellCheck 0.11.0 and Bashate passed |
+| Formatting and coverage | Scoped shfmt passed; function-entry coverage **86/94 (91.5%)** |
+| Exact archive on native AMD64 | **13/13** bootstrap/install/HTTP/SSH/repeat/remove checks on each of Ubuntu 24.04, Ubuntu 26.04 and Debian 12 |
+| PHP/Laravel | **11/11** runtime/default/routing/authentication checks |
+| Other native matrices | Maintained PHP archives, mail hosting, FTP source builds, hosting quotas, and priority lifecycle/TLS jobs passed |
+| Full legacy installation | shunit2 installation, FTP service verification and provisioned-host audit/artifact upload passed inside a disposable systemd container |
+
+Two fresh Linux builds of this clean commit produced byte-identical copies of
+all four assets. Both checksum files verify. Local copies are retained under
+`dist/v4.0.0/9b3963e/{first,second}/` (ignored by Git):
+
+| Asset | SHA-256 |
+|---|---|
+| `lemper-v4.0.0.tar.gz` | `88e77d257d3cbab745af46d46cadda582de03fb7daffc507784b26a1d4461a40` |
+| `get-lemper` | `775f1a528f5c6578e2f021368d45dec90f90f7bdf4c6c82938ad5fce3ed8e2b6` |
+
+The downloaded CI coverage artifact is retained under `coverage/9b3963e-ci/`.
+Coverage measures entry into the declared functions during synthetic tests;
+it is not line/branch coverage or proof of every live transition.
+
+The CI fixes stage public help code without exposing private profiles, wait for
+systemd before fixture initialization, keep synthetic SSH keys under `/run`,
+select the Composer PHP runtime and its extensions explicitly, isolate legacy
+installation tests, and preserve audit-file ownership for uploads. Bootstrap
+diagnostics emit code locations/status only and tolerate package child shells
+that close the diagnostic descriptor. Nginx source resolution fails before build
+mutations when discovery fails; CI resolves the current stable version through
+authenticated GitHub metadata without passing a token into the installer.
+
+See [production UAT](PRODUCTION_UAT.md) for protocol checks and external target
+requirements. Public ACME, external mail/alerts and selected live migrations
+are not established by container acceptance. Further commits change the archive
+hash: build and validate the final committed candidate before tagging it.
+
+Follow-through on this runtime baseline passed **537/537 local Bats tests**, **16
+local protocol checks**, **19 local remote-backup/alert checks**, **13 VPS SFTP
+checks over verified SSH access**, and **6 VPS-native QUIC/TLS checks**. The new
+HTTP/3 CI job makes the protocol suite repeatable for subsequent candidates.
+These checks preserve disabled early-data defaults and existing VPS services;
+Internet port mapping, public ACME credentials and controlled external mail
+targets remain pending as recorded in the production checklist.
+
+## Remaining release steps
+
+1. Complete the selected production UAT cases and record their targets/results.
+2. Commit the reviewed documentation/test changes, rebuild the resulting assets
+   and review that exact commit's candidate CI.
+3. Set the changelog release date and create/push the annotated `v4.0.0` tag
+   when publication is authorized; tagged CI builds and publishes the assets.
+4. Verify published checksums, downloads and README installation commands on a
+   fresh disposable server.
+
+## Historical candidate evidence
+
+The sections below retain earlier implementation/validation results. Their
+commit-specific CI and platform limits describe those snapshots, not the current
+verified candidate above.
 
 ## Fixed release candidate d21b293
 
@@ -133,8 +201,8 @@ get-lemper
 get-lemper.sha256
 ```
 
-The committed candidate artifacts are under `dist/v4.0.0/a39e5f9/` (ignored by
-Git). Older preparation assets under `dist/v4.0.0/` came from temporary snapshots.
+The verified candidate artifacts are under `dist/v4.0.0/9b3963e/` (ignored by
+Git). Older preparation assets under `dist/v4.0.0/` came from earlier commits or temporary snapshots.
 Use the assets for the exact reviewed commit and rebuild after further commits.
 
 ## Validation
@@ -271,8 +339,9 @@ not a published v4 archive or remote GitHub Actions run.
 
 The earlier partial scope for 2.8/2.9/2.17/2.18/2.27 now has shared validation,
 curated repository migration, maintained/checksummed TLS builds, diagnostic view
-parity and owned domain DB shortcuts. The next decomposition boundaries for
-2.12/2.37 are extracted; older installer/manager internals remain partial.
+parity and owned domain DB shortcuts. At this historical snapshot, older
+installer/manager internals remained partial; accepted 2.12/2.37 extraction was
+subsequently completed in `a39e5f9`.
 
 Verification passed 437 Bats tests, ShellCheck/Bashate/syntax/shfmt checks, 47 real
 Ubuntu 24.04 ARM64 UAT checks and 37 Debian 12 ARM64 checks. Ubuntu compiled and

@@ -501,12 +501,15 @@ Site/stack use cases and service drivers now occupy runtime/services, with
 legacy scripts retained behind compatibility adapters.
 Account/database/SSL/TUI/vhost-creation internals now use function-only runtime
 modules. Mail/full-stack parser adoption and native nftables are implemented.
-Further extraction of legacy management and installer internals remains.
+Accepted extraction of legacy management and installer internals is complete
+(2.12/2.37). Request-global/API cleanup remains optional maintenance.
 Local bootstrap, mail and PHP/Laravel
 service UAT is recorded in [RELEASE_V4.md](RELEASE_V4.md), [MAIL.md](MAIL.md) and
 [PHP_RUNTIME_LARAVEL.md](PHP_RUNTIME_LARAVEL.md). Candidate publication, public
-ACME and broader platform/live-transition validation remain. See the
-[2026-11-21 roadmap audit](ROADMAP_AUDIT.md) for current task reconciliation.
+ACME and selected external/live-transition validation remain. The committed
+9b3963e candidate passed 24/24 CI jobs, including native AMD64 archive acceptance.
+See the [current roadmap status](ROADMAP_AUDIT.md#current-delivery-and-release-status)
+and [production UAT](PRODUCTION_UAT.md).
 
 ### 4.1 Guiding Principles
 
@@ -551,8 +554,9 @@ dependencies as the hosting user and record HTTPS provenance separately from
 published-digest verification. XenForo's licensed files use a manual vhost driver.
 Unsupported skeleton requests fail before site mutations; automatic paths check
 project markers before success and ownership recording. Manual application types
-retain PHP vhost setup. Rendering and installer internals still require further
-extraction; see [APPLICATIONS.md](APPLICATIONS.md).
+retain PHP vhost setup. Rendering and installer logic now has service owners;
+see [MODULE_DECOMPOSITION.md](MODULE_DECOMPOSITION.md) and
+[APPLICATIONS.md](APPLICATIONS.md).
 Site batches validate targets before mutation, restore site configuration on
 failure, and reload Nginx after the batch. External certificate/database effects
 are separate from configuration recovery.
@@ -656,26 +660,26 @@ for acceptance evidence and remaining release gates.
 
 ---
 
-## 5. Technology Stack Summary (as of v3.4.0)
+## 5. Technology Stack Summary (v4 candidate)
 
-| Component | Current | Target (v3.0) | Status |
+| Component | Historical baseline | v4 implementation | Boundary |
 |---|---|---|---|
-| **Language** | Bash 4+ | Bash 5+ | ✅ Achieved |
-| **ShellCheck** | v0.10.0 | Latest | ✅ v0.11.0 locally, v0.10.0 in CI — both exit 0 |
-| **Test framework** | shunit2 | shunit2 + bats-core | ✅ bats-core 1.14.0, 107 tests |
-| **CI** | GitHub Actions | GitHub Actions (enhanced) | ✅ ShellCheck + bats matrix |
-| **Web server** | Nginx (repo or source) | Nginx (repo default, source optional) | ✅ |
-| **PHP** | 5.6–8.4 (historical templates) | 8.2–8.5 (Ondřej's PPA) | ✅ EOL removed from installer, 8.2–8.5 templates shipped |
-| **Database** | MariaDB 11.1 | MariaDB 11.4 | ✅ Upgraded |
-| **Cache** | Redis | Redis or Valkey (configurable) | ✅ Valkey added (REDIS_BACKEND) |
-| **JS runtime** | (unused) | Bun.js | ✅ Bun.js installed |
-| **FTP** | Pure-FTPd, vsftpd | Pure-FTPd (TLS) | ✅ |
-| **SSL** | RSA 2048 self-signed | RSA 4096, ACME v2 DNS-01 wildcard | ✅ Both implemented |
-| **Firewall** | UFW, CSF, APF | UFW, CrowdSec | ✅ CrowdSec added |
-| **Security** | Fail2ban (optional) | Fail2ban (default) + CrowdSec | ✅ Fail2ban enabled by default |
-| **WAF** | NAXSI | ModSecurity v3 + OWASP CRS | ✅ Migrated |
-| **Config format** | .env (INI) | .env (INI) + schema validation | ⚠️ Encryption added, schema validation planned |
-| **Secrets** | Plaintext | Encrypted at rest | ✅ Available (default off) |
+| **Language** | Bash 4+ | Bash 5+ on Linux | Runtime/services and repository tooling stay Bash |
+| **ShellCheck** | v0.10.0 | Pinned 0.11.0 with sourced analysis | Passed candidate CI |
+| **Test framework** | shunit2 | Bats plus disposable shunit2 installation | Candidate 9b3963e passed 534 Bats tests |
+| **CI** | Basic GitHub Actions | Multi-distro/component matrices and archive gate | 24/24 candidate jobs passed |
+| **Web server** | Nginx repo/source | MyGuard repo or source build; optional HTTP/3 | QUIC requires a capable TLS/library build and reachable UDP |
+| **PHP** | EOL branches and Launchpad PPA | Maintained Sury archive; shipped 8.2–8.5 templates | Inventory-based legacy management is retained |
+| **Database** | MariaDB 11.1 | 11.4 normally; native 11.8 on Resolute | Major-series changes require deliberate migration |
+| **Cache** | Redis | Redis or Valkey | Shared backend lifecycle |
+| **JS runtime** | Unused | Bun.js | Optional |
+| **FTP** | Pure-FTPd/vsftpd | Repo/source installers and TLS | Source-build matrix passed |
+| **SSL** | RSA-2048 self-signed | RSA-4096 named paths and ACME DNS-01 | Public issuance/renewal requires production UAT |
+| **Firewall** | UFW/CSF/APF | Native nftables with explicit UFW migration | Scoped rules and independent SSH recovery |
+| **Security** | Optional Fail2ban | Default Fail2ban, optional CrowdSec | Native journal SSH jail supported |
+| **WAF** | NAXSI | ModSecurity v3/OWASP CRS | NAXSI remains an explicit legacy option |
+| **Config format** | Executable dotenv loading | Literal schema-validated dotenv | YAML is an optional extension |
+| **Secrets** | Plaintext | Optional CBC/PBKDF2 encrypted configuration | Authenticated format migration is a separate decision |
 
 ---
 
@@ -866,9 +870,10 @@ without waiting for unrelated long-running shared-lock operations.
 
 Account, database, self-SSL, TUI and vhost-creation wrappers retain their original
 filenames and initialization contract while handlers occupy `lib/runtime/` and
-account provisioning occupies `lib/services/accounts/`. Legacy site-management
-and component installer business internals remain candidates for further extraction;
-this is an incremental migration, not a claim that every legacy file is empty.
+account provisioning occupies `lib/services/accounts/`. Site management, updater
+and component installer business logic now has runtime/service owners. Public
+wrappers retain initialization and dispatch; optional request-state cleanup is
+separate from the completed decomposition contract.
 
 ## Hosting plans and quota drivers
 

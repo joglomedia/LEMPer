@@ -83,7 +83,9 @@ isolation, and help/version behavior without private configuration. Existing
 application, backup, PHP, FTP, ownership, lifecycle and encryption regressions
 remain part of the full Linux Bats suite.
 
-Final verification results and native acceptance scope are recorded in
+The committed 9b3963e candidate passed **534 Bats tests** and **24/24 GitHub jobs**,
+including module contracts and exact-archive bootstrap/install/removal on native
+AMD64 Ubuntu 24.04/26.04 and Debian 12. Historical ARM64 verification is recorded in
 [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md#a4-module-decomposition-follow-through--2026-11-23).
-Exact clean-commit release assets, candidate CI and publication remain separate
-gates in [RELEASE_V4.md](RELEASE_V4.md).
+Reproducible clean-commit assets and candidate CI have passed. Production checks
+and publication remain separate steps in [RELEASE_V4.md](RELEASE_V4.md).

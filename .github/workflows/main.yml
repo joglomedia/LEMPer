@@ -18,6 +18,40 @@ on:
 jobs:
   release-archive-acceptance:
     uses: ./.github/workflows/release-acceptance.yml
+  protocol-acceptance:
+    name: HTTP/3 and TLS policy (ubuntu:26.04)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare isolated protocol fixture
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -q -y podman
+          sudo podman build --build-arg BASE_IMAGE=ubuntu:26.04 \
+            -f tests/uat/Containerfile -t lemper-protocol-uat tests/uat
+          sudo podman run -d --name lemper-protocol-uat --privileged --systemd=always \
+            --cgroupns=private --cpus 2 --memory 3g --tmpfs /run --tmpfs /tmp \
+            -v "$PWD:/source:ro" lemper-protocol-uat
+          sudo podman exec lemper-protocol-uat bash -e -c '
+            install -d -m 0700 /var/log/lemper-protocols
+            if ! bash /source/tests/uat/protocol_prepare.sh > /var/log/lemper-protocols/build.log 2>&1; then
+              echo "Protocol fixture build failed; private build log retained inside the fixture."
+              exit 1
+            fi
+          '
+      - name: Verify HTTP/3 and TLS behavior
+        run: |
+          set -euo pipefail
+          sudo podman exec lemper-protocol-uat bash /source/tests/uat/protocol_acceptance.sh \
+            | tee "$RUNNER_TEMP/protocol-acceptance.txt"
+          cat "$RUNNER_TEMP/protocol-acceptance.txt" >> "$GITHUB_STEP_SUMMARY"
+      - name: Stop protocol fixture
+        if: always()
+        run: |
+          if sudo podman container exists lemper-protocol-uat; then
+            sudo podman stop --time 10 lemper-protocol-uat
+          fi
   ubuntu-latest:
     runs-on: ubuntu-24.04
     steps:

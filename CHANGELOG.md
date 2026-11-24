@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0] - Unreleased
 
 ### Added
+- Bash protocol/SFTP/alert UAT drivers and a native Ubuntu 26.04 HTTP/3 gate,
+  including verified TLS, disabled early-data behavior and certificate rejection.
 - Shared candidate/tag archive acceptance on Ubuntu 24.04, Ubuntu 26.04 and
   Debian 12, with reproducible assets, checksum verification and real bootstrap,
   HTTP/SSH, repeat-install and removal checks before tagged publication.

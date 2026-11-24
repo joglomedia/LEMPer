@@ -1,5 +1,12 @@
 # Podman UAT report
 
+Current v4 committed-candidate evidence is in [RELEASE_V4.md](RELEASE_V4.md#verified-candidate-9b3963e):
+24/24 CI jobs, 534 Bats tests and exact-archive native AMD64 acceptance on three
+distributions. Selected local protocol checks and pending external targets are
+tracked in [PRODUCTION_UAT.md](PRODUCTION_UAT.md).
+
+The dated results below preserve the original Podman acceptance snapshot.
+
 Date: 2026-11-20. Target: the uncommitted `3.x.x` working tree, based on
 `8e52740`. Procedure: [DEVELOPER.md §3.4.4](../DEVELOPER.md#344-real-installation-and-cli-uat).
 

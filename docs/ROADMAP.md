@@ -2,10 +2,11 @@
 
 > **Latest published version:** 3.6.0
 > **Last Updated:** 2026-11-24
-> **Code baseline:** d21b293 with release-validation follow-through on `release/v4.0.0`
+> **Verified candidate:** 9b3963e on the pushed `release/v4.0.0` branch
 > **Status:** v4.0 foundations, mail hosting and PHP/Laravel enhancements are
 > implemented but unreleased. A4 decomposition is delivered; deferred plans and release
-> validation remain; see [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
+> production validation and publication remain; candidate CI passed 24/24 jobs.
+> See [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
 >
 > v3.6.0 ships the TUI log viewer and site wizard, ModSecurity tuning, opt-in
 > HTTP/3, per-site CORS, resource profiles, the MyGuard nginx archive, PHP 8.1
@@ -20,10 +21,9 @@
 
 ## Current implementation and remaining work
 
-The [2026-11-23 source audit](ROADMAP_AUDIT.md#current-remaining-work--21e27ab) reconciles all 48 numbered
-task IDs, Architecture §4 and the README/developer plans. It supersedes the
-previous audit's ranks and distinguishes implemented foundations from remaining
-scope inside tasks historically marked complete. The subsequent
+The [current delivery status](ROADMAP_AUDIT.md#current-delivery-and-release-status)
+reconciles all 48 numbered task IDs, Architecture §4 and README/developer plans.
+All accepted numbered capabilities are implemented or explicitly superseded. The
 [A4 implementation](ROADMAP_AUDIT.md#a4-module-decomposition-follow-through--2026-11-23)
 completes the remaining 2.12/2.37 extraction; release gates stay separate.
 
@@ -84,7 +84,7 @@ Current delivery status:
    component lifecycles and remaining utility plugins use function-only modules.
    Public wrappers and installed exports remain compatible (A4; 2.12/2.37).
 
-See [remaining work and evidence](ROADMAP_AUDIT.md#current-remaining-work--21e27ab).
+See [remaining work and evidence](ROADMAP_AUDIT.md#current-delivery-and-release-status).
 Protected SQL backups, repository migration, diagnostic parity and domain DB
 shortcuts remain implemented. The backup-account finding in the older installer
 now has a dedicated service driver; the initial documentation audit is preserved
@@ -121,18 +121,23 @@ ARM64 acceptance passed **13/13 minimal bootstrap/install/HTTP/SSH/repeat/remove
 checks** against an uncommitted source snapshot; broader platforms, optional
 services and application deployments were not rerun for A4. See
 [MODULE_DECOMPOSITION.md](MODULE_DECOMPOSITION.md).
-The committed A4 candidate now has reproducible, checksummed assets; see
-[release follow-through](RELEASE_V4.md#fixed-release-candidate-d21b293) for
-exact-archive results and the remaining remote CI/publication gates.
+The current `9b3963e` candidate passed
+[24/24 GitHub jobs](https://github.com/joglomedia/LEMPer/actions/runs/45318207064),
+including **534 Bats tests**, scoped function-entry coverage **86/94 (91.5%)**,
+and **13/13 exact-archive checks on each of Ubuntu 24.04/26.04 and Debian 12 AMD64**.
+All four assets rebuilt identically twice and their checksums verify. See
+[current release evidence](RELEASE_V4.md#verified-candidate-9b3963e) and the
+[production UAT checklist](PRODUCTION_UAT.md). Earlier results in this paragraph
+and below are historical evidence for their named snapshots.
 The fixed `d21b293` candidate passed **524 Bats tests** with scoped function-entry
 coverage **86/94 (91.5%)**, and **13/13 exact-archive acceptance checks on each of
 Debian 12 and Ubuntu 26.04 ARM64**. Tagged publication now requires the shared
 archive acceptance gate; source and final verification notes are kept separate
 from authorization to push/tag/publish.
-GitHub returned no Actions runs for the full
-9b7511b candidate SHA, and v4.0.0 is not published. Public ACME, native AMD64,
-HTTP/3 client negotiation, remote integrations and selected legacy transitions
-remain validation work.
+At the earlier audit, GitHub returned no runs for the full 9b7511b SHA.
+Current candidate CI and native AMD64 coverage are now verified. v4.0.0 is still
+unpublished; public ACME, external integrations and selected legacy transitions
+need their designated production UAT environments.
 
 ---
 
@@ -912,7 +917,7 @@ accepted decomposition scope and final release validation.
 **Issue:** Tests are structural (grep-based) only.
 
 **Fix:** ✅ Implemented — Added `tests/unit/` with PATH-shadowing mocks. The
-current source declares 524 tests across 45 Bats files; the original 12-case
+verified 9b3963e candidate passed 534 Bats tests; the original 12-case
 addition included:
 
 - `validators.bats` — `validate_fqdn()`, `validate_ipv4()`, `sanitize_sed_*`,
@@ -1014,12 +1019,13 @@ CVE-2026-109618 / CVE-2026-109619 and keep the rest of the stack current.
 
 ---
 
-### Phase 9: Next Major (v4.0) — Foundations implemented; follow-through and release validation remain
+### Phase 9: Next Major (v4.0) — Accepted scope implemented; production checks and publication remain
 
 GitHub issue [#92](https://github.com/joglomedia/LEMPer/issues/92) and
 [Architecture §4](ARCHITECTURE.md#4-target-architecture-v40-cli-alignment-implemented)
-describe the command/module alignment. The current branch implements its
-foundations; deeper migration and selected requirements remain unfinished.
+describe the command/module alignment. Its accepted CLI/module scope is
+implemented; optional extensions and remaining production checks are recorded
+separately from the numbered tasks.
 
 **CLI structure (issue #92).** `lemperctl` is the preferred installed command.
 Retain `lemper-cli` as a compatibility symlink so existing scripts keep working.
@@ -1046,13 +1052,13 @@ host/dependency audit jobs and release automation are implemented. PHP 8.2–8.5
 Bats/ShellCheck/Bashate, Fail2ban/CrowdSec, optional CBC encrypted configuration,
 documentation, multi-distro CI and ACME helpers also exist.
 
-Further legacy extraction remains. Public parser adoption and native nftables
+Accepted legacy extraction, public parser adoption and native nftables
 are implemented, along with managed data backups and monitoring. Public ACME and selected live migrations
 need further deployment validation. YAML is optional; AEAD is a separate
 encryption-format decision. See [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md) for evidence.
-The current release scope retains further extraction as follow-up; these are not
-automatically publication blockers. Final candidate CI, asset rebuild and
-exact-archive validation remain release follow-through.
+Further request-state/API cleanup is optional. Candidate 9b3963e CI, reproducible
+assets and exact-archive validation passed. Any subsequent commit requires its
+own asset build and CI review before publication.
 
 ---
 
@@ -1063,8 +1069,8 @@ exact-archive validation remain release follow-through.
 | ------------------------------------------------------------------------ | ------ | ---------- | -------------------------------------------------------------------- | ----------- |
 | Removing NOPASSWD:ALL breaks user scripts that rely on passwordless sudo | High   | Medium     | Document migration, add restricted sudoers config as opt-in          | ✅ Mitigated |
 | Replacing `eval` config loader breaks existing `.env` parsing            | Medium | High       | Maintain backward-compatible fallback, test all key types            | ✅ Mitigated |
-| Reorganizing directory structure breaks CI and user automation           | High   | Medium     | Preserve working wrappers/exports during deeper service extraction (A4) | Implemented; candidate CI pending |
-| Test entry points use incompatible users or missing fixture dependencies | High | Confirmed locally | Shared root Linux fixtures/tooling and isolated state (A2); remote candidate CI remains a release gate | Implemented locally |
+| Reorganizing directory structure breaks CI and user automation           | High   | Medium     | Preserve wrappers/exports and module import/dispatch contracts (A4) | Implemented; 9b3963e CI passed |
+| Test entry points use incompatible users or missing fixture dependencies | High | Previously reproduced | Shared root Linux fixtures/tooling, public help staging and isolated state (A2) | Fixed; 534 Bats tests passed in candidate CI |
 | Legacy backup-account credentials are written without private modes or literal serialization | High | Confirmed in isolated probe | Protected provisioning, key reconciliation and inline migration (A1) | Implemented locally |
 | Removing PHP 5.6–7.4 breaks existing vhost configs                       | Medium | Medium     | Auto-detect installed PHP, warn on upgrade, provide migration script | ✅ Mitigated |
 | Encrypted config breaks non-interactive CLI use                          | High   | Medium     | Add `--password` flag and environment variable fallback              | ✅ Mitigated |
@@ -1101,7 +1107,7 @@ Latest published release is **v3.6.0**. Delivery history below does not imply
 every original task's full scope is complete. The unreleased **v4.0** branch
 has delivered P1/P2/P3 foundations and prioritized runtime follow-through.
 The current audit records the installer, CI and app-capability follow-through;
-module decomposition is now implemented in the working tree.
+module decomposition is committed and verified by candidate CI.
 
 A1/A2 are committed in 79d4d40; A3 and additional application deployment are
 committed in 87b75b3. Resolute/Sury support is committed in b17b7f7 and the
@@ -1214,7 +1220,7 @@ The v4 entry points now share profile validation and full-stack lifecycle
 orchestration. Bootstrap defaults to CLI-only; an explicit `--install --config`
 selects full installation. A minimal service profile skips optional services
 and panels. The version/tag workflow produces both archive and bootstrap
-checksums. Further legacy driver migration remains follow-up work,
-not claimed as completed by this release.
+checksums. Accepted legacy driver decomposition is implemented; optional
+request-state/API refinements and production deployment checks remain separate.
 
 Validation and publication steps are recorded in [RELEASE_V4.md](RELEASE_V4.md).

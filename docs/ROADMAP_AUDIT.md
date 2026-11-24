@@ -1,8 +1,10 @@
 # LEMPer roadmap implementation audit
 
-Date: **2026-11-24**. Architecture baseline: **a39e5f9b85f5dd78956b4b458fb87b1e6d9ae2f9**,
-`release/v4.0.0`; release-workflow/Fail2ban follow-through is committed as `d21b293`
-and verification is recorded below.
+Date: **2026-11-24**. Verified candidate:
+**9b3963e34fa144bcf67d8aa69439675bddfb16ea**, pushed on `release/v4.0.0`.
+Architecture baseline **a39e5f9b85f5dd78956b4b458fb87b1e6d9ae2f9** completed A4;
+`d21b293` added archive enforcement and the Fail2ban journal fix. Candidate CI
+repairs and final verification follow those changes.
 The baseline audit inspected **21e27ab32fa18e16d576cc79228a386b307042a4** from a clean checkout. The initial audit
 used **9b7511b383e6dbcb5cd3da2424b604016134c379** and
 began from a clean checkout. Earlier
@@ -18,6 +20,37 @@ historical problem descriptions or old file layouts as current bugs.
 Priorities below are suggested delivery priorities, not vulnerability severity
 ratings. Source presence does not prove every platform or live upgrade works.
 This audit does not constitute a new security scan or upstream dependency audit.
+
+## Current delivery and release status
+
+All **48 unique numbered IDs** have their implemented or explicitly superseded
+accepted capability. **2.12/2.37 are complete**; optional API/state refinements
+do not reopen that decomposition scope.
+
+[Candidate CI](https://github.com/joglomedia/LEMPer/actions/runs/45318207064)
+passed **24/24 jobs**, **534 Bats tests**, sourced ShellCheck/Bashate and scoped
+formatting. Declared function-entry coverage is **86/94 (91.5%)**. Exact committed
+archive acceptance passed **13/13 on each of Ubuntu 24.04, Ubuntu 26.04 and
+Debian 12 AMD64**. PHP/Laravel, mail/PHP/FTP/hosting matrices, priority lifecycle/TLS
+and the disposable legacy installation/audit jobs passed.
+
+All four `9b3963e` assets were rebuilt twice on Linux, compared byte-for-byte and
+checksum-verified. [RELEASE_V4.md](RELEASE_V4.md#verified-candidate-9b3963e)
+records their hashes and exact scope. Public protocol/integration cases and their
+environment requirements are tracked in [PRODUCTION_UAT.md](PRODUCTION_UAT.md).
+
+| Suggested priority | Remaining work |
+|---|---|
+| P1 | Finish selected production UAT, record evidence, and review the final committed candidate's CI/assets after further changes. |
+| P1 | Set the release date and tag/publish v4.0.0 when authorized; verify the published downloads/checksums/one-line installer. |
+| P2, optional | Unattended setup for new application releases and licensed artifact import; managed physical MariaDB backup/restore. |
+| P2, format decision | Authenticated configuration encryption with compatible format/key migration. Current CBC/PBKDF2 remains implemented. |
+| P3, optional | Broader quota/resource backends, YAML profiles, a numeric PHP-default option and internal request-state cleanup. |
+
+The dated sections below preserve delivery history. Their older counts, partial
+decomposition findings and missing-CI observations describe their named baselines;
+this section supplies current status. The numbered reconciliation table uses the
+completed A4 capability.
 
 ## A4 module decomposition follow-through — 2026-11-23
 
@@ -71,19 +104,19 @@ for the contracts and tradeoffs.
   **382** implementations remain present; the site package-preflight helper was renamed
   to `lemper_site_required_packages` and its caller updated.
 
-## Release priority follow-through — candidate a39e5f9
+## Release priority follow-through — verified candidate 9b3963e
 
 The numbered implementation scope is complete. Follow-through now addresses the
 release gates from the baseline audit, rather than adding optional product scope.
 
 | Priority | Result / remaining action |
 |---|---|
-| P1 — committed assets | Built all four assets twice from clean `d21b293`; byte-identical results, verified archive/bootstrap checksums and the archived fix matches source. Assets are retained in `dist/v4.0.0/d21b293/`; hashes are in [the release guide](RELEASE_V4.md#fixed-release-candidate-d21b293). |
-| P1 — exact-archive acceptance | The fixed `d21b293` archive passed 13/13 on both Debian 12 and Ubuntu 26.04 ARM64, including the running journal SSH jail and full removal. Historical `a39e5f9` passed 13/13 on Ubuntu 26.04 and 12/13 on Debian; its missing-auth-log defect is corrected in the follow-up. |
-| P1 — CI enforcement | [Reusable acceptance](../.github/workflows/release-acceptance.yml) verifies committed asset reproducibility and runs archive UAT on Ubuntu 24.04/26.04 and Debian 12. Candidate CI calls it; tagged publication requires success. YAML, embedded Bash syntax/ShellCheck, release-command lint/formatting and 112 affected bootstrap/structural tests pass locally. The existing full 518-test result covers the committed runtime source. |
-| P1 — remote candidate CI | Read-only checks returned no runs for the full `d21b293` SHA. The release branch is not pushed; the existing `release/**` trigger is present. Review/push the final candidate only when authorized, then review its configured jobs. No workflow was triggered here. |
+| P1 — committed assets | All four `9b3963e` assets rebuilt identically twice and passed checksum verification; hashes and retained paths are in [the release guide](RELEASE_V4.md#verified-candidate-9b3963e). |
+| P1 — exact-archive acceptance | The `9b3963e` archive passed 13/13 on Ubuntu 24.04/26.04 and Debian 12 AMD64. Earlier ARM64 results remain dated evidence for their respective commits. |
+| P1 — CI enforcement | [Reusable acceptance](../.github/workflows/release-acceptance.yml) verifies committed asset reproducibility and archive UAT on Ubuntu 24.04/26.04 and Debian 12. It passed for 9b3963e; tagged publication depends on the same gate. Candidate lint, formatting, behavior and compatibility checks passed. |
+| P1 — remote candidate CI | The branch is pushed and run 45318207064 passed 24/24 jobs for the full `9b3963e` SHA. Further commits require reviewing their own candidate CI. |
 | P1 — publication | v4.0.0 remains unpublished. After final verification notes are committed, rebuild/review the final assets and CI before setting the release date and authorized tagging/publication. |
-| P2 — wider deployment validation | The new matrix provides native AMD64 coverage when run on GitHub; local tests are ARM64. Public ACME, HTTP/3 client negotiation/0-RTT, remote Restic destinations, external SMTP and selected live transitions still need their designated environments. |
+| P2 — wider deployment validation | Native AMD64 matrix coverage is delivered. [Production UAT](PRODUCTION_UAT.md) distinguishes local protocol checks from public ACME, external mail/alerts, remote provider endpoints and selected live transitions. |
 
 Local source and artifact mounts remain read-only; service changes stay in the
 designated disposable fixtures. Native acceptance uses source Nginx and package-only
@@ -105,9 +138,9 @@ YAML, embedded Bash syntax/ShellCheck and formatting checks.
 This baseline audit predates A4 implementation. Its remaining architecture scope
 is superseded by the follow-through above; its release gates still apply.
 
-All **48 unique numbered IDs** were reconciled with the current source, public
-defaults, command/module wiring and tests. **46 IDs have their implemented or
-explicitly superseded capability; 2 IDs remain partial: 2.12 and 2.37.** These two
+At **21e27ab**, all **48 unique numbered IDs** were reconciled with source, public
+defaults, command/module wiring and tests. **46 IDs had their implemented or
+explicitly superseded capability; 2 IDs were partial: 2.12 and 2.37.** These two
 IDs describe one architecture workstream, also called **A4**. No numbered feature
 was found wholly absent. This conclusion applies to the documented accepted
 scope, including the qualifications in the reconciliation table below.
@@ -433,7 +466,7 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.9 | Reviewed runtime/backup boundaries implemented | Shared whole-value and semantic validation plus literal backup-account credential handling close the identified findings. This is not a whole-repository certification. |
 | 2.10 | Implemented | Optional CBC/PBKDF2 encrypted config; AEAD is a separate decision. |
 | 2.11 | Implemented | Four compatibility entrypoints share `runtime/stack/entry.sh` and recipe logic. |
-| 2.12 | Partial | Working runtime/services layers; deeper extraction is R8. |
+| 2.12 | Implemented | A4 extraction is committed in a39e5f9; runtime/service import, registry and compatibility contracts pass candidate CI. |
 | 2.13 | Implemented | CI lints Nginx modules. |
 | 2.14 | Implemented | Obsolete CI variable references removed. |
 | 2.15 | Implemented | Bats behavior/fixture tests and Linux CI; directory-name deviation is intentional. |
@@ -459,8 +492,8 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.34 | Implemented | EOL templates removed; inventory-based management/migration remains supported. |
 | 2.35 | Implemented | Portable host-edit helpers; GNU sed in Linux CI/UAT is appropriate. |
 | 2.36 | Implemented | Active shell code no longer depends on grep PCRE as described in the historical task. |
-| 2.37 | Partial | Same migration workstream as 2.12 and Phase 9, R8. |
-| 2.38 | Implemented with shared Linux test environment | Current tree has **43 Bats files / 513 declarations**. A2 aligns dependency preparation, root fixtures, and test locks; prior verification is recorded separately from this read-only audit. |
+| 2.37 | Implemented | Same completed A4 workstream as 2.12; optional request-state cleanup remains separate. |
+| 2.38 | Implemented with shared Linux test environment | Candidate 9b3963e passed **534 Bats tests** with shared root Linux fixtures, public help staging and isolated test locks. |
 | 2.39 | Implemented | Debian 12 CI and native PHP acceptance exist; shared setup pins ShellCheck 0.11.0. |
 | 2.40 | Implemented | Bashate in CI/release checks. |
 | 2.41 | Implemented | TUI log streaming and refresh controls. |
