@@ -107,35 +107,58 @@ jobs:
           set -ex
           sudo bash scripts/run_tests.sh
       # Simple Unit Tests
+      - name: Prepare disposable installation test environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -q -y podman
+          sudo podman build -f tests/uat/Containerfile -t lemper-install-uat tests/uat
+          sudo podman run -d --name lemper-install-uat --privileged --systemd=always \
+            --cgroupns=private --hostname lemper-uat.test --cpus 2 --memory 3g \
+            --tmpfs /run --tmpfs /tmp -e PIP_DEFAULT_TIMEOUT=120 -e PIP_RETRIES=5 \
+            -v "$PWD:/source:ro" lemper-install-uat
+          sudo podman exec -e LEMPER_UAT_NGINX_INSTALLER=repo lemper-install-uat bash /source/tests/uat/prepare.sh
+          sudo podman exec lemper-install-uat bash -e -c '
+            . /run/lemper-uat/helpers.bash
+            uat_profile_set /checkout/.env IMAGEMAGICK_INSTALLER "repo"
+            uat_profile_set /checkout/.env INSTALL_FTP_SERVER true
+            uat_profile_set /checkout/.env FTP_SERVER_NAME "pureftpd"
+            uat_profile_set /checkout/.env FTP_SERVER_INSTALLER "repo"
+            uat_profile_set /checkout/.env FTP_SSL_ENABLE true
+          '
       - name: Run unit testing
         env:
           TERM: xterm-256color
         run: |
           set -ex
-          sudo bash scripts/server_cleanup.sh
-          sudo bash scripts/install_dependencies.sh
-          sudo bash shunit2/run_test.sh
+          sudo podman exec -w /checkout lemper-install-uat bash scripts/server_cleanup.sh
+          sudo podman exec -w /checkout lemper-install-uat bash scripts/install_dependencies.sh
+          sudo podman exec -w /checkout lemper-install-uat bash shunit2/run_test.sh
       # FTP server install verification (issue #135)
       - name: Verify FTP server installation
         run: |
           set -ex
-          systemctl is-active --quiet pure-ftpd
-          systemctl is-enabled --quiet pure-ftpd
-          sudo ss -ltn | grep -q ':21 '
-          getent passwd ftp
-          sudo grep -qx 'STANDALONE_OR_INETD=standalone' /etc/default/pure-ftpd-common
-          sudo grep -qx '2' /etc/pure-ftpd/conf/TLS
-          sudo test -f /etc/pure-ftpd/conf/PassivePortRange
-          sudo test -L /etc/pure-ftpd/auth/65unix
-          sudo test -L /etc/pure-ftpd/auth/70pam
-          sudo test -s /etc/ssl/private/pure-ftpd.pem
-          sudo grep -q 'BEGIN CERTIFICATE' /etc/ssl/private/pure-ftpd.pem
-          sudo grep -q 'PRIVATE KEY' /etc/ssl/private/pure-ftpd.pem
+          sudo podman exec lemper-install-uat bash -e -o pipefail -c '
+            systemctl is-active --quiet pure-ftpd
+            systemctl is-enabled --quiet pure-ftpd
+            ss -ltn | grep -q ":21 "
+            getent passwd ftp
+            grep -qx "STANDALONE_OR_INETD=standalone" /etc/default/pure-ftpd-common
+            grep -qx "2" /etc/pure-ftpd/conf/TLS
+            test -f /etc/pure-ftpd/conf/PassivePortRange
+            test -L /etc/pure-ftpd/auth/65unix
+            test -L /etc/pure-ftpd/auth/70pam
+            test -s /etc/ssl/private/pure-ftpd.pem
+            grep -q "BEGIN CERTIFICATE" /etc/ssl/private/pure-ftpd.pem
+            grep -q "PRIVATE KEY" /etc/ssl/private/pure-ftpd.pem
+          '
       - name: Audit provisioned host and dependency candidates
         run: |
-          sudo apt-get install -y -qq lynis
-          sudo lynis audit system --quick --no-colors --log-file "${RUNNER_TEMP}/lynis.log" --report-file "${RUNNER_TEMP}/lynis.dat"
-          bash scripts/audit_dependencies.sh > "${RUNNER_TEMP}/dependency-audit.txt"
+          sudo podman exec lemper-install-uat apt-get install -y -qq lynis
+          sudo podman exec lemper-install-uat lynis audit system --quick --no-colors \
+            --log-file /var/log/lemper-uat/lynis.log --report-file /var/log/lemper-uat/lynis.dat
+          sudo podman exec -w /checkout lemper-install-uat bash scripts/audit_dependencies.sh > "${RUNNER_TEMP}/dependency-audit.txt"
+          sudo podman cp lemper-install-uat:/var/log/lemper-uat/lynis.log "${RUNNER_TEMP}/lynis.log"
+          sudo podman cp lemper-install-uat:/var/log/lemper-uat/lynis.dat "${RUNNER_TEMP}/lynis.dat"
       - uses: actions/upload-artifact@v4
         with:
           name: provisioned-host-audit
@@ -143,6 +166,12 @@ jobs:
             ${{ runner.temp }}/lynis.log
             ${{ runner.temp }}/lynis.dat
             ${{ runner.temp }}/dependency-audit.txt
+      - name: Stop disposable installation environment
+        if: always()
+        run: |
+          if sudo podman container exists lemper-install-uat; then
+            sudo podman stop --time 10 lemper-install-uat
+          fi
   ftp-source:
     name: ftp-source (${{ matrix.server }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -307,6 +336,8 @@ jobs:
             --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" lemper-runtime-uat
           sudo podman exec lemper-runtime-uat bash -c '
             set -e
+            . /source/tests/uat/helpers.bash
+            uat_wait_systemd
             apt-get update -qq
             apt-get install -y -qq nginx composer gnupg software-properties-common rsync unzip wget
             . /source/lib/core/loader.sh
@@ -317,7 +348,7 @@ jobs:
               php8.3-curl php8.3-mbstring php8.3-sqlite3 php8.3-xml php8.3-zip \
               php8.4-curl php8.4-mbstring php8.4-sqlite3 php8.4-xml php8.4-zip
             useradd --create-home --shell /bin/bash lemper
-            runuser -u lemper -- composer create-project "laravel/laravel:^13.0" \
+            runuser -u lemper -- /usr/bin/php8.4 /usr/bin/composer create-project "laravel/laravel:^13.0" \
               /home/lemper/laravel-real --no-interaction --prefer-dist --no-dev
             touch /run/lemper-runtime-uat-authorized
           '

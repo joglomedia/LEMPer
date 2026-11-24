@@ -15,6 +15,16 @@
 # | Authors: Edi Septriyanto <me@masedi.net>                                |
 # +-------------------------------------------------------------------------+
 
+function uat_wait_systemd() {
+    local state
+    # tmpfiles can clear /tmp during early boot; seed fixtures only afterwards.
+    timeout 60 systemctl is-system-running --wait >/dev/null 2>&1 || true
+    state=$(systemctl is-system-running 2>/dev/null) || true
+    case "$state" in running | degraded) return 0 ;; esac
+    printf 'Systemd fixture initialization did not complete.\n' >&2
+    return 1
+}
+
 # Literal fixture rewrites; failure on missing/duplicate keys catches stale UAT.
 function uat_profile_set() {
     local file="$1" key="$2" value="$3" work

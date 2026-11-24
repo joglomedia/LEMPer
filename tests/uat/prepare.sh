@@ -9,6 +9,9 @@ set -euo pipefail
     echo "/source must be read-only." >&2
     exit 2
 }
+# shellcheck source=tests/uat/helpers.bash
+. /source/tests/uat/helpers.bash
+uat_wait_systemd
 installer="${LEMPER_UAT_NGINX_INSTALLER:-repo}"
 [[ "$installer" == repo || "$installer" == source ]] || exit 2
 install -d -m 0700 /var/log/lemper-uat /run/lemper-uat
@@ -19,7 +22,7 @@ cp /source/.env.dist /source/install.sh /source/remove.sh /source/lemper.sh /sou
 cp /source/tests/uat/cli_acceptance.sh /checkout/tests/uat/
 cp /checkout/.env.dist /checkout/.env
 chmod 0600 /checkout/.env
-ssh-keygen -q -t ed25519 -N "" -f /tmp/lemper-uat-key
+ssh-keygen -q -t ed25519 -N "" -f /run/lemper-uat/key
 cp /source/tests/uat/helpers.bash /run/lemper-uat/helpers.bash
 # shellcheck source=tests/uat/helpers.bash
 . /run/lemper-uat/helpers.bash
@@ -50,7 +53,7 @@ INSTALL_FW|false
 ACME_WILDCARD|false
 ACME_REGISTER_ACCOUNT|false
 PROFILE
-uat_profile_set /checkout/.env RSA_PUB_KEY "\"$(cat /tmp/lemper-uat-key.pub)\""
+uat_profile_set /checkout/.env RSA_PUB_KEY "\"$(cat /run/lemper-uat/key.pub)\""
 uat_profile_set /checkout/.env NGINX_INSTALLER "\"$installer\""
 uat_profile_set /checkout/.env INSTALL_MODSEC "$([[ "$installer" == repo ]] && echo true || echo false)"
 if [[ "$installer" == source ]]; then

@@ -160,7 +160,7 @@ function ssh_key_login() {
     local known
     known=$(mktemp) || return 1
     awk '{print "[127.0.0.1]:2269 " $1 " " $2}' /etc/ssh/ssh_host_ed25519_key.pub > "$known"
-    ssh -F /dev/null -i /tmp/lemper-uat-key -o BatchMode=yes -o IdentitiesOnly=yes \
+    ssh -F /dev/null -i /run/lemper-uat/key -o BatchMode=yes -o IdentitiesOnly=yes \
         -o UserKnownHostsFile="$known" -o StrictHostKeyChecking=yes -p 2269 "$uat_user@127.0.0.1" true
     local rc=$?
     rm -f "$known"
