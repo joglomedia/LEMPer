@@ -50,3 +50,17 @@ PROBE
     grep -q ':1$' "$TEST_TMPDIR/locations"
     ! grep -q 'synthetic-secret\|password=\|printf' "$TEST_TMPDIR/locations"
 }
+
+@test "bootstrap diagnostics do not break package child shells with closed descriptors" {
+    cat > "$TEST_TMPDIR/package-postinst.sh" <<'PROBE'
+#!/usr/bin/env bash
+set -e
+printf 'package configured\n'
+PROBE
+    run bash -c '
+        BASH_ENV="$REAL_BASE_DIR/tests/uat/bootstrap_trace.bash" \
+          LEMPER_UAT_BOOTSTRAP_TRACE=true bash "$TEST_TMPDIR/package-postinst.sh" 19>&-
+    '
+    [ "$status" -eq 0 ]
+    [ "$output" = 'package configured' ]
+}

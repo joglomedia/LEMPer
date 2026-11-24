@@ -159,6 +159,7 @@ jobs:
           sudo podman exec -w /checkout lemper-install-uat bash scripts/audit_dependencies.sh > "${RUNNER_TEMP}/dependency-audit.txt"
           sudo podman cp lemper-install-uat:/var/log/lemper-uat/lynis.log "${RUNNER_TEMP}/lynis.log"
           sudo podman cp lemper-install-uat:/var/log/lemper-uat/lynis.dat "${RUNNER_TEMP}/lynis.dat"
+          sudo chown "$(id -u):$(id -g)" "${RUNNER_TEMP}/lynis.log" "${RUNNER_TEMP}/lynis.dat"
       - uses: actions/upload-artifact@v4
         with:
           name: provisioned-host-audit

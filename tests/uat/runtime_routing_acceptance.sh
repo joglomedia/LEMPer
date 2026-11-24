@@ -215,7 +215,19 @@ function access_policy_guard() {
     chmod 0640 /run/runtime-uat.htpasswd
     sed '/^    root /a\    auth_basic "UAT protected";\n    auth_basic_user_file /run/runtime-uat.htpasswd;' "$backup/parent" >"$parent"
     lemperctl site app add parent-uat.test --mount /protected --webroot /home/lemper/second-app
-    local path code authfile
+    local path code authfile _attempt
+    # A graceful reload returns before the replacement workers accept requests.
+    # Wait for activation, then verify every protected route and valid login.
+    code=000
+    for _attempt in {1..30}; do
+        code=$(curl -sS --max-time 5 -H 'Host: parent-uat.test' -o /dev/null -w '%{http_code}' http://127.0.0.1/protected/) || true
+        [[ "$code" != 401 ]] || break
+        sleep 0.2
+    done
+    if [[ "$code" != 401 ]]; then
+        printf 'UAT authentication policy did not activate (HTTP %s).\n' "$code" >&2
+        return 1
+    fi
     for path in /protected/ /protected/index.php; do
         code=$(curl -sS --max-time 15 -H 'Host: parent-uat.test' -o /dev/null -w '%{http_code}' "http://127.0.0.1$path")
         [[ "$code" == 401 ]] || return 1

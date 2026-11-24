@@ -17,7 +17,9 @@
 
 # Explicit UAT instrumentation: descriptor 19 records locations and exit status.
 # Never include BASH_COMMAND, expansions, arguments or configuration values.
-if [[ "${LEMPER_UAT_BOOTSTRAP_TRACE:-false}" == true ]]; then
+# dpkg closes inherited descriptors in maintainer scripts. Do not instrument
+# those child shells when the UAT log descriptor is unavailable.
+if [[ "${LEMPER_UAT_BOOTSTRAP_TRACE:-false}" == true ]] && { : >&19; } 2>/dev/null; then
     set -T
     trap 'printf "%s:%s:%s:%s\n" "${BASH_SOURCE[0]:-}" "${LINENO}" "${FUNCNAME[0]:-}" "$?" >&19' DEBUG
 fi
