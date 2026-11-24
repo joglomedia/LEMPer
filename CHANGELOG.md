@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.0.0] - Unreleased
 
 ### Added
+- Public DNS-01 and Internet-facing TLS/HTTP/3 UAT drivers with guarded
+  disposable fixtures, protected credentials and repeatable client preparation.
 - L-plus SVG brand assets with light/dark-background logos, color/monochrome
   icons, a multi-size favicon and a brand usage guide.
 - Bash protocol/SFTP/alert UAT drivers and a native Ubuntu 26.04 HTTP/3 gate,
@@ -75,6 +77,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tag-driven release automation, and provisioned-host/dependency audit reports.
 
 ### Changed
+- Component preflight preserves matching kernel/persistent hostnames, avoids
+  redundant privileged operations and stops on requested hostname-change failures.
 - Refresh the Nginx and new-site welcome pages with a responsive, accessible
   layout and current v4 guides; share one static template, escape site names and
   remove external fonts/scripts from the placeholder.

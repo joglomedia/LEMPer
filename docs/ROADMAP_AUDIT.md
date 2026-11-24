@@ -476,7 +476,7 @@ that every branch, upgrade or security property was exhaustively verified.
 | 2.19 | Implemented | Bun installer/remover, options and recipe wiring. |
 | 2.19B | Implemented | Valkey repo/source branches and shared removal; separate filenames are unnecessary. |
 | 2.20 | Implemented | CrowdSec lifecycle, options and collections. |
-| 2.21 | Implemented in source | Protected provider DNS-01 wiring; public issuance/renewal validation is a release gate. |
+| 2.21 | Implemented; public DNS-01 verified | 2026-11-25 public UAT passed 23 ACME cases for staging/production base/wildcard issuance, renewal, deploy hooks and repeat preservation. HTTP-01 remains a separate target. See [production UAT](PRODUCTION_UAT.md). |
 | 2.22 | Implemented | Spinners/counters delivered; ETA and optional pv restoration progress delivered with R12. |
 | 2.23 | Implemented | Expanded/public help and common parser; site-show flag fixed in R2; public-path parser adoption is delivered in R7; intentional compatibility adapters retain their grammar. |
 | 2.24 | Implemented | TUI dashboard/logs/wizard; current command is `tui`. |

@@ -654,8 +654,12 @@ function preflight_system_check() {
 
     # Set server hostname.
     if [[ -n "${SERVER_HOSTNAME}" ]]; then
-        run hostname "${SERVER_HOSTNAME}" && \
-        run bash -c "echo '${SERVER_HOSTNAME}' > /etc/hostname"
+        if [[ "$(hostname)" != "${SERVER_HOSTNAME}" ]]; then
+            run hostname "${SERVER_HOSTNAME}" || return 1
+        fi
+        if [[ ! -f /etc/hostname || "$(cat /etc/hostname 2>/dev/null)" != "${SERVER_HOSTNAME}" ]]; then
+            run bash -c 'printf "%s\n" "$1" > /etc/hostname' _ "${SERVER_HOSTNAME}" || return 1
+        fi
 
         lemper_update_hosts "${SERVER_HOSTNAME}" "${SERVER_IP}" || return 1
 

@@ -312,6 +312,67 @@ VPSes require provider port mappings for Internet-facing QUIC/ACME; an existing
 verified SSH connection can tunnel SFTP without changing service/firewall routing.
 See [PRODUCTION_UAT.md](docs/PRODUCTION_UAT.md) for scope and evidence.
 
+#### Public DNS-01 and protocol fixtures
+
+The public drivers require explicit disposable-container markers, root inside
+the container and a read-only `/source` mount. Use a reserved `uat-*` subdomain;
+keep tokens outside source/build contexts in mode-0600 files. Run the legacy
+upgrade/install/remove tests on a disposable clone instead of the production host.
+The [public UAT report](docs/PRODUCTION_UAT.md#public-follow-through-2026-11-25)
+records tested versions, resource limits and cleanup.
+
+Build `tests/uat/PublicAcme.Containerfile` for the VPS architecture. The image
+provides systemd, Python/venv, cron and Nginx; LEMPer's actual Certbot component
+installer supplies Certbot and its DNS plugin during acceptance. Run it rootless
+with its own hostname, private cgroup namespace, 0.5 CPU, 512 MiB RAM, no extra
+swap and a 256-process limit. Mount public source at `/source:ro` and the protected
+raw Cloudflare token file at `/run/lemper-cloudflare-token:ro`.
+
+Older Podman installations can lack delegated user CPU/memory controllers.
+Use a dedicated, collected systemd unit with `User` set to the unprivileged
+operator, `Delegate=yes`, `CPUQuota=50%`, `MemoryMax=512M`, `TasksMax=256` and
+`XDG_RUNTIME_DIR=/run/user/<operator-uid>`. Run Podman with
+`--cgroup-manager=cgroupfs` inside that unit. This delegates only the test unit;
+avoid changing an existing user manager or service. Older builds use
+`--network=private` for image builds and `--network=slirp4netns` for containers.
+
+Inside the designated ACME container, set the marker and run:
+
+~~~bash
+touch /run/lemper-public-uat-authorized
+LEMPER_UAT_ACME_DOMAIN=uat-v4.example.com \
+LEMPER_UAT_ACME_EMAIL=operator@example.com \
+  bash /source/tests/uat/public_acme_acceptance.sh
+~~~
+
+The driver exercises real staging and production DNS-01 issuance, base/wildcard
+SANs, credential modes, the installed renewal hook, verified HTTPS and repeated
+installation. It disables scheduled renewal jitter for UAT only. Raw logs and
+credentials remain under the container's private `/var/log/lemper-public-uat`.
+
+For Internet-facing protocols, copy only the test certificate/key into a protected
+fixture directory containing an empty `authorized` marker. Mount that directory
+at `/fixture:ro` and public code at `/source:ro` in the official Nginx container.
+Run `public_protocol_server.sh` as its entry point, set `LEMPER_UAT_ACME_DOMAIN`
+and `LEMPER_UAT_PUBLIC_PORT`, and publish the same unused TCP/UDP high port to
+internal port 443. Cap this separate endpoint at 0.25 CPU and 128 MiB RAM.
+The script uses LEMPer's SSL template and HTTP/3 driver, then adjusts this
+fixture's Alt-Svc to the external port. Public assets are copied to the served
+directory so the worker does not require access to the private source parent.
+
+Use a separate Ubuntu 26.04 client container with read-only `/source`, create
+`/run/lemper-public-client-authorized`, and run
+`public_protocol_client_prepare.sh`, followed by `public_protocol_acceptance.sh`
+with the same domain/port. The checksum-verified curl build supports HTTP/2 and
+HTTP/3 and persists under `/var/tmp`; `/run` tmpfs contents disappear on stop.
+Its session export is experimental and confined to UAT.
+
+Inventory both host/provider firewall rules before publishing a port. Temporary
+host rules should admit only the test client's address. After testing, revoke the
+disposable certificate, remove only test-created DNS records/rules/containers and
+private staging, then compare production service state, HTTP and rule/DNS baselines.
+Close the temporary provider port allowance through the operator's normal access.
+
 #### Database, diagnostics and repository-key acceptance
 
 The scoped P1 suite installs real MariaDB/PHP packages, activates a CLI snapshot,

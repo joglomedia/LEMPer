@@ -16,8 +16,10 @@ that exceed those automated results.
 | Early-data default | **Passed locally and on the VPS** | Cached-session requests succeed with zero early-data bytes and the disabled setting. Enabled 0-RTT/application replay handling remains separate policy/validation work. |
 | Restic/monitoring integration | **19/19 local checks passed** | Separate key-only SFTP/SMTP fixture, encrypted backup/check/staged restore/retention/scheduling and actual Monit failure/recovery messages captured privately |
 | Restic on the public VPS | **13/13 passed over verified SSH access** | A separate PAM-enabled SFTP container reached through the existing encrypted SSH transport; strict host-key checks, scheduled execution, staged app/mail restore and retention passed |
-| Internet-facing QUIC | Pending provider port mapping | The VPS has a private interface. Direct high-port requests did not reach its listeners; no provider mapping or existing service/firewall routing was changed. |
-| Public ACME issuance/renewal | Pending external target | Routable disposable domain/server and scoped test-zone credentials for DNS-01 |
+| Internet-facing QUIC | **17/17 public protocol checks passed** | Second VPS, native AMD64 Nginx 1.30.8/OpenSSL 3.5.9; a separate ARM64 curl 8.23.0 client verified HTTPS, HTTP/2, QUIC, TLS 1.2/1.3, hostname/trust rejection and zero early-data bytes over public port 18443 |
+| Public ACME DNS-01 issuance/renewal | **23/23 passed**, plus final renewal flag/preservation check | LEMPer CLI/driver, Certbot 5.10.0, staging and production wildcard/base issuance for a reserved subdomain under lemper.eu.org, installed Nginx deploy hook and repeat-install preservation |
+| Public DNS operations | **6/6 passed** | Cloudflare TXT create/read/update/delete verified on both authoritative nameservers; complete existing record objects matched after cleanup |
+| Public ACME HTTP-01 | Pending disposable target | A separate hostname/server with available public TCP 80/443; production listeners were preserved |
 | External SMTP/IMAP and alerts | Pending external target | Controlled sender/recipient domains/mailboxes, verified TLS and routable mail endpoints |
 | Selected legacy upgrades | Pending disposable legacy baseline | A designated old installation/data snapshot and a reviewed recovery path |
 | Full upstream application setup | Pending selected app targets | Complete database/admin/mail/cron setup and HTTP health checks for selected application releases |
@@ -48,6 +50,52 @@ experimental session-export facility for this test. [Upstream HTTP/3 build
 requirements](https://curl.se/docs/http3.html) require a suitable TLS/QUIC library;
 the early-data behavior follows [curl's documented option](https://curl.se/docs/manpage.html#--tls-earlydata).
 Client session files, private keys and message captures are not release artifacts.
+
+## Public follow-through, 2026-11-25
+
+The tested source is `a7477b4` plus the hostname preflight correction discovered
+during this UAT. Component preflight now skips a matching kernel hostname and
+persistent hostname file; requested changes still run and failures return before
+hosts updates. Three regression cases and the full **545/545 Linux Bats suite**
+passed, together with Bash syntax, sourced ShellCheck and Bashate.
+
+The second server runs production Ubuntu 22.04 services. UAT used separate
+rootless containers and temporary, delegated systemd units: 0.5 CPU/512 MiB for
+the Ubuntu 24.04 AMD64 ACME fixture and 0.25 CPU/128 MiB for the protocol endpoint.
+No host packages were installed or upgraded. The old Podman 3.4 runtime required
+the dedicated delegation; existing user/service configuration was preserved.
+The final fixture image architecture was verified as AMD64 before launch.
+
+The reserved hostname was `uat-v4-20261125.lemper.eu.org`. DNS-01 issued its base
+and wildcard certificates through staging and production, and verified renewal
+and the installed deploy hook. The production issuer was Let's Encrypt YE2,
+with expiry 2027-02-22. The public protocol endpoint used the tracked SSL template
+and shared HTTP/3 configuration driver. Its high-port fixture adjusted Alt-Svc
+to 18443. curl 8.23.0 used OpenSSL 3.5.5, nghttp2 1.68.0, ngtcp2 1.16.0 and
+nghttp3 1.12.0, with the checksum-verified build and experimental session export.
+Enabled 0-RTT/replay handling remains a separate validation scope.
+
+Initial public high-port requests did not reach the host rules. After the
+operator opened provider TCP/UDP 18443, the checks passed directly over the
+Internet. Temporary UFW rules allowed only the test client's IPv4 address.
+Both UFW files and numbered rule output matched their backups after removal.
+All existing Cloudflare record objects also matched their original snapshot.
+The test certificate was revoked; task containers, private credentials/keys and
+server staging were removed. Production service PIDs/startup timestamps and the
+original HTTPS response body matched, and production HTTPS remained 200.
+The operator-added provider port rule can now be closed.
+
+Repeatable drivers: [public ACME](../tests/uat/public_acme_acceptance.sh),
+[protocol server](../tests/uat/public_protocol_server.sh),
+[client preparation](../tests/uat/public_protocol_client_prepare.sh) and
+[public acceptance](../tests/uat/public_protocol_acceptance.sh).
+Renewal UAT disables Certbot's random scheduled delay; production scheduling
+defaults retain that delay. Client builds live under `/var/tmp`, so stopping a
+container does not discard them through a `/run` tmpfs.
+
+External mail, HTTP-01 and selected legacy upgrade/application setup targets
+remain pending. A production host is not the legacy installation/removal fixture;
+use a disposable snapshot clone for those transitions.
 
 ## External target requirements
 

@@ -45,17 +45,26 @@ mutations when discovery fails; CI resolves the current stable version through
 authenticated GitHub metadata without passing a token into the installer.
 
 See [production UAT](PRODUCTION_UAT.md) for protocol checks and external target
-requirements. Public ACME, external mail/alerts and selected live migrations
-are not established by container acceptance. Further commits change the archive
+requirements. Public DNS-01 and Internet-facing protocol checks passed in the
+2026-11-25 follow-through below. External mail/alerts, HTTP-01 and selected
+migrations still require their designated targets. Further commits change the archive
 hash: build and validate the final committed candidate before tagging it.
 
 Follow-through on this runtime baseline passed **537/537 local Bats tests**, **16
 local protocol checks**, **19 local remote-backup/alert checks**, **13 VPS SFTP
 checks over verified SSH access**, and **6 VPS-native QUIC/TLS checks**. The new
 HTTP/3 CI job makes the protocol suite repeatable for subsequent candidates.
-These checks preserve disabled early-data defaults and existing VPS services;
-Internet port mapping, public ACME credentials and controlled external mail
-targets remain pending as recorded in the production checklist.
+These checks preserve disabled early-data defaults and existing VPS services.
+
+The second public-server follow-through on 2026-11-25 passed **23 ACME checks**,
+**17 Internet protocol checks**, **6 authoritative DNS checks** and an additional
+renewal flag/certificate-preservation check. It also found and corrected redundant
+hostname preflight mutations; **545 Bats tests** passed for that correction.
+See [production UAT](PRODUCTION_UAT.md#public-follow-through-2026-11-25) for
+versions, resource boundaries, cleanup and production-preservation evidence.
+Controlled external mail, HTTP-01 and disposable legacy transition/application
+targets remain pending. Final follow-through commits need rebuilt assets and
+fresh candidate CI before publication.
 
 ## Remaining release steps
 
