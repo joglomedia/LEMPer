@@ -11,7 +11,7 @@ setup() {
 @test "all compatibility entry points expose profile help without root or configuration" {
     local entry
     for entry in install.sh remove.sh update.sh lemper.sh; do
-        run runuser -u nobody -- bash "$REAL_BASE_DIR/$entry" --help
+        run test_run_public "$REAL_BASE_DIR" "$entry" --help
         [ "$status" -eq 0 ]
         [[ "$output" == *"--config FILE"* ]]
     done

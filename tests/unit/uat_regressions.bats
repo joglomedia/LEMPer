@@ -224,7 +224,7 @@ CONFIGURE
 }
 
 @test "public backup help is command-specific without root or private configuration" {
-    run runuser -u nobody -- bash "$REAL_BASE_DIR/bin/lemper-cli.sh" backup --help
+    run test_run_public "$REAL_BASE_DIR" bin/lemper-cli.sh backup --help
     [ "$status" -eq 0 ]
     [[ "$output" == *"configuration backup and restore"* ]]
     [[ "$output" == *"--dir"* ]]

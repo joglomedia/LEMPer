@@ -8,6 +8,7 @@
 # - lemper.sh sources shared lemper_stacks.sh instead of inline functions
 # - lemper_stacks.sh contains the shared lemper_install() and lemper_remove()
 #
+load unit/env_helper
 
 setup() {
     export BASE_DIR="${BATS_TEST_DIRNAME}/.."
@@ -34,7 +35,7 @@ refute_grep() {
 }
 
 @test "install.sh help works without configuration or root" {
-    run runuser -u nobody -- bash "${BASE_DIR}/install.sh" --help
+    run test_run_public "$BASE_DIR" install.sh --help
     [ "${status}" -eq 0 ]
     [[ "${output}" == *"--config FILE"* ]]
 }
@@ -53,7 +54,7 @@ refute_grep() {
 }
 
 @test "remove.sh help works without configuration or root" {
-    run runuser -u nobody -- bash "${BASE_DIR}/remove.sh" --help
+    run test_run_public "$BASE_DIR" remove.sh --help
     [ "${status}" -eq 0 ]
     [[ "${output}" == *"--config FILE"* ]]
 }

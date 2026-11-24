@@ -31,7 +31,7 @@ app_child='
  lemper_nginx_site_reload() { echo RELOAD; }
 '
 @test "app help is public and default/runtime/app modules are source-only" {
-    run runuser -u nobody -- bash "$REAL_BASE_DIR/bin/lemper-cli.sh" site app add --help
+    run test_run_public "$REAL_BASE_DIR" bin/lemper-cli.sh site app add --help
     [ "$status" -eq 0 ]
     [[ "$output" == *'--mount'* ]]
     run bash -c 'for f in "$1/lib/runtime/stack/config.sh" "$1/lib/services/php/defaults.sh" "$1/lib/core/config-update.sh" "$1/lib/runtime/site/apps.sh" "$1/lib/services/nginx/apps.sh"; do . "$f" || exit 1; done; echo SOURCED' _ "$REAL_BASE_DIR"

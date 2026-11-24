@@ -22,10 +22,10 @@ alignment_child='
     DRYRUN=false
 '
 @test "public help and version work without root or configuration" {
-    run runuser -u nobody -- bash "$REAL_BASE_DIR/bin/lemper-cli.sh" site create --help
+    run test_run_public "$REAL_BASE_DIR" bin/lemper-cli.sh site create --help
     [ "$status" -eq 0 ]
     [[ "$output" == *"--runtime-user"* ]]
-    run runuser -u nobody -- bash "$REAL_BASE_DIR/bin/lemper-cli.sh" --version
+    run test_run_public "$REAL_BASE_DIR" bin/lemper-cli.sh --version
     [ "$status" -eq 0 ]
     [[ "$output" == *"version 4.0.0"* ]]
 }

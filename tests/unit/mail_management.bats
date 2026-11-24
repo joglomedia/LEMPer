@@ -30,7 +30,7 @@ mail_child='
  lemper_load_module() { :; }
 '
 @test "mail help is public without configuration, root, or source-time effects" {
-    run runuser -u nobody -- bash "$REAL_BASE_DIR/bin/lemper-cli.sh" mail account add --help
+    run test_run_public "$REAL_BASE_DIR" bin/lemper-cli.sh mail account add --help
     [ "$status" -eq 0 ]
     [[ "$output" == *"--password-file"* ]]
     run bash -c 'for f in "$1"/lib/services/mail/*.sh "$1"/lib/runtime/mail/*.sh; do . "$f" || exit 1; done; echo SOURCED' _ "$REAL_BASE_DIR"

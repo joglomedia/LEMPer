@@ -309,7 +309,9 @@ jobs:
             set -e
             apt-get update -qq
             apt-get install -y -qq nginx composer gnupg software-properties-common rsync unzip wget
-            bash -c '. /source/lib/core/loader.sh; lemper_load_module services/php/repository; lemper_php_prepare_repository' || exit
+            . /source/lib/core/loader.sh
+            lemper_load_module services/php/repository
+            lemper_php_prepare_repository
             apt-get update -qq
             apt-get install -y -qq php8.3-cli php8.3-fpm php8.3-dev php8.4-cli php8.4-fpm php8.4-dev \
               php8.3-curl php8.3-mbstring php8.3-sqlite3 php8.3-xml php8.3-zip \

@@ -53,7 +53,13 @@ jobs:
             sha256sum -c lemper-v4.0.0.tar.gz.sha256 get-lemper.sha256
             cp get-lemper /checkout/get-lemper
             tar -xzOf lemper-v4.0.0.tar.gz LEMPer-4.0.0/tests/uat/v4_acceptance.sh > /run/release-acceptance.sh
-            LEMPER_UAT_ARCHIVE=/artifacts/lemper-v4.0.0.tar.gz bash /run/release-acceptance.sh
+            exec 19>/run/bootstrap-locations.log
+            if ! BASH_ENV=/source/tests/uat/bootstrap_trace.bash LEMPER_UAT_BOOTSTRAP_TRACE=true \
+              LEMPER_UAT_ARCHIVE=/artifacts/lemper-v4.0.0.tar.gz bash /run/release-acceptance.sh; then
+              echo "Last code locations (no arguments or configuration values):"
+              tail -n 20 /run/bootstrap-locations.log
+              exit 1
+            fi
           ' | tee "$RUNNER_TEMP/release-acceptance.txt"
           cat "$RUNNER_TEMP/release-acceptance.txt" >> "$GITHUB_STEP_SUMMARY"
       - name: Stop disposable release environment
