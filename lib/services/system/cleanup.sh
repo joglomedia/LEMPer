@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+
+# +-------------------------------------------------------------------------+
+# | LEMPer Shared Security Helpers                                          |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
+
+function lemper_cleanup_server_entry() {
+    echo "Cleaning up existing installation..."
+    if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
+        echo "Trying to fix broken packages..."
+
+        [ -f /var/lib/dpkg/lock ] && run rm /var/lib/dpkg/lock
+        [ -f /var/lib/dpkg/lock-frontend ] && run rm /var/lib/dpkg/lock-frontend
+        [ -f /var/cache/apt/archives/lock ] && run rm /var/cache/apt/archives/lock
+
+        run dpkg --configure -a
+        run apt --fix-broken install -q -y
+    fi
+    if [[ -n $(command -v apache2) || -n $(command -v httpd) ]]; then
+        warning -e "\nIt seems that Apache/httpd server installed on this server."
+        echo "Any other HTTP web server will be removed, otherwise they will conflict."
+        echo ""
+        #read -rt 120 -p "Press [Enter] to continue..." </dev/tty
+
+        if [[ "${AUTO_REMOVE}" == true ]]; then
+            REMOVE_APACHE="y"
+        else
+            while [[ "${REMOVE_APACHE}" != "y" && "${REMOVE_APACHE}" != "n" ]]; do
+                read -rp "Are you sure to remove Apache/HTTPD server? [y/n]: " -e REMOVE_APACHE
+            done
+        fi
+
+        if [[ "${REMOVE_APACHE}" == Y* || "${REMOVE_APACHE}" == y* ]]; then
+            echo "Uninstall existing Apache/HTTPD server..."
+
+            if [[ "${DRYRUN}" != true ]]; then
+                run systemctl stop apache2
+
+                # shellcheck disable=SC2046
+                run apt-get purge -q -y $(dpkg-query -l | awk '/apache2/ { print $2 }') \
+                    $(dpkg-query -l | awk '/httpd/ { print $2 }')
+            else
+                echo "Removing Apache2 installation in dry run mode."
+            fi
+        else
+            echo "Found Apache/HTTPD server, but not removed."
+        fi
+    fi
+    if [[ -n $(command -v nginx) ]]; then
+        warning -e "\nNginx HTTP server already installed. Should we remove it?"
+        echo "Backup your config and data before continue!"
+
+        # shellchechk source=scripts/remove_nginx.sh
+        # shellcheck disable=SC1091
+        . "${SCRIPTS_DIR}/remove_nginx.sh"
+    fi
+    PHPv=${DEFAULT_PHP_VERSION:-"8.0"}
+    if [[ -n $(command -v "php${PHPv}") ]]; then
+        warning -e "\nPHP ${PHPv} already installed. Should we remove it?"
+        echo "Backup your config and data before continue!"
+
+        # shellchechk source=scripts/remove_php.sh
+        # shellcheck disable=SC1091
+        . "${SCRIPTS_DIR}/remove_php.sh" --php-version="${PHPv}"
+    fi
+    if [[ -n $(command -v mysqld) || -n $(command -v mariadb) ]]; then
+        warning -e "\nMySQL database server already installed. Should we remove it?"
+        echo "Backup your database before continue!"
+
+        # shellchechk source=scripts/remove_mariadb.sh
+        # shellcheck disable=SC1091
+        . "${SCRIPTS_DIR}/remove_mariadb.sh"
+    fi
+    LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
+    if [[ -n $(getent passwd "${LEMPER_USERNAME}") ]]; then
+        warning -e "\nDefault lemper account already exists. Should we remove it?"
+        echo "Backup your data before continue!"
+
+        if [[ "${AUTO_REMOVE}" == true ]]; then
+            REMOVE_ACCOUNT="y"
+        else
+            while [[ "${REMOVE_ACCOUNT}" != "y" && "${REMOVE_ACCOUNT}" != "n" ]]; do
+                read -rp "Are you sure to remove default account [y/n]: " -e REMOVE_ACCOUNT
+            done
+        fi
+
+        if [[ "${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y* ]]; then
+            run delete_account "${LEMPER_USERNAME}"
+
+            # Clean up existing lemper config.
+            run bash -c "echo '' > /etc/lemper/lemper.conf"
+        else
+            echo "Found default lemper account, but not removed."
+        fi
+    fi
+    echo -e "\nCleaning up unnecessary packages..."
+    run apt-get autoremove -q -y \
+        && run apt-get autoclean -q -y \
+        && run apt-get clean -q -y
+    if [[ -z $(command -v apache2) && -z $(command -v nginx) && -z $(command -v mysql) ]]; then
+        status "Your server cleaned up."
+    else
+        warning "Your server cleaned up, but some installation not removed."
+    fi
+}

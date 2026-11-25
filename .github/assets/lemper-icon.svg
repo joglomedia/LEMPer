@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="lemper-icon-title lemper-icon-desc">
+  <title id="lemper-icon-title">LEMPer icon</title>
+  <desc id="lemper-icon-desc">A white L and lime plus on a rounded forest-green tile.</desc>
+    <rect width="64" height="64" rx="18" fill="#176b49"/>
+    <path d="M20 14v36h28" fill="none" stroke="#f8f9f4" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M36 16h14m-7-7v14" fill="none" stroke="#d9f39e" stroke-width="4" stroke-linecap="round"/>
+</svg>

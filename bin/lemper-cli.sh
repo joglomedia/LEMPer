@@ -21,7 +21,7 @@ set -e -o pipefail
 
 # Version control.
 export PROG_NAME && PROG_NAME=$(basename "$0")
-export PROG_VERSION && PROG_VERSION="3.6.0"
+export PROG_VERSION && PROG_VERSION="4.0.0"
 export LEMPER_CLI_BIN && LEMPER_CLI_BIN="$0"
 
 # Test mode.
@@ -41,7 +41,101 @@ function requires_root() {
     fi
 }
 
+# Shared functions are loaded from the checkout or the installed root-only core.
+CLI_SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [[ -L "${CLI_SCRIPT_PATH}" ]]; do
+    CLI_LINK=$(readlink "${CLI_SCRIPT_PATH}")
+    if [[ "${CLI_LINK}" == /* ]]; then
+        CLI_SCRIPT_PATH="${CLI_LINK}"
+    else
+        CLI_SCRIPT_PATH="$(dirname "${CLI_SCRIPT_PATH}")/${CLI_LINK}"
+    fi
+done
+CLI_SOURCE_DIR=$(cd "$(dirname "${CLI_SCRIPT_PATH}")" && pwd)
+CLI_LIBRARY_DIR="$CLI_SOURCE_DIR/../lib"
+if [[ ! -f "$CLI_LIBRARY_DIR/core/registry.sh" ]]; then CLI_LIBRARY_DIR=/etc/lemper; fi
+# The registry is static and has no configuration or host initialization.
+# shellcheck source=/dev/null
+. "$CLI_LIBRARY_DIR/core/registry.sh"
+CLI_HELP=false
+CLI_VERSION=false
+for CLI_ARGUMENT in "$@"; do
+    case "$CLI_ARGUMENT" in --help|-h) CLI_HELP=true ;; --version|-v) CLI_VERSION=true ;; esac
+done
+if [[ "$CLI_VERSION" == true || "${1:-}" == version ]]; then
+    echo "$PROG_NAME version $PROG_VERSION"
+    exit 0
+fi
+if [[ "$CLI_HELP" == true || "${1:-}" == help || $# -eq 0 ]]; then
+    case "${1:-}" in
+        site|create|add|manage|mod)
+            # shellcheck source=/dev/null
+            . "$CLI_LIBRARY_DIR/runtime/site/commands.sh"
+            if [[ "${2:-}" == app ]]; then
+                # shellcheck source=/dev/null
+                . "$CLI_LIBRARY_DIR/runtime/site/apps.sh"
+                lemper_site_app_help
+            else lemper_site_help; fi ;;
+        stack)
+            # shellcheck source=/dev/null
+            . "$CLI_LIBRARY_DIR/runtime/stack/commands.sh"
+            stack_help ;;
+        *)
+            CLI_HELP_PLUGIN=""
+            while IFS=: read -r CLI_HELP_NAME CLI_HELP_TARGET; do
+                [[ "$CLI_HELP_TARGET" != "lemper-${1:-}" ]] || CLI_HELP_PLUGIN="$CLI_HELP_NAME"
+            done < <(lemper_command_plugins)
+            if [[ -n "$CLI_HELP_PLUGIN" && -f "$CLI_LIBRARY_DIR/$CLI_HELP_PLUGIN.sh" ]]; then
+                (
+                    # Pure helpers allow existing plugins to handle --help without private config.
+                    # shellcheck source=/dev/null
+                    . "$CLI_LIBRARY_DIR/core/loader.sh" || exit 1
+                    # shellcheck source=/dev/null
+                    . "$CLI_LIBRARY_DIR/$CLI_HELP_PLUGIN.sh" --help
+                )
+            else
+                # shellcheck source=/dev/null
+                . "$CLI_LIBRARY_DIR/runtime/help.sh"
+                lemper_runtime_help
+            fi ;;
+    esac
+    exit 0
+fi
+# Full-stack operations share the entry adapter with compatibility scripts.
+# Route before config loading: first installation accepts an explicit profile.
+if [[ "${1:-}" == stack && "${2:-}" =~ ^(install|remove|update)$ ]]; then
+    CLI_ALL=false
+    CLI_STACK_ARGS=()
+    for CLI_ARGUMENT in "${@:2}"; do
+        if [[ "$CLI_ARGUMENT" == --all ]]; then
+            [[ "$CLI_ALL" == false ]] || { echo "Duplicate --all." >&2; exit 1; }
+            CLI_ALL=true
+        else
+            CLI_STACK_ARGS+=("$CLI_ARGUMENT")
+        fi
+    done
+    if [[ "$CLI_ALL" == true ]]; then
+        export LEMPER_ROOT
+        LEMPER_ROOT=$(cd "$CLI_LIBRARY_DIR/.." && pwd -P) || exit 1
+        export LEMPER_ENTRY_CANONICAL=true
+        # shellcheck source=/dev/null
+        . "$CLI_LIBRARY_DIR/runtime/stack/entry.sh" || exit 1
+        lemper_entry_main "${CLI_STACK_ARGS[@]}"
+        exit $?
+    fi
+fi
 requires_root "$@"
+
+if [[ -f "${CLI_SOURCE_DIR}/../lib/core/loader.sh" ]]; then
+    # Core modules are linted independently; avoid repeated expansion through every installer.
+    # shellcheck source=/dev/null
+    . "${CLI_SOURCE_DIR}/../lib/core/loader.sh"
+else
+    # Installed copy of the core already analyzed through the checkout loader.
+    # shellcheck disable=SC1091
+    . /etc/lemper/core/loader.sh
+fi
+
 
 # Pre-parse --password / -P flag before loading config (may need it for decryption).
 # Scans all args, extracts password, and rebuilds args list without it.
@@ -75,41 +169,21 @@ if [[ ${#new_args[@]} -gt 0 ]]; then
     set -- "${new_args[@]}"
 fi
 
+CLI_CONFIG_PASSWORD="${LEMPER_CONFIG_PASSWORD}"
+
 # Encryption helpers (also available in lib/lemper-encrypt.sh).
 ENCRYPT_CONFIG_AT_REST=${ENCRYPT_CONFIG_AT_REST:-false}
 
 function is_config_encrypted() {
-    local file="${1}"
-    [[ -f "${file}" ]] && head -c 10 "${file}" | grep -qE '^(U2FsdGVkX1|Salted__)'
+    core_is_config_encrypted "$@"
 }
 
 function secure_shred() {
-    local file="${1}"
-    [[ -f "${file}" ]] || return 0
-    if command -v shred &>/dev/null; then
-        shred -u -z -n 3 "${file}" 2>/dev/null || rm -f "${file}"
-    else
-        rm -f "${file}"
-    fi
+    core_secure_shred "$@"
 }
 
 function resolve_config_password() {
-    if [[ -n "${LEMPER_CONFIG_PASSWORD}" ]]; then
-        printf '%s' "${LEMPER_CONFIG_PASSWORD}"
-        return 0
-    fi
-    # Stored key file (generated at install time, mode 0600, root-only).
-    # Preferred over LEMPER_PASSWORD because sudo strips the environment.
-    if [[ -f /etc/lemper/.config_key ]]; then
-        cat /etc/lemper/.config_key
-        return 0
-    fi
-    # Legacy fallback for installs predating the key file.
-    if [[ -n "${LEMPER_PASSWORD}" ]]; then
-        printf '%s' "${LEMPER_PASSWORD}"
-        return 0
-    fi
-    return 1
+    core_resolve_config_password
 }
 
 function decrypt_config_file() {
@@ -123,10 +197,10 @@ function decrypt_config_file() {
     fi
 
     if ! openssl enc -aes-256-cbc -d -a -salt -md sha256 -pbkdf2 \
-        -k "${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
+        -pass fd:3 3<<<"${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
         # Legacy files used the default OpenSSL KDF.
         if ! openssl enc -aes-256-cbc -d -a -salt -md sha256 \
-            -k "${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
+            -pass fd:3 3<<<"${password}" -in "${encrypted_file}" -out "${output_file}" 2>/dev/null; then
             secure_shred "${output_file}"
             return 1
         fi
@@ -135,7 +209,7 @@ function decrypt_config_file() {
 }
 
 # Export LEMPer Stack configuration.
-CONFIG_FILE="/etc/lemper/lemper.conf"
+CONFIG_FILE="${LEMPER_CONFIG_FILE:-/etc/lemper/lemper.conf}"
 if [[ -f "${CONFIG_FILE}" ]]; then
     source_file="${CONFIG_FILE}"
     temp_decrypted=""
@@ -151,23 +225,16 @@ if [[ -f "${CONFIG_FILE}" ]]; then
         source_file="${temp_decrypted}"
     fi
 
-    # Load configuration using safe parser (no eval — SEC-06 mitigation).
-    # Clean environment first.
+    if ! validate_config_file "${source_file}"; then
+        [[ -z "${temp_decrypted}" ]] || secure_shred "${temp_decrypted}"
+        exit 1
+    fi
     while IFS=$'\t' read -r key _; do
         unset "${key}" 2>/dev/null || true
-    done < <(grep -v '^#' "${source_file}" | grep -v '^\[' | \
-        while IFS='=' read -r k v; do [[ "${k}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] && printf '%s\t%s\n' "${k}" "${v}"; done)
-
-    # Safely load key=value pairs without eval.
-    while IFS='=' read -r key value; do
-        [[ -z "${key}" || "${key}" == \#* || "${key}" == \[* ]] && continue
-        key="${key// /}"
-        value="${value#\"}"; value="${value%\"}"
-        value="${value#\'}"; value="${value%\'}"
-        if [[ "${key}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-            export "${key}=${value}"
-        fi
-    done < "${source_file}"
+    done < <(safe_parse_dotenv "${source_file}")
+    while IFS=$'\t' read -r key value; do
+        export "${key}=${value}"
+    done < <(safe_parse_dotenv "${source_file}")
 
     # Securely clean up temp decrypted file.
     if [[ -n "${temp_decrypted}" ]]; then
@@ -179,94 +246,74 @@ else
     exit 1
 fi
 
+[[ -z "${CLI_CONFIG_PASSWORD}" ]] || LEMPER_CONFIG_PASSWORD="${CLI_CONFIG_PASSWORD}"
+
 # Set default variables.
 LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
 LEMPER_PASSWORD=${LEMPER_PASSWORD:-""}
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-""}
 
 # Set CLI plugins directory.
-CLI_PLUGINS_DIR="/etc/lemper/cli-plugins"
+export CLI_PLUGINS_DIR="/etc/lemper/cli-plugins"
 
 # Color decorator.
-RED=31
-GREEN=32
-YELLOW=33
+export RED=31 GREEN=32 YELLOW=33
 
 ##
 # Helper Functions.
 ##
 function begin_color() {
-    local COLOR="${1}"
-    echo -e -n "\e[${COLOR}m"
+    core_begin_color "$@"
 }
 
 function end_color() {
-    echo -e -n "\e[0m"
+    core_end_color
 }
 
 function echo_color() {
-    local COLOR="${1}"
-    shift
-    begin_color "${COLOR}"
-    echo "$@"
-    end_color
+    core_echo_color "$@"
 }
 
 function status() {
-    echo_color "${GREEN}" "$@"
+    core_status "$@"
 }
 
 function warning() {
-    echo_color "${YELLOW}" "$@"
+    core_warning "$@"
 }
 
 function success() {
-    echo_color "${GREEN}" -n "Success: " >&2
-    echo "$@" >&2
+    core_success "$@"
 }
 
 function info() {
-    echo_color "${YELLOW}" -n "Info: " >&2
-    echo "$@" >&2
+    core_info "$@"
 }
 
 function error() {
-    echo_color "${RED}" -n "Error: " >&2
-    echo "$@" >&2
+    core_error "$@"
 }
 
 # Prints an error message and exits with an error code.
 function fail() {
-    error "$@"
-    #echo >&2
-    echo "For usage information, run this script with --help" >&2
-    exit 1
+    core_fail "$@"
 }
 
 function echo_ok() {
-    echo_color "${GREEN}" "OK"
+    core_echo_ok "$@"
 }
 
 function echo_warn() {
-    echo_color "${YELLOW}" "WARN"
+    core_echo_warn "$@"
 }
 
 function echo_err() {
-    echo_color "${RED}" "ERROR"
+    core_echo_err "$@"
 }
 
 # Run command.
 function run() {
-    if "${DRYRUN}"; then
-        echo_color "${YELLOW}" -n "would run "
-        echo "$@"
-    else
-        if ! "$@"; then
-            local CMDSTR="$*"
-            error "Failure running '${CMDSTR}', exiting."
-            exit 1
-        fi
-    fi
+    core_run "$@"
 }
 
 # Portable in-place sed (GNU and BSD).
@@ -327,153 +374,45 @@ function sed_inplace() {
 
 # Escape backslashes, ampersands, and slashes for sed replacements.
 function sanitize_sed_replacement() {
-    local INPUT=${1}
-    printf '%s' "${INPUT}" | sed -e 's/[\\&]/\\&/g' -e 's/\//\\\//g'
+    core_sanitize_sed_replacement "$@"
 }
 
 function memory_to_mb() {
-    local VALUE="${1:-256M}"
-
-    if [[ ! "${VALUE}" =~ ^[0-9]+[GgMm]?$ ]]; then
-        echo 256
-        return 0
-    fi
-
-    case "${VALUE}" in
-        *[Gg]) echo $(( ${VALUE%[Gg]} * 1024 )) ;;
-        *[Mm]) echo $(( ${VALUE%[Mm]} )) ;;
-        *)     echo $(( VALUE )) ;;
-    esac
+    core_memory_to_mb "$@"
 }
 
 function get_memory_mb() {
-    if [[ "${LEMPER_MEMORY_MB:-}" =~ ^[1-9][0-9]*$ ]]; then
-        echo "${LEMPER_MEMORY_MB}"
-        return 0
-    fi
-
-    local MEM_MB
-    MEM_MB=$(awk '/^MemTotal:/ { printf "%.0f", $2/1024 }' /proc/meminfo 2>/dev/null)
-
-    local CGROUP_LIMIT
-    if [[ -r /sys/fs/cgroup/memory.max ]]; then
-        CGROUP_LIMIT=$(cat /sys/fs/cgroup/memory.max 2>/dev/null)
-    elif [[ -r /sys/fs/cgroup/memory/memory.limit_in_bytes ]]; then
-        CGROUP_LIMIT=$(cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null)
-    fi
-
-    awk -v total="${MEM_MB:-0}" -v limit="${CGROUP_LIMIT:-0}" 'BEGIN {
-        if (limit ~ /^[0-9]+$/) {
-            mb = int(limit / 1048576);
-            if (mb > 0 && mb < 1048576 && (total == 0 || mb < total)) total = mb;
-        }
-        printf "%.0f\n", total;
-    }'
+    core_get_memory_mb
 }
 
 function detect_resource_profile() {
-    local PROFILE="${LEMPER_PROFILE:-${SERVER_PROFILE:-auto}}"
-
-    case "${PROFILE}" in
-        micro|small|medium|large)
-            echo "${PROFILE}"
-            return 0
-            ;;
-        auto|"") ;;
-        *)
-            warning "Unknown resource profile '${PROFILE}', using auto-detection." >&2
-            ;;
-    esac
-
-    local MEM_MB
-    MEM_MB=$(get_memory_mb)
-
-    if (( MEM_MB <= 0 )); then
-        echo "small"
-    elif (( MEM_MB < 1024 )); then
-        echo "micro"
-    elif (( MEM_MB < 2048 )); then
-        echo "small"
-    elif (( MEM_MB < 4096 )); then
-        echo "medium"
-    else
-        echo "large"
-    fi
+    core_detect_resource_profile
 }
 
 function calc_php_max_children() {
-    local PROFILE="${1:-}"
-    [[ -z "${PROFILE}" ]] && PROFILE=$(detect_resource_profile)
-    local MEMLIMIT="${2:-256}"
-    local CAP
-
-    case "${PROFILE}" in
-        micro)  CAP=4 ;;
-        small)  CAP=6 ;;
-        medium) CAP=10 ;;
-        large)  CAP=16 ;;
-        *)      CAP=6 ;;
-    esac
-
-    local PER_CHILD=$(( MEMLIMIT / 3 ))
-    (( PER_CHILD < 64 )) && PER_CHILD=64
-
-    local TOTAL
-    TOTAL=$(get_memory_mb)
-    if (( TOTAL > 0 )); then
-        local BUDGET=$(( TOTAL * 35 / 100 ))
-        local BY_MEM=$(( BUDGET / PER_CHILD ))
-        (( BY_MEM < 2 )) && BY_MEM=2
-        (( BY_MEM < CAP )) && CAP=${BY_MEM}
-    fi
-
-    (( CAP < 2 )) && CAP=2
-    echo "${CAP}"
+    core_calc_php_max_children "$@"
 }
 
 function calc_php_pool_sizing() {
-    local PROFILE="${1:-}"
-    [[ -z "${PROFILE}" ]] && PROFILE=$(detect_resource_profile)
-    local MEMLIMIT="${2:-256}"
-    local MAX_CHILDREN="${PHP_FPM_MAX_CHILDREN:-}"
-
-    if [[ ! "${MAX_CHILDREN}" =~ ^[0-9]+$ || "${MAX_CHILDREN}" -lt 2 ]]; then
-        MAX_CHILDREN=$(calc_php_max_children "${PROFILE}" "${MEMLIMIT}")
-    fi
-
-    local START=$(( MAX_CHILDREN / 2 ))
-    (( START > 2 )) && START=2
-    (( START < 1 )) && START=1
-
-    local MAX_SPARE=$(( MAX_CHILDREN / 2 ))
-    (( MAX_SPARE < START )) && MAX_SPARE=${START}
-
-    echo "${MAX_CHILDREN} ${START} 1 ${MAX_SPARE}"
+    core_calc_php_pool_sizing "$@"
 }
 
 function create_php_temp_dirs() {
-    local POOLNAME="${1}"
-    local TEMP_BASE="/var/lib/php/lemper/${POOLNAME}"
-
-    run mkdir -p "${TEMP_BASE}/tmp" "${TEMP_BASE}/sessions" \
-        "${TEMP_BASE}/wsdlcache" "${TEMP_BASE}/opcache" && \
-    run chmod 700 "${TEMP_BASE}" "${TEMP_BASE}/tmp" "${TEMP_BASE}/sessions" \
-        "${TEMP_BASE}/wsdlcache" "${TEMP_BASE}/opcache" && \
-    run chown -hR "${POOLNAME}:${POOLNAME}" "${TEMP_BASE}"
+    core_create_php_temp_dirs "$@"
 }
 
 ##
 # Print a top-level command and its description.
 ##
 function help_entry() {
-    printf '  %-16s%s\n' "${1}" "${2}"
+    core_help_entry "$@"
 }
 
 ##
 # Print a subcommand and its description, nested under its parent.
 ##
 function help_subentry() {
-    printf '    %-28s  %s\n' "${1}" "${2}"
+    core_help_subentry "$@"
 }
 
 ## 
@@ -481,130 +420,21 @@ function help_subentry() {
 # output to STDERR.
 ##
 function cmd_help() {
-    cat <<- EOL
-${PROG_NAME} ${PROG_VERSION}
-Command line management tool for LEMPer Stack (Linux, Nginx, MySQL/MariaDB, PHP).
-
-Usage: ${PROG_NAME} [command] [subcommand] [options]
-EOL
-
-    echo
-    echo "LEMP Stack Management:"
-    help_entry create "Create a new virtual host (add a domain)."
-    help_entry add "Alias of 'create'."
-    help_entry site "Virtual host management."
-    help_subentry "list [options]" "List all vhosts (table or JSON)."
-    help_subentry "show <domain> [options]" "Show detailed vhost config."
-    help_subentry "enable <domain>" "Enable a vhost."
-    help_subentry "disable <domain>" "Disable a vhost."
-    help_entry manage "Manage existing virtual hosts (mod/ssl/rewrite)."
-    help_entry mod "Alias of 'manage'."
-
-    echo
-    echo "Database Management:"
-    help_entry db "MySQL/MariaDB database manager."
-    help_subentry "create [options]" "Create a new database."
-    help_subentry "drop <name>" "Delete a database."
-    help_subentry "export [options]" "Export a database to SQL."
-    help_subentry "backup [options]" "Create a timestamped backup (.sql.gz)."
-    help_subentry "restore [options]" "Restore from a backup file."
-    help_subentry "backup-schedule [options]" "Schedule automated backups via cron."
-    help_subentry "account <subcommand>" "Manage database user accounts."
-
-    echo
-    echo "System Administration:"
-    help_entry account "Create a system user account."
-    help_entry adduser "Interactively add a system user."
-    help_entry tui "Launch interactive TUI dashboard."
-    help_entry backup "Back up and restore LEMPer-managed configuration."
-    help_subentry "create [options]" "Archive system configuration."
-    help_subentry "list [options]" "List configuration archives."
-    help_subentry "show <archive|latest>" "Show manifest details."
-    help_subentry "verify <archive|latest>" "Check archive integrity."
-    help_subentry "restore [options]" "Restore an archive (snapshots first)."
-    help_subentry "prune [options]" "Delete old archives."
-    help_entry selfssl "Generate self-signed SSL certificates."
-    help_entry fixpermission "Fix file/directory permissions for web root."
-    help_entry bench "Run server benchmark checks."
-    help_entry modsec "ModSecurity WAF status, reporting, and auto-tuning."
-    help_subentry status "Show engine and CRS status."
-    help_subentry report "Summarize triggered rules."
-    help_subentry "tune [options]" "Adjust paranoia/thresholds."
-    help_entry update "Patch PHP2Shell and keep the stack current."
-    help_subentry check "Audit PHP/nginx/MariaDB state."
-    help_subentry php "Patch PHP; migrate EOL vhosts with --migrate-to=VERSION."
-    help_subentry nginx "Upgrade package-managed nginx from MyGuard."
-    help_subentry mariadb "Upgrade MariaDB packages."
-    help_subentry lemper "Reinstall CLI, plugins, and web admin tools."
-    help_subentry all "Run every update step."
-
-    cat <<- EOL
-
-Options:
-  --version, -v   Show version and exit.
-  --help, -h      Show this help message.
-  --password=xxx  Decrypt encrypted config (also: -P xxx).
-                  Falls back to LEMPER_PASSWORD or /etc/lemper/.config_key.
-
-For detailed help on a specific command:
-  ${PROG_NAME} <command> --help
-  ${PROG_NAME} <command> <subcommand> --help
-EOL
-
-    exit 0
+    core_cmd_help
 }
 
 ## 
 # Show version.
 ##
 function cmd_version() {
-    echo "${PROG_NAME} version ${PROG_VERSION}"
-    exit 0
+    core_cmd_version
 }
 
 ##
 # Main LEMPer CLI Wrapper.
 ##
 function init_lemper_cli() {
-    # Check command line arguments.
-    if [[ -n "${1}" ]]; then
-        CMD="${1}"
-        shift # Pass the remaining arguments as sub-command options (parameters).
-
-        case "${CMD}" in
-            help | -h | --help)
-                cmd_help
-            ;;
-            version | -v | --version)
-                cmd_version
-            ;;
-            tui | --tui | -i | --interactive)
-                if [[ -x "${CLI_PLUGINS_DIR}/lemper-tui" ]]; then
-                    # shellcheck disable=SC1090,SC1091
-                    . "${CLI_PLUGINS_DIR}/lemper-tui" "$@"
-                else
-                    echo "${PROG_NAME}: TUI plugin not found."
-                    echo "See '${PROG_NAME} --help' for more information."
-                    exit 1
-                fi
-            ;;
-            *)
-                if [[ -x "${CLI_PLUGINS_DIR}/lemper-${CMD}" ]]; then
-                    # Source the plugin executable file.
-                    # shellcheck disable=SC1090
-                    . "${CLI_PLUGINS_DIR}/lemper-${CMD}" "$@"
-                else
-                    echo "${PROG_NAME}: '${CMD}' is not valid command."
-                    echo "See '${PROG_NAME} --help' for more information."
-                    exit 1
-                fi
-            ;;
-        esac
-    else
-        echo "${PROG_NAME}: missing required arguments"
-        echo "See '${PROG_NAME} --help' for more information"
-        exit 1
-    fi
+    core_init_lemper_cli "$@"
 }
 
 # Start running things from a call at the end so if this script is executed

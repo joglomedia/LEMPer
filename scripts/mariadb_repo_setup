@@ -821,16 +821,16 @@ enabled = 1'
 deb_repo_server="
 # MariaDB Server
 # To use a different major version of the server, or to pin to a specific minor version, change URI below.
-deb [arch=amd64,arm64] ${url_mariadb_repo}/%s/repo/%s %s main"
-deb_repo_server_debug="deb [arch=amd64,arm64${extra_options}] ${url_mariadb_repo}/%s/repo/%s %s main/debug"
+deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/mariadb-keyring-2019.gpg] ${url_mariadb_repo}/%s/repo/%s %s main"
+deb_repo_server_debug="deb [arch=amd64,arm64${extra_options} signed-by=/usr/share/keyrings/mariadb-keyring-2019.gpg] ${url_mariadb_repo}/%s/repo/%s %s main/debug"
 deb_repo_maxscale='
 # MariaDB MaxScale
 # To use the latest stable release of MaxScale, use "latest" as the version
 # To use the latest beta (or stable if no current beta) release of MaxScale, use "beta" as the version
-deb [arch=amd64,arm64] https://dlm.mariadb.com/repo/maxscale/%s/%s %s main'
+deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/mariadb-keyring-2019.gpg] https://dlm.mariadb.com/repo/maxscale/%s/%s %s main'
 deb_repo_tools='
 # MariaDB Tools
-deb [arch=amd64] http://downloads.mariadb.com/Tools/%s %s main'
+deb [arch=amd64 signed-by=/usr/share/keyrings/mariadb-keyring-2019.gpg] http://downloads.mariadb.com/Tools/%s %s main'
 
 sles_repo_server="
 [mariadb-server]
@@ -910,8 +910,9 @@ case $os_type in
                 if curl -LsS https://supplychain.mariadb.com/mariadb-keyring-2019.gpg.sha256 | sha256sum -c --quiet
                 then
                     msg info 'Running apt-get update...'
-                    if mv mariadb-keyring-2019.gpg /etc/apt/trusted.gpg.d/ &&
-                      chmod 644 /etc/apt/trusted.gpg.d/mariadb-keyring-2019.gpg &&
+                    if install -d -m 0755 /usr/share/keyrings &&
+                      mv mariadb-keyring-2019.gpg /usr/share/keyrings/ &&
+                      chmod 644 /usr/share/keyrings/mariadb-keyring-2019.gpg &&
                       apt-get -qq update
                     then
                         msg info 'Done adding trusted package signing keys'

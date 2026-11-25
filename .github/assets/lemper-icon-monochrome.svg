@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-labelledby="lemper-mono-title lemper-mono-desc">
+  <title id="lemper-mono-title">LEMPer monochrome icon</title>
+  <desc id="lemper-mono-desc">A rounded tile with an L-plus symbol cut out in negative space.</desc>
+  <defs>
+    <mask id="lemper-mono-cutout" maskUnits="userSpaceOnUse" x="0" y="0" width="64" height="64">
+      <rect width="64" height="64" fill="#fff"/>
+      <path d="M20 14v36h28" fill="none" stroke="#000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M36 16h14m-7-7v14" fill="none" stroke="#000" stroke-width="4" stroke-linecap="round"/>
+    </mask>
+  </defs>
+  <rect width="64" height="64" rx="18" fill="currentColor" mask="url(#lemper-mono-cutout)"/>
+</svg>

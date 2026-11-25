@@ -1,0 +1,558 @@
+#!/usr/bin/env bash
+
+# +-------------------------------------------------------------------------+
+# | LEMPer Shared Security Helpers                                          |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
+
+##
+# Securing SSH server.
+#
+function securing_ssh() {
+    local username="${LEMPER_USERNAME:-lemper}" key="${RSA_PUB_KEY:-}"
+    local key_only="${SSH_PASSWORDLESS:-true}" port="${SSH_PORT:-22}"
+    local config=/etc/ssh/sshd_config profile=/etc/ssh/sshd_config.d/90-lemper.conf
+    local snapshot
+    is_valid_username "${username}" && [[ "${username}" != root ]] || return 1
+    if [[ "${key_only}" == true ]]; then
+        if ! valid_ssh_key_material "${key}"; then
+            if [[ "${AUTO_INSTALL:-true}" == true ]]; then
+                error "Set RSA_PUB_KEY to a valid public key before unattended key-only SSH setup."
+                info 'Generate it locally with: ssh-keygen -t ed25519'
+                return 1
+            fi
+            info 'Generate a key locally with: ssh-keygen -t ed25519; paste id_ed25519.pub.'
+            while ! valid_ssh_key_material "${key}"; do
+                IFS= read -rp "SSH public key: " key || return 1
+            done
+        fi
+    fi
+    if [[ "${DRYRUN:-false}" == true ]]; then
+        info "Would configure SSH port ${port}; key-only=${key_only}."
+        return 0
+    fi
+    getent passwd "${username}" >/dev/null || {
+        error "SSH account does not exist."
+        return 1
+    }
+    command -v sshd >/dev/null || {
+        error "OpenSSH server is required."
+        return 1
+    }
+    local previous_ports active_port
+    previous_ports=$(sshd -T 2>/dev/null | awk '$1 == "port" {print $2}')
+    active_port="${SSH_CONNECTION##* }"
+    [[ -n "${SSH_CONNECTION:-}" ]] || active_port=""
+    LEMPER_SSH_ALLOWED_PORTS=$(ssh_transition_ports "${port}" "${previous_ports:-22}" "${active_port}") || return 1
+    if [[ "${key_only}" == true ]]; then
+        install_managed_ssh_key "${username}" "${key}" || return 1
+    fi
+    install -d -m 0755 /etc/ssh/sshd_config.d || return 1
+    snapshot=$(mktemp -d /tmp/lemper-ssh.XXXXXX) || return 1
+    LEMPER_SSH_SNAPSHOT="${snapshot}"
+    cp -p "${config}" "${snapshot}/sshd_config" || {
+        rm -rf "${snapshot}"
+        return 1
+    }
+    if [[ -f "${profile}" ]]; then
+        cp -p "${profile}" "${snapshot}/profile" || return 1
+    fi
+    # OpenSSH takes the first value; put this include before older directives.
+    if ! grep -qF 'Include /etc/ssh/sshd_config.d/90-lemper.conf' "${config}"; then
+        {
+            printf 'Include /etc/ssh/sshd_config.d/90-lemper.conf\n'
+            cat "${snapshot}/sshd_config"
+        } >"${config}"
+    fi
+    if ! write_ssh_profile "${profile}" "${port}" "${key_only}" "${SSH_ROOT_LOGIN:-false}" || ! sshd -t; then
+        restore_ssh_configuration || return 1
+        error "SSH policy validation failed; previous configuration restored."
+        return 1
+    fi
+    save_config "SSH_PORT=${port}"
+    save_log "Validated SSH configuration: key-only=${key_only}; port=${port}."
+}
+
+##
+# Install & Configure Uncomplicated Firewall (UFW).
+#
+function install_ufw() {
+    SSH_PORT=${1:-"${SSH_PORT}"}
+
+    echo "Installing Uncomplicated Firewall (UFW)..."
+
+    if [[ -n $(command -v apf) ]]; then
+        # Remove APF+BFD if exists.
+        remove_apf
+    fi
+
+    if [[ -n $(command -v csf) ]]; then
+        # Remove CSF+LFD if exists.
+        remove_csf
+    fi
+
+    # Install UFW
+    run apt-get install -q -y ufw
+
+    # UFW app rules is here /etc/ufw/applications.d
+    if [[ -n $(command -v ufw) ]]; then
+        echo "Configuring UFW firewall rules..."
+
+        # Close all incoming ports.
+        run ufw default deny incoming
+
+        # Open all outgoing ports.
+        run ufw default allow outgoing
+
+        # Open SSH port.
+        local allowed_port
+        for allowed_port in ${LEMPER_SSH_ALLOWED_PORTS//,/ }; do
+            run ufw allow "${allowed_port}/tcp"
+        done
+        [[ -n "${LEMPER_SSH_ALLOWED_PORTS:-}" ]] || run ufw allow "${SSH_PORT}/tcp"
+
+        # Open HTTP port.
+        run ufw allow 80
+        run ufw allow 8082 #LEMPer port
+
+        # Open HTTPS port.
+        run ufw allow 443
+        run ufw allow 8083 #LEMPer port
+
+        # Open MySQL port.
+        if [[ "${MYSQL_ALLOW_REMOTE}" == true ]]; then
+            run ufw allow 3306
+        fi
+
+        # Open FTP ports.
+        if [[ "${IINSTALL_FTP_SERVER}" == true ]]; then
+            FTP_MIN_PORT=${FTP_MIN_PORT:-45000}
+            FTP_MAX_PORT=${FTP_MAX_PORT:-45099}
+
+            run ufw allow 20/tcp
+            run ufw allow 21/tcp
+            # For TLS enabled.
+            run ufw allow 990/tcp
+            # The range of passive ports.
+            run ufw allow "${FTP_MIN_PORT}:${FTP_MAX_PORT}/tcp"
+        fi
+
+        if [[ "${INSTALL_MAILER}" == true ]]; then
+            # Open SMTPs port.
+            run ufw allow 25/tcp
+            run ufw allow 465/tcp
+            run ufw allow 587/tcp
+
+            # Open IMAPs ports.
+            run ufw allow 143/tcp
+            run ufw allow 993/tcp
+
+            # Open POP3s ports.
+            run ufw allow 110/tcp
+            run ufw allow 995/tcp
+        fi
+
+        # Open DNS port.
+        run ufw allow 53
+
+        # Open ntp port : to sync the clock of your machine.
+        #run ufw allow 123/udp
+
+        # Turn on firewall.
+        run ufw --force enable
+
+        # Restart
+        if [[ "${DRYRUN}" != true ]]; then
+            if systemctl restart ufw; then
+                success "UFW firewall installed successfully."
+            else
+                info "Something went wrong with UFW installation."
+            fi
+        else
+            info "UFW firewall installed in dry run mode."
+        fi
+    fi
+}
+
+##
+# Install & Configure ConfigServer Security & Firewall (CSF).
+#
+function install_csf() {
+    SSH_PORT=${1:-"${SSH_PORT}"}
+
+    echo "Installing CSF+LFD firewall..."
+
+    if [[ -n $(command -v ufw) ]]; then
+        # Remove default Ubuntu firewall (UFW) if exists.
+        remove_ufw
+    fi
+
+    if [[ -n $(command -v apf) ]]; then
+        # Remove APF+BFD if exists.
+        remove_apf
+    fi
+
+    # Install requirements.
+    echo "Installing requirement packages..."
+
+    if [[ -n $(command -v cpan) ]]; then
+        run cpan -i "LWP LWP::Protocol::https GD::Graph IO::Socket::INET6"
+    else
+        run apt-get install -q -y libwww-perl liblwp-protocol-https-perl \
+            libgd-graph-perl libio-socket-inet6-perl
+    fi
+
+    local CURRENT_DIR \
+        && CURRENT_DIR=$(pwd)
+    run cd "${BUILD_DIR}" || return 1
+
+    echo "Installing CSF+LFD firewall..."
+    if curl -sLI https://download.configserver.com/csf.tgz | grep -q "HTTP/[.12]* [2].."; then
+        run curl -sSL -o csf.tgz https://download.configserver.com/csf.tgz \
+            && run tar -xzf csf.tgz \
+            && run cd csf/ \
+            && run sh install.sh \
+            && run cd ../ || return 1
+
+        if [[ -f /usr/local/csf/bin/csftest.pl ]]; then
+            run perl /usr/local/csf/bin/csftest.pl
+        fi
+    fi
+
+    if [[ -f /etc/csf/csf.conf ]]; then
+        echo "Configuring CSF+LFD firewall rules..."
+
+        # Enable CSF.
+        sed_inplace 's/^TESTING\ =\ "1"/TESTING\ =\ "0"/g' /etc/csf/csf.conf
+
+        # Allowed ports.
+        CSF_ALLOW_PORTS="${LEMPER_SSH_ALLOWED_PORTS:-${SSH_PORT}},53,80,8081,8082,8083,8443,25,465,587,110,143,993,995"
+
+        # Open MySQL port for remote client access.
+        if [[ "${MYSQL_ALLOW_REMOTE}" == true ]]; then
+            CSF_ALLOW_PORTS="${CSF_ALLOW_PORTS},3306"
+        fi
+
+        # Open FTP ports.
+        if [[ "${INSTALL_VSFTPD}" == true ]]; then
+            FTP_MIN_PORT=${FTP_MIN_PORT:-45000}
+            FTP_MAX_PORT=${FTP_MAX_PORT:-45099}
+            CSF_ALLOW_PORTS="${CSF_ALLOW_PORTS},20,21,990,${FTP_MIN_PORT}:${FTP_MAX_PORT}"
+        fi
+
+        # Allowed incoming TCP ports.
+        sed_inplace "s/^TCP_IN\ =\ \"[0-9_,]*\"/TCP_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+
+        # Allowed outgoing TCP ports.
+        sed_inplace "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+
+        # HTTP/3 (QUIC) needs UDP 443.
+        if [[ "${NGINX_HTTP3:-false}" == true ]] \
+            && ! grep -qE '^UDP_IN = "([^"]*,)?443(,|")' /etc/csf/csf.conf; then
+            sed_inplace 's/^UDP_IN\ =\ "\([0-9_,]*\)"/UDP_IN\ =\ "\1,443"/' /etc/csf/csf.conf
+        fi
+
+        # IPv6 support (requires ip6tables).
+        if [[ -n $(command -v ip6tables) ]]; then
+            ip6tables_version=$(ip6tables --version | grep 'v' | cut -d'v' -f2)
+            if ! version_older_than "${ip6tables_version}" "1.4.3"; then
+                echo "Configuring CSF+LFD for IPv6..."
+
+                # Enable IPv6 support.
+                sed_inplace 's/^IPV6\ =\ "0"/IPV6\ =\ "1"/g' /etc/csf/csf.conf
+
+                # Allowed incoming TCP ports for IPv6.
+                sed_inplace "s/^TCP6_IN\ =\ \"[0-9_,]*\"/TCP6_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+
+                # Allowed outgoing TCP ports for IPv6.
+                sed_inplace "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+            else
+                info "ip6tables version greater than 1.4.3 required for IPv6 support."
+            fi
+        fi
+    fi
+
+    # Clean up installation files.
+    run rm -fr csf/
+    run cd "${CURRENT_DIR}" || return 1
+
+    if [[ "${DRYRUN}" != true ]]; then
+        if [[ -n $(command -v csf) && -n $(command -v lfd) ]]; then
+            if systemctl restart csf; then
+                success "CSF firewall installed successfully. Starting now..."
+            else
+                info "Something went wrong with CSF installation."
+            fi
+
+            if systemctl restart lfd; then
+                success "LFD firewall installed successfully. Starting now..."
+            else
+                info "Something went wrong with LFD installation."
+            fi
+        else
+            info "Something went wrong with CSF+LFD installation."
+        fi
+    else
+        info "CSF+LFD firewall installed in dry run mode."
+    fi
+}
+
+##
+# Install & Configure Advanced Policy Firewall (APF).
+#
+function install_apf() {
+    SSH_PORT=${1:-"${SSH_PORT}"}
+    APF_VERSION=${APF_VERSION:-"1.7.6-2"}
+
+    echo "Installing APF+BFD iptables firewall..."
+
+    if [[ -n $(command -v ufw) ]]; then
+        # Remove default Ubuntu firewall (UFW) if exists.
+        remove_ufw
+    fi
+
+    if [[ -n $(command -v csf) ]]; then
+        # Remove CSF+LFD if exists.
+        remove_csf
+    fi
+
+    local CURRENT_DIR \
+        && CURRENT_DIR=$(pwd)
+    run cd "${BUILD_DIR}" || return 1
+
+    echo "Installing APF+BFD firewall..."
+
+    if curl -sLI "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
+        | grep -q "HTTP/[.12]* [2].."; then
+        run curl -sSL -o "${APF_VERSION}.tar.gz" "https://github.com/rfxn/advanced-policy-firewall/archive/${APF_VERSION}.tar.gz" \
+            && run tar -xf "${APF_VERSION}.tar.gz" \
+            && run cd advanced-policy-firewall-*/ \
+            && run bash install.sh \
+            && run cd ../ || return 1
+    fi
+
+    if [ -f /etc/apf/conf.apf ]; then
+        echo "Configuring APF+BFD firewall rules..."
+
+        # Enable APF.
+        sed_inplace "s/^DEVEL_MODE=\"1\"/DEVEL_MODE=\"0\"/g" /etc/apf/conf.apf
+
+        # Get ethernet interface.
+        IFACE=${IFACE:-$(find /sys/class/net -type l | grep -e "enp\|eth0" | cut -d'/' -f5)}
+
+        # Set ethernet interface to monitor.
+        sed_inplace "s/^IFACE_UNTRUSTED=\"[0-9a-zA-Z]*\"/IFACE_UNTRUSTED=\"${IFACE}\"/g" /etc/apf/conf.apf
+
+        local existing_ports
+        existing_ports=$(sed -n 's/^IG_TCP_CPORTS="\([^"]*\)".*/\1/p' /etc/apf/conf.apf)
+        [[ "${existing_ports}" =~ ^[0-9,:]*$ ]] || {
+            error "Invalid APF port list."
+            return 1
+        }
+        set_env_value /etc/apf/conf.apf IG_TCP_CPORTS "${LEMPER_SSH_ALLOWED_PORTS:-${SSH_PORT}}${existing_ports:+,${existing_ports}}" || return 1
+
+        # Enable fast load.
+        sed_inplace 's/^SET_FASTLOAD="0"/SET_FASTLOAD="1"/g' /etc/apf/conf.apf
+    fi
+
+    # Clean up installation files.
+    run rm -fr advanced-policy-firewall-*/
+    run cd "${CURRENT_DIR}" || return 1
+
+    if [[ "${DRYRUN}" == true ]]; then
+        info "APF+BFD firewall installed in dry run mode."
+    else
+        if [[ -n $(command -v apf) ]]; then
+            if systemctl restart apf; then
+                success "APF firewall installed successfully. Starting now..."
+            else
+                info "Something went wrong with APF installation."
+            fi
+        else
+            info "Something went wrong with APF installation."
+        fi
+    fi
+}
+
+##
+# Remove UFW.
+#
+function remove_ufw() {
+    if [[ -n $(command -v ufw) ]]; then
+        echo "Found UFW iptables firewall, trying to remove it..."
+
+        #run service ufw stop
+        run ufw disable
+        run systemctl stop ufw
+
+        echo "Removing UFW iptables firewall..."
+
+        run apt-get remove -q -y ufw
+    fi
+}
+
+##
+# Remove CSF.
+#
+function remove_csf() {
+    if [[ -n $(command -v csf) || -f /usr/lib/systemd/system/csf.service ]]; then
+        echo "Found CSF+LFD iptables firewall, trying to remove it..."
+
+        if [[ -f /etc/csf/uninstall.sh ]]; then
+            run bash /etc/csf/uninstall.sh
+        fi
+    fi
+}
+
+##
+# Remove APF.
+#
+function remove_apf() {
+    if [[ -n $(command -v apf) && -f /etc/apf/conf.apf ]]; then
+        echo "Found APF+BFD iptables firewall, trying to remove it..."
+
+        #run service apf stop
+        run systemctl stop apf
+
+        echo "Removing APF+BFD iptables firewall..."
+
+        run rm -rf /etc/apf
+        run rm -f /etc/cron.daily/fw
+        run rm -f /etc/init.d/apf
+        run rm -f /usr/local/sbin/apf
+        run rm -f /usr/local/sbin/fwmgr
+    fi
+}
+
+##
+# Install IP-tables based firewall.
+#
+function install_firewall() {
+    if [[ "${FW_CONFIGURATOR:-ufw}" == nftables && "${INSTALL_FW:-false}" == true ]]; then
+        lemper_load_module services/optional || return 1
+        lemper_optional_lifecycle install nftables
+        return $?
+    fi
+    echo -e "\nIPtables-based Firewall Installation\n"
+    info "Do Not Run any other iptables firewall configuration script.
+Any other iptables based firewall will be removed otherwise they will conflict."
+    echo ""
+
+    if [[ "${AUTO_INSTALL}" == true ]]; then
+        DO_INSTALL_FW="y"
+    fi
+
+    while [[ ${DO_INSTALL_FW} != "y" && ${DO_INSTALL_FW} != "n" ]]; do
+        read -rp "Do you want to install Firewall configurator? [y/n]: " -i y -e DO_INSTALL_FW
+    done
+
+    if [[ "${DO_INSTALL_FW}" == y* && "${INSTALL_FW}" == true ]]; then
+
+        if [[ "${AUTO_INSTALL}" == true ]]; then
+            # Set default Iptables-based firewall configutor engine.
+            SELECTED_FW_CONFIGURATOR=${FW_CONFIGURATOR:-"ufw"}
+        else
+            # Menu Install FW
+            echo ""
+            echo "Which Firewall configurator engine to install?"
+            echo "Available configurator engine:"
+            echo "  1). Uncomplicated Firewall (ufw)"
+            echo "  2). ConfigServer Security Firewall (csf)"
+            echo "  3). Advanced Policy Firewall (apf)"
+            echo "------------------------------------------------"
+
+            while [[ ${SELECTED_FW_CONFIGURATOR} != "1" && ${SELECTED_FW_CONFIGURATOR} != "2" &&
+                ${SELECTED_FW_CONFIGURATOR} != "3" && ${SELECTED_FW_CONFIGURATOR} != "ufw" &&
+                ${SELECTED_FW_CONFIGURATOR} != "csf" && ${SELECTED_FW_CONFIGURATOR} != "apf" ]]; do
+                read -rp "Select an option [1-3]: " -i "${FW_CONFIGURATOR}" -e SELECTED_FW_CONFIGURATOR
+            done
+
+            echo ""
+        fi
+
+        # Ensure that iptables installed.
+        if [[ -z $(command -v iptables) ]]; then
+            echo "Iptables is required, trying to install it first..."
+            run apt-get install -q -y iptables
+        fi
+
+        case "${SELECTED_FW_CONFIGURATOR}" in
+            apf)
+                install_apf "${SSH_PORT}"
+                ;;
+            csf)
+                install_csf "${SSH_PORT}"
+                ;;
+            ufw | *)
+                install_ufw "${SSH_PORT}"
+                ;;
+        esac
+    else
+        info "Firewall installation skipped."
+    fi
+}
+
+##
+# Initialize server security.
+#
+function init_secure_server() {
+    if [[ "${AUTO_INSTALL}" == true ]]; then
+        DO_SECURE_SERVER="y"
+    else
+        while [[ "${DO_SECURE_SERVER}" != "y" && "${DO_SECURE_SERVER}" != "n" && "${AUTO_INSTALL}" != true ]]; do
+            read -rp "Do you want to enable basic server security? [y/n]: " -i y -e DO_SECURE_SERVER
+        done
+    fi
+
+    if [[ "${DO_SECURE_SERVER}" == Y* || "${DO_SECURE_SERVER}" == y* ]]; then
+        securing_ssh "$@" || return 1
+        if ! (install_firewall "$@"); then
+            restore_ssh_configuration
+            return 1
+        fi
+        # Keep the previous policy until both the firewall and reload succeed.
+        if [[ "${DRYRUN:-false}" != true ]]; then
+            if ! apply_ssh_service_policy; then
+                restore_ssh_configuration
+                apply_ssh_service_policy || error "Could not apply restored SSH listener configuration."
+                error "SSH reload failed; previous configuration restored."
+                return 1
+            fi
+            info "Previous SSH firewall ports remain allowed; retire them after confirming the new login."
+            rm -rf "${LEMPER_SSH_SNAPSHOT}"
+            LEMPER_SSH_SNAPSHOT=""
+        fi
+
+        if [[ ${SSH_PORT} -ne 22 ]]; then
+            echo -e "\nYou're running SSH server with modified configuration, restart to apply your changes.
+use this command: service ssh restart"
+        fi
+    fi
+}
+
+function lemper_security_server_entry() {
+    echo "[LEMPer Stack Basic Server Security]"
+    if [[ "${1}" == "--remove" || "${1}" == "--uninstall" ]]; then
+        if [[ "${FW_CONFIGURATOR:-ufw}" == nftables || -f /etc/lemper/firewall/managed ]]; then
+            lemper_load_module services/optional || { if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then return 1; else return 1; fi; }
+            lemper_optional_lifecycle remove nftables || { if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then return 1; else return 1; fi; }
+        fi
+        if [[ "${FW_CONFIGURATOR:-ufw}" != nftables ]]; then
+            remove_apf
+            remove_csf
+            remove_ufw
+        fi
+    else
+        init_secure_server "$@"
+    fi
+}

@@ -1,62 +1,27 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env bash
 
-# systemd-memcached-wrapper
-# 2014 - Christos Trochalakis <yatiohi@idepolis.gr>
-#
-# Heavily based on start-memcached script by Jay Bonci
-# <jaybonci@debian.org>
-#
-# This script handles the parsing of the /etc/memcached.conf file
-# and was originally created for the Debian distribution.
-# Anyone may use this little script under the same terms as
-# memcached itself.
+# +-------------------------------------------------------------------------+
+# | LEMPer Shared Security Helpers                                          |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
 
-use strict;
-
-if($> != 0 and $< != 0)
-{
-    print STDERR "Only root wants to run systemd-memcached-wrapper.\n";
-    exit;
+# Foreground wrapper: systemd tracks the actual memcached process.
+function memcached_systemd_main() {
+    [[ "$EUID" == 0 && $# -le 1 ]] || return 1
+    local parameters=() words=() logfile
+    # shellcheck source=share/memcached/scripts/config.bash
+    . "$(dirname "${BASH_SOURCE[0]}")/config.bash" || return 1
+    memcached_config "${1:-/etc/memcached.conf}" || return 1
+    exec /usr/bin/memcached "${parameters[@]}"
 }
-
-my $params; my $etchandle; my $etcfile = "/etc/memcached.conf";
-
-# This script assumes that memcached is located at /usr/bin/memcached
-my $memcached = "/usr/bin/memcached";
-
-if (scalar(@ARGV) == 1) {
-    $etcfile = shift(@ARGV);
-}
-
-# systemd capture stdout by default
-my $ignore_directives = ("logfile");
-
-if(open $etchandle, $etcfile)
-{
-    foreach my $line (<$etchandle>)
-    {
-        $line ||= "";
-        $line =~ s/(?<!\\)\#[^\#]*//g;
-        $line =~ s/\s+$//g;
-        $line =~ s/^\s+//g;
-        next unless $line;
-        next if $line =~ /^\-[dh]/;
-
-        if($line =~ /^[^\-]/)
-        {
-            my ($directive, $arg) = $line =~ /^(.*?)\s+(.*)/;
-	    next if(grep $directive, $ignore_directives);
-        }
-
-        push @$params, $line;
-    }
-
-}else{
-    $params = [];
-}
-
-push @$params, "-u root" unless(grep "-u", @$params);
-$params = join " ", @$params;
-
-exec "$memcached $params";
-exit(0);
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then memcached_systemd_main "$@"; fi

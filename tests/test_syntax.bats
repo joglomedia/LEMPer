@@ -12,11 +12,17 @@ setup() {
 
 # Collect all .sh files that should be syntax-validated.
 _get_script_files() {
+    echo "${BASE_DIR}/get-lemper"
     echo "${BASE_DIR}/install.sh"
     echo "${BASE_DIR}/remove.sh"
     echo "${BASE_DIR}/update.sh"
     echo "${BASE_DIR}/lemper.sh"
     echo "${BASE_DIR}/bin/lemper-cli.sh"
+    echo "${BASE_DIR}/sbin/pure-ftpd-wrapper"
+    echo "${BASE_DIR}/tests/report_coverage.sh"
+    for f in "${BASE_DIR}"/share/memcached/scripts/{*.bash,start-memcached,systemd-memcached-wrapper,memcached-tool,damemtop}; do
+        echo "${f}"
+    done
     for f in "${BASE_DIR}"/lib/lemper-*.sh; do
         echo "${f}"
     done
@@ -29,6 +35,7 @@ _get_script_files() {
     for f in "${BASE_DIR}"/scripts/nginx/*.sh; do
         echo "${f}"
     done
+    find "${BASE_DIR}/lib/runtime" "${BASE_DIR}/lib/services" "${BASE_DIR}/lib/compat" -type f -name '*.sh' | sort
 }
 
 @test "all scripts pass bash syntax check (bash -n)" {

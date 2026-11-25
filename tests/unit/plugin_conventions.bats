@@ -41,7 +41,7 @@ skip_if_no_gnu_getopt() {
 
 command_plugins() {
     printf '%s\n' account adduser backup bench create db fixpermission \
-        manage modsec selfssl site site-list site-show tui update
+        mail manage modsec selfssl site site-list site-show stack tui update data monitor firewall hosting
 }
 
 @test "every CLI file carries the 2014-2026 copyright banner" {
@@ -94,6 +94,10 @@ command_plugins() {
     local name expected
     while IFS= read -r name; do
         case "${name}" in
+            data)          expected="Usage: lemperctl data" ;;
+            monitor)       expected="Usage: lemperctl monitor" ;;
+            hosting)       expected="Usage: lemperctl hosting" ;;
+            firewall)      expected="Usage: lemperctl firewall" ;;
             account)       expected="Create a system user account" ;;
             adduser)       expected="Interactively add a system user" ;;
             backup)        expected="configuration backup and restore" ;;
@@ -101,12 +105,14 @@ command_plugins() {
             create)        expected="Usage: lemper-cli create" ;;
             db)            expected="Usage: lemper-cli db" ;;
             fixpermission) expected="Recursively set directories" ;;
+            mail)          expected="Usage: lemper-cli mail" ;;
             manage)        expected="lemper-cli manage [OPTION]" ;;
             modsec)        expected="Usage: lemper-cli modsec" ;;
             selfssl)       expected="Generates self-signed SSL certificate" ;;
             site)          expected="Usage: lemper-cli site" ;;
             site-list)     expected="Lists all configured virtual hosts" ;;
             site-show)     expected="Displays the full configuration" ;;
+            stack)         expected="Usage: lemper-cli stack" ;;
             tui)           expected="Usage: lemper-cli tui" ;;
             update)        expected="patch PHP2Shell" ;;
         esac
@@ -175,7 +181,7 @@ command_plugins() {
 
 @test "CLI aliases are wired to the installed site plugins" {
     local f alias
-    for f in scripts/install_tools.sh lib/lemper-update.sh; do
+    for f in lib/core/registry.sh; do
         for alias in create add manage mod site-db site-database; do
             run grep -q "lemper-${alias}" "${REAL_BASE_DIR}/${f}"
             [ "${status}" -eq 0 ]
@@ -187,7 +193,7 @@ command_plugins() {
     run grep -q 'lemper-encrypt' "${REAL_BASE_DIR}/scripts/install_tools.sh"
     [ "${status}" -ne 0 ]
 
-    run grep -q 'lemper-encrypt:lemper-encrypt' "${REAL_BASE_DIR}/lib/lemper-update.sh"
+    run grep -q 'lemper-encrypt:lemper-encrypt' "${REAL_BASE_DIR}/lib/services/tools/update.sh"
     [ "${status}" -ne 0 ]
 
     run grep -q 'library module' "${REAL_BASE_DIR}/lib/lemper-encrypt.sh"
@@ -195,9 +201,9 @@ command_plugins() {
 }
 
 @test "CLI help describes account and adduser accurately" {
-    run grep -q 'help_entry account "Create a system user account."' "${REAL_BASE_DIR}/bin/lemper-cli.sh"
+    run grep -q 'help_entry account "Create a system user account."' "${REAL_BASE_DIR}/lib/runtime/help.sh"
     [ "${status}" -eq 0 ]
 
-    run grep -q "help_entry adduser \"Interactively add a system user.\"" "${REAL_BASE_DIR}/bin/lemper-cli.sh"
+    run grep -q "help_entry adduser \"Interactively add a system user.\"" "${REAL_BASE_DIR}/lib/runtime/help.sh"
     [ "${status}" -eq 0 ]
 }

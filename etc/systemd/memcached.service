@@ -15,7 +15,7 @@ After=network.target
 Documentation=man:memcached(1)
 
 [Service]
-ExecStart=/usr/share/memcached/scripts/systemd-memcached-wrapper /etc/memcached.conf
+ExecStart=/usr/local/lib/lemper/memcached/systemd-memcached-wrapper /etc/memcached.conf
 
 # Set up a new file system namespace and mounts private /tmp and /var/tmp
 # directories so this service cannot access the global directories and

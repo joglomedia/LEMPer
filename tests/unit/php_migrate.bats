@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck disable=SC2016 # Nginx fixture variables and expected output stay literal.
 ##
 # EOL PHP migration: Nginx vhost handlers and destination FPM pools.
 # Assertions use [ ] and grep so a failing check is visible to Bash 3.2.
@@ -24,7 +25,7 @@ setup() {
         "${BATS_TEST_TMPDIR}/bin"
 
     cat > "${BATS_TEST_TMPDIR}/bin/nginx" <<'EOF'
-#!/bin/sh
+#!/usr/bin/env bash
 echo called >> "${NGINX_CALLED_LOG}"
 exit 1
 EOF
@@ -259,7 +260,7 @@ EOF
 
 @test "PHP 8.1 is out of the default install set and still removable" {
     grep -q 'PHP_VERSIONS="8.2 8.3 8.4 8.5"' "${REAL_BASE_DIR}/.env.dist"
-    refute_grep -q 'PHP 8.1 (EOL)' "${REAL_BASE_DIR}/scripts/install_php.sh"
-    grep -q 'PHP 8.1 (EOL)' "${REAL_BASE_DIR}/scripts/remove_php.sh"
+    refute_grep -q 'PHP 8.1 (EOL)' "${REAL_BASE_DIR}/lib/services/php/install.sh"
+    grep -q 'PHP 8.1 (EOL)' "${REAL_BASE_DIR}/lib/services/php/remove.sh"
     [ ! -d "${REAL_BASE_DIR}/etc/php/8.1" ]
 }

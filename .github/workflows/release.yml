@@ -1,0 +1,44 @@
+name: release
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+permissions:
+  contents: read
+jobs:
+  archive-acceptance:
+    uses: ./.github/workflows/release-acceptance.yml
+  release:
+    needs: archive-acceptance
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install checks
+        run: |
+          sudo bash scripts/prepare_tests.sh
+      - name: Validate release
+        run: |
+          shellcheck -s bash -x get-lemper install.sh remove.sh update.sh lemper.sh bin/lemper-cli.sh \
+            scripts/*.sh scripts/nginx/*.sh lib/lemper-*.sh lib/core/*.sh \
+            lib/runtime/*.sh lib/runtime/*/*.sh lib/services/*.sh lib/services/*/*.sh lib/compat/*.sh tests/uat/*.sh \
+            tests/uat/*.bash tests/report_coverage.sh sbin/pure-ftpd-wrapper share/memcached/scripts/*.bash \
+            share/memcached/scripts/start-memcached share/memcached/scripts/systemd-memcached-wrapper \
+            share/memcached/scripts/memcached-tool share/memcached/scripts/damemtop
+          bashate --ignore E001,E002,E003,E006,E010,E011,E012,E020,E042,E043,E044,E045 --max-line-length 120 \
+            get-lemper install.sh remove.sh update.sh lemper.sh bin/lemper-cli.sh \
+            scripts/*.sh scripts/nginx/*.sh lib/lemper-*.sh lib/core/*.sh \
+            lib/runtime/*.sh lib/runtime/*/*.sh lib/services/*.sh lib/services/*/*.sh lib/compat/*.sh tests/uat/*.sh
+          sudo bash scripts/run_tests.sh
+      - name: Build archive and checksum
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: bash scripts/build_release.sh "${RELEASE_TAG#v}" "${RUNNER_TEMP}/lemper-release"
+      - name: Publish the tagged release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "${RELEASE_TAG}" --verify-tag --generate-notes \
+            --notes-file docs/RELEASE_NOTES_V4.md "${RUNNER_TEMP}"/lemper-release/*

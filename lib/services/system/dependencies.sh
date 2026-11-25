@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+
+# +-------------------------------------------------------------------------+
+# | LEMPer Shared Security Helpers                                          |
+# +-------------------------------------------------------------------------+
+# | Copyright (c) 2014-2026 MasEDI.Net (https://masedi.net/lemper)          |
+# +-------------------------------------------------------------------------+
+# | This source file is subject to the GNU General Public License           |
+# | that is bundled with this package in the file LICENSE.md.               |
+# |                                                                         |
+# | If you did not receive a copy of the license and are unable to          |
+# | obtain it through the world-wide-web, please send an email              |
+# | to license@lemper.cloud so we can send you a copy immediately.          |
+# +-------------------------------------------------------------------------+
+# | Authors: Edi Septriyanto <me@masedi.net>                                |
+# +-------------------------------------------------------------------------+
+
+##
+# Install Python custom version
+##
+function install_python_from_source() {
+    local PYTHON_VERSION=${1}
+
+    if [[ -z "${PYTHON_VERSION}" ]]; then
+        PYTHON_VERSION=${DEFAULT_PYTHON_VERSION:-"3.13.0"}
+    fi
+
+    local CURRENT_DIR \
+        && CURRENT_DIR=$(pwd)
+
+    PYTHON_SRC="https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz"
+    PYTHON_MAJOR_MINOR=${PYTHON_VERSION%.*}
+
+    if curl -sLI "${PYTHON_SRC}" | grep -q "HTTP/[.12]* [2].."; then
+        run cd "${BUILD_DIR}" \
+            && run curl -sSL -o "Python-${PYTHON_VERSION}.tgz" "${PYTHON_SRC}" \
+            && run tar -xzf "Python-${PYTHON_VERSION}.tgz" \
+            && run cd "Python-${PYTHON_VERSION}" \
+            && run ./configure --enable-shared --enable-optimizations --prefix=/usr/local LDFLAGS="-Wl,--rpath=/usr/local/lib" \
+            && run make altinstall \
+            && run update-alternatives --install /usr/bin/python python "/usr/local/bin/python${PYTHON_MAJOR_MINOR}" \
+                "${PYTHON_MAJOR_MINOR//./}" \
+            && run update-alternatives --set python "/usr/local/bin/python${PYTHON_MAJOR_MINOR}" \
+            && run curl -sSL -o "get-pip.py" "https://bootstrap.pypa.io/get-pip.py" \
+            && run python get-pip.py \
+            && run python -m pip install --upgrade pip \
+            && run cd "${CURRENT_DIR}" || return 1
+    else
+        error "Unable to download Python-${PYTHON_VERSION} source..."
+    fi
+}
+
+function lemper_dependencies_install_entry() {
+    echo "Installing required dependencies..."
+    DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
+    RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
+    if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
+        echo "Trying fix broken package install.."
+        run apt-get clean
+        run dpkg --configure -a
+        run apt-get install -q -y --fix-broken
+    fi
+    echo "Updating repository, please wait..."
+    run apt-get update -q -y \
+        && run apt-get upgrade -q -y
+    echo "Installing packages, be patient..."
+    DEPENDENCY_GPGME_PACKAGE=libgpgme11-dev
+    DEPENDENCY_PCRE_PACKAGE=libpcre3-dev
+    if [[ "${DISTRIB_NAME}/${RELEASE_NAME}" == ubuntu/resolute ]]; then
+        DEPENDENCY_GPGME_PACKAGE=libgpgme-dev
+        DEPENDENCY_PCRE_PACKAGE=libpcre2-dev
+    fi
+    run_spinner "Installing base packages" apt-get install -q -y \
+        apt-transport-https apt-utils autoconf automake bash bc build-essential ca-certificates \
+        cmake cron curl dmidecode dnsutils gcc gdb git gnupg2 htop iptables jq libc-bin libc6-dev \
+        libcurl4-openssl-dev "$DEPENDENCY_GPGME_PACKAGE" libssl-dev "$DEPENDENCY_PCRE_PACKAGE" libxml2-dev libxml2-utils libxslt1-dev \
+        libtool locales logrotate lsb-release make net-tools openssh-server openssl pkg-config \
+        re2c rsync software-properties-common sasl2-bin snap snmp sqlite3 sudo sysstat tar tzdata unzip wget \
+        whois xz-utils zlib1g-dev geoip-bin geoip-database gettext gettext-base libgeoip-dev libpthread-stubs0-dev uuid-dev
+    if [[ ! -d /root/.gnupg ]]; then
+        run mkdir /root/.gnupg
+    fi
+    echo "Installing Python 3 package..."
+    case "${DISTRIB_NAME}" in
+        debian)
+            case "${RELEASE_NAME}" in
+                bookworm)
+                    run apt-get install -q -y python3-launchpadlib python3-pip python3-venv \
+                        && run update-alternatives --install /usr/bin/python python "$(command -v python3)" 3 \
+                        && run update-alternatives --set python /usr/bin/python3
+                    ;;
+                buster | bullseye)
+                    # Install Python 3 from source.
+                    install_python_from_source "3.13.0"
+                    ;;
+                *)
+                    fail "Unable to install Python dependencies, this GNU/Linux distribution is not supported."
+                    ;;
+            esac
+            ;;
+        ubuntu)
+            # Install Python
+            # python3.7 will be dropped on next Certbot release
+            # deadsnake ppa only supports Jammy & Noble
+            case "${RELEASE_NAME}" in
+                resolute)
+                    # Resolute supplies a maintained Python directly; no PPA needed.
+                    run apt-get install -q -y python3 python3-dev python3-pip python3-venv \
+                        && run update-alternatives --install /usr/bin/python python /usr/bin/python3 3 \
+                        && run update-alternatives --set python /usr/bin/python3
+                    ;;
+                noble | jammy)
+                    lemper_load_module services/apt/catalog \
+                        && lemper_apt_prepare_repository deadsnakes \
+                        && run apt-get update -q -y \
+                        && run apt-get install -q -y python3.13 python3.13-dev python3.13-venv \
+                        && run update-alternatives --install /usr/bin/python python "$(command -v python3.13)" 313 \
+                        && run update-alternatives --set python /usr/bin/python3.13
+                    ;;
+                bionic)
+                    # Install Python 3 from source.
+                    install_python_from_source "3.13.0"
+                    ;;
+                *)
+                    fail "Unable to install Python dependencies, this GNU/Linux distribution is not supported."
+                    ;;
+            esac
+            ;;
+    esac
+    echo "Add self-signed SSL config".
+    run mkdir -p "/etc/lemper/ssl/${HOSTNAME}" \
+        && run cp -f etc/openssl/ca.conf /etc/lemper/ssl/ca.conf \
+        && run cp -f etc/openssl/csr.conf /etc/lemper/ssl/csr.conf \
+        && run cp -f etc/openssl/cert.conf /etc/lemper/ssl/cert.conf
+    echo "Reconfigure locale..."
+    run locale-gen --purge en_US.UTF-8 id_ID.UTF-8
+    if [[ "${AUTO_INSTALL}" != true ]]; then
+        run dpkg-reconfigure locales
+    fi
+    echo "Reconfigure server clock..."
+    if [[ -n ${TIMEZONE} && ${TIMEZONE} != "none" ]]; then
+        run bash -c "echo '${TIMEZONE}' > /etc/timezone"
+        run rm -f /etc/localtime
+        run dpkg-reconfigure -f noninteractive tzdata
+
+        # Save config.
+        save_config "TIMEZONE=${TIMEZONE}"
+    fi
+    success "Required packages installation completed..."
+}

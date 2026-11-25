@@ -60,7 +60,8 @@ installer_files() {
     local f
     for f in "${REAL_BASE_DIR}"/scripts/install_*.sh "${REAL_BASE_DIR}"/scripts/remove_*.sh; do
         [[ -s "${f}" ]] || continue
-        run grep -q 'dirname "${BASH_SOURCE\[0\]}" )/.."' "${f}"
+        # shfmt normalizes whitespace; retain the quoted checkout-root contract.
+        run grep -Eq 'dirname "\$\{BASH_SOURCE\[0\]\}"[[:space:]]*\)/\.\."' "${f}"
         [ "${status}" -eq 0 ]
         run grep -q 'scripts/utils.sh' "${f}"
         [ "${status}" -eq 0 ]
@@ -77,17 +78,14 @@ installer_files() {
         [ "${status}" -eq 0 ]
         [[ "${output}" == *"Usage:"* ]]
 
-        if [[ "${script}" == "lemper.sh" ]]; then
-            run grep -F -q 'cd "${LEMPER_ROOT}"' "${REAL_BASE_DIR}/${script}"
-        else
-            run grep -F -q 'cd "${BASE_DIR}"' "${REAL_BASE_DIR}/${script}"
-        fi
+        # Entry adapters resolve the checkout even when invoked outside it.
+        run bash -c 'cd / && "$1" --help' _ "${REAL_BASE_DIR}/${script}"
         [ "${status}" -eq 0 ]
     done
 }
 
 @test "CrowdSec installer uses the release tarball and current hub items" {
-    local installer="${REAL_BASE_DIR}/scripts/install_crowdsec.sh"
+    local installer="${REAL_BASE_DIR}/lib/services/security/crowdsec_install.sh"
 
     grep -q 'crowdsec-release.tgz' "${installer}"
     grep -q 'wizard.sh --bininstall --force' "${installer}"
@@ -113,7 +111,7 @@ installer_files() {
 }
 
 @test "CrowdSec removal does not abort on a stopped unit" {
-    local remover="${REAL_BASE_DIR}/scripts/remove_crowdsec.sh"
+    local remover="${REAL_BASE_DIR}/lib/services/security/crowdsec_remove.sh"
 
     grep -q 'systemctl cat crowdsec.service' "${remover}"
     grep -q 'pkill -x crowdsec' "${remover}"

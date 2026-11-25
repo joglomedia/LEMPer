@@ -8,6 +8,7 @@
 
 setup() {
     export BASE_DIR="${BATS_TEST_DIRNAME}/../.."
+    export LEMPER_CORE_DIR="${BASE_DIR}/lib/core"
 
     if [[ -f "${BASE_DIR}/.env" ]]; then
         export UTILS_DIR="${BASE_DIR}"

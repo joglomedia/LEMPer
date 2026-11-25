@@ -7,6 +7,179 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-11-25
+
+### Added
+- Public DNS-01 and Internet-facing TLS/HTTP/3 UAT drivers with guarded
+  disposable fixtures, protected credentials and repeatable client preparation.
+- L-plus SVG brand assets with light/dark-background logos, color/monochrome
+  icons, a multi-size favicon and a brand usage guide.
+- Bash protocol/SFTP/alert UAT drivers and a native Ubuntu 26.04 HTTP/3 gate,
+  including verified TLS, disabled early-data behavior and certificate rejection.
+- Shared candidate/tag archive acceptance on Ubuntu 24.04, Ubuntu 26.04 and
+  Debian 12, with reproducible assets, checksum verification and real bootstrap,
+  HTTP/SSH, repeat-install and removal checks before tagged publication.
+- Ubuntu 26.04 (Resolute) support, native MariaDB 11.8 selection and a dedicated
+  Dovecot 2.4 configuration with the existing virtual-mail account commands.
+- SnappyMail, Nextcloud, MyBB, phpList, OJS and Slim deployments through shared
+  release drivers and Unix-socket vhosts; XenForo licensed manual vhosts with
+  friendly URLs. phpList uses the GitHub release archive (issue #66); OJS uses
+  PKP production packages with private submissions (issue #35); XenForo protects
+  private directories and preserves friendly URL queries (issue #149).
+- Nextcloud DAV/OCS routing and private setup publication, MyBB friendly URLs,
+  source-package Composer builds as the runtime user and explicit integrity provenance.
+- Automatic Mautic and Roundcube latest-stable complete-package deployment with
+  GitHub release discovery, published SHA-256 verification, safe staged extraction, runtime preflight and
+  preservation of existing projects. Roundcube uses its public_html document root;
+  setup routes are loopback-only and PHP execution is limited to public entries.
+- Ownership-resolved domain shortcuts for DB backup, restore and scheduling.
+- Shared diagnostics with full config/FPM views, modern site/app state and certificate details.
+- Shared staged self-signed issuance, template preservation and protected one-year server certificates.
+
+- Hosting disk/inode plans and `lemperctl hosting` check/assign/status/detach/recover
+  commands for quota-ready ext4 filesystems (issue #39), with locked provisioning,
+  preserved quota baselines, UID/filesystem identity checks and interrupted-operation recovery.
+- Optional quota-tool install/remove lifecycle; active assignments guard removal.
+- EditorConfig, opt-in shfmt checks and published scoped function-entry coverage.
+- Interactive component ETA, spinner elapsed time and optional pv progress for
+  configuration archive restoration, with plain non-TTY step output.
+- Optional Restic application/mail data backups, authenticated repositories,
+  staged restoration, tag-scoped retention and daily systemd scheduling through `data`.
+- Native nftables `firewall` commands, scoped inet rules, explicit UFW migration,
+  boot persistence and independent timed SSH recovery while backup operations run.
+- Optional Monit health monitoring, authenticated loopback status and SMTP alert configuration.
+- SQL dump checksums and per-database retention with `db prune` / `--keep`.
+- Issue #91 `stack config php --default-runtime=php@VERSION` with registered
+  alternatives validation, encrypted-profile persistence, and rollback.
+- Issue #170 Laravel application mounts with independent ownership/runtime,
+  validation before reload, rollback, and removal that retains project data.
+- `lemperctl mail` domain, account, alias, DNS, check, and status commands,
+  with virtual multi-domain mailboxes, protected password input, login controls,
+  atomic map publication/rollback, and explicit mailbox purge.
+- Shared profile-based full-stack entry adapter for install/remove/update and
+  `lemperctl stack ... --all`, with config validation before host changes.
+- Optional `get-lemper --install --config FILE`, `--minimal`, `--yes` and
+  mutation-free dry runs; default bootstrap remains CLI-only.
+- Release archives ship a pinned `get-lemper` asset and its checksum.
+- Disposable systemd/Podman UAT fixtures and real CLI acceptance checks covering
+  service lifecycle, HTTP/TLS, SSH, backup and ownership-based removal.
+- Optional `ACME_REGISTER_ACCOUNT` for package-only Certbot installation.
+- Issue #92 positional site creation, feature aliases, multi-domain updates,
+  direct enable/disable, guarded purge, and explicit ownership adoption.
+- Function-only site/stack runtime modules, PHP/Nginx/systemd drivers, isolated
+  legacy adapters, shared command/component registries, and operation locking.
+- Contract tests for normalization, batches, rollback, PHP scope and ownership.
+- Per-service stack lifecycle commands, site remove, compatibility aliases,
+  and strict config check.
+- Shared Bash core modules, an array-based option parser, configuration schema,
+  and focused security/lifecycle/bootstrap regression tests.
+- Pinned CLI-only get-lemper bootstrap, reproducible release archives/checksums,
+  tag-driven release automation, and provisioned-host/dependency audit reports.
+
+### Changed
+- Component preflight preserves matching kernel/persistent hostnames, avoids
+  redundant privileged operations and stops on requested hostname-change failures.
+- Refresh the Nginx and new-site welcome pages with a responsive, accessible
+  layout and current v4 guides; share one static template, escape site names and
+  remove external fonts/scripts from the placeholder.
+- Repository Fail2ban installs use a journal-backed SSH jail and install native
+  systemd bindings, avoiding a missing `/var/log/auth.log` on Debian. Validate
+  configuration and wait for the daemon before reporting successful installation.
+- Complete the v4 module decomposition (roadmap 2.12/2.37): site rendering,
+  framework setup, feature management, update drivers, component lifecycles and
+  utility plugins now live in function-only Bash modules. Retain public scripts,
+  CLI aliases and installed plugin paths; share component-driver dispatch across
+  standalone, CLI and full-stack paths with explicit initialization and locking.
+- PHP installation and updates use the maintained Sury archive and managed
+  keyring package on Ubuntu and Debian. Legacy PHP sources migrate with backups
+  and rollback; unrelated sources and shared signing keys are retained.
+- `MYSQL_VERSION=auto` selects native MariaDB 11.8 on Resolute and MariaDB 11.4
+  elsewhere. Explicit versions and existing database majors require deliberate migration.
+- CodeIgniter's Composer path installs production dependencies from distribution
+  archives as the site's runtime user.
+- Legacy input checks delegate to whole-value core validators with semantic IPv6 validation.
+- Remaining curated repository installers share backed-up key scoping and source preflight.
+- Custom Nginx TLS honors the canonical flag and uses checksummed OpenSSL 3.5.9 LTS sources.
+- Bun installation uses checksummed official amd64/arm64 binaries; the unavailable APT route is retired.
+
+- Account, database, SSL, TUI and vhost creation handlers now occupy function-only
+  runtime modules; account provisioning and optional components use service drivers.
+  Public wrappers, aliases and installed module destinations remain compatible.
+- Mail and canonical full-stack options use the shared array parser, including
+  equals-value options and `--` delimiters. Legacy getopt stays in isolated adapters.
+- Laravel routing preserves methods/query strings when canonicalizing trailing
+  slashes, and newly generated vhosts restrict PHP execution to the front controller.
+- The PHP installer shares its alternatives driver with runtime configuration;
+  mounted apps participate in PHP-reference and parent-purge checks.
+- Mail installation uses maintained Postfix/Dovecot IMAP/LMTP packages and
+  tracked templates, TLS submission, a restricted SASL socket, retained DKIM
+  keys, and ownership-based package removal that preserves mail and configuration.
+- Compatibility scripts delegate to one lifecycle entry path; legacy installer
+  flags remain isolated in adapters. Disabled components are skipped.
+- Minimal service profiles omit optional services and web panels while keeping
+  the CLI; `INSTALL_WEB_ADMIN` controls panel installation independently.
+- PHP extension packages are resolved with exact versioned metadata; bundled
+  XSL/tokenizer aliases do not pull in another PHP branch through metapackages.
+- Update bootstrap exports the complete versioned CLI once through the shared
+  deployment path instead of installing a separate partial CLI copy.
+- Preferred `lemperctl`, with legacy names/flags retained and public help/version
+  handled before root checks or private configuration loading.
+- Current documentation and command examples use `lemperctl`; compatibility
+  notes and source references retain `lemper-cli` and `bin/lemper-cli.sh`.
+- PHP selection distinguishes supported installation from installed management.
+  Selected updates upgrade packages; EOL removal checks site references.
+- Full-stack recipes, bootstrap and tooling refresh share registries. Root-owned
+  snapshots use an atomic release selector; backups exclude code links.
+- Key-only SSH defaults with ed25519 guidance, validated public keys, root-managed
+  key storage, configuration validation, and rollback across firewall/reload failures.
+- Hosting accounts no longer gain full sudo automatically; restricted administrator
+  access and explicit, backed-up legacy privilege migration are available.
+- Wildcard certificate issuance/renewal shares protected provider-specific DNS-01
+  credentials across installers and site commands.
+- CLI refresh replaces its pathname atomically without writing through versioned
+  release symlinks.
+
+### Fixed
+- Mail reconciliation retains stronger outbound SMTP TLS policies, including
+  verified authenticated relays, and refuses unreadable or unsupported policies
+  before changing Postfix configuration.
+- CLI and TUI share an application capability catalog. Sendy and vanilla PHP
+  reject unavailable skeleton installation before site changes;
+  automatic paths verify application files before success and ownership recording.
+- WordPress setup, Multisite setup and plugin installation honor the application
+  installation flag during vhost creation.
+- P1 roadmap follow-through: validated DB inputs and restricted extra arguments,
+  protected atomic SQL dumps, reliable restore/import/export failures, and safe
+  repeatable scheduling through the working `backup-schedule` command.
+- Database passwords with quotes/backslashes remain literal SQL data; account
+  password changes accept protected files and default local backups keep socket auth.
+- Site metadata diagnostics redact credentials in text and JSON; `--json` is
+  registered, implies `--all`, and emits one valid object.
+- PHP/PPA/MariaDB signing keys are repository-scoped, with backed-up source
+  migration and selective legacy-key retirement. MariaDB setup no longer runs
+  a downloaded shell helper; its retained fallback also uses `signed-by`.
+- Full-stack removal retains ownership through partial teardown and permits
+  removal of PHP referenced only by a stopped, owned Nginx being removed.
+- Explicit profile replacement preserves configuration on failure and follows
+  the existing encryption-password resolver without exposing passwords in argv.
+- Legacy debug mode no longer traces credential-bearing shell expansions.
+- UAT-discovered installation problems: checkout-root helper paths, installed
+  configuration seeding/metadata validation, lock umask leakage, public WP CLI
+  permissions, idempotent site enabling and Ubuntu SSH socket activation.
+- Nginx source version resolution/downloading now uses official release tags
+  when nginx.org is unavailable, and the cache-purge source uses its main branch.
+- MyGuard binary availability is verified before mixing package ABIs; CORS
+  snippets work at server scope and keep headers in cached PHP locations.
+- Detailed legacy command help no longer falls back to the global CLI help.
+- Configuration backups from a custom recorded legacy checkout now pass the
+  restore allow-list for that exact `.env` path.
+- Selected PHP removal preserves shared PHP libraries/repositories while any
+  other branch remains; package selection matches only the chosen version.
+- Credential disclosure in service logs, account/app output and encryption/hash
+  subprocess arguments; diagnostics redact secrets and log files are owner-only.
+- Recursive website deletion now checks canonical targets and ownership before
+  removing either data or site configuration.
+
 ## [3.6.0] - 2026-10-27
 
 ### Added
@@ -114,7 +287,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `includes/php_handlers.conf` and the loopback status endpoints from
   `includes/monitoring.conf` instead of repeating 18 handler and status blocks
   in each file. The security/restriction/static-file include order is
-  documented in `etc/nginx/includes/README.md` and ARCHITECTURE.md, and stale
+  documented in `etc/nginx/includes/README.md` and `docs/ARCHITECTURE.md`, and stale
   comments in `nginx.conf` and `nginx-lowend.conf` now point at the real
   per-vhost include paths.
 
@@ -309,7 +482,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documented that PIE is the manual path, not an installer dependency:
   `php/pie` requires Composer package names (`vendor/package`) and cannot
   target Debian's per-version `php_suffix` layout, so it is not a drop-in
-  replacement for this installer's bare extension names. See `ARCHITECTURE.md`.
+  replacement for this installer's bare extension names. See `docs/ARCHITECTURE.md`.
 - CI workflows use `actions/checkout@v6` (Node 24) so the runner no longer
   prints the Node 20 deprecation warning.
 - Fail2ban installs set `PYTHONWARNINGS=ignore::SyntaxWarning` for the package

@@ -4,14 +4,54 @@ on:
     branches:
       - '2.x.x'
       - '3.x.x'
+      - '4.x.x'
+      - 'release/**'
       - 'master'
   pull_request:
-    branches: 
+    branches:
       - '2.x.x'
       - '3.x.x'
+      - '4.x.x'
+      - 'release/**'
       - 'master'
   workflow_dispatch:
 jobs:
+  release-archive-acceptance:
+    uses: ./.github/workflows/release-acceptance.yml
+  protocol-acceptance:
+    name: HTTP/3 and TLS policy (ubuntu:26.04)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare isolated protocol fixture
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -q -y podman
+          sudo podman build --build-arg BASE_IMAGE=ubuntu:26.04 \
+            -f tests/uat/Containerfile -t lemper-protocol-uat tests/uat
+          sudo podman run -d --name lemper-protocol-uat --privileged --systemd=always \
+            --cgroupns=private --cpus 2 --memory 3g --tmpfs /run --tmpfs /tmp \
+            -v "$PWD:/source:ro" lemper-protocol-uat
+          sudo podman exec lemper-protocol-uat bash -e -c '
+            install -d -m 0700 /var/log/lemper-protocols
+            if ! bash /source/tests/uat/protocol_prepare.sh > /var/log/lemper-protocols/build.log 2>&1; then
+              echo "Protocol fixture build failed; private build log retained inside the fixture."
+              exit 1
+            fi
+          '
+      - name: Verify HTTP/3 and TLS behavior
+        run: |
+          set -euo pipefail
+          sudo podman exec lemper-protocol-uat bash /source/tests/uat/protocol_acceptance.sh \
+            | tee "$RUNNER_TEMP/protocol-acceptance.txt"
+          cat "$RUNNER_TEMP/protocol-acceptance.txt" >> "$GITHUB_STEP_SUMMARY"
+      - name: Stop protocol fixture
+        if: always()
+        run: |
+          if sudo podman container exists lemper-protocol-uat; then
+            sudo podman stop --time 10 lemper-protocol-uat
+          fi
   ubuntu-latest:
     runs-on: ubuntu-24.04
     steps:
@@ -20,6 +60,7 @@ jobs:
       - name: Prepare testing environment
         run: |
           cp .env.dist .env
+          sed -i 's/SSH_PASSWORDLESS=true/SSH_PASSWORDLESS=false/' .env
           sed -i "s/FIX_BROKEN_INSTALL=false/FIX_BROKEN_INSTALL=true/g" .env
           sed -i "s/ENVIRONMENT=\"production\"/ENVIRONMENT=\"development\"/g" .env
           sed -i "s/SERVER_HOSTNAME=\"\"/SERVER_HOSTNAME=\"gh-ci.lemper.cloud\"/g" .env
@@ -42,7 +83,7 @@ jobs:
           sed -i "s/INSTALL_FAIL2BAN=false/INSTALL_FAIL2BAN=true/g" .env
           sed -i "s/REDIS_BACKEND=\"redis\"/REDIS_BACKEND=\"valkey\"/g" .env
           sed -i "s/INSTALL_CROWDSEC=false/INSTALL_CROWDSEC=true/g" .env
-          sed -i "s/ACME_WILDCARD=false/ACME_WILDCARD=true/g" .env
+          sed -i "s/ACME_WILDCARD=false/ACME_WILDCARD=false/g" .env
           sed -i "s/ACME_DNS_PROVIDER=\"cloudflare\"/ACME_DNS_PROVIDER=\"cloudflare\"/g" .env
           sed -i "s/INSTALL_MODSEC=false/INSTALL_MODSEC=true/g" .env
           sed -i "s/ENCRYPT_CONFIG_AT_REST=false/ENCRYPT_CONFIG_AT_REST=true/g" .env
@@ -54,15 +95,9 @@ jobs:
       - name: Install testing dependencies
         run: |
           set -ex
-          sudo apt-get update -q -y
-          sudo apt-get install -q -y bash curl python3-pip
-          sudo pip3 install --break-system-packages bashate 2>/dev/null || sudo pip3 install bashate
+          sudo bash scripts/prepare_tests.sh
           sudo curl -sSL -o /usr/local/bin/shunit2 https://raw.githubusercontent.com/kward/shunit2/master/shunit2
           sudo chmod +x /usr/local/bin/shunit2
-          sudo curl -sSLO https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz
-          sudo tar -xf shellcheck-v0.11.0.linux.x86_64.tar.xz
-          sudo mv shellcheck-v0.11.0/shellcheck /usr/local/bin/
-          sudo chmod +x /usr/local/bin/shellcheck
       # Shellcheck Tests
       - name: Run shellcheck testing
         env:
@@ -75,12 +110,17 @@ jobs:
           shellcheck -s bash -x update.sh
           shellcheck -s bash -x bin/lemper-*.sh
           shellcheck -s bash -x lib/lemper-*.sh
-          shellcheck -s bash -x lib/core/lemper-stacks.sh
+          shellcheck -s bash -x lib/core/*.sh
+          shellcheck -s bash -x lib/runtime/*.sh lib/runtime/*/*.sh lib/services/*.sh lib/services/*/*.sh lib/compat/*.sh
           shellcheck -s bash -x scripts/utils.sh
           shellcheck -s bash -x scripts/server_*.sh
           shellcheck -s bash -x scripts/install_*.sh
           shellcheck -s bash -x scripts/remove_*.sh
           shellcheck -s bash -x scripts/nginx/*.sh
+          shellcheck -s bash -x tests/uat/*.sh
+          shellcheck -s bash -x tests/uat/*.bash tests/report_coverage.sh sbin/pure-ftpd-wrapper \
+            share/memcached/scripts/*.bash share/memcached/scripts/start-memcached \
+            share/memcached/scripts/systemd-memcached-wrapper share/memcached/scripts/memcached-tool share/memcached/scripts/damemtop
       # Bashate Linting
       - name: Run bashate linting
         env:
@@ -90,45 +130,83 @@ jobs:
           bashate --ignore E001,E002,E003,E006,E010,E011,E012,E020,E042,E043,E044,E045 --max-line-length 120 \
             install.sh remove.sh update.sh lemper.sh \
             bin/lemper-cli.sh \
-            lib/lemper-*.sh lib/core/lemper-stacks.sh \
+            lib/lemper-*.sh lib/core/*.sh \
+            lib/runtime/*.sh lib/runtime/*/*.sh lib/services/*.sh lib/services/*/*.sh lib/compat/*.sh \
             scripts/*.sh scripts/nginx/*.sh
-      # Install bats-core for integration testing
-      - name: Install bats-core
-        run: |
-          set -ex
-          sudo apt-get install -y -q bats
       # Bats Integration Tests
       - name: Run bats integration tests
         env:
           TERM: xterm-256color
         run: |
           set -ex
-          bats tests/ tests/unit/
+          sudo bash scripts/run_tests.sh
       # Simple Unit Tests
+      - name: Prepare disposable installation test environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -q -y podman
+          sudo podman build -f tests/uat/Containerfile -t lemper-install-uat tests/uat
+          sudo podman run -d --name lemper-install-uat --privileged --systemd=always \
+            --cgroupns=private --hostname lemper-uat.test --cpus 2 --memory 3g \
+            --tmpfs /run --tmpfs /tmp -e PIP_DEFAULT_TIMEOUT=120 -e PIP_RETRIES=5 \
+            -v "$PWD:/source:ro" lemper-install-uat
+          sudo podman exec -e LEMPER_UAT_NGINX_INSTALLER=repo lemper-install-uat bash /source/tests/uat/prepare.sh
+          sudo podman exec lemper-install-uat bash -e -c '
+            . /run/lemper-uat/helpers.bash
+            uat_profile_set /checkout/.env IMAGEMAGICK_INSTALLER "repo"
+            uat_profile_set /checkout/.env INSTALL_FTP_SERVER true
+            uat_profile_set /checkout/.env FTP_SERVER_NAME "pureftpd"
+            uat_profile_set /checkout/.env FTP_SERVER_INSTALLER "repo"
+            uat_profile_set /checkout/.env FTP_SSL_ENABLE true
+          '
       - name: Run unit testing
         env:
           TERM: xterm-256color
         run: |
           set -ex
-          sudo bash scripts/server_cleanup.sh
-          sudo bash scripts/install_dependencies.sh
-          sudo bash shunit2/run_test.sh
+          sudo podman exec -w /checkout lemper-install-uat bash scripts/server_cleanup.sh
+          sudo podman exec -w /checkout lemper-install-uat bash scripts/install_dependencies.sh
+          sudo podman exec -w /checkout lemper-install-uat bash shunit2/run_test.sh
       # FTP server install verification (issue #135)
       - name: Verify FTP server installation
         run: |
           set -ex
-          systemctl is-active --quiet pure-ftpd
-          systemctl is-enabled --quiet pure-ftpd
-          sudo ss -ltn | grep -q ':21 '
-          getent passwd ftp
-          sudo grep -qx 'STANDALONE_OR_INETD=standalone' /etc/default/pure-ftpd-common
-          sudo grep -qx '2' /etc/pure-ftpd/conf/TLS
-          sudo test -f /etc/pure-ftpd/conf/PassivePortRange
-          sudo test -L /etc/pure-ftpd/auth/65unix
-          sudo test -L /etc/pure-ftpd/auth/70pam
-          sudo test -s /etc/ssl/private/pure-ftpd.pem
-          sudo grep -q 'BEGIN CERTIFICATE' /etc/ssl/private/pure-ftpd.pem
-          sudo grep -q 'PRIVATE KEY' /etc/ssl/private/pure-ftpd.pem
+          sudo podman exec lemper-install-uat bash -e -o pipefail -c '
+            systemctl is-active --quiet pure-ftpd
+            systemctl is-enabled --quiet pure-ftpd
+            ss -ltn | grep -q ":21 "
+            getent passwd ftp
+            grep -qx "STANDALONE_OR_INETD=standalone" /etc/default/pure-ftpd-common
+            grep -qx "2" /etc/pure-ftpd/conf/TLS
+            test -f /etc/pure-ftpd/conf/PassivePortRange
+            test -L /etc/pure-ftpd/auth/65unix
+            test -L /etc/pure-ftpd/auth/70pam
+            test -s /etc/ssl/private/pure-ftpd.pem
+            grep -q "BEGIN CERTIFICATE" /etc/ssl/private/pure-ftpd.pem
+            grep -q "PRIVATE KEY" /etc/ssl/private/pure-ftpd.pem
+          '
+      - name: Audit provisioned host and dependency candidates
+        run: |
+          sudo podman exec lemper-install-uat apt-get install -y -qq lynis
+          sudo podman exec lemper-install-uat lynis audit system --quick --no-colors \
+            --log-file /var/log/lemper-uat/lynis.log --report-file /var/log/lemper-uat/lynis.dat
+          sudo podman exec -w /checkout lemper-install-uat bash scripts/audit_dependencies.sh > "${RUNNER_TEMP}/dependency-audit.txt"
+          sudo podman cp lemper-install-uat:/var/log/lemper-uat/lynis.log "${RUNNER_TEMP}/lynis.log"
+          sudo podman cp lemper-install-uat:/var/log/lemper-uat/lynis.dat "${RUNNER_TEMP}/lynis.dat"
+          sudo chown "$(id -u):$(id -g)" "${RUNNER_TEMP}/lynis.log" "${RUNNER_TEMP}/lynis.dat"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: provisioned-host-audit
+          path: |
+            ${{ runner.temp }}/lynis.log
+            ${{ runner.temp }}/lynis.dat
+            ${{ runner.temp }}/dependency-audit.txt
+      - name: Stop disposable installation environment
+        if: always()
+        run: |
+          if sudo podman container exists lemper-install-uat; then
+            sudo podman stop --time 10 lemper-install-uat
+          fi
   ftp-source:
     name: ftp-source (${{ matrix.server }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -154,6 +232,7 @@ jobs:
         run: |
           set -ex
           cp .env.dist .env
+          sed -i 's/SSH_PASSWORDLESS=true/SSH_PASSWORDLESS=false/' .env
           sed -i 's/ENVIRONMENT="production"/ENVIRONMENT="development"/g' .env
           sed -i 's/SERVER_HOSTNAME=""/SERVER_HOSTNAME="gh-ci.lemper.cloud"/g' .env
           sed -i 's/SERVER_IP=""/SERVER_IP="127.0.0.1"/g' .env
@@ -213,6 +292,108 @@ jobs:
           set -ex
           sudo bash "${{ matrix.installer }}"
           systemctl is-active --quiet "${{ matrix.service }}"
+  mailer-uat:
+    name: mailer (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:22.04', 'ubuntu:24.04', 'ubuntu:26.04', 'debian:12']
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build disposable mail test environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq podman
+          sudo podman build --build-arg BASE_IMAGE="${{ matrix.image }}" \
+            -f tests/uat/Containerfile -t lemper-mail-uat tests/uat
+      - name: Verify mail installation and administration
+        run: |
+          sudo podman run -d --name lemper-mail-uat --privileged --systemd=always \
+            --cgroupns=private --hostname mail.lemper-uat.test --cpus 2 --memory 2g \
+            --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" lemper-mail-uat
+          sudo podman exec lemper-mail-uat bash -c \
+            'touch /run/lemper-mail-uat-authorized; cp /source/tests/uat/mail_acceptance.sh /run/mail-uat.sh; bash /run/mail-uat.sh'
+      - name: Stop disposable mail test container
+        if: always()
+        run: sudo podman stop --time 10 lemper-mail-uat
+  resolute-validation:
+    name: Ubuntu 26.04 Bash validation
+    runs-on: ubuntu-24.04
+    container:
+      image: ubuntu:26.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare Linux test dependencies
+        run: bash scripts/prepare_tests.sh
+      - name: Validate Ubuntu 26.04
+        run: |
+          bash scripts/run_tests.sh
+          shellcheck -s bash -x lib/core/distro.sh lib/services/php/repository.sh scripts/install_php.sh scripts/install_dependencies.sh
+  php-repository-uat:
+    name: maintained PHP archive (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:22.04', 'ubuntu:24.04', 'ubuntu:26.04', 'debian:12']
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build disposable PHP test environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -q -y podman
+          sudo podman build --build-arg BASE_IMAGE="${{ matrix.image }}" -f tests/uat/Containerfile -t lemper-php-uat tests/uat
+          sudo podman run -d --name lemper-php-uat --privileged --systemd=always --cgroupns=private --hostname php.lemper-uat.test \
+            --cpus 2 --memory 2g --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" lemper-php-uat
+          sudo podman exec lemper-php-uat bash -e -c '
+            apt-get update -qq
+            apt-get install -q -y gnupg
+            touch /run/lemper-php-repository-uat-authorized
+            cp /source/tests/uat/php_repository_acceptance.sh /run/php-acceptance.sh
+            bash /run/php-acceptance.sh
+          '
+      - name: Stop disposable PHP test environment
+        if: always()
+        run: sudo podman stop --time 10 lemper-php-uat
+  runtime-routing-uat:
+    name: PHP defaults and Laravel routing
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare disposable runtime test environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq podman
+          sudo podman build -f tests/uat/Containerfile -t lemper-runtime-uat tests/uat
+          sudo podman run -d --name lemper-runtime-uat --privileged --systemd=always \
+            --cgroupns=private --hostname issues-uat.test --cpus 2 --memory 3g \
+            --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" lemper-runtime-uat
+          sudo podman exec lemper-runtime-uat bash -c '
+            set -e
+            . /source/tests/uat/helpers.bash
+            uat_wait_systemd
+            apt-get update -qq
+            apt-get install -y -qq nginx composer gnupg software-properties-common rsync unzip wget
+            . /source/lib/core/loader.sh
+            lemper_load_module services/php/repository
+            lemper_php_prepare_repository
+            apt-get update -qq
+            apt-get install -y -qq php8.3-cli php8.3-fpm php8.3-dev php8.4-cli php8.4-fpm php8.4-dev \
+              php8.3-curl php8.3-intl php8.3-mbstring php8.3-sqlite3 php8.3-xml php8.3-zip \
+              php8.4-curl php8.4-intl php8.4-mbstring php8.4-sqlite3 php8.4-xml php8.4-zip
+            useradd --create-home --shell /bin/bash lemper
+            runuser -u lemper -- /usr/bin/php8.4 /usr/bin/composer create-project "laravel/laravel:^13.0" \
+              /home/lemper/laravel-real --no-interaction --prefer-dist --no-dev
+            touch /run/lemper-runtime-uat-authorized
+          '
+      - name: Verify PHP configuration and Laravel mounts
+        run: |
+          sudo podman exec lemper-runtime-uat bash -c \
+            'cp /source/tests/uat/runtime_routing_acceptance.sh /run/runtime-uat.sh; bash /run/runtime-uat.sh'
+      - name: Stop disposable runtime test container
+        if: always()
+        run: sudo podman stop --time 10 lemper-runtime-uat
   debian-12:
     runs-on: ubuntu-24.04
     container:
@@ -222,6 +403,7 @@ jobs:
       - name: Prepare testing environment
         run: |
           cp .env.dist .env
+          sed -i 's/SSH_PASSWORDLESS=true/SSH_PASSWORDLESS=false/' .env
           sed -i 's/FIX_BROKEN_INSTALL=false/FIX_BROKEN_INSTALL=true/g' .env
           sed -i 's/ENVIRONMENT="production"/ENVIRONMENT="development"/g' .env
           sed -i 's/SERVER_HOSTNAME=""/SERVER_HOSTNAME="gh-ci.lemper.cloud"/g' .env
@@ -248,8 +430,7 @@ jobs:
       - name: Install testing dependencies
         run: |
           set -ex
-          apt-get update -q -y
-          apt-get install -q -y bash curl shellcheck bats
+          bash scripts/prepare_tests.sh
       - name: Run ShellCheck
         env:
           TERM: xterm-256color
@@ -261,16 +442,111 @@ jobs:
           shellcheck -s bash -x update.sh
           shellcheck -s bash -x bin/lemper-*.sh
           shellcheck -s bash -x lib/lemper-*.sh
-          shellcheck -s bash -x lib/core/lemper-stacks.sh
+          shellcheck -s bash -x lib/core/*.sh
+          shellcheck -s bash -x lib/runtime/*.sh lib/runtime/*/*.sh lib/services/*.sh lib/services/*/*.sh lib/compat/*.sh
           shellcheck -s bash -x scripts/utils.sh
           shellcheck -s bash -x scripts/server_*.sh
           shellcheck -s bash -x scripts/install_*.sh
           shellcheck -s bash -x scripts/remove_*.sh
           shellcheck -s bash -x scripts/nginx/*.sh
           shellcheck -s bash -x scripts/test_podman.sh
+          shellcheck -s bash -x tests/uat/*.sh
       - name: Run bats tests
         env:
           TERM: xterm-256color
         run: |
           set -ex
-          bats tests/ tests/unit/
+          bash scripts/run_tests.sh
+  formatting-and-coverage:
+    name: Scoped formatting and function coverage
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install test tooling
+        run: |
+          sudo bash scripts/prepare_tests.sh
+      - name: Check opted-in Bash formatting
+        run: bash scripts/check_format.sh
+      - name: Measure declared critical-function coverage
+        env:
+          TERM: xterm-256color
+        run: sudo bash scripts/run_tests.sh --coverage "$PWD/coverage"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: critical-function-coverage
+          path: coverage/
+  hosting-quota-uat:
+    name: Hosting quotas (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:24.04', 'debian:12']
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build disposable quota test environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -q -y podman
+          sudo podman build --build-arg BASE_IMAGE="${{ matrix.image }}" \
+            -f tests/uat/Containerfile -t lemper-p3-uat tests/uat
+          sudo podman run -d --name lemper-p3-uat --privileged --systemd=always \
+            --cgroupns=private --hostname p3.lemper-uat.test --cpus 2 --memory 2g \
+            --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" lemper-p3-uat
+      - name: Prepare a disposable ext4 volume and test enforcement
+        run: |
+          sudo podman exec lemper-p3-uat bash -c '
+            set -e
+            apt-get update -qq
+            apt-get install -q -y quota pv
+            touch /run/lemper-p3-uat-authorized
+            truncate -s 192M /run/p3-quota.img
+            mkfs.ext4 -q -O quota /run/p3-quota.img
+            quota_loop=$(losetup -f)
+            [[ "$quota_loop" =~ ^/dev/loop[0-9]+$ ]] || exit 1
+            [[ -e "$quota_loop" ]] || mknod "$quota_loop" b 7 "${quota_loop#/dev/loop}"
+            mount -o loop,usrquota /run/p3-quota.img /home
+            bash /source/tests/uat/p3_acceptance.sh
+          '
+      - name: Release disposable quota volume
+        if: always()
+        run: |
+          sudo podman exec lemper-p3-uat umount /home || true
+          sudo podman stop --time 10 lemper-p3-uat
+  priority-followthrough-uat:
+    name: Priority lifecycle and TLS (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:24.04', 'debian:12']
+    steps:
+      - uses: actions/checkout@v6
+      - name: Prepare a disposable service environment
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -q -y podman
+          sudo podman build --build-arg BASE_IMAGE="${{ matrix.image }}" \
+            -f tests/uat/Containerfile -t lemper-priority-uat tests/uat
+          sudo podman run -d --name lemper-priority-uat --privileged --systemd=always \
+            --cgroupns=private --hostname priority.lemper-uat.test --cpus 2 --memory 3g \
+            --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" lemper-priority-uat
+          sudo podman exec lemper-priority-uat bash -c '
+            set -e
+            apt-get update -qq
+            apt-get install -q -y nginx php-fpm php-cli mariadb-server cron gnupg \
+              build-essential libpcre2-dev zlib1g-dev libssl-dev
+            touch /run/lemper-priority-uat-authorized
+            cp /source/tests/uat/priority_acceptance.sh /run/priority-acceptance.sh
+          '
+      - name: Verify service commands and compiled TLS integration
+        run: |
+          if [[ "${{ matrix.image }}" == ubuntu:24.04 ]]; then
+            sudo podman exec lemper-priority-uat bash /run/priority-acceptance.sh --build-tls
+          else
+            sudo podman exec lemper-priority-uat bash /run/priority-acceptance.sh
+          fi
+      - name: Stop disposable services
+        if: always()
+        run: sudo podman stop --time 10 lemper-priority-uat
