@@ -181,3 +181,62 @@ mail_child='
     [ "$status" -eq 0 ]
     [[ "$output" == *"Unable to disconnect"* ]]
 }
+
+@test "mail reconciliation preserves stronger outbound TLS while configuring the server" {
+    run bash -c "${mail_child}"'
+        . "$REAL_BASE_DIR/lib/services/mail/configure.sh"
+        postconf() {
+            if [[ "$1" == -h ]]; then printf "%s\n" "$policy"; return; fi
+            if [[ "$1" == -e ]]; then
+                case "$2" in
+                    smtp_tls_security_level=*) policy="${2#*=}" ;;
+                    myhostname=*) configured_hostname="${2#*=}" ;;
+                esac
+            fi
+        }
+        for requested in encrypt verify secure dane dane-only fingerprint; do
+            policy="$requested" configured_hostname=""
+            lemper_mail_postfix_configure mail.first.test /certificate "$LEMPER_MAIL_ROOT" || exit 1
+            [[ "$policy" == "$requested" && "$configured_hostname" == mail.first.test ]] || exit 1
+        done
+    '
+    [ "$status" -eq 0 ]
+}
+
+@test "mail reconciliation enables opportunistic outbound TLS for fresh defaults" {
+    run bash -c "${mail_child}"'
+        . "$REAL_BASE_DIR/lib/services/mail/configure.sh"
+        postconf() {
+            if [[ "$1" == -h ]]; then printf "%s\n" "$policy"; return; fi
+            [[ "$1" != -e || "$2" != smtp_tls_security_level=* ]] || policy="${2#*=}"
+            return 0
+        }
+        for requested in none may ""; do
+            policy="$requested"
+            lemper_mail_postfix_configure mail.first.test /certificate "$LEMPER_MAIL_ROOT" || exit 1
+            [[ "$policy" == may ]] || exit 1
+        done
+    '
+    [ "$status" -eq 0 ]
+}
+
+@test "mail reconciliation aborts before mutation if the existing TLS policy cannot be read" {
+    run bash -c "${mail_child}"'
+        . "$REAL_BASE_DIR/lib/services/mail/configure.sh"
+        postconf() { [[ "$1" != -h ]] || return 47; echo MUTATED; }
+        lemper_mail_postfix_configure mail.first.test /certificate "$LEMPER_MAIL_ROOT"
+    '
+    [ "$status" -ne 0 ]
+    [[ "$output" != *MUTATED* ]]
+}
+
+@test "mail reconciliation refuses an unrecognized outbound TLS policy without mutation" {
+    run bash -c "${mail_child}"'
+        . "$REAL_BASE_DIR/lib/services/mail/configure.sh"
+        postconf() { if [[ "$1" == -h ]]; then echo unexpected; else echo MUTATED; fi; }
+        lemper_mail_postfix_configure mail.first.test /certificate "$LEMPER_MAIL_ROOT"
+    '
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Unsupported outbound SMTP TLS policy"* ]]
+    [[ "$output" != *MUTATED* ]]
+}

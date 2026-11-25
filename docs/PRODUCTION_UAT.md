@@ -20,7 +20,9 @@ that exceed those automated results.
 | Public ACME DNS-01 issuance/renewal | **23/23 passed**, plus final renewal flag/preservation check | LEMPer CLI/driver, Certbot 5.10.0, staging and production wildcard/base issuance for a reserved subdomain under lemper.eu.org, installed Nginx deploy hook and repeat-install preservation |
 | Public DNS operations | **6/6 passed** | Cloudflare TXT create/read/update/delete verified on both authoritative nameservers; complete existing record objects matched after cleanup |
 | Public ACME HTTP-01 | **17/17 checks passed**, plus CLI issuance/repeat-enable | Let’s Encrypt staging, the exact v4 archive, an isolated Ubuntu 26.04 fixture, and only temporary public challenge files on the existing production route |
-| External SMTP/IMAP and alerts | Pending transport/isolated mail endpoint | Both Gmail MX IPv4 probes failed on outbound TCP 25; Gmail submission on 587 connected, but the VPS has no configured Postfix relay |
+| External outbound SMTP relay | **Passed: recipient-confirmed Inbox, SPF/DKIM/DMARC** | Verified STARTTLS to Brevo on TCP 587, authentication 235, submission 250, and DKIM signing for lemper.eu.org; direct Bash relay client with production mail configuration preserved |
+| Managed mailbox outbound/inbound and public IMAP | **Passed**, with production Postfix repair | Managed SMTP authentication → native OpenDKIM/Postfix → Brevo → recipient-confirmed Gmail receipt; external Brevo → public MX/SMTP → native LMTP → public IMAP; rejection checks passed |
+| External monitoring alerts | Pending designated alert recipient/transport | Mailbox delivery does not prove monitoring alert dispatch |
 | Legacy tooling upgrade | **13/13 checks passed** | Actual v3.6.0 CLI/plugins with distro services and synthetic data, upgraded using the exact v4 archive; full legacy installation/storage migration remains pending |
 | Full upstream application setup | Pending selected app targets | Complete database/admin/mail/cron setup and HTTP health checks for selected application releases |
 
@@ -137,13 +139,111 @@ The Bash drivers are [legacy tooling](../tests/uat/legacy_tooling_acceptance.sh)
 [HTTP-01 verification](../tests/uat/public_http01_acceptance.sh).
 See [developer instructions](../DEVELOPER.md#http-01-and-legacy-tooling-acceptance).
 
-External mail remains pending: IPv4 probes to two Gmail MX endpoints on TCP 25
-timed out, while `smtp.gmail.com:587` returned an SMTP 220 greeting. The existing
-Postfix relay is unset. No external email was sent. Direct delivery needs
-provider port-25 access; submission through a relay needs a separately supplied
-authenticated transport. SPF/DKIM/MX changes are deferred until that transport
-and an isolated mail endpoint are ready. IMAP/inbound delivery and external
-alerts have not been established by this preflight.
+### Brevo outbound relay follow-through
+
+On 2026-11-25, the production host's UFW and IPv4/IPv6 OUTPUT policies allowed
+outgoing traffic, but two Gmail MX IPv4 probes on TCP 25 still failed. Public
+TCP 25 connected to the VPS; its existing Postfix worker could not give a
+greeting because Dovecot's `private/auth` socket was missing. Read-only logs
+confirmed `no SASL authentication mechanisms` and worker startup failure.
+That production configuration was preserved.
+
+The operator supplied a protected Brevo SMTP login/key and confirmed domain
+authentication. Public DNS showed the Brevo verification code, both DKIM
+CNAMEs and DMARC. A direct Bash client using the `905963f` checkout's
+function-only dotenv parser and SMTP helpers connected from the VPS to
+`smtp-relay.brevo.com:587`. STARTTLS verified the certificate and hostname;
+SMTP authentication returned **235** and one authorized message returned **250**
+after DATA.
+
+The recipient confirmed **Inbox delivery** and reported these Gmail
+**Show original** results:
+
+| Authentication | Recipient-confirmed result |
+|---|---|
+| SPF | **PASS**, sending IP `77.32.148.8` |
+| DKIM | **PASS**, signing domain `lemper.eu.org` |
+| DMARC | **PASS** |
+
+This establishes outbound delivery through the authenticated Brevo relay for
+that sender/message. It does not establish direct port-25 delivery, persistent
+Postfix relay configuration, incoming mail, IMAP retrieval or monitoring alerts.
+The relay's shared-IP domain authentication uses Brevo code, DKIM and DMARC;
+SPF/MX changes are not required solely for that authentication, per
+[Brevo's domain guide](https://help.brevo.com/hc/en-us/articles/12163873383186-Authenticate-your-domain-with-Brevo-Brevo-code-DKIM-DMARC).
+Existing DNS records and production mail settings were not changed by the test.
+
+Credential values stayed in protected files/shell memory and SMTP input; they
+were not displayed, sourced as code or placed in external process arguments.
+The remote credential copy and private staging were removed after retaining
+non-secret submission evidence. Production service PID/startup baselines matched.
+The operator's original local credentials file is retained outside version control.
+
+### Managed mailbox and production Postfix repair
+
+On 2026-11-25, a disposable Ubuntu 24.04/systemd container on the local Podman
+machine (`aarch64`) installed the actual mail component from `905963f`, then
+exercised the current outbound-TLS reconciliation fix. Native versions were Postfix **3.8.6**,
+Dovecot **2.3.21** and OpenDKIM **2.11.0**. It created the synthetic managed
+`no-reply@lemper.eu.org` mailbox, used a trusted DNS-01 certificate, and configured
+a protected, authenticated Brevo relay with verified TLS. SSH tunnels carried
+bytes between the fixture and VPS; certificate verification remained enabled.
+
+| Path/check | Observed result |
+|---|---|
+| Mailbox submission | Plaintext submission rejected; TLS/password authentication and native Postfix acceptance passed |
+| Native signing/storage | Mailbox copy delivered by LMTP, retrieved over IMAP; native OpenDKIM signature independently verified against published DNS |
+| External outbound | Native Postfix recorded successful Brevo relay delivery and an empty queue; recipient confirmed the managed-mailbox message arrived at Gmail |
+| External inbound | Brevo resolved the temporary public MX, delivered to the VPS on TCP 25, and the scoped route delivered to fixture Postfix/LMTP; the distinct incoming message was retrieved over public IMAP on TCP 18443 |
+| Public rejection checks | Wrong IMAP password, wrong TLS hostname, unrelated CA, unknown recipient and anonymous relay all rejected |
+| Repeat installation | Initially downgraded verified outbound TLS to `may`; source fix retained `verify` during a real repeat install and refreshed CLI snapshot |
+
+The missing production Dovecot SASL listener was repaired with a restricted
+`0660 postfix:postfix` socket and an include that preserved existing passdb,
+userdb, accounts and storage. Postfix now requires TLS before authentication.
+Both configurations were validated before reload, and public SMTP greeting and
+STARTTLS certificate/hostname verification passed. The protected rollback
+backup is `/var/backups/lemper-mail-repair.J4KsuCMS`.
+The production SMTP front remained Ubuntu 22.04/AMD64, Postfix **3.6.4** and
+Dovecot **2.3.16**; no mail package/version upgrade was performed there.
+
+The first incoming probe was permanently rejected because legacy unqualified
+Spamhaus DNSBL rules treated **127.255.255.254**, an unsupported-resolver error,
+as a spam listing. The repair kept both existing DNSBLs and restricted rejection
+to **127.0.0.[2..11]**; error-range replies now produce warning-only diagnostics.
+Other recipient/SPF/authentication restrictions were retained. The retry logged
+those warnings and delivered successfully. The protected repair backup is
+`/var/backups/lemper-mail-rbl-repair.fRCVhOey`.
+
+This follows [Spamhaus's Postfix return-code guidance](https://docs.spamhaus.com/datasets/docs/source/40-real-world-usage/PublicMirrors/MTAs/020-Postfix.html).
+The shared resolver still cannot obtain Spamhaus reputation data: use supported
+DQS or a suitable dedicated recursive resolver to restore it. Genuine positive
+listing rejection remains configured; a controlled positive-listing probe was
+not run. The current v4 installer does not configure these legacy DNSBL rules.
+
+The Gmail SPF/DKIM/DMARC passes reported above belong to the earlier direct
+Brevo message. The managed-mailbox message's recipient-side authentication
+results and Inbox/Spam placement have not yet been confirmed; native DKIM was
+verified independently. Persistent production relay setup, direct outbound
+TCP 25, monitoring alerts and full legacy mail-storage migration remain separate
+work. The production server hosted only the temporary scoped test route; the
+managed mailbox/services and relay credentials stayed in the disposable fixture.
+
+Cleanup restored the exact pre-test UFW rule files/status and removed the scoped
+Postfix route and socket-proxy units while retaining both permanent repairs.
+Only the three owned A/DKIM/MX records were deleted; all six original DNS record
+objects matched the baseline afterward. The test certificate was revoked, both
+task mail/ACME containers and SSH tunnels were removed, and task credential/key
+copies were deleted. The existing preview container and production containers
+were preserved. Original operator credential files remain protected and ignored.
+
+Linux regression verification passed **16/16 focused mail tests**, including
+stronger TLS preservation, fresh defaults and failed/invalid policy reads, then
+**549/549 full Bats tests** in an isolated Debian 12 container. Changed runtime
+Bash syntax, sourced ShellCheck **0.11.0**, Bashate, local document link targets
+and `git diff --check` passed. The first full run had one ShellCheck-source test
+failure because the harness ran from the container root; the complete repeat
+from the checkout directory passed without changing or suppressing that check.
 
 Full legacy installation/storage migration and selected application setup
 still need disposable targets. A production host is not the legacy

@@ -26,7 +26,14 @@ function lemper_mail_certificate_valid() {
     [[ "$certificate_key" == "$private_key" ]]
 }
 function lemper_mail_postfix_configure() {
-    local hostname="$1" certificate="$2" root="$3" setting
+    local hostname="$1" certificate="$2" root="$3" setting current_tls outbound_tls=may
+    # Reconciliation must retain an administrator's stronger outbound relay policy.
+    current_tls=$(postconf -h smtp_tls_security_level) || return 1
+    case "$current_tls" in
+        encrypt|verify|secure|dane|dane-only|fingerprint) outbound_tls="$current_tls" ;;
+        none|may|'') ;;
+        *) error "Unsupported outbound SMTP TLS policy; repair it before reconciling mail."; return 1 ;;
+    esac
     # Loopback-only trusted networks; receiving port 25 never advertises authentication.
     local settings=(
         "myhostname=$hostname" "myorigin=$hostname" 'mydestination=localhost,localhost.localdomain'
@@ -36,7 +43,7 @@ function lemper_mail_postfix_configure() {
         'smtpd_sasl_auth_enable=no' 'smtpd_sasl_type=dovecot' 'smtpd_sasl_path=private/auth'
         'smtpd_sasl_security_options=noanonymous' 'smtpd_tls_auth_only=yes'
         "smtpd_tls_cert_file=$certificate/fullchain.pem" "smtpd_tls_key_file=$certificate/privkey.pem"
-        'smtpd_tls_security_level=may' 'smtp_tls_security_level=may' 'smtpd_tls_loglevel=1'
+        'smtpd_tls_security_level=may' "smtp_tls_security_level=$outbound_tls" 'smtpd_tls_loglevel=1'
         'smtpd_tls_mandatory_protocols=>=TLSv1.2' 'smtpd_tls_protocols=>=TLSv1.2'
         'virtual_alias_domains=' "virtual_mailbox_domains=proxy:hash:$root/current/domains"
         "virtual_mailbox_maps=proxy:hash:$root/current/mailboxes"

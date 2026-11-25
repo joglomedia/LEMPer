@@ -1,10 +1,15 @@
 # v4.0.0 release preparation
 
 Status checked 2026-11-25: v4.0.0 is unpublished; latest GitHub release is
-v3.6.0. The verified runtime candidate is `d79e4ec` on the pushed `release/v4.0.0`
-branch. Accepted module decomposition (2.12/2.37) is implemented. Candidate CI,
+v3.6.0. The latest committed CI candidate is `905963f` on the pushed `release/v4.0.0`
+branch; the reproducible archive evidence below covers `d79e4ec`. Accepted module
+decomposition (2.12/2.37) is implemented. Candidate CI,
 reproducible assets and exact-archive acceptance passed; publication and the
 selected production checks below remain separate steps.
+
+[CI for 905963f](https://github.com/joglomedia/LEMPer/actions/runs/45473224896)
+passed **25/25 jobs**. The subsequent mail TLS reconciliation fix and updated UAT
+notes require a new committed candidate, archive build and CI before publication.
 
 ## Verified runtime candidate d79e4ec
 
@@ -47,7 +52,10 @@ authenticated GitHub metadata without passing a token into the installer.
 See [production UAT](PRODUCTION_UAT.md) for protocol checks and external target
 requirements. Public DNS-01 and Internet-facing protocol checks passed in the
 2026-11-25 follow-through below. HTTP-01 and the representative legacy tooling
-upgrade also passed. External mail/alerts and full storage migrations still
+upgrade also passed. Brevo outbound relay delivery reached Gmail Inbox with
+recipient-confirmed SPF, DKIM and DMARC passes. Managed-mailbox outbound delivery,
+external inbound mail and public IMAP also passed, with scoped production Postfix
+repair. External alerts and full storage migrations still
 require their designated targets. Further commits change the archive
 hash: build and validate the final committed candidate before tagging it.
 
@@ -64,8 +72,14 @@ hostname preflight mutations; **545 Bats tests** passed for that correction.
 See [production UAT](PRODUCTION_UAT.md#public-follow-through-2026-11-25) for
 versions, resource boundaries, cleanup and production-preservation evidence.
 Follow-through of the exact `d79e4ec` archive passed **17 HTTP-01 checks** plus
-CLI issuance/repeat-enable, and **13 legacy tooling upgrade checks**. Mail
-delivery is pending outbound TCP 25 or an authenticated relay; full legacy
+CLI issuance/repeat-enable, and **13 legacy tooling upgrade checks**. An
+authenticated Brevo relay test subsequently reached Gmail Inbox with
+**SPF/DKIM/DMARC PASS**, using the unchanged runtime helpers in `905963f`.
+The subsequent managed-mailbox test passed outbound native Postfix/OpenDKIM
+delivery through Brevo, external incoming SMTP/LMTP and public IMAP. It also
+fixed installer reconciliation that weakened an existing verified relay TLS
+policy. Direct outbound port-25 delivery, persistent production Postfix relay
+configuration and external monitoring alerts remain separate validation. Full legacy
 storage migration and application setup need disposable targets.
 Final follow-through commits need rebuilt assets and
 fresh candidate CI before publication.

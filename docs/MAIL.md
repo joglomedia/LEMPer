@@ -17,6 +17,12 @@ IP. A working local SMTP/IMAP installation does not establish Internet
 reputation or delivery to Gmail/Outlook. An authenticated external relay can
 improve outbound deliverability; that provider integration is separate work.
 
+An administrator-configured relay must use protected SASL credential maps and
+verified TLS to the provider. Mail reinstall/reconciliation retains stronger
+`smtp_tls_security_level` policies (including `verify`); fresh installations
+default to opportunistic outbound TLS (`may`). The installer does not provision
+relay credentials or change an existing `relayhost`.
+
 ## Installation
 
 Set these values in the installation profile. For an installed stack, use its
@@ -188,6 +194,8 @@ installer, runtime, templates, deployment registry, and removal path.
 | Errors can leave configuration partially changed | Validate before reload and restore backed-up configuration/maps on failure |
 | Package purge can discard configuration regardless of ownership | Remove recorded owned mail packages; preserve mail, account maps, and keys |
 
+### Historical verification, 2026-11-21
+
 On 2026-11-21, disposable Podman/systemd containers on a running Podman machine
 validated **18/18 cases on each of Ubuntu 22.04, Ubuntu 24.04, and Debian 12**
 (54 cases, native `aarch64`). They exercised installation, real SASL/LMTP sockets,
@@ -212,3 +220,29 @@ not verify public ACME issuance/renewal, public DNS/PTR, SMTP reputation, provid
 port-25 policies, Gmail/Outlook delivery, or a live existing-server migration.
 The new GitHub Actions job has been prepared and locally checked; it has not yet
 run on GitHub. No live server or workstation mail services were changed.
+
+### Current verification, 2026-11-25
+
+[Candidate CI for 905963f](https://github.com/joglomedia/LEMPer/actions/runs/45473224896)
+passed **19/19 real mail cases on each of Ubuntu 22.04, Ubuntu 24.04,
+Ubuntu 26.04 and Debian 12** (76 cases). These use actual Postfix, Dovecot and
+OpenDKIM services with LEMPer-managed virtual mailboxes, multiple domains and
+aliases. Coverage includes authenticated TLS submission, incoming SMTP/LMTP
+delivery between fixture mailboxes, IMAP/STARTTLS retrieval, DKIM signatures,
+relay/sender rejection, password rotation, disable/delete behavior, repeated
+installation, backup and retained-mail removal.
+
+The direct Brevo test reached Gmail Inbox with recipient-confirmed SPF, DKIM
+for `lemper.eu.org`, and DMARC passes. A subsequent test used a LEMPer-managed
+mailbox, native Postfix/OpenDKIM and the same authenticated relay; the recipient
+confirmed receipt. Native DKIM verification and LMTP/IMAP retrieval passed.
+An external Brevo message also arrived through public MX/SMTP and was retrieved
+over public IMAP with a trusted certificate. Invalid passwords, TLS identities,
+unknown recipients and anonymous relaying were rejected.
+
+The legacy production authentication socket and false DNSBL rejections were
+repaired separately, preserving existing accounts/storage. Relay credentials
+and the new managed mailbox existed only in a disposable fixture; persistent
+production relay configuration remains separate work. The new message's Gmail
+authentication results have not been confirmed. See
+[the public UAT report](PRODUCTION_UAT.md#managed-mailbox-and-production-postfix-repair).
