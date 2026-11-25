@@ -38,7 +38,7 @@ Linux Mint 21–22 retains its Ubuntu-base support. See
 [installation requirements](docs/INSTALLATION.md#requirements) and
 [Ubuntu 26.04 notes](docs/UBUNTU_26_04.md).
 
-The commands below use the pinned **v4.0.0** release. See the
+The commands below download the latest installer and install **v4.0.0**. See the
 [installation guide](docs/INSTALLATION.md) for profiles and checkout installation.
 Existing v3 servers need a backed-up migration plan; database/mail storage major
 upgrades are separate from CLI updates.
@@ -46,7 +46,7 @@ upgrades are separate from CLI updates.
 Install only the CLI:
 
 ```bash
-curl -fsSL https://github.com/joglomedia/LEMPer/releases/download/v4.0.0/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0
+curl -fsSL https://github.com/joglomedia/LEMPer/releases/latest/download/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0
 ```
 
 For a fresh minimal stack, first prepare a private profile:
@@ -62,7 +62,7 @@ Set the hostname, IP, administrator email and SSH public key. On ARM64, set
 Then install Nginx, PHP, MariaDB, Certbot, Fail2ban and CLI tools:
 
 ```bash
-curl -fsSL https://github.com/joglomedia/LEMPer/releases/download/v4.0.0/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0 --install --config ./lemper.env --minimal --yes
+curl -fsSL https://github.com/joglomedia/LEMPer/releases/latest/download/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0 --install --config ./lemper.env --minimal --yes
 ```
 
 Add `--dry-run` to inspect the plan; omit `--minimal` for the services selected

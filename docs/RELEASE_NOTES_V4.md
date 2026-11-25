@@ -18,17 +18,17 @@ fresh deployments; existing v3 servers require a backed-up migration plan.
 
 ## Install
 
-Install the CLI:
+Download the latest installer and install the v4.0.0 CLI:
 
 ```bash
-curl -fsSL https://github.com/joglomedia/LEMPer/releases/download/v4.0.0/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0
+curl -fsSL https://github.com/joglomedia/LEMPer/releases/latest/download/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0
 ```
 
 For a fresh minimal stack, prepare a private `lemper.env` profile with the server
 hostname/IP, administrator email and SSH public key, then run:
 
 ```bash
-curl -fsSL https://github.com/joglomedia/LEMPer/releases/download/v4.0.0/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0 --install --config ./lemper.env --minimal --yes
+curl -fsSL https://github.com/joglomedia/LEMPer/releases/latest/download/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0 --install --config ./lemper.env --minimal --yes
 ```
 
 See the [installation guide](https://github.com/joglomedia/LEMPer/blob/v4.0.0/docs/INSTALLATION.md)

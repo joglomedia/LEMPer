@@ -46,11 +46,11 @@ archive selection and retention options.
 
 ## Update an existing server
 
-Install only the pinned v4.0.0 CLI before updating packages:
+Download the latest installer and install the v4.0.0 CLI before updating packages:
 
 ```bash
 sudo lemperctl backup create
-curl -fsSL https://github.com/joglomedia/LEMPer/releases/download/v4.0.0/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0
+curl -fsSL https://github.com/joglomedia/LEMPer/releases/latest/download/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0
 sudo lemperctl update check
 sudo lemperctl update all --yes
 ```

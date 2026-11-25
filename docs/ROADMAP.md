@@ -1,11 +1,11 @@
 # LEMPer — Roadmap &amp; Improvement Plan
 
-> **Latest published version:** 3.6.0
-> **Last Updated:** 2026-11-24
-> **Verified candidate:** 9b3963e on the pushed `release/v4.0.0` branch
-> **Status:** v4.0 foundations, mail hosting and PHP/Laravel enhancements are
-> implemented but unreleased. A4 decomposition is delivered; deferred plans and release
-> production validation and publication remain; candidate CI passed 24/24 jobs.
+> **Latest published version:** [v4.0.0](https://github.com/joglomedia/LEMPer/releases/tag/v4.0.0)
+> **Last Updated:** 2026-11-25
+> **Released source:** 0155ed0; merged into the default `master` branch
+> **Status:** The original accepted scope, including A4 decomposition, is released.
+> Next implementation order: LMD malware/bot protection, optional Oracle MySQL,
+> optional OpenResty, then PHP source builds. These extensions are planned.
 > See [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md).
 >
 > v3.6.0 ships the TUI log viewer and site wizard, ModSecurity tuning, opt-in
@@ -22,10 +22,12 @@
 ## Current implementation and remaining work
 
 The [current delivery status](ROADMAP_AUDIT.md#current-delivery-and-release-status)
-reconciles all 48 numbered task IDs, Architecture §4 and README/developer plans.
+reconciles all 48 original numbered task IDs, Architecture §4 and README/developer plans.
 All accepted numbered capabilities are implemented or explicitly superseded. The
 [A4 implementation](ROADMAP_AUDIT.md#a4-module-decomposition-follow-through--2026-11-23)
-completes the remaining 2.12/2.37 extraction; release gates stay separate.
+completes the remaining 2.12/2.37 extraction and ships in v4.0.0. The
+[next implementation queue](#phase-10-post-v4-implementation-queue--planned)
+adds four extensions separately from that completed scope.
 
 | Priority area | Implementation |
 |---|---|
@@ -64,7 +66,8 @@ domain shortcuts (2.18). Diagnostics, certificate issuance, repository setup and
 Bun binary installation occupy service/runtime modules. A4 now also extracts
 older management/application/installer bodies, completing the accepted 2.12/2.37
 architecture scope. See [the implementation audit](ROADMAP_AUDIT.md#a4-module-decomposition-follow-through--2026-11-23)
-for source evidence, checks and limits. Release validation/publication gates remain.
+for source evidence, checks and limits. v4.0.0 is published; wider deployment
+validation remains separate from the next implementation queue.
 
 Current delivery status:
 
@@ -406,7 +409,7 @@ removal logic. When one is updated, the other is often missed.
 
 ---
 
-#### 2.12 Reorganize into Modular Directory Structure — Implemented (unreleased)
+#### 2.12 Reorganize into Modular Directory Structure — Released in v4.0.0
 
 **Current status:** Core/runtime/service/compatibility layers and installed
 exports are implemented. A4 extracts ordinary site rendering, framework setup,
@@ -899,7 +902,7 @@ The installer floor is now 8.2. Shipped templates are 8.2–8.5. `update php --m
 
 ---
 
-#### 2.37 Modular Directory Restructuring (Architecture — High) — **Implemented (unreleased)**
+#### 2.37 Modular Directory Restructuring (Architecture — High) — **Released in v4.0.0**
 
 **Status:** **Implemented.** A4 completes the service/runtime extraction described
 in 2.12. Named component-driver contracts connect standalone scripts, full-stack
@@ -1019,7 +1022,7 @@ CVE-2026-109618 / CVE-2026-109619 and keep the rest of the stack current.
 
 ---
 
-### Phase 9: Next Major (v4.0) — Accepted scope implemented; production checks and publication remain
+### Phase 9: Next Major (v4.0) — Released as v4.0.0
 
 GitHub issue [#92](https://github.com/joglomedia/LEMPer/issues/92) and
 [Architecture §4](ARCHITECTURE.md#4-target-architecture-v40-cli-alignment-implemented)
@@ -1053,12 +1056,123 @@ Bats/ShellCheck/Bashate, Fail2ban/CrowdSec, optional CBC encrypted configuration
 documentation, multi-distro CI and ACME helpers also exist.
 
 Accepted legacy extraction, public parser adoption and native nftables
-are implemented, along with managed data backups and monitoring. Public ACME and selected live migrations
-need further deployment validation. YAML is optional; AEAD is a separate
-encryption-format decision. See [ROADMAP_AUDIT.md](ROADMAP_AUDIT.md) for evidence.
-Further request-state/API cleanup is optional. Candidate 9b3963e CI, reproducible
-assets and exact-archive validation passed. Any subsequent commit requires its
-own asset build and CI review before publication.
+are implemented, along with managed data backups and monitoring. Public ACME,
+DNS, HTTP/3 and managed-mailbox delivery checks passed; full legacy storage
+migrations and selected application setup still need deployment validation.
+YAML is optional; AEAD is a separate encryption-format decision. See
+[ROADMAP_AUDIT.md](ROADMAP_AUDIT.md) and [production UAT](PRODUCTION_UAT.md) for
+evidence. Further request-state/API cleanup is optional. v4.0.0 assets are
+published; future releases require their own archive and CI verification.
+
+### Phase 10: Post-v4 implementation queue — Planned
+
+The following order is approved for the next implementation work. All four
+items are **unimplemented**; release versions will be assigned after validation.
+N1–N4 are new workstream IDs, separate from the 48 original roadmap task IDs.
+
+| Order | ID | Priority | Planned capability | Related issue |
+|---|---|---|---|---|
+| 1 | N1 | P1 | LMD malware scanning with existing bot-protection integration | [#19](https://github.com/joglomedia/LEMPer/issues/19), related antivirus request |
+| 2 | N2 | P2 | Optional Oracle MySQL backend; MariaDB stays the default | [#115](https://github.com/joglomedia/LEMPer/issues/115) |
+| 3 | N3 | P3 | Optional OpenResty backend with shared compatible Nginx configuration | [#93](https://github.com/joglomedia/LEMPer/issues/93) |
+| 4 | N4 | P3 | Advanced, opt-in PHP source builds for maintained PHP branches | [#95](https://github.com/joglomedia/LEMPer/issues/95), source-build portion only |
+
+#### N1 — LMD malware scanning and bot protection
+
+**Scope:** Add optional Linux Malware Detect (LMD/maldet) installation, removal,
+updates and `lemperctl` management for scoped scans, scheduling, status, reports,
+quarantine and restore. Start with scheduled/on-demand scans of validated managed
+site paths, bounded CPU/I/O use and private reports. Quarantine is opt-in and
+recoverable; scanning defaults to reporting. Evaluate native scanner dependencies
+and resource usage before choosing a supported lightweight profile. ClamAV is an
+optional engine for hosts with sufficient resources, rather than a requirement.
+
+Use existing CrowdSec, Fail2ban, Nginx rate limits and ModSecurity for bot/request
+protection; LMD supplies file scanning. Document how to enable the complementary
+controls without duplicate bans or silently changing their existing policies.
+Automatic blocking based on scan results and mail attachment scanning are separate
+follow-up decisions. Issue #19 remains an antivirus request; this plan does not
+claim its ClamAV-specific scope is delivered.
+
+**Acceptance:** Real disposable-host installation, scan and signature-update
+checks; clean-file and harmless detection fixtures; invalid/symlink/outside-root
+target rejection; protected reports; opt-in quarantine/restore; schedule
+idempotency; missing engine/network failure handling; dry-run and owned removal.
+Measure scan resource use on a small VPS. Verify existing bot controls and normal
+HTTP traffic remain functional.
+
+#### N2 — Optional Oracle MySQL backend
+
+**Scope:** Introduce an explicit Oracle MySQL backend using maintained, signed
+packages on verified supported platforms. Reuse the database lifecycle, account,
+site provisioning, backup/restore and update contracts with backend-specific
+drivers. MariaDB remains the default. Preserve legacy `mysql` component routing
+to MariaDB in [the registry](../lib/core/registry.sh); choose and document an
+unambiguous new selector before changing any public command/config contract.
+
+Detect conflicting packages, services and data directories before mutations.
+Do not perform automatic MariaDB replacement or reuse its data directory.
+Migration requires explicit logical export/import, authentication/SQL checks,
+backups and a recovery plan. Physical MariaDB backups remain backend-specific.
+
+**Acceptance:** Fresh install, repeat install, CLI lifecycle, PHP/application
+connectivity, protected account creation, logical backup/restore, update and
+owned removal for both backends. Test conflict rejection, existing data retention,
+authentication differences, legacy alias behavior and dry runs. Publish a verified
+distribution/architecture matrix without extending compatibility by assumption.
+
+#### N3 — Optional OpenResty backend
+
+**Scope:** Add a web-server backend adapter that owns OpenResty binary, service,
+prefix/config paths, package provenance and update/removal behavior. Keep the
+current Nginx default and reuse compatible vhost/includes and Unix-socket PHP
+handlers. Existing [Lua/LuaJIT source-module support](../lib/services/nginx/modules_build.sh)
+does not establish OpenResty lifecycle support.
+
+Check directive/module compatibility before activation. Define explicit behavior
+for ModSecurity, CrowdSec integration, Lua, TLS and HTTP/2/HTTP/3; reject unsupported
+selected features with an actionable message. Preserve existing sites and validate
+configuration before reload, with rollback for a failed activation. Do not promise
+identical configuration or module ABI across backends.
+
+**Acceptance:** Fresh/repeat installation, CLI lifecycle, static/PHP application
+serving, ACME renewal/deploy hooks, logging and bot/WAF checks using shared
+templates. Test incompatible directives/modules, package/port conflicts,
+configuration rollback, dry runs and owned removal. Document verified protocol
+and platform capabilities, including HTTP/3 availability.
+
+#### N4 — Advanced PHP source builds
+
+**Scope:** Keep maintained Sury/APT packages as the default and add an explicit
+source-build selection for currently supported PHP branches. Use trusted upstream
+sources and available integrity/signature verification, explicit build options,
+isolated versioned prefixes and FPM services. Integrate source inventory with
+runtime selection, per-user Unix sockets/pools, extensions, defaults, patch
+updates and removal. Never overwrite package-owned PHP binaries/configuration.
+
+Build updates into a new prefix, validate before activation and retain a recovery
+path. Document build dependencies, resource cost, extension compatibility and
+operator responsibility for security patches. Issue #95's old-distribution
+request does not authorize reviving EOL operating systems or PHP versions.
+
+**Acceptance:** Compile and serve PHP through an isolated FPM socket; verify
+required extensions and application connectivity, package/source coexistence,
+inventory/default-runtime selection, patch update and rollback. Cover checksum
+and build failures, invalid options, dry-run behavior, repeat installs and removal
+that retains unrelated runtimes/configuration. Validate supported platforms in
+disposable Linux fixtures before documenting support.
+
+#### Shared implementation contract
+
+Follow [module decomposition](MODULE_DECOMPOSITION.md#extending-the-implementation):
+Bash function-only service drivers, thin lifecycle/CLI adapters, registry and
+allowed-import/export wiring, shared locking and `lemper_exec` for mutations.
+Add matching public configuration/schema validation and full-stack/interactive
+entry-point selection where applicable; optional components stay disabled in
+the minimal profile. Preserve credentials, provisioning markers and existing
+configuration. Add focused behavior tests, Linux lint and real disposable UAT
+for each workstream, then update its user guide and audit status. Planning these
+items does not authorize changes to a production host.
 
 ---
 
@@ -1095,30 +1209,27 @@ own asset build and CI review before publication.
 | **v3.5.0** | Architecture debt        | NOPASSWD fix, credential suppression, safe config loader, sed/i portability, restricted sudoers, Debian 12 CI, bashate linting, ShellCheck v0.11.0 |
 | **v3.5.1** | PHP2Shell remediation    | Legacy `update.sh` bootstrap, `lemper update` plugin, EOL pool mitigations, apt version verification |
 | **v3.5.2** | PHP 8.5 support          | 8.5 FPM templates, 8.5 default, install/remove menus, nginx handlers and phpinfo endpoints |
-| **v3.6.0** | Current release          | TUI logs and site wizard, ModSecurity tuning, HTTP/3, CORS, resource profiles, MyGuard nginx, PHP 8.1 removed from defaults, EOL vhost migration (`--migrate-to`), Adminer 6.2.0, config backup, CrowdSec installer, FTP fixes |
-| **v4.0.0** | Unreleased candidate | Implemented issue #92 CLI, pinned bootstrap, unified/minimal lifecycle flows, core/runtime/service decomposition, schema, key-only SSH, release automation, mail hosting and PHP/Laravel enhancements; Restic data backups, native nftables and Monit monitoring; release follow-through in ROADMAP_AUDIT.md |
+| **v3.6.0** | Previous release          | TUI logs and site wizard, ModSecurity tuning, HTTP/3, CORS, resource profiles, MyGuard nginx, PHP 8.1 removed from defaults, EOL vhost migration (`--migrate-to`), Adminer 6.2.0, config backup, CrowdSec installer, FTP fixes |
+| **v4.0.0** | Published 2026-11-25 | Issue #92 CLI, pinned bootstrap, unified/minimal lifecycle flows, core/runtime/service decomposition, schema, key-only SSH, release automation, mail hosting and PHP/Laravel enhancements; Restic data backups, native nftables and Monit monitoring |
+| **Post-v4, version TBD** | Planned | N1 LMD/bot protection → N2 optional Oracle MySQL → N3 optional OpenResty → N4 PHP source builds; deliver incrementally after verification |
 
 
 ---
 
 ## 6. Next Steps
 
-Latest published release is **v3.6.0**. Delivery history below does not imply
-every original task's full scope is complete. The unreleased **v4.0** branch
-has delivered P1/P2/P3 foundations and prioritized runtime follow-through.
-The current audit records the installer, CI and app-capability follow-through;
-module decomposition is committed and verified by candidate CI.
+Latest published release is **v4.0.0**, released on 2026-11-25 and merged into
+the default `master` branch. The original accepted task scope is complete.
+Published artifact verification is recorded in [RELEASE_V4.md](RELEASE_V4.md),
+with remaining deployment limits in [PRODUCTION_UAT.md](PRODUCTION_UAT.md).
 
-A1/A2 are committed in 79d4d40; A3 and additional application deployment are
-committed in 87b75b3. Resolute/Sury support is committed in b17b7f7 and the
-documentation refresh in 21e27ab. A4 completes the four extraction boundaries
-in [the implementation follow-through](ROADMAP_AUDIT.md#a4-module-decomposition-follow-through--2026-11-23).
-For release preparation, rebuild assets from
-the final clean commit after required fixes, validate that archive and candidate
-CI, then tag/publish only when authorized. Keep deferred architecture/product
-scope explicit.
+Start with **N1: LMD malware scanning and complementary bot protection**,
+then implement N2, N3 and N4 in the order and scope defined in
+[Phase 10](#phase-10-post-v4-implementation-queue--planned). Other optional
+backlog and wider deployment checks remain separate in
+[the audit](ROADMAP_AUDIT.md#current-delivery-and-release-status).
 
-Delivery history and unreleased candidate:
+Delivery history:
 
 - **v3.0.0**: Architecture overhaul — `lemper-stacks.sh` orchestrator, validation functions,
 bats-core test suite (107 tests passing)
@@ -1139,11 +1250,11 @@ systemd-resolved ACME hooks, opt-in HTTP/3, per-site CORS, resource profiles
 and `nginx-lowend.conf`, SEC-20 … SEC-27, MyGuard nginx, PHP 8.1 removed
 from the default install, `update php --migrate-to`, Adminer 6.2.0, config
 backup, CrowdSec installer, and the Pure-FTPd / VSFTPD fixes
-- **v4.0.0 (unreleased)**: issue #92 CLI, shared core/schema and runtime/service
+- **v4.0.0 (released)**: issue #92 CLI, shared core/schema and runtime/service
 layers, key-only SSH, pinned bootstrap and unified/minimal stack flows, mail
 hosting and PHP/Laravel enhancements, expanded application deployments, native
-nftables and Resolute/Sury support. A4 decomposition is delivered; final release
-validation and optional extensions are detailed in ROADMAP_AUDIT.md.
+nftables and Resolute/Sury support. A4 decomposition is delivered; published
+verification and optional extensions are detailed in ROADMAP_AUDIT.md.
 
 ---
 

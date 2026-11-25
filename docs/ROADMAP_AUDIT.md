@@ -1,6 +1,9 @@
 # LEMPer roadmap implementation audit
 
-Date: **2026-11-24**. Verified candidate:
+Status updated: **2026-11-25**. Latest published release:
+[v4.0.0](https://github.com/joglomedia/LEMPer/releases/tag/v4.0.0), released from
+`0155ed0` and merged into default `master` at `d387ba4`.
+Historical verified candidate:
 **9b3963e34fa144bcf67d8aa69439675bddfb16ea**, pushed on `release/v4.0.0`.
 Architecture baseline **a39e5f9b85f5dd78956b4b458fb87b1e6d9ae2f9** completed A4;
 `d21b293` added archive enforcement and the Fail2ban journal fix. Candidate CI
@@ -9,11 +12,12 @@ The baseline audit inspected **21e27ab32fa18e16d576cc79228a386b307042a4** from a
 used **9b7511b383e6dbcb5cd3da2424b604016134c379** and
 began from a clean checkout. Earlier
 cross-checks and implementation validation are preserved below as history.
-Latest GitHub release checked: **v3.6.0**. v4.0.0 is not published.
+The current release and next implementation queue below supersede earlier
+unpublished-candidate statements. Dated verification entries remain history.
 
 This report supersedes the earlier 2026-11-20 audit; that snapshot remains in
 Git history. It compares all **48 unique numbered roadmap IDs**, Architecture
-§4, README plans, and developer-workflow proposals with current source and test
+§4, README plans, and developer-workflow proposals with their recorded source and test
 wiring. It identifies implementation gaps and release gates, rather than treating
 historical problem descriptions or old file layouts as current bugs.
 
@@ -23,11 +27,20 @@ This audit does not constitute a new security scan or upstream dependency audit.
 
 ## Current delivery and release status
 
-All **48 unique numbered IDs** have their implemented or explicitly superseded
+All **48 original numbered IDs** have their implemented or explicitly superseded
 accepted capability. **2.12/2.37 are complete**; optional API/state refinements
 do not reopen that decomposition scope.
 
-[Candidate CI](https://github.com/joglomedia/LEMPer/actions/runs/45318207064)
+[v4.0.0](https://github.com/joglomedia/LEMPer/releases/tag/v4.0.0) is published.
+The release-candidate run passed
+[25/25 jobs](https://github.com/joglomedia/LEMPer/actions/runs/45563665662), tagged
+publication passed [4/4 jobs](https://github.com/joglomedia/LEMPer/actions/runs/45565221605),
+and the master merge passed [25/25 jobs](https://github.com/joglomedia/LEMPer/actions/runs/45597478016).
+Published artifact/bootstrap acceptance is recorded in [RELEASE_V4.md](RELEASE_V4.md);
+public DNS/ACME, HTTP/3 and managed-mailbox delivery evidence and remaining
+deployment limits are in [PRODUCTION_UAT.md](PRODUCTION_UAT.md).
+
+Earlier [candidate CI](https://github.com/joglomedia/LEMPer/actions/runs/45318207064)
 passed **24/24 jobs**, **534 Bats tests**, sourced ShellCheck/Bashate and scoped
 formatting. Declared function-entry coverage is **86/94 (91.5%)**. Exact committed
 archive acceptance passed **13/13 on each of Ubuntu 24.04, Ubuntu 26.04 and
@@ -39,13 +52,26 @@ checksum-verified. [RELEASE_V4.md](RELEASE_V4.md#verified-candidate-9b3963e)
 records their hashes and exact scope. Public protocol/integration cases and their
 environment requirements are tracked in [PRODUCTION_UAT.md](PRODUCTION_UAT.md).
 
-| Suggested priority | Remaining work |
-|---|---|
-| P1 | Finish selected production UAT, record evidence, and review the final committed candidate's CI/assets after further changes. |
-| P1 | Set the release date and tag/publish v4.0.0 when authorized; verify the published downloads/checksums/one-line installer. |
-| P2, optional | Unattended setup for new application releases and licensed artifact import; managed physical MariaDB backup/restore. |
-| P2, format decision | Authenticated configuration encryption with compatible format/key migration. Current CBC/PBKDF2 remains implemented. |
-| P3, optional | Broader quota/resource backends, YAML profiles, a numeric PHP-default option and internal request-state cleanup. |
+### Next implementation queue — planned, unimplemented
+
+The user-approved order is below. Full scope, acceptance checks and shared Bash
+architecture requirements are in
+[Roadmap Phase 10](ROADMAP.md#phase-10-post-v4-implementation-queue--planned).
+N1–N4 extend the released scope; they do not reopen the 48 original task IDs.
+
+| Order / ID | Priority | Remaining implementation | Source boundary / related issue |
+|---|---|---|---|
+| 1 / N1 | P1 | Optional LMD/maldet scanning, schedules, private reports and opt-in quarantine/restore; integrate guidance and checks for existing bot controls | No LMD driver is registered. Reuse [security services](../lib/services/security/) and existing CrowdSec/Fail2ban/Nginx controls. [#19](https://github.com/joglomedia/LEMPer/issues/19) is related; optional ClamAV remains a resource/provider decision. |
+| 2 / N2 | P2 | Optional Oracle MySQL backend with protected DB operations and explicit logical migration | [Registry](../lib/core/registry.sh) currently maps `mysql` to MariaDB; [.env.dist](../.env.dist) selects `MYSQL_SERVER="mariadb"`. Preserve that compatibility, introduce explicit backend selection and reuse [DB runtime](../lib/runtime/database/commands.sh). [#115](https://github.com/joglomedia/LEMPer/issues/115). |
+| 3 / N3 | P3 | Optional OpenResty lifecycle/backend adapter and verified shared Nginx template compatibility | [Nginx modules](../lib/services/nginx/modules_build.sh) include Lua/LuaJIT, but no OpenResty component exists. Check paths, module ABI, WAF and protocol capabilities. [#93](https://github.com/joglomedia/LEMPer/issues/93). |
+| 4 / N4 | P3 | Opt-in source-built maintained PHP branches with isolated prefixes/FPM services, updates and rollback | [PHP lifecycle](../lib/services/php/lifecycle.sh) inventories APT packages; source builds need inventory/runtime integration while preserving the [Sury default](../lib/services/php/repository.sh). [#95](https://github.com/joglomedia/LEMPer/issues/95), source-build scope only; EOL platforms/PHP remain excluded. |
+
+Other optional backlog remains separate: full upstream application setup/licensed
+artifact import, physical MariaDB backups, authenticated configuration-encryption
+format migration, broader quota/resource backends, YAML profiles and request-state
+cleanup. Wider provider/platform UAT, monitoring alert delivery and full legacy
+storage migrations retain the boundaries in [PRODUCTION_UAT.md](PRODUCTION_UAT.md).
+The four planned extensions have no assigned release version or completed UAT.
 
 The dated sections below preserve delivery history. Their older counts, partial
 decomposition findings and missing-CI observations describe their named baselines;

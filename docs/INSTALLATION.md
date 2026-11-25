@@ -18,14 +18,15 @@ Nginx binary. Resolute uses native MariaDB 11.8 and Dovecot 2.4; see
 
 ## Install from a release
 
-The following commands target the pinned **v4.0.0** release. The earlier v3.6.0
-release does not contain these bootstrap assets. Full installation targets a
-fresh server; existing installations need a backed-up migration plan.
+The following commands download the latest installer and target **v4.0.0**.
+The earlier v3.6.0 release does not contain these bootstrap assets. Full
+installation targets a fresh server; existing installations need a backed-up
+migration plan.
 
 For CLI-only installation:
 
 ```bash
-curl -fsSL https://github.com/joglomedia/LEMPer/releases/download/v4.0.0/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0
+curl -fsSL https://github.com/joglomedia/LEMPer/releases/latest/download/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0
 ```
 
 The bootstrap verifies the versioned archive's SHA256, installs `lemperctl` and
@@ -54,7 +55,7 @@ a new login and deliberately retire them. See [firewall recovery](FIREWALL.md).
 Install the minimal profile:
 
 ```bash
-curl -fsSL https://github.com/joglomedia/LEMPer/releases/download/v4.0.0/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0 --install --config ./lemper.env --minimal --yes
+curl -fsSL https://github.com/joglomedia/LEMPer/releases/latest/download/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0 --install --config ./lemper.env --minimal --yes
 ```
 
 Add `--dry-run` to validate and inspect the plan before installation.
@@ -100,6 +101,11 @@ points. Legacy `lemper.sh install --with-...` flags remain supported; profiles
 are the preferred v4 interface.
 
 ## Release selection and configuration
+
+GitHub's `/releases/latest/download/get-lemper` URL follows the release marked
+Latest. It selects the installer download; `--version VERSION` still selects the
+LEMPer version to install and requires an explicit version. For a pinned installer,
+use `/releases/download/vVERSION/get-lemper` instead.
 
 `get-lemper --version VERSION` installs code under `/opt/lemper/VERSION` and
 activates it through `/opt/lemper/current`. Configuration remains under
