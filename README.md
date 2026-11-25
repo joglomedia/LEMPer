@@ -38,9 +38,10 @@ Linux Mint 21–22 retains its Ubuntu-base support. See
 [installation requirements](docs/INSTALLATION.md#requirements) and
 [Ubuntu 26.04 notes](docs/UBUNTU_26_04.md).
 
-**v4.0.0 is being prepared for release.** These download commands work after
-publication; use the [checkout guide](docs/INSTALLATION.md#install-from-a-checkout)
-for the current candidate.
+The commands below use the pinned **v4.0.0** release. See the
+[installation guide](docs/INSTALLATION.md) for profiles and checkout installation.
+Existing v3 servers need a backed-up migration plan; database/mail storage major
+upgrades are separate from CLI updates.
 
 Install only the CLI:
 

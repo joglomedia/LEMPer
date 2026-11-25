@@ -1,17 +1,33 @@
 # v4.0.0 release preparation
 
-Status checked 2026-11-25: v4.0.0 is unpublished; latest GitHub release is
-v3.6.0. The latest committed CI candidate is `905963f` on the pushed `release/v4.0.0`
-branch; the reproducible archive evidence below covers `d79e4ec`. Accepted module
-decomposition (2.12/2.37) is implemented. Candidate CI,
-reproducible assets and exact-archive acceptance passed; publication and the
-selected production checks below remain separate steps.
+Release date: **2026-11-25**. Publication is prepared from the validated runtime
+baseline `56e0d8593108f6a089d083f3f026fcfa2a2e58f7` on `release/v4.0.0`.
+Accepted module decomposition (2.12/2.37) is implemented. This release targets
+fresh installations; full legacy storage migration, selected application setup
+and external monitoring alerts remain additional UAT. Read the
+[release notes](RELEASE_NOTES_V4.md) before upgrading an existing server.
 
-[CI for 905963f](https://github.com/joglomedia/LEMPer/actions/runs/45473224896)
-passed **25/25 jobs**. The subsequent mail TLS reconciliation fix and updated UAT
-notes require a new committed candidate, archive build and CI before publication.
+[CI for 56e0d85](https://github.com/joglomedia/LEMPer/actions/runs/45559066353)
+passed **25/25 jobs**, including **13/13 exact-archive cases on each of Ubuntu
+24.04, Ubuntu 26.04 and Debian 12**. The full Bats suite passed **549/549**;
+scoped synthetic function-entry coverage was **86/94 (91.5%)**.
 
-## Verified runtime candidate d79e4ec
+Two Linux builds of that clean runtime baseline produced identical copies of
+all four assets and verified both checksum sets, under
+`dist/v4.0.0/56e0d85/{first,second}/` (ignored). Its archive SHA256 was
+`884a4f501d7831271ca6c04040641796dddb7362bf0aa84f392f2a4df7c6e8b3`;
+the bootstrap SHA256 was
+`775f1a528f5c6578e2f021368d45dec90f90f7bdf4c6c82938ad5fce3ed8e2b6`.
+These identify the baseline assets, rather than the later publication commit.
+
+Final release metadata changes alter the archive checksum. Review their exact
+commit's CI before creating the tag; the tag workflow repeats archive acceptance,
+lint and Bats, then publishes all four assets with the reviewed release notes.
+The release's attached checksums identify its published assets. Verify the
+downloaded bootstrap/archive and README one-line commands in fresh isolated
+containers after publication.
+
+## Historical verified runtime candidate d79e4ec
 
 [GitHub Actions run 45466706385](https://github.com/joglomedia/LEMPer/actions/runs/45466706385)
 passed **25/25 jobs** for commit
@@ -86,7 +102,8 @@ fresh candidate CI before publication.
 
 ## Remaining release steps
 
-1. Complete the selected production UAT cases and record their targets/results.
+1. Review fresh-install UAT and record remaining migration/application/alert
+   limits in the release notes.
 2. Commit the reviewed documentation/test changes, rebuild the resulting assets
    and review that exact commit's candidate CI.
 3. Set the changelog release date and create/push the annotated `v4.0.0` tag

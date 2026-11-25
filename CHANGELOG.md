@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [4.0.0] - Unreleased
+## [4.0.0] - 2026-11-25
 
 ### Added
 - Public DNS-01 and Internet-facing TLS/HTTP/3 UAT drivers with guarded
@@ -140,6 +140,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   release symlinks.
 
 ### Fixed
+- Mail reconciliation retains stronger outbound SMTP TLS policies, including
+  verified authenticated relays, and refuses unreadable or unsupported policies
+  before changing Postfix configuration.
 - CLI and TUI share an application capability catalog. Sendy and vanilla PHP
   reject unavailable skeleton installation before site changes;
   automatic paths verify application files before success and ownership recording.

@@ -13,6 +13,14 @@ install -d -m 0700 "$logs"
 # shellcheck source=tests/uat/helpers.bash
 . /run/lemper-uat/helpers.bash
 read -r checksum _ < "$archive.sha256"
+published="${LEMPER_UAT_PUBLISHED:-false}" bootstrap_checksum=""
+[[ "$published" == false || "$published" == true ]] || exit 2
+if [[ "$published" == true ]]; then
+    read -r bootstrap_checksum _ < "$(dirname "$archive")/get-lemper.sha256"
+    [[ "$bootstrap_checksum" =~ ^[a-fA-F0-9]{64}$ ]] || exit 2
+    profile=/checkout/lemper.env
+    install -m 0600 /checkout/.env "$profile"
+fi
 cases=0 failures=0 config_hash=""
 
 function uat_case() {
@@ -29,7 +37,18 @@ function uat_case() {
     fi
 }
 function bootstrap() {
-    bash /checkout/get-lemper --version 4.0.0 --archive "$archive" --sha256 "$checksum" "$@"
+    if [[ "$published" == true ]]; then
+        # Exercise the README download/command flow with bootstrap integrity
+        # verification before execution; the bootstrap downloads its archive.
+        (
+            cd /checkout || exit 1
+            curl -fsSL https://github.com/joglomedia/LEMPer/releases/download/v4.0.0/get-lemper -o get-lemper &&
+                printf '%s  get-lemper\n' "$bootstrap_checksum" | sha256sum -c --status &&
+                sudo bash get-lemper --version 4.0.0 "$@"
+        )
+    else
+        bash /checkout/get-lemper --version 4.0.0 --archive "$archive" --sha256 "$checksum" "$@"
+    fi
 }
 function invalid_profile() {
     local invalid rc=0

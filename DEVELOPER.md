@@ -1005,6 +1005,22 @@ LEMPer uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 6. Verify the published checksums and README one-line commands on a fresh
    disposable server before announcing the release.
 
+   The existing marked Podman/systemd fixture can repeat archive acceptance
+   against published downloads. Download all four release assets, verify both
+   checksum files, mount that directory read-only at `/artifacts`, and run
+   `tests/uat/prepare.sh` as usual. Then execute:
+
+   ```bash
+   podman exec -e LEMPER_UAT_PUBLISHED=true \
+     -e LEMPER_UAT_ARCHIVE=/artifacts/lemper-v4.0.0.tar.gz lemper-release-uat \
+     bash /source/tests/uat/v4_acceptance.sh
+   ```
+
+   This mode verifies the downloaded bootstrap before running the README command
+   flow, and downloads the archive through the public release URL. It performs
+   real install/repeat/remove checks; use a disposable fixture with its own
+   filesystem and service manager.
+
 ---
 
 ## 11. Useful Commands

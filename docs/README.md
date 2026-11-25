@@ -27,6 +27,7 @@ Start with the project [README](../README.md) for the overview and quick start.
 - [Architecture](ARCHITECTURE.md) and [architecture alignment](ARCHITECTURE_ALIGNMENT.md).
 - [Roadmap](ROADMAP.md) and [remaining-scope audit](ROADMAP_AUDIT.md).
 - [Release preparation](RELEASE_V4.md) and [changelog](../CHANGELOG.md).
+- [v4 release notes](RELEASE_NOTES_V4.md): highlights, installation and upgrade limits.
 - [Production UAT](PRODUCTION_UAT.md): protocol checks and external release targets.
 - [UAT report](UAT_REPORT.md) and [Bash script audit](BASH_SCRIPT_AUDIT.md).
 - [Brand assets](BRAND.md): SVG logos, icons, colors and usage guidance.

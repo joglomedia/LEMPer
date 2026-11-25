@@ -46,7 +46,7 @@ archive selection and retention options.
 
 ## Update an existing server
 
-When v4.0.0 is published, install only its CLI before updating packages:
+Install only the pinned v4.0.0 CLI before updating packages:
 
 ```bash
 sudo lemperctl backup create

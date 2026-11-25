@@ -18,9 +18,9 @@ Nginx binary. Resolute uses native MariaDB 11.8 and Dovecot 2.4; see
 
 ## Install from a release
 
-The following commands target **v4.0.0** and become available when it is
-published. The earlier v3.6.0 release does not contain these bootstrap assets.
-Until then, use a reviewed v4 checkout as described below.
+The following commands target the pinned **v4.0.0** release. The earlier v3.6.0
+release does not contain these bootstrap assets. Full installation targets a
+fresh server; existing installations need a backed-up migration plan.
 
 For CLI-only installation:
 
@@ -68,7 +68,7 @@ Omit `--minimal` to install the services selected in that file.
 
 ## Install from a checkout
 
-Once v4.0.0 is published, install its tagged checkout:
+Install the v4.0.0 tagged checkout:
 
 ```bash
 git clone https://github.com/joglomedia/LEMPer.git
@@ -80,7 +80,7 @@ ${EDITOR:-vi} .env
 sudo bash install.sh --config .env --minimal --yes
 ```
 
-For the unpublished candidate, use your existing reviewed local
+For development or pre-publication validation, use your reviewed local
 `release/v4.0.0` checkout, then follow the profile and installation steps above.
 The candidate branch must be available in your clone; the commands do not
 assume it has been published remotely. Review the checkout before running its

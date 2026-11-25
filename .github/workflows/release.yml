@@ -40,4 +40,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "${RELEASE_TAG}" --verify-tag --generate-notes "${RUNNER_TEMP}"/lemper-release/*
+          gh release create "${RELEASE_TAG}" --verify-tag --generate-notes \
+            --notes-file docs/RELEASE_NOTES_V4.md "${RUNNER_TEMP}"/lemper-release/*

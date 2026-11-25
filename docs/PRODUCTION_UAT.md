@@ -1,7 +1,7 @@
 # Production UAT for v4
 
-Runtime candidate: **d79e4ec7443e10d4845ab5fc8f2300070e4a78d5**, 2026-11-25.
-The [candidate CI](https://github.com/joglomedia/LEMPer/actions/runs/45466706385)
+Validated runtime baseline: **56e0d8593108f6a089d083f3f026fcfa2a2e58f7**, 2026-11-25.
+The [candidate CI](https://github.com/joglomedia/LEMPer/actions/runs/45559066353)
 passed all 25 jobs, including committed-archive acceptance, PHP/Laravel, mail,
 FTP, hosting quotas and priority lifecycle/TLS. The accepted 48 numbered tasks
 are implemented or superseded. This checklist covers selected deployment checks
