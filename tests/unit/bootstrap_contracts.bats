@@ -41,6 +41,46 @@ bootstrap_run() {
     [ "${status}" -eq 0 ]
     [ "$(cat "${PREFIX}/etc/lemper/lemper.conf")" = "EXISTING=keep-me" ]
 }
+
+@test "bootstrap checks installed files against the verified archive before reuse" {
+    make_archive
+    bootstrap_run
+    [ "$status" -eq 0 ]
+    local installed="$PREFIX/opt/lemper/$RELEASE_VERSION" current
+    current=$(readlink "$PREFIX/opt/lemper/current")
+    printf '\n# Changed fixture\n' >>"$installed/lib/core/registry.sh"
+    bootstrap_run
+    [ "$status" -ne 0 ]
+    [[ "$output" == *'files differ from the verified archive'* ]]
+    [ "$(readlink "$PREFIX/opt/lemper/current")" = "$current" ]
+}
+
+@test "installed source selection pins a protected direct release child" {
+    make_archive
+    bootstrap_run
+    [ "$status" -eq 0 ]
+    run bash -c '
+        . "$1/lib/core/security.sh"
+        lemper_installed_release "$2"
+    ' _ "$REAL_BASE_DIR" "$PREFIX/opt/lemper"
+    [ "$status" -eq 0 ]
+    [ "$output" = "$PREFIX/opt/lemper/$RELEASE_VERSION" ]
+    chmod g+w "$PREFIX/opt/lemper/$RELEASE_VERSION/lib/core/registry.sh"
+    run bash -c '
+        . "$1/lib/core/security.sh"
+        lemper_installed_release "$2"
+    ' _ "$REAL_BASE_DIR" "$PREFIX/opt/lemper"
+    [ "$status" -eq 1 ]
+    bootstrap_run
+    [ "$status" -ne 0 ]
+    [[ "$output" == *'Unsafe existing CLI release tree'* ]]
+    ln -sfn "$STAGE" "$PREFIX/opt/lemper/current"
+    run bash -c '
+        . "$1/lib/core/security.sh"
+        lemper_installed_release "$2"
+    ' _ "$REAL_BASE_DIR" "$PREFIX/opt/lemper"
+    [ "$status" -eq 1 ]
+}
 @test "bootstrap rejects an incorrect checksum before creating installation paths" {
     make_archive
     RELEASE_SHA=$(printf '0%.0s' {1..64})
@@ -48,6 +88,21 @@ bootstrap_run() {
     [ "${status}" -ne 0 ]
     [[ "${output}" == *"checksum mismatch"* ]]
     [ ! -e "${PREFIX}" ]
+}
+
+@test "bootstrap checks the checksum of its private archive copy" {
+    make_archive
+    run bash -c '
+        sha256sum() {
+            [[ "$1" != "$ARCHIVE" && -f "$1" ]] || return 88
+            command sha256sum "$@"
+        }
+        export -f sha256sum
+        exec bash "$REAL_BASE_DIR/get-lemper" --version "$RELEASE_VERSION" --archive "$ARCHIVE" \
+            --sha256 "$RELEASE_SHA" --prefix "$PREFIX"
+    '
+    [ "$status" -eq 0 ]
+    [ -L "$PREFIX/usr/local/bin/lemperctl" ]
 }
 
 @test "bootstrap CLI dry run validates the release without creating a prefix" {
@@ -129,6 +184,7 @@ bootstrap_run() {
 @test "CLI snapshots exclude checkout credentials and switch one code tree without changing old releases" {
     printf 'PRIVATE_SECRET=synthetic\n' > "$STAGE/.env"
     run bash -c '
+        . "$1/lib/core/security.sh"
         . "$1/lib/core/registry.sh"
         . "$1/lib/core/deployment.sh"
         error() { echo "$*" >&2; }
@@ -153,16 +209,19 @@ bootstrap_run() {
     make_archive
     bootstrap_run
     [ "$status" -eq 0 ]
-    local previous
+    local previous incomplete="$PREFIX/opt/lemper/9.9.9"
     previous=$(readlink "$PREFIX/opt/lemper/current")
-    rm "$STAGE/lib/lemper-stack.sh"
+    cp -a "$STAGE" "$incomplete"
+    rm "$incomplete/lib/lemper-stack.sh"
     run bash -c '
+        . "$1/lib/core/security.sh"
         . "$1/lib/core/registry.sh"
         . "$1/lib/core/deployment.sh"
         error() { echo "$*" >&2; }
         lemper_cli_activate "$2" "$3"
-    ' _ "$REAL_BASE_DIR" "$STAGE" "$PREFIX"
+    ' _ "$REAL_BASE_DIR" "$incomplete" "$PREFIX"
     [ "$status" -ne 0 ]
+    [[ "$output" == *'Missing command module: lemper-stack'* ]]
     [ "$(readlink "$PREFIX/opt/lemper/current")" = "$previous" ]
 }
 
@@ -178,4 +237,17 @@ bootstrap_run() {
     ' _ "$PREFIX"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Would create example.com"* ]]
+}
+
+@test "snapshot refuses external code links before switching the active release" {
+    ln -s "$TEST_TMPDIR/external" "$STAGE/lib/external.sh"
+    run bash -c '
+        . "$1/lib/core/security.sh"
+        . "$1/lib/core/registry.sh"
+        . "$1/lib/core/deployment.sh"
+        error() { echo "$*" >&2; }
+        lemper_cli_snapshot "$2" "$3"
+    ' _ "$REAL_BASE_DIR" "$STAGE" "$PREFIX"
+    [ "$status" -ne 0 ]
+    [ ! -e "$PREFIX/opt/lemper/current" ]
 }

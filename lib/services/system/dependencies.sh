@@ -54,6 +54,8 @@ function lemper_dependencies_install_entry() {
     echo "Installing required dependencies..."
     DISTRIB_NAME=${DISTRIB_NAME:-$(get_distrib_name)}
     RELEASE_NAME=${RELEASE_NAME:-$(get_release_name)}
+    lemper_load_module services/nginx/repository || return 1
+    prepare_existing_myguard_nginx_sources || return 1
     if [[ "${FIX_BROKEN_INSTALL}" == true ]]; then
         echo "Trying fix broken package install.."
         run apt-get clean

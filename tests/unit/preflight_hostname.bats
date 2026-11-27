@@ -3,7 +3,7 @@ load env_helper
 
 setup() {
     unit_setup
-    mkdir -p "$TEST_TMPDIR/build"
+    mkdir -m0700 "$TEST_TMPDIR/build"
 }
 
 # Fixed isolated child code. All host mutations and IP lookups are stubbed.
@@ -49,6 +49,36 @@ preflight_child='
     [ "$status" -eq 0 ]
     [ "$(cat "$TEST_TMPDIR/requested")" = 'hostname fixture.test' ]
     [ -f "$TEST_TMPDIR/hosts-updated" ]
+}
+
+@test "build cleanup is confined to a workspace the installer created" {
+    run bash -c '
+        . "$REAL_BASE_DIR/lib/core/loader.sh"
+        umask 077
+        mkdir -- "$TEST_TMPDIR/preexisting" || exit 1
+        DRYRUN=false
+        lemper_build_workspace "$TEST_TMPDIR/preexisting" || exit 1
+        lemper_remove_build_workspace "$TEST_TMPDIR/preexisting" || exit 1
+        [[ -d "$TEST_TMPDIR/preexisting" ]] || exit 1
+        lemper_build_workspace "$TEST_TMPDIR/managed" || exit 1
+        [[ "$(stat -c %a -- "$TEST_TMPDIR/managed")" == 700 ]] || exit 1
+        lemper_remove_build_workspace "$TEST_TMPDIR/managed" || exit 1
+        [[ ! -e "$TEST_TMPDIR/managed" ]]
+    '
+    [ "$status" -eq 0 ]
+}
+
+@test "build workspace rejects mutable directories and symlink paths" {
+    run bash -c '
+        . "$REAL_BASE_DIR/lib/core/loader.sh"
+        mkdir -m 0777 -- "$TEST_TMPDIR/mutable" || exit 1
+        ln -s -- "$TEST_TMPDIR" "$TEST_TMPDIR/link" || exit 1
+        ! lemper_build_workspace "$TEST_TMPDIR/mutable/child" &&
+            ! lemper_build_workspace "$TEST_TMPDIR/mutable" &&
+            ! lemper_build_workspace "$TEST_TMPDIR/link" &&
+            [[ ! -e "$TEST_TMPDIR/mutable/child" ]]
+    '
+    [ "$status" -eq 0 ]
 }
 
 @test "failed hostname change returns before persistent or hosts updates" {

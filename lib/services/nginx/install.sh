@@ -121,12 +121,13 @@ function init_nginx_install() {
     if [[ ${DO_INSTALL_NGINX} == y* && ${INSTALL_NGINX:-true} == true ]]; then
         case "${NGINX_INSTALL_METHOD}" in
             repo)
-                add_nginx_repo_myguard
+                add_nginx_repo_myguard || return 1
                 install_nginx_from_repo "${NGINX_REPO_SOURCE}"
                 ;;
 
             source)
                 # Build from source (function from nginx_build.sh)
+                lemper_build_workspace "$NGINX_BUILD_DIR" || return 1
                 build_nginx_from_source || return 1
                 ;;
 
@@ -139,7 +140,7 @@ function init_nginx_install() {
         generate_hostname_cert
 
         # Post-installation configuration
-        configure_nginx_post_install "${PWD}" "${HOSTNAME_CERT_PATH:-}"
+        configure_nginx_post_install "${PWD}" "${HOSTNAME_CERT_PATH:-}" || return 1
 
         # Remember that LEMPer installed Nginx so uninstall does not remove
         # a server that was already present beforehand.

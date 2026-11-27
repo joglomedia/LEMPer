@@ -19,39 +19,78 @@
 # Enable fail2ban for virtual host.
 ##
 function enable_fail2ban() {
-    # Verify user input hostname (domain name)
-    local DOMAIN=${1}
-    verify_vhost "${DOMAIN}"
+    local DOMAIN="${1:-}" framework
+    verify_vhost "${DOMAIN}" || return 1
+    framework=$(awk '
+        $1 == "include" && $2 ~ /^\/etc\/nginx\/vhost\/site_[a-z0-9_-]+\.conf;$/ {
+            sub(/^.*\/site_/, "", $2); sub(/\.conf;$/, "", $2); print $2; exit
+        }' "/etc/nginx/sites-available/${DOMAIN}.conf") || return 1
+    lemper_nginx_fail2ban_enable "$DOMAIN" "$framework" 7d
+}
 
-    echo "Enabling Fail2ban ${FRAMEWORK^} filter for ${DOMAIN}..."
+function lemper_nginx_fail2ban_enable() {
+    local domain="$1" filter="$2" bantime="$3"
+    local logs=/var/log/nginx jails=/etc/fail2ban/jail.d owner mode stage previous=false log jail
+    is_valid_domain "$domain" || return 1
+    case "$filter" in wordpress-*) filter=wordpress ;; esac
+    [[ "$filter" =~ ^[a-z0-9_-]+$ && "$bantime" =~ ^[0-9]+d$ ]] || {
+        error "This site has no supported Fail2ban filter."
+        return 1
+    }
+    [[ "${DRYRUN:-false}" != true ]] || { info "Would enable Fail2ban for $domain."; return 0; }
+    command -v fail2ban-client >/dev/null && [[ -f "/etc/fail2ban/filter.d/$filter.conf" ]] || {
+        error "Install Fail2ban and the $filter filter before enabling the jail."
+        return 1
+    }
+    log="$logs/$domain.access.log"
+    jail="$jails/$domain.conf"
 
-    # Get web root path from vhost config, first.
-    local WEBROOT \
-        && WEBROOT=$(grep -wE "set\ \\\$root_path" "/etc/nginx/sites-available/${DOMAIN}.conf" | awk '{print $3}' | cut -d'"' -f2)
-
-    if [[ ! -d ${WEBROOT} ]]; then
-        read -rp "Enter real path to website root directory containing your access_log file: " -i "${WEBROOT}" -e WEBROOT
+    if ! lemper_directory_trusted "$logs" || [[ ! -f "$log" || -L "$log" ]] ||
+        ! read -r owner mode < <(stat -c '%U %a' -- "$log") ||
+        [[ "$owner" != root && "$owner" != www-data ]] || (( (8#$mode & 0022) != 0 )) ||
+        ! awk -v wanted="$log" '
+            $1 == "access_log" { sub(/;$/, "", $2); if ($2 == wanted) found = 1 }
+            END { exit !found }' "/etc/nginx/sites-available/$domain.conf"; then
+        error "Activate the site's managed Nginx access log before enabling Fail2ban."
+        return 1
     fi
-
-    if [[ $(command -v fail2ban-client) && -f "/etc/fail2ban/filter.d/${FRAMEWORK}.conf" ]]; then
-        cat >"/etc/fail2ban/jail.d/${DOMAIN}.conf" <<EOL
-[${1}]
+    lemper_directory_trusted "$jails" && [[ -d "$jails" && ! -L "$jail" ]] || return 1
+    stage=$(mktemp -d "$jails/.lemper-jail.XXXXXXXX") || return 1
+    if [[ -e "$jail" ]]; then
+        if [[ ! -f "$jail" ]] || ! cp -p -- "$jail" "$stage/previous"; then
+            rm -rf -- "$stage"
+            return 1
+        fi
+        previous=true
+    fi
+    if ! cat >"$stage/new" <<EOL
+[$domain]
 enabled = true
 port = http,https
-filter = ${FRAMEWORK}
+filter = $filter
 action = iptables-multiport[name=webapps, port="http,https", protocol=tcp]
-logpath = ${WEBROOT}/logs/nginx/access_log
-bantime = 7d
+logpath = $log
+bantime = $bantime
 findtime = 5m
 maxretry = 3
 EOL
-
-        # Reload fail2ban
-        run service fail2ban reload
-        success "Fail2ban ${FRAMEWORK^} filter for ${DOMAIN} enabled."
-    else
-        info "Fail2ban or framework's filter is not installed. Please install it first!"
+    then
+        rm -rf -- "$stage"
+        return 1
     fi
+    if ! chmod 0644 "$stage/new" || ! mv -T -- "$stage/new" "$jail"; then
+        rm -rf -- "$stage"
+        return 1
+    fi
+    if ! lemper_exec service fail2ban reload; then
+        if [[ "$previous" == true ]]; then mv -T -- "$stage/previous" "$jail" || return 1
+        else rm -f -- "$jail" || return 1; fi
+        rm -rf -- "$stage"
+        error "Could not activate Fail2ban for $domain. The previous jail configuration was restored."
+        return 1
+    fi
+    rm -rf -- "$stage"
+    success "Fail2ban ${filter^} filter for $domain enabled."
 }
 
 ##
@@ -60,16 +99,16 @@ EOL
 function disable_fail2ban() {
     # Verify user input hostname (domain name)
     local DOMAIN=${1}
-    verify_vhost "${DOMAIN}"
+    verify_vhost "${DOMAIN}" || return 1
 
-    echo "Disabling Fail2ban ${FRAMEWORK^} filter for ${DOMAIN}..."
+    echo "Disabling the Fail2ban jail for ${DOMAIN}..."
 
     if [[ $(command -v fail2ban-client) && -f "/etc/fail2ban/jail.d/${DOMAIN}.conf" ]]; then
         run rm -f "/etc/fail2ban/jail.d/${DOMAIN}.conf"
-        run service fail2ban reload
-        success "Fail2ban ${FRAMEWORK^} filter for ${DOMAIN} disabled."
+        run service fail2ban reload || return 1
+        success "Fail2ban jail for ${DOMAIN} disabled."
     else
-        info "Fail2ban or framework's filter is not installed. Please install it first!"
+        info "Fail2ban or the site's jail is not installed."
     fi
 }
 

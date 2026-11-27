@@ -189,7 +189,7 @@ function wordpress_purge() {
     [[ "$(sql "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name='$database';")" == 0 ]]
 }
 uat_case config_schema lemperctl config check
-uat_case provisioned_services assert_active nginx php8.5-fpm mariadb postgresql memcached valkey-server pure-ftpd fail2ban
+uat_case provisioned_services assert_active nginx php8.5-fpm mariadb postgresql memcached@memcache memcached@www-data valkey-server pure-ftpd fail2ban
 uat_case database_authentication sql 'SELECT 1;'
 uat_case wordpress_http wordpress_http
 uat_case php_84_install lemperctl stack install php --php-version 8.4

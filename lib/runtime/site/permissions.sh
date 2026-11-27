@@ -21,7 +21,7 @@
 function fixpermission_show_usage() {
     cat <<-EOL
 ${CMD_PARENT} ${CMD_NAME} ${PROG_VERSION}
-Recursively set directories to 755 and files to 644.
+Recursively set directories to 755 and ordinary files to 644. Keep WordPress and dotenv credentials private.
 
 Usage:
   ${CMD_PARENT} ${CMD_NAME} <directory>
@@ -30,7 +30,7 @@ Options:
   -h, --help     Print this message and exit.
   -v, --version  Output version information and exit.
 
-System directories (/etc, /usr, /var, ...) are refused.
+Choose a dedicated site directory owned by its non-root runtime user.
 EOL
 }
 

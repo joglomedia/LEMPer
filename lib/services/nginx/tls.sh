@@ -66,6 +66,7 @@ function generate_selfsigned_cert() {
     local SERVER_IP="${2:-$(get_ip)}"
     local KEY_HASH_LENGTH="${KEY_HASH_LENGTH:-4096}"
 
+    core_is_valid_ipv4 "$SERVER_IP" || { error "Invalid certificate IPv4 address."; return 1; }
     echo "Generating self-signed certificate for ${DOMAIN}..."
 
     # Ensure SSL directory exists

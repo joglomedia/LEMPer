@@ -1,0 +1,23 @@
+[Unit]
+Description=LEMPer authenticated mail submission author policy
+Before=postfix.service
+
+[Service]
+User=lemper-mail-author
+Group=postfix
+RuntimeDirectory=lemper-mail-author
+RuntimeDirectoryMode=0700
+ExecStart=/usr/bin/rspamd -f -c @ROOT@/submission-author.conf
+ExecStartPost=/bin/bash -c 'for ((attempt=0; attempt<50; attempt++)); do [[ ! -S /var/spool/postfix/lemper-mail-author/filter.sock ]] || exit 0; sleep .1; done; exit 1'
+ExecStopPost=/bin/rm -f /var/spool/postfix/lemper-mail-author/filter.sock
+Restart=on-failure
+NoNewPrivileges=true
+PrivateNetwork=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/spool/postfix/lemper-mail-author
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

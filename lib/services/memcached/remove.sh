@@ -16,6 +16,22 @@
 # +-------------------------------------------------------------------------+
 
 function init_memcached_removal() {
+    if [[ -f /etc/systemd/system/memcached@memcache.service.d/10-lemper-endpoints.conf ]]; then
+        lemper_exec systemctl disable --now memcached@memcache.service memcached@www-data.service || return 1
+        lemper_exec rm -f /etc/systemd/system/memcached@{memcache,www-data}.service.d/10-lemper-endpoints.conf || return 1
+        if [[ -f /etc/systemd/system/memcached@.service ]] &&
+            grep -Fq 'installed using LEMPer Stack' /etc/systemd/system/memcached@.service; then
+            lemper_exec rm -f /etc/systemd/system/memcached@.service || return 1
+        fi
+        if [[ "$(dpkg-query -W -f='${Status}' memcached 2>/dev/null)" == 'install ok installed' ]]; then
+            lemper_exec apt-get remove -q -y memcached || return 1
+        elif [[ -x /usr/bin/memcached ]]; then
+            lemper_exec rm -f /usr/bin/memcached || return 1
+        fi
+        lemper_exec systemctl daemon-reload || return 1
+        success "Managed Memcached instances removed; endpoint backups and cache configuration retained."
+        return 0
+    fi
     # Stop Memcached server process.
     if [[ $(pgrep -c memcached) -gt 0 ]]; then
         echo "Stopping memcached..."

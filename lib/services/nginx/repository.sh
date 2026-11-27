@@ -296,53 +296,23 @@ EOF
 ##
 # True when the keyring file matches the published MyGuard fingerprint.
 ##
-function myguard_nginx_key_fingerprint() {
-    local key="${1}" fp=""
-    # The published file is a raw OpenPGP certificate, not a keybox.
-    fp=$(gpg --batch --with-colons --show-keys "${key}" 2>/dev/null | awk -F: '/^fpr:/ {print $10; exit}' || true)
-    if [[ -z "${fp}" ]]; then
-        fp=$(gpg --batch --with-colons --import-options show-only --import "${key}" 2>/dev/null | awk -F: '/^fpr:/ {print $10; exit}' || true)
-    fi
-    printf '%s\n' "${fp}"
-}
-
-function myguard_nginx_key_ok() {
-    local key="${1}" fp=""
-    [[ -s "${key}" ]] || return 1
-    if ! command -v gpg >/dev/null 2>&1; then
-        warning "gpg is not installed; the MyGuard key fingerprint was not checked."
-        return 0
-    fi
-    fp=$(myguard_nginx_key_fingerprint "${key}")
-    [[ "${fp}" == "${MYGUARD_NGINX_KEY_FPR}" ]]
-}
-
-##
-# Install the scoped MyGuard signing key.
-##
 function ensure_myguard_nginx_key() {
     local root="${LEMPER_APT_ROOT:-/etc/apt}"
     local key="${root}/keyrings/deb.myguard.nl.gpg"
-    local tmp=""
-    if [[ -s "${key}" ]] && myguard_nginx_key_ok "${key}"; then
+    local fingerprint=D18B8E5ADF7D55CE2A00D58167F9C3D8456D7F62
+    lemper_load_module services/apt/repositories || return 1
+    if [[ "${DRYRUN:-false}" != true ]] && lemper_apt_key_matches "$key" "$fingerprint"; then
         return 0
     fi
-    if ! install -d -m 0755 "${root}/keyrings"; then
-        mkdir -p "${root}/keyrings" || return 1
-    fi
-    tmp=$(mktemp "${TMPDIR:-/tmp}/lemper-myguard-key.XXXXXX") || return 1
-    if ! curl -fsSL --retry 3 --retry-delay 2 -o "${tmp}" "${MYGUARD_NGINX_KEY_URL}"; then
-        rm -f "${tmp}"
-        error "Failed to download the MyGuard signing key."
-        return 1
-    fi
-    if ! myguard_nginx_key_ok "${tmp}"; then
-        rm -f "${tmp}"
-        error "MyGuard signing key fingerprint does not match ${MYGUARD_NGINX_KEY_FPR}."
-        return 1
-    fi
-    mv "${tmp}" "${key}" || return 1
-    chmod 0644 "${key}" || true
+    lemper_apt_install_key https://deb.myguard.nl/deb.myguard.nl.gpg "$key" "$fingerprint"
+}
+
+# An active source can remain on a host after Nginx is switched to a source build.
+function prepare_existing_myguard_nginx_sources() {
+    local key="${LEMPER_APT_ROOT:-/etc/apt}/keyrings/deb.myguard.nl.gpg"
+    lemper_load_module services/apt/repositories || return 1
+    if ! lemper_apt_has_source myguard; then return 0; fi
+    ensure_myguard_nginx_key && lemper_apt_scope_sources myguard "$key"
 }
 
 ##
@@ -360,15 +330,16 @@ function ensure_myguard_nginx_repo() {
         return 1
     fi
     ensure_myguard_nginx_key || return 1
+    lemper_apt_scope_sources myguard "$root/keyrings/deb.myguard.nl.gpg" || return 1
     line=$(myguard_nginx_source_line) || return 1
-    mkdir -p "${root}/sources.list.d" "${root}/preferences.d" || return 1
+    lemper_exec mkdir -p "${root}/sources.list.d" "${root}/preferences.d" || return 1
     list="${root}/sources.list.d/myguard-nginx-${codename}.list"
     pin="${root}/preferences.d/myguard-nginx-${codename}.pref"
-    if [[ ! -f "${list}" ]] || ! grep -qF "https://deb.myguard.nl/apt/nginx/${codename}" "${list}"; then
-        printf '%s\n' "${line}" >"${list}" || return 1
+    if [[ ! -f "${list}" ]] || ! lemper_apt_file_has_source "$list" myguard; then
+        lemper_apt_write_source "$list" "$line" || return 1
         info "Enabled MyGuard nginx repository: ${list}"
     fi
-    myguard_nginx_pin_text >"${pin}" || return 1
+    lemper_apt_write_source "$pin" "$(myguard_nginx_pin_text)"
 }
 
 ##
@@ -379,6 +350,7 @@ function refresh_stack_apt() {
         error "Could not disable the retired Ondřej nginx repository."
         return 1
     fi
+    prepare_existing_myguard_nginx_sources || return 1
     refresh_php_apt_source || return 1
     apt-get update -q
 }
@@ -410,6 +382,8 @@ function refresh_nginx_apt() {
             error "Could not enable the MyGuard nginx repository."
             return 1
         fi
+    else
+        prepare_existing_myguard_nginx_sources || return 1
     fi
     refresh_php_apt_source || return 1
     if ! apt-get update -q; then

@@ -36,19 +36,7 @@ function lemper_site_required_packages() {
 # Get server IP Address.
 #
 function get_ip_addr() {
-    local SERVER_IP_PRIVATE \
-        && SERVER_IP_PRIVATE=$(ip addr | grep 'inet' | grep -v inet6 \
-            | grep -vE '127\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' \
-            | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | head -1)
-    local SERVER_IP_PUBLIC \
-        && SERVER_IP_PUBLIC=$(curl -s http://ipecho.net/plain)
-
-    # Ugly hack to detect aws-lightsail public IP address.
-    if [[ "${SERVER_IP_PRIVATE}" == "${SERVER_IP_PUBLIC}" ]]; then
-        echo "${SERVER_IP_PRIVATE}"
-    else
-        echo "${SERVER_IP_PUBLIC}"
-    fi
+    core_get_ip
 }
 
 ##
@@ -98,7 +86,39 @@ function add_local_domain() {
     fi
 }
 
-function lemper_site_provision() {
+function lemper_site_activate_vhost() {
+    local staged="$1" available="$2" enabled="$3" start_attempted=false
+    if [[ -e "$available" || -L "$available" || -e "$enabled" || -L "$enabled" ]]; then
+        error "A configuration or selection already exists for this virtual host."
+        return 1
+    fi
+    # Publish without replacing a path that appeared after the initial check.
+    lemper_exec mv -Tn -- "$staged" "$available" && [[ ! -e "$staged" ]] || return 1
+    if ! lemper_exec ln -sT -- "$available" "$enabled"; then
+        lemper_exec rm -f -- "$available" || error "Unable to remove new configuration at $available."
+        return 1
+    fi
+    if nginx -t; then
+        start_attempted=true
+        if lemper_exec systemctl reload-or-restart nginx; then
+            return 0
+        fi
+    fi
+    if lemper_exec rm -f -- "$enabled" "$available"; then
+        error "Nginx rejected the new virtual host. Its configuration was removed."
+        if [[ "$start_attempted" == true ]]; then
+            if ! nginx -t || ! lemper_exec systemctl reload-or-restart nginx; then
+                error "Unable to reload the previous Nginx configuration."
+            fi
+        fi
+    else
+        error "Unable to remove the new virtual host configuration after activation failed."
+    fi
+    return 1
+}
+
+function lemper_site_provision() (
+    local available enabled VHOST_FILE
     [[ -n "$FRAMEWORK" ]] || FRAMEWORK=default
     lemper_load_module services/site/applications || return 1
     lemper_site_application_validate_request "$FRAMEWORK" "$INSTALL_APP" || return 1
@@ -150,16 +170,18 @@ function lemper_site_provision() {
             fi
         fi
 
-        # Make temp dir.
-        if [[ ! -d "${TMPDIR}" ]]; then
-            run mkdir -p "${TMPDIR}"
-        fi
+        available="/etc/nginx/sites-available/${SERVERNAME}.conf"
+        enabled="/etc/nginx/sites-enabled/${SERVERNAME}.conf"
 
-        # Define vhost file.
-        VHOST_FILE="/etc/nginx/sites-available/${SERVERNAME}.conf"
-
-        # Check if vhost not exists.
-        if [[ ! -f "${VHOST_FILE}" ]]; then
+        # A dangling selection is still administrator-managed state.
+        if [[ ! -e "$available" && ! -L "$available" && ! -e "$enabled" && ! -L "$enabled" ]]; then
+            if [[ "${DRYRUN:-false}" == true ]]; then
+                info "Would configure $FRAMEWORK vhost for $SERVERNAME."
+                return 0
+            fi
+            lemper_build_workspace "$TMPDIR" || return 1
+            VHOST_FILE=$(mktemp -- "$available.XXXXXXXX") || return 1
+            trap 'rm -f -- "$VHOST_FILE"' EXIT
             echo "Adding domain ${SERVERNAME} to the Nginx virtual host configuration."
 
             # Check for username.
@@ -195,13 +217,10 @@ function lemper_site_provision() {
 
                     # Create default directories & log files.
                     create_php_temp_dirs "${USERNAME}" \
-                        && run mkdir -p "/home/${USERNAME}/cgi-bin" \
-                        && run mkdir -p "/home/${USERNAME}/logs/php" \
-                        && run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_slow.log" \
-                        && run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-fpm_error.log" \
-                        && run touch "/home/${USERNAME}/logs/php/php${PHP_VERSION}-opcache_error.log" \
-                        && run chmod 755 "/home/${USERNAME}" \
-                        && run chown -hR "${USERNAME}:${USERNAME}" "/home/${USERNAME}/cgi-bin" "/home/${USERNAME}/logs"
+                        && run runuser -u "$USERNAME" -- mkdir -p -- "/home/$USERNAME/cgi-bin" "/home/$USERNAME/logs/php" \
+                        && run runuser -u "$USERNAME" -- touch -- "/home/$USERNAME/logs/php/php$PHP_VERSION-fpm_slow.log" \
+                            "/home/$USERNAME/logs/php/php$PHP_VERSION-fpm_error.log" "/home/$USERNAME/logs/php/php$PHP_VERSION-opcache_error.log" \
+                        && run runuser -u "$USERNAME" -- chmod 0755 -- "/home/$USERNAME" || return 1
 
                     # Restart PHP FPM.
                     echo "Restarting php${PHP_VERSION}-fpm configuration..."
@@ -218,14 +237,12 @@ function lemper_site_provision() {
                 info "Web root path parameter is empty. Using default path: '${WEBROOT}'."
             fi
 
-            # Creates document root.
-            if [[ ! -d "${WEBROOT}" ]]; then
-                echo "Creating web root directory: '${WEBROOT}'."
-
-                run mkdir -p "${WEBROOT}" \
-                    && run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}" \
-                    && run chmod 755 "${WEBROOT}"
-            fi
+            WEBROOT=$(realpath -ms -- "$WEBROOT") || return 1
+            lemper_load_module services/accounts/permissions || return 1
+            lemper_site_prepare_directory "$WEBROOT" "$USERNAME" 0755 || {
+                error "The site directory must be owned by its runtime account."
+                return 1
+            }
 
             # Set default application credential data.
             APP_UID="$(openssl rand -base64 32 | tr -dc 'a-z0-9' | fold -w 6 | head -n 1)"
@@ -268,14 +285,10 @@ function lemper_site_provision() {
                 echo "Creating .well-known directory (RFC8615)..."
 
                 if [[ -d "${WEBROOT}/public" ]]; then
-                    run mkdir -p "${WEBROOT}/public/.well-known/acme-challenge"
+                    run runuser -u "$USERNAME" -- mkdir -p -- "${WEBROOT}/public/.well-known/acme-challenge" || return 1
                 else
-                    run mkdir -p "${WEBROOT}/.well-known/acme-challenge"
+                    run runuser -u "$USERNAME" -- mkdir -p -- "${WEBROOT}/.well-known/acme-challenge" || return 1
                 fi
-
-                # Create log files.
-                run touch "${WEBROOT}/access_log"
-                run touch "${WEBROOT}/error_log"
 
                 # Assign IPv4 to server vhost.
                 if [[ $(validate_ipv4 "${IPv4}") == true ]]; then
@@ -324,41 +337,12 @@ function lemper_site_provision() {
                     fi
                 fi
 
-                # Enable fail2ban filter
-                if [[ "${ENABLE_FAIL2BAN}" == true ]]; then
-                    echo "Enable Fail2ban ${FRAMEWORK^} filter for ${SERVERNAME}..."
-
-                    if [[ $(command -v fail2ban-client) && -f "/etc/fail2ban/filter.d/${FRAMEWORK}.conf" ]]; then
-                        cat >"/etc/fail2ban/jail.d/${SERVERNAME}.conf" <<EOL
-[${SERVERNAME}]
-enabled = true
-port = http,https
-filter = ${FRAMEWORK}
-action = iptables-multiport[name=webapps, port="http,https", protocol=tcp]
-logpath = ${WEBROOT}/access_log
-bantime = 30d
-findtime = 5m
-maxretry = 3
-EOL
-
-                        # Reload fail2ban
-                        run service fail2ban reload
-                    else
-                        info "Fail2ban or filter is not installed. Please install it first."
-                    fi
-                fi
-
-                # Fix document root ownership.
-                echo "Fix file ownership and permissions..."
-                run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
-
                 # Fix document root permission.
                 if lemper_site_application_uses_release "$requested_type" || [[ "$requested_type" == xenforo ]]; then
                     lemper_load_module services/site/releases || return 1
                     lemper_site_release_permissions "$requested_type" "$project_root" "$USERNAME" || return 1
-                elif [[ $(ls -A "${WEBROOT}") ]]; then
-                    run find "${WEBROOT}" -type d -print0 | xargs -0 chmod 755
-                    run find "${WEBROOT}" -type f -print0 | xargs -0 chmod 644
+                else
+                    fixpermission "$WEBROOT" "$USERNAME" || return 1
                 fi
             else
                 info "New domain ${SERVERNAME} added in dry run mode."
@@ -366,25 +350,17 @@ EOL
 
             echo "Enable the ${SERVERNAME} virtual host."
 
-            # Enable site.
-            if [[ ! -f "/etc/nginx/sites-enabled/${SERVERNAME}.conf" ]]; then
-                run ln -s "/etc/nginx/sites-available/${SERVERNAME}.conf" \
-                    "/etc/nginx/sites-enabled/${SERVERNAME}.conf"
-            fi
+            lemper_site_activate_vhost "$VHOST_FILE" "$available" "$enabled" || return 1
+            echo "Nginx server reloaded with the new configuration."
 
-            # Reload Nginx
-            echo "Reloading Nginx server configuration..."
-
-            # Validate config, reload when validated.
-            if nginx -t 2>/dev/null >/dev/null; then
-                run systemctl restart nginx
-                echo "Nginx server reloaded with the new configuration."
-            else
-                info "Something went wrong with the Nginx configuration."
-            fi
-
-            if [[ -f "/etc/nginx/sites-enabled/${SERVERNAME}.conf" && -e /var/run/nginx.pid ]]; then
+            if [[ -f "$enabled" ]]; then
                 success "Your ${SERVERNAME} was successfully added to the Nginx virtual host."
+
+                if [[ "${ENABLE_FAIL2BAN}" == true && "${DRYRUN}" != true ]]; then
+                    if ! lemper_load_module services/nginx/protection || ! lemper_nginx_fail2ban_enable "$SERVERNAME" "$FRAMEWORK" 30d; then
+                        warning "Site created without the requested Fail2ban jail. Retry with lemperctl site update --enable-fail2ban $SERVERNAME."
+                    fi
+                fi
 
                 # Enable HTTPS.
                 APP_HTTP_PROTO="http"
@@ -399,7 +375,7 @@ EOL
 
                 # WordPress MS notice.
                 if [[ "${FRAMEWORK}" == "wordpress-ms" ]]; then
-                    info -e "\nYou're installing Wordpress Multisite.\nYou should activate the Nginx Helper plugin for it to work properly."
+                    info "For legacy WordPress Multisite media routing, maintain the root-owned map in /etc/nginx/wpms/${SERVERNAME}/."
                 fi
 
                 # Save app installation details.
@@ -435,10 +411,11 @@ EOL
                 fi
             fi
         else
-            error "The virtual host config file for ${SERVERNAME} already exists. Aborting..."
+            error "A configuration or selection already exists for $SERVERNAME."
+            return 1
         fi
     else
         echo "${CMD_PARENT} ${CMD_NAME}: missing required arguments."
         echo "See '${CMD_PARENT} ${CMD_NAME} --help' for more information."
     fi
-}
+)

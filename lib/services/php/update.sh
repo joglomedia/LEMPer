@@ -54,8 +54,8 @@ function php_installed_branches() {
             done
         fi
 
-        dpkg-query -W -f='${Package}\n' 'php*-fpm' 2>/dev/null \
-            | sed -n 's/^php\([0-9][0-9]*\.[0-9][0-9]*\)-fpm$/\1/p' || true
+        dpkg-query -W -f='${Package}\t${db:Status-Status}\n' 'php*-fpm' 2>/dev/null \
+            | sed -n 's/^php\([0-9][0-9]*\.[0-9][0-9]*\)-fpm[[:space:]]\+installed$/\1/p' || true
     } | sort -Vu
 }
 
@@ -64,17 +64,51 @@ function php_installed_branches() {
 ##
 function php_package_version() {
     local branch="${1}"
-    local version=""
+    local package status version
 
-    version=$(dpkg-query -W -f='${Version}' "php${branch}-common" 2>/dev/null || true)
-    if [[ -z "${version}" ]]; then
-        version=$(dpkg-query -W -f='${Version}' "php${branch}-fpm" 2>/dev/null || true)
+    for package in "php${branch}-fpm" "php${branch}-common"; do
+        if read -r status version < <(dpkg-query -W -f='${db:Status-Status}\t${Version}\n' "$package" 2>/dev/null) &&
+            [[ "$status" == installed ]]; then
+            printf '%s\n' "$version"
+            return
+        fi
+        # An existing FPM executable without verified package state is not
+        # evidence that the corresponding CLI or common package patches FPM.
+        [[ "$package" != "php${branch}-fpm" || ! -e "/usr/sbin/php-fpm$branch" ]] || return 0
+    done
+    if command -v "php${branch}" >/dev/null 2>&1; then
+        "php${branch}" -r 'echo PHP_VERSION;' 2>/dev/null || true
     fi
-    if [[ -z "${version}" ]] && command -v "php${branch}" >/dev/null 2>&1; then
-        version=$("php${branch}" -r 'echo PHP_VERSION;' 2>/dev/null || true)
+}
+
+# Compare the systemd main process with the executable currently on disk.
+function php_fpm_runtime_state() {
+    local unit="php$1-fpm.service" binary="/usr/sbin/php-fpm$1"
+    local properties state load pid
+
+    if [[ ! -e "$binary" ]] &&
+        [[ "$(dpkg-query -W -f='${db:Status-Status}' "${unit%.service}" 2>/dev/null)" != installed ]]; then
+        printf '%s\n' not-installed
+        return
     fi
 
-    printf '%s\n' "${version}"
+    properties=$(systemctl show -p LoadState -p ActiveState -p MainPID "$unit") || properties=""
+    load=$(sed -n 's/^LoadState=//p' <<<"$properties")
+    state=$(sed -n 's/^ActiveState=//p' <<<"$properties")
+    pid=$(sed -n 's/^MainPID=//p' <<<"$properties")
+    if [[ "$load" != loaded || ! -x "$binary" ]]; then
+        printf '%s\n' unverified
+    elif [[ "$state" == inactive && "$pid" == 0 ]]; then
+        printf '%s\n' inactive
+    elif [[ "$state" != active || ! "$pid" =~ ^[1-9][0-9]*$ ]]; then
+        printf '%s\n' unverified
+    elif [[ "/proc/$pid/exe" -ef "$binary" ]]; then
+        printf '%s\n' current
+    elif [[ -L "/proc/$pid/exe" ]]; then
+        printf '%s\n' stale
+    else
+        printf '%s\n' unverified
+    fi
 }
 
 ##
@@ -192,9 +226,9 @@ function php_mitigate_pool_file() {
         printf '\n; LEMPer PHP2Shell mitigation (%s)\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"${file}"
     fi
 
-    pool_set_admin_value "${file}" "memory_limit" "${PHP2SHELL_MEMORY_LIMIT}"
-    pool_set_admin_value "${file}" "post_max_size" "${PHP2SHELL_POST_MAX}"
-    pool_set_admin_flag "${file}" "session.upload_progress.enabled" "0"
+    pool_set_admin_value "${file}" "memory_limit" "${PHP2SHELL_MEMORY_LIMIT}" || return 1
+    pool_set_admin_value "${file}" "post_max_size" "${PHP2SHELL_POST_MAX}" || return 1
+    pool_set_admin_flag "${file}" "session.upload_progress.enabled" "0" || return 1
 
     if [[ "${branch}" == "8.5" ]]; then
         pool_set_admin_flag "${file}" "fatal_error_backtraces" "0"
@@ -224,18 +258,17 @@ function php_pool_count() {
 # Reload PHP-FPM for a branch after a package or pool change.
 ##
 function php_reload_branch() {
-    local branch="${1}"
-
-    if ! command -v systemctl >/dev/null 2>&1; then
-        return 0
-    fi
-
-    if systemctl list-unit-files "php${branch}-fpm.service" 2>/dev/null | grep -q "php${branch}-fpm.service"; then
-        if systemctl try-reload-or-restart "php${branch}-fpm" 2>/dev/null; then
-            success "php${branch}-fpm reloaded."
-        else
-            warning "Could not reload php${branch}-fpm; restart it manually."
-        fi
+    local branch="$1" unit="php$1-fpm.service" state
+    state=$(php_fpm_runtime_state "$branch")
+    case "$state" in
+        inactive | not-installed) return 0 ;;
+        current | stale) ;;
+        *) error "Could not verify $unit before activation."; return 1 ;;
+    esac
+    if ! "/usr/sbin/php-fpm$branch" -t || ! systemctl restart "$unit" ||
+        [[ "$(php_fpm_runtime_state "$branch")" != current ]]; then
+        error "Could not verify active $unit after the PHP update."
+        return 1
     fi
 }
 
@@ -325,8 +358,8 @@ function php_patch_branch() {
 
     installed=$(php_package_version "${branch}")
     if version_ge "${installed}" "${fixed}"; then
+        php_reload_branch "$branch" || return 1
         success "PHP ${branch} is patched (${installed})."
-        php_reload_branch "${branch}"
         return 0
     fi
 
@@ -356,7 +389,7 @@ function php_mitigate_branch() {
             error "Cannot back up ${pool}; refusing to modify pools."
             return 1
         }
-        php_mitigate_pool_file "${pool}" "${branch}"
+        php_mitigate_pool_file "${pool}" "${branch}" || return 1
         count=$((count + 1))
     done < <(php_pool_files "${branch}")
 
@@ -369,9 +402,9 @@ function php_mitigate_branch() {
         warning "memory_limit=${PHP2SHELL_MEMORY_LIMIT} keeps the OOM path reachable; this mitigation is incomplete."
     fi
 
-    success "Applied PHP2Shell controls to ${count} PHP ${branch} pool(s)."
     info "Pool backups: ${backup_dir}"
-    php_reload_branch "${branch}"
+    php_reload_branch "${branch}" || return 1
+    success "Applied PHP2Shell controls to ${count} PHP ${branch} pool(s)."
 }
 
 ##

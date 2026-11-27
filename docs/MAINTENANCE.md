@@ -2,7 +2,8 @@
 
 Back up configuration, databases and application data before changing an existing
 server. Full installation is intended for fresh servers; use the updater for
-an existing installation. See [installation](INSTALLATION.md) for bootstrap options.
+an existing installation. See [installation](INSTALLATION.md) for bootstrap options and the
+[security audit remediation register](SECURITY_AUDIT_REMEDIATION.md) for changes that need a host migration.
 
 ## Backups
 
@@ -31,16 +32,25 @@ sudo lemperctl backup prune --keep 5
 
 The default archive directory is `/var/backups/lemper/config`. Archives contain
 credentials and private keys: they use mode `0600` in a root-only directory.
-Keep protected copies away from public web roots.
+Custom output directories must be owned by root and protected from writes by
+other accounts. Keep protected copies away from public web roots.
 
-Restore verifies archive integrity and allowed members, creates a pre-restore
-snapshot, then validates Nginx. A failed Nginx check rolls back the restoration.
+Restore accepts only root-owned archives in protected directories. Place imports
+there only after confirming their provenance. A checksum stored beside an archive
+detects corruption and does not authenticate its origin. Restore verifies and
+uses a private copy, accepts only managed configuration members and supported
+links, creates a pre-restore snapshot, then validates Nginx. The PostgreSQL
+configuration and managed OpenDKIM key directories are replaced from protected
+staging. Other configuration is restored as an overlay. After an extraction or
+Nginx validation failure, LEMPer attempts to reapply the pre-restore snapshot.
+Review the affected paths if recovery is incomplete or the restore introduced
+files that the pre-restore snapshot did not contain.
 `--reload` reloads Nginx and PHP-FPM after successful validation; `--dry-run`
 inspects the restore without applying it. The command prompts before restoration
 unless `--yes` is supplied.
 
-Custom legacy `.env` locations must be recorded in `/etc/lemper/update-source`
-or supplied through `LEMPER_LEGACY_DIR`. Restoration to another host may require
+Supply `LEMPER_LEGACY_DIR` for custom legacy `.env` locations. Older
+installations may still have a checkout recorded in `/etc/lemper/update-source`. Restoration to another host may require
 that explicit checkout-directory override. Run `lemperctl backup --help` for
 archive selection and retention options.
 

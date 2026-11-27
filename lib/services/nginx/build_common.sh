@@ -114,6 +114,6 @@ function nginx_build_initialize() {
     NGINX_LIB_MODULES="/usr/lib/nginx/modules"
     export NGINX_SHARE_DIR="/usr/share/nginx"
     export NGINX_CACHE_DIR="/var/cache/nginx"
-    NGINX_BUILD_DIR="${BUILD_DIR:-/tmp/lemper}"
+    NGINX_BUILD_DIR="${BUILD_DIR:-/var/cache/lemper-build}"
     NGINX_EXTRA_MODULE_DIR="${NGINX_BUILD_DIR}/nginx_modules"
 }

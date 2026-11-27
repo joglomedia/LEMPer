@@ -223,7 +223,8 @@ lemperctl <command> [subcommand] [options]
 | `.env` (gitignored) | Master install config — INI sections, plain text | ✅ Yes (passwords) |
 | `/etc/lemper/lemper.conf` | Runtime config written during install | ✅ Yes (credentials) |
 | `/etc/lemper/vhost.d/*.conf` | Per-domain app metadata (DB creds, admin creds) | ✅ Yes |
-| `/srv/.htpasswd` | Web auth users | ✅ Yes (password hashes) |
+| `/etc/nginx/lemper-admin.htpasswd` | Management listener administrators | ✅ Yes (password hashes) |
+| `/srv/.htpasswd` | Legacy or custom web authentication | ✅ Yes (password hashes) |
 
 The `.env` file uses a pseudo-INI format with `[section]` headers that Bash's `source` cannot
 parse natively. `utils.sh` loads it through `safe_parse_dotenv()`, which:
@@ -405,7 +406,7 @@ and excluded from the default `PHP_EXTENSIONS` list.
 
 - Config at rest encryption: **✅ Implemented** (Phase 5 Task 2.10). `lib/lemper-encrypt.sh`
   provides `encrypt_config()`, `decrypt_config()`, `load_config()`, `resolve_config_password()`,
-  and `secure_shred()`. `bin/lemper-cli.sh` pre-parses `--password`/`-P` flag, decrypts
+  and `secure_shred()`. `bin/lemper-cli.sh` reads the optional `--config-password-stdin` input, decrypts
   config before loading, shreds temp file. `ENCRYPT_CONFIG_AT_REST=false` in `.env.dist`
   (defaults to off for backward compatibility).
 - Credentials are printed to stdout at the end of installation. **Status: ⚠️ Still active.**
@@ -465,18 +466,18 @@ Legacy hosts bootstrap the updater from a current checkout with `sudo ./update.s
 The bootstrap publishes `/usr/local/bin/lemperctl` with `lemper-cli` compatibility
 links. The implementation stays at `/opt/lemper/current/bin/lemper-cli.sh`, and
 `lib/lemper-update.sh` is exposed as `/etc/lemper/cli-plugins/lemper-update`.
-It records the checkout in `/etc/lemper/update-source` so
-`lemperctl update lemper` can refresh plugins later.
+Automatic refresh uses the protected deployed release. To install a different revision,
+pass `--source-dir` with a trusted checkout.
 
 The plugin (`lib/lemper-update.sh`) exposes:
 
 | Command | Effect |
 |---|---|
 | `update check` | Read-only audit; exits non-zero unless every PHP branch is patched |
-| `update php` | `apt-get --only-upgrade` on installed `php<branch>-*`; verifies the package version against the fixed release, then reloads FPM |
+| `update php` | `apt-get --only-upgrade` on installed `php<branch>-*`; checks the installed package against the fixed release and verifies active FPM |
 | `update nginx` | Disables a retired Ondřej nginx APT source, then upgrades package-managed nginx from the MyGuard nginx-only repository. Source builds are reported as requiring a rebuild |
 | `update mariadb` | Upgrades MariaDB and restarts only if the version changed; warns on branch changes |
-| `update lemper` | Reinstalls the CLI and all plugins from the recorded checkout |
+| `update lemper` | Refreshes tooling from the deployed release or an explicitly selected trusted checkout |
 | `update all` | `apt-get update`, then PHP, nginx, MariaDB, and tooling |
 
 Version classification uses `dpkg-query` (falling back to `php<branch> -r 'echo PHP_VERSION;'`)

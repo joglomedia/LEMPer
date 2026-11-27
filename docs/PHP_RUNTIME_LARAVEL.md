@@ -99,13 +99,13 @@ whole project through a document-root symlink.
 The generated mount repeats shared access restrictions inside its prefix
 location, which Nginx matches before the parent regex locations. Server-level
 authentication, security headers, and other inherited policies remain in force.
-Detected per-location authentication/access policies cause the adapter to
-refuse the mount, preserving the protected site. Move shared protection to the
-server level or integrate the mount's locations explicitly. Custom per-location
-WAF/include rules also need review; arbitrary policies are not automatically
-translated.
-The adapter requires the known server-level root anchor and refuses incompatible
-layouts rather than guessing an insertion point.
+The adapter checks complete directives and block scope in each SSL and non-SSL
+variant. It accepts supported server-wide access directives and verified LEMPer
+includes. A custom include, an unknown policy directive, a modified managed app
+fragment, or location-specific access rules cause the adapter to refuse add or
+update. Put shared access control at the server level, or integrate the mount's
+locations into the custom configuration manually. The adapter requires a single
+serving server-level root directive as its insertion point.
 
 Adding/updating/removing a mount snapshots the parent vhost, its SSL/non-SSL
 variants, the affected fragment, and application metadata. `nginx -t` runs before

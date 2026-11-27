@@ -32,6 +32,8 @@ function configure_nginx_files() {
         NGINX_CONF_SRC="${SOURCE_DIR}/etc/nginx/nginx-lowend.conf"
     fi
 
+    lemper_web_tools_tree_safe || return 1
+
     # Backup existing nginx.conf
     [[ -f /etc/nginx/nginx.conf ]] && run mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf~
 
@@ -116,8 +118,7 @@ EOL
         /var/lib/php/lemper/www-data/wsdlcache
     run chown -hR www-data:www-data /var/lib/php/lemper/www-data
 
-    # Fix ownership
-    [[ -d /usr/share/nginx/html ]] && run chown -hR www-data:www-data /usr/share/nginx/html
+    # Fix cache ownership.
     [[ -d /var/cache/nginx ]] && run chown -hR www-data:www-data /var/cache/nginx
 }
 
@@ -411,7 +412,7 @@ function add_nginx_logrotate() {
     [[ -f /etc/logrotate.d/nginx ]] && run rm -f /etc/logrotate.d/nginx
 
     cat >/etc/logrotate.d/nginx <<'EOL'
-/var/log/nginx/*.log /home/*/logs/nginx/*_log {
+/var/log/nginx/*.log {
     weekly
     rotate 12
     compress
@@ -441,7 +442,7 @@ function configure_nginx_post_install() {
     local SOURCE_DIR="${1:-.}"
     local HOSTNAME_CERT_PATH="${2:-}"
 
-    configure_nginx_files "${SOURCE_DIR}"
+    configure_nginx_files "${SOURCE_DIR}" || return 1
     configure_nginx_directories
     configure_nginx_performance
     generate_dh_params

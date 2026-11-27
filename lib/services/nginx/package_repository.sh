@@ -40,10 +40,8 @@ function nginx_myguard_binary_available() {
 # Keyring path and source line match https://deb.myguard.nl/how-to-use/
 ##
 function add_nginx_repo_myguard() {
-    local NGINX_REPO="nginx"
     local codename="${RELEASE_NAME:-}"
     local arch="${DISTRIB_ARCH:-}"
-    local key list pin line fp
 
     echo "Add MyGuard's Nginx repository..."
 
@@ -58,51 +56,14 @@ function add_nginx_repo_myguard() {
         fail "Unable to add the MyGuard nginx repository; the distribution codename is unknown."
     fi
 
-    case "${codename}" in
-        focal | jammy | noble | resolute | bullseye | bookworm | trixie) ;;
-        *)
-            fail "MyGuard nginx packages are not published for ${codename}."
-            ;;
-    esac
-
     if [[ -z "${arch}" ]]; then
         arch=$(get_distrib_arch 2>/dev/null || dpkg --print-architecture)
     fi
 
-    key="/etc/apt/keyrings/deb.myguard.nl.gpg"
-    list="/etc/apt/sources.list.d/myguard-${NGINX_REPO}-${codename}.list"
-    pin="/etc/apt/preferences.d/myguard-${NGINX_REPO}-${codename}.pref"
-    line="deb [arch=${arch} signed-by=${key}] https://deb.myguard.nl/apt/nginx/${codename} ${codename} main"
+    lemper_load_module services/nginx/repository || return 1
+    LEMPER_NGINX_CODENAME="$codename" LEMPER_NGINX_ARCH="$arch" ensure_myguard_nginx_repo || return 1
 
-    run install -d -m 0755 /etc/apt/keyrings
-    if [[ ! -s "${key}" ]]; then
-        run curl -fsSL --retry 3 --retry-delay 2 -o "${key}" "https://deb.myguard.nl/deb.myguard.nl.gpg"
-        run chmod 0644 "${key}"
-    fi
-
-    if [[ "${DRYRUN:-false}" != true && -s "${key}" ]] && command -v gpg >/dev/null 2>&1; then
-        fp=$(gpg --batch --with-colons --show-keys "${key}" 2>/dev/null | awk -F: '/^fpr:/ {print $10; exit}' || true)
-        if [[ -z "${fp}" ]]; then
-            fp=$(gpg --batch --with-colons --import-options show-only --import "${key}" 2>/dev/null | awk -F: '/^fpr:/ {print $10; exit}' || true)
-        fi
-        if [[ "${fp}" != "D18B8E5ADF7D55CE2A00D58167F9C3D8456D7F62" ]]; then
-            fail "MyGuard signing key fingerprint does not match."
-        fi
-    fi
-
-    if [[ ! -f "${list}" ]] || ! grep -qF "https://deb.myguard.nl/apt/nginx/${codename}" "${list}"; then
-        run bash -c 'printf "%s\n" "$1" > "$2"' _ "${line}" "${list}"
-    else
-        info "MyGuard nginx repository already exists."
-    fi
-
-    run tee "${pin}" >/dev/null <<'EOF'
-Package: nginx nginx-common nginx-core nginx-full nginx-extras nginx-light nginx-minimal libnginx-mod-* libssl-nginx libssl-nginx-dev libz-ng2
-Pin: origin "deb.myguard.nl"
-Pin-Priority: 501
-EOF
-
-    run apt-get update -q -y
+    run apt-get update -q -y || return 1
     if [[ "${DRYRUN:-false}" != true ]] && ! nginx_myguard_binary_available; then
         fail "No MyGuard nginx binary candidate for ${arch} on ${codename}; use NGINX_INSTALLER=source or a supported architecture."
     fi

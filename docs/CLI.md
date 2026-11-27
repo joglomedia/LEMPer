@@ -108,7 +108,7 @@ installed versions; control acts on FPM instances. Multi-version removal require
 `--php-version` or `--all-versions`, and site references block removal.
 EOL migration remains explicit; see [updates and recovery](MAINTENANCE.md).
 
-Lifecycle commands use installed configuration and recorded source. Removal
+Lifecycle commands use installed configuration and the deployed release under `/opt/lemper/current`. Pass `--source-dir` to explicitly select a trusted checkout. Removal
 requires provisioning markers; `--force` permits deliberate removal of a
 pre-existing component while retaining site-reference checks. Full-stack
 installation uses `stack install --all --config FILE`; see
@@ -126,11 +126,42 @@ options and unsupported PHP versions; normal runtime loading preserves unknown
 legacy settings for upgrades. PHP default changes preserve profile encryption
 and leave existing sites' explicit runtimes intact.
 
+For a profile encrypted with a custom passphrase, supply one line on standard
+input, for example `sudo lemperctl --config-password-stdin config check < /root/lemper.pass`
+from a shell with access to that file. The installed key file continues to work unattended.
+Use `--dbport` for a database port. The dispatcher rejects the historical inline passphrase options.
+
+Each new hosting account receives an independently generated password.
 Hosting accounts have no sudo access by default. `account --admin` grants a new
-account restricted service administration; `account --restrict-sudo USERNAME`
+account restricted service administration and web administration access. `account --restrict-sudo USERNAME`
 deliberately migrates a recorded account away from broad sudo permissions.
 Account credentials are stored privately in `/etc/lemper/accounts/USERNAME.conf`
 and are not printed in installation output. See [hosting plans](HOSTING.md).
+
+### Web administration accounts
+
+The Nginx management listener reads `/etc/nginx/lemper-admin.htpasswd`.
+Fresh web administration installations enroll the default installer account.
+`lemperctl account --admin USERNAME` enrolls a newly created administrator.
+Ordinary hosting accounts are excluded. Keep any `/srv/.htpasswd` used by custom
+sites separate and enroll existing management users only after reviewing their role.
+
+To enroll an existing administrator or rotate their web password, use the interactive
+`htpasswd` command from `apache2-utils`. Confirm that `/etc/nginx` is root-owned
+and that any existing verifier is a regular root-owned file. Initialize the file
+only if it is missing, then edit it without `-c` so other administrators are retained.
+
+```bash
+if ! sudo test -e /etc/nginx/lemper-admin.htpasswd; then
+    sudo install -o root -g www-data -m 0640 /dev/null /etc/nginx/lemper-admin.htpasswd
+fi
+sudo htpasswd -B /etc/nginx/lemper-admin.htpasswd USERNAME
+sudo chown root:www-data /etc/nginx/lemper-admin.htpasswd
+sudo chmod 0640 /etc/nginx/lemper-admin.htpasswd
+```
+
+Web password rotation leaves the system password unchanged. Remove a web grant
+with `sudo htpasswd -D /etc/nginx/lemper-admin.htpasswd USERNAME`.
 
 ## Databases, mail and optional services
 

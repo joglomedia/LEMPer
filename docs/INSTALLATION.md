@@ -16,6 +16,12 @@ On ARM64, select `NGINX_INSTALLER="source"` while MyGuard has no compatible
 Nginx binary. Resolute uses native MariaDB 11.8 and Dovecot 2.4; see
 [Ubuntu 26.04](UBUNTU_26_04.md) for package choices and validation limits.
 
+Native builds use `/var/cache/lemper-build`. If you set `BUILD_DIR`, choose
+a fresh absolute path below a trusted parent. An existing workspace must be
+owned by the installer and have mode `0700`. The installer remaps the
+historical `/tmp/lemper` and `/tmp/lemper_build` defaults to the private
+cache. Forced cleanup removes only workspaces that LEMPer created and marked.
+
 ## Install from a release
 
 The following commands download the latest installer and target **v4.0.0**.
@@ -33,6 +39,8 @@ The bootstrap verifies the versioned archive's SHA256, installs `lemperctl` and
 its compatibility alias `lemper-cli`, and preserves existing configuration and
 services. The release also supplies `get-lemper.sha256` for the bootstrap itself.
 CLI-only installation does not install the stack.
+When you supply a local archive with `--archive`, pass its trusted checksum
+with `--sha256`. The bootstrap verifies and extracts a private copy.
 
 For a full installation, first prepare a private profile:
 

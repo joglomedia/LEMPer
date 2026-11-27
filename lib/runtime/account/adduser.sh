@@ -118,6 +118,8 @@ function prompt_for_user() {
         useradd_args+=(-g users)
     fi
 
+    remove_managed_account_sudo "$namauser" || return 1
+    lemper_account_admin_auth revoke "$namauser" || return 1
     if ! useradd "${useradd_args[@]}" -- "${namauser}"; then
         error "Failed to create user '${namauser}'."
         return 1
@@ -175,7 +177,7 @@ function init_lemper_adduser() {
     read -r tambah || return 0
 
     while [[ "${tambah}" != n* && "${tambah}" != N* ]]; do
-        prompt_for_user || true
+        lemper_with_lock prompt_for_user || true
 
         header_msg
 

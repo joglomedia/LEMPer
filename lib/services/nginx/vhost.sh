@@ -36,8 +36,9 @@ server {
     #include /etc/nginx/includes/ssl.conf;
 
     ## Log Settings.
-    access_log /home/${USERNAME}/logs/nginx/access_log lp_cache buffer=32k;
-    error_log /home/${USERNAME}/logs/nginx/error_log error;
+    disable_symlinks if_not_owner;
+    access_log /var/log/nginx/${SERVERNAME}.access.log lp_cache buffer=32k flush=5s;
+    error_log /var/log/nginx/${SERVERNAME}.error.log error;
 
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}";
@@ -133,8 +134,9 @@ server {
     #include /etc/nginx/includes/ssl.conf;
 
     ## Log Settings.
-    access_log /home/${USERNAME}/logs/nginx/access_log lp_cache buffer=32k;
-    error_log /home/${USERNAME}/logs/nginx/error_log error;
+    disable_symlinks if_not_owner;
+    access_log /var/log/nginx/${SERVERNAME}.access.log lp_cache buffer=32k flush=5s;
+    error_log /var/log/nginx/${SERVERNAME}.error.log error;
 
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}";
@@ -230,8 +232,9 @@ server {
     #include /etc/nginx/includes/ssl.conf;
 
     ## Log Settings.
-    access_log /home/${USERNAME}/logs/nginx/access_log lp_cache buffer=32k;
-    error_log /home/${USERNAME}/logs/nginx/error_log error;
+    disable_symlinks if_not_owner;
+    access_log /var/log/nginx/${SERVERNAME}.access.log lp_cache buffer=32k flush=5s;
+    error_log /var/log/nginx/${SERVERNAME}.error.log error;
 
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}/public";
@@ -332,8 +335,9 @@ server {
     #include /etc/nginx/includes/ssl.conf;
 
     ## Log Settings.
-    access_log /home/${USERNAME}/logs/nginx/access_log lp_cache buffer=32k;
-    error_log /home/${USERNAME}/logs/nginx/error_log error;
+    disable_symlinks if_not_owner;
+    access_log /var/log/nginx/${SERVERNAME}.access.log lp_cache buffer=32k flush=5s;
+    error_log /var/log/nginx/${SERVERNAME}.error.log error;
 
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}/public";
@@ -417,10 +421,10 @@ EOL
 #
 function prepare_vhost_wpms() {
     cat <<-EOL
-# Wordpress Multisite Mapping for Nginx (Requires Nginx Helper plugin).
+# Operator-maintained hostname map for legacy WordPress Multisite media.
 map \$http_host \$blogid {
     default 0;
-    include ${WEBROOT}/wp-content/uploads/nginx-helper/[map].conf;
+    include /etc/nginx/wpms/${SERVERNAME}/*.conf;
 }
 
 EOL

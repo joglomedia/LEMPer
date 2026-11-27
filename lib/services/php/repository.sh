@@ -30,46 +30,36 @@ function lemper_php_repository_keyring() {
     printf '/usr/share/keyrings/debsuryorg-archive-keyring.gpg\n'
 }
 function lemper_php_repository_key_valid() {
-    local key="$1" expected="${2:-15058500A0235D97F5D10063B188E2B695BD4743}" work output result=0
-    [[ -f "$key" && ! -L "$key" ]] || return 1
-    work=$(mktemp -d) || return 1
-    output=$(gpg --batch --homedir "$work" --with-colons --show-keys "$key" 2>/dev/null) || result=1
-    if [[ "$result" == 0 ]]; then
-        awk -F: -v expected="$expected" '
-            $1=="pub" {primary=1; count++}
-            primary && $1=="fpr" {if($10!=expected) bad=1; primary=0}
-            END {exit (count!=1 || bad || primary)}
-        ' <<<"$output" || result=1
-    fi
-    rm -rf -- "$work"
-    return "$result"
+    lemper_load_module services/apt/repositories || return 1
+    lemper_apt_key_matches "$1" "${2:-15058500A0235D97F5D10063B188E2B695BD4743}"
 }
 function lemper_php_install_archive_keyring() (
     local key="$1" work
     [[ "${DRYRUN:-false}" != true ]] || {
-        info "Would install the Sury archive keyring package."
+        info "Would install the pinned Sury archive signing key."
         return 0
     }
     [[ "${LEMPER_APT_ROOT:-/etc/apt}" == /etc/apt && "$key" == /usr/share/keyrings/debsuryorg-archive-keyring.gpg ]] || return 1
-    if dpkg-query -W -f='${Status}' debsuryorg-archive-keyring 2>/dev/null | grep -qx 'install ok installed'; then
-        lemper_php_repository_key_valid "$key" || {
-            error "Invalid installed Sury archive keyring."
-            return 1
-        }
-        return 0
-    fi
+    if lemper_php_repository_key_valid "$key"; then return 0; fi
     work=$(mktemp -d) || return 1
     trap 'rm -rf -- "$work"' EXIT
-    curl -fsSL --proto '=https' --proto-redir '=https' --retry 3 --max-filesize 1048576 \
+    curl -q -fsSL --proto '=https' --proto-redir '=https' --retry 3 --max-filesize 1048576 \
         -o "$work/keyring.deb" https://packages.sury.org/debsuryorg-archive-keyring.deb || return 1
     [[ "$(dpkg-deb -f "$work/keyring.deb" Package)" == debsuryorg-archive-keyring &&
     "$(dpkg-deb -f "$work/keyring.deb" Architecture)" == all ]] || return 1
-    dpkg-deb -x "$work/keyring.deb" "$work/content" || return 1
-    lemper_php_repository_key_valid "$work/content/usr/share/keyrings/debsuryorg-archive-keyring.gpg" || {
+    set -o pipefail
+    dpkg-deb --fsys-tarfile "$work/keyring.deb" |
+        tar -xO -f - ./usr/share/keyrings/debsuryorg-archive-keyring.gpg > "$work/keyring.gpg" || return 1
+    lemper_php_repository_key_valid "$work/keyring.gpg" || {
         error "Downloaded Sury archive keyring fingerprint does not match."
         return 1
     }
-    lemper_exec env DEBIAN_FRONTEND=noninteractive dpkg --force-confold -i "$work/keyring.deb" || return 1
+    local prepared
+    prepared=$(mktemp "$key.XXXXXXXX") || return 1
+    if ! lemper_exec install -m0644 "$work/keyring.gpg" "$prepared" ||
+        ! lemper_exec mv -Tf "$prepared" "$key"; then
+        rm -f -- "$prepared"; return 1
+    fi
     lemper_php_repository_key_valid "$key"
 )
 # Pre-render every file before changing any repository. The generic APT parser

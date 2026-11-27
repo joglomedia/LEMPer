@@ -45,6 +45,64 @@ function write_account_sudoers() {
     mv -f "${temporary}" "${directory}/90-${username}"
 }
 
+# Only a rule carrying our exact owner marker is eligible for automatic revocation.
+function remove_managed_account_sudo() {
+    local username="$1" directory="${2:-/etc/sudoers.d}" rule
+    is_valid_username "$username" && [[ "$username" != root ]] || return 1
+    rule="$directory/90-$username"
+    [[ -f "$rule" && ! -L "$rule" ]] || return 0
+    local marker
+    IFS= read -r marker < "$rule" || return 1
+    [[ "$marker" == "# LEMPer-managed restricted administrator: $username" ]] || return 0
+    lemper_exec rm -- "$rule"
+}
+
+# Change only the dedicated Nginx administrator verifier. Enrollment reads a password from stdin.
+function lemper_account_admin_auth() (
+    local action="$1" username="$2" directory="${3:-/etc/nginx}" db temporary secret entry mode LC_ALL=C
+    [[ "$EUID" == 0 && ( "$action" == enroll || "$action" == revoke ) ]] || return 1
+    is_valid_username "$username" && [[ "$username" != root ]] || return 1
+    [[ "${DRYRUN:-false}" != true ]] || return 0
+    db="$directory/lemper-admin.htpasswd"
+    if [[ "$action" == revoke && ! -e "$db" && ! -L "$db" ]]; then
+        return 0
+    fi
+    lemper_directory_trusted "$directory" || { error "Unsafe web administration credential directory."; return 1; }
+    if [[ ! -d "$directory" ]]; then
+        mkdir -m 0755 -- "$directory" || return 1
+        lemper_directory_trusted "$directory" || return 1
+    fi
+    if [[ -e "$db" || -L "$db" ]]; then
+        [[ -f "$db" && ! -L "$db" ]] || return 1
+        mode=$(stat -c '%u:%a:%h' -- "$db") || return 1
+        [[ "$mode" == 0:600:1 || "$mode" == 0:640:1 ]] || {
+            error "The web administration verifier must be a private, root-owned file."
+            return 1
+        }
+    fi
+
+    temporary=$(mktemp "$directory/.lemper-admin.XXXXXXXX") || return 1
+    trap 'rm -f -- "$temporary"' EXIT
+    if [[ -f "$db" ]]; then
+        awk -F: -v username="$username" '$1 != username' "$db" >"$temporary" || return 1
+    fi
+    if [[ "$action" == enroll ]]; then
+        set +x
+        export -n secret
+        IFS= read -r secret && [[ -n "$secret" && "$secret" != *$'\r'* ]] || return 1
+        unset LEMPER_PASSWORD
+        if [[ ${#secret} -le 72 ]] && command -v htpasswd >/dev/null; then
+            entry=$(printf '%s\n' "$secret" | htpasswd -nBi "$username") || return 1
+        else
+            entry=$(printf '%s\n' "$secret" | openssl passwd -6 -stdin) || return 1
+            entry="$username:$entry"
+        fi
+        [[ "$entry" == "$username:"?* && "$entry" != *$'\n'* && "$entry" != *$'\r'* ]] || return 1
+        printf '%s\n' "$entry" >>"$temporary" || return 1
+    fi
+    chown root:www-data -- "$temporary" && chmod 0640 -- "$temporary" && mv -Tf -- "$temporary" "$db"
+)
+
 # Explicit migration only. The caller must establish LEMPer ownership first.
 function restrict_account_sudo() {
     local username="${1}" root="${2:-}" uid directory legacy staged backups rc=0

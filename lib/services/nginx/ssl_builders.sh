@@ -38,7 +38,7 @@ function build_openssl() {
     if [[ "${DRYRUN:-false}" == true ]]; then
         info "Would prepare verified OpenSSL sources for the Nginx build."
     else
-        lemper_exec install -d "$NGINX_BUILD_DIR" || return 1
+        lemper_exec mkdir -p -m 0700 -- "$NGINX_BUILD_DIR" || return 1
         lemper_exec curl -fsSL --proto '=https' --retry 3 -o "$archive" "$source" || return 1
         if [[ -n "$checksum" ]]; then
             expected=$(curl -fsSL --proto '=https' --retry 3 "$checksum") || return 1

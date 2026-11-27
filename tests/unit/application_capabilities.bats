@@ -9,6 +9,9 @@ setup() {
     export TEST_APP_LOG="$TEST_TMPDIR/app.log" TEST_PROMPTS="$TEST_TMPDIR/prompts"
     mkdir -p "$LEMPER_NGINX_DIR/sites-available" "$LEMPER_NGINX_DIR/sites-enabled"
 }
+teardown() {
+    [[ -z "${wordpress_fixture:-}" ]] || rm -rf -- "$wordpress_fixture"
+}
 app_child='
     . "$REAL_BASE_DIR/lib/core/loader.sh"
     lemper_load_module services/site/applications
@@ -87,6 +90,102 @@ app_child='
     [ "$status" -eq 0 ]
     [ -f "$LEMPER_SITE_STATE_DIR/example.test.conf" ]
     grep -qx "WEBROOT=$TEST_TMPDIR/project/public" "$LEMPER_SITE_STATE_DIR/example.test.conf"
+}
+@test "new virtual host activation rolls back on validation or reload failure" {
+    local mode
+    for mode in validation reload success; do
+        run bash -c "$app_child"'
+            lemper_load_module services/site/provision
+            mode="$1"
+            staged="$TEST_TMPDIR/staged-$mode.conf"
+            available="$LEMPER_NGINX_DIR/sites-available/$mode.conf"
+            enabled="$LEMPER_NGINX_DIR/sites-enabled/$mode.conf"
+            printf "%s\n" fixture >"$staged"
+            nginx() { [[ "$mode" != validation || ! -L "$enabled" ]]; }
+            systemctl() {
+                [[ "$1 $2" == "reload-or-restart nginx" ]] || return 1
+                if [[ -L "$enabled" ]]; then
+                    echo activating
+                    [[ "$mode" != reload ]]
+                else
+                    echo restored
+                fi
+            }
+            lemper_site_activate_vhost "$staged" "$available" "$enabled"
+        ' _ "$mode"
+        [ ! -e "$TEST_TMPDIR/staged-$mode.conf" ]
+        if [[ "$mode" == success ]]; then
+            [ "$status" -eq 0 ]
+            [ -L "$LEMPER_NGINX_DIR/sites-enabled/$mode.conf" ]
+        else
+            [ "$status" -ne 0 ]
+            [ ! -L "$LEMPER_NGINX_DIR/sites-enabled/$mode.conf" ]
+            [ ! -e "$LEMPER_NGINX_DIR/sites-available/$mode.conf" ]
+        fi
+        if [[ "$mode" == validation ]]; then [[ "$output" != *activating* ]]; fi
+        if [[ "$mode" == reload ]]; then [[ "$output" == *restored* ]]; fi
+    done
+}
+
+@test "new virtual host activation leaves existing configurations and dangling selections intact" {
+    local mode
+    for mode in config selection; do
+        run bash -c "$app_child"'
+            lemper_load_module services/site/provision
+            staged="$TEST_TMPDIR/staged-$1.conf"
+            available="$LEMPER_NGINX_DIR/sites-available/$1.conf"
+            enabled="$LEMPER_NGINX_DIR/sites-enabled/$1.conf"
+            printf "%s\n" fixture >"$staged"
+            case "$1" in
+                config) printf "%s\n" retained >"$available" ;;
+                selection) ln -s "$TEST_TMPDIR/missing" "$enabled" ;;
+            esac
+            nginx() { echo unexpected-validation; return 1; }
+            lemper_site_activate_vhost "$staged" "$available" "$enabled"
+        ' _ "$mode"
+        [ "$status" -ne 0 ]
+        [[ "$output" != *unexpected-validation* ]]
+        [ -f "$TEST_TMPDIR/staged-$mode.conf" ]
+    done
+    grep -Fxq retained "$LEMPER_NGINX_DIR/sites-available/config.conf"
+    [ "$(readlink "$LEMPER_NGINX_DIR/sites-enabled/selection.conf")" = "$TEST_TMPDIR/missing" ]
+}
+
+@test "WordPress installs the database password privately and keeps the config private during repair" {
+    [[ "$(id -u)" == 0 ]] || skip "requires the disposable root Linux test environment"
+    wordpress_fixture=$(mktemp -d /tmp/lemper-wordpress.XXXXXXXX) || return 1
+    chmod 0755 "$wordpress_fixture"
+    mkdir "$wordpress_fixture/site"
+    chown www-data:www-data "$wordpress_fixture/site"
+    run bash -c "$app_child"'
+        lemper_load_module services/accounts/permissions
+        lemper_load_module services/site/skeletons
+        success() { :; }
+        run() { "$@"; }
+        wp-cli() { :; }
+        create_app_db() { :; }
+        sudo() {
+            local owner="$2"
+            shift 2
+            [[ "$1" != -i ]] || shift
+            [[ "$1" != -- ]] || shift
+            if [[ "$1" == wp-cli ]]; then
+                [[ "$2" != config ]] || printf "%s\n" __LEMPER_DB_PASS__ |
+                    runuser -u "$owner" -- tee "$WEBROOT/wp-config.php" >/dev/null
+            else
+                runuser -u "$owner" -- "$@"
+            fi
+        }
+        USERNAME=www-data
+        INSTALL_APP=true
+        APP_DB_PASS=SyntheticFixtureValue
+        WEBROOT="$1"
+        install_wordpress && fixpermission "$WEBROOT" "$USERNAME"
+    ' _ "$wordpress_fixture/site"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *SyntheticFixtureValue* ]]
+    [ "$(stat -c '%a %U' "$wordpress_fixture/site/wp-config.php")" = '600 www-data' ]
+    grep -Fxq SyntheticFixtureValue "$wordpress_fixture/site/wp-config.php"
 }
 @test "empty or unrelated application markers do not satisfy the selected framework" {
     mkdir -p "$TEST_TMPDIR/project/public"

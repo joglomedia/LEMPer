@@ -46,7 +46,6 @@ function lemper_mail_stage() {
     local root stage file
     root=$(lemper_mail_root)
     stage=$(mktemp -d "$root/generations/.stage.XXXXXXXX") || return 1
-    chmod 0755 "$stage" || return 1
     for file in domains accounts aliases; do
         if [[ -f "$root/current/$file" ]]; then
             cp -p "$root/current/$file" "$stage/$file" || return 1
@@ -73,7 +72,7 @@ function lemper_mail_key() {
 function lemper_mail_render() {
     local stage="$1" root domain address hash enabled target owner
     root=$(lemper_mail_root)
-    : > "$stage/passwd"
+    install -m 0600 /dev/null "$stage/passwd" || return 1
     : > "$stage/mailboxes"
     : > "$stage/sender_login"
     : > "$stage/virtual_aliases"
@@ -117,6 +116,7 @@ function lemper_mail_render() {
         postmap "hash:$stage/$map" || return 1
         chmod 0644 "$stage/$map.db" || return 1
     done
+    chmod 0755 "$stage"
 }
 function lemper_mail_select() {
     local root="$1" target="$2" selector
@@ -128,15 +128,24 @@ function lemper_mail_select() {
 }
 function lemper_mail_check() {
     if [[ "${DRYRUN:-false}" == true ]]; then
-        info "Would validate Postfix, Dovecot, and enabled DKIM configuration."
+        info "Would validate Postfix, Dovecot, submission author policy, and enabled DKIM configuration."
         return 0
     fi
+    local root
+    root=$(lemper_mail_root)
     postfix check && doveconf -n >/dev/null || return 1
-    [[ ! -f "$(lemper_mail_root)/dkim-enabled" ]] || opendkim -n -x /etc/opendkim.conf
+    if [[ -f "$root/submission-author.conf" ]]; then
+        rspamadm configtest -qs -c "$root/submission-author.conf" || return 1
+    fi
+    [[ ! -f "$root/dkim-enabled" ]] || opendkim -n -x /etc/opendkim.conf
 }
 function lemper_mail_reload() {
     local root
     root=$(lemper_mail_root)
+    if [[ -f "$root/submission-author.conf" ]]; then
+        systemctl start lemper-mail-author || return 1
+        [[ -S /var/spool/postfix/lemper-mail-author/filter.sock ]] || return 1
+    fi
     # OpenDKIM cannot change its listening socket on SIGHUP after package startup.
     if [[ -f "$root/dkim-enabled" ]]; then systemctl restart opendkim || return 1; fi
     systemctl reload-or-restart dovecot && systemctl reload-or-restart postfix

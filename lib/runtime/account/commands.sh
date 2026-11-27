@@ -27,13 +27,13 @@ Usage:
 
 Options:
   -u, --username <name>  Account name (default: LEMPER_USERNAME or 'lemper').
-  --admin                Grant restricted service-administration privileges.
+  --admin                Grant restricted service administration and web administration access.
   --restrict-sudo        Migrate an existing LEMPer-owned account to restricted sudo.
   --plan <name>          Provision with disk/inode limits on a quota-ready filesystem.
   -h, --help             Print this message and exit.
   -v, --version          Output version information and exit.
 
-The password is taken from LEMPER_PASSWORD or generated randomly.
+Each new account receives a freshly generated password.
 Use '${CMD_PARENT} adduser' for an interactive prompt.
 EOL
 }

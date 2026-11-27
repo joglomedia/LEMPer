@@ -249,3 +249,74 @@ EOF
     [ "$(printf '%s' "${header}" | awk '{ print index($0, "Pools") }')" \
         -eq "$(printf '%s' "${row}" | awk '{ print index($0, "2 (0)") }')" ]
 }
+
+@test "a patched package with unverified active FPM does not pass a check or rerun" {
+    run bash -c '
+        requires_root() { :; }
+        PROG_NAME="lemper-cli"
+        LEMPER_UPDATE_LIB_ONLY=true
+        . "${REAL_BASE_DIR}/lib/lemper-update.sh"
+        php_installed_branches() { echo "8.2"; }
+        php_package_version() { echo "8.2.35"; }
+        php_fpm_runtime_state() { echo unverified; }
+        php_pool_count() { echo "0"; }
+        if update_check; then exit 99; fi
+        update_php
+    '
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *fpm-unverified* ]]
+    [[ "${output}" != *"already includes the fix"* ]]
+}
+
+@test "a rerun retries stale FPM activation and propagates failure" {
+    run bash -c '
+        requires_root() { :; }
+        PROG_NAME="lemper-cli"
+        LEMPER_UPDATE_LIB_ONLY=true
+        . "${REAL_BASE_DIR}/lib/lemper-update.sh"
+        php_installed_branches() { echo "8.2"; }
+        php_package_version() { echo "8.2.35"; }
+        php_fpm_runtime_state() { echo stale; }
+        php_reload_branch() { printf "ACTIVATING %s\n" "$1"; return 1; }
+        update_php
+    '
+    [ "${status}" -eq 1 ]
+    [[ "${output}" == *"ACTIVATING 8.2"* ]]
+    [[ "${output}" != *"already includes the fix"* ]]
+}
+
+@test "an installed FPM package with a missing unit cannot report activation" {
+    run bash -c '
+        requires_root() { :; }
+        PROG_NAME="lemper-cli"
+        LEMPER_UPDATE_LIB_ONLY=true
+        . "${REAL_BASE_DIR}/lib/lemper-update.sh"
+        dpkg-query() { printf "installed\n"; }
+        systemctl() { printf "LoadState=not-found\nActiveState=inactive\nMainPID=0\n"; }
+        php_reload_branch 99.99
+    '
+    [ "${status}" -ne 0 ]
+    [[ "${output}" == *"Could not verify php99.99-fpm.service"* ]]
+}
+
+@test "package verification favors installed FPM and excludes residual package metadata" {
+    run bash -c '
+        requires_root() { :; }
+        PROG_NAME="lemper-cli"
+        LEMPER_UPDATE_LIB_ONLY=true
+        . "${REAL_BASE_DIR}/lib/lemper-update.sh"
+        PHP_ETC_DIR="$1"
+        dpkg-query() {
+            case "$3" in
+                "php*-fpm") printf "php8.2-fpm\tinstalled\nphp8.3-fpm\tconfig-files\n" ;;
+                php8.2-fpm) printf "installed\t8.2.34\n" ;;
+                php8.2-common) printf "installed\t8.2.35\n" ;;
+                php8.3-fpm) printf "config-files\t8.3.36\n" ;;
+                *) return 1 ;;
+            esac
+        }
+        [ "$(php_installed_branches)" = 8.2 ] || exit 1
+        [ "$(php_package_version 8.2)" = 8.2.34 ]
+    ' _ "${BATS_TEST_TMPDIR}/empty-php"
+    [ "${status}" -eq 0 ]
+}

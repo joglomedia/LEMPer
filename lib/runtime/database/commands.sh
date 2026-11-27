@@ -91,7 +91,9 @@ function cmd_account_access() {
 
     if MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" "${MYSQLCLI}" -u root -e "SHOW DATABASES;" | grep -Fxq -- "${DBNAME}"; then
         echo "Grants database '${DBNAME}' privileges to '${DBUSER}'@'${DBHOST}'"
-        MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" run "${MYSQLCLI}" -u root -e "GRANT ${DBPRIVILEGES} ON ${DBNAME}.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
+        local grant_schema
+        grant_schema=$(lemper_db_grant_schema "$DBNAME") || return 1
+        MYSQL_PWD="${MYSQL_ROOT_PASSWORD}" run "${MYSQLCLI}" -u root -e "GRANT ${DBPRIVILEGES} ON \`$grant_schema\`.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
     else
         fail "The specified database '${DBNAME}' does not exist."
     fi
@@ -558,7 +560,9 @@ function db_operations() {
                     echo "New auto-generated MySQL database '${DBNAME}'"
                 done
 
-                local SQL_QUERY="CREATE DATABASE ${DBNAME}; GRANT ALL PRIVILEGES ON ${DBNAME}.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
+                local SQL_QUERY grant_schema
+                grant_schema=$(lemper_db_grant_schema "$DBNAME") || return 1
+                SQL_QUERY="CREATE DATABASE ${DBNAME}; GRANT ALL PRIVILEGES ON \`$grant_schema\`.* TO '${DBUSER}'@'${DBHOST}'; FLUSH PRIVILEGES;"
                 MYSQL_PWD="${DBPASS}" run "${MYSQLCLI}" -u root -e "${SQL_QUERY}"
 
                 if MYSQL_PWD="${DBPASS}" "${MYSQLCLI}" -u root -e "SHOW DATABASES LIKE '${DBNAME}';" | grep -Fxq -- "${DBNAME}"; then

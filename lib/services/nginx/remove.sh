@@ -143,19 +143,6 @@ function remove_nginx_from_source() {
         run rm -f "${NGINX_BIN}"
     fi
 
-    # Remove build directory
-    local BUILD_DIR="${NGINX_BUILD_DIR:-/tmp/lemper}"
-    if [[ -d "${BUILD_DIR}" ]]; then
-        echo "Cleaning up build directory: ${BUILD_DIR}"
-        run rm -fr "${BUILD_DIR}"
-    fi
-
-    # Delete default account credential from server .htpasswd
-    if [ -f /srv/.htpasswd ]; then
-        local LEMPER_USERNAME=${LEMPER_USERNAME:-"lemper"}
-        sed_inplace "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
-    fi
-
     return 0
 }
 

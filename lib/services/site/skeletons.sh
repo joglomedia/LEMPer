@@ -54,6 +54,39 @@ function create_index_file() {
     done <"$template"
 }
 
+function lemper_site_write_index() (
+    set -o pipefail
+    create_index_file | run runuser -u "$USERNAME" -- tee -- "$1" >/dev/null
+)
+
+function lemper_site_install_zip() (
+    local url="$1" destination="$2" layout="${3:-flat}" archive
+    if [[ "${DRYRUN:-false}" == true ]]; then
+        info "Would download and extract the $FRAMEWORK distribution."
+        return 0
+    fi
+    archive=$(mktemp "$TMPDIR/.lemper-app-XXXXXXXX") || return 1
+    trap 'rm -f -- "$archive"' EXIT
+    curl -fsSL --proto '=https' --proto-redir '=https' -o "$archive" "$url" || return 1
+    # The runtime account owns every write to the extracted project.
+    # shellcheck disable=SC2016 # Fixed program. Destination and layout are arguments.
+    runuser -u "$USERNAME" -- bash -c '
+        set -o pipefail
+        work=$(mktemp -d) || exit 1
+        trap "rm -rf -- \"\$work\"" EXIT
+        cat >"$work/package.zip" || exit 1
+        if [[ "$2" == drupal ]]; then
+            unzip -q "$work/package.zip" -d "$work" || exit 1
+            shopt -s nullglob
+            projects=("$work"/drupal-*/)
+            [[ ${#projects[@]} -eq 1 ]] || exit 1
+            rsync -rq -- "${projects[0]}" "$1"
+        else
+            unzip -q "$work/package.zip" -d "$1"
+        fi
+    ' _ "$destination" "$layout" <"$archive"
+)
+
 ##
 # Create new Database for application.
 #
@@ -86,10 +119,10 @@ function install_wordpress() {
             fi
 
             # Download WordPress skeleton files.
-            run sudo -u "${USERNAME}" -i -- wp-cli core download --path="${WEBROOT}"
+            run sudo -u "${USERNAME}" -i -- wp-cli core download --path="${WEBROOT}" || return 1
 
             # create_app_db [app_db_username] [app_db_password] [app_db_name]
-            create_app_db "${APP_DB_USER}" "${APP_DB_PASS}" "${APP_DB_NAME}"
+            create_app_db "${APP_DB_USER}" "${APP_DB_PASS}" "${APP_DB_NAME}" || return 1
 
             # wp-cli only accepts the password as an argument, so write a
             # placeholder and substitute it in the generated file to keep the
@@ -97,12 +130,14 @@ function install_wordpress() {
             # the placeholder against the database.
             run sudo -u "${USERNAME}" -i -- wp-cli config create --dbname="${APP_DB_NAME}" \
                 --dbuser="${APP_DB_USER}" --dbpass="__LEMPER_DB_PASS__" --dbprefix=ls_ \
-                --skip-check --path="${WEBROOT}"
+                --skip-check --path="${WEBROOT}" || return 1
 
-            if [[ "${DRYRUN}" != true && -f "${WEBROOT}/wp-config.php" ]]; then
-                sed_inplace "s|__LEMPER_DB_PASS__|$(sanitize_sed_replacement "${APP_DB_PASS}")|g" "${WEBROOT}/wp-config.php"
-                run chown "${USERNAME}:${USERNAME}" "${WEBROOT}/wp-config.php"
-                run chmod 640 "${WEBROOT}/wp-config.php"
+            if [[ "${DRYRUN}" != true ]]; then
+                [[ -f "${WEBROOT}/wp-config.php" && ! -L "${WEBROOT}/wp-config.php" ]] || return 1
+                run sudo -u "${USERNAME}" -- chmod 0600 -- "${WEBROOT}/wp-config.php" || return 1
+                # The generated password is alphanumeric. Feed the edit on stdin.
+                printf 's|__LEMPER_DB_PASS__|%s|g\n' "${APP_DB_PASS}" |
+                    sudo -u "${USERNAME}" -- sed -i -f - -- "${WEBROOT}/wp-config.php" || return 1
             fi
         else
             info "It seems that WordPress files already exists."
@@ -112,11 +147,10 @@ function install_wordpress() {
         echo "Creating default WordPress index file..."
 
         if [ ! -e "${WEBROOT}/index.html" ]; then
-            create_index_file >"${WEBROOT}/index.html"
+            lemper_site_write_index "${WEBROOT}/index.html" || return 1
         fi
     fi
 
-    run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 }
 
 # Framework setup and rendering share the validated site request context.
@@ -135,8 +169,8 @@ function lemper_site_setup_skeleton() {
                         run sudo -u "${USERNAME}" -i -- "${PHP_BIN}" "${PHP_COMPOSER_BIN}" \
                             create-project --prefer-dist --no-dev codeigniter4/appstarter "${WEBROOT}"
                     else
-                        run git clone --depth=1 --branch=master "https://github.com/codeigniter4/appstarter.git" "${WEBROOT}" \
-                            || error "Something went wrong while downloading CodeIgniter v4 files."
+                        run runuser -u "$USERNAME" -- git clone --depth=1 --branch=master \
+                            https://github.com/codeigniter4/appstarter.git "$WEBROOT" || return 1
                     fi
                 else
                     info "It seems that CodeIgniter v4 skeleton files already exists."
@@ -145,13 +179,10 @@ function lemper_site_setup_skeleton() {
                 # Create default index file.
                 if [[ ! -e "${WEBROOT}/public/index.php" ]]; then
                     echo "Creating default index file..."
-                    run mkdir -p "${WEBROOT}/public"
-                    create_index_file >"${WEBROOT}/public/index.html"
+                    run runuser -u "$USERNAME" -- mkdir -p -- "${WEBROOT}/public" || return 1
+                    lemper_site_write_index "${WEBROOT}/public/index.html" || return 1
                 fi
             fi
-
-            # Fix ownership.
-            run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
             # Create vhost.
             echo "Creating virtual host file: ${VHOST_FILE}..."
@@ -167,15 +198,7 @@ function lemper_site_setup_skeleton() {
                 if [[ ! -d "${WEBROOT}/core/lib/Drupal" ]]; then
                     echo "Downloading Drupal latest skeleton files..."
 
-                    if curl -sLI https://www.drupal.org/download-latest/zip | grep -q "HTTP/[.12]* [2].."; then
-                        run curl -sSL -o "${TMPDIR}/drupal.zip" https://www.drupal.org/download-latest/zip \
-                            && run unzip -q "${TMPDIR}/drupal.zip" -d "${TMPDIR}" \
-                            && run rsync -rq "${TMPDIR}"/drupal-*/ "${WEBROOT}" \
-                            && run rm -f "${TMPDIR}/drupal.zip" \
-                            && run rm -fr "${TMPDIR}"/drupal-*/
-                    else
-                        error "Something went wrong while downloading Drupal files."
-                    fi
+                    lemper_site_install_zip https://www.drupal.org/download-latest/zip "$WEBROOT" drupal || return 1
                 else
                     info "It seems that Drupal files already exists."
                 fi
@@ -183,12 +206,9 @@ function lemper_site_setup_skeleton() {
                 # Create default index file.
                 if [[ ! -e "${WEBROOT}/index.php" ]]; then
                     echo "Creating default index file..."
-                    create_index_file >"${WEBROOT}/index.html"
+                    lemper_site_write_index "${WEBROOT}/index.html" || return 1
                 fi
             fi
-
-            # Fix ownership.
-            run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
             # Create vhost.
             echo "Creating virtual host file: ${VHOST_FILE}..."
@@ -208,8 +228,8 @@ function lemper_site_setup_skeleton() {
                         run sudo -u "${USERNAME}" -i -- "${PHP_BIN}" "${PHP_COMPOSER_BIN}" \
                             create-project --prefer-dist "laravel/${FRAMEWORK}" "${WEBROOT}"
                     else
-                        run git clone --depth=1 --branch=master "https://github.com/laravel/${FRAMEWORK}.git" "${WEBROOT}" \
-                            || error "Something went wrong while downloading ${FRAMEWORK^} files."
+                        run runuser -u "$USERNAME" -- git clone --depth=1 --branch=master \
+                            "https://github.com/laravel/$FRAMEWORK.git" "$WEBROOT" || return 1
                     fi
 
                     # create_app_db [app_db_username] [app_db_password] [app_db_name]
@@ -221,13 +241,10 @@ function lemper_site_setup_skeleton() {
                 # Create default index file.
                 if [[ ! -e "${WEBROOT}/public/index.php" ]]; then
                     echo "Creating default index file..."
-                    run mkdir -p "${WEBROOT}/public"
-                    create_index_file >"${WEBROOT}/public/index.html"
+                    run runuser -u "$USERNAME" -- mkdir -p -- "${WEBROOT}/public" || return 1
+                    lemper_site_write_index "${WEBROOT}/public/index.html" || return 1
                 fi
             fi
-
-            # Fix ownership.
-            run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
             # Return Lumen framework as Laravel for vhost creation.
             [[ "${FRAMEWORK}" == "lumen" ]] && FRAMEWORK="laravel"
@@ -267,8 +284,8 @@ function lemper_site_setup_skeleton() {
                         run sudo -u "${USERNAME}" -i -- "${PHP_PHALCON_BIN}" project \
                             --name="${SERVERNAME}" --type="${PHALCON_TYPE}" --directory="/home/${USERNAME}/webapps"
                     else
-                        run git clone --depth=1 --branch=master "https://github.com/joglomedia/${FRAMEWORK}-skeleton.git" "${WEBROOT}" \
-                            || error "Something went wrong while downloading ${FRAMEWORK} files."
+                        run runuser -u "$USERNAME" -- git clone --depth=1 --branch=master \
+                            "https://github.com/joglomedia/$FRAMEWORK-skeleton.git" "$WEBROOT" || return 1
                     fi
                 else
                     info "It seems that ${FRAMEWORK} skeleton files already exists."
@@ -277,13 +294,10 @@ function lemper_site_setup_skeleton() {
                 # Create default index file.
                 if [[ ! -e "${WEBROOT}/public/index.php" ]]; then
                     echo "Creating default index file..."
-                    run mkdir -p "${WEBROOT}/public"
-                    create_index_file >"${WEBROOT}/public/index.html"
+                    run runuser -u "$USERNAME" -- mkdir -p -- "${WEBROOT}/public" || return 1
+                    lemper_site_write_index "${WEBROOT}/public/index.html" || return 1
                 fi
             fi
-
-            # Fix ownership.
-            run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
             # Return Micro framework as Phalcon for vhost creation.
             [[ "${FRAMEWORK}" == "phalcon-cli" || "${FRAMEWORK}" == "phalcon-micro" || "${FRAMEWORK}" == "phalcon-modules" ]] \
@@ -304,7 +318,8 @@ function lemper_site_setup_skeleton() {
                     echo "Downloading Symfony skeleton files..."
 
                     if [[ -n "${PHP_COMPOSER_BIN}" ]]; then
-                        run composer create-project --prefer-dist symfony/website-skeleton "${WEBROOT}"
+                        run sudo -u "$USERNAME" -i -- "$PHP_BIN" "$PHP_COMPOSER_BIN" \
+                            create-project --prefer-dist symfony/website-skeleton "$WEBROOT" || return 1
                     else
                         warning "Symfony CLI not found, trying to install it first..."
                         run bash -c "curl -sSL https://get.symfony.com/cli/installer -o - | bash"
@@ -325,12 +340,9 @@ function lemper_site_setup_skeleton() {
                 # Create default index file.
                 if [[ ! -e "${WEBROOT}/index.php" ]]; then
                     echo "Creating default index file..."
-                    create_index_file >"${WEBROOT}/index.html"
+                    lemper_site_write_index "${WEBROOT}/index.html" || return 1
                 fi
             fi
-
-            # Fix ownership.
-            run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
             # Create vhost.
             echo "Creating virtual host file: ${VHOST_FILE}..."
@@ -341,7 +353,7 @@ function lemper_site_setup_skeleton() {
             echo "Setting up WordPress virtual host..."
 
             # Install WordPress skeleton.
-            install_wordpress
+            install_wordpress || return 1
 
             APP_ADMIN_USER="wpadmin"
 
@@ -364,13 +376,7 @@ function lemper_site_setup_skeleton() {
                         run sudo -u "${USERNAME}" -i -- wp-cli plugin install woocommerce --activate --path="${WEBROOT}"
                         run sudo -u "${USERNAME}" -i -- wp-cli theme install storefront --activate --path="${WEBROOT}"
                     else
-                        if curl -sSL -o "${TMPDIR}/woocommerce.zip" \
-                            https://downloads.wordpress.org/plugin/woocommerce.zip; then
-                            run unzip -q "${TMPDIR}/woocommerce.zip" -d "${WEBROOT}/wp-content/plugins/"
-                            run rm -f "${TMPDIR}/woocommerce.zip"
-                        else
-                            error "Something went wrong while downloading WooCommerce files."
-                        fi
+                        lemper_site_install_zip https://downloads.wordpress.org/plugin/woocommerce.zip "$WEBROOT/wp-content/plugins/" || return 1
                     fi
                 fi
             fi
@@ -387,7 +393,7 @@ function lemper_site_setup_skeleton() {
             echo "Setting up WordPress Multi-site virtual host..."
 
             # Install WordPress.
-            install_wordpress
+            install_wordpress || return 1
 
             APP_ADMIN_USER="wpadmin"
 
@@ -401,8 +407,9 @@ function lemper_site_setup_skeleton() {
 
             if [[ "$INSTALL_APP" == true ]]; then
                 # Mercator domain mapping.
-                run git clone --depth=1 --branch=master https://github.com/humanmade/Mercator.git "${WEBROOT}/wp-content/mu-plugins/mercator" \
-                    && cat >"${WEBROOT}/wp-content/sunrise.php" <<EOL
+                run runuser -u "$USERNAME" -- git clone --depth=1 --branch=master https://github.com/humanmade/Mercator.git \
+                    "${WEBROOT}/wp-content/mu-plugins/mercator" || return 1
+                run runuser -u "$USERNAME" -- tee -- "${WEBROOT}/wp-content/sunrise.php" >/dev/null <<'EOL' || return 1
 <?php
 // Default mu-plugins directory if you haven't set it
 defined( 'WPMU_PLUGIN_DIR' ) or define( 'WPMU_PLUGIN_DIR', WP_CONTENT_DIR . '/mu-plugins' );
@@ -411,17 +418,8 @@ require WPMU_PLUGIN_DIR . '/mercator/mercator.php';
 EOL
 
                 # Enable sunrise. (insert new line before match)
-                sed_inplace "/\/*\ That/i define( 'SUNRISE', true );\n" "${WEBROOT}/wp-config.php"
+                run runuser -u "$USERNAME" -- sed -i "/\/*\ That/i define( 'SUNRISE', true );" -- "${WEBROOT}/wp-config.php" || return 1
 
-            fi
-
-            # Pre-populate blog id mapping, used by Nginx vhost config.
-            if [[ ! -d "${WEBROOT}/wp-content/uploads/nginx-helper" ]]; then
-                run mkdir -p "${WEBROOT}/wp-content/uploads/nginx-helper"
-            fi
-
-            if [[ ! -f "${WEBROOT}/wp-content/uploads/nginx-helper/map.conf" ]]; then
-                run touch "${WEBROOT}/wp-content/uploads/nginx-helper/map.conf"
             fi
 
             echo "Creating virtual host file: ${VHOST_FILE}..."
@@ -448,15 +446,7 @@ EOL
                 if [[ ! -f "${WEBROOT}/occ" ]]; then
                     echo "Downloading OwnCloud skeleton files..."
 
-                    OWNCLOUD_DOWNLOAD_URL="https://download.owncloud.com/server/stable/owncloud-complete-latest.zip"
-
-                    if curl -sLI "${OWNCLOUD_DOWNLOAD_URL}" | grep -q "HTTP/[.12]* [2].."; then
-                        run curl -sSL -o "${TMPDIR}/owncloud.zip" "${OWNCLOUD_DOWNLOAD_URL}" \
-                            && run unzip -q "${TMPDIR}/owncloud.zip" -d "${WEBROOT}"
-                        run rm -f "${TMPDIR}/owncloud.zip"
-                    else
-                        error "Something went wrong while downloading OwnCloud files."
-                    fi
+                    lemper_site_install_zip https://download.owncloud.com/server/stable/owncloud-complete-latest.zip "$WEBROOT" || return 1
                 else
                     info "OwnCloud skeleton files already exists."
                 fi
@@ -465,12 +455,9 @@ EOL
                 echo "Creating default index files..."
 
                 if [[ ! -e "${WEBROOT}/index.html" ]]; then
-                    create_index_file >"${WEBROOT}/index.html"
+                    lemper_site_write_index "${WEBROOT}/index.html" || return 1
                 fi
             fi
-
-            # Fix ownership.
-            run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
             # Create vhost.
             echo "Creating virtual host file: ${VHOST_FILE}..."
@@ -488,8 +475,7 @@ EOL
                 APP_DB_USER="" APP_DB_PASS="" APP_DB_NAME=""
                 APP_ADMIN_USER="" APP_ADMIN_PASS=""
             else
-                [[ -e "$WEBROOT/index.html" ]] || create_index_file >"$WEBROOT/index.html"
-                run chown -hR "$USERNAME:$USERNAME" "$WEBROOT"
+                [[ -e "$WEBROOT/index.html" ]] || lemper_site_write_index "$WEBROOT/index.html" || return 1
                 if [[ "$FRAMEWORK" == mautic || "$FRAMEWORK" == roundcube ]]; then
                     create_vhost_default >"$VHOST_FILE"
                 else
@@ -505,11 +491,8 @@ EOL
 
             # Create default index file.
             if [[ ! -e "${WEBROOT}/index.html" ]]; then
-                create_index_file >"${WEBROOT}/index.html"
+                lemper_site_write_index "${WEBROOT}/index.html" || return 1
             fi
-
-            # Fix ownership.
-            run chown -hR "${USERNAME}:${USERNAME}" "${WEBROOT}"
 
             # Create default vhost.
             echo "Creating virtual host file: ${VHOST_FILE}..."

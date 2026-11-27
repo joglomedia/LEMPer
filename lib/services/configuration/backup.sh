@@ -152,13 +152,14 @@ function backup_sha256() {
 ##
 # Check whether an archive member may be restored.
 #
-# Mirrors the create-time allow-list: system configuration below /etc, the
+# Mirrors the create-time allow-list: selected configuration below /etc, the
 # LEMPer-provided vsftpd unit, and legacy .env files. Anything else — absolute
 # paths, parent traversal, binaries, web roots — is rejected.
 ##
 function backup_member_allowed() {
-    local member="${1}"
+    local member="${1%/}"
     local candidate
+    shift
 
     if [[ -z "${member}" ]]; then
         return 1
@@ -169,35 +170,29 @@ function backup_member_allowed() {
     fi
 
     case "/${member}/" in
-        *"/../"*)
+        *"/../"*|*"/./"*|*"//"*)
             return 1
             ;;
     esac
 
     # Keep restore from reintroducing CLI code or LEMPer's rollback copies.
     case "${member}" in
-        etc/lemper/core* | etc/lemper/runtime* | etc/lemper/services* | etc/lemper/compat* | etc/lemper/cli-plugins* | etc/lemper/backups* | etc/modsecurity/crs*)
+        etc/lemper/core* | etc/lemper/runtime* | etc/lemper/services* | etc/lemper/compat* | etc/lemper/cli-plugins* | etc/lemper/backups* | \
+        etc/lemper-mail/.lemper-restore.* | etc/modsecurity/crs*)
             return 1
             ;;
     esac
 
-    case "${member}" in
-        "${LEMPER_BACKUP_MANIFEST}")
-            return 0
-            ;;
-        etc/*)
-            return 0
-            ;;
-        usr/lib/systemd/system/vsftpd.service | lib/systemd/system/vsftpd.service)
-            return 0
-            ;;
-        root/* | opt/* | srv/* | usr/local/* | var/www/*)
-            if [[ "${member}" == */.env ]]; then
-                return 0
-            fi
-            return 1
-            ;;
-    esac
+    [[ "$member" == "$LEMPER_BACKUP_MANIFEST" ]] && return 0
+    [[ "$member" == lib/systemd/system/vsftpd.service ]] && return 0
+    if [[ $# -eq 0 ]]; then
+        local -a paths
+        mapfile -t paths < <(backup_path_list)
+        set -- "${paths[@]}"
+    fi
+    for candidate; do
+        [[ "$member" == "$candidate" || "$member" == "$candidate/"* ]] && return 0
+    done
 
     # Custom checkout locations come from local installer state or an explicit
     # operator override, never from the archive's untrusted manifest. Permit
@@ -212,6 +207,190 @@ function backup_member_allowed() {
     fi
 
     return 1
+}
+
+##
+# Permit links into managed configuration and the package links used by supported distributions.
+##
+function backup_symlink_allowed() {
+    local member="$1" target="$2" resolved
+    [[ -n "$target" && "$target" != *[[:cntrl:]\\]* ]] || return 1
+    [[ "$target" == /* ]] || target="/${member%/*}/$target"
+    resolved=$(realpath -ms -- "$target") || return 1
+    if [[ "$member" =~ ^etc/postgresql/([0-9]+([.][0-9]+)?)/([A-Za-z0-9_][A-Za-z0-9_-]*)/log$ ]]; then
+        [[ "$resolved" == "/var/log/postgresql/postgresql-${BASH_REMATCH[1]}-${BASH_REMATCH[3]}.log" ]] && return 0
+    fi
+
+    case "$member:$resolved" in
+        etc/nginx/modules-enabled/*:/usr/share/nginx/modules-available/* | \
+        etc/mysql/my.cnf:/etc/alternatives/my.cnf | \
+        etc/postfix/makedefs.out:/usr/share/postfix/makedefs.out | \
+        etc/dovecot/private/dovecot.key:/etc/ssl/private/ssl-cert-snakeoil.key | \
+        etc/dovecot/private/dovecot.pem:/etc/ssl/certs/ssl-cert-snakeoil.pem | \
+        etc/systemd/system/pure-ftpd.service:/usr/lib/systemd/system/pure-ftpd.service | \
+        etc/systemd/system/pure-ftpd.service:/lib/systemd/system/pure-ftpd.service)
+            return 0
+            ;;
+    esac
+    [[ "$resolved" != "/$LEMPER_BACKUP_MANIFEST" ]] && backup_member_allowed "${resolved#/}"
+}
+
+##
+# Validate archive member names and types together. Restore must not write
+# through a pre-existing link or an ancestor a lower-trust account can replace.
+##
+function backup_verify_members() {
+    local file="$1" restore_root="${2:-}" listing details
+    local member entry type name target parent destination index tree live_tree
+    local -a members entries paths
+    local -A member_types=() protected_parents=()
+
+    listing=$(LC_ALL=C tar --quoting-style=escape -tzf "$file") || return 1
+    details=$(LC_ALL=C tar --quoting-style=escape --numeric-owner -tvzf "$file") || return 1
+    if ! grep -Fxq -- "$LEMPER_BACKUP_MANIFEST" <<< "$listing"; then
+        error "Backup archive has no ${LEMPER_BACKUP_MANIFEST}."
+        return 1
+    fi
+    mapfile -t members <<< "$listing"
+    mapfile -t entries <<< "$details"
+    mapfile -t paths < <(backup_path_list)
+    [[ ${#members[@]} -eq ${#entries[@]} ]] || return 1
+
+    for index in "${!members[@]}"; do
+        name="${members[index]}"
+        member="${name%/}"
+        if [[ "$name" == *[[:cntrl:]\\]* ]] || ! backup_member_allowed "$name" "${paths[@]}"; then
+            error "Archive contains a path LEMPer will not restore."
+            return 1
+        fi
+        entry="${entries[index]}"
+        read -r type _ _ _ _ target <<< "$entry"
+        case "${type:0:1}" in
+            - | d) ;;
+            l)
+                if [[ "$target" != "$name -> "* ]] ||
+                    ! backup_symlink_allowed "$member" "${target#"$name -> "}"; then
+                    error "Archive contains a symbolic link outside the managed configuration."
+                    return 1
+                fi
+                ;;
+            h)
+                # Format 1 could add a legacy .env twice, resulting in a
+                # regular file followed by a hard-link entry to itself.
+                if [[ "$member" == */.env && "${member_types[$member]:-}" == - &&
+                    "$target" == "$name link to $name" ]]; then
+                    continue
+                fi
+                error "Archive contains an unsupported hard link."
+                return 1
+                ;;
+            *)
+                error "Unsupported configuration archive member type."
+                return 1
+                ;;
+        esac
+        if [[ -n "${member_types[$member]:-}" || ( "$member" == "$LEMPER_BACKUP_MANIFEST" && "${type:0:1}" != - ) ]]; then
+            error "Archive contains a duplicate member or an invalid manifest."
+            return 1
+        fi
+        member_types["$member"]="${type:0:1}"
+    done
+
+    for member in "${!member_types[@]}"; do
+        [[ "$member" != "$LEMPER_BACKUP_MANIFEST" ]] || continue
+        parent=$(dirname -- "/$member") || return 1
+        if [[ -n "$restore_root" ]]; then
+            destination="${restore_root%/}$parent"
+            for tree in "${LEMPER_BACKUP_RESTORE_TREES[@]}"; do
+                [[ "$member" == "$tree" || "$member" == "$tree/"* ]] || continue
+                if [[ "${member_types[$tree]:-}" != d ]]; then
+                    error "Restore requires a complete managed service directory."
+                    return 1
+                fi
+                live_tree="${restore_root%/}/$tree"
+                if [[ "$member" == "$tree" && ( -L "$live_tree" || ( -e "$live_tree" && ! -d "$live_tree" ) ) ]]; then
+                    error "Restore requires a real destination directory for managed service state."
+                    return 1
+                fi
+                destination="${restore_root%/}/${tree%/*}"
+                break
+            done
+            # On usrmerged systems the historical path is a system alias.
+            if [[ "$member" == lib/systemd/system/vsftpd.service &&
+                "$(readlink -- "${restore_root%/}/lib")" == usr/lib ]]; then
+                destination="${restore_root%/}/usr$parent"
+            fi
+            if [[ -z "${protected_parents[$destination]:-}" ]]; then
+                if ! lemper_directory_trusted "$destination"; then
+                    error "Restore requires protected configuration directories."
+                    return 1
+                fi
+                protected_parents["$destination"]=1
+            fi
+        fi
+        while [[ "$parent" != / ]]; do
+            if [[ -n "${member_types[${parent#/}]:-}" && "${member_types[${parent#/}]}" != d ]]; then
+                error "Archive path has a non-directory ancestor."
+                return 1
+            fi
+            parent="${parent%/*}"
+            [[ -n "$parent" ]] || parent=/
+        done
+    done
+}
+
+# Restore service-owned directories from protected staging outside the live
+# tree. The final rename operates only in a root-controlled parent.
+function backup_publish_restore_tree() (
+    local source="$1" destination="$2" parent="${2%/*}" temporary
+    lemper_directory_trusted "$parent" && [[ -d "$parent" && ! -L "$destination" ]] || return 1
+    [[ ! -e "$destination" || -d "$destination" ]] || return 1
+    temporary=$(mktemp -d "$parent/.lemper-restore.XXXXXXXX") || return 1
+    trap 'if [[ ! -e "$temporary/previous" ]]; then rm -rf -- "$temporary"; fi' EXIT
+    cp -a -- "$source" "$temporary/new" || return 1
+    if [[ -d "$destination" ]]; then
+        mv -T -- "$destination" "$temporary/previous" || return 1
+    fi
+    if ! mv -T -- "$temporary/new" "$destination"; then
+        if [[ -d "$temporary/previous" ]] && ! mv -T -- "$temporary/previous" "$destination"; then
+            error "Previous service configuration remains at $temporary/previous."
+        fi
+        return 1
+    fi
+    if ! rm -rf --one-file-system -- "$temporary/previous"; then
+        warning "Previous service configuration remains at $temporary/previous."
+    fi
+)
+
+# The caller passes previously verified bytes and a private workspace. Only
+# the managed service directories need wholesale publication. Other paths
+# retain the existing overlay semantics.
+function backup_apply_restore() {
+    local file="$1" root="$2" stage="$3" listing member tree
+    local -a excludes=("--exclude=$LEMPER_BACKUP_MANIFEST") trees=()
+    for member in "${LEMPER_BACKUP_EXCLUDES_DEFAULT[@]}"; do
+        excludes+=("--exclude=$member")
+    done
+    listing=$(LC_ALL=C tar --quoting-style=escape -tzf "$file") || return 1
+    for tree in "${LEMPER_BACKUP_RESTORE_TREES[@]}"; do
+        if grep -Fxq -e "$tree" -e "$tree/" <<< "$listing"; then
+            trees+=("$tree")
+            excludes+=("--exclude=$tree")
+        fi
+    done
+    if [[ ${#trees[@]} -gt 0 ]]; then
+        mkdir -m 0700 -- "$stage" || return 1
+        tar -xzf "$file" -C "$stage" --numeric-owner --delay-directory-restore -- "${trees[@]}" || return 1
+    fi
+    if ! (
+        set -o pipefail
+        lemper_transfer_read "$file" | tar -xz -C "$root" --numeric-owner --delay-directory-restore "${excludes[@]}"
+    ); then
+        return 1
+    fi
+    for tree in "${trees[@]}"; do
+        backup_publish_restore_tree "$stage/$tree" "${root%/}/$tree" || return 1
+    done
 }
 
 ##
@@ -296,7 +475,7 @@ function backup_write_manifest() {
 ##
 # Create an archive and print its path. Silent on stdout except for the path.
 ##
-function backup_create_archive() {
+function backup_create_archive() (
     local output_dir="${1:-${LEMPER_BACKUP_DIR}}"
     local label="${2:-}"
     local root stamp host archive tmpdir
@@ -327,25 +506,26 @@ function backup_create_archive() {
         fi
     done < <(backup_collect_legacy_envs)
 
-    tar_paths=("${config_paths[@]}" "${legacy_paths[@]}")
+    tar_paths=("${config_paths[@]}")
+    for member in "${legacy_paths[@]}"; do
+        for path in "${config_paths[@]}"; do
+            [[ "$member" != "$path" && "$member" != "$path/"* ]] || continue 2
+        done
+        tar_paths+=("$member")
+    done
 
     if [[ ${#tar_paths[@]} -eq 0 ]]; then
         error "No LEMPer configuration found under ${root}."
         return 1
     fi
 
-    if [[ ! -d "${output_dir}" ]]; then
-        if ! mkdir -p "${output_dir}"; then
-            error "Cannot create backup directory: ${output_dir}"
-            return 1
-        fi
-        chmod 0700 "${output_dir}" 2>/dev/null || true
-    fi
-
+    output_dir=$(realpath -ms -- "$output_dir") || return 1
+    lemper_directory_trusted "$output_dir" || { error "Untrusted backup directory."; return 1; }
+    umask 077
     archive="${output_dir}/lemper-config-${host}-${stamp}${label:+-${label}}.tar.gz"
 
-    if [[ -e "${archive}" ]]; then
-        archive="${output_dir}/lemper-config-${host}-${stamp}${label:+-${label}}-$$.tar.gz"
+    if [[ -e "$archive" || -L "$archive" || -e "$archive.sha256" || -L "$archive.sha256" ]]; then
+        archive="${output_dir}/lemper-config-${host}-${stamp}-${BASHPID}${label:+-${label}}.tar.gz"
     fi
 
     if [[ "${DRYRUN}" == true ]]; then
@@ -354,54 +534,48 @@ function backup_create_archive() {
         return 0
     fi
 
-    tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/lemper-backup.XXXXXX") || {
+    if [[ ! -d "$output_dir" ]]; then
+        mkdir -p -- "$output_dir" || return 1
+        lemper_directory_trusted "$output_dir" && chmod 0700 -- "$output_dir" || return 1
+    fi
+    tmpdir=$(mktemp -d "$output_dir/.lemper-backup.XXXXXXXX") || {
         error "Cannot create a temporary directory."
         return 1
     }
 
+    trap 'rm -rf -- "$tmpdir"' EXIT
     backup_write_manifest "${tmpdir}/${LEMPER_BACKUP_MANIFEST}" "${root}" \
-        "${config_paths[*]}" "${legacy_paths[*]}" "${LEMPER_BACKUP_EXCLUDES_DEFAULT[*]}"
+        "${config_paths[*]}" "${legacy_paths[*]}" "${LEMPER_BACKUP_EXCLUDES_DEFAULT[*]}" || return 1
 
     for member in "${LEMPER_BACKUP_EXCLUDES_DEFAULT[@]}"; do
         excludes+=("--exclude=${member}")
     done
 
-    tar_cmd=(tar -czf "${archive}" --numeric-owner)
+    tar_cmd=(tar -czf "$tmpdir/archive" --numeric-owner --hard-dereference)
     tar_cmd+=("${excludes[@]}")
     tar_cmd+=(-C "${root}" "${tar_paths[@]}")
     tar_cmd+=(-C "${tmpdir}" "${LEMPER_BACKUP_MANIFEST}")
 
-    if ! "${tar_cmd[@]}"; then
-        rm -f "${archive}"
-        rm -rf "${tmpdir}"
-        error "Backup archive creation failed."
+    "${tar_cmd[@]}" && backup_verify_members "$tmpdir/archive" || return 1
+    local digest
+    digest=$(backup_sha256 "$tmpdir/archive") && [[ "$digest" =~ ^[a-f0-9]{64}$ ]] || return 1
+    printf '%s\n' "$digest" > "$tmpdir/checksum" || return 1
+    chmod 0600 -- "$tmpdir/archive" "$tmpdir/checksum" || return 1
+    ln -T -- "$tmpdir/checksum" "$archive.sha256" || return 1
+    if ! ln -T -- "$tmpdir/archive" "$archive"; then
+        rm -f -- "$archive.sha256"
         return 1
-    fi
-
-    rm -rf "${tmpdir}"
-    chmod 0600 "${archive}" 2>/dev/null || true
-
-    if ! tar -tzf "${archive}" >/dev/null 2>&1; then
-        error "Backup archive failed verification: ${archive}"
-        return 1
-    fi
-
-    if command -v sha256sum >/dev/null 2>&1 || command -v shasum >/dev/null 2>&1 \
-        || command -v openssl >/dev/null 2>&1; then
-        backup_sha256 "${archive}" >"${archive}.sha256"
-        chmod 0600 "${archive}.sha256" 2>/dev/null || true
     fi
 
     printf '%s\n' "${archive}"
-}
+)
 
 ##
 # Verify archive integrity and the restore allow-list.
 ##
 function backup_verify_archive() {
     local file="${1}"
-    local listing member expected actual
-    local bad=()
+    local restore_root="${2:-}" expected actual
 
     if [[ ! -f "${file}" ]]; then
         error "Backup file not found: ${file}"
@@ -413,45 +587,28 @@ function backup_verify_archive() {
         return 1
     fi
 
-    if ! listing=$(tar -tzf "${file}" 2>/dev/null); then
-        error "Backup archive cannot be read: ${file}"
-        return 1
-    fi
-
-    if [[ -z "${listing}" ]]; then
-        error "Backup archive is empty: ${file}"
-        return 1
-    fi
-
-    if ! printf '%s\n' "${listing}" | grep -qx "${LEMPER_BACKUP_MANIFEST}"; then
-        error "Backup archive has no ${LEMPER_BACKUP_MANIFEST}."
-        return 1
-    fi
-
-    while IFS= read -r member; do
-        if [[ -z "${member}" || "${member}" == "${LEMPER_BACKUP_MANIFEST}" ]]; then
-            continue
-        fi
-
-        if ! backup_member_allowed "${member}"; then
-            bad+=("${member}")
-        fi
-    done <<<"${listing}"
-
-    if [[ ${#bad[@]} -gt 0 ]]; then
-        error "Archive contains paths LEMPer will not restore: ${bad[*]}"
-        return 1
-    fi
+    backup_verify_members "$file" "$restore_root" || return 1
 
     if [[ -f "${file}.sha256" ]]; then
         expected=$(awk '{print $1; exit}' "${file}.sha256")
         actual=$(backup_sha256 "${file}" 2>/dev/null || true)
 
-        if [[ -n "${expected}" && -n "${actual}" && "${expected}" != "${actual}" ]]; then
+        if [[ ! "$expected" =~ ^[a-fA-F0-9]{64}$ || "${expected,,}" != "$actual" ]]; then
             error "Checksum mismatch for ${file}."
             return 1
         fi
     fi
 
     return 0
+}
+
+# A checksum provided beside an archive is an integrity check. Only files
+# controlled by the local administrator can cross the privileged restore boundary.
+function backup_artifact_trusted() {
+    local file="$1" parent owner mode
+    [[ -f "$file" && ! -L "$file" ]] || return 1
+    parent="${file%/*}"
+    lemper_directory_trusted "${parent:-/}" || return 1
+    read -r owner mode < <(stat -c '%u %a' -- "$file") || return 1
+    [[ "$owner" == "$EUID" && "$mode" =~ ^[0-7]{1,4}$ ]] && (( (8#$mode & 0022) == 0 ))
 }

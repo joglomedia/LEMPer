@@ -146,6 +146,35 @@ function lemper_site_release_permissions() {
             || lemper_exec sudo -u "$owner" -- chmod 0600 -- "$path" || return 1
     done
 }
+function lemper_site_release_publish() (
+    local project="$1" root="$2" owner="$3" parent staged destination
+    local -a publisher=()
+    parent=$(dirname -- "$root") || return 1
+    if sudo -u "$owner" -- test -w "$parent"; then
+        # A hosted account may control this entire path. Keep all mutations in its identity.
+        publisher=(sudo -u "$owner" --)
+        staged=$("${publisher[@]}" mktemp -d "$parent/.lemper-publish.XXXXXXXX") || return 1
+        trap '"${publisher[@]}" rm -rf -- "$staged"' EXIT
+        destination="$staged"
+    else
+        # A site under a protected system directory may need root for the final rename.
+        lemper_directory_trusted "$parent" || return 1
+        staged=$(mktemp -d "$parent/.lemper-publish.XXXXXXXX") || return 1
+        trap 'rm -rf -- "$staged"' EXIT
+        destination="$staged/project"
+        chgrp -- "$(id -gn "$owner")" "$staged" && chmod 0710 "$staged" || return 1
+        install -d -o "$owner" -g "$(id -gn "$owner")" -m0755 "$destination" || return 1
+    fi
+    sudo -u "$owner" -- cp -a -- "$project/." "$destination/" || return 1
+    # Stage beside the destination for a same-filesystem rename, including custom mounts.
+    # Only remove an empty target and keep any tree that appears before publication.
+    "${publisher[@]}" rmdir -- "$root" || return 1
+    "${publisher[@]}" mv -Tn -- "$destination" "$root" || return 1
+    [[ ! -e "$destination" ]] || {
+        error "Project appeared during publication; existing data is retained."
+        return 1
+    }
+)
 function lemper_site_release_install() (
     local type="$1" root="$2" owner="$3" php="$4" domain="${5:-}" version url checksum kind prefix work actual helper repository spec tag integrity=published-sha256 platform
     local extract_options=()
@@ -164,10 +193,12 @@ function lemper_site_release_install() (
         error "Release installation requires an empty project directory; existing data is retained."
         return 1
     }
-    work=$(mktemp -d "$(dirname "$root")/.lemper-release-XXXXXXXX") || return 1
+    lemper_directory_trusted /var/tmp || return 1
+    work=$(mktemp -d /var/tmp/lemper-release-XXXXXXXX) || return 1
     trap 'rm -rf -- "$work"' EXIT
     # Extraction and upstream PHP validation run as the hosting account.
-    lemper_exec chmod 0711 "$work" || return 1
+    lemper_exec chgrp "$(id -gn "$owner")" "$work" || return 1
+    lemper_exec chmod 0710 "$work" || return 1
     lemper_exec install -d -o "$owner" -g "$(id -gn "$owner")" -m0755 "$work/project" || return 1
     repository=$(lemper_site_release_repository "$type") || return 1
     url="https://api.github.com/repos/$repository/releases/latest"
@@ -206,7 +237,8 @@ function lemper_site_release_install() (
     fi
     if [[ "$type" == ojs ]]; then
         is_valid_domain "$domain" || return 1
-        lemper_exec install -d -o "$owner" -g "$(id -gn "$owner")" -m0700 "$root-files" || return 1
+        lemper_load_module services/accounts/permissions || return 1
+        lemper_site_prepare_directory "$root-files" "$owner" 0700 || return 1
         helper=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/release_prepare.sh
         # shellcheck disable=SC2016 # Fixed child shell; values are positional arguments.
         lemper_exec sudo -u "$owner" -- bash -c '. "$1"; shift; lemper_site_release_prepare "$@"' _ "$helper" "$work/project" "$root" "$domain" || return 1
@@ -233,16 +265,12 @@ function lemper_site_release_install() (
         [[ -s "$work/project/snappymail/v/$version/include.php" ]] || return 1
     fi
     printf '%s|%s|%s\n' "$type" "$version" "$checksum" >"$work/receipt" || return 1
-    lemper_exec install -o "$owner" -g "$(id -gn "$owner")" -m0600 "$work/receipt" "$work/project/.lemper-release" || return 1
+    chmod 0644 "$work/receipt" || return 1
+    lemper_exec sudo -u "$owner" -- install -m0600 "$work/receipt" "$work/project/.lemper-release" || return 1
     printf '%s\n' "$integrity" >"$work/integrity" || return 1
-    lemper_exec install -o "$owner" -g "$(id -gn "$owner")" -m0600 "$work/integrity" "$work/project/.lemper-integrity" || return 1
+    chmod 0644 "$work/integrity" || return 1
+    lemper_exec sudo -u "$owner" -- install -m0600 "$work/integrity" "$work/project/.lemper-integrity" || return 1
     lemper_site_release_permissions "$type" "$work/project" "$owner" || return 1
-    # rmdir removes only an empty target. Never replace a concurrently created tree.
-    lemper_exec rmdir -- "$root" || return 1
-    lemper_exec mv -T -n -- "$work/project" "$root" || return 1
-    [[ ! -e "$work/project" ]] || {
-        error "Project appeared during publication; existing data is retained."
-        return 1
-    }
+    lemper_site_release_publish "$work/project" "$root" "$owner" || return 1
     info "Deployed $type $version complete files. Finish upstream database/admin/mail setup."
 )

@@ -16,24 +16,16 @@
 # +-------------------------------------------------------------------------+
 
 function init_mongodb_removal() {
-    # Remove MongoDB default admin.
-    echo "Deleting default MongoDB admin account: '${MONGODB_ADMIN_USER}'"
-    run mongosh admin --eval "\"db.dropUser('${MONGODB_ADMIN_USER}');\""
-
-    # Stop MongoDB server process.
-    if [[ $(pgrep -c mongod) -gt 0 ]]; then
-        echo "Stopping mongodb..."
-        run systemctl stop mongod
-        run systemctl disable mongod
+    local -a packages=()
+    local purge=false
+    # Uninstalling packages leaves the database and its authentication intact.
+    if systemctl cat mongod.service >/dev/null 2>&1; then
+        lemper_exec systemctl stop mongod.service || return 1
+        lemper_exec systemctl disable mongod.service || return 1
     fi
-
-    if dpkg-query -l | awk '/mongodb/ { print $2 }' | grep -qwE "^mongodb"; then
-        echo "Removing MongoDB packages..."
-
-        # Remove MongoDB server.
-        #shellcheck disable=SC2046
-        run apt-get purge -q -y $(dpkg-query -l | awk '/mongodb/ { print $2 }')
-
+    mapfile -t packages < <(dpkg-query -W -f='${binary:Package} ${db:Status-Status}\n' 'mongodb*' 2>/dev/null |
+        awk '$1 ~ /^mongodb-(org|database-tools|mongosh)([-:]|$)/ && $2 ~ /^(installed|config-files)$/ {print $1}')
+    if [[ ${#packages[@]} -gt 0 ]]; then
         if [[ "${AUTO_REMOVE}" == true ]]; then
             if [[ "${FORCE_REMOVE}" == true ]]; then
                 REMOVE_MONGOD_CONFIG="y"
@@ -50,7 +42,12 @@ function init_mongodb_removal() {
         fi
 
         if [[ "${REMOVE_MONGOD_CONFIG}" == Y* || "${REMOVE_MONGOD_CONFIG}" == y* ]]; then
+            purge=true
             echo "Removing MongoDB data & configs..."
+            lemper_exec apt-get purge -q -y "${packages[@]}" || return 1
+            lemper_exec rm -f -- /etc/systemd/system/mongod.service.d/90-lemper-security.conf || return 1
+            lemper_exec rm -rf -- /var/lib/lemper/mongodb || return 1
+            lemper_exec systemctl daemon-reload || return 1
 
             [ -f /etc/mongod.conf ] && run rm -f /etc/mongod.conf
             [ -d /var/lib/mongodb ] && run rm -fr /var/lib/mongodb
@@ -61,6 +58,7 @@ function init_mongodb_removal() {
 
             echo "All your MongoDB database and configuration files deleted permanently."
         fi
+        [[ "$purge" == true ]] || lemper_exec apt-get remove -q -y "${packages[@]}" || return 1
     else
         echo "MongoDB package not found, possibly installed from source."
 
@@ -97,7 +95,12 @@ function lemper_mongodb_remove_entry() {
             ;;
     esac
     echo "Uninstalling MongoDB ${MONGODB_VERSION} server..."
-    if [[ -n $(command -v mongod) ]]; then
+    if ! lemper_provisioned mongodb && [[ ! -f /var/lib/lemper/mongodb/configured && ! -f /var/lib/lemper/mongodb/pending &&
+        "${FORCE_REMOVE:-false}" != true ]]; then
+        info "Preserving MongoDB without a LEMPer provisioning marker."
+        return 0
+    fi
+    if command -v mongod >/dev/null || [[ -d /var/lib/lemper/mongodb ]]; then
         if [[ "${AUTO_REMOVE}" == true ]]; then
             REMOVE_MONGOD="y"
         else

@@ -140,11 +140,11 @@ function configure_pureftpd() {
         set_pureftpd_option "AltLog" "clf:/var/log/pure-ftpd/transfer.log"
 
         # Allow the site users created by LEMPer to authenticate.
-        set_pureftpd_option "UnixAuthentication" "yes"
-        set_pureftpd_option "PAMAuthentication" "yes"
+        set_pureftpd_option "UnixAuthentication" "no" || return 1
+        set_pureftpd_option "PAMAuthentication" "yes" || return 1
 
-        run ln -sfn /etc/pure-ftpd/conf/UnixAuthentication /etc/pure-ftpd/auth/65unix
-        run ln -sfn /etc/pure-ftpd/conf/PAMAuthentication /etc/pure-ftpd/auth/70pam
+        run ln -sfn /etc/pure-ftpd/conf/UnixAuthentication /etc/pure-ftpd/auth/65unix || return 1
+        run ln -sfn /etc/pure-ftpd/conf/PAMAuthentication /etc/pure-ftpd/auth/70pam || return 1
 
         # The packaged PAM stack is missing on source installs.
         if [[ ! -f /etc/pam.d/pure-ftpd ]]; then
@@ -189,8 +189,8 @@ function configure_pureftpd() {
         if [[ "${FTP_SSL_ENABLE}" == true ]]; then
             ensure_pureftpd_certificate
 
-            set_pureftpd_option "TLS" "2"
-            set_pureftpd_option "TLSCipherSuite" "HIGH:!aNULL:!MD5"
+            set_pureftpd_option "TLS" "3" || return 1
+            set_pureftpd_option "TLSCipherSuite" "HIGH:!aNULL:!MD5" || return 1
         else
             run rm -f /etc/pure-ftpd/conf/TLS
         fi

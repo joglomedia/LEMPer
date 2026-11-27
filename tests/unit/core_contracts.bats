@@ -7,6 +7,81 @@ core_child='
     error() { printf "%s\n" "$*" >&2; }
     info() { :; }
 '
+@test "web administrator enrollment consumes stdin and replacement and revocation preserve other accounts" {
+    [[ "$EUID" == 0 ]] || skip "requires the disposable root Linux test environment"
+    run bash -c "$core_child"'
+        directory="$TEST_TMPDIR/nginx"
+        htpasswd() {
+            [[ "$#" == 2 && "$1" == -nBi && -z "${LEMPER_PASSWORD:-}" ]] || return 1
+            local secret
+            IFS= read -r secret && [[ "$secret" == fixture-password ]] || return 1
+            printf "%s:%s\n" "$2" "fixture-bcrypt-hash"
+        }
+        export LEMPER_PASSWORD=fixture-password
+        for user in operatorone operatortwo operatorone; do
+            lemper_account_admin_auth enroll "$user" "$directory" <<<fixture-password || exit 1
+        done
+        lemper_account_admin_auth revoke operatorone "$directory"
+    '
+    [ "$status" -eq 0 ]
+    [[ "$output" != *fixture-password* ]]
+    [ "$(stat -c '%U:%G:%a' "$TEST_TMPDIR/nginx/lemper-admin.htpasswd")" = root:www-data:640 ]
+    [ "$(cat "$TEST_TMPDIR/nginx/lemper-admin.htpasswd")" = 'operatortwo:fixture-bcrypt-hash' ]
+}
+
+@test "web administrator enrollment refuses an unsafe existing verifier" {
+    [[ "$EUID" == 0 ]] || skip "requires the disposable root Linux test environment"
+    mkdir "$TEST_TMPDIR/nginx"
+    printf '%s\n' retained >"$TEST_TMPDIR/existing"
+    ln -s "$TEST_TMPDIR/existing" "$TEST_TMPDIR/nginx/lemper-admin.htpasswd"
+    run bash -c "$core_child"'
+        lemper_account_admin_auth enroll operatorone "$TEST_TMPDIR/nginx" <<<fixture-password
+    '
+    [ "$status" -ne 0 ]
+    [ -L "$TEST_TMPDIR/nginx/lemper-admin.htpasswd" ]
+    [ "$(cat "$TEST_TMPDIR/existing")" = retained ]
+}
+
+@test "web administrator enrollment works before Nginx or htpasswd is installed" {
+    [[ "$EUID" == 0 ]] || skip "requires the disposable root Linux test environment"
+    run bash -c "$core_child"'
+        command() {
+            if [[ "$*" == "-v htpasswd" ]]; then return 1; fi
+            builtin command "$@"
+        }
+        lemper_account_admin_auth enroll bootstrap "$TEST_TMPDIR/nginx" <<<fixture-password
+    '
+    [ "$status" -eq 0 ]
+    [ "$(stat -c '%U:%G:%a' "$TEST_TMPDIR/nginx/lemper-admin.htpasswd")" = root:www-data:640 ]
+    grep -Eq '^bootstrap:\$6\$' "$TEST_TMPDIR/nginx/lemper-admin.htpasswd"
+}
+
+@test "account command selects administrator access only with the explicit role" {
+    require_gnu_getopt
+    run bash -c "$core_child"'
+        lemper_load_module runtime/account/commands
+        lemper_load_module() { :; }
+        lemper_with_lock() { "$@"; }
+        create_account() { printf "%s:%s\n" "$1" "$2"; }
+        lemper_account_command hostinguser && lemper_account_command --admin operator
+    '
+    [ "$status" -eq 0 ]
+    [ "$output" = $'hostinguser:hosting\noperator:admin' ]
+}
+
+@test "interactive account changes use the shared lock" {
+    require_gnu_getopt
+    run bash -c "$core_child"'
+        lemper_load_module runtime/account/adduser
+        header_msg() { :; }
+        lemper_with_lock() { ( LOCK_HELD=true; "$@"; ); }
+        prompt_for_user() { [[ "${LOCK_HELD:-}" == true ]] && echo inside-shared-lock; }
+        init_lemper_adduser <<< "$(printf "y\nn\n")"
+    '
+    [ "$status" -eq 0 ]
+    [[ "$output" == *inside-shared-lock* ]]
+}
+
 @test "shared parser preserves quoted values, short clusters and positional delimiters" {
     run bash -c "${core_child}"'
         lemper_parse_args "hvu:" "help,username:" -hv --username="value with spaces;\$()" -- "-literal"
@@ -127,6 +202,19 @@ core_child='
     [ "${status}" -eq 0 ]
 }
 
+@test "SSH policy verification rejects an effective Match override" {
+    mkdir -p /run/sshd
+    run bash -c "${core_child}"'
+        DRYRUN=false
+        write_ssh_profile "$1" 2269 true false || exit 1
+        verify_effective_ssh_policy nobody 2269 true false "$1" || exit 1
+        printf "\nMatch User root\n    PermitRootLogin yes\n" >> "$1"
+        sshd -t -f "$1" || exit 1
+        ! verify_effective_ssh_policy nobody 2269 true false "$1"
+    ' _ "${TEST_TMPDIR}/sshd.conf"
+    [ "${status}" -eq 0 ]
+}
+
 @test "CLI refresh replaces a symlink without modifying its immutable version target" {
     printf 'old-release\n' > "${TEST_TMPDIR}/old"
     printf 'new-release\n' > "${TEST_TMPDIR}/new"
@@ -156,6 +244,31 @@ core_child='
     '
     [ "${status}" -eq 0 ]
     [[ "${output}" == *"ROLLBACK"* ]]
+}
+
+@test "legacy firewall selection preserves an active native policy before installation" {
+    run bash -c "${core_child}"'
+        lemper_load_module services/system/security || exit 1
+        AUTO_INSTALL=true INSTALL_FW=true FW_CONFIGURATOR=ufw
+        systemctl() { [[ "$*" == "is-active --quiet lemper-nftables.service" ]]; }
+        run() { echo MUTATED; }
+        install_firewall
+    '
+    [ "${status}" -ne 0 ]
+    [[ "${output}" == *"native nftables policy"* ]]
+    [[ "${output}" != *MUTATED* ]]
+}
+
+@test "legacy firewall selection does not silently replace an unknown backend with UFW" {
+    run bash -c "${core_child}"'
+        lemper_load_module services/system/security || exit 1
+        AUTO_INSTALL=true INSTALL_FW=true FW_CONFIGURATOR=unknown
+        run() { echo MUTATED; }
+        install_firewall
+    '
+    [ "${status}" -ne 0 ]
+    [[ "${output}" == *"Unknown firewall backend"* ]]
+    [[ "${output}" != *MUTATED* ]]
 }
 
 @test "hosts updates preserve the inode and other aliases and match names literally" {

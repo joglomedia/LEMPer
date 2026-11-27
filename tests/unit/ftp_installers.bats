@@ -42,9 +42,9 @@ refute_grep() {
 
 @test "pure-ftpd writes options the wrapper actually reads" {
     grep -q 'function set_pureftpd_option' "${BASE_DIR}/lib/services/ftp/pureftpd_install.sh"
-    grep -q 'set_pureftpd_option "TLS" "2"' "${BASE_DIR}/lib/services/ftp/pureftpd_install.sh"
+    grep -q 'set_pureftpd_option "TLS" "3"' "${BASE_DIR}/lib/services/ftp/pureftpd_install.sh"
     grep -q 'set_pureftpd_option "PassivePortRange"' "${BASE_DIR}/lib/services/ftp/pureftpd_install.sh"
-    grep -q 'set_pureftpd_option "UnixAuthentication" "yes"' \
+    grep -q 'set_pureftpd_option "UnixAuthentication" "no"' \
         "${BASE_DIR}/lib/services/ftp/pureftpd_install.sh"
     grep -q '/etc/pure-ftpd/auth/65unix' "${BASE_DIR}/lib/services/ftp/pureftpd_install.sh"
     grep -q '/etc/pam.d/pure-ftpd' "${BASE_DIR}/lib/services/ftp/pureftpd_install.sh"

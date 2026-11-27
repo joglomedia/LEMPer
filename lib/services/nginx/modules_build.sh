@@ -118,7 +118,8 @@ function install_ngx_geoip2() {
     install_maxmind_library
 
     # Download GeoLite2 databases
-    download_geolite2_databases
+    download_geolite2_databases || return 1
+    run cd "${NGINX_EXTRA_MODULE_DIR}" || return 1
 }
 
 ##
@@ -165,57 +166,35 @@ function install_maxmind_library() {
 ##
 # Download MaxMind GeoLite2 databases
 ##
-function download_geolite2_databases() {
-    echo "Downloading MaxMind GeoIP2-GeoLite2 database..."
-
-    run cd "${NGINX_BUILD_DIR}" || return 1
-
-    if [[ -d geoip-db ]]; then
-        run rm -rf geoip-db
-    fi
-
-    run mkdir -p geoip-db \
-        && run cd geoip-db \
-        && run mkdir -p /opt/geoip
-
-    # Download Country database
-    if [[ ! -f GeoLite2-Country.tar.gz && -n "${GEOLITE2_LICENSE_KEY}" ]]; then
-        local GEOLITE2_COUNTRY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
-
-        if curl -sLI "${GEOLITE2_COUNTRY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
-            run curl -sSL -o GeoLite2-Country.tar.gz "${GEOLITE2_COUNTRY_SRC}" \
-                && run tar -xf GeoLite2-Country.tar.gz \
-                && run cd GeoLite2-Country_*/ \
-                && run mv GeoLite2-Country.mmdb /opt/geoip/ \
-                && run cd "${NGINX_BUILD_DIR}/geoip-db" || return 1
-        else
-            error "Unable to download MaxMind GeoLite2 Country database..."
-        fi
-    fi
-
-    # Download City database
-    if [[ ! -f GeoLite2-City.tar.gz && -n "${GEOLITE2_LICENSE_KEY}" ]]; then
-        local GEOLITE2_CITY_SRC="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${GEOLITE2_LICENSE_KEY}&suffix=tar.gz"
-
-        if curl -sLI "${GEOLITE2_CITY_SRC}" | grep -q "HTTP/[.12]* [2].."; then
-            run curl -sSL -o GeoLite2-City.tar.gz "${GEOLITE2_CITY_SRC}" \
-                && run tar -xf GeoLite2-City.tar.gz \
-                && run cd GeoLite2-City_*/ \
-                && run mv GeoLite2-City.mmdb /opt/geoip/ \
-                && run cd "${NGINX_BUILD_DIR}/geoip-db" || return 1
-        else
-            error "Unable to download MaxMind GeoLite2 City database..."
-        fi
-    fi
-
-    run cd "${NGINX_EXTRA_MODULE_DIR}" || return 1
-
-    if [[ -f /opt/geoip/GeoLite2-City.mmdb && -f /opt/geoip/GeoLite2-Country.mmdb ]]; then
-        success "MaxMind GeoIP2-GeoLite2 database successfully installed."
-    else
+function download_geolite2_databases() (
+    set +x
+    if [[ -z "${GEOLITE2_LICENSE_KEY:-}" ]]; then
         warning "GeoLite2 databases not fully installed. Check your license key."
+        return 0
     fi
-}
+    [[ "$GEOLITE2_LICENSE_KEY" =~ ^[A-Za-z0-9_-]+$ ]] || { error "Invalid GeoLite license key format."; return 1; }
+    if [[ "${DRYRUN:-false}" == true ]]; then
+        info "Would fetch the MaxMind GeoLite2 Country and City databases."
+        return 0
+    fi
+
+    local work edition
+    local files=()
+    export -n GEOLITE2_LICENSE_KEY
+    work=$(mktemp -d "$NGINX_BUILD_DIR/geoip-db.XXXXXXXX") || return 1
+    trap 'rm -rf -- "$work"' EXIT
+    for edition in GeoLite2-Country GeoLite2-City; do
+        printf 'url = "https://download.maxmind.com/app/geoip_download?edition_id=%s&license_key=%s&suffix=tar.gz"\n' "$edition" "$GEOLITE2_LICENSE_KEY" |
+            curl -q -fsSL --proto '=https' --proto-redir '=https' --config - -o "$work/$edition.tar.gz" || return 1
+        run tar -xf "$work/$edition.tar.gz" -C "$work" || return 1
+        files+=("$work/${edition}_"*/"$edition.mmdb")
+        [[ -f "${files[-1]}" && ! -L "${files[-1]}" ]] || return 1
+    done
+    [[ ${#files[@]} -eq 2 ]] || return 1
+    run install -d -m 0755 /opt/geoip || return 1
+    run install -m 0644 -- "${files[@]}" /opt/geoip/ || return 1
+    success "MaxMind GeoIP2-GeoLite2 database successfully installed."
+)
 
 ##
 # Install Headers More module

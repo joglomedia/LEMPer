@@ -10,6 +10,10 @@ setup() {
     export REAL_BASE_DIR="${BATS_TEST_DIRNAME}/../.."
 }
 
+teardown() {
+    [[ -z "${permission_fixture:-}" ]] || rm -rf -- "$permission_fixture"
+}
+
 plugin_exec() {
     local name="${1}"
     shift
@@ -169,14 +173,27 @@ command_plugins() {
 
 @test "fixpermission repairs a regular web directory" {
     skip_if_no_gnu_getopt
+    [[ "$(id -u)" == 0 ]] || skip "requires the disposable root Linux test environment"
 
-    local dir="${BATS_TEST_TMPDIR}/webroot"
-    mkdir -p "${dir}/uploads"
-    touch "${dir}/index.php"
+    permission_fixture=$(mktemp -d /tmp/lemper-permissions.XXXXXXXX) || return 1
+    local dir="$permission_fixture/site"
+    chmod 0755 "$permission_fixture"
+    mkdir -p "$dir/uploads"
+    touch "$dir/index.php" "$dir/wp-config.php" "$dir/.env.production" "$permission_fixture/private"
+    chmod 0600 "$dir/index.php" "$permission_fixture/private"
+    chmod 0644 "$dir/wp-config.php" "$dir/.env.production"
+    ln -s "$permission_fixture/private" "$dir/outside"
+    chown -hR www-data:www-data "$dir"
 
     plugin_exec fixpermission "${dir}"
     [ "${status}" -eq 0 ]
     [[ "${output}" == *"Permissions fixed for"* ]]
+    [ "$(stat -c %a "$dir/index.php")" = 644 ]
+    [ "$(stat -c %a "$dir/wp-config.php")" = 600 ]
+    [ "$(stat -c %a "$dir/.env.production")" = 600 ]
+    [ "$(stat -c %a "$permission_fixture/private")" = 600 ]
+    plugin_exec fixpermission "$permission_fixture"
+    [ "$status" -eq 1 ]
 }
 
 @test "CLI aliases are wired to the installed site plugins" {

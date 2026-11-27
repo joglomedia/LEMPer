@@ -57,7 +57,9 @@ check lemperctl hosting status
 check lemperctl hosting plan put impossible --disk-soft=0 --disk-hard=1K --files-soft=0 --files-hard=2
 rejects lemperctl account p3blocked --plan=impossible
 check test "$(passwd -S p3blocked | awk '{print $2}')" = L
-rejects grep -q '^p3blocked:' /srv/.htpasswd
+if [[ -f /etc/nginx/lemper-admin.htpasswd ]]; then
+    rejects grep -q '^p3blocked:' /etc/nginx/lemper-admin.htpasswd
+fi
 check lemperctl hosting plan delete impossible --yes
 # Real write under the tenant UID must hit kernel EDQUOT at the hard limit.
 rejects runuser -u p3tenant -- dd if=/dev/zero of=/home/p3tenant/webapps/overflow bs=64K count=16 status=none

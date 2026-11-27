@@ -1,4 +1,4 @@
-/var/log/nginx/*.log /home/*/logs/nginx/*_log {
+/var/log/nginx/*.log {
     daily
     rotate 14
     compress

@@ -21,6 +21,42 @@ FastCGI caching and per-site CORS. HTTP/2 is configured for TLS sites. HTTP/3 is
 opt-in through `NGINX_HTTP3` and requires a build with `--with-http_v3_module`;
 its UDP listener and `Alt-Svc` header are enabled only when supported.
 
+### Updating existing managed virtual hosts
+
+Package updates preserve the active Nginx configuration. Back up the current
+configuration and merge the following changes from this release into existing
+managed sites. Review custom and adopted virtual hosts individually. For sites
+with both HTTP and HTTPS configurations, update both variants before reloading.
+
+1. Merge the shipped default or default-SSL template into the active default
+   configuration. Preserve the hostname and certificate paths. Deny `/lcp` on
+   the public content server and bind the no-certificate fallback to loopback.
+   [Enroll each verified administrator](CLI.md#web-administration-accounts)
+   before switching the active administration server to
+   `/etc/nginx/lemper-admin.htpasswd`. Preserve `/srv/.htpasswd` for unrelated
+   hosting authentication and enroll management identities individually.
+2. In hosted sites, place access and error logs under the service-controlled
+   `/var/log/nginx` directory, using `<domain>.access.log` and
+   `<domain>.error.log`. Use `flush=5s` if buffering the access log. Apply
+   `disable_symlinks if_not_owner;` to managed site blocks and review deliberate
+   symlinks whose owners differ. Merge the shipped logrotate pattern and update
+   any log consumers that followed the former per-account paths.
+3. For legacy WordPress Multisite media routing, point the hostname map at
+   `/etc/nginx/wpms/<domain>/*.conf`. Create that directory under root ownership
+   with no tenant write access. If legacy media depends on the map, create a
+   root-owned `sites.conf` using one verified hostname and numeric site ID per
+   line, such as `site.example.test 2;`. Consult the site's administrator for
+   the current mapping and maintain it as sites change. The Nginx Helper plugin's
+   tenant-owned uploads output is no longer a live configuration source.
+4. For an explicitly enabled reverse-proxy cache, merge both shipped proxy
+   cache files. Check any custom bypass rules and disable shared caching on
+   routes that use additional kinds of authentication.
+5. Run `sudo nginx -t` before reloading. After Nginx has opened the new access
+   log, update each existing Fail2ban jail to read the matching daemon-owned
+   log and reload Fail2ban. Use `sudo lemperctl site update --enable-fail2ban
+   <domain>` for a managed site with a supported filter. A site created with
+   an optional jail request stays installed if the jail could not be enabled.
+
 `SERVER_PROFILE` selects `micro`, `small`, `medium`, `large` or automatic sizing
 from RAM. Installation tunes Nginx, PHP-FPM and MariaDB for that profile. See
 [resource sizing](ARCHITECTURE.md) and [site feature commands](CLI.md#site-features).
@@ -68,6 +104,22 @@ control or remove individual components. Bun's `source` installer selects the
 official binary path; legacy `repo` selects the same path. It does not compile
 Bun from source.
 
+LEMPer-managed Memcached installations give the `memcache` and `www-data`
+service accounts separate private sockets at
+`/run/lemper-memcached-memcache/memcached.sock` and
+`/run/lemper-memcached-www-data/memcached.sock`. With `MEMCACHED_SASL=true`,
+the `memcache` instance instead accepts authenticated binary-protocol clients
+on `127.0.0.1:11211`. Give each hosting tenant its own cache instance and
+credentials when tenant applications need cache access.
+
+Existing managed installations retain their listeners during a tooling update.
+After preparing each client for the appropriate new endpoint, run
+`sudo lemperctl stack install memcached --force`
+to switch the two instances. The migration restarts the managed instances,
+starts with empty caches, and saves the old configuration next to each instance
+file with the suffix `.lemper-before-endpoints`. Existing SASL setups need
+`sasl2-bin` and their saved credentials to retain the authenticated listener.
+
 ## Security
 
 The stack supports Let's Encrypt certificates, Fail2ban, optional CrowdSec
@@ -98,11 +150,13 @@ and [native firewall recovery/UFW migration](FIREWALL.md).
 ## Web administration
 
 `INSTALL_WEB_ADMIN` enables the optional `/lcp/` tools; minimal profiles skip
-them. The administration vhost uses HTTP basic authentication. Keep access
-restricted and use the configured HTTPS endpoint or a protected SSH tunnel
-before entering credentials.
+them. The administration vhost uses HTTP Basic authentication with a dedicated
+administrator verifier at `/etc/nginx/lemper-admin.htpasswd`. Normal hosting
+credentials grant access only where hosting authentication is intentionally
+configured. Use the configured HTTPS endpoint or a protected SSH tunnel before
+entering management credentials.
 
-The default HTTP administration endpoint is `http://SERVER_IP:8082/lcp/`:
+The fallback listener binds to loopback. Forward port 8082 over SSH and open `http://127.0.0.1:8082/lcp/`. With TLS configured, use the administration hostname on port 8083.
 
 | Tool | Path |
 |---|---|

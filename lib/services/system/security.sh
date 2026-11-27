@@ -22,7 +22,7 @@ function securing_ssh() {
     local username="${LEMPER_USERNAME:-lemper}" key="${RSA_PUB_KEY:-}"
     local key_only="${SSH_PASSWORDLESS:-true}" port="${SSH_PORT:-22}"
     local config=/etc/ssh/sshd_config profile=/etc/ssh/sshd_config.d/90-lemper.conf
-    local snapshot
+    local snapshot temporary key_file="/etc/ssh/lemper-keys/$username"
     is_valid_username "${username}" && [[ "${username}" != root ]] || return 1
     if [[ "${key_only}" == true ]]; then
         if ! valid_ssh_key_material "${key}"; then
@@ -54,52 +54,72 @@ function securing_ssh() {
     active_port="${SSH_CONNECTION##* }"
     [[ -n "${SSH_CONNECTION:-}" ]] || active_port=""
     LEMPER_SSH_ALLOWED_PORTS=$(ssh_transition_ports "${port}" "${previous_ports:-22}" "${active_port}") || return 1
-    if [[ "${key_only}" == true ]]; then
-        install_managed_ssh_key "${username}" "${key}" || return 1
-    fi
     install -d -m 0755 /etc/ssh/sshd_config.d || return 1
     snapshot=$(mktemp -d /tmp/lemper-ssh.XXXXXX) || return 1
-    LEMPER_SSH_SNAPSHOT="${snapshot}"
     cp -p "${config}" "${snapshot}/sshd_config" || {
         rm -rf "${snapshot}"
         return 1
     }
     if [[ -f "${profile}" ]]; then
-        cp -p "${profile}" "${snapshot}/profile" || return 1
+        cp -p "${profile}" "${snapshot}/profile" || { rm -rf -- "$snapshot"; return 1; }
     fi
+    if [[ "$key_only" == true ]]; then
+        if ! lemper_directory_trusted "${key_file%/*}" || [[ -L "$key_file" ]] ||
+            { [[ -e "$key_file" ]] && { [[ ! -f "$key_file" ]] || ! cp -p "$key_file" "$snapshot/key"; }; } ||
+            ! printf '%s\n' "$username" >"$snapshot/key-account"; then
+            rm -rf -- "$snapshot"
+            return 1
+        fi
+    fi
+    LEMPER_SSH_SNAPSHOT="${snapshot}"
     # OpenSSH takes the first value; put this include before older directives.
-    if ! grep -qF 'Include /etc/ssh/sshd_config.d/90-lemper.conf' "${config}"; then
-        {
-            printf 'Include /etc/ssh/sshd_config.d/90-lemper.conf\n'
-            cat "${snapshot}/sshd_config"
-        } >"${config}"
-    fi
-    if ! write_ssh_profile "${profile}" "${port}" "${key_only}" "${SSH_ROOT_LOGIN:-false}" || ! sshd -t; then
+    if ! temporary=$(mktemp "${config}.XXXXXX") || ! cp -p "$config" "$temporary" ||
+        ! awk -v profile="$profile" '
+            BEGIN { print "Include " profile }
+            tolower($1) == "include" && $2 == profile && (NF == 2 || substr($3, 1, 1) == "#") { next }
+            { print }
+        ' "$snapshot/sshd_config" >"$temporary" || ! mv -T -- "$temporary" "$config" ||
+        ! write_ssh_profile "${profile}" "${port}" "${key_only}" "${SSH_ROOT_LOGIN:-false}" ||
+        ! sshd -t -f "$config" ||
+        ! verify_effective_ssh_policy "$username" "$port" "$key_only" "${SSH_ROOT_LOGIN:-false}" "$config" ||
+        { [[ "$key_only" == true ]] && ! install_managed_ssh_key "$username" "$key"; }; then
+        [[ -z "$temporary" ]] || rm -f -- "$temporary"
         restore_ssh_configuration || return 1
         error "SSH policy validation failed; previous configuration restored."
         return 1
     fi
-    save_config "SSH_PORT=${port}"
-    save_log "Validated SSH configuration: key-only=${key_only}; port=${port}."
 }
 
 ##
 # Install & Configure Uncomplicated Firewall (UFW).
 #
+function lemper_firewall_check_conflicts() {
+    local selected="$1" backend ufw_status
+    if [[ -e /etc/lemper/firewall/managed ]] ||
+        systemctl is-active --quiet lemper-nftables.service ||
+        { command -v nft >/dev/null && nft list table inet lemper >/dev/null 2>&1; }; then
+        error "Migrate the existing native nftables policy before enabling $selected. The current firewall was preserved."
+        return 1
+    fi
+    for backend in ufw csf apf; do
+        [[ "$backend" != "$selected" ]] || continue
+        if [[ "$backend" == ufw ]] && command -v ufw >/dev/null 2>&1; then
+            if ufw_status=$(LC_ALL=C ufw status 2>/dev/null) && grep -qx 'Status: inactive' <<<"$ufw_status"; then
+                continue
+            fi
+        elif ! command -v "$backend" >/dev/null 2>&1 &&
+            ! systemctl is-active --quiet "$backend.service"; then
+            continue
+        fi
+        error "Migrate the existing $backend policy before enabling $selected. The current firewall was preserved."
+        return 1
+    done
+}
+
 function install_ufw() {
     SSH_PORT=${1:-"${SSH_PORT}"}
 
     echo "Installing Uncomplicated Firewall (UFW)..."
-
-    if [[ -n $(command -v apf) ]]; then
-        # Remove APF+BFD if exists.
-        remove_apf
-    fi
-
-    if [[ -n $(command -v csf) ]]; then
-        # Remove CSF+LFD if exists.
-        remove_csf
-    fi
 
     # Install UFW
     run apt-get install -q -y ufw
@@ -173,14 +193,14 @@ function install_ufw() {
 
         # Restart
         if [[ "${DRYRUN}" != true ]]; then
-            if systemctl restart ufw; then
-                success "UFW firewall installed successfully."
-            else
-                info "Something went wrong with UFW installation."
-            fi
+            systemctl restart ufw || { error "Could not activate UFW."; return 1; }
+            success "UFW firewall installed successfully."
         else
             info "UFW firewall installed in dry run mode."
         fi
+    elif [[ "${DRYRUN}" != true ]]; then
+        error "UFW is unavailable after installation."
+        return 1
     fi
 }
 
@@ -191,16 +211,6 @@ function install_csf() {
     SSH_PORT=${1:-"${SSH_PORT}"}
 
     echo "Installing CSF+LFD firewall..."
-
-    if [[ -n $(command -v ufw) ]]; then
-        # Remove default Ubuntu firewall (UFW) if exists.
-        remove_ufw
-    fi
-
-    if [[ -n $(command -v apf) ]]; then
-        # Remove APF+BFD if exists.
-        remove_apf
-    fi
 
     # Install requirements.
     echo "Installing requirement packages..."
@@ -287,21 +297,12 @@ function install_csf() {
     run cd "${CURRENT_DIR}" || return 1
 
     if [[ "${DRYRUN}" != true ]]; then
-        if [[ -n $(command -v csf) && -n $(command -v lfd) ]]; then
-            if systemctl restart csf; then
-                success "CSF firewall installed successfully. Starting now..."
-            else
-                info "Something went wrong with CSF installation."
-            fi
-
-            if systemctl restart lfd; then
-                success "LFD firewall installed successfully. Starting now..."
-            else
-                info "Something went wrong with LFD installation."
-            fi
-        else
-            info "Something went wrong with CSF+LFD installation."
+        if ! command -v csf >/dev/null || ! command -v lfd >/dev/null ||
+            ! systemctl restart csf || ! systemctl restart lfd; then
+            error "Could not activate CSF and LFD."
+            return 1
         fi
+        success "CSF and LFD activated successfully."
     else
         info "CSF+LFD firewall installed in dry run mode."
     fi
@@ -315,16 +316,6 @@ function install_apf() {
     APF_VERSION=${APF_VERSION:-"1.7.6-2"}
 
     echo "Installing APF+BFD iptables firewall..."
-
-    if [[ -n $(command -v ufw) ]]; then
-        # Remove default Ubuntu firewall (UFW) if exists.
-        remove_ufw
-    fi
-
-    if [[ -n $(command -v csf) ]]; then
-        # Remove CSF+LFD if exists.
-        remove_csf
-    fi
 
     local CURRENT_DIR \
         && CURRENT_DIR=$(pwd)
@@ -372,15 +363,11 @@ function install_apf() {
     if [[ "${DRYRUN}" == true ]]; then
         info "APF+BFD firewall installed in dry run mode."
     else
-        if [[ -n $(command -v apf) ]]; then
-            if systemctl restart apf; then
-                success "APF firewall installed successfully. Starting now..."
-            else
-                info "Something went wrong with APF installation."
-            fi
-        else
-            info "Something went wrong with APF installation."
+        if ! command -v apf >/dev/null || ! systemctl restart apf; then
+            error "Could not activate APF."
+            return 1
         fi
+        success "APF activated successfully."
     fi
 }
 
@@ -445,7 +432,7 @@ function install_firewall() {
     fi
     echo -e "\nIPtables-based Firewall Installation\n"
     info "Do Not Run any other iptables firewall configuration script.
-Any other iptables based firewall will be removed otherwise they will conflict."
+An existing firewall must be migrated before switching backends."
     echo ""
 
     if [[ "${AUTO_INSTALL}" == true ]]; then
@@ -480,6 +467,14 @@ Any other iptables based firewall will be removed otherwise they will conflict."
             echo ""
         fi
 
+        case "${SELECTED_FW_CONFIGURATOR}" in
+            1 | ufw) SELECTED_FW_CONFIGURATOR=ufw ;;
+            2 | csf) SELECTED_FW_CONFIGURATOR=csf ;;
+            3 | apf) SELECTED_FW_CONFIGURATOR=apf ;;
+            *) error "Unknown firewall backend: ${SELECTED_FW_CONFIGURATOR}"; return 1 ;;
+        esac
+        lemper_firewall_check_conflicts "$SELECTED_FW_CONFIGURATOR" || return 1
+
         # Ensure that iptables installed.
         if [[ -z $(command -v iptables) ]]; then
             echo "Iptables is required, trying to install it first..."
@@ -493,7 +488,7 @@ Any other iptables based firewall will be removed otherwise they will conflict."
             csf)
                 install_csf "${SSH_PORT}"
                 ;;
-            ufw | *)
+            ufw)
                 install_ufw "${SSH_PORT}"
                 ;;
         esac
@@ -522,12 +517,13 @@ function init_secure_server() {
         fi
         # Keep the previous policy until both the firewall and reload succeed.
         if [[ "${DRYRUN:-false}" != true ]]; then
-            if ! apply_ssh_service_policy; then
+            if ! apply_ssh_service_policy || ! save_config "SSH_PORT=${SSH_PORT:-22}"; then
                 restore_ssh_configuration
                 apply_ssh_service_policy || error "Could not apply restored SSH listener configuration."
-                error "SSH reload failed; previous configuration restored."
+                error "Could not activate and save the SSH policy; previous configuration restored."
                 return 1
             fi
+            save_log "Validated SSH configuration: key-only=${SSH_PASSWORDLESS:-true}; port=${SSH_PORT:-22}."
             info "Previous SSH firewall ports remain allowed; retire them after confirming the new login."
             rm -rf "${LEMPER_SSH_SNAPSHOT}"
             LEMPER_SSH_SNAPSHOT=""

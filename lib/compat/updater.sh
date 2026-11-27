@@ -134,6 +134,8 @@ EOF
             || fail "No usable LEMPer checkout at ${source_dir} (need bin/lemper-cli.sh and lib/lemper-update.sh)."
 
         # Export the complete CLI through the shared registry/release path.
+        # shellcheck source=lib/core/security.sh
+        . "${BASE_DIR}/lib/core/security.sh" || return 1
         # shellcheck source=/dev/null
         . "${source_dir}/lib/core/registry.sh" || return 1
         # shellcheck source=/dev/null
@@ -141,7 +143,7 @@ EOF
         lemper_cli_snapshot "${source_dir}" || return 1
         export LEMPER_TOOLING_ALREADY_INSTALLED=true
 
-        printf '%s\n' "${source_dir}" >"${UPDATE_SOURCE_FILE}"
+        printf '%s\n' /opt/lemper/current >"${UPDATE_SOURCE_FILE}"
         chmod 0600 "${UPDATE_SOURCE_FILE}"
 
         success "Updater installed. Re-run 'lemperctl update all' at any time."

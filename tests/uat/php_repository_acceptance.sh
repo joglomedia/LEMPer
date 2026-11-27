@@ -38,7 +38,7 @@ check() {
     fi
 }
 check archive-prepare lemper_php_prepare_repository
-check managed-keyring-package dpkg-query -W debsuryorg-archive-keyring
+check managed-keyring-file test -s /usr/share/keyrings/debsuryorg-archive-keyring.gpg
 check pinned-key lemper_php_repository_key_valid /usr/share/keyrings/debsuryorg-archive-keyring.gpg
 check signed-release gpgv --keyring /usr/share/keyrings/debsuryorg-archive-keyring.gpg \
     "/var/lib/apt/lists/packages.sury.org_php_dists_${RELEASE_NAME}_InRelease"

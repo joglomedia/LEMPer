@@ -195,11 +195,8 @@ run_lib() {
 
     grep -qF 'https://deb.myguard.nl/apt/nginx/' "${update}"
     grep -qF 'Dpkg::Options::=--force-confold' "${REAL_BASE_DIR}/lib/services/nginx/update.sh"
-    grep -qF 'https://deb.myguard.nl/apt/nginx/' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"
-    grep -qF 'gpg --batch --with-colons --show-keys' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"
-    grep -qF 'gpg --batch --with-colons --show-keys' "${update}"
-    grep -qF 'key="/etc/apt/keyrings/deb.myguard.nl.gpg"' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"
-    grep -qF 'signed-by=${key}' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"
+    grep -qF 'ensure_myguard_nginx_repo' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"
+    grep -qF 'lemper_apt_key_matches' "${update}"
     if grep -qF 'http://deb.myguard.nl ${RELEASE_NAME}' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"; then
         return 1
     fi
@@ -212,4 +209,38 @@ run_lib() {
     if grep -q 'libmaxminddb-dev"' "${REAL_BASE_DIR}/lib/services/nginx/package_repository.sh"; then
         return 1
     fi
+}
+
+@test "stack refresh scopes an existing MyGuard source before the package manager runs" {
+    export LEMPER_APT_ROOT="$BATS_TEST_TMPDIR/apt"
+    mkdir -p "$LEMPER_APT_ROOT"/{keyrings,sources.list.d}
+    printf '%s\n' 'deb https://deb.myguard.nl/apt/nginx/jammy jammy main' > "$LEMPER_APT_ROOT/sources.list"
+    touch "$LEMPER_APT_ROOT/keyrings/deb.myguard.nl.gpg"
+    run bash -c "${load_update_lib}"'
+        gpg() { printf "pub::::::::::\nfpr:::::::::D18B8E5ADF7D55CE2A00D58167F9C3D8456D7F62:\n"; }
+        refresh_php_apt_source() { :; }
+        apt-get() {
+            grep -Fxq "deb [signed-by=$LEMPER_APT_ROOT/keyrings/deb.myguard.nl.gpg] https://deb.myguard.nl/apt/nginx/jammy jammy main" "$LEMPER_APT_ROOT/sources.list" || return 1
+            echo APT_CHECKED
+        }
+        refresh_stack_apt
+    '
+    [ "$status" -eq 0 ]
+    [[ "$output" == *APT_CHECKED* ]]
+    [ -f "$LEMPER_APT_ROOT/sources.list.lemper-before-key-scope" ]
+}
+
+@test "stack refresh stops before APT when MyGuard signer checks or replacement fail" {
+    export LEMPER_APT_ROOT="$BATS_TEST_TMPDIR/apt"
+    mkdir -p "$LEMPER_APT_ROOT"/{keyrings,sources.list.d}
+    printf '%s\n' 'deb https://deb.myguard.nl/apt/nginx/jammy jammy main' > "$LEMPER_APT_ROOT/sources.list"
+    touch "$LEMPER_APT_ROOT/keyrings/deb.myguard.nl.gpg"
+    run bash -c "${load_update_lib}"'
+        gpg() { printf "pub::::::::::\nfpr:::::::::D18B8E5ADF7D55CE2A00D58167F9C3D8456D7F62:\npub::::::::::\nfpr:::::::::OTHER:\n"; }
+        curl() { return 1; }
+        apt-get() { echo UNEXPECTED_APT; exit 88; }
+        refresh_stack_apt
+    '
+    [ "$status" -eq 1 ]
+    [[ "$output" != *UNEXPECTED_APT* ]]
 }

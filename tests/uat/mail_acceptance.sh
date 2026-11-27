@@ -69,10 +69,35 @@ function activate_cli() {
     install -m 0600 /checkout/.env /etc/lemper/lemper.conf
 }
 function services() {
-    systemctl is-active --quiet postfix dovecot opendkim
+    systemctl is-active --quiet postfix dovecot opendkim lemper-mail-author
     test -S /var/spool/postfix/private/auth
     test -S /var/spool/postfix/private/dovecot-lmtp
     lemperctl mail check
+}
+function submission_author() {
+    local subject
+    subject="Authenticated alias author $(date +%s%N)"
+    smtp_secure && smtp_login bob@second-uat.test /run/mail-uat/password || return 1
+    smtp_send bob@second-uat.test alice@first-uat.test "$subject" \
+        $'"Operations, Team"\r\n\t<team@second-uat.test>' || return 1
+    if smtp_send bob@second-uat.test alice@first-uat.test 'Unassigned author' alice@first-uat.test; then return 1; fi
+    [[ "$smtp_code" == 550 || "$smtp_code" == 554 ]] || return 1
+    if smtp_send bob@second-uat.test alice@first-uat.test 'Multiple author fields' \
+        $'bob@second-uat.test\r\nfRoM: bob@second-uat.test'; then return 1; fi
+    [[ "$smtp_code" == 550 || "$smtp_code" == 554 ]] || return 1
+    mail_close
+    mail_wait_message alice@first-uat.test "$subject" second-uat.test || return 1
+    systemctl stop lemper-mail-author || return 1
+    mail_plain 127.0.0.1 587 && smtp_reply || return 1
+    if [[ "$smtp_code" == 220 ]]; then
+        smtp_command 'EHLO mail-uat.test' || return 1
+        if [[ "$smtp_code" == 250 ]]; then smtp_command STARTTLS || return 1; fi
+    fi
+    [[ "$smtp_code" == 4* ]] || return 1
+    mail_close
+    smtp_open 127.0.0.1 25 || return 1
+    mail_close
+    systemctl start lemper-mail-author
 }
 function repeat_install() {
     local before after
@@ -180,6 +205,7 @@ uat_case add_first_account lemperctl mail account add alice@first-uat.test --pas
 uat_case add_second_account lemperctl mail account add bob@second-uat.test --password-file /run/mail-uat/password
 uat_case cross_domain_alias lemperctl mail alias add team@second-uat.test bob@second-uat.test
 uat_case smtp_tls_auth_delivery_imap_dkim delivery
+uat_case authenticated_submission_author submission_author
 uat_case literal_plus_address literal_address
 uat_case repeated_install_preserves_accounts_and_keys repeat_install
 uat_case dns_records lemperctl mail dns second-uat.test

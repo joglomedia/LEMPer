@@ -40,7 +40,7 @@ the test size from each endpoint, so they use bandwidth.
 
 Environment:
   LEMPER_BENCH_TARGETS   Newline-separated "label|url|mode" endpoint overrides.
-  LEMPER_BENCH_DISK_DIR  Directory for the disk test (default: /var/tmp).
+  LEMPER_BENCH_DISK_DIR  Root-controlled directory for the disk test (default: /var/tmp).
   LEMPER_BENCH_TIMEOUT   Default download timeout in seconds.
   LEMPER_BENCH_DOWNLOAD_MB
   LEMPER_BENCH_DISK_MB

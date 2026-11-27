@@ -64,6 +64,26 @@ mail_child='
     [ "$(stat -c %a "$LEMPER_MAIL_ROOT/current/passwd")" = 640 ]
     [ "$(stat -c %a "$LEMPER_MAIL_ROOT/current/accounts")" = 600 ]
 }
+@test "passdb is private before its first verifier write under a permissive umask" {
+    run bash -c "${mail_child}"'
+        umask 022
+        stage=$(lemper_mail_stage) || exit 1
+        [[ "$(stat -c %a "$stage")" == 700 ]] || exit 1
+        lemper_mail_exists() {
+            if [[ ! -e "$TEST_TMPDIR/passdb-checked" ]]; then
+                [[ -f "$stage/passwd" && ! -s "$stage/passwd" &&
+                    "$(stat -c %a "$stage/passwd")" == 600 &&
+                    "$(stat -c %a "$stage")" == 700 ]] || return 1
+                touch "$TEST_TMPDIR/passdb-checked" || return 1
+            fi
+            awk -F "\t" -v key="$2" '\''$1 == key { found=1 } END { exit !found }'\'' "$1"
+        }
+        lemper_mail_render "$stage" || exit 1
+        [[ -e "$TEST_TMPDIR/passdb-checked" && -s "$stage/passwd" &&
+            "$(stat -c %a "$stage/passwd")" == 640 ]]
+    '
+    [ "$status" -eq 0 ]
+}
 @test "account disable and enable preserve password and delivery but remove login permissions" {
     run bash -c "${mail_child}"'
         init_lemper_mail account edit alice@first.test --disable || exit 1
@@ -186,7 +206,10 @@ mail_child='
     run bash -c "${mail_child}"'
         . "$REAL_BASE_DIR/lib/services/mail/configure.sh"
         postconf() {
-            if [[ "$1" == -h ]]; then printf "%s\n" "$policy"; return; fi
+            if [[ "$1" == -h ]]; then
+                if [[ "$2" == milter_mail_macros ]]; then echo "i {auth_authen}"; else printf "%s\n" "$policy"; fi
+                return
+            fi
             if [[ "$1" == -e ]]; then
                 case "$2" in
                     smtp_tls_security_level=*) policy="${2#*=}" ;;
@@ -207,7 +230,10 @@ mail_child='
     run bash -c "${mail_child}"'
         . "$REAL_BASE_DIR/lib/services/mail/configure.sh"
         postconf() {
-            if [[ "$1" == -h ]]; then printf "%s\n" "$policy"; return; fi
+            if [[ "$1" == -h ]]; then
+                if [[ "$2" == milter_mail_macros ]]; then echo "i {auth_authen}"; else printf "%s\n" "$policy"; fi
+                return
+            fi
             [[ "$1" != -e || "$2" != smtp_tls_security_level=* ]] || policy="${2#*=}"
             return 0
         }
@@ -218,6 +244,34 @@ mail_child='
         done
     '
     [ "$status" -eq 0 ]
+}
+
+@test "submission author milter precedes DKIM and failures defer only submission" {
+    run bash -c "${mail_child}"'
+        . "$REAL_BASE_DIR/lib/services/mail/configure.sh"
+        postconf() {
+            if [[ "$1" == -h ]]; then
+                if [[ "$2" == milter_mail_macros ]]; then echo "i {auth_authen}"; else echo may; fi
+                return
+            fi
+            for setting in "${@:2}"; do
+                case "$setting" in
+                    submission/inet/smtpd_milters=*|submission/inet/milter_default_action=*|smtpd_milters=*|non_smtpd_milters=*)
+                        printf "%s\n" "$setting" ;;
+                esac
+            done
+        }
+        lemper_mail_postfix_configure mail.first.test /certificate "$LEMPER_MAIL_ROOT" || exit 1
+        touch "$LEMPER_MAIL_ROOT/dkim-enabled"
+        lemper_mail_postfix_configure mail.first.test /certificate "$LEMPER_MAIL_ROOT"
+    '
+    [ "$status" -eq 0 ]
+    [ "${lines[0]}" = "submission/inet/smtpd_milters=unix:lemper-mail-author/filter.sock" ]
+    [ "${lines[1]}" = "submission/inet/milter_default_action=tempfail" ]
+    [ "${lines[2]}" = "submission/inet/smtpd_milters=unix:lemper-mail-author/filter.sock,inet:127.0.0.1:8891" ]
+    [ "${lines[3]}" = "submission/inet/milter_default_action=tempfail" ]
+    [ "${lines[4]}" = "smtpd_milters=inet:127.0.0.1:8891" ]
+    [ "${lines[5]}" = 'non_smtpd_milters=$smtpd_milters' ]
 }
 
 @test "mail reconciliation aborts before mutation if the existing TLS policy cannot be read" {

@@ -19,7 +19,7 @@
 # Patch supported PHP branches and mitigate or migrate EOL branches.
 ##
 function update_php() {
-    local branches branch installed state fixed rc=0
+    local branches branch installed state fixed runtime rc=0
     local -a eol_branches=()
     local migrate=0
 
@@ -55,7 +55,16 @@ function update_php() {
 
         case "${state}" in
             patched)
-                success "PHP ${branch} (${installed}) already includes the fix."
+                runtime=$(php_fpm_runtime_state "$branch")
+                if [[ "$runtime" == stale ]]; then
+                    php_reload_branch "$branch" || { rc=1; continue; }
+                    runtime=$(php_fpm_runtime_state "$branch")
+                fi
+                case "$runtime" in
+                    current | inactive | not-installed) ;;
+                    *) error "Could not verify the PHP $branch FPM runtime."; rc=1; continue ;;
+                esac
+                success "PHP ${branch} (${installed}) already includes the fix (FPM: $runtime)."
                 ;;
             vulnerable)
                 fixed=$(php_fixed_version "${branch}")
@@ -80,7 +89,7 @@ function update_php() {
         esac
     done <<<"${branches}"
 
-    if [[ "${migrate}" -eq 1 ]]; then
+    if [[ "${migrate}" -eq 1 && "$rc" -eq 0 ]]; then
         if php_migrate_eol_sites "${PHP_MIGRATE_TO}"; then
             for branch in "${eol_branches[@]}"; do
                 [[ -z "${branch}" ]] && continue
@@ -99,7 +108,7 @@ function update_php() {
 # Report installed versions and PHP2Shell exposure without changing anything.
 ##
 function update_check() {
-    local branches branch installed state fixed pools mitigated rc=0
+    local branches branch installed state fixed pools mitigated runtime rc=0
     local rows="" w_installed=17 w_state=5 w_fixed=5
 
     branches=$(php_installed_branches)
@@ -116,12 +125,20 @@ function update_check() {
             installed=$(php_package_version "${branch}")
             installed="${installed:-unknown}"
             state=$(php_branch_state "${branch}" "${installed}")
+            runtime=$(php_fpm_runtime_state "$branch")
+            if [[ "$state" == patched ]]; then
+                case "$runtime" in
+                    current | inactive | not-installed) ;;
+                    stale) state=fpm-stale ;;
+                    *) state=fpm-unverified ;;
+                esac
+            fi
             fixed=$(php_fixed_version "${branch}" 2>/dev/null || echo "-")
             pools=$(php_pool_count "${branch}")
             mitigated=$(php_pool_count "${branch}" "true")
 
             rows+="php${branch}"$'\t'"${installed}"$'\t'"${state}"
-            rows+=$'\t'"${fixed}"$'\t'"${pools}"$'\t'"${mitigated}"$'\n'
+            rows+=$'\t'"${fixed}"$'\t'"${pools} (${mitigated})"$'\t'"${runtime}"$'\n'
 
             ((${#installed} > w_installed)) && w_installed=${#installed}
             ((${#state} > w_state)) && w_state=${#state}
@@ -137,16 +154,16 @@ function update_check() {
     if [[ -z "${rows}" ]]; then
         echo "  No PHP installation detected."
     else
-        printf '  %-6s  %-*s  %-*s  %-*s  %s\n' \
+        printf '  %-6s  %-*s  %-*s  %-*s  %-17s  %s\n' \
             "Branch" "${w_installed}" "Installed version" \
-            "${w_state}" "State" "${w_fixed}" "Fixed" "Pools (mitigated)"
+            "${w_state}" "State" "${w_fixed}" "Fixed" "Pools (mitigated)" "FPM runtime"
 
-        while IFS=$'\t' read -r branch installed state fixed pools mitigated; do
+        while IFS=$'\t' read -r branch installed state fixed pools runtime; do
             [[ -z "${branch}" ]] && continue
-            printf '  %-6s  %-*s  %-*s  %-*s  %s (%s)\n' \
+            printf '  %-6s  %-*s  %-*s  %-*s  %-17s  %s\n' \
                 "${branch}" "${w_installed}" "${installed}" \
                 "${w_state}" "${state}" "${w_fixed}" "${fixed}" \
-                "${pools}" "${mitigated}"
+                "${pools}" "${runtime}"
         done <<<"${rows}"
     fi
 
@@ -197,9 +214,11 @@ function update_all() {
         if ensure_myguard_nginx_repo; then
             nginx_repo_ready=1
         else
-            warning "MyGuard nginx repository was not added; package-managed nginx will not be upgraded."
-            rc=1
+            error "Could not verify the MyGuard repository; aborting package updates."
+            return 1
         fi
+    else
+        prepare_existing_myguard_nginx_sources || return 1
     fi
     refresh_php_apt_source || return 1
     if ! apt-get update -q; then
@@ -397,7 +416,9 @@ function init_lemper_update() (
             ;;
         php | nginx | mariadb | lemper | all)
             if command -v flock >/dev/null 2>&1; then
-                exec 200>/var/lock/lemper-update.lock
+                lemper_lock_path /run/lemper/update.lock || return 1
+                (umask 077; : >> /run/lemper/update.lock) || return 1
+                exec 200>>/run/lemper/update.lock || return 1
                 if ! flock -n 200; then
                     fail "Another LEMPer update is already running."
                 fi

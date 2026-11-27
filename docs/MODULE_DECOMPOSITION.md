@@ -34,7 +34,7 @@ resolve to the canonical driver while retaining requested backend selection.
 Full-stack recipes and CLI component adapters use this contract. The 37 extracted
 installer/remover/server scripts retain their filenames; eight Nginx scripts load
 the corresponding service modules. Existing thin optional-service adapters and
-older recorded checkouts keep their compatibility fallback.
+older, explicitly selected checkouts keep their compatibility fallback.
 
 Standalone lifecycle adapters handle help/version before loading private profiles.
 They initialize configuration/helpers, validate the target environment and acquire

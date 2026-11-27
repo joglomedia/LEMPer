@@ -12,6 +12,9 @@ setup() {
     tar -czf "$TEST_TMPDIR/package" -C "$TEST_TMPDIR" --transform='s,^source,roundcubemail-1.7.6,' source
     release_fixture roundcube/roundcubemail 1.7.6 roundcubemail-1.7.6-complete.tar.gz "$(sha256sum "$TEST_TMPDIR/package" | cut -d ' ' -f1)"
 }
+teardown() {
+    [[ -z "${publish_fixture:-}" ]] || rm -rf -- "$publish_fixture"
+}
 release_child='
     . "$REAL_BASE_DIR/lib/core/loader.sh"
     lemper_load_module services/site/releases
@@ -51,6 +54,47 @@ release_child='
     [ ! -d "$TEST_TMPDIR/root/roundcubemail-1.7.6" ]
     [ "$(cat "$TEST_TMPDIR/root/config.inc.php")" = 'private configuration' ]
     [ "$(stat -c %a "$TEST_TMPDIR/root/.lemper-release")" = 600 ]
+}
+@test "release publication supports protected and owner-writable parents" {
+    [[ "$(id -u)" == 0 ]] || skip "requires the disposable root Linux test environment"
+    publish_fixture=$(mktemp -d /tmp/lemper-publish-test.XXXXXXXX) || return 1
+    chmod 0755 "$publish_fixture"
+    local layout
+    for layout in protected tenant; do
+        mkdir -p "$publish_fixture/$layout/source"
+        chmod 0755 "$publish_fixture/$layout"
+        printf 'complete files\n' >"$publish_fixture/$layout/source/index.php"
+        chown -R www-data:www-data "$publish_fixture/$layout/source"
+        if [[ "$layout" == tenant ]]; then
+            chown www-data:www-data "$publish_fixture/$layout"
+        fi
+        run bash -c '
+            . "$REAL_BASE_DIR/lib/core/loader.sh"
+            lemper_load_module services/site/releases
+            lemper_load_module services/accounts/permissions
+            lemper_site_prepare_directory "$1/parent/site" www-data 0755 || exit 1
+            lemper_site_release_publish "$1/source" "$1/parent/site" www-data
+        ' _ "$publish_fixture/$layout"
+        [ "$status" -eq 0 ]
+        [ "$(stat -c %U "$publish_fixture/$layout/parent/site/index.php")" = www-data ]
+        [ "$(cat "$publish_fixture/$layout/parent/site/index.php")" = 'complete files' ]
+        [ -z "$(find "$publish_fixture/$layout/parent" -maxdepth 1 -name '.lemper-publish.*' -print -quit)" ]
+    done
+}
+@test "site directory preparation rejects protected destinations before any writes" {
+    ln -s /etc "$TEST_TMPDIR/configuration"
+    run bash -c '
+        . "$REAL_BASE_DIR/lib/core/loader.sh"
+        lemper_load_module services/accounts/permissions
+        runuser() { echo unexpected-write; return 1; }
+        mkdir() { echo unexpected-write; return 1; }
+        chown() { echo unexpected-write; return 1; }
+        for target in /etc/lemper-protected-fixture/site "$TEST_TMPDIR/configuration/lemper-protected-fixture/site"; do
+            if lemper_site_prepare_directory "$target" nobody 0755; then exit 1; fi
+        done
+    '
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
 }
 @test "checksum or download failures leave the target empty and remove staging" {
     for scenario in checksum download; do

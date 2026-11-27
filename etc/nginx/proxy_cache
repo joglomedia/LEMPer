@@ -6,8 +6,5 @@ proxy_cache_path /var/cache/nginx/proxy_cache levels=1:2 keys_zone=PROXYCACHE:10
 # use stale cache on backend fault
 proxy_cache_use_stale error timeout invalid_header updating http_500 http_502 http_503 http_504;
 
-# Ignore header
-proxy_ignore_headers Cache-Control Expires Set-Cookie X-Accel-Expires;
-
 # Header status
 add_header X-Cache-Status $upstream_cache_status;

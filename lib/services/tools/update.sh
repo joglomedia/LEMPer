@@ -19,22 +19,12 @@
 # Resolve the LEMPer source checkout used to refresh CLI/plugins.
 ##
 function update_resolve_source() {
-    if [[ -n "${UPDATE_SOURCE_DIR}" ]]; then
+    if [[ -n "${UPDATE_SOURCE_DIR:-}" ]]; then
         printf '%s\n' "${UPDATE_SOURCE_DIR}"
         return 0
     fi
 
-    if [[ -f "${LEMPER_UPDATE_SOURCE_FILE}" ]]; then
-        head -n 1 "${LEMPER_UPDATE_SOURCE_FILE}"
-        return 0
-    fi
-
-    if [[ -n "${LEMPER_SRC_DIR:-}" ]]; then
-        printf '%s\n' "${LEMPER_SRC_DIR}"
-        return 0
-    fi
-
-    return 1
+    lemper_installed_release
 }
 
 ##
@@ -47,23 +37,19 @@ function tools_config_is_encrypted() {
 }
 
 ##
-# Decrypt lemper.conf into dest. The key file is preferred.
+# Use the same credential precedence and legacy KDF as the dispatcher.
 ##
 function tools_decrypt_config() {
     local src="${1}"
     local dest="${2}"
     local pw=""
 
-    if [[ -f /etc/lemper/.config_key ]]; then
-        pw=$(tr -d '\n' </etc/lemper/.config_key)
-    elif [[ -n "${LEMPER_PASSWORD:-}" ]]; then
-        pw="${LEMPER_PASSWORD}"
-    else
-        return 1
-    fi
+    pw=$(core_resolve_config_password) || return 1
 
     openssl enc -aes-256-cbc -a -d -salt -md sha256 -pbkdf2 \
-        -k "${pw}" -in "${src}" -out "${dest}" 2>/dev/null
+        -pass fd:3 3<<<"$pw" -in "${src}" -out "${dest}" 2>/dev/null ||
+        openssl enc -aes-256-cbc -a -d -salt -md sha256 \
+            -pass fd:3 3<<<"$pw" -in "${src}" -out "${dest}" 2>/dev/null
 }
 
 ##
@@ -84,15 +70,16 @@ function resolve_tools_env() {
     fi
 
     if [[ -f "${conf}" ]]; then
-        tmp=$(mktemp "${TMPDIR:-/tmp}/lemper-tools-env.XXXXXX") || return 1
-        chmod 0600 "${tmp}" || true
+        lemper_directory_trusted /tmp || return 1
+        tmp=$(mktemp /tmp/lemper-tools-env.XXXXXXXX) || return 1
         if tools_config_is_encrypted "${conf}"; then
             if tools_decrypt_config "${conf}" "${tmp}"; then
                 printf '%s\n' "${tmp}"
                 return 0
             fi
             rm -f "${tmp}"
-            warning "Could not decrypt ${conf}; falling back to .env.dist."
+            error "Could not decrypt the installed profile for the administration tools."
+            return 1
         else
             cp "${conf}" "${tmp}" || {
                 rm -f "${tmp}"
@@ -129,6 +116,7 @@ function reinstall_admin_tools() {
 
     envfile=$(resolve_tools_env "${src}") || return 1
 
+    [[ "$envfile" != "$src/.env.dist" ]] || LEMPER_TOOLS_PRESERVE_ADMIN_CONFIG=true
     info "Reinstalling LEMPer CLI, plugins, and web administration tools from ${src}..."
     DRYRUN=false \
         LEMPER_TOOLS_SKIP_CLI="${cli_installed}" \
@@ -158,12 +146,19 @@ function reinstall_admin_tools() {
 # Refresh the CLI and CLI plugins from a source checkout.
 ##
 function update_lemper_tooling() {
-    local src
+    local src result
 
-    if ! src=$(update_resolve_source); then
-        warning "No LEMPer source checkout recorded; skipping CLI/plugin refresh."
-        warning "Run update.sh from a checkout to enable future tooling updates."
-        return 0
+    if src=$(update_resolve_source); then
+        :
+    else
+        result=$?
+        if [[ "$result" == 2 ]]; then
+            warning "No installed release available for CLI/plugin refresh."
+            warning "Specify --source-dir with a trusted checkout."
+            return 0
+        fi
+        error "The installed release selector or tree is unsafe."
+        return 1
     fi
 
     if [[ ! -f "${src}/bin/lemper-cli.sh" || ! -f "${src}/lib/lemper-update.sh" ]]; then
@@ -176,11 +171,11 @@ function update_lemper_tooling() {
     . "$src/lib/core/registry.sh" || return 1
     # shellcheck source=/dev/null
     . "$src/lib/core/deployment.sh" || return 1
-    if [[ "${LEMPER_TOOLING_ALREADY_INSTALLED:-false}" != true ]]; then
+    if [[ "${LEMPER_TOOLING_ALREADY_INSTALLED:-false}" != true && ! "$src" -ef /opt/lemper/current ]]; then
         lemper_cli_snapshot "$src" || return 1
     fi
 
-    printf '%s\n' "${src}" >"${LEMPER_UPDATE_SOURCE_FILE}"
+    printf '%s\n' /opt/lemper/current >"${LEMPER_UPDATE_SOURCE_FILE}"
     chmod 0600 "${LEMPER_UPDATE_SOURCE_FILE}"
 
     reinstall_admin_tools "${src}" true || return 1

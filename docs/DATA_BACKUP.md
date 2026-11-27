@@ -14,7 +14,7 @@ repository at `/var/backups/lemper/data` and a root-only password file at
 ```bash
 sudo lemperctl stack install restic --yes
 sudo lemperctl data init
-sudo lemperctl data backup /home/lemper/webapps /var/vmail
+sudo lemperctl data backup /srv/sites /var/vmail
 sudo lemperctl data snapshots
 sudo lemperctl data check
 ```
@@ -26,9 +26,16 @@ repository data cannot be recovered without it. Never include that password in
 process arguments, logs, shell history, or the repository being protected.
 
 Local repository directories and existing ancestors must be root-owned and not
-writable by other accounts. Absolute application/mail directories are accepted;
-pseudo-filesystems, symlink source roots and sources containing their own
-repository are rejected. Restic does not follow file symlinks when backing up.
+writable by other accounts. Select an existing canonical absolute application
+or mail directory without symlink components. Its parent and ancestors must be
+root-controlled so another account cannot replace the selected source. The
+source directory itself can belong to the application or mail user. For example,
+use `/srv/sites` if it is your managed site directory. A default hosting account's
+`webapps` directory under its writable home cannot be selected as a root backup
+source. Select an explicitly scoped tree under protected parents, or back up
+the entire account home if all of its files are in scope. Pseudo-filesystems and
+sources containing their own repository are rejected. Restic does not follow
+file symlinks when backing up.
 
 Remote Restic S3, B2, Azure, GCS, HTTPS REST and SFTP repositories are accepted as
 configuration data. Credentials belong in protected environment/provider files;
@@ -40,7 +47,7 @@ Local encrypted repositories were used in this implementation's UAT.
 ## Scheduling and retention
 
 ```bash
-sudo lemperctl data schedule /home/lemper/webapps /var/vmail
+sudo lemperctl data schedule /srv/sites /var/vmail
 sudo systemctl status lemper-data-backup.timer
 sudo systemctl start lemper-data-backup.service
 sudo lemperctl data prune --keep=7
@@ -49,7 +56,7 @@ sudo lemperctl data prune --keep=7
 The daily systemd timer adds a randomized delay and catches up after downtime.
 Its root-only path list lives under `/etc/lemper/data-backup/`. Scheduled paths
 must contain only letters/digits/underscores/dots/slashes/hyphens. The runner reads
-the installed profile, performs the backup, then retains `DATA_BACKUP_KEEP`
+the installed profile, rechecks source paths, performs the backup, then retains `DATA_BACKUP_KEEP`
 successful snapshots per host/path/tag group. Failed backups skip pruning.
 
 Only snapshots tagged `lemper-data` participate in LEMPer retention; unrelated

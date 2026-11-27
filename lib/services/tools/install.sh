@@ -18,6 +18,28 @@
 ##
 # LEMPer CLI & web admin install.
 ##
+# Only synchronize a stock single-server config or the exact file we generated from it.
+function lemper_redis_panel_auth() (
+    local config="$1" sample="$2" temporary redis_hex
+    [[ "${DRYRUN:-false}" != true && "${REDIS_REQUIRE_PASSWORD:-true}" == true && -n "${REDIS_PASSWORD:-}" ]] || return 0
+    [[ -f "$config" && -f "$sample" ]] || return 1
+    local placeholder="//'auth' => 'redispasswordhere'"
+    local managed="'auth' => hex2bin\\('[0-9a-f]+'\\) /\\* LEMPer \\*/"
+    if ! cmp -s -- "$config" "$sample" &&
+        ! sed -E "s|$managed|$placeholder|" "$config" | cmp -s -- - "$sample"; then
+        info "Keeping the customized phpRedisAdmin config. Check its Redis credentials."
+        return 0
+    fi
+    [[ "$(grep -Fc "$placeholder" "$sample")" == 1 ]] || { error "Unsupported phpRedisAdmin authentication template."; return 1; }
+    temporary=$(mktemp "${config}.XXXXXXXX") || return 1
+    trap 'rm -f -- "$temporary"' EXIT
+    redis_hex=$(printf '%s' "$REDIS_PASSWORD" | od -An -v -tx1 | tr -d ' \n') || return 1
+    [[ "$redis_hex" =~ ^([a-f0-9]{2})+$ ]] || return 1
+    printf "s|%s|'auth' => hex2bin('%s') /* LEMPer */|\n" "$placeholder" "$redis_hex" |
+        sed -f - "$sample" > "$temporary" || return 1
+    chgrp www-data -- "$temporary" && chmod 0640 -- "$temporary" && mv -T -- "$temporary" "$config"
+)
+
 function init_tools_install() {
     # Registry exports include legacy lemper-create/add/manage/mod/site-db/site-database
     # and lemper-site-list/site-show paths without duplicating their mappings here.
@@ -29,7 +51,7 @@ function init_tools_install() {
         lemper_cli_snapshot "$BASE_DIR" || return 1
     fi
     if [[ "${DRYRUN:-false}" != true ]]; then
-        printf '%s\n' "$BASE_DIR" >/etc/lemper/update-source || return 1
+        printf '%s\n' /opt/lemper/current >/etc/lemper/update-source || return 1
         chmod 0600 /etc/lemper/update-source || return 1
     fi
 
@@ -45,6 +67,8 @@ function init_tools_install() {
         success "LEMPer CLI installed; web administration panels are disabled."
         return 0
     fi
+
+    lemper_web_tools_tree_safe || return 1
 
     # Install Database Adminer.
 
@@ -118,25 +142,17 @@ function init_tools_install() {
         local CURRENT_DIR \
             && CURRENT_DIR=$(pwd)
         run cd /usr/share/nginx/html/lcp/memcadmin \
-            && run git config --global --add safe.directory /usr/share/nginx/html/lcp/memcadmin \
             && run git pull -q \
             && run cd "${CURRENT_DIR}" || return 1
     fi
 
     # Configure phpMemcachedAdmin.
-    # A tools refresh that only has .env.dist must not replace a live SASL
-    # config with the sample credentials.
-    if [[ "${DRYRUN}" != true && "${LEMPER_TOOLS_PRESERVE_ADMIN_CONFIG:-false}" == true && -f /usr/share/nginx/html/lcp/memcadmin/Config/Memcache.php ]]; then
+    # Client endpoint changes are an explicit migration on existing deployments.
+    if [[ "${DRYRUN}" != true && -f /usr/share/nginx/html/lcp/memcadmin/Config/Memcache.php ]]; then
         info "Keeping the existing phpMemcachedAdmin configuration."
     elif [[ "${DRYRUN}" != true ]]; then
-        if [[ ${MEMCACHED_SASL} == "enable" || ${MEMCACHED_SASL} == true ]]; then
-            MEMCACHED_SASL_CREDENTIAL="username=${MEMCACHED_USERNAME},
-            password=${MEMCACHED_PASSWORD},"
-        else
-            MEMCACHED_SASL_CREDENTIAL=""
-        fi
-
-        run touch /usr/share/nginx/html/lcp/memcadmin/Config/Memcache.php
+        # The Server backend uses a text-protocol socket. The FPM user owns this
+        # instance; the separate memcache instance has its own access policy.
         cat >/usr/share/nginx/html/lcp/memcadmin/Config/Memcache.php <<EOL
 <?php
 return [
@@ -153,21 +169,15 @@ return [
     'memory_alert' => '80',
     'hit_rate_alert' => '90',
     'eviction_alert' => '0',
-    'file_path' => 'Temp/',
+    'file_path' => '/var/lib/php/lemper/www-data/tmp/',
     'servers' =>
     [
         'LEMPer Stack' =>
         [
-            '127.0.0.1:11211' =>
+            'www-data' =>
             [
-                'hostname' => '127.0.0.1',
-                'port' => '11211',
-                ${MEMCACHED_SASL_CREDENTIAL}
-            ],
-            '127.0.0.1:11212' =>
-            [
-                'hostname' => '127.0.0.1',
-                'port' => '11212',
+                'hostname' => 'unix:///run/lemper-memcached-www-data/memcached.sock',
+                'port' => -1,
             ],
         ],
     ],
@@ -190,22 +200,16 @@ EOL
         run "${COMPOSER_BIN}" -q create-project erik-dubbelboer/php-redis-admin redisadmin \
             && run cd redisadmin \
             && run "${COMPOSER_BIN}" -q update \
-            && run cp includes/config.sample.inc.php includes/config.inc.php
-
-        if [[ "${REDIS_REQUIRE_PASSWORD}" == true ]]; then
-            sed_inplace "s|//'auth'\ =>\ 'redispasswordhere'|'auth'\ =>\ '${REDIS_PASSWORD}'|g" includes/config.inc.php
-        fi
+            && run cp includes/config.sample.inc.php includes/config.inc.php || return 1
     else
-        run cd redisadmin \
-            && run mv composer.lock composer.lock~
-        run "${COMPOSER_BIN}" -q update
+        run cd redisadmin || return 1
+        [[ ! -f composer.lock ]] || run mv composer.lock composer.lock~
+        run "${COMPOSER_BIN}" -q update || return 1
     fi
+    lemper_redis_panel_auth includes/config.inc.php includes/config.sample.inc.php || return 1
 
     run cd "${CURRENT_DIR}" || return 1
     [ -f /usr/share/nginx/html/lcp/redisadmin/index.php ] && echo_ok "OK"
-
-    # Assign ownership properly.
-    run chown -hR www-data:www-data /usr/share/nginx/html
 
     if [[ -x /usr/local/bin/lemper-cli && -d /usr/share/nginx/html/lcp ]]; then
         success "LEMPer CLI & web tools successfully installed."

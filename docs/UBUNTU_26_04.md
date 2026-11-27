@@ -8,7 +8,7 @@ installed; unsupported interim releases and unknown distributions remain rejecte
 
 | Component | Resolute selection | Existing supported systems |
 |---|---|---|
-| PHP | Maintained Sury archive; managed debsuryorg-archive-keyring package | Same archive on Jammy, Noble, Bullseye and Bookworm |
+| PHP | Maintained Sury archive; fingerprint-pinned archive keyring | Same archive on Jammy, Noble, Bullseye and Bookworm |
 | MariaDB | Ubuntu's signed MariaDB 11.8 packages when MYSQL_VERSION=auto | auto resolves to the existing MariaDB 11.4 repository |
 | Mail | Postfix and a dedicated Dovecot 2.4 template | Existing Dovecot 2.3 template remains available |
 | Nginx | MyGuard's published Resolute suite, subject to its binary architecture check; source installation on ARM64 | Existing MyGuard/source choices |
@@ -27,10 +27,9 @@ ownership, and preserves the distribution's service helper. Forced data removal
 targets the platform's default directory; custom data directories remain manual.
 Database operations use SQL inventory rather than assuming a filesystem path.
 
-The Sury setup follows [upstream's README](https://packages.sury.org/php/README.txt):
-install its keyring package and scope PHP sources to
-/usr/share/keyrings/debsuryorg-archive-keyring.gpg. The bootstrap verifies the
-published archive's key fingerprint before installing the package. Existing PHP
+LEMPer extracts the signing key from the Sury keyring package, verifies the
+primary fingerprint, and scopes PHP sources to
+`/usr/share/keyrings/debsuryorg-archive-keyring.gpg`. Existing PHP
 PPA/Sury entries migrate to the current distribution suite, preserving source
 options, deb-src entries and unrelated repositories. Mixed URI stanzas and
 signature bypasses are rejected before source changes. Sources are backed up as

@@ -195,9 +195,7 @@ function lemper_install() {
 
         # Cleanup build dir
         echo "Clean up build directory..."
-        if [ -d "${BUILD_DIR}" ]; then
-            run rm -fr "${BUILD_DIR}"
-        fi
+        lemper_remove_build_workspace "${BUILD_DIR}" || return 1
     fi
 
     if [[ "${DRYRUN}" != true ]]; then
@@ -218,8 +216,9 @@ function lemper_install() {
             echo "Service URLs:"
             if [[ "${INSTALL_NGINX}" == true ]]; then
                 echo "  Web Server: http://${SERVER_IP}/ (Nginx)"
-                echo "  Database Admin: http://${SERVER_IP}:8082/lcp/dbadmin/"
-                echo "  File Manager: http://${SERVER_IP}:8082/lcp/filemanager/"
+                if [[ "${INSTALL_WEB_ADMIN:-true}" == true ]]; then
+                    echo "  Administration: HTTPS on port 8083 with a configured certificate, or loopback port 8082 over SSH."
+                fi
             fi
             info "All sensitive credentials are in /etc/lemper/lemper.conf (root-only)."
         fi
@@ -286,9 +285,9 @@ function lemper_remove() {
     fi
 
     if [[ ("${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y*) &&
-        -f "/etc/lemper/installed/account-$LEMPER_USERNAME" || "${FORCE_REMOVE}" == true ]]; then
+        ( -f "/etc/lemper/installed/account-$LEMPER_USERNAME" || "${FORCE_REMOVE}" == true ) ]]; then
         if [[ "$(type -t delete_account)" == "function" ]]; then
-            delete_account "${LEMPER_USERNAME}"
+            delete_account "${LEMPER_USERNAME}" || return 1
         fi
     fi
 

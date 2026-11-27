@@ -136,6 +136,21 @@ ports in both the host and provider firewalls. Only loopback addresses are
 trusted for unauthenticated outbound submission by local applications. Remote
 applications must use authenticated TLS submission on port 587.
 
+On port 587, the visible `From` field must contain a single mailbox address
+owned by the authenticated user. It can be the mailbox's own address or an
+alias explicitly assigned to it. Display names, comments, and ordinary
+header folding are supported. The visible author and SMTP envelope sender
+can use different addresses when the login owns both. The author policy
+runs before managed DKIM signing and defers submission when the policy
+service is unavailable. Port 25 retains its separate local and incoming
+mail policies.
+
+Existing installations can enable the policy by reconciling the managed
+mailer with `lemperctl stack install mailer` after updating LEMPer. The
+dedicated submission policy uses the distribution's Rspamd package and
+its own Unix socket. A pre-existing general-purpose Rspamd service keeps
+its separate configuration.
+
 ```bash
 sudo lemperctl mail dns example.com
 sudo lemperctl mail dns example.net
@@ -152,7 +167,8 @@ DNS administration step, not performed by the CLI.
 ## Operations, backup, and recovery
 
 Use `lemperctl stack start|stop|restart|reload|status|update mailer` to control services.
-`lemperctl mail check` validates Postfix, Dovecot, and enabled DKIM configuration.
+`lemperctl mail check` validates Postfix, Dovecot, the submission author policy,
+and enabled DKIM configuration.
 Configuration is generated from tracked templates in `etc/mail/`; live map data
 lives in `/etc/lemper-mail`. Configuration and password/status maps change under
 the shared LEMPer lock. One atomic generation selector publishes the maps;
@@ -172,7 +188,8 @@ The file-backed approach suits a small or moderate number of managed mailboxes.
 For larger multi-tenant deployments, quotas, spam filtering, webmail, migration,
 and delegated administration, use a dedicated mail platform with database-backed
 account management rather than expanding the web-stack installer into a mail
-control panel. Rspamd/antivirus, quotas, relay-provider credentials, automated
+control panel. General-purpose spam filtering and antivirus, quotas,
+relay-provider credentials, automated
 DNS publication, and Dovecot 2.4 configuration migration are future additions.
 
 ## Audit findings and verification

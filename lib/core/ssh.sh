@@ -38,6 +38,37 @@ function write_ssh_profile() {
     fi
 }
 
+function verify_effective_ssh_policy() {
+    local username="$1" port="$2" key_only="$3" root_login="$4" config="$5"
+    local effective context account setting remote_addr local_addr
+    local -a args contexts=("")
+    [[ "$port" =~ ^[0-9]{1,5}$ ]] || return 1
+    port="$((10#$port))"
+    read -r remote_addr _ local_addr _ <<< "${SSH_CONNECTION:-}"
+    for account in "$username" root; do
+        contexts+=("user=$account,host=localhost,addr=127.0.0.1,laddr=127.0.0.1,lport=$port")
+        if [[ -n "$remote_addr" && -n "$local_addr" ]]; then
+            contexts+=("user=$account,host=$remote_addr,addr=$remote_addr,laddr=$local_addr,lport=$port")
+        fi
+    done
+    for context in "${contexts[@]}"; do
+        args=(-T -f "$config")
+        [[ -z "$context" ]] || args+=(-C "$context")
+        effective=$(sshd "${args[@]}") || return 1
+        grep -Fxq "port $port" <<< "$effective" || return 1
+        if [[ "$key_only" == true ]]; then
+            for setting in 'pubkeyauthentication yes' 'passwordauthentication no' \
+                'kbdinteractiveauthentication no' 'authenticationmethods publickey'; do
+                grep -Fxq "$setting" <<< "$effective" || return 1
+            done
+            grep -Eq '^authorizedkeysfile (.* )?/etc/ssh/lemper-keys/%u( |$)' <<< "$effective" || return 1
+        fi
+        if [[ "$root_login" != true ]]; then
+            grep -Fxq 'permitrootlogin no' <<< "$effective" || return 1
+        fi
+    done
+}
+
 function valid_ssh_key_material() {
     local key="${1:-}"
     is_ssh_public_key "${key}" || return 1
@@ -60,13 +91,22 @@ function install_managed_ssh_key() {
 }
 
 function restore_ssh_configuration() {
-    local snapshot="${LEMPER_SSH_SNAPSHOT:-}"
+    local snapshot="${LEMPER_SSH_SNAPSHOT:-}" account key_file
     [[ -d "${snapshot}" ]] || return 0
     cp -p "${snapshot}/sshd_config" /etc/ssh/sshd_config || return 1
     if [[ -f "${snapshot}/profile" ]]; then
         cp -p "${snapshot}/profile" /etc/ssh/sshd_config.d/90-lemper.conf || return 1
     else
-        rm -f /etc/ssh/sshd_config.d/90-lemper.conf
+        rm -f /etc/ssh/sshd_config.d/90-lemper.conf || return 1
+    fi
+    if [[ -f "$snapshot/key-account" ]]; then
+        IFS= read -r account <"$snapshot/key-account" && is_valid_username "$account" || return 1
+        key_file="/etc/ssh/lemper-keys/$account"
+        if [[ -f "$snapshot/key" ]]; then
+            cp -p "$snapshot/key" "$key_file" || return 1
+        else
+            rm -f -- "$key_file" || return 1
+        fi
     fi
     rm -rf "${snapshot}"
     LEMPER_SSH_SNAPSHOT=""

@@ -157,21 +157,35 @@ function php_migrate_restore_manifest() {
 # Rewrite phpX.Y path and extension-suffix tokens from one branch to another.
 ##
 function php_rewrite_pool_text() {
-    local from="${1}" to="${2}"
-    local from_compact="${from//./}" to_compact="${to//./}"
-    sed "s/php${from}/php${to}/g; s/\\.php${from_compact}/.php${to_compact}/g"
+    local from="${1}" to="${2}" log_dir="${3}"
+    local from_pattern="${from//./[.]}" from_compact="${from//./}" to_compact="${to//./}"
+    awk -v from="$from_pattern" -v to="$to" -v from_compact="$from_compact" -v to_compact="$to_compact" -v log_dir="$log_dir" '
+        /^[[:space:]]*slowlog[[:space:]]*=/ { print "slowlog = " log_dir "/php" to "-fpm_slow.log"; next }
+        /^[[:space:]]*access\.log[[:space:]]*=/ { print "access.log = " log_dir "/php" to "-fpm_access.log"; next }
+        /^[[:space:]]*php_(admin_)?value\[error_log\][[:space:]]*=/ {
+            print "php_admin_value[error_log] = " log_dir "/php" to "-fpm_error.log"; next
+        }
+        /^[[:space:]]*php_(admin_)?value\[opcache\.error_log\][[:space:]]*=/ {
+            print "php_admin_value[opcache.error_log] = " log_dir "/php" to "-opcache_error.log"; next
+        }
+        {
+            gsub("php" from, "php" to)
+            gsub("[.]php" from_compact, ".php" to_compact)
+            print
+        }
+    '
 }
 
 ##
 # Minimal pool used when the EOL branch has no pool file for this user.
 ##
 function php_minimal_pool_text() {
-    local pool="${1}" version="${2}"
-    local user="${pool}" group="${pool}" home="/home/${pool}" listen_name=".${pool}"
+    local pool="${1}" version="${2}" log_dir="${3}"
+    local user="${pool}" group="${4}" home="/home/${pool}" listen_name=".${pool}"
+    local state_dir="${LEMPER_PHP_STATE_DIR:-/var/lib/php/lemper}/$pool"
 
     if [[ "${pool}" == "www" ]]; then
         user="www-data"
-        group="www-data"
         home="/usr/share/nginx/html"
         listen_name=""
     fi
@@ -200,11 +214,11 @@ php_admin_flag[expose_php] = off
 php_admin_flag[display_errors] = off
 php_admin_flag[display_startup_errors] = off
 php_flag[cgi.fix_pathinfo] = off
-php_admin_value[error_log] = ${home}/logs/php/php${version}-fpm_error.log
-php_admin_value[open_basedir] = ${home}:/var/lib/php/lemper/${pool}
-php_admin_value[sys_temp_dir] = /var/lib/php/lemper/${pool}/tmp
-php_admin_value[upload_tmp_dir] = /var/lib/php/lemper/${pool}/tmp
-php_admin_value[session.save_path] = /var/lib/php/lemper/${pool}/sessions
+php_admin_value[error_log] = ${log_dir}/php${version}-fpm_error.log
+php_admin_value[open_basedir] = ${home}:${state_dir}:${log_dir}
+php_admin_value[sys_temp_dir] = ${state_dir}/tmp
+php_admin_value[upload_tmp_dir] = ${state_dir}/tmp
+php_admin_value[session.save_path] = ${state_dir}/sessions
 php_admin_value[session.use_strict_mode] = 1
 php_admin_value[session.cookie_httponly] = 1
 php_admin_value[session.cookie_samesite] = Lax
@@ -216,17 +230,17 @@ EOF
 ##
 function php_migrate_prepare_pool_dirs() {
     local pool="${1}"
-    local base="${LEMPER_PHP_STATE_DIR:-/var/lib/php/lemper}/${pool}"
-    local owner="${pool}"
+    local root="${LEMPER_PHP_STATE_DIR:-/var/lib/php/lemper}" owner="$2" uid="$3" gid="$4"
+    local base="$root/$pool" owner_mode
 
-    mkdir -p "${base}/tmp" "${base}/sessions" "${base}/wsdlcache" "${base}/opcache" || return 1
-    chmod 700 "${base}" "${base}/tmp" "${base}/sessions" "${base}/wsdlcache" "${base}/opcache" 2>/dev/null || true
-    if [[ "$(id -u)" -eq 0 ]]; then
-        [[ "${pool}" == "www" ]] && owner="www-data"
-        if id "${owner}" >/dev/null 2>&1; then
-            chown -R "${owner}:${owner}" "${base}" 2>/dev/null || true
-        fi
+    lemper_directory_trusted "$root" && mkdir -p -- "$root" || return 1
+    [[ ! -L "$base" ]] || return 1
+    if [[ ! -e "$base" ]]; then
+        install -d -m 0700 -o "$uid" -g "$gid" -- "$base" || return 1
     fi
+    owner_mode=$(stat -c '%u %a' -- "$base") || return 1
+    [[ -d "$base" && "$owner_mode" == "$uid 700" ]] || return 1
+    (cd -- "$base" && runuser -u "$owner" -- mkdir -p -m 0700 -- tmp sessions wsdlcache opcache)
 }
 
 ##
@@ -236,43 +250,64 @@ function php_ensure_migrated_pool() {
     local pool="${1}" from="${2}" to="${3}"
     local dest="${PHP_ETC_DIR}/${to}/fpm/pool.d/${pool}.conf"
     local src="${PHP_ETC_DIR}/${from}/fpm/pool.d/${pool}.conf"
+    local temporary owner="$pool" uid group gid mode log_root="${LEMPER_PHP_LOG_DIR:-/var/log/lemper/php}"
 
+    [[ "$from" =~ ^[0-9]+\.[0-9]+$ && "$to" =~ ^[0-9]+\.[0-9]+$ &&
+        "$log_root" =~ ^/[[:alnum:]_./-]+$ ]] && is_valid_username "$pool" || return 1
+    if ! lemper_directory_trusted "${dest%/*}" || ! lemper_directory_trusted "${src%/*}"; then
+        error "PHP pool configuration requires protected source and destination directories."
+        return 1
+    fi
+    [[ ! -L "$src" && ! -L "$dest" ]] || return 1
     if [[ -f "${dest}" ]]; then
+        mode=$(stat -c '%a' -- "$dest") || return 1
+        [[ "$(stat -c '%u' -- "$dest")" == "$EUID" ]] && (( (8#$mode & 0022) == 0 )) || return 1
         info "PHP ${to} pool ${pool} already exists."
         return 0
     fi
-    mkdir -p "${PHP_ETC_DIR}/${to}/fpm/pool.d" || return 1
-    if [[ -f "${src}" ]]; then
-        php_rewrite_pool_text "${from}" "${to}" <"${src}" >"${dest}" || return 1
-        info "Created PHP ${to} pool ${pool} from the PHP ${from} pool."
-    else
-        php_minimal_pool_text "${pool}" "${to}" >"${dest}" || return 1
-        info "Created a new PHP ${to} pool for ${pool}."
+    [[ ! -e "$dest" && ( ! -e "$src" || -f "$src" ) ]] || return 1
+    if [[ -f "$src" ]]; then
+        mode=$(stat -c '%a' -- "$src") || return 1
+        [[ "$(stat -c '%u' -- "$src")" == "$EUID" ]] && (( (8#$mode & 0022) == 0 )) || return 1
     fi
-    chmod 0644 "${dest}" 2>/dev/null || true
-    php_migrate_prepare_pool_dirs "${pool}" || return 1
-    php_migrate_prepare_log_dir "${pool}"
+    [[ "$pool" != www ]] || owner=www-data
+    uid=$(id -u "$owner") && gid=$(id -g "$owner") && group=$(id -gn "$owner") && [[ "$uid" =~ ^[1-9][0-9]*$ ]] || {
+        error "PHP pool $pool does not have a valid unprivileged account."
+        return 1
+    }
+    mkdir -p "${PHP_ETC_DIR}/${to}/fpm/pool.d" || return 1
+    temporary=$(mktemp "${dest}.XXXXXXXX") || return 1
+    if [[ -f "${src}" ]]; then
+        php_rewrite_pool_text "$from" "$to" "$log_root/$pool" <"$src" >"$temporary" || { rm -f -- "$temporary"; return 1; }
+    else
+        php_minimal_pool_text "$pool" "$to" "$log_root/$pool" "$group" >"$temporary" || { rm -f -- "$temporary"; return 1; }
+    fi
+    if ! php_migrate_prepare_pool_dirs "$pool" "$owner" "$uid" "$gid" ||
+        ! php_migrate_prepare_log_dir "$log_root/$pool" "$to" "$uid" "$gid" ||
+        ! mv -T -- "$temporary" "$dest"; then
+        rm -f -- "$temporary"; return 1
+    fi
+    info "Created PHP $to pool $pool."
 }
 
 ##
-# Best-effort PHP log directory named by the pool file.
+# Keep FPM master logs and worker log paths under protected ancestry.
 ##
 function php_migrate_prepare_log_dir() {
-    local pool="${1}"
-    local log_dir="/home/${pool}/logs/php"
-    local owner="${pool}"
-
-    if [[ "${pool}" == "www" ]]; then
-        log_dir="/usr/share/nginx/html/logs/php"
-        owner="www-data"
-    elif [[ "$(id -u)" -ne 0 && ! -d "/home/${pool}" ]]; then
-        return 0
-    fi
-    mkdir -p "${log_dir}" 2>/dev/null || true
-    chmod 750 "${log_dir}" 2>/dev/null || true
-    if [[ "$(id -u)" -eq 0 ]] && id "${owner}" >/dev/null 2>&1; then
-        chown "${owner}:${owner}" "${log_dir}" 2>/dev/null || true
-    fi
+    local log_dir="$1" version="$2" uid="$3" gid="$4" file kind owner
+    lemper_directory_trusted "$log_dir" || return 1
+    install -d -m 0750 -o root -g "$gid" -- "$log_dir" || return 1
+    for kind in fpm_access fpm_slow fpm_error opcache_error; do
+        file="$log_dir/php$version-$kind.log"
+        owner=0
+        case "$kind" in fpm_error | opcache_error) owner="$uid" ;; esac
+        [[ ! -L "$file" ]] || return 1
+        if [[ -e "$file" ]]; then
+            [[ -f "$file" && "$(stat -c '%u %a %h' -- "$file")" == "$owner 600 1" ]] || return 1
+        else
+            install -m 0600 -o "$owner" -g "$gid" /dev/null "$file" || return 1
+        fi
+    done
 }
 
 ##
@@ -294,6 +329,12 @@ function php_migrate_eol_sites() {
     fi
     if [[ ! -d "${PHP_ETC_DIR}/${target}/fpm" ]]; then
         error "PHP ${target} is not installed. Install it, then re-run with --migrate-to=${target}."
+        return 1
+    fi
+    if [[ "$sites" == /etc/nginx/sites-available ]] &&
+        { [[ "$(php_branch_state "$target" "$(php_package_version "$target")")" != patched ]] ||
+          [[ "$(php_fpm_runtime_state "$target")" != current ]]; }; then
+        error "PHP $target must be patched and running its installed FPM binary before migration."
         return 1
     fi
 
@@ -391,18 +432,18 @@ function php_migrate_eol_sites() {
 
     # Unit tests point the sites directory at a fixture. Only a real
     # sites-available tree is allowed to invoke the local nginx binary.
-    if [[ "${sites}" == "/etc/nginx/sites-available" ]] && command -v nginx >/dev/null 2>&1; then
-        if ! nginx -t; then
+    if [[ "${sites}" == "/etc/nginx/sites-available" ]]; then
+        if ! command -v nginx >/dev/null 2>&1 || ! nginx -t; then
             error "nginx configuration test failed; restoring vhosts."
             php_migrate_restore_manifest "${manifest}"
             return 1
         fi
-        systemctl try-reload-or-restart "php${target}-fpm" 2>/dev/null \
-            || warning "PHP ${target} FPM pool files were written; reload php${target}-fpm manually."
-        if systemctl reload nginx 2>/dev/null; then
-            success "Nginx reloaded with PHP ${target} handlers."
-        else
-            warning "Vhosts now use PHP ${target}; reload Nginx manually."
+        if ! php_reload_branch "$target" || [[ "$(php_fpm_runtime_state "$target")" != current ]] ||
+            ! systemctl reload nginx; then
+            error "Could not activate the PHP $target handlers; restoring vhosts."
+            php_migrate_restore_manifest "$manifest"
+            systemctl reload nginx || error "Could not reload restored Nginx configuration."
+            return 1
         fi
     fi
 

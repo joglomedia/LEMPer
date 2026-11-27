@@ -418,14 +418,5 @@ function get_ip_private() {
 # Get server public IP Address.
 ##
 function get_ip_public() {
-    local SERVER_IP_PRIVATE && SERVER_IP_PRIVATE=$(get_ip_private)
-    local SERVER_IP_PUBLIC \
-        && SERVER_IP_PUBLIC=$(curl -sk --connect-timeout 10 --retry 3 --retry-delay 0 http://ipecho.net/plain)
-
-    # Ugly hack to detect aws-lightsail public IP address.
-    if [[ "${SERVER_IP_PRIVATE}" == "${SERVER_IP_PUBLIC}" ]]; then
-        echo "${SERVER_IP_PRIVATE}"
-    else
-        echo "${SERVER_IP_PUBLIC}"
-    fi
+    core_get_ip_public
 }

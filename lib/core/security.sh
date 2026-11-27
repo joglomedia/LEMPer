@@ -30,31 +30,35 @@ function redact_secrets() {
     printf '%s' "${message}"
 }
 
+# Apply the site path policy to a canonical path, including a prospective site.
+function lemper_webroot_path_allowed() {
+    local path="$1" prefix home
+    [[ "$path" == /* && "$path" != *$'\n'* && "$path" != *$'\r'* ]] || return 1
+    case "$path" in
+        /|/home|/srv|/srv/www|/var|/var/www|/opt|/tmp|/var/tmp|/mnt|/media)
+            return 1 ;;
+        /bin|/bin/*|/boot|/boot/*|/dev|/dev/*|/etc|/etc/*|/lib|/lib/*|/lib32|/lib32/*|\
+        /lib64|/lib64/*|/proc|/proc/*|/root|/root/*|/run|/run/*|/sbin|/sbin/*|/sys|/sys/*|/usr|/usr/*)
+            return 1 ;;
+        /var/*)
+            [[ "$path" == /var/www/* ]] || return 1 ;;
+    esac
+    if [[ "$path" == /home/* ]]; then
+        prefix="${path#/home/}"
+        home="/home/${prefix%%/*}"
+        [[ "$prefix" == */* && "$path" != "$home/webapps" && "$path" != "$home/logs" &&
+            "$path" != "$home/.ssh" && "$path" != /home/*/.ssh/* ]] || return 1
+    fi
+}
+
 # Resolve symlinks and '..' before deciding whether a recursive mutation is safe.
 # Application trees may live in /home, /srv, /var/www, /opt, or a custom mount.
 function safe_webroot() {
-    local target="${1:-}" resolved owner="${2:-}" prefix
-    [[ "${target}" == /* && -d "${target}" && ! -L "${target}" ]] || return 1
-    [[ "${target}" != *$'\n'* && "${target}" != *$'\r'* ]] || return 1
-    resolved=$(cd -- "${target}" && pwd -P) || return 1
-    case "${resolved}" in
-        /|/home|/srv|/srv/www|/var|/var/www|/opt|/root|/tmp|/var/tmp|/mnt|/media)
-            return 1 ;;
-        /bin|/bin/*|/boot|/boot/*|/dev|/dev/*|/etc|/etc/*|/lib|/lib/*|/lib32|/lib32/*|\
-        /lib64|/lib64/*|/proc|/proc/*|/run|/run/*|/sbin|/sbin/*|/sys|/sys/*|/usr|/usr/*)
-            return 1 ;;
-        /var/*)
-            [[ "${resolved}" == /var/www/* ]] || return 1 ;;
-    esac
-    # A user's home and shared application roots are never a site's deletion target.
-    if [[ "${resolved}" == /home/* ]]; then
-        prefix="${resolved#/home/}"
-        [[ "${prefix}" == */* ]] || return 1
-        [[ "${resolved}" != "/home/${prefix%%/*}/webapps" &&
-           "${resolved}" != "/home/${prefix%%/*}/logs" &&
-           "${resolved}" != "/home/${prefix%%/*}/.ssh" &&
-           "${resolved}" != /home/*/.ssh/* ]] || return 1
-    fi
+    local target="${1:-}" resolved owner="${2:-}"
+    [[ "$target" == /* && -d "$target" && ! -L "$target" ]] || return 1
+    [[ "$target" != *$'\n'* && "$target" != *$'\r'* ]] || return 1
+    resolved=$(cd -- "$target" && pwd -P) || return 1
+    lemper_webroot_path_allowed "$resolved" || return 1
     if [[ -n "${owner}" ]]; then
         if [[ "$(uname -s)" == Darwin ]]; then
             [[ "$(stat -f '%Su' "${resolved}")" == "${owner}" ]] || return 1
@@ -106,4 +110,102 @@ function install_cli_binary() {
         rm -f "${temporary}"
         return 1
     fi
+}
+
+# Every writable directory and ancestor must be trusted; root-owned sticky /tmp is allowed.
+function lemper_directory_trusted() {
+    local directory="$1" cursor owner mode
+    [[ "$directory" == /* && "$(realpath -ms -- "$directory")" == "$directory" ]] || return 1
+    cursor="$directory"
+    while [[ "$cursor" != / ]]; do
+        if [[ -e "$cursor" || -L "$cursor" ]]; then
+            [[ -d "$cursor" && ! -L "$cursor" ]] || return 1
+            read -r owner mode < <(stat -c '%u %a' -- "$cursor") || return 1
+            [[ "$owner" == "$EUID" || "$owner" == 0 ]] || return 1
+            if (( (8#$mode & 0022) != 0 )); then
+                [[ "$owner" == 0 && ( "$cursor" == /tmp || "$cursor" == /var/tmp ) ]] &&
+                    (( (8#$mode & 01000) != 0 )) || return 1
+            fi
+        fi
+        cursor="${cursor%/*}"
+        [[ -n "$cursor" ]] || cursor=/
+    done
+}
+
+# A deployed release contains ordinary single-link files and one fixed compatibility link.
+function lemper_release_tree_trusted() {
+    local release="$1" unsafe
+    [[ -d "$release" && -f "$release/lib/core/registry.sh" && -f "$release/bin/lemper-cli.sh" ]] || return 1
+    lemper_directory_trusted "$release" || return 1
+    unsafe=$(find "$release" \( ! -uid "$EUID" -o \( ! -type l -perm /022 \) -o \( -type f -links +1 \) -o \
+        ! \( -type d -o -type f -o \( -type l -path "$release/scripts/lemper_stacks.sh" -lname '../lib/core/lemper-stacks.sh' \) \) \) -printf x -quit) || return 1
+    [[ -z "$unsafe" ]]
+}
+
+# Pin the trusted version directory. A missing selector is distinct from an unsafe selector.
+function lemper_installed_release() {
+    local installation="${1:-/opt/lemper}" selector target name
+    selector="$installation/current"
+    lemper_directory_trusted "$installation" || return 1
+    [[ -e "$selector" || -L "$selector" ]] || return 2
+    [[ -L "$selector" && "$(stat -c %u -- "$selector")" == "$EUID" ]] || return 1
+    target=$(readlink -- "$selector") || return 1
+    name=${target#"$installation/"}
+    [[ "$name" =~ ^([0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?|local-[A-Za-z0-9]+)$ ]] || return 1
+    target="$installation/$name"
+    [[ "$selector" -ef "$target" ]] && lemper_release_tree_trusted "$target" || return 1
+    printf '%s\n' "$target"
+}
+
+# Create a private workspace beneath a protected parent. Never adopt an old shared build tree.
+function lemper_build_workspace() {
+    local path="$1" parent
+    parent=$(dirname -- "$path") || return 1
+    lemper_directory_trusted "$parent" && [[ -d "$parent" ]] || return 1
+    [[ "$path" != "$parent" && "$path" != *$'\n'* && "$path" != *$'\r'* &&
+        "$path" == "$(realpath -ms -- "$path")" ]] || return 1
+    if [[ ! -d "$path" ]]; then
+        lemper_exec mkdir -m 0700 -- "$path" || return 1
+        [[ "${DRYRUN:-false}" != true ]] || return 0
+        lemper_exec install -m 0600 /dev/null "$path/.lemper-build-workspace" || return 1
+    fi
+    lemper_directory_trusted "$path" && [[ "$(stat -c %a -- "$path")" == 700 ]] || {
+        error "Build workspace must be a private directory owned by the installer."
+        return 1
+    }
+}
+
+function lemper_remove_build_workspace() {
+    local path="$1" marker="$1/.lemper-build-workspace"
+    [[ -f "$marker" && ! -L "$marker" ]] || return 0
+    lemper_directory_trusted "$path" &&
+        [[ "$(stat -c %a -- "$path")" == 700 && "$(stat -c '%u:%a:%h' -- "$marker")" == "$EUID:600:1" ]] || return 1
+    lemper_exec rm -rf -- "$path"
+}
+
+# Legacy releases assigned these files to the web worker. Their contents cannot
+# be used for a privileged refresh, even after changing ownership retrospectively.
+function lemper_web_tools_tree_safe() {
+    local directory="${1:-/usr/share/nginx/html}" unsafe
+    lemper_directory_trusted "$directory" || { error "Migrate the legacy web-owned Nginx document tree before refreshing tools."; return 1; }
+    [[ -d "$directory" ]] || return 0
+    unsafe=$(find "$directory" \( ! -uid 0 -o \( ! -type l -perm /022 \) -o ! \( -type d -o -type f -o -type l \) -o \( -type f -links +1 \) \) -printf x -quit) || return 1
+    [[ -z "$unsafe" ]] || { error "Web tools require a clean, root-owned document tree. See the security migration guide."; return 1; }
+    # Composer can install relative links to other files in this protected tree.
+    find "$directory" -type l -exec bash -c '
+        root=$1
+        shift
+        for link do
+            target=$(readlink -- "$link") && [[ "$target" != /* ]] || exit 1
+            base=${link%/*}
+            while [[ "$target" == ../* ]]; do
+                [[ "$base" != "$root" ]] || exit 1
+                base=${base%/*}
+                target=${target#../}
+            done
+            [[ "/$target/" != */../* ]] || exit 1
+            resolved=$(realpath -e -- "$link") && [[ "$resolved" == "$root/"* &&
+                "$resolved" == "$(realpath -ms -- "$base/$target")" ]] || exit 1
+        done
+    ' _ "$directory" {} +
 }

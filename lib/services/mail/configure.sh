@@ -27,6 +27,7 @@ function lemper_mail_certificate_valid() {
 }
 function lemper_mail_postfix_configure() {
     local hostname="$1" certificate="$2" root="$3" setting current_tls outbound_tls=may
+    local submission_milters=unix:lemper-mail-author/filter.sock mail_macros
     # Reconciliation must retain an administrator's stronger outbound relay policy.
     current_tls=$(postconf -h smtp_tls_security_level) || return 1
     case "$current_tls" in
@@ -34,6 +35,11 @@ function lemper_mail_postfix_configure() {
         none|may|'') ;;
         *) error "Unsupported outbound SMTP TLS policy; repair it before reconciling mail."; return 1 ;;
     esac
+    mail_macros=$(postconf -h milter_mail_macros) || return 1
+    if [[ ! "$mail_macros" =~ (^|[[:space:],])\{auth_authen\}($|[[:space:],]) ]]; then
+        error "Postfix milter_mail_macros must include {auth_authen} for authenticated submission."
+        return 1
+    fi
     # Loopback-only trusted networks; receiving port 25 never advertises authentication.
     local settings=(
         "myhostname=$hostname" "myorigin=$hostname" 'mydestination=localhost,localhost.localdomain'
@@ -54,11 +60,16 @@ function lemper_mail_postfix_configure() {
     )
     for setting in "${settings[@]}"; do postconf -e "$setting" || return 1; done
     postconf -M 'submission/inet=submission inet n - y - - smtpd' || return 1
+    if [[ -f "$root/dkim-enabled" ]]; then
+        submission_milters+=,inet:127.0.0.1:8891
+    fi
     local overrides=(
         'smtpd_tls_security_level=encrypt' 'smtpd_sasl_auth_enable=yes'
         'smtpd_relay_restrictions=permit_sasl_authenticated,reject'
         'smtpd_recipient_restrictions=permit_sasl_authenticated,reject'
         'smtpd_sender_restrictions=reject_authenticated_sender_login_mismatch'
+        "smtpd_milters=$submission_milters"
+        'milter_default_action=tempfail'
         'milter_macro_daemon_name=ORIGINATING'
     )
     for setting in "${overrides[@]}"; do postconf -P "submission/inet/$setting" || return 1; done
@@ -67,6 +78,56 @@ function lemper_mail_postfix_configure() {
             'milter_protocol=6' 'milter_default_action=tempfail' 'policyd-spf_time_limit=3600' || return 1
         postconf -M 'policyd-spf/unix=policyd-spf unix - n n - 0 spawn user=policyd-spf argv=/usr/bin/policyd-spf' || return 1
         postconf -e 'smtpd_recipient_restrictions=permit_mynetworks,reject_unauth_destination,reject_non_fqdn_recipient,reject_unknown_recipient_domain,reject_unlisted_recipient,check_policy_service unix:private/policyd-spf' || return 1
+    fi
+}
+function lemper_mail_author_prepare() {
+    local root="$1" source_dir="$2" template staged identity home shell
+    if identity=$(getent passwd lemper-mail-author); then
+        IFS=: read -r _ _ _ _ _ home shell <<<"$identity"
+        if [[ ! -f "$root/submission-author-user" || "$home" != /nonexistent || "$shell" != /usr/sbin/nologin ||
+              "$(id -gn lemper-mail-author)" != postfix ]]; then
+            error "Existing lemper-mail-author user is not the managed submission policy identity."
+            return 1
+        fi
+    else
+        lemper_exec useradd --system --gid postfix --no-create-home --home-dir /nonexistent \
+            --shell /usr/sbin/nologin lemper-mail-author || return 1
+        lemper_exec install -m 0600 /dev/null "$root/submission-author-user" || return 1
+    fi
+    [[ ! -L /var/spool/postfix/lemper-mail-author ]] || return 1
+    lemper_exec install -d -o lemper-mail-author -g postfix -m 0750 /var/spool/postfix/lemper-mail-author || return 1
+    for template in submission-author.conf submission-author.lua submission-author.service; do
+        staged=$(mktemp "$root/.submission-author.XXXXXXXX") || return 1
+        if ! sed "s|@ROOT@|$root|g" "$source_dir/$template" > "$staged"; then
+            rm -f -- "$staged"
+            return 1
+        fi
+        case "$template" in
+            *.service) install -m 0644 "$staged" /etc/systemd/system/lemper-mail-author.service ;;
+            *) install -m 0644 "$staged" "$root/$template" ;;
+        esac || { rm -f -- "$staged"; return 1; }
+        rm -f -- "$staged"
+    done
+    rspamadm configtest -qs -c "$root/submission-author.conf" || return 1
+    systemctl daemon-reload && systemctl enable lemper-mail-author && systemctl restart lemper-mail-author
+}
+function lemper_mail_author_restore() {
+    local root="$1" backup="$2" previously_enabled="$3" file
+    for file in submission-author.conf submission-author.lua; do
+        if [[ -f "$backup/$file" ]]; then
+            cp -p "$backup/$file" "$root/$file" || return 1
+        else
+            rm -f -- "$root/$file" || return 1
+        fi
+    done
+    local unit=/etc/systemd/system/lemper-mail-author.service
+    if [[ -f "$backup/lemper-mail-author.service" ]]; then
+        cp -p "$backup/lemper-mail-author.service" "$unit" || return 1
+        systemctl daemon-reload && systemctl restart lemper-mail-author || return 1
+        [[ "$previously_enabled" == true ]] || systemctl disable lemper-mail-author
+    elif [[ -f "$unit" ]]; then
+        systemctl disable --now lemper-mail-author || return 1
+        rm -f -- "$unit" && systemctl daemon-reload
     fi
 }
 function lemper_mail_template() {
@@ -111,11 +172,15 @@ function lemper_mail_install() {
         info "Would install Postfix, Dovecot IMAP/LMTP, virtual mailboxes, and TLS for $hostname ($domain)."
         return 0
     fi
-    local owned_packages=() package
+    local owned_packages=() package add_rspamd=false package_rc=0
+    local rspamd_mask="$root/submission-rspamd-mask"
     local packages=(postfix mailutils dovecot-core dovecot-imapd dovecot-lmtpd openssl)
     [[ "${INSTALL_SPFDKIM:-true}" != true ]] || packages+=(postfix-policyd-spf-python opendkim opendkim-tools)
-    for package in "${packages[@]}"; do
+    for package in "${packages[@]}" rspamd; do
         if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null)" != 'install ok installed' ]]; then owned_packages+=("$package"); fi
+    done
+    for package in "${owned_packages[@]}"; do
+        [[ "$package" != rspamd ]] || add_rspamd=true
     done
     install -d -m 0755 "$root" "$root/generations" || return 1
     # Identify our interrupted installation before APT starts any services.
@@ -130,11 +195,36 @@ function lemper_mail_install() {
         mv -f "$ownership" "$root/owned-packages" || return 1
     fi
     lemper_exec env DEBIAN_FRONTEND=noninteractive apt-get install -q -y "${packages[@]}" || return 1
+    # The dedicated author service needs no Redis. Leave an existing
+    # general-purpose Rspamd service alone and suppress startup of a new one.
+    if [[ "$add_rspamd" == true && ! -f "$rspamd_mask" &&
+          "$(systemctl is-enabled rspamd.service 2>/dev/null)" != masked* ]]; then
+        install -m 0600 /dev/null "$rspamd_mask" || return 1
+        systemctl mask --runtime rspamd.service || return 1
+    fi
+    if [[ "$add_rspamd" == true ]]; then
+        lemper_exec env DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -q -y rspamd || package_rc=$?
+    fi
+    if [[ -f "$rspamd_mask" ]]; then
+        # Disabling while masked cannot resolve the packaged unit's enablement.
+        if systemctl unmask --runtime rspamd.service &&
+            systemctl disable --now rspamd.service >/dev/null 2>&1; then
+            rm -f -- "$rspamd_mask" || package_rc=1
+        else
+            package_rc=1
+        fi
+    fi
+    [[ "$package_rc" -eq 0 ]] || return "$package_rc"
     dovecot_template=$(lemper_mail_dovecot_template "$(dovecot --version)") || return 1
     backup=$(mktemp -d "$root/backup.XXXXXXXX") || return 1
     chmod 0700 "$backup" || return 1
     cp -p /etc/postfix/main.cf /etc/postfix/master.cf /etc/dovecot/dovecot.conf "$backup/" || return 1
     [[ ! -f /etc/opendkim.conf ]] || cp -p /etc/opendkim.conf "$backup/" || return 1
+    local author_file author_enabled=false
+    for author_file in "$root/submission-author.conf" "$root/submission-author.lua" /etc/systemd/system/lemper-mail-author.service; do
+        [[ ! -f "$author_file" ]] || cp -p "$author_file" "$backup/" || return 1
+    done
+    if systemctl is-enabled --quiet lemper-mail-author; then author_enabled=true; fi
     if [[ ! -s "$certificate/fullchain.pem" && "$certificate" == "$root/tls" ]]; then
         install -d -m 0700 "$certificate" || return 1
         openssl req -x509 -newkey rsa:2048 -nodes -days 365 -subj "/CN=$hostname" \
@@ -164,7 +254,8 @@ function lemper_mail_install() {
     local previous="" rc=0
     previous=$(readlink "$root/current") || previous=""
     lemper_mail_select "$root" "$stage" || return 1
-    if ! lemper_mail_template "$BASE_DIR/etc/mail/$dovecot_template" /etc/dovecot/dovecot.conf "$certificate" "$hostname" "$domain" "$root" "$home" "$uid" ||
+    if ! lemper_mail_author_prepare "$root" "$BASE_DIR/etc/mail" ||
+        ! lemper_mail_template "$BASE_DIR/etc/mail/$dovecot_template" /etc/dovecot/dovecot.conf "$certificate" "$hostname" "$domain" "$root" "$home" "$uid" ||
         ! lemper_mail_postfix_configure "$hostname" "$certificate" "$root"; then rc=1; fi
     if [[ "$rc" -eq 0 && -f "$root/dkim-enabled" ]]; then
         lemper_mail_template "$BASE_DIR/etc/mail/opendkim.conf" /etc/opendkim.conf "$certificate" "$hostname" "$domain" "$root" "$home" "$uid" || rc=1
@@ -176,6 +267,8 @@ function lemper_mail_install() {
         cp -p "$backup/dovecot.conf" /etc/dovecot/dovecot.conf
         [[ ! -f "$backup/opendkim.conf" ]] || cp -p "$backup/opendkim.conf" /etc/opendkim.conf
         if [[ -n "$previous" ]]; then lemper_mail_select "$root" "$previous"; else rm -f "$root/current"; fi
+        lemper_mail_author_restore "$root" "$backup" "$author_enabled" ||
+            error "Restored submission author policy needs service recovery."
         lemper_mail_reload || error "Restored mail configuration needs service recovery."
         error "Mail installation failed; configuration backup restored ($backup)."
         return 1
@@ -193,12 +286,15 @@ function lemper_mail_update() {
     local package packages=()
     lemper_mail_ready || return 1
     if [[ "${DRYRUN:-false}" != true ]]; then lemper_mail_check || return 1; fi
-    for package in postfix mailutils dovecot-core dovecot-imapd dovecot-lmtpd opendkim opendkim-tools postfix-policyd-spf-python; do
+    for package in postfix mailutils dovecot-core dovecot-imapd dovecot-lmtpd opendkim opendkim-tools postfix-policyd-spf-python rspamd; do
         if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null)" == 'install ok installed' ]]; then packages+=("$package"); fi
     done
     [[ ${#packages[@]} -gt 0 ]] || { error "No installed mail packages to update."; return 1; }
     lemper_exec apt-get update -q || return 1
-    lemper_exec env DEBIAN_FRONTEND=noninteractive apt-get install --only-upgrade -q -y "${packages[@]}" || return 1
+    lemper_exec env DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends --only-upgrade -q -y "${packages[@]}" || return 1
+    if [[ "${DRYRUN:-false}" != true && -f "$(lemper_mail_root)/submission-author.conf" ]]; then
+        systemctl restart lemper-mail-author || return 1
+    fi
     [[ "${DRYRUN:-false}" == true ]] || { lemper_mail_check && lemper_mail_reload; }
 }
 
@@ -208,9 +304,12 @@ function lemper_mail_remove() {
     if [[ "${DRYRUN:-false}" == true ]]; then info "Would remove owned mail packages; retain mailboxes, keys, and account maps."; return 0; fi
     [[ -f "$root/owned-packages" ]] || { info "No owned mail packages; preserving existing installation."; return 0; }
     while IFS= read -r package; do
-        case "$package" in postfix|mailutils|dovecot-core|dovecot-imapd|dovecot-lmtpd|postfix-policyd-spf-python|opendkim|opendkim-tools) packages+=("$package") ;; esac
+        case "$package" in postfix|mailutils|dovecot-core|dovecot-imapd|dovecot-lmtpd|postfix-policyd-spf-python|opendkim|opendkim-tools|rspamd) packages+=("$package") ;; esac
     done < "$root/owned-packages"
     [[ ${#packages[@]} -gt 0 ]] || return 0
+    if [[ -f /etc/systemd/system/lemper-mail-author.service ]]; then
+        lemper_exec systemctl disable --now lemper-mail-author || return 1
+    fi
     # apt remove retains configuration; mailbox data and signing keys are always retained.
     lemper_exec env DEBIAN_FRONTEND=noninteractive apt-get remove -q -y "${packages[@]}" || return 1
     rm -f "$root/owned-packages" || return 1

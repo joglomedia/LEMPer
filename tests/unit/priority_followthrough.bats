@@ -100,6 +100,18 @@ priority_child='
     [ "$status" -eq 0 ]
     [[ "$output" != *UNEXPECTED* ]]
 }
+@test "OpenSSL download preserves the mode of the existing private workspace" {
+    run bash -c "$priority_child"'
+        . "$REAL_BASE_DIR/scripts/nginx/nginx_ssl_builders.sh"
+        DRYRUN=false NGINX_BUILD_DIR="$TEST_TMPDIR/source"
+        mkdir -m 0700 "$NGINX_BUILD_DIR" || exit 1
+        curl() { echo CHECKED_DOWNLOAD; return 1; }
+        ! build_openssl openssl-3.5.9 || exit 1
+        [[ "$(stat -c %a "$NGINX_BUILD_DIR")" == 700 ]]
+    '
+    [ "$status" -eq 0 ]
+    [[ "$output" == *CHECKED_DOWNLOAD* ]]
+}
 @test "staged selfssl generation failure preserves existing credentials and shared templates" {
     mkdir -p "$LEMPER_SSL_ROOT/example.test"
     echo existing-cert > "$LEMPER_SSL_ROOT/example.test/cert.pem"

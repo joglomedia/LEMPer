@@ -24,7 +24,7 @@ backup_unit_exec() {
     run env \
         LEMPER_BACKUP_ROOT="${BACKUP_ROOT}" \
         LEMPER_BACKUP_DIR="${BACKUP_DIR}" \
-        LEMPER_BACKUP_PATHS="etc/nginx etc/lemper" \
+        LEMPER_BACKUP_PATHS="etc/nginx etc/lemper etc/mysql etc/lemper-mail etc/postgresql etc/dovecot" \
         LEMPER_BACKUP_LIB_ONLY=true \
         LEMPER_BACKUP_PLUGIN="${REAL_BASE_DIR}/lib/lemper-backup.sh" \
         bash -c '
@@ -34,6 +34,27 @@ backup_unit_exec() {
             info() { echo "$*" >&2; }
             success() { echo "SUCCESS: $*"; }
             run() { "$@"; }
+            date() {
+                if [[ "$1" == -u && "$2" == +%Y%m%dT%H%M%SZ ]]; then
+                    printf "20260101T000000Z\n"
+                else
+                    command date "$@"
+                fi
+            }
+            tar() {
+                command tar "$@" || return $?
+                if [[ "$1" == -xz ]]; then
+                    case "${BACKUP_FIXTURE_FAIL_RESTORE:-}" in
+                        once)
+                            if [[ ! -e "$TEST_TMPDIR/restore-failed" ]]; then
+                                touch "$TEST_TMPDIR/restore-failed"
+                                return 1
+                            fi
+                            ;;
+                        always) return 1 ;;
+                    esac
+                fi
+            }
             DRYRUN=false
             PROG_NAME="lemper-cli"
             PROG_VERSION="test"
@@ -186,6 +207,148 @@ make_archive() {
 
     run bash -c "ls '${BACKUP_DIR}'/*pre-restore.tar.gz 2>/dev/null"
     [ "${status}" -ne 0 ]
+}
+
+@test "failed extraction reapplies the snapshot and reports files that may remain" {
+    printf 'archive-only\n' > "$BACKUP_ROOT/etc/nginx/new.conf"
+    local archive
+    archive=$(make_archive)
+    rm -- "$BACKUP_ROOT/etc/nginx/new.conf"
+    printf 'BEFORE_RESTORE\n' > "$BACKUP_ROOT/etc/nginx/nginx.conf"
+
+    export BACKUP_FIXTURE_FAIL_RESTORE=once
+    backup_unit_exec backup_restore --file "$archive" --yes
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Reapplied the pre-restore snapshot. Files absent from that snapshot may remain."* ]]
+    grep -qx BEFORE_RESTORE "$BACKUP_ROOT/etc/nginx/nginx.conf"
+    [ -f "$BACKUP_ROOT/etc/nginx/new.conf" ]
+}
+
+@test "failed snapshot recovery reports incomplete recovery" {
+    local archive
+    archive=$(make_archive)
+    export BACKUP_FIXTURE_FAIL_RESTORE=always
+    backup_unit_exec backup_restore --file "$archive" --yes
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Recovery was incomplete."* ]]
+    [[ "$output" != *"Reapplied the pre-restore snapshot."* ]]
+    [ -n "$(find "$BACKUP_DIR" -name '*-pre-restore.tar.gz' -print -quit)" ]
+}
+
+@test "backup create refuses writable destinations and restores only protected archive inputs" {
+    chmod 0777 "$BACKUP_DIR"
+    backup_unit_exec backup_create --output "$BACKUP_DIR"
+    [ "$status" -ne 0 ]
+    [ -z "$(find "$BACKUP_DIR" -mindepth 1 -print -quit)" ]
+
+    chmod 0755 "$BACKUP_DIR"
+    local archive
+    archive=$(make_archive)
+    [ "$(stat -c %a "$archive")" = 600 ]
+    [ "$(stat -c %a "$archive.sha256")" = 600 ]
+    chmod 0666 "$archive.sha256"
+    backup_unit_exec backup_restore --file "$archive" --dry-run
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"protected checksum file"* ]]
+    chmod 0600 "$archive.sha256"
+    chmod 0666 "$archive"
+    backup_unit_exec backup_restore --file "$archive" --dry-run
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"protected archive"* ]]
+}
+
+@test "repeated backup creation keeps previous archive and checksum intact" {
+    local archive checksum
+    archive=$(make_archive)
+    checksum=$(cat "$archive.sha256")
+    printf 'UPDATED=true\n' > "$BACKUP_ROOT/etc/lemper/lemper.conf"
+    backup_unit_exec backup_create --output "$BACKUP_DIR"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$archive.sha256")" = "$checksum" ]
+    [ "$(sha256sum "$archive" | awk '{print $1}')" = "$checksum" ]
+    run find "$BACKUP_DIR" -name '*.tar.gz'
+    [ "${#lines[@]}" -eq 2 ]
+}
+
+@test "backup restores managed links and format-1 duplicate legacy env entries" {
+    mkdir -p "$BACKUP_ROOT/etc/nginx/sites-available" "$BACKUP_ROOT/etc/nginx/sites-enabled" \
+        "$BACKUP_ROOT/etc/mysql"
+    printf 'fixture\n' > "$BACKUP_ROOT/etc/nginx/sites-available/site fixture.conf"
+    ln -s "../sites-available/site fixture.conf" "$BACKUP_ROOT/etc/nginx/sites-enabled/site fixture.conf"
+    ln -s /etc/alternatives/my.cnf "$BACKUP_ROOT/etc/mysql/my.cnf"
+    local archive="$BACKUP_DIR/old.tar.gz"
+    printf 'FORMAT=1\n' > "$TEST_TMPDIR/LEMPER-BACKUP-MANIFEST"
+    tar -czf "$archive" -C "$BACKUP_ROOT" etc/nginx etc/lemper etc/lemper/.env etc/mysql \
+        -C "$TEST_TMPDIR" LEMPER-BACKUP-MANIFEST
+    chmod 0600 "$archive"
+    backup_unit_exec backup_verify "$archive"
+    [ "$status" -eq 0 ]
+    rm -- "$BACKUP_ROOT/etc/nginx/sites-enabled/site fixture.conf"
+    printf 'CHANGED=true\n' > "$BACKUP_ROOT/etc/lemper/.env"
+    backup_unit_exec backup_restore --file "$archive" --yes --no-snapshot
+    [ "$status" -eq 0 ]
+    [ "$(readlink "$BACKUP_ROOT/etc/nginx/sites-enabled/site fixture.conf")" = "../sites-available/site fixture.conf" ]
+    [ "$(readlink "$BACKUP_ROOT/etc/mysql/my.cnf")" = /etc/alternatives/my.cnf ]
+    grep -qx 'LEGACY_SETTING=true' "$BACKUP_ROOT/etc/lemper/.env"
+}
+
+@test "backup safely replaces managed service-owned directories from staging" {
+    [ "$EUID" -eq 0 ] || skip "The service ownership fixture requires root"
+    local keys="$BACKUP_ROOT/etc/lemper-mail/keys" cluster="$BACKUP_ROOT/etc/postgresql/17/main"
+    mkdir -p "$keys/example.test" "$cluster"
+    printf 'dummy archived key\n' > "$keys/example.test/lemper.private"
+    printf 'dummy archived config\n' > "$cluster/postgresql.conf"
+    chmod 0600 "$keys/example.test/lemper.private"
+    ln -s /var/log/postgresql/postgresql-17-main.log "$cluster/log"
+    chown -hR 65534:65534 "$keys" "$cluster"
+    local archive
+    archive=$(make_archive)
+    printf 'dummy changed key\n' > "$keys/example.test/lemper.private"
+    printf 'dummy changed config\n' > "$cluster/postgresql.conf"
+    backup_unit_exec backup_restore --file "$archive" --yes
+    [ "$status" -eq 0 ]
+    grep -qx 'dummy archived key' "$keys/example.test/lemper.private"
+    grep -qx 'dummy archived config' "$cluster/postgresql.conf"
+    [ "$(stat -c '%u:%a' "$keys/example.test/lemper.private")" = 65534:600 ]
+    [ "$(readlink "$cluster/log")" = /var/log/postgresql/postgresql-17-main.log ]
+}
+
+@test "backup preserves stock Debian Dovecot links as leaves" {
+    local private_dir="$BACKUP_ROOT/etc/dovecot/private" archive
+    mkdir -p "$private_dir"
+    ln -s /etc/ssl/private/ssl-cert-snakeoil.key "$private_dir/dovecot.key"
+    ln -s /etc/ssl/certs/ssl-cert-snakeoil.pem "$private_dir/dovecot.pem"
+    archive=$(make_archive)
+
+    rm -- "$private_dir/dovecot.key" "$private_dir/dovecot.pem"
+    printf 'fixture remains unchanged\n' > "$TEST_TMPDIR/external"
+    ln -s "$TEST_TMPDIR/external" "$private_dir/dovecot.key"
+    backup_unit_exec backup_restore --file "$archive" --yes --no-snapshot
+    [ "$status" -eq 0 ]
+    grep -qx 'fixture remains unchanged' "$TEST_TMPDIR/external"
+    [ "$(readlink "$private_dir/dovecot.key")" = /etc/ssl/private/ssl-cert-snakeoil.key ]
+    [ "$(readlink "$private_dir/dovecot.pem")" = /etc/ssl/certs/ssl-cert-snakeoil.pem ]
+
+    ln -s /etc/ssl/private/ssl-cert-snakeoil.key "$private_dir/custom.key"
+    backup_unit_exec backup_create --output "$BACKUP_DIR"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"outside the managed configuration"* ]]
+}
+
+@test "backup verification rejects unmanaged configuration members and special file types" {
+    local archive="$BACKUP_DIR/test.tar.gz"
+    printf 'FORMAT=1\n' > "$TEST_TMPDIR/LEMPER-BACKUP-MANIFEST"
+    printf 'UNMANAGED\n' > "$BACKUP_ROOT/etc/unmanaged.conf"
+    tar -czf "$archive" -C "$BACKUP_ROOT" etc/unmanaged.conf -C "$TEST_TMPDIR" LEMPER-BACKUP-MANIFEST
+    backup_unit_exec backup_verify "$archive"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"will not restore"* ]]
+
+    mkfifo "$BACKUP_ROOT/etc/lemper/sample.fifo"
+    tar -czf "$archive" -C "$BACKUP_ROOT" etc/lemper/sample.fifo -C "$TEST_TMPDIR" LEMPER-BACKUP-MANIFEST
+    backup_unit_exec backup_verify "$archive"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Unsupported configuration archive member type"* ]]
 }
 
 @test "backup latest ignores pre-restore snapshots" {

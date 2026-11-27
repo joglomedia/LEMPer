@@ -44,6 +44,22 @@ setup() { unit_setup; }
     [ "$status" -eq 0 ]
     [[ "$output" == *"restic backup"* ]]
 }
+@test "data backup and scheduling require canonical sources under protected parents" {
+    mkdir -p "$TEST_TMPDIR/ready/app" "$TEST_TMPDIR/shared/app"
+    chmod 0777 "$TEST_TMPDIR/shared"
+    ln -s ready "$TEST_TMPDIR/shortcut"
+    run bash -c '
+        . "$REAL_BASE_DIR/lib/core/loader.sh"
+        lemper_load_module services/restic/backup
+        DRYRUN=true RESTIC_REPOSITORY="$1/repository" RESTIC_PASSWORD_FILE="$1/key"
+        lemper_restic_schedule "$1/ready/app" || exit 1
+        for path in "$1/shared/app" "$1/shortcut/app" "$1/ready/./app"; do
+            if lemper_restic_backup "$path" || lemper_restic_schedule "$path"; then exit 1; fi
+        done
+    ' _ "$TEST_TMPDIR"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Would schedule encrypted data backups"* && "$output" == *"protected parent directories"* ]]
+}
 @test "restore refuses nonempty and system targets while leaving data unchanged" {
     mkdir -p "$TEST_TMPDIR/stage"
     printf keep > "$TEST_TMPDIR/stage/sentinel"

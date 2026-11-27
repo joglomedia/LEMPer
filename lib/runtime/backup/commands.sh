@@ -271,7 +271,7 @@ function backup_verify() {
 ##
 # Restore a configuration archive.
 ##
-function backup_restore() {
+function backup_restore() (
     local dir="${LEMPER_BACKUP_DIR}"
     local file=""
     local arg=""
@@ -279,7 +279,7 @@ function backup_restore() {
     local dry_run="${DRYRUN}"
     local snapshot=true
     local reload=false
-    local root snapshot_archive answer unit excludes=()
+    local root snapshot_archive answer unit
 
     lemper_parse_args 'hy' 'dir:,file:,latest,yes,dry-run,no-snapshot,reload,help' "$@" || return 1
     set -- "${LEMPER_PARSED_ARGS[@]}"
@@ -363,15 +363,37 @@ function backup_restore() {
         return 1
     fi
 
-    if ! backup_verify_archive "${file}"; then
+    local selected="$file" staged
+    root=$(backup_root)
+    file=$(realpath -ms -- "$file") || return 1
+    if ! backup_artifact_trusted "$file"; then
+        error "Restore requires a protected archive from a trusted administrator."
+        return 1
+    fi
+    if [[ -e "$file.sha256" || -L "$file.sha256" ]]; then
+        if ! backup_artifact_trusted "$file.sha256"; then
+            error "Restore requires a protected checksum file when present."
+            return 1
+        fi
+    fi
+    if [[ "${dry_run}" != true ]]; then
+        umask 077
+        staged=$(mktemp -d /tmp/lemper-restore.XXXXXXXX) || return 1
+        trap 'rm -rf -- "$staged"' EXIT
+        cp -- "$file" "$staged/archive" || return 1
+        if [[ -f "$file.sha256" ]]; then
+            cp -- "$file.sha256" "$staged/archive.sha256" || return 1
+        fi
+        file="$staged/archive"
+    fi
+
+    if ! backup_verify_archive "${file}" "${root}"; then
         error "Refusing to restore an unverified archive."
         return 1
     fi
 
-    root=$(backup_root)
-
     if [[ "${dry_run}" == true ]]; then
-        info "Dry run: would restore $(tar -tzf "${file}" | wc -l | tr -d ' ') members from ${file} into ${root}."
+        info "Dry run: would restore $(tar -tzf "${file}" | wc -l | tr -d ' ') members from ${selected} into ${root}."
         if [[ "${snapshot}" == true ]]; then
             info "A pre-restore snapshot would be written to ${dir}."
         fi
@@ -384,7 +406,7 @@ function backup_restore() {
             return 1
         fi
 
-        read -r -p "Restore ${file} into ${root}? Existing files are overwritten. [y/N]: " answer
+        read -r -p "Restore ${selected} into ${root}? Existing files are overwritten. [y/N]: " answer
         case "${answer}" in
             y | Y | yes | YES) ;;
             *)
@@ -402,25 +424,10 @@ function backup_restore() {
         fi
     fi
 
-    excludes=(
-        "--exclude=${LEMPER_BACKUP_MANIFEST}"
-        "--exclude=etc/lemper/core"
-        "--exclude=etc/lemper/runtime"
-        "--exclude=etc/lemper/services"
-        "--exclude=etc/lemper/compat"
-        "--exclude=etc/lemper/cli-plugins"
-        "--exclude=etc/lemper/backups"
-    )
-
     lemper_load_module core/progress || return 1
-    if ! (
-        set -o pipefail
-        lemper_transfer_read "${file}" | tar -xz -C "${root}" --numeric-owner "${excludes[@]}"
-    ); then
-        error "Restore failed while extracting ${file}."
-        if [[ -n "${snapshot_archive}" ]]; then
-            warning "Pre-restore snapshot: ${snapshot_archive}"
-        fi
+    if ! backup_apply_restore "$file" "$root" "$staged/services"; then
+        error "Restore failed while extracting ${selected}."
+        backup_restore_recover "$snapshot_archive" "$root" "$staged"
         return 1
     fi
 
@@ -430,12 +437,7 @@ function backup_restore() {
         if ! nginx -t >/dev/null 2>&1; then
             error "Nginx configuration test failed after restore."
 
-            if [[ -n "${snapshot_archive}" ]]; then
-                warning "Rolling back to the pre-restore snapshot..."
-                tar -xzf "${snapshot_archive}" -C "${root}" --numeric-owner \
-                    --exclude="${LEMPER_BACKUP_MANIFEST}" || true
-                error "Restore rolled back; the previous configuration was kept."
-            fi
+            backup_restore_recover "$snapshot_archive" "$root" "$staged"
             return 1
         fi
     fi
@@ -454,12 +456,28 @@ function backup_restore() {
             'php*-fpm.service' 2>/dev/null | awk '{print $1}')
     fi
 
-    success "Configuration restored from ${file}."
+    success "Configuration restored from ${selected}."
     if [[ -n "${snapshot_archive}" ]]; then
         echo "  Pre-restore snapshot: ${snapshot_archive}"
     fi
     if [[ "${reload}" != true ]]; then
         echo "  Reload services when ready: systemctl reload nginx; systemctl list-units 'php*-fpm'"
+    fi
+)
+
+function backup_restore_recover() {
+    local snapshot="$1" root="$2" staged="$3"
+    if [[ -z "$snapshot" ]]; then
+        warning "No pre-restore snapshot was requested. Review the affected paths before using them."
+        return
+    fi
+    warning "Reapplying the pre-restore snapshot: $snapshot"
+    if cp -- "$snapshot" "$staged/previous" && cp -- "$snapshot.sha256" "$staged/previous.sha256" &&
+        backup_verify_archive "$staged/previous" "$root" &&
+        backup_apply_restore "$staged/previous" "$root" "$staged/previous-services"; then
+        warning "Reapplied the pre-restore snapshot. Files absent from that snapshot may remain."
+    else
+        error "Recovery was incomplete. Review the affected paths and retain the snapshot at $snapshot."
     fi
 }
 
@@ -712,6 +730,8 @@ function lemper_backup_initialize() {
         etc/lemper/compat
         etc/lemper/cli-plugins
         etc/lemper/backups
+        etc/lemper-mail/.lemper-restore.*
         etc/modsecurity/crs
     )
+    LEMPER_BACKUP_RESTORE_TREES=(etc/lemper-mail/keys etc/postgresql)
 }

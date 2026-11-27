@@ -7,8 +7,9 @@ setup() {
     export LEMPER_SITE_STATE_DIR="$TEST_TMPDIR/sites"
     export LEMPER_SITE_APP_STATE_DIR="$TEST_TMPDIR/apps-state"
     export LEMPER_OPERATION_LOCK="$TEST_TMPDIR/operation.lock"
-    mkdir -p "$LEMPER_NGINX_DIR"/sites-{available,enabled} "$LEMPER_SITE_STATE_DIR" \
+    mkdir -p "$LEMPER_NGINX_DIR"/sites-{available,enabled} "$LEMPER_NGINX_DIR/includes" "$LEMPER_SITE_STATE_DIR" \
         "$LEMPER_PHP_DIR/8.3/fpm/pool.d" "$TEST_TMPDIR/parent" "$TEST_TMPDIR/project one/public" "$TEST_TMPDIR/project2/public"
+    cp "$REAL_BASE_DIR"/etc/nginx/includes/{fastcgi,rules_restriction}.conf "$LEMPER_NGINX_DIR/includes/"
     chown www-data "$TEST_TMPDIR/parent" "$TEST_TMPDIR/project one" "$TEST_TMPDIR/project2"
     printf '<?php echo "fixture";\n' > "$TEST_TMPDIR/project one/public/index.php"
     cp "$TEST_TMPDIR/project one/public/index.php" "$TEST_TMPDIR/project2/public/index.php"
@@ -135,4 +136,16 @@ app_child='
     [ "$status" -eq 0 ]
     [[ "$output" == *'Per-location access controls'* ]]
     [ ! -f "$LEMPER_NGINX_DIR/site-apps/example.test/demo.conf" ]
+}
+
+@test "mounts reject unknown include paths and nested or unindented inline location policies" {
+    local vhost="$LEMPER_NGINX_DIR/sites-available/example.test.conf"
+    printf 'auth_basic private;\n' > "$LEMPER_NGINX_DIR/includes/custom-policy.conf"
+    printf 'server {\n    root /example;\nlocation / { include "/etc/nginx/includes/custom-policy.conf"; }\n}\n' > "$vhost"
+    run bash -c "${app_child}"'init_lemper_site_app add example.test --mount /demo --webroot "$TEST_TMPDIR/project one" --dry-run'
+    [ "$status" -ne 0 ]
+    printf 'server {\n    root /example;\nlocation / { auth_request \n/auth-check; }\n}\n' > "$vhost"
+    run bash -c "${app_child}"'init_lemper_site_app add example.test --mount /demo --webroot "$TEST_TMPDIR/project one" --dry-run'
+    [ "$status" -ne 0 ]
+    [ ! -d "$LEMPER_NGINX_DIR/site-apps" ]
 }

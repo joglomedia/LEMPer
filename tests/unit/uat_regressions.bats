@@ -2,6 +2,30 @@
 load env_helper
 setup() { unit_setup; }
 
+@test "GeoLite dry-run avoids network and real curl receives the license only through stdin" {
+    export GEOLITE2_LICENSE_KEY=demo-license-fixture
+    run bash -xc '
+        . "$REAL_BASE_DIR/lib/core/loader.sh"
+        lemper_load_module services/nginx/modules_build || exit 1
+        info() { printf "%s\n" "$*"; }
+        curl() {
+            local config
+            IFS= read -r config || return 1
+            [[ "$*" == *"--config -"* && "$*" != *demo-license-fixture* ]] || return 1
+            [[ "$config" == *"license_key=demo-license-fixture"* ]] || return 1
+            echo DOWNLOAD_INPUT_CHECKED
+            return 1
+        }
+        NGINX_BUILD_DIR="$TEST_TMPDIR"
+        DRYRUN=true download_geolite2_databases || exit 1
+        DRYRUN=false download_geolite2_databases
+    '
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"Would fetch the MaxMind GeoLite2"* && "$output" == *DOWNLOAD_INPUT_CHECKED* ]]
+    [[ "$output" != *demo-license-fixture* ]]
+    [ "$(find "$TEST_TMPDIR" -type d -name 'geoip-db.*' | wc -l)" -eq 0 ]
+}
+
 # shellcheck disable=SC2016 # Evaluated in isolated child shells.
 certbot_child='
     . "$REAL_BASE_DIR/lib/core/loader.sh"

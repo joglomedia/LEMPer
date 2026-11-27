@@ -25,8 +25,22 @@ function lemper_exec() {
     "$@"
 }
 
+function lemper_lock_path() {
+    local lock="$1" parent
+    parent=$(dirname -- "$lock") || return 1
+    if [[ "$parent" == /run/lemper && ! -e "$parent" ]]; then
+        mkdir -m0700 -- "$parent" || [[ -d "$parent" ]] || return 1
+    fi
+    lemper_directory_trusted "$parent" && [[ -d "$parent" ]] || return 1
+    [[ "$parent" != /tmp && "$parent" != /var/tmp && ! -L "$lock" ]] || return 1
+    if [[ -e "$lock" ]]; then
+        [[ -f "$lock" && "$(stat -c '%u:%h' "$lock")" == "$EUID:1" ]] || return 1
+        chmod 0600 -- "$lock" || return 1
+    fi
+}
+
 function lemper_with_lock() {
-    local callback="$1" lock="${LEMPER_OPERATION_LOCK:-/var/lock/lemper-operation.lock}"
+    local callback="$1" lock="${LEMPER_OPERATION_LOCK:-/run/lemper/operation.lock}"
     shift
     if [[ "${DRYRUN:-false}" == true ]]; then
         "$callback" "$@"
@@ -36,7 +50,8 @@ function lemper_with_lock() {
         local fd caller_umask
         caller_umask=$(umask)
         umask 077
-        exec {fd}>"$lock" || return 1
+        lemper_lock_path "$lock" || return 1
+        exec {fd}>>"$lock" || return 1
         umask "$caller_umask"
         flock -n "$fd" || {
             error "Another LEMPer operation is running."

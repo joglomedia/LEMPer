@@ -19,8 +19,7 @@
 
 function create_account() {
     local USERNAME="${1:-${LEMPER_USERNAME:-lemper}}"
-    local PASSWORD="${LEMPER_PASSWORD:-}"
-    local PASSWORD_HASH=""
+    local PASSWORD
     local ROLE="${2:-hosting}"
     local PLAN="${3:-}"
 
@@ -28,10 +27,6 @@ function create_account() {
         error "Invalid username '${USERNAME}'. Expected lowercase letters," \
             "digits, '_' or '-', starting with a letter or '_'."
         return 1
-    fi
-
-    if [[ -z "${PASSWORD}" ]]; then
-        PASSWORD=$(openssl rand -base64 64 | tr -dc 'a-zA-Z0-9' | fold -w 16 | head -n 1)
     fi
 
     echo "Add new system account..."
@@ -46,6 +41,10 @@ function create_account() {
         return 0
     fi
 
+    PASSWORD=$(openssl rand -hex 24) || return 1
+    [[ "$PASSWORD" =~ ^[[:xdigit:]]{48}$ ]] || return 1
+    remove_managed_account_sudo "$USERNAME" || return 1
+    lemper_account_admin_auth revoke "$USERNAME" || return 1
     if ! useradd -d "/home/${USERNAME}" -m -s /bin/bash -- "${USERNAME}"; then
         fail "Failed to create system account '${USERNAME}'."
     fi
@@ -78,32 +77,12 @@ function create_account() {
         }
     fi
 
-    # Add account credentials to /srv/.htpasswd.
-    if [[ ! -f "/srv/.htpasswd" ]]; then
-        run touch /srv/.htpasswd
-    fi
-
-    # Protect .htpasswd file.
-    run chmod 0600 /srv/.htpasswd
-    run chown www-data:www-data /srv/.htpasswd
-
-    # Generate password hash.
-    if command -v mkpasswd &>/dev/null; then
-        PASSWORD_HASH=$(printf '%s\n' "${PASSWORD}" | mkpasswd --method=sha-256 --stdin)
-    elif command -v htpasswd &>/dev/null; then
-        printf '%s\n' "${PASSWORD}" | htpasswd -i /srv/.htpasswd "${USERNAME}"
-    else
-        PASSWORD_HASH=$(printf '%s\n' "${PASSWORD}" | openssl passwd -1 -stdin)
-    fi
-
-    if [[ -n "${PASSWORD_HASH}" ]]; then
-        sed_inplace "/^${USERNAME}:/d" /srv/.htpasswd
-        echo "${USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
-    fi
-
     if ! printf '%s:%s\n' "${USERNAME}" "${PASSWORD}" | chpasswd; then
         error "Failed to set password for '${USERNAME}'. Account retained for recovery."
         return 1
+    fi
+    if [[ "$ROLE" == admin ]]; then
+        printf '%s\n' "$PASSWORD" | lemper_account_admin_auth enroll "$USERNAME" || return 1
     fi
     info "Account credentials saved to /etc/lemper/accounts/${USERNAME}.conf (root-only)."
 

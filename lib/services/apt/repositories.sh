@@ -17,6 +17,19 @@
 
 
 
+function lemper_apt_key_matches() (
+    local key="$1" expected="$2" work output
+    [[ -f "$key" && ! -L "$key" ]] || return 1
+    work=$(mktemp -d) || return 1
+    trap 'rm -rf -- "$work"' EXIT
+    output=$(gpg --batch --homedir "$work" --with-colons --show-keys "$key" 2>/dev/null) || return 1
+    awk -F: -v expected="$expected" '
+        $1=="pub" {if (primary) bad=1; primary=1; count++}
+        primary && $1=="fpr" {if (!$10 || (expected!="" && $10!=expected)) bad=1; primary=0}
+        END {exit (count<1 || (expected!="" && count!=1) || bad || primary)}
+    ' <<<"$output"
+)
+
 # Function-only APT driver. The caller owns distro/version selection.
 function lemper_apt_install_key() (
     local url="$1" key="$2" fingerprint="${3:-}" checksum_url="${4:-}" work actual
@@ -24,24 +37,18 @@ function lemper_apt_install_key() (
     work=$(mktemp -d) || return 1
     trap 'rm -rf -- "$work"' EXIT
     chmod 0700 "$work" || return 1
-    curl -fsSL --proto '=https' --retry 3 -o "$work/key" "$url" || return 1
+    curl -q -fsSL --proto '=https' --proto-redir '=https' --retry 3 -o "$work/key" "$url" || return 1
     if [[ -n "$checksum_url" ]]; then
-        curl -fsSL --proto '=https' --retry 3 -o "$work/checksum" "$checksum_url" || return 1
+        curl -q -fsSL --proto '=https' --proto-redir '=https' --retry 3 -o "$work/checksum" "$checksum_url" || return 1
         read -r actual _ < "$work/checksum"
         [[ "$actual" =~ ^[A-Fa-f0-9]{64}$ && "$(sha256sum "$work/key" | cut -d ' ' -f 1)" == "${actual,,}" ]] || {
             error "Repository signing-key checksum does not match."; return 1;
         }
     fi
-    local fingerprints
-    fingerprints=$(gpg --batch --homedir "$work" --with-colons --show-keys "$work/key" 2>/dev/null) || {
-        error "Invalid repository signing key."; return 1;
-    }
-    if [[ -n "$fingerprint" ]] && ! awk -F: -v expected="$fingerprint" '
-        $1 == "pub" { primary=1; count++ }
-        primary && $1 == "fpr" { if ($10 != expected) bad=1; primary=0 }
-        END { exit (count != 1 || bad || primary) }
-    ' <<< "$fingerprints"; then
-        error "Repository signing-key fingerprint does not match."; return 1
+    if ! lemper_apt_key_matches "$work/key" "$fingerprint"; then
+        if [[ -n "$fingerprint" ]]; then error "Repository signing-key fingerprint does not match."
+        else error "Invalid repository signing key."; fi
+        return 1
     fi
     gpg --batch --homedir "$work" --yes --dearmor -o "$work/key.gpg" "$work/key" || return 1
     lemper_exec install -d -m 0755 -- "${key%/*}" || return 1
@@ -71,6 +78,7 @@ function lemper_apt_source_uri_matches() {
         maxmind:http://ppa.launchpadcontent.net/maxmind/ppa/ubuntu|maxmind:https://ppa.launchpadcontent.net/maxmind/ppa/ubuntu|\
         golang:http://ppa.launchpad.net/longsleep/golang-backports/ubuntu|golang:https://ppa.launchpad.net/longsleep/golang-backports/ubuntu|\
         golang:http://ppa.launchpadcontent.net/longsleep/golang-backports/ubuntu|golang:https://ppa.launchpadcontent.net/longsleep/golang-backports/ubuntu) return 0 ;;
+        myguard:http://deb.myguard.nl/apt/nginx/*|myguard:https://deb.myguard.nl/apt/nginx/*) return 0 ;;
         mariadb:*)
             [[ "$uri" =~ ^https?://(deb\.mariadb\.org|dlm\.mariadb\.com|downloads\.mariadb\.com|mirror\.mariadb\.org|[a-z0-9.-]+\.mariadb\.com)/ ]] ;;
         *) return 1 ;;

@@ -34,6 +34,7 @@ Options:
   --source-dir PATH      Component source checkout.
   --yes                 Confirm removal without prompting.
   --force               Remove a pre-existing component (site references still checked).
+                        For Memcached install, migrate an existing managed installation.
   --dry-run             Print operations without mutation.
   --help, --version     Show help or version.
 Versionless PHP control/update targets all installed instances.
@@ -45,12 +46,15 @@ function stack_run_component() { lemper_legacy_component "$@"; }
 function stack_control() { lemper_service_control "$@"; }
 
 function stack_source_root() {
-    local root="${1:-}"
-    if [[ -z "$root" && -r /etc/lemper/update-source ]]; then
-        IFS= read -r root < /etc/lemper/update-source
-    fi
+    local root="${1:-}" result
     if [[ -z "$root" ]]; then
-        root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
+        if root=$(lemper_installed_release); then
+            :
+        else
+            result=$?
+            [[ "$result" == 2 ]] || { error "The installed release selector or tree is unsafe."; return 1; }
+            root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd -P) || return 1
+        fi
     fi
     [[ -f "$root/scripts/utils.sh" && -f "$root/.env.dist" ]] ||
         { error "A LEMPer checkout is required for this component operation."; return 1; }
@@ -64,7 +68,12 @@ function lemper_stack_execute() {
     [[ -n "$installer" ]] || return 1
     if [[ "$service" == mailer ]]; then
         lemper_load_module services/mail/store || return 1
-        if [[ -f "$(lemper_mail_root)/dkim-enabled" ]]; then units="opendkim,dovecot,postfix"; fi
+        local mail_root
+        mail_root=$(lemper_mail_root)
+        if [[ -f "$mail_root/dkim-enabled" ]]; then units="opendkim,dovecot,postfix"; fi
+        if [[ -f "$mail_root/submission-author.conf" ]]; then units="lemper-mail-author,$units"; fi
+    elif [[ "$service" == memcached && -f /etc/systemd/system/memcached@memcache.service.d/10-lemper-endpoints.conf ]]; then
+        units="memcached@memcache,memcached@www-data"
     fi
     local state="${LEMPER_INSTALLED_DIR:-/etc/lemper/installed}"
     marker="$state/$service"
@@ -78,12 +87,18 @@ function lemper_stack_execute() {
             local unit_list=() rc=0
             IFS=',' read -r -a unit_list <<< "$units"
             for unit in "${unit_list[@]}"; do
-                if [[ "$unit" == opendkim && "$action" == reload ]]; then
+                if [[ "$action" == reload && ( "$unit" == opendkim || "$unit" == lemper-mail-author || "$unit" == memcached@* ) ]]; then
                     stack_control restart "$unit" || rc=1
                 else stack_control "$action" "$unit" || rc=1; fi
             done
             return "$rc" ;;
         install|remove)
+            if [[ "$action" == install && "$service" == memcached && "$force" == true ]] &&
+                lemper_component_present "$service" "$php"; then
+                lemper_load_module services/memcached/install || return 1
+                lemper_memcached_migrate_endpoints
+                return $?
+            fi
             source=$(stack_source_root "$source") || return 1
             if [[ "$action" == remove ]]; then
                 # Aggregate legacy PHP markers do not establish per-version ownership.

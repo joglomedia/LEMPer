@@ -374,7 +374,7 @@ refute_grep() {
     grep -q 'aes-256-cbc' "${BASE_DIR}/lib/core/encryption.sh"
 }
 
-@test "bin/lemper-cli.sh supports --password flag for encrypted config" {
+@test "bin/lemper-cli.sh supports --config-password-stdin for encrypted config" {
     grep -q 'LEMPER_CONFIG_PASSWORD' "${BASE_DIR}/bin/lemper-cli.sh"
     grep -q 'decrypt_config' "${BASE_DIR}/bin/lemper-cli.sh"
     grep -q 'ENCRYPT_CONFIG_AT_REST' "${BASE_DIR}/bin/lemper-cli.sh"
@@ -556,8 +556,8 @@ refute_grep() {
 
     for f in "${BASE_DIR}/etc/nginx/sites-available/default" \
              "${BASE_DIR}/etc/nginx/sites-available/default-ssl"; do
-        # Public server, nested /lcp area, and admin server.
-        [ "$(grep -c 'include /etc/nginx/includes/php_handlers.conf;' "${f}")" -eq 3 ]
+        # Public server and globally authenticated admin server.
+        [ "$(grep -c 'include /etc/nginx/includes/php_handlers.conf;' "${f}")" -eq 2 ]
         [ "$(grep -c 'include /etc/nginx/includes/monitoring.conf;' "${f}")" -eq 1 ]
         grep -qF 'set $php_version "8.5";' "${f}"
         refute_grep -qF 'location ~ \.php85$ {' "${f}"

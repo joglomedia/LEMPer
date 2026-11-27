@@ -103,7 +103,7 @@ function lemper_site_create_command() {
     ENABLE_SSL=false
     ENABLE_WILDCARD_DOMAIN=false
     ENABLE_FAIL2BAN=false
-    TMPDIR="/tmp/lemper"
+    TMPDIR="/var/cache/lemper-build"
 
     # Dry run (test mode).
     DRYRUN=false

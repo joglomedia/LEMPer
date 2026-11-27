@@ -68,10 +68,27 @@ function lemper_restic_init() {
 }
 
 function lemper_restic_paths_valid() {
-    local paths=("$@") path
+    local paths=("$@") path canonical parent
     [[ ${#paths[@]} -gt 0 ]] || { error "Specify absolute application/mail paths to back up."; return 1; }
     for path in "${paths[@]}"; do
-        [[ "$path" == /* && -d "$path" && ! -L "$path" && "$path" != *$'\n'* ]] || { error "Invalid data backup path."; return 1; }
+        if [[ "$path" != /* || ! -d "$path" || "$path" == *[[:cntrl:]]* ]]; then
+            error "Invalid data backup path."
+            return 1
+        fi
+        canonical=$(realpath -e -- "$path") || return 1
+        parent="${path%/*}"
+        # A trusted parent fixes the source name while allowing the application
+        # or mail service to own the selected directory and its contents.
+        if [[ "$canonical" != "$path" ]] || ! lemper_directory_trusted "${parent:-/}"; then
+            error "Backup sources need canonical, symlink-free paths with protected parent directories."
+            return 1
+        fi
+        if [[ "$parent" == /tmp || "$parent" == /var/tmp ]]; then
+            [[ "$(stat -c '%u' -- "$path")" == "$EUID" ]] || {
+                error "Backup sources directly in shared temporary directories must belong to root."
+                return 1
+            }
+        fi
         case "$path" in /|/proc|/proc/*|/sys|/sys/*|/dev|/dev/*|/run|/run/*) error "Refusing system pseudo-filesystem backup."; return 1 ;; esac
         if [[ "${RESTIC_REPOSITORY:-/var/backups/lemper/data}" == "$path" || "${RESTIC_REPOSITORY:-/var/backups/lemper/data}" == "$path"/* ]]; then
             error "Backup source contains its own repository."; return 1
@@ -109,7 +126,7 @@ function lemper_restic_schedule() {
     local paths=("$@") path root=/etc/lemper/data-backup
     lemper_restic_paths_valid "${paths[@]}" || return 1
     for path in "${paths[@]}"; do
-        [[ "$path" =~ ^/[A-Za-z0-9_./-]+$ && -d "$path" && ! -L "$path" ]] || { error "Scheduled paths must be absolute directories without shell characters."; return 1; }
+        [[ "$path" =~ ^/[A-Za-z0-9_./-]+$ ]] || { error "Scheduled paths must be absolute directories without shell characters."; return 1; }
     done
     lemper_restic_environment || return 1
     if [[ "${DRYRUN:-false}" == true ]]; then info "Would schedule encrypted data backups."; return 0; fi

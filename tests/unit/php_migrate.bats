@@ -11,6 +11,7 @@ setup() {
     export PHP_ETC_DIR="${BATS_TEST_TMPDIR}/etc/php"
     export LEMPER_BACKUP_DIR="${BATS_TEST_TMPDIR}/backups"
     export LEMPER_PHP_STATE_DIR="${BATS_TEST_TMPDIR}/php-state"
+    export LEMPER_PHP_LOG_DIR="${BATS_TEST_TMPDIR}/php-logs"
     export LEMPER_NGINX_SITES_DIR="${BATS_TEST_TMPDIR}/nginx/sites-available"
     export LEMPER_NGINX_SITES_ENABLED="${BATS_TEST_TMPDIR}/nginx/sites-enabled"
     export TMPDIR="${BATS_TEST_TMPDIR}"
@@ -56,9 +57,9 @@ refute_grep() {
 }
 
 @test "socket parser reads the pool user and the bare www socket" {
-    run run_migrate php_parse_fpm_socket "fastcgi_pass unix:/run/php/php8.1-fpm.alice.sock;"
+    run run_migrate php_parse_fpm_socket "fastcgi_pass unix:/run/php/php8.1-fpm.nobody.sock;"
     [ "${status}" -eq 0 ]
-    [ "${output}" = $'8.1\talice' ]
+    [ "${output}" = $'8.1\tnobody' ]
 
     run run_migrate php_parse_fpm_socket "fastcgi_pass unix:/run/php/php8.1-fpm.sock;"
     [ "${status}" -eq 0 ]
@@ -66,9 +67,9 @@ refute_grep() {
 }
 
 @test "EOL sockets move to the target and supported sockets stay" {
-    run run_migrate php_migrate_fastcgi_line "fastcgi_pass unix:/run/php/php8.1-fpm.alice.sock;" 8.3
+    run run_migrate php_migrate_fastcgi_line "fastcgi_pass unix:/run/php/php8.1-fpm.nobody.sock;" 8.3
     [ "${status}" -eq 0 ]
-    [ "${output}" = "fastcgi_pass unix:/run/php/php8.3-fpm.alice.sock;" ]
+    [ "${output}" = "fastcgi_pass unix:/run/php/php8.3-fpm.nobody.sock;" ]
 
     run run_migrate php_migrate_fastcgi_line "fastcgi_pass unix:/run/php/php8.2-fpm.carol.sock;" 8.3
     [ "${status}" -eq 0 ]
@@ -81,36 +82,58 @@ refute_grep() {
 
 @test "migration copies the EOL pool and rewrites every EOL socket" {
     local vhost="${LEMPER_NGINX_SITES_DIR}/app.conf"
-    local src="${PHP_ETC_DIR}/8.1/fpm/pool.d/alice.conf"
-    local dest="${PHP_ETC_DIR}/8.3/fpm/pool.d/alice.conf"
+    local src="${PHP_ETC_DIR}/8.1/fpm/pool.d/nobody.conf"
+    local dest="${PHP_ETC_DIR}/8.3/fpm/pool.d/nobody.conf"
 
     cat > "${src}" <<'EOF'
 listen = /run/php/php8.1-fpm.$pool.sock
 security.limit_extensions = .php .php81
 pm.max_children = 42
+slowlog = /home/nobody/logs/php/php8.1-fpm_slow.log
+php_admin_value[error_log] = /home/nobody/logs/php/php8.1-fpm_error.log
 EOF
+    chmod 0600 "${src}"
     cat > "${vhost}" <<'EOF'
-fastcgi_pass unix:/run/php/php8.1-fpm.alice.sock;
-fastcgi_pass unix:/run/php/php8.0-fpm.bob.sock;
+fastcgi_pass unix:/run/php/php8.1-fpm.nobody.sock;
+fastcgi_pass unix:/run/php/php8.0-fpm.daemon.sock;
 fastcgi_pass unix:/run/php/php8.2-fpm.carol.sock;
 # fastcgi_pass unix:/run/php/php8.1-fpm.old.sock;
 EOF
 
     run run_migrate php_migrate_eol_sites 8.3
     [ "${status}" -eq 0 ]
-    grep -q 'php8.3-fpm.alice.sock' "${vhost}"
-    grep -q 'php8.3-fpm.bob.sock' "${vhost}"
+    grep -q 'php8.3-fpm.nobody.sock' "${vhost}"
+    grep -q 'php8.3-fpm.daemon.sock' "${vhost}"
     grep -q 'php8.2-fpm.carol.sock' "${vhost}"
     grep -q 'php8.1-fpm.old.sock' "${vhost}"
-    refute_grep -q 'php8.1-fpm.alice.sock' "${vhost}"
+    refute_grep -q 'php8.1-fpm.nobody.sock' "${vhost}"
 
     grep -q 'php8.3-fpm.$pool.sock' "${dest}"
     grep -q '.php83' "${dest}"
     grep -q 'pm.max_children = 42' "${dest}"
+    [ "$(stat -c %a "${dest}")" = 600 ]
+    local logs="${LEMPER_PHP_LOG_DIR}/nobody"
+    grep -Fxq "slowlog = ${logs}/php8.3-fpm_slow.log" "${dest}"
+    grep -Fxq "php_admin_value[error_log] = ${logs}/php8.3-fpm_error.log" "${dest}"
+    [ "$(stat -c '%u %a' "${logs}")" = "0 750" ]
+    [ "$(stat -c '%u %a' "${logs}/php8.3-fpm_slow.log")" = "0 600" ]
+    [ "$(stat -c '%u %a' "${logs}/php8.3-fpm_error.log")" = "$(id -u nobody) 600" ]
     refute_grep -q 'memory_limit' "${dest}"
-    grep -q 'user = bob' "${PHP_ETC_DIR}/8.3/fpm/pool.d/bob.conf"
-    grep -q 'php8.3-fpm.bob.sock' "${PHP_ETC_DIR}/8.3/fpm/pool.d/bob.conf"
+    grep -q 'user = daemon' "${PHP_ETC_DIR}/8.3/fpm/pool.d/daemon.conf"
+    grep -q 'php8.3-fpm.daemon.sock' "${PHP_ETC_DIR}/8.3/fpm/pool.d/daemon.conf"
     [ ! -f "${NGINX_CALLED_LOG}" ]
+}
+
+@test "migration refuses an FPM log directory with writable ancestry" {
+    local vhost="${LEMPER_NGINX_SITES_DIR}/php.conf"
+    local dest="${PHP_ETC_DIR}/8.3/fpm/pool.d/nobody.conf"
+    printf '%s\n' 'fastcgi_pass unix:/run/php/php8.1-fpm.nobody.sock;' > "${vhost}"
+    mkdir -m 0777 -- "${LEMPER_PHP_LOG_DIR}"
+
+    run run_migrate php_migrate_eol_sites 8.3
+    [ "${status}" -ne 0 ]
+    [ ! -e "${dest}" ]
+    grep -q 'php8.1-fpm.nobody.sock' "${vhost}"
 }
 
 @test "a missing EOL pool becomes a minimal pool for that user" {
@@ -126,14 +149,14 @@ EOF
 
 @test "an existing destination pool is kept" {
     local vhost="${LEMPER_NGINX_SITES_DIR}/keep.conf"
-    local dest="${PHP_ETC_DIR}/8.3/fpm/pool.d/alice.conf"
+    local dest="${PHP_ETC_DIR}/8.3/fpm/pool.d/nobody.conf"
     printf '%s\n' 'KEEP' > "${dest}"
-    printf '%s\n' 'listen = /run/php/php8.1-fpm.alice.sock' > "${PHP_ETC_DIR}/8.1/fpm/pool.d/alice.conf"
-    printf '%s\n' 'fastcgi_pass unix:/run/php/php8.1-fpm.alice.sock;' > "${vhost}"
+    printf '%s\n' 'listen = /run/php/php8.1-fpm.nobody.sock' > "${PHP_ETC_DIR}/8.1/fpm/pool.d/nobody.conf"
+    printf '%s\n' 'fastcgi_pass unix:/run/php/php8.1-fpm.nobody.sock;' > "${vhost}"
 
     run run_migrate php_migrate_eol_sites 8.3
     [ "${status}" -eq 0 ]
-    grep -q 'php8.3-fpm.alice.sock' "${vhost}"
+    grep -q 'php8.3-fpm.nobody.sock' "${vhost}"
     [ "$(cat "${dest}")" = "KEEP" ]
 }
 
@@ -154,13 +177,13 @@ EOF
 
 @test "a sites-enabled symlink is migrated once" {
     local vhost="${LEMPER_NGINX_SITES_DIR}/once.conf"
-    printf '%s\n' 'fastcgi_pass unix:/run/php/php8.1-fpm.alice.sock;' > "${vhost}"
+    printf '%s\n' 'fastcgi_pass unix:/run/php/php8.1-fpm.nobody.sock;' > "${vhost}"
     ln -s "${vhost}" "${LEMPER_NGINX_SITES_ENABLED}/once.conf"
-    printf '%s\n' 'user = alice' > "${PHP_ETC_DIR}/8.1/fpm/pool.d/alice.conf"
+    printf '%s\n' 'user = nobody' > "${PHP_ETC_DIR}/8.1/fpm/pool.d/nobody.conf"
 
     run run_migrate php_migrate_eol_sites 8.3
     [ "${status}" -eq 0 ]
-    [ "$(grep -c 'php8.3-fpm.alice.sock' "${vhost}")" -eq 1 ]
+    [ "$(grep -c 'php8.3-fpm.nobody.sock' "${vhost}")" -eq 1 ]
 
     local manifest
     manifest=$(find "${LEMPER_BACKUP_DIR}" -name manifest.tsv | head -n 1)
@@ -170,20 +193,20 @@ EOF
 
 @test "EOL and unknown targets are refused before vhosts change" {
     local vhost="${LEMPER_NGINX_SITES_DIR}/stay.conf"
-    printf '%s\n' 'fastcgi_pass unix:/run/php/php8.1-fpm.alice.sock;' > "${vhost}"
+    printf '%s\n' 'fastcgi_pass unix:/run/php/php8.1-fpm.nobody.sock;' > "${vhost}"
 
     run run_migrate php_migrate_eol_sites 8.1
     [ "${status}" -ne 0 ]
-    grep -q 'php8.1-fpm.alice.sock' "${vhost}"
+    grep -q 'php8.1-fpm.nobody.sock' "${vhost}"
 
     run run_migrate php_migrate_eol_sites 7.4
     [ "${status}" -ne 0 ]
-    grep -q 'php8.1-fpm.alice.sock' "${vhost}"
+    grep -q 'php8.1-fpm.nobody.sock' "${vhost}"
 
     run run_migrate php_migrate_eol_sites 8.4
     [ "${status}" -ne 0 ]
     echo "${output}" | grep -q 'not installed'
-    grep -q 'php8.1-fpm.alice.sock' "${vhost}"
+    grep -q 'php8.1-fpm.nobody.sock' "${vhost}"
 
     run bash -c "${load_update_lib}"'
         PHP_MIGRATE_TO=8.1
@@ -209,8 +232,8 @@ EOF
 
 @test "update php migrates when the destination is installed" {
     local vhost="${LEMPER_NGINX_SITES_DIR}/moved.conf"
-    printf '%s\n' 'fastcgi_pass unix:/run/php/php8.1-fpm.alice.sock;' > "${vhost}"
-    printf '%s\n' 'listen = /run/php/php8.1-fpm.alice.sock' > "${PHP_ETC_DIR}/8.1/fpm/pool.d/alice.conf"
+    printf '%s\n' 'fastcgi_pass unix:/run/php/php8.1-fpm.nobody.sock;' > "${vhost}"
+    printf '%s\n' 'listen = /run/php/php8.1-fpm.nobody.sock' > "${PHP_ETC_DIR}/8.1/fpm/pool.d/nobody.conf"
 
     run bash -c "${load_update_lib}"'
         php_package_version() {
@@ -219,13 +242,27 @@ EOF
         }
         php_mitigate_branch() { printf "MITIGATED %s\n" "$1"; return 0; }
         php_patch_branch() { printf "PATCH %s\n" "$1"; return 1; }
+        php_fpm_runtime_state() { echo current; }
         PHP_MIGRATE_TO=8.3
         update_php
     '
     [ "${status}" -eq 0 ]
-    grep -q 'php8.3-fpm.alice.sock' "${vhost}"
+    grep -q 'php8.3-fpm.nobody.sock' "${vhost}"
     echo "${output}" | grep -q 'MITIGATED 8.1'
-    refute_grep -q 'memory_limit' "${PHP_ETC_DIR}/8.3/fpm/pool.d/alice.conf"
+    refute_grep -q 'memory_limit' "${PHP_ETC_DIR}/8.3/fpm/pool.d/nobody.conf"
+}
+
+@test "update php stops migration when patching fails" {
+    run bash -c "${load_update_lib}"'
+        php_installed_branches() { printf "8.1\n8.3\n"; }
+        php_package_version() { printf "%s.0\n" "$1"; }
+        php_patch_branch() { return 1; }
+        php_migrate_eol_sites() { echo UNEXPECTED_MIGRATION; }
+        PHP_MIGRATE_TO=8.3
+        update_php
+    '
+    [ "${status}" -ne 0 ]
+    [[ "${output}" != *UNEXPECTED_MIGRATION* ]]
 }
 
 @test "migration flags require an explicit supported version" {

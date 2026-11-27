@@ -217,14 +217,14 @@ function bench_parse_dd_speed() {
 # Run write and read probes in a throwaway directory.
 # Arguments: size in MB, parent directory
 ##
-function bench_disk_probe() {
+function bench_disk_probe() (
     local size_mb="${1}"
     local parent="${2}"
     local tmp out write_speed read_speed read_note
 
+    lemper_directory_trusted "$parent" || return 1
     tmp=$(mktemp -d "${parent%/}/lemper-bench.XXXXXX" 2>/dev/null) || return 1
-    # shellcheck disable=SC2064
-    trap "rm -rf '${tmp}'" EXIT
+    trap 'rm -rf -- "$tmp"' EXIT
 
     printf 'path|%s\n' "${tmp}"
 
@@ -247,7 +247,7 @@ function bench_disk_probe() {
     else
         printf 'read|unknown\n'
     fi
-}
+)
 
 ##
 # Print disk I/O results.
@@ -272,8 +272,8 @@ function bench_disk() {
     fi
 
     echo "### Disk I/O Benchmark ###"
-    if [[ ! -d "${dir}" || ! -w "${dir}" ]]; then
-        echo "  Skipped: ${dir} is not writable."
+    if [[ ! -d "${dir}" || ! -w "${dir}" ]] || ! lemper_directory_trusted "$dir"; then
+        echo "  Skipped: ${dir} is not a trusted writable directory."
         return 0
     fi
 
@@ -300,9 +300,7 @@ function bench_disk() {
         esac
     done < <(bench_disk_probe "${size_mb}" "${dir}")
 
-    if [[ -n "${path}" ]]; then
-        rm -rf "${path}"
-    else
+    if [[ -z "${path}" ]]; then
         echo "  Disk benchmark could not run in ${dir}."
     fi
 }

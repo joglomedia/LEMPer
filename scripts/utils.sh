@@ -649,7 +649,7 @@ function preflight_system_check() {
 
     # Set server IP.
     export SERVER_IP && \
-    SERVER_IP=${SERVER_IP:-$(get_ip_public)}
+    SERVER_IP=${SERVER_IP:-$(get_ip)}
     SERVER_IP_LOCAL=$(get_ip_private)
 
     # Set server hostname.
@@ -688,11 +688,8 @@ function preflight_system_check() {
     fi
 
     # Create a temporary directory for the LEMPer installation.
-    BUILD_DIR=${BUILD_DIR:-"/tmp/lemper_build"}
-
-    if [ ! -d "${BUILD_DIR}" ]; then
-        run mkdir -p "${BUILD_DIR}"
-    fi
+    case "${BUILD_DIR:-}" in ''|/tmp/lemper|/tmp/lemper_build) BUILD_DIR=/var/cache/lemper-build ;; esac
+    lemper_build_workspace "$BUILD_DIR" || fail "Unsafe build workspace."
 }
 
 # Get physical RAM size.
@@ -811,8 +808,9 @@ function create_account() {
 
     if [[ -z $(getent passwd "${LEMPER_USERNAME}") ]]; then
         if [[ ${DRYRUN} != true ]]; then
+            lemper_account_admin_auth revoke "$LEMPER_USERNAME" || return 1
             run useradd -d "/home/${LEMPER_USERNAME}" -m -s /bin/bash "${LEMPER_USERNAME}"
-            run echo "${LEMPER_USERNAME}:${LEMPER_PASSWORD}" | chpasswd
+            printf '%s:%s\n' "$LEMPER_USERNAME" "$LEMPER_PASSWORD" | chpasswd || return 1
 
             write_account_sudoers "${LEMPER_USERNAME}" || return 1
 
@@ -829,24 +827,8 @@ function create_account() {
             run chmod 755 "/home/${LEMPER_USERNAME}" && \
             run chown -hR "${LEMPER_USERNAME}:${LEMPER_USERNAME}" "/home/${LEMPER_USERNAME}"
 
-            # Add account credentials to /srv/.htpasswd.
-            [ ! -f "/srv/.htpasswd" ] && run touch /srv/.htpasswd
-
-            # Protect .htpasswd file.
-            run chmod 0600 /srv/.htpasswd
-            run chown www-data:www-data /srv/.htpasswd
-
-            # Generate password hash.
-            if [[ -n $(command -v mkpasswd) ]]; then
-                PASSWORD_HASH=$(printf '%s\n' "${LEMPER_PASSWORD}" | mkpasswd --method=sha-256 --stdin)
-                sed_inplace "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
-                run echo "${LEMPER_USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
-            elif [[ -n $(command -v htpasswd) ]]; then
-                printf '%s\n' "${LEMPER_PASSWORD}" | run htpasswd -i /srv/.htpasswd "${LEMPER_USERNAME}"
-            else
-                PASSWORD_HASH=$(printf '%s\n' "${LEMPER_PASSWORD}" | openssl passwd -1 -stdin)
-                sed_inplace "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
-                run echo "${LEMPER_USERNAME}:${PASSWORD_HASH}" >> /srv/.htpasswd
+            if [[ "${INSTALL_WEB_ADMIN:-true}" == true && "${INSTALL_NGINX:-true}" == true ]]; then
+                printf '%s\n' "$LEMPER_PASSWORD" | lemper_account_admin_auth enroll "$LEMPER_USERNAME" || return 1
             fi
 
             # Save config.
@@ -870,19 +852,21 @@ function create_account() {
 function delete_account() {
     local LEMPER_USERNAME=${1:-"lemper"}
 
+    is_valid_username "$LEMPER_USERNAME" && [[ "$LEMPER_USERNAME" != root ]] || return 1
     if [[ -n $(getent passwd "${LEMPER_USERNAME}") ]]; then
         if pgrep -u "${LEMPER_USERNAME}" > /dev/null; then
             error "Couldn't delete user currently used by running processes."
+            return 1
         else
-            run userdel -r "${LEMPER_USERNAME}"
-
-            if [ -f "/srv/.htpasswd" ]; then
-                sed_inplace "/^${LEMPER_USERNAME}:/d" /srv/.htpasswd
-            fi
+            remove_managed_account_sudo "$LEMPER_USERNAME" || return 1
+            lemper_account_admin_auth revoke "$LEMPER_USERNAME" || return 1
+            run userdel -r "${LEMPER_USERNAME}" || return 1
 
             success "Account ${LEMPER_USERNAME} deleted."
         fi
     else
+        remove_managed_account_sudo "$LEMPER_USERNAME" || return 1
+        lemper_account_admin_auth revoke "$LEMPER_USERNAME" || return 1
         info "Account ${LEMPER_USERNAME} not found."
     fi
 }

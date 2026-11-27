@@ -89,7 +89,7 @@ EOL
 Options:
   --version, -v   Show version and exit.
   --help, -h      Show this help message.
-  --password=xxx  Decrypt encrypted config (also: -P xxx).
+  --config-password-stdin  Read one configuration passphrase from standard input.
                   Falls back to LEMPER_PASSWORD or /etc/lemper/.config_key.
 
 For detailed help on a specific command:

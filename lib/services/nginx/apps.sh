@@ -29,47 +29,180 @@ function lemper_nginx_app_render() {
         -e "s|@PUBLIC@|$public|g" -e "s|@SOCKET@|$socket|g" "$template"
 }
 
-# Prefix locations do not inherit sibling location policies. Refuse detected
-# per-location authentication/access controls instead of silently bypassing them.
-# Server-level policies are inherited; generated FPM monitoring keeps its own ACL.
-function lemper_nginx_app_policy_check() {
-    local domain="$1" root="${LEMPER_NGINX_DIR:-/etc/nginx}" file included
-    for file in "$root/sites-available/$domain".{conf,nonssl-conf,ssl-conf}; do
-        [[ -f "$file" ]] || continue
-        if ! awk '
-            /^[[:space:]]*#/ { next }
-            /^    location[[:space:]]/ { monitor=($0 ~ /location[[:space:]]+~[[:space:]]+\^\/php-fpm_/) }
-            /^    }/ { monitor=0 }
-            !monitor && /(^|[;{[:space:]])(auth_basic|auth_request|satisfy|allow|deny|access_by_lua)[[:space:]]/ {
-                if ($0 !~ /^    (auth_basic|auth_request|satisfy|allow|deny|access_by_lua)[[:space:]]/) bad=1
+# Inspect complete statements and block scope, independent of indentation.
+# Return the serving root's line and whether its managed include is present.
+function lemper_nginx_app_inspect() {
+    local domain="$1" file="$2" root="${LEMPER_NGINX_DIR:-/etc/nginx}"
+    local policy include status depth server hook="$root/site-apps/$domain/*.conf"
+    local anchor=0 serving_server=0 hooked_server=0
+    policy=$(awk '
+        BEGIN { OFS="\t" }
+        function push() {
+            if (word != "") tokens[++count]=word
+            word=""
+        }
+        function clear( i) {
+            for (i=1; i<=count; i++) delete tokens[i]
+            count=0
+        }
+        function reject() { invalid=1; exit 1 }
+        function statement(end, key) {
+            push()
+            key=tokens[1]
+            if (end == "}") {
+                if (count || depth < 1) reject()
+                if (depth == 1 && !has_root && !redirect) reject()
+                delete block[depth--]
+            } else if (!count) {
+                reject()
+            } else if (end == "{") {
+                if (depth == 0 && key == "server" && count == 1) {
+                    block[++depth]="server"
+                    server++
+                    has_root=redirect=0
+                } else if (depth >= 1 && key == "location" && count >= 2) {
+                    if (depth == 1 && count == 3 && tokens[2] == "~" &&
+                        tokens[3] == "^/php-fpm_(status|ping)$") block[++depth]="monitor"
+                    else if (depth == 1 && count == 3 && tokens[2] == "~*" &&
+                        tokens[3] == "\\.(?:php[0-9]*|phtml|phar)(?:/|$)") block[++depth]="php-deny"
+                    else block[++depth]="location"
+                } else reject()
+            } else if (depth == 0) {
+                reject()
+            } else if (key == "include" && count == 2) {
+                if (tokens[2] ~ /[[:space:]]/) reject()
+                print "include", tokens[2], depth, server
+            } else if (depth == 1 && key == "root" && count == 2) {
+                if (has_root || ++roots != 1) reject()
+                print "root", start, NR, server
+                has_root=1
+            } else if (key ~ /^(auth_basic|auth_basic_user_file|auth_request|auth_delay|satisfy|allow|deny)$/) {
+                if (depth != 1 && !(block[depth] == "monitor" && count == 2 &&
+                    ((key == "allow" && (tokens[2] == "127.0.0.1" || tokens[2] == "::1")) ||
+                     (key == "deny" && tokens[2] == "all")))) reject()
+            } else if (key == "return") {
+                if (depth == 1 && count == 3 && tokens[2] == "301" &&
+                    tokens[3] == "https://$server_name$request_uri") redirect=1
+                else if (!(block[depth] == "php-deny" && count == 2 && tokens[2] == "404")) reject()
+            } else if (key !~ /^(listen|server_name|ssl_certificate|ssl_certificate_key|ssl_trusted_certificate|ssl_stapling|ssl_stapling_verify|ssl_protocols|ssl_ciphers|http2|http3|access_log|error_log|disable_symlinks|root|alias|index|client_max_body_size|set|try_files|fastcgi_split_path_info|fastcgi_index|fastcgi_pass|fastcgi_param|fastcgi_cache|fastcgi_cache_bypass|fastcgi_no_cache|add_header|expires|error_page|charset)$/) {
+                reject()
             }
-            END { exit bad }
-        ' "$file"; then
-            error "Per-location access controls require explicit mount policy integration; configuration retained."
+            clear()
+        }
+        {
+            for (i=1; i<=length; i++) {
+                c=substr($0,i,1)
+                if (escaped) {
+                    # Keep escaped characters distinct from literal directives.
+                    word=word "\\" c
+                    escaped=0
+                } else if (c == "\\") escaped=1
+                else if (quote != "") {
+                    if (c == quote) quote=""
+                    else word=word c
+                } else if (c == "#" && word == "") break
+                else if (c == "\"" || c == sprintf("%c",39)) quote=c
+                else if (c ~ /[[:space:]]/) push()
+                else if (c ~ /[;{}]/) statement(c)
+                else {
+                    if (!count && word == "") start=NR
+                    word=word c
+                }
+            }
+            if (escaped || quote != "") reject()
+            push()
+        }
+        END { if (invalid || count || depth || roots != 1) exit 1 }
+    ' "$file") || return 1
+    while IFS=$'\t' read -r status include depth server; do
+        if [[ "$status" == root ]]; then
+            # The insertion point must be on its own line, after the root.
+            [[ "$include" == "$depth" ]] || return 1
+            anchor="$include"
+            serving_server="$server"
+        elif [[ "$include" == "$hook" || "$include" == "/etc/nginx/site-apps/$domain/*.conf" ]]; then
+            [[ "$depth" == 1 && "$hooked_server" == 0 ]] || return 1
+            lemper_nginx_app_check_fragments "$domain" || return 1
+            hooked_server="$server"
+        else
+            lemper_nginx_app_check_include "$include" || return 1
+        fi
+    done <<< "$policy"
+    [[ "$anchor" != 0 ]] || return 1
+    [[ "$hooked_server" == 0 || "$hooked_server" == "$serving_server" ]] || return 1
+    # Never insert on a line that also closes the server or opens a child block.
+    sed -n "${anchor}p" "$file" | grep -Eq '^[[:space:]]*root[[:space:]]+[^;]+;[[:space:]]*(#.*)?$' || return 1
+    printf '%s %s\n' "$anchor" "$hooked_server"
+}
+
+# Only known LEMPer includes are accepted. Compare their installed contents
+# and known nested dependencies against the shipped templates.
+function lemper_nginx_app_check_include() {
+    local include="$1" root="${LEMPER_NGINX_DIR:-/etc/nginx}" relative template source
+    [[ "$include" == "$root/"* || "$include" == /etc/nginx/* ]] || return 1
+    relative="${include#"$root"/}"
+    relative="${relative#/etc/nginx/}"
+    [[ "$relative" == fastcgi_params ||
+        "$relative" =~ ^includes/(compression_gzip|compression_brotli|fastcgi|monitoring|rules_security|rules_restriction|rules_archives|rules_staticfiles|security_headers|ssl|http3)\.conf$ ||
+        "$relative" =~ ^vhost/site_(default|drupal|laravel|phalcon|wordpress|symfony)\.conf$ ]] || return 1
+    template=$(lemper_nginx_app_template) || return 1
+    source="${template%/vhost/app_laravel.conf}/$relative"
+    [[ -f "$root/$relative" && ! -L "$root/$relative" && -f "$source" ]] || return 1
+    if ! cmp -s "$source" "$root/$relative"; then
+        [[ "$relative" == includes/rules_restriction.conf ]] || return 1
+        cmp -s <(sed '/^#include \/etc\/nginx\/includes\/rules_archives.conf;$/s/^#//' "$source") "$root/$relative" ||
+            return 1
+        lemper_nginx_app_check_include "$root/includes/rules_archives.conf" || return 1
+    fi
+    case "$relative" in
+        includes/rules_security.conf | includes/rules_staticfiles.conf)
+            lemper_nginx_app_check_include "$root/includes/security_headers.conf" ;;
+        includes/monitoring.conf) lemper_nginx_app_check_include "$root/fastcgi_params" ;;
+    esac
+}
+
+function lemper_nginx_app_check_fragments() {
+    local domain="$1" directory file mount public socket
+    directory=$(lemper_nginx_app_dir "$domain") || return 1
+    [[ ! -L "$directory" ]] || return 1
+    for file in "$directory"/*.conf; do
+        [[ -e "$file" || -L "$file" ]] || continue
+        [[ -f "$file" && ! -L "$file" ]] || return 1
+        mount="${file##*/}"
+        mount="/${mount%.conf}"
+        [[ "$mount" =~ ^/[a-z][a-z0-9_-]{0,63}$ ]] || return 1
+        public=$(sed -n 's/^    root "\(.*\)";$/\1/p' "$file") || return 1
+        socket=$(sed -n 's/^    fastcgi_pass unix:\(.*\);$/\1/p' "$file") || return 1
+        [[ "$public" =~ ^/[A-Za-z0-9_./\ -]+$ && "$socket" =~ ^/run/php/[A-Za-z0-9_.-]+\.sock$ ]] || return 1
+        cmp -s <(lemper_nginx_app_render "$mount" "$public" "$socket") "$file" || return 1
+    done
+}
+
+function lemper_nginx_app_policy_check() {
+    local domain="$1" root="${LEMPER_NGINX_DIR:-/etc/nginx}" file resolved
+    if ! lemper_nginx_app_check_include "$root/includes/fastcgi.conf" ||
+        ! lemper_nginx_app_check_include "$root/includes/rules_restriction.conf"; then
+        error "Unknown Laravel include policy requires explicit mount integration."
+        return 1
+    fi
+    for file in "$root/sites-available/$domain".{conf,nonssl-conf,ssl-conf}; do
+        [[ -e "$file" || -L "$file" ]] || continue
+        resolved=$(readlink -f "$file") || return 1
+        case "$resolved" in "$root/sites-available/$domain".conf|"$root/sites-available/$domain".nonssl-conf|"$root/sites-available/$domain".ssl-conf) ;;
+            *) return 1 ;;
+        esac
+        if ! lemper_nginx_app_inspect "$domain" "$resolved" >/dev/null; then
+            error "Per-location access controls or unknown vhost policy require explicit mount integration."
             return 1
         fi
-        # The root location is commonly provided by a framework include.
-        while IFS= read -r included; do
-            included="${included#\"}"; included="${included%\"}"
-            [[ -f "$included" ]] || continue
-            if awk '
-                /^[[:space:]]*#/ { next }
-                /(^|[;{[:space:]])(auth_basic|auth_request|satisfy|allow|deny|access_by_lua)[[:space:]]/ { found=1 }
-                END { exit !found }
-            ' "$included"; then
-                error "Framework location access controls require explicit mount policy integration."
-                return 1
-            fi
-        done < <(awk '$1 == "include" && $2 ~ /\/vhost\/site_/ { sub(/;$/, "", $2); print $2 }' "$file")
     done
 }
 
 # Extend the known server-level root anchor in generated/adopted vhosts.
 # SSL/non-SSL variants must share the hook so later TLS toggles retain mounts.
 function lemper_nginx_app_hook() {
-    local domain="$1" root="${LEMPER_NGINX_DIR:-/etc/nginx}" file resolved hook temporary count
+    local domain="$1" root="${LEMPER_NGINX_DIR:-/etc/nginx}" file resolved hook temporary inspection anchor hooked
     local -A seen=()
-    lemper_nginx_app_policy_check "$domain" || return 1
     hook="include $root/site-apps/$domain/*.conf;"
     for file in "$root/sites-available/$domain".{conf,nonssl-conf,ssl-conf}; do
         [[ -f "$file" ]] || continue
@@ -79,11 +212,11 @@ function lemper_nginx_app_hook() {
         esac
         [[ -z "${seen[$resolved]:-}" ]] || continue
         seen[$resolved]=true
-        grep -Fq "$hook" "$resolved" && continue
-        count=$(awk '/^    root[[:space:]]+[^;]+;[[:space:]]*$/ { n++ } END { print n+0 }' "$resolved")
-        [[ "$count" == 1 ]] || { error "Vhost needs one generated server-level root anchor before adding an app."; return 1; }
+        inspection=$(lemper_nginx_app_inspect "$domain" "$resolved") || return 1
+        read -r anchor hooked <<< "$inspection"
+        [[ "$hooked" == 0 ]] || continue
         temporary=$(mktemp "$resolved.app.XXXXXXXX") || return 1
-        if ! awk -v hook="$hook" '{ print; if ($0 ~ /^    root[[:space:]]+[^;]+;[[:space:]]*$/) print "    " hook }' \
+        if ! awk -v hook="$hook" -v anchor="$anchor" '{ print; if (NR == anchor) print "    " hook }' \
             "$resolved" > "$temporary" || ! chown --reference="$resolved" "$temporary" ||
             ! chmod --reference="$resolved" "$temporary" || ! lemper_exec mv -Tf "$temporary" "$resolved"; then
             rm -f "$temporary"; return 1

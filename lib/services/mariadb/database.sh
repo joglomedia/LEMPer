@@ -70,6 +70,13 @@ function lemper_db_validate() {
     done
 }
 
+# Database-level GRANT uses LIKE patterns, including inside quoted identifiers.
+function lemper_db_grant_schema() {
+    local name="$1"
+    [[ "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || return 1
+    printf '%s' "${name//_/\\_}"
+}
+
 # SQL literals use doubled quotes under an explicit NO_BACKSLASH_ESCAPES session.
 function lemper_db_password_sql() {
     local password="$1"
@@ -77,25 +84,7 @@ function lemper_db_password_sql() {
     printf "'%s'" "$password"
 }
 
-# Every writable directory and ancestor must be trusted; root-owned sticky /tmp is allowed.
-function lemper_db_directory_safe() {
-    local directory="$1" cursor owner mode
-    [[ "$directory" == /* ]] || return 1
-    cursor="$directory"
-    while [[ "$cursor" != / ]]; do
-        if [[ -e "$cursor" || -L "$cursor" ]]; then
-            [[ -d "$cursor" && ! -L "$cursor" ]] || return 1
-            read -r owner mode < <(stat -c '%u %a' -- "$cursor") || return 1
-            [[ "$owner" == "$EUID" ]] || return 1
-            if (( (8#$mode & 0022) != 0 )); then
-                [[ "$owner" == 0 && ( "$cursor" == /tmp || "$cursor" == /var/tmp ) ]] &&
-                    (( (8#$mode & 01000) != 0 )) || return 1
-            fi
-        fi
-        cursor="${cursor%/*}"
-        [[ -n "$cursor" ]] || cursor=/
-    done
-}
+function lemper_db_directory_safe() { lemper_directory_trusted "$1"; }
 
 # Preserve socket-authenticated local root; a remote host/custom port uses TCP.
 function lemper_db_connection_args() {

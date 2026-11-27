@@ -75,11 +75,11 @@ function smtp_login() {
     smtp_command "AUTH PLAIN $payload" && [[ "$smtp_code" == 235 ]]
 }
 function smtp_send() {
-    local sender="$1" recipient="$2" subject="$3"
+    local sender="$1" recipient="$2" subject="$3" from="${4:-$1}"
     smtp_command "MAIL FROM:<$sender>" && [[ "$smtp_code" == 250 ]] || return 1
     smtp_command "RCPT TO:<$recipient>" && [[ "$smtp_code" == 250 ]] || return 1
     smtp_command DATA && [[ "$smtp_code" == 354 ]] || return 1
-    printf 'From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\nLEMPer delivery fixture\r\n.\r\n' "$sender" "$recipient" "$subject" >&"$mail_in" || return 1
+    printf 'From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\nLEMPer delivery fixture\r\n.\r\n' "$from" "$recipient" "$subject" >&"$mail_in" || return 1
     smtp_reply && [[ "$smtp_code" == 250 ]]
 }
 function imap_command() {

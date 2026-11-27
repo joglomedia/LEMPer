@@ -35,8 +35,7 @@ function requires_root() {
             exit 1
         else
             #echo "Switching to root user to run this script."
-            sudo -E "$0" "$@"
-            exit 0
+            exec sudo -E -- "$0" "$@"
         fi
     fi
 }
@@ -51,7 +50,7 @@ while [[ -L "${CLI_SCRIPT_PATH}" ]]; do
         CLI_SCRIPT_PATH="$(dirname "${CLI_SCRIPT_PATH}")/${CLI_LINK}"
     fi
 done
-CLI_SOURCE_DIR=$(cd "$(dirname "${CLI_SCRIPT_PATH}")" && pwd)
+CLI_SOURCE_DIR=$(cd "$(dirname "${CLI_SCRIPT_PATH}")" && pwd -P)
 CLI_LIBRARY_DIR="$CLI_SOURCE_DIR/../lib"
 if [[ ! -f "$CLI_LIBRARY_DIR/core/registry.sh" ]]; then CLI_LIBRARY_DIR=/etc/lemper; fi
 # The registry is static and has no configuration or host initialization.
@@ -60,6 +59,9 @@ if [[ ! -f "$CLI_LIBRARY_DIR/core/registry.sh" ]]; then CLI_LIBRARY_DIR=/etc/lem
 CLI_HELP=false
 CLI_VERSION=false
 for CLI_ARGUMENT in "$@"; do
+    case "$CLI_ARGUMENT" in
+        --password|--password=*|-P|-P=*) echo "Read the config password using --config-password-stdin." >&2; exit 1 ;;
+    esac
     case "$CLI_ARGUMENT" in --help|-h) CLI_HELP=true ;; --version|-v) CLI_VERSION=true ;; esac
 done
 if [[ "$CLI_VERSION" == true || "${1:-}" == version ]]; then
@@ -137,37 +139,18 @@ else
 fi
 
 
-# Pre-parse --password / -P flag before loading config (may need it for decryption).
-# Scans all args, extracts password, and rebuilds args list without it.
+# Read the decryption secret from protected input before loading the profile.
 LEMPER_CONFIG_PASSWORD=""
 new_args=()
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --password=*)
-            LEMPER_CONFIG_PASSWORD="${1#--password=}"
-            shift
-            ;;
-        --password)
-            LEMPER_CONFIG_PASSWORD="${2:-}"
-            shift 2
-            ;;
-        -P=*)
-            LEMPER_CONFIG_PASSWORD="${1#-P=}"
-            shift
-            ;;
-        -P)
-            LEMPER_CONFIG_PASSWORD="${2:-}"
-            shift 2
-            ;;
-        *)
-            new_args+=("$1")
-            shift
-            ;;
-    esac
+for CLI_ARGUMENT in "$@"; do
+    if [[ "$CLI_ARGUMENT" == --config-password-stdin ]]; then
+        IFS= read -rs LEMPER_CONFIG_PASSWORD || [[ -n "$LEMPER_CONFIG_PASSWORD" ]] || exit 1
+        [[ -n "$LEMPER_CONFIG_PASSWORD" ]] || exit 1
+    else
+        new_args+=("$CLI_ARGUMENT")
+    fi
 done
-if [[ ${#new_args[@]} -gt 0 ]]; then
-    set -- "${new_args[@]}"
-fi
+set -- "${new_args[@]}"
 
 CLI_CONFIG_PASSWORD="${LEMPER_CONFIG_PASSWORD}"
 
@@ -219,7 +202,7 @@ if [[ -f "${CONFIG_FILE}" ]]; then
         # The header is authoritative: the flag is not inherited under sudo.
         if ! temp_decrypted=$(decrypt_config_file "${CONFIG_FILE}"); then
             echo "Failed to decrypt configuration." >&2
-            echo "Use --password if a custom config password was set during install." >&2
+            echo "Use --config-password-stdin if a custom config password was set during install." >&2
             exit 1
         fi
         source_file="${temp_decrypted}"

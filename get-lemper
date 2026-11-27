@@ -54,17 +54,22 @@ elif [[ -n "$profile" || "$minimal" == true || "$yes" == true ]]; then
     echo "Profile/minimal/yes options require --install." >&2
     exit 1
 fi
-work=$(mktemp -d)
-trap 'rm -rf "${work}"' EXIT
+work=$(mktemp -d /tmp/lemper-bootstrap.XXXXXXXX)
+trap 'rm -rf -- "${work}"' EXIT
 asset="lemper-v${version}.tar.gz"
 if [[ -z "${archive}" ]]; then
     [[ "${base}" == https://* ]] || { echo "Release downloads require HTTPS." >&2; exit 1; }
     archive="${work}/${asset}"
-    curl --fail --location --proto '=https' --tlsv1.2 "${base}/v${version}/${asset}" -o "${archive}"
+    curl -q --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 "${base}/v${version}/${asset}" -o "${archive}"
     if [[ -z "${expected}" ]]; then
-        curl --fail --location --proto '=https' --tlsv1.2 "${base}/v${version}/${asset}.sha256" -o "${work}/checksum"
+        curl -q --fail --location --proto '=https' --proto-redir '=https' --tlsv1.2 "${base}/v${version}/${asset}.sha256" -o "${work}/checksum"
         expected=$(awk 'NR==1 {print $1}' "${work}/checksum")
     fi
+else
+    [[ -f "$archive" && ! -L "$archive" ]] || { echo "Expected a regular release archive." >&2; exit 1; }
+    cp --no-dereference -- "$archive" "$work/$asset"
+    archive="$work/$asset"
+    [[ -f "$archive" && ! -L "$archive" ]] || { echo "Expected a regular release archive." >&2; exit 1; }
 fi
 [[ "${expected}" =~ ^[a-fA-F0-9]{64}$ ]] || { echo "A release SHA256 is required for a local archive." >&2; exit 1; }
 actual=$(sha256sum "${archive}" | awk '{print $1}')
@@ -121,24 +126,32 @@ fi
 if [[ "$prefix" == / && "$(id -u)" -ne 0 ]]; then echo "Run as root to install the CLI." >&2; exit 1; fi
 prefix="${prefix%/}"
 destination="${prefix}/opt/lemper/${version}"
-if [[ -e "${destination}" ]]; then
+# Keep activation logic in the checksum-verified scratch copy until the installed tree has been checked.
+# shellcheck source=/dev/null
+. "$source/lib/core/security.sh"
+# shellcheck source=/dev/null
+. "$source/lib/core/registry.sh"
+# shellcheck source=/dev/null
+. "$source/lib/core/deployment.sh"
+function error() { printf '%s\n' "$*" >&2; }
+lemper_directory_trusted "${prefix}/opt/lemper" || { error "Unsafe install release directory."; exit 1; }
+[[ ! -e "$source/.release-sha256" && ! -L "$source/.release-sha256" ]] || { error "Unexpected release marker in the archive."; exit 1; }
+(umask 022; printf '%s\n' "$actual" >"$source/.release-sha256")
+if [[ -e "${destination}" || -L "${destination}" ]]; then
+    lemper_release_tree_trusted "$destination" || { error "Unsafe existing CLI release tree."; exit 1; }
     [[ -f "${destination}/.release-sha256" && "$(cat "${destination}/.release-sha256")" == "${actual}" ]] ||
         { echo "This version is already installed with different content." >&2; exit 1; }
+    diff -qr --no-dereference -- "$source" "$destination" >/dev/null ||
+        { error "Installed release files differ from the verified archive."; exit 1; }
 else
     install -d -m 0755 "${prefix}/opt/lemper"
-    mv "${source}" "${destination}"
-    printf '%s\n' "${actual}" > "${destination}/.release-sha256"
+    lemper_directory_trusted "${prefix}/opt/lemper" || { error "Unsafe install release directory."; exit 1; }
+    mv -T -- "${source}" "${destination}"
 fi
 
 configuration="${prefix}/etc/lemper"
-# Release modules have already passed checksum and archive-path validation.
-# shellcheck source=/dev/null
-. "$destination/lib/core/registry.sh"
-# shellcheck source=/dev/null
-. "$destination/lib/core/deployment.sh"
-function error() { printf '%s\n' "$*" >&2; }
 lemper_cli_activate "$destination" "$prefix" || exit 1
-if [[ ! -e "$configuration/lemper.conf" && "$install_stack" == false ]]; then
+if [[ ! -e "$configuration/lemper.conf" && ! -L "$configuration/lemper.conf" && "$install_stack" == false ]]; then
     install -m 0600 "$destination/.env.dist" "$configuration/lemper.conf"
 fi
 printf '%s\n' "$destination" > "$configuration/update-source"

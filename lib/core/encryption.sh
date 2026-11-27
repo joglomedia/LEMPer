@@ -66,7 +66,7 @@ function secure_shred() {
 
 ##
 # Resolve the config password from available sources:
-#   1. --password CLI flag (already parsed into LEMER_CONFIG_PASSWORD)
+#   1. --config-password-stdin (read into LEMPER_CONFIG_PASSWORD)
 #   2. LEMPER_CONFIG_PASSWORD environment variable
 #   3. /etc/lemper/.config_key file (auto-generated at install time)
 ##

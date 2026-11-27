@@ -26,31 +26,25 @@ function core_get_ip_private() {
 }
 
 function core_get_ip_public() {
-    local SERVER_IP_PRIVATE && SERVER_IP_PRIVATE=$(get_ip_private)
-    local SERVER_IP_PUBLIC && \
-    SERVER_IP_PUBLIC=$(curl -sk --ipv4 --connect-timeout 10 --retry 3 --retry-delay 0 https://ipecho.net/plain)
-
-    # Ugly hack to detect aws-lightsail public IP address.
-    if [[ "${SERVER_IP_PRIVATE}" == "${SERVER_IP_PUBLIC}" ]]; then
-        echo "${SERVER_IP_PRIVATE}"
-    else
-        echo "${SERVER_IP_PUBLIC}"
-    fi
+    local address
+    address=$(curl -q -fsS --ipv4 --proto '=https' --max-time 10 --max-filesize 64 https://ipecho.net/plain) || return 1
+    core_is_valid_ipv4 "$address" || return 1
+    printf '%s\n' "$address"
 }
 
 function core_get_ip() {
     local IP
 
     # Try public IP first
-    IP=$(get_ip_public 2>/dev/null)
+    IP=$(get_ip_public 2>/dev/null) || IP=""
 
     # Fallback to private IP
-    if [[ -z "${IP}" ]]; then
-        IP=$(get_ip_private 2>/dev/null)
+    if ! core_is_valid_ipv4 "$IP"; then
+        IP=$(get_ip_private 2>/dev/null) || IP=""
     fi
 
     # Fallback to localhost for CI/CD or isolated environments
-    if [[ -z "${IP}" ]]; then
+    if ! core_is_valid_ipv4 "$IP"; then
         IP="127.0.0.1"
     fi
 
@@ -66,16 +60,10 @@ function core_get_ipv6_private() {
 }
 
 function core_get_ipv6_public() {
-    local SERVER_IPV6_PRIVATE && SERVER_IPV6_PRIVATE=$(get_ipv6_private)
-    local SERVER_IPV6_PUBLIC && \
-    SERVER_IPV6_PUBLIC=$(curl -sk --ipv6 --connect-timeout 10 --retry 3 --retry-delay 0 https://ipecho.net/plain)
-
-    # Ugly hack to detect aws-lightsail public IP address.
-    if [[ "${SERVER_IPV6_PRIVATE}" == "${SERVER_IPV6_PUBLIC}" ]]; then
-        echo "${SERVER_IPV6_PRIVATE}"
-    else
-        echo "${SERVER_IPV6_PUBLIC}"
-    fi
+    local address
+    address=$(curl -q -fsS --ipv6 --proto '=https' --max-time 10 --max-filesize 64 https://ipecho.net/plain) || return 1
+    core_is_valid_ipv6 "$address" || return 1
+    printf '%s\n' "$address"
 }
 
 function get_ip_private() {

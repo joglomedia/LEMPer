@@ -18,6 +18,46 @@ php_repository_child='
     lemper_php_install_archive_keyring() { install -d "${1%/*}"; printf "synthetic-key" >"$1"; }
     apt-get() { printf "%s\n" "$*" >>"$TEST_APT_CALLS"; [[ "${TEST_APT_FAIL:-false}" != true ]]; }
 '
+
+@test "Sury bootstrap publishes only the verified package data member" {
+    local root="$TEST_TMPDIR/key-package"
+    mkdir -p "$root/DEBIAN" "$root/usr/share/keyrings"
+    printf '%s\n' 'Package: debsuryorg-archive-keyring' 'Version: 1' 'Architecture: all' \
+        'Maintainer: Fixture <fixture@example.test>' 'Description: Test fixture' >"$root/DEBIAN/control"
+    printf 'fixture-public-key\n' >"$root/usr/share/keyrings/debsuryorg-archive-keyring.gpg"
+    dpkg-deb --build "$root" "$TEST_TMPDIR/fixture.deb" >/dev/null
+    run bash -c '
+        . "$REAL_BASE_DIR/lib/core/loader.sh"
+        lemper_load_module services/php/repository || exit 1
+        LEMPER_APT_ROOT=/etc/apt
+        key=/usr/share/keyrings/debsuryorg-archive-keyring.gpg
+        published="$TEST_TMPDIR/published-key"
+        expected="$TEST_TMPDIR/key-package$key"
+        curl() {
+            while [[ $# -gt 0 && "$1" != -o ]]; do shift; done
+            [[ $# -ge 2 ]] && cp -- "$TEST_TMPDIR/fixture.deb" "$2"
+        }
+        mktemp() {
+            if [[ "$1" == "$key.XXXXXXXX" ]]; then command mktemp "$TEST_TMPDIR/prepared.XXXXXXXX"
+            else command mktemp "$@"; fi
+        }
+        lemper_php_repository_key_valid() {
+            if [[ "$1" == "$key" ]]; then cmp -s -- "$published" "$expected"
+            else cmp -s -- "$1" "$expected"; fi
+        }
+        lemper_exec() {
+            case "$1" in
+                install) command "$@" ;;
+                mv) [[ "$4" == "$key" ]] && command mv -Tf -- "$3" "$published" ;;
+                *) echo UNEXPECTED_EXEC; return 1 ;;
+            esac
+        }
+        DRYRUN=false lemper_php_install_archive_keyring "$key" || exit 1
+        cmp -- "$published" "$expected"
+    '
+    [ "$status" -eq 0 ]
+    [[ "$output" != *UNEXPECTED_EXEC* ]]
+}
 @test "supported Ubuntu LTS versions resolve without lsb-release and interim releases remain rejected" {
     run bash -c '
         . "$REAL_BASE_DIR/lib/core/distro.sh"
