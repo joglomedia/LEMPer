@@ -126,6 +126,11 @@ function lemper_mail_select() {
         return 1
     fi
 }
+function lemper_mail_author_configtest() {
+    # rspamadm initializes its distro cache and host resolver before it reads -c.
+    # Use the package identity for validation. The live worker has its own cache and network namespace.
+    runuser -u _rspamd -- rspamadm configtest -qs -c "$1/submission-author.conf"
+}
 function lemper_mail_check() {
     if [[ "${DRYRUN:-false}" == true ]]; then
         info "Would validate Postfix, Dovecot, submission author policy, and enabled DKIM configuration."
@@ -135,7 +140,7 @@ function lemper_mail_check() {
     root=$(lemper_mail_root)
     postfix check && doveconf -n >/dev/null || return 1
     if [[ -f "$root/submission-author.conf" ]]; then
-        runuser -u lemper-mail-author -- rspamadm configtest -qs -c "$root/submission-author.conf" || return 1
+        lemper_mail_author_configtest "$root" || return 1
     fi
     [[ ! -f "$root/dkim-enabled" ]] || opendkim -n -x /etc/opendkim.conf
 }

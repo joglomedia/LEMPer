@@ -108,6 +108,7 @@ function lemper_mail_author_prepare() {
         esac || { rm -f -- "$staged"; return 1; }
         rm -f -- "$staged"
     done
+    lemper_mail_author_configtest "$root" || return 1
     systemctl daemon-reload && systemctl enable lemper-mail-author && systemctl restart lemper-mail-author
 }
 function lemper_mail_author_restore() {
