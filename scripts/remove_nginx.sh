@@ -21,7 +21,7 @@ case "${1:-}" in
         if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 0; else return 0; fi
         ;;
     --version | -v)
-        printf 'LEMPer nginx remove v4.0.0\n'
+        printf 'LEMPer nginx remove v4.1.0\n'
         if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then exit 0; else return 0; fi
         ;;
 esac

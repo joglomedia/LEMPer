@@ -28,8 +28,8 @@ domain="${LEMPER_UAT_HTTP01_DOMAIN:-}"
 [[ ! -e "/etc/nginx/sites-available/$domain.conf" && ! -e "/etc/letsencrypt/live/$domain" ]] || exit 2
 logs=/var/log/lemper-http01-uat
 install -d -m 0700 "$logs" /etc/letsencrypt
-read -r checksum _ </release/lemper-v4.0.0.tar.gz.sha256
-bash /release/get-lemper --version 4.0.0 --archive /release/lemper-v4.0.0.tar.gz --sha256 "$checksum" >"$logs/bootstrap.log" 2>&1
+read -r checksum _ </release/lemper-v4.1.0.tar.gz.sha256
+bash /release/get-lemper --version 4.1.0 --archive /release/lemper-v4.1.0.tar.gz --sha256 "$checksum" >"$logs/bootstrap.log" 2>&1
 # shellcheck source=/dev/null
 . /opt/lemper/current/tests/uat/helpers.bash
 uat_wait_systemd

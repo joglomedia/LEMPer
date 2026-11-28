@@ -11,7 +11,7 @@ setup() { unit_setup; }
     [ "$status" -ne 0 ]
     run test_run_public "$sealed" bin/lemper-cli.sh --version
     [ "$status" -eq 0 ]
-    [[ "$output" == *'version 4.0.0'* ]]
+    [[ "$output" == *'version 4.1.0'* ]]
     [ "$(stat -c %a "$sealed")" = 700 ]
 }
 

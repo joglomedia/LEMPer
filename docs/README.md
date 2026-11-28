@@ -29,7 +29,8 @@ Start with the project [README](../README.md) for the overview and quick start.
 - [Authoritative DNS proposal](AUTHORITATIVE_DNS_PROPOSAL.md) for the optional core service.
 - [Roadmap](ROADMAP.md) and [remaining-scope audit](ROADMAP_AUDIT.md).
 - [Release preparation](RELEASE_V4.md) and [changelog](../CHANGELOG.md).
-- [v4 release notes](RELEASE_NOTES_V4.md): highlights, installation and upgrade limits.
+- [4.1.0 release notes](RELEASE_NOTES_V4_1.md) cover authoritative DNS and existing-host upgrades.
+- [4.0.0 release notes](RELEASE_NOTES_V4.md) cover the previous release.
 - [Production UAT](PRODUCTION_UAT.md): protocol checks and external release targets.
 - [UAT report](UAT_REPORT.md) and [Bash script audit](BASH_SCRIPT_AUDIT.md).
 - [Brand assets](BRAND.md): SVG logos, icons, colors and usage guidance.

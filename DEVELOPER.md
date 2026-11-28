@@ -1,6 +1,6 @@
 # LEMPer Developer Guide
 
-> **Version:** 4.0.0 (release preparation)
+> **Version:** 4.1.0 (release preparation)
 > **Last Updated:** 2026-11-23
 > **Target Audience:** Contributors, maintainers, and developers working on LEMPer.
 
@@ -247,13 +247,13 @@ The PHP/Laravel policy UAT marks its fully published test configuration with a
 generation header. Assertions wait for that generation because old Nginx workers
 can finish requests during a graceful reload. The marker is confined to the fixture.
 
-For the v4 release bootstrap, first build the assets into `dist/v4.0.0/`
+For the v4 release bootstrap, first build the assets into `dist/v4.1.0/`
 from the reviewed committed checkout, then run the fresh-container acceptance
 script. It installs the archive through `get-lemper` and removes the stack at
 the end; use a new explicitly designated container.
 
 ~~~bash
-bash scripts/build_release.sh 4.0.0 dist/v4.0.0
+bash scripts/build_release.sh 4.1.0 dist/v4.1.0
 podman run -d --name lemper-v4-release-uat --privileged --systemd=always \
   --cgroupns=private --hostname lemper-v4-release.test --cpus 2 --memory 3g \
   --tmpfs /run --tmpfs /tmp -v "$PWD:/source:ro" localhost/lemper-uat:ubuntu24
@@ -983,8 +983,8 @@ LEMPer uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 
 ### 10.2 Release Steps
 
-1. Prepare a `release/v4.0.0` branch and commit the reviewed working tree.
-2. Ensure `bin/lemper-cli.sh` declares `PROG_VERSION="4.0.0"` and
+1. Prepare a `release/v4.1.0` branch and commit the reviewed working tree.
+2. Ensure `bin/lemper-cli.sh` declares `PROG_VERSION="4.1.0"` and
    `CHANGELOG.md` contains the v4 entry; set its release date when publishing.
 3. Run the Linux checks and fresh-container bootstrap UAT described in
    [the v4 release guide](docs/RELEASE_V4.md). Candidate CI and tagged releases
@@ -993,14 +993,14 @@ LEMPer uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 4. From a clean committed checkout, build locally:
 
    ```bash
-   bash scripts/build_release.sh 4.0.0 /tmp/lemper-release-v4
+   bash scripts/build_release.sh 4.1.0 /tmp/lemper-release-v4
    ```
 
    Run the builder in Linux on macOS, using a disposable Podman fixture; it needs
    GNU `sha256sum`. The builder produces the archive, archive SHA256, `get-lemper`, and bootstrap
    SHA256. It refuses dirty checkouts and mismatched versions.
 5. Review the artifacts and release limitations. After publishing is authorized,
-   push the reviewed release commit and annotated `v4.0.0` tag. The tag workflow
+   push the reviewed release commit and annotated `v4.1.0` tag. The tag workflow
    requires archive acceptance, repeats lint/Bats checks and publishes all four assets.
 6. Verify the published checksums and README one-line commands on a fresh
    disposable server before announcing the release.
@@ -1012,7 +1012,7 @@ LEMPer uses [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
 
    ```bash
    podman exec -e LEMPER_UAT_PUBLISHED=true \
-     -e LEMPER_UAT_ARCHIVE=/artifacts/lemper-v4.0.0.tar.gz lemper-release-uat \
+     -e LEMPER_UAT_ARCHIVE=/artifacts/lemper-v4.1.0.tar.gz lemper-release-uat \
      bash /source/tests/uat/v4_acceptance.sh
    ```
 

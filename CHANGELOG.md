@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0] - pending publication
+
+### Added
+
+- Optional Knot authoritative DNS for hosting providers. Operators can enroll customer zones,
+  preview and verify records, publish revisions, and roll back with a newer SOA serial.
+  Hidden primaries support authenticated transfers to independently operated secondaries.
+- The DNS service participates in configuration backup and restore. CI exercises primary
+  outage, replication, rollback and retirement on Debian 12 and Ubuntu 24.04.
+
+### Security
+
+- Hardened hosting account isolation, mail submission identities, database and cache access,
+  web administration, backups and tooling updates. Existing hosts require a review of their
+  service settings and credentials. See the [upgrade notes](docs/RELEASE_NOTES_V4_1.md).
+
 ## [4.0.0] - 2026-11-25
 
 ### Added

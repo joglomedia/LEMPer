@@ -21,7 +21,7 @@ case "${1:-}" in
         exit 0
         ;;
     --version | -v)
-        echo "LEMPer quota lifecycle v4.0.0"
+        echo "LEMPer quota lifecycle v4.1.0"
         exit 0
         ;;
 esac

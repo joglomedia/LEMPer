@@ -28,8 +28,8 @@ umask 077
 logs=/var/log/lemper-legacy-uat
 install -d -m 0700 "$logs" /etc/lemper/cli-plugins /run/lemper-legacy-uat
 [[ ! -e /opt/lemper/current && ! -e /etc/lemper/lemper.conf ]] || exit 2
-archive=/release/lemper-v4.0.0.tar.gz
-read -r checksum _ </release/lemper-v4.0.0.tar.gz.sha256
+archive=/release/lemper-v4.1.0.tar.gz
+read -r checksum _ </release/lemper-v4.1.0.tar.gz.sha256
 checks=0
 function check() {
     local name="$1" status
@@ -131,21 +131,21 @@ function preserved() {
     health
 }
 function upgrade() {
-    bash /release/get-lemper --version 4.0.0 --archive "$archive" --sha256 "$checksum"
+    bash /release/get-lemper --version 4.1.0 --archive "$archive" --sha256 "$checksum"
 }
 function invalid_checksum() {
-    if bash /release/get-lemper --version 4.0.0 --archive "$archive" --sha256 "$(printf '%064d' 0)"; then return 1; fi
+    if bash /release/get-lemper --version 4.1.0 --archive "$archive" --sha256 "$(printf '%064d' 0)"; then return 1; fi
     [[ ! -e /opt/lemper/current ]]
     lemper-cli --version | grep -qx 'lemper-cli version 3.6.0'
     preserved
 }
 function aliases() {
-    [[ $(lemperctl --version) == 'lemperctl version 4.0.0' &&
-       $(lemper-cli --version) == 'lemper-cli version 4.0.0' &&
+    [[ $(lemperctl --version) == 'lemperctl version 4.1.0' &&
+       $(lemper-cli --version) == 'lemper-cli version 4.1.0' &&
        $(readlink -f /usr/bin/lemper-cli) == $(readlink -f /usr/local/bin/lemperctl) ]]
     lemperctl site list --json | jq -e 'any(.virtual_hosts[]; .domain == "legacy-uat.test")'
-    [[ $(readlink -f /opt/lemper/current) == /opt/lemper/4.0.0 &&
-       $(cat /opt/lemper/4.0.0/.release-sha256) == "$checksum" ]]
+    [[ $(readlink -f /opt/lemper/current) == /opt/lemper/4.1.0 &&
+       $(cat /opt/lemper/4.1.0/.release-sha256) == "$checksum" ]]
 }
 function encrypted_upgrade() {
     openssl rand -hex 32 >/etc/lemper/.config_key

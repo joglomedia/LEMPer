@@ -24,7 +24,7 @@ cache. Forced cleanup removes only workspaces that LEMPer created and marked.
 
 ## Install from a release
 
-The following commands download the latest installer and target **v4.0.0**.
+The following commands download the latest installer and target **v4.1.0**.
 The earlier v3.6.0 release does not contain these bootstrap assets. Full
 installation targets a fresh server; existing installations need a backed-up
 migration plan.
@@ -32,7 +32,7 @@ migration plan.
 For CLI-only installation:
 
 ```bash
-curl -fsSL https://github.com/joglomedia/LEMPer/releases/latest/download/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0
+curl -fsSL https://github.com/joglomedia/LEMPer/releases/latest/download/get-lemper -o get-lemper && sudo bash get-lemper --version 4.1.0
 ```
 
 The bootstrap verifies the versioned archive's SHA256, installs `lemperctl` and
@@ -45,7 +45,7 @@ with `--sha256`. The bootstrap verifies and extracts a private copy.
 For a full installation, first prepare a private profile:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/joglomedia/LEMPer/v4.0.0/.env.dist -o lemper.env
+curl -fsSL https://raw.githubusercontent.com/joglomedia/LEMPer/v4.1.0/.env.dist -o lemper.env
 chmod 0600 lemper.env
 ${EDITOR:-vi} lemper.env
 ```
@@ -63,7 +63,7 @@ a new login and deliberately retire them. See [firewall recovery](FIREWALL.md).
 Install the minimal profile:
 
 ```bash
-curl -fsSL https://github.com/joglomedia/LEMPer/releases/latest/download/get-lemper -o get-lemper && sudo bash get-lemper --version 4.0.0 --install --config ./lemper.env --minimal --yes
+curl -fsSL https://github.com/joglomedia/LEMPer/releases/latest/download/get-lemper -o get-lemper && sudo bash get-lemper --version 4.1.0 --install --config ./lemper.env --minimal --yes
 ```
 
 Add `--dry-run` to validate and inspect the plan before installation.
@@ -77,12 +77,12 @@ Omit `--minimal` to install the services selected in that file.
 
 ## Install from a checkout
 
-Install the v4.0.0 tagged checkout:
+Install the v4.1.0 tagged checkout:
 
 ```bash
 git clone https://github.com/joglomedia/LEMPer.git
 cd LEMPer
-git checkout v4.0.0
+git checkout v4.1.0
 cp .env.dist .env
 chmod 0600 .env
 ${EDITOR:-vi} .env
@@ -90,7 +90,7 @@ sudo bash install.sh --config .env --minimal --yes
 ```
 
 For development or pre-publication validation, use your reviewed local
-`release/v4.0.0` checkout, then follow the profile and installation steps above.
+`release/v4.1.0` checkout, then follow the profile and installation steps above.
 The candidate branch must be available in your clone; the commands do not
 assume it has been published remotely. Review the checkout before running its
 installer. Local development and disposable installation tests are documented in

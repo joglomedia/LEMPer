@@ -18,19 +18,19 @@ jobs:
         run: |
           set -euo pipefail
           release_version=$(sed -n 's/.*PROG_VERSION="\([^"]*\)".*/\1/p' bin/lemper-cli.sh | head -1)
-          [[ "$release_version" == 4.0.0 ]] || {
+          [[ "$release_version" == 4.1.0 ]] || {
             echo 'Update the version-specific acceptance suite before releasing another version.' >&2
             exit 1
           }
           bash scripts/build_release.sh "$release_version" "$RUNNER_TEMP/release-first"
           bash scripts/build_release.sh "$release_version" "$RUNNER_TEMP/release-second"
-          for release_asset in lemper-v4.0.0.tar.gz lemper-v4.0.0.tar.gz.sha256 get-lemper get-lemper.sha256; do
+          for release_asset in lemper-v4.1.0.tar.gz lemper-v4.1.0.tar.gz.sha256 get-lemper get-lemper.sha256; do
             cmp "$RUNNER_TEMP/release-first/$release_asset" "$RUNNER_TEMP/release-second/$release_asset"
           done
           cd "$RUNNER_TEMP/release-first"
-          sha256sum -c lemper-v4.0.0.tar.gz.sha256 get-lemper.sha256
+          sha256sum -c lemper-v4.1.0.tar.gz.sha256 get-lemper.sha256
           printf 'Candidate: %s\n\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
-          cat lemper-v4.0.0.tar.gz.sha256 get-lemper.sha256 >> "$GITHUB_STEP_SUMMARY"
+          cat lemper-v4.1.0.tar.gz.sha256 get-lemper.sha256 >> "$GITHUB_STEP_SUMMARY"
       - name: Prepare disposable native service environment
         env:
           BASE_IMAGE: ${{ matrix.image }}
@@ -56,12 +56,12 @@ jobs:
           set -euo pipefail
           sudo podman exec lemper-release-uat bash -e -c '
             cd /artifacts
-            sha256sum -c lemper-v4.0.0.tar.gz.sha256 get-lemper.sha256
+            sha256sum -c lemper-v4.1.0.tar.gz.sha256 get-lemper.sha256
             cp get-lemper /checkout/get-lemper
-            tar -xzOf lemper-v4.0.0.tar.gz LEMPer-4.0.0/tests/uat/v4_acceptance.sh > /run/release-acceptance.sh
+            tar -xzOf lemper-v4.1.0.tar.gz LEMPer-4.1.0/tests/uat/v4_acceptance.sh > /run/release-acceptance.sh
             exec 19>/run/bootstrap-locations.log
             if ! BASH_ENV=/source/tests/uat/bootstrap_trace.bash LEMPER_UAT_BOOTSTRAP_TRACE=true \
-              LEMPER_UAT_ARCHIVE=/artifacts/lemper-v4.0.0.tar.gz bash /run/release-acceptance.sh; then
+              LEMPER_UAT_ARCHIVE=/artifacts/lemper-v4.1.0.tar.gz bash /run/release-acceptance.sh; then
               echo "Last code locations (no arguments or configuration values):"
               tail -n 20 /run/bootstrap-locations.log
               echo "Last runtime/service locations:"

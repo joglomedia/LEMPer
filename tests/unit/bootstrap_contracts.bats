@@ -2,7 +2,7 @@
 setup() {
     export REAL_BASE_DIR="${BATS_TEST_DIRNAME}/../.."
     export TEST_TMPDIR="${BATS_TEST_TMPDIR}"
-    export RELEASE_VERSION=4.0.0
+    export RELEASE_VERSION=4.1.0
     export STAGE="${TEST_TMPDIR}/stage/LEMPer-${RELEASE_VERSION}"
     export ARCHIVE="${TEST_TMPDIR}/release.tar.gz"
     export PREFIX="${TEST_TMPDIR}/installed"
@@ -120,7 +120,7 @@ bootstrap_run() {
         --sha256 "$RELEASE_SHA" --install --config "$TEST_TMPDIR/profile" --minimal --yes
     [ "$status" -eq 0 ]
     [[ "$output" == *"no system changes"* && "$output" == *"mariadb"* ]]
-    [ ! -e /opt/lemper/4.0.0 ]
+    [ ! -e /opt/lemper/4.1.0 ]
 }
 
 @test "bootstrap rejects full-stack prefix overrides and a mislabeled release" {
@@ -129,7 +129,7 @@ bootstrap_run() {
         --sha256 "$RELEASE_SHA" --prefix "$PREFIX" --install --config "$STAGE/.env.dist"
     [ "$status" -ne 0 ]
     [ ! -e "$PREFIX" ]
-    sed -i 's/PROG_VERSION="4.0.0"/PROG_VERSION="3.6.0"/' "$STAGE/bin/lemper-cli.sh"
+    sed -i 's/PROG_VERSION="4.1.0"/PROG_VERSION="3.6.0"/' "$STAGE/bin/lemper-cli.sh"
     make_archive
     bootstrap_run
     [ "$status" -ne 0 ]

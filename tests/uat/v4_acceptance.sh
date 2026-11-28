@@ -6,7 +6,7 @@ if [[ "$(id -u)" -ne 0 || ! -f /run/.containerenv || ! -f /run/lemper-uat/author
     echo "Run only in the designated disposable Podman/systemd UAT container." >&2
     exit 2
 fi
-archive="${LEMPER_UAT_ARCHIVE:-/source/dist/v4.0.0/lemper-v4.0.0.tar.gz}"
+archive="${LEMPER_UAT_ARCHIVE:-/source/dist/v4.1.0/lemper-v4.1.0.tar.gz}"
 profile=/checkout/.env
 logs=/var/log/lemper-uat/v4
 install -d -m 0700 "$logs"
@@ -42,12 +42,12 @@ function bootstrap() {
         # verification before execution; the bootstrap downloads its archive.
         (
             cd /checkout || exit 1
-            curl -fsSL https://github.com/joglomedia/LEMPer/releases/download/v4.0.0/get-lemper -o get-lemper &&
+            curl -fsSL https://github.com/joglomedia/LEMPer/releases/download/v4.1.0/get-lemper -o get-lemper &&
                 printf '%s  get-lemper\n' "$bootstrap_checksum" | sha256sum -c --status &&
-                sudo bash get-lemper --version 4.0.0 "$@"
+                sudo bash get-lemper --version 4.1.0 "$@"
         )
     else
-        bash /checkout/get-lemper --version 4.0.0 --archive "$archive" --sha256 "$checksum" "$@"
+        bash /checkout/get-lemper --version 4.1.0 --archive "$archive" --sha256 "$checksum" "$@"
     fi
 }
 function invalid_profile() {
@@ -75,12 +75,12 @@ function minimal_selection() {
     openssl enc -aes-256-cbc -d -a -salt -md sha256 -pbkdf2 \
         -pass file:/etc/lemper/.config_key -in /etc/lemper/lemper.conf -out "$decoded" || { rm -f "$decoded"; return 1; }
     local rc=0 key service
-    for key in INSTALL_WEB_ADMIN INSTALL_REDIS INSTALL_POSTGRES INSTALL_FTP_SERVER INSTALL_MAILER; do
+    for key in INSTALL_DNS INSTALL_WEB_ADMIN INSTALL_REDIS INSTALL_POSTGRES INSTALL_FTP_SERVER INSTALL_MAILER; do
         grep -qx "$key=false" "$decoded" || rc=1
     done
     rm -f "$decoded"
     [[ ! -e /usr/share/nginx/html/lcp/dbadmin/index.php ]] || rc=1
-    for service in valkey-server postgresql pure-ftpd memcached; do
+    for service in knot valkey-server postgresql pure-ftpd memcached; do
         systemctl is-active --quiet "$service" && rc=1
     done
     if dpkg-query -W -f='${Status}\n' 'php8.4*' 2>/dev/null | grep -q 'install ok installed'; then rc=1; fi
@@ -103,8 +103,8 @@ function php_http() {
     return 1
 }
 function pinned_release() {
-    [[ "$(readlink -f /opt/lemper/current)" == /opt/lemper/4.0.0 ]] &&
-        [[ "$(cat /opt/lemper/4.0.0/.release-sha256)" == "$checksum" ]]
+    [[ "$(readlink -f /opt/lemper/current)" == /opt/lemper/4.1.0 ]] &&
+        [[ "$(cat /opt/lemper/4.1.0/.release-sha256)" == "$checksum" ]]
 }
 function repeat_bootstrap() {
     config_hash=$(sha256sum /etc/lemper/lemper.conf)
@@ -116,8 +116,8 @@ function update_check() {
     [[ "$(sha256sum /etc/lemper/lemper.conf)" == "$config_hash" ]]
 }
 function aliases() {
-    [[ "$(lemperctl --version)" == 'lemperctl version 4.0.0' ]] &&
-        [[ "$(lemper-cli --version)" == 'lemper-cli version 4.0.0' ]] &&
+    [[ "$(lemperctl --version)" == 'lemperctl version 4.1.0' ]] &&
+        [[ "$(lemper-cli --version)" == 'lemper-cli version 4.1.0' ]] &&
         [[ "$(readlink -f /usr/local/bin/lemperctl)" == "$(readlink -f /usr/local/bin/lemper-cli)" ]]
 }
 function ssh_login() {

@@ -17,7 +17,7 @@
 
 case "${1:-}" in
     --help|-h) echo "Usage: install_restic.sh [--help] (uses the LEMPer configuration profile)"; exit 0 ;;
-    --version|-v) echo "LEMPer restic lifecycle v4.0.0"; exit 0 ;;
+    --version|-v) echo "LEMPer restic lifecycle v4.1.0"; exit 0 ;;
 esac
 
 if [[ "$(type -t run)" != "function" ]]; then
