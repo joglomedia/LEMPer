@@ -126,11 +126,20 @@ function lemper_mail_select() {
         return 1
     fi
 }
-function lemper_mail_author_configtest() {
-    # rspamadm initializes its distro cache and host resolver before it reads -c.
-    # Use the package identity for validation. The live worker has its own cache and network namespace.
-    runuser -u _rspamd -- rspamadm configtest -qs -c "$1/submission-author.conf"
-}
+function lemper_mail_author_configtest() (
+    # rspamadm opens /etc/resolv.conf and its compiled-in cache before reading
+    # the supplied configuration. Give it only the worker's cache and loopback.
+    local resolver
+    resolver=$(mktemp /run/lemper-mail-resolver.XXXXXXXX) || return 1
+    trap 'rm -f -- "$resolver"' EXIT
+    printf 'nameserver 127.0.0.1\n' > "$resolver" && chmod 0644 "$resolver" || return 1
+    systemd-run --quiet --wait --pipe --collect -p User=lemper-mail-author -p Group=postfix \
+        -p PrivateNetwork=yes -p PrivateTmp=yes -p NoNewPrivileges=yes -p ProtectSystem=strict -p ProtectHome=yes \
+        -p CacheDirectory=lemper-mail-author -p CacheDirectoryMode=0700 -p UMask=0077 \
+        -p BindPaths=/var/cache/lemper-mail-author:/var/lib/rspamd \
+        -p "BindReadOnlyPaths=$resolver:/etc/resolv.conf" \
+        /usr/bin/rspamadm --var=DBDIR=/var/cache/lemper-mail-author configtest -qs -c "$1/submission-author.conf"
+)
 function lemper_mail_check() {
     if [[ "${DRYRUN:-false}" == true ]]; then
         info "Would validate Postfix, Dovecot, submission author policy, and enabled DKIM configuration."
