@@ -39,6 +39,16 @@ app_child='
     [ "$status" -eq 0 ]
     [ "$output" = SOURCED ]
 }
+@test "generated application hooks belong to the serving vhost" {
+    # shellcheck source=lib/services/nginx/vhost.sh
+    . "$REAL_BASE_DIR/lib/services/nginx/vhost.sh"
+    local DOMAIN=unrelated.test SERVERNAME=parent.test WEBROOT=/srv/parent PHP_VERSION=8.3 USERNAME=www-data FRAMEWORK
+    for FRAMEWORK in default drupal laravel phalcon; do
+        run "create_vhost_$FRAMEWORK"
+        [ "$status" -eq 0 ]
+        [ "$(grep -F '/etc/nginx/site-apps/' <<< "$output")" = '    include /etc/nginx/site-apps/parent.test/*.conf;' ]
+    done
+}
 @test "adding and updating an app preserves its parent and stores independent ownership" {
     run bash -c "${app_child}"'
       init_lemper_site_app add example.test --mount /demo --webroot "$TEST_TMPDIR/project one" || exit 1

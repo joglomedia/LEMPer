@@ -107,6 +107,11 @@ update. Put shared access control at the server level, or integrate the mount's
 locations into the custom configuration manually. The adapter requires a single
 serving server-level root directive as its insertion point.
 
+If an older generated vhost contains `include /etc/nginx/site-apps//*.conf;`,
+back up the site's configuration and correct the include in each serving SSL and
+non-SSL variant. For `example.com`, use `include /etc/nginx/site-apps/example.com/*.conf;`.
+Run `sudo nginx -t` before reloading Nginx and retrying the mount.
+
 Adding/updating/removing a mount snapshots the parent vhost, its SSL/non-SSL
 variants, the affected fragment, and application metadata. `nginx -t` runs before
 reload; failure restores the prior configuration. Shared locking serializes

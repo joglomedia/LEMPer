@@ -43,7 +43,7 @@ server {
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}";
     root \$root_path;
-    include /etc/nginx/site-apps/${DOMAIN}/*.conf;
+    include /etc/nginx/site-apps/${SERVERNAME}/*.conf;
     index index.php index.html index.htm;
     client_max_body_size 50m;
 
@@ -141,7 +141,7 @@ server {
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}";
     root \$root_path;
-    include /etc/nginx/site-apps/${DOMAIN}/*.conf;
+    include /etc/nginx/site-apps/${SERVERNAME}/*.conf;
     index index.php index.html index.htm;
     client_max_body_size 50m;
 
@@ -239,7 +239,7 @@ server {
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}/public";
     root \$root_path;
-    include /etc/nginx/site-apps/${DOMAIN}/*.conf;
+    include /etc/nginx/site-apps/${SERVERNAME}/*.conf;
     index index.php index.html index.htm;
     client_max_body_size 50m;
 
@@ -342,7 +342,7 @@ server {
     ## Virtual host root directory.
     set \$root_path "${WEBROOT}/public";
     root \$root_path;
-    include /etc/nginx/site-apps/${DOMAIN}/*.conf;
+    include /etc/nginx/site-apps/${SERVERNAME}/*.conf;
     index index.php index.html index.htm;
     client_max_body_size 50m;
 
