@@ -81,9 +81,10 @@ function activate_cli() {
     install -m 0600 /checkout/.env /etc/lemper/lemper.conf
 }
 function services() {
-    systemctl is-active --quiet postfix dovecot opendkim lemper-mail-author
-    test -S /var/spool/postfix/private/auth
-    test -S /var/spool/postfix/private/dovecot-lmtp
+    systemctl is-active --quiet postfix dovecot opendkim lemper-mail-author || return 1
+    test -S /var/spool/postfix/private/auth || return 1
+    test -S /var/spool/postfix/private/dovecot-lmtp || return 1
+    [[ $(stat -c '%U:%G:%a' /var/cache/lemper-mail-author) == lemper-mail-author:postfix:700 ]] || return 1
     lemperctl mail check
 }
 function submission_author() {

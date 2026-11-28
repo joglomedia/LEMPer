@@ -7,8 +7,14 @@ User=lemper-mail-author
 Group=postfix
 RuntimeDirectory=lemper-mail-author
 RuntimeDirectoryMode=0700
+CacheDirectory=lemper-mail-author
+CacheDirectoryMode=0700
+ExecStartPre=/usr/bin/rspamadm configtest -qs -c @ROOT@/submission-author.conf
 ExecStart=/usr/bin/rspamd -f -c @ROOT@/submission-author.conf
-ExecStartPost=/bin/bash -c 'for ((attempt=0; attempt<50; attempt++)); do [[ ! -S /var/spool/postfix/lemper-mail-author/filter.sock ]] || exit 0; sleep .1; done; exit 1'
+# Cold starts can take longer while the worker initializes its filters.
+# systemd enforces the deadline while submission waits for the policy socket.
+TimeoutStartSec=90s
+ExecStartPost=/bin/sh -c 'until test -S /var/spool/postfix/lemper-mail-author/filter.sock; do sleep 0.2; done'
 ExecStopPost=/bin/rm -f /var/spool/postfix/lemper-mail-author/filter.sock
 Restart=on-failure
 NoNewPrivileges=true

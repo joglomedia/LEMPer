@@ -135,7 +135,7 @@ function lemper_mail_check() {
     root=$(lemper_mail_root)
     postfix check && doveconf -n >/dev/null || return 1
     if [[ -f "$root/submission-author.conf" ]]; then
-        rspamadm configtest -qs -c "$root/submission-author.conf" || return 1
+        runuser -u lemper-mail-author -- rspamadm configtest -qs -c "$root/submission-author.conf" || return 1
     fi
     [[ ! -f "$root/dkim-enabled" ]] || opendkim -n -x /etc/opendkim.conf
 }
