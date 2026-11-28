@@ -292,6 +292,28 @@ jobs:
           set -ex
           sudo bash "${{ matrix.installer }}"
           systemctl is-active --quiet "${{ matrix.service }}"
+  dns-uat:
+    name: Knot DNS replication (${{ matrix.image }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['debian:12', 'ubuntu:24.04']
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build DNS test image
+        env:
+          BASE_IMAGE: docker.io/library/${{ matrix.image }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq podman
+          sudo podman build --build-arg BASE_IMAGE="$BASE_IMAGE" \
+            -f tests/uat/Containerfile -t localhost/lemper-dns-uat tests/uat
+      - name: Verify DNS publication, replication and recovery
+        run: sudo bash tests/uat/dns_cluster.sh localhost/lemper-dns-uat
   mailer-uat:
     name: mailer (${{ matrix.image }})
     runs-on: ubuntu-24.04

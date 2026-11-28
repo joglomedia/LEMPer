@@ -81,6 +81,7 @@ function lemper_load_module() {
         services/system/security | services/nginx/build_common | services/nginx/package_repository | services/nginx/ssl_builders) ;;
         services/nginx/modules_build | services/nginx/module_config | services/nginx/configure | services/nginx/tls) ;;
         services/nginx/build) ;;
+        services/dns/lifecycle | services/dns/zones | runtime/dns/commands) ;;
         runtime/components/lifecycle) ;;
         runtime/backup/commands | services/configuration/backup | runtime/benchmark/commands | services/system/benchmark | runtime/site/list | services/nginx/list | runtime/modsec/commands | services/security/modsec_config | runtime/account/adduser | runtime/site/permissions | services/accounts/permissions | core/encryption) ;;
         *)

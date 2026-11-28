@@ -14,6 +14,7 @@ Start with the project [README](../README.md) for the overview and quick start.
 | [PHP and Laravel](PHP_RUNTIME_LARAVEL.md) | Runtime defaults and root/subpath applications |
 | [Databases](DATABASE.md) | SQL accounts, backup/restore, scheduling and retention |
 | [Mail](MAIL.md) | SMTP/IMAP, domains, accounts, aliases, TLS and DKIM |
+| [Authoritative DNS](DNS.md) | External DNS planning, Knot primary setup, zone publication and secondary verification |
 | [Hosting](HOSTING.md) | Disk/inode plans, quota requirements and provisioning |
 | [Data backups](DATA_BACKUP.md) | Restic repositories, schedules, retention and restore |
 | [Firewall](FIREWALL.md) | Native nftables, SSH recovery and UFW migration |
@@ -25,6 +26,7 @@ Start with the project [README](../README.md) for the overview and quick start.
 - [Developer guide](../DEVELOPER.md), [contribution guide](../CONTRIBUTING.md)
   and [agent guidelines](../AGENTS.md).
 - [Architecture](ARCHITECTURE.md) and [architecture alignment](ARCHITECTURE_ALIGNMENT.md).
+- [Authoritative DNS proposal](AUTHORITATIVE_DNS_PROPOSAL.md) for the optional core service.
 - [Roadmap](ROADMAP.md) and [remaining-scope audit](ROADMAP_AUDIT.md).
 - [Release preparation](RELEASE_V4.md) and [changelog](../CHANGELOG.md).
 - [v4 release notes](RELEASE_NOTES_V4.md): highlights, installation and upgrade limits.

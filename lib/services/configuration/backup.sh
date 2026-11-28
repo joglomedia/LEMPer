@@ -268,7 +268,7 @@ function backup_verify_members() {
         case "${type:0:1}" in
             - | d) ;;
             l)
-                if [[ "$target" != "$name -> "* ]] ||
+                if [[ "$member" == etc/knot/lemper/* || "$member" == etc/lemper/dns-keys/* || "$target" != "$name -> "* ]] ||
                     ! backup_symlink_allowed "$member" "${target#"$name -> "}"; then
                     error "Archive contains a symbolic link outside the managed configuration."
                     return 1
@@ -381,6 +381,11 @@ function backup_apply_restore() {
     if [[ ${#trees[@]} -gt 0 ]]; then
         mkdir -m 0700 -- "$stage" || return 1
         tar -xzf "$file" -C "$stage" --numeric-owner --delay-directory-restore -- "${trees[@]}" || return 1
+        # Knot only reads these root-owned regular files/directories. Distribution
+        # package group IDs may differ between the original and recovery hosts.
+        if [[ "$root" == / && -d "$stage/etc/knot/lemper" ]]; then
+            chown -Rh root:knot -- "$stage/etc/knot/lemper" || return 1
+        fi
     fi
     if ! (
         set -o pipefail

@@ -182,8 +182,19 @@ function install_ufw() {
             run ufw allow 995/tcp
         fi
 
-        # Open DNS port.
-        run ufw allow 53
+        if [[ "${INSTALL_DNS:-false}" == true ]]; then
+            lemper_load_module services/dns/lifecycle && lemper_dns_network || return 1
+            local dns_peer dns_protocol dns_peers=()
+            case "${DNS_ROLE:-local}" in
+                public) dns_peers=(any) ;;
+                hidden) read -r -a dns_peers <<< "$DNS_TRANSFER_PEERS" ;;
+            esac
+            for dns_peer in "${dns_peers[@]}"; do
+                for dns_protocol in udp tcp; do
+                    run ufw allow proto "$dns_protocol" from "$dns_peer" to "$DNS_LISTEN_IPV4" port 53 comment lemper-dns
+                done
+            done
+        fi
 
         # Open ntp port : to sync the clock of your machine.
         #run ufw allow 123/udp
@@ -246,7 +257,7 @@ function install_csf() {
         sed_inplace 's/^TESTING\ =\ "1"/TESTING\ =\ "0"/g' /etc/csf/csf.conf
 
         # Allowed ports.
-        CSF_ALLOW_PORTS="${LEMPER_SSH_ALLOWED_PORTS:-${SSH_PORT}},53,80,8081,8082,8083,8443,25,465,587,110,143,993,995"
+        CSF_ALLOW_PORTS="${LEMPER_SSH_ALLOWED_PORTS:-${SSH_PORT}},80,8081,8082,8083,8443,25,465,587,110,143,993,995"
 
         # Open MySQL port for remote client access.
         if [[ "${MYSQL_ALLOW_REMOTE}" == true ]]; then
@@ -260,11 +271,19 @@ function install_csf() {
             CSF_ALLOW_PORTS="${CSF_ALLOW_PORTS},20,21,990,${FTP_MIN_PORT}:${FTP_MAX_PORT}"
         fi
 
+        local csf_tcp_in="$CSF_ALLOW_PORTS"
+        if [[ "${INSTALL_DNS:-false}" == true && "${DNS_ROLE:-local}" == public ]]; then
+            csf_tcp_in+=",53"
+            if ! grep -qE '^UDP_IN = "([^"]*,)?53(,|")' /etc/csf/csf.conf; then
+                sed_inplace 's/^UDP_IN\ =\ "\([0-9_,]*\)"/UDP_IN\ =\ "\1,53"/' /etc/csf/csf.conf
+            fi
+        fi
+
         # Allowed incoming TCP ports.
-        sed_inplace "s/^TCP_IN\ =\ \"[0-9_,]*\"/TCP_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+        sed_inplace "s/^TCP_IN\ =\ \"[0-9_,]*\"/TCP_IN\ =\ \"${csf_tcp_in}\"/g" /etc/csf/csf.conf
 
         # Allowed outgoing TCP ports.
-        sed_inplace "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+        sed_inplace "s/^TCP_OUT\ =\ \"[0-9_,]*\"/TCP_OUT\ =\ \"${CSF_ALLOW_PORTS},53\"/g" /etc/csf/csf.conf
 
         # HTTP/3 (QUIC) needs UDP 443.
         if [[ "${NGINX_HTTP3:-false}" == true ]] \
@@ -285,7 +304,7 @@ function install_csf() {
                 sed_inplace "s/^TCP6_IN\ =\ \"[0-9_,]*\"/TCP6_IN\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
 
                 # Allowed outgoing TCP ports for IPv6.
-                sed_inplace "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"${CSF_ALLOW_PORTS}\"/g" /etc/csf/csf.conf
+                sed_inplace "s/^TCP6_OUT\ =\ \"[0-9_,]*\"/TCP6_OUT\ =\ \"${CSF_ALLOW_PORTS},53\"/g" /etc/csf/csf.conf
             else
                 info "ip6tables version greater than 1.4.3 required for IPv6 support."
             fi

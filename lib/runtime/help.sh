@@ -56,6 +56,7 @@ EOL
     help_entry data "Encrypted application/mail backups, retention and staged restore."
     help_entry monitor "Authenticated local health monitoring, alerts and logs."
     help_entry firewall "Scoped native nftables policy, migration and SSH recovery."
+    help_entry dns "Plan, publish and verify authoritative DNS zones."
     help_entry hosting "Hosting plans with enforced disk/inode quotas and recovery."
     help_entry config "Validate configuration with config check."
     help_entry mail "Manage mail domains, mailbox accounts, aliases, and DNS records."

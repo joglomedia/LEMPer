@@ -28,7 +28,7 @@ if ! apt-cache show bashate >/dev/null 2>&1; then
     # Resolute no longer packages the upstream Python-based lint tool.
     test_lint_packages=(python3-venv)
 fi
-apt-get install -q -y bash bats bc ca-certificates curl git gnupg iproute2 jq mariadb-client nginx \
+apt-get install -q -y bash bats bc bind9-utils ca-certificates curl git gnupg iproute2 jq mariadb-client nginx \
     openssh-server "${test_lint_packages[@]}" libxml2-utils quota rsync shfmt socat sudo unzip zip xz-utils
 if [[ "${test_lint_packages[0]}" != bashate ]]; then
     python3 -m venv /opt/lemper-test-tools/bashate

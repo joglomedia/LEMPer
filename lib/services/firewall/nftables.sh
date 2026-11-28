@@ -56,6 +56,18 @@ table inet lemper {
     joined=$(IFS=,; printf '%s' "${tcp[*]}")
     printf '%s } accept\n' "$joined"
     [[ "${NGINX_HTTP3:-false}" != true ]] || printf '  udp dport 443 accept\n'
+    if [[ "${INSTALL_DNS:-false}" == true ]]; then
+        lemper_load_module services/dns/lifecycle && lemper_dns_network || return 1
+        local address="${DNS_LISTEN_IPV4:-127.0.0.1}" peer peers=()
+        case "${DNS_ROLE:-local}" in
+            public) printf '  ip daddr %s meta l4proto { udp, tcp } th dport 53 accept\n' "$address" ;;
+            hidden)
+                read -r -a peers <<< "$DNS_TRANSFER_PEERS"
+                for peer in "${peers[@]}"; do
+                    printf '  ip saddr %s ip daddr %s meta l4proto { udp, tcp } th dport 53 accept\n' "$peer" "$address"
+                done ;;
+        esac
+    fi
     printf ' }\n}\n'
 }
 

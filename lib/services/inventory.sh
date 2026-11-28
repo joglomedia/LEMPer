@@ -21,6 +21,7 @@ function lemper_component_present() {
     binary="${units%%,*}"
     case "$service" in
         php) binary="php$php"; family="php$php" ;;
+        dns) binary=knotd ;;
         postgres|postgresql) binary=psql ;;
         mariadb|mysql) binary=mariadb ;;
         bun) binary=bun ;;

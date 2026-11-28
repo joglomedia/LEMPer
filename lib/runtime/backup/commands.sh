@@ -625,7 +625,7 @@ Prune options:
 What is archived:
   /etc/lemper (without cli-plugins and php2shell copies), Nginx, PHP,
   MySQL/MariaDB, PostgreSQL, MongoDB, Redis/Valkey, Memcached, Fail2ban,
-  CrowdSec, ModSecurity tuning, Let's Encrypt, mail, FTP, and legacy .env.
+  CrowdSec, ModSecurity tuning, Let's Encrypt, mail, managed DNS, FTP, and legacy .env.
 
 Archives contain credentials and private keys. They are created mode 0600 in
 a mode 0700 directory; keep them root-only and off public web roots.
@@ -709,6 +709,7 @@ function lemper_backup_initialize() {
         etc/default/pure-ftpd-common
         etc/lemper-mail
         etc/postfix
+        etc/knot/lemper
         etc/dovecot
         etc/aliases
         etc/default/opendkim
@@ -733,5 +734,5 @@ function lemper_backup_initialize() {
         etc/lemper-mail/.lemper-restore.*
         etc/modsecurity/crs
     )
-    LEMPER_BACKUP_RESTORE_TREES=(etc/lemper-mail/keys etc/postgresql)
+    LEMPER_BACKUP_RESTORE_TREES=(etc/lemper-mail/keys etc/postgresql etc/knot/lemper etc/lemper/dns-keys)
 }

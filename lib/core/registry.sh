@@ -39,6 +39,7 @@ lemper-data:lemper-data
 lemper-monitor:lemper-monitor
 lemper-firewall:lemper-firewall
 lemper-hosting:lemper-hosting
+lemper-dns:lemper-dns
 REGISTRY
 }
 
@@ -58,7 +59,7 @@ REGISTRY
 
 function lemper_component_ids() {
     printf '%s\n' nginx php mariadb redis valkey postgres memcached mongodb \
-        pureftpd vsftpd crowdsec fail2ban certbot bun mailer modsec imagemagick tools restic monit nftables quota
+        pureftpd vsftpd crowdsec fail2ban certbot bun mailer modsec imagemagick tools restic monit nftables quota dns
 }
 function lemper_component_spec() {
     case "${1}" in
@@ -85,6 +86,7 @@ function lemper_component_spec() {
         restic) echo 'restic restic - INSTALL_RESTIC restic' ;;
         monit) echo 'monit monit lemper-monit INSTALL_MONITORING monit' ;;
         nftables) echo 'nftables nftables lemper-nftables INSTALL_FW nftables' ;;
+        dns) echo 'dns dns knot INSTALL_DNS knot' ;;
         quota) echo 'quota quota - INSTALL_QUOTA quota' ;;
         tools) echo 'tools tools - - -' ;;
         *)
@@ -105,6 +107,8 @@ function lemper_component_driver() {
         install:bun) printf '%s\n' 'services/bun/install lemper_bun_install_entry' ;;
         install:certbot) printf '%s\n' 'services/ssl/install lemper_certbotle_install_entry' ;;
         install:crowdsec) printf '%s\n' 'services/security/crowdsec_install lemper_crowdsec_install_entry' ;;
+        install:dns) echo 'services/dns/lifecycle lemper_dns_install_entry' ;;
+        remove:dns) echo 'services/dns/lifecycle lemper_dns_remove_entry' ;;
         install:dependencies) printf '%s\n' 'services/system/dependencies lemper_dependencies_install_entry' ;;
         install:fail2ban) printf '%s\n' 'services/security/fail2ban_install lemper_fail2ban_install_entry' ;;
         install:imagemagick) printf '%s\n' 'services/imagemagick/install lemper_imagemagick_install_entry' ;;
@@ -144,9 +148,9 @@ function lemper_component_driver() {
 function lemper_component_recipe() {
     case "$1" in
         install) printf '%s\n' certbot nginx php phalcon mariadb postgres redis mongodb \
-            memcached imagemagick mailer ftp fail2ban crowdsec modsec tools bun restic monit quota ;;
+            memcached imagemagick mailer ftp fail2ban crowdsec modsec tools bun restic monit quota dns ;;
         remove) printf '%s\n' nginx mariadb postgres php imagemagick redis valkey mongodb memcached mailer \
-            pureftpd vsftpd fail2ban crowdsec modsec certbot bun restic monit quota ;;
+            pureftpd vsftpd fail2ban crowdsec modsec certbot bun restic monit quota dns ;;
         *) return 1 ;;
     esac
 }

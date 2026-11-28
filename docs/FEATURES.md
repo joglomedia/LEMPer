@@ -95,6 +95,7 @@ PHP 8.1 is EOL and has no PHP2Shell vendor patch. See
 | Bun.js | `INSTALL_BUNJS`, `BUNJS_VERSION` | Official amd64/arm64 binaries with published checksums; npm-compatible tooling |
 | VSFTPD/Pure-FTPd | `INSTALL_FTP_SERVER`, `FTP_SERVER_NAME` | Select the server and its repository/source installer in the profile |
 | Postfix/Dovecot | `INSTALL_MAILER` | [Mail accounts, domains and TLS](MAIL.md) |
+| Knot authoritative DNS | `INSTALL_DNS`, `DNS_ROLE` | [DNS zones, transfers and verification](DNS.md) |
 | Restic | `INSTALL_RESTIC` | [Encrypted data backups](DATA_BACKUP.md) |
 | Monit | `INSTALL_MONITORING` | [Health checks and alerts](MONITORING.md) |
 | Filesystem quotas | `INSTALL_QUOTA` | [Hosting plans](HOSTING.md) |

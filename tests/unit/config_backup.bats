@@ -24,7 +24,7 @@ backup_unit_exec() {
     run env \
         LEMPER_BACKUP_ROOT="${BACKUP_ROOT}" \
         LEMPER_BACKUP_DIR="${BACKUP_DIR}" \
-        LEMPER_BACKUP_PATHS="etc/nginx etc/lemper etc/mysql etc/lemper-mail etc/postgresql etc/dovecot" \
+        LEMPER_BACKUP_PATHS="etc/nginx etc/lemper etc/mysql etc/lemper-mail etc/postgresql etc/dovecot etc/knot/lemper" \
         LEMPER_BACKUP_LIB_ONLY=true \
         LEMPER_BACKUP_PLUGIN="${REAL_BASE_DIR}/lib/lemper-backup.sh" \
         bash -c '
@@ -295,7 +295,9 @@ make_archive() {
 @test "backup safely replaces managed service-owned directories from staging" {
     [ "$EUID" -eq 0 ] || skip "The service ownership fixture requires root"
     local keys="$BACKUP_ROOT/etc/lemper-mail/keys" cluster="$BACKUP_ROOT/etc/postgresql/17/main"
-    mkdir -p "$keys/example.test" "$cluster"
+    local dns="$BACKUP_ROOT/etc/knot/lemper"
+    mkdir -p "$keys/example.test" "$cluster" "$dns/published"
+    printf 'archived zone\n' > "$dns/published/customer.conf"
     printf 'dummy archived key\n' > "$keys/example.test/lemper.private"
     printf 'dummy archived config\n' > "$cluster/postgresql.conf"
     chmod 0600 "$keys/example.test/lemper.private"
@@ -303,6 +305,7 @@ make_archive() {
     chown -hR 65534:65534 "$keys" "$cluster"
     local archive
     archive=$(make_archive)
+    touch "$dns/published/added-later.conf"
     printf 'dummy changed key\n' > "$keys/example.test/lemper.private"
     printf 'dummy changed config\n' > "$cluster/postgresql.conf"
     backup_unit_exec backup_restore --file "$archive" --yes
@@ -311,6 +314,8 @@ make_archive() {
     grep -qx 'dummy archived config' "$cluster/postgresql.conf"
     [ "$(stat -c '%u:%a' "$keys/example.test/lemper.private")" = 65534:600 ]
     [ "$(readlink "$cluster/log")" = /var/log/postgresql/postgresql-17-main.log ]
+    grep -qx 'archived zone' "$dns/published/customer.conf"
+    [ ! -e "$dns/published/added-later.conf" ]
 }
 
 @test "backup preserves stock Debian Dovecot links as leaves" {

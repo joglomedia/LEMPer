@@ -66,6 +66,11 @@ function lemper_stack_execute() {
     local installer remover units key family unit component preexisting=false marker
     read -r installer remover units key family < <(stack_service_spec "$service")
     [[ -n "$installer" ]] || return 1
+    if [[ "$service" == dns && "$action" != install && "$action" != remove &&
+          ! -f /etc/knot/lemper/enabled ]]; then
+        error "No LEMPer-managed DNS service."
+        return 1
+    fi
     if [[ "$service" == mailer ]]; then
         lemper_load_module services/mail/store || return 1
         local mail_root
@@ -130,6 +135,13 @@ function lemper_stack_execute() {
             fi ;;
         update)
             case "$service" in
+                dns)
+                    lemper_load_module services/dns/lifecycle || return 1
+                    local checker_package
+                    lemper_exec apt-get update -q || return 1
+                    checker_package=$(lemper_dns_checker_package) || return 1
+                    lemper_exec apt-get install --only-upgrade -y knot "$checker_package" &&
+                        stack_control restart knot ;;
                 php) lemper_php_update "$php" ;;
                 mailer)
                     lemper_load_module services/mail/configure || return 1

@@ -25,6 +25,7 @@ and Ubuntu. It manages Nginx, PHP, databases, websites and optional hosting serv
 | Application skeletons, latest release deployment and licensed manual sites | [Application capabilities](docs/APPLICATIONS.md) |
 | SQL/NoSQL, Redis/Valkey, Memcached, Bun.js and FTP | [Stack services](docs/FEATURES.md#optional-services) |
 | Multi-domain SMTP/IMAP hosting, accounts and DKIM | [Mail](docs/MAIL.md) |
+| Optional Knot authoritative DNS and external DNS record planning | [DNS](docs/DNS.md) |
 | TLS, Fail2ban, CrowdSec, ModSecurity and firewall recovery | [Security](docs/FEATURES.md#security) and [firewall](docs/FIREWALL.md) |
 | Configuration, SQL and encrypted application/mail backups | [Backups and recovery](docs/MAINTENANCE.md#backups) |
 | Hosting quotas and Monit health checks | [Hosting](docs/HOSTING.md) and [monitoring](docs/MONITORING.md) |
