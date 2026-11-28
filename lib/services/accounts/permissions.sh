@@ -59,10 +59,14 @@ function fixpermission() {
     if [[ -n "$target" && "$target" != /* ]]; then
         target="$(pwd -P)/$target"
     fi
-    resolved=$(safe_webroot "$target") || { error "Refusing to change permissions on $target."; return 1; }
+    resolved=$(safe_webroot "$target") || {
+        error "Refusing to change permissions on $target."
+        return 1
+    }
     [[ -n "$owner" ]] || owner=$(stat -c %U -- "$resolved") || return 1
     is_valid_username "$owner" && uid=$(id -u "$owner") && [[ "$uid" != 0 && "$(stat -c %u -- "$resolved")" == "$uid" ]] || {
-        error "Refusing to change permissions outside a non-root site owner's directory."; return 1
+        error "Refusing to change permissions outside a non-root site owner's directory."
+        return 1
     }
     # Let find execute chmod directly; symlink or rename races retain tenant privileges.
     run runuser -u "$owner" -- find "$resolved" -xdev -user "$uid" \

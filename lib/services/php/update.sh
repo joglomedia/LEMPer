@@ -67,8 +67,8 @@ function php_package_version() {
     local package status version
 
     for package in "php${branch}-fpm" "php${branch}-common"; do
-        if read -r status version < <(dpkg-query -W -f='${db:Status-Status}\t${Version}\n' "$package" 2>/dev/null) &&
-            [[ "$status" == installed ]]; then
+        if read -r status version < <(dpkg-query -W -f='${db:Status-Status}\t${Version}\n' "$package" 2>/dev/null) \
+            && [[ "$status" == installed ]]; then
             printf '%s\n' "$version"
             return
         fi
@@ -86,8 +86,8 @@ function php_fpm_runtime_state() {
     local unit="php$1-fpm.service" binary="/usr/sbin/php-fpm$1"
     local properties state load pid
 
-    if [[ ! -e "$binary" ]] &&
-        [[ "$(dpkg-query -W -f='${db:Status-Status}' "${unit%.service}" 2>/dev/null)" != installed ]]; then
+    if [[ ! -e "$binary" ]] \
+        && [[ "$(dpkg-query -W -f='${db:Status-Status}' "${unit%.service}" 2>/dev/null)" != installed ]]; then
         printf '%s\n' not-installed
         return
     fi
@@ -263,10 +263,13 @@ function php_reload_branch() {
     case "$state" in
         inactive | not-installed) return 0 ;;
         current | stale) ;;
-        *) error "Could not verify $unit before activation."; return 1 ;;
+        *)
+            error "Could not verify $unit before activation."
+            return 1
+            ;;
     esac
-    if ! "/usr/sbin/php-fpm$branch" -t || ! systemctl restart "$unit" ||
-        [[ "$(php_fpm_runtime_state "$branch")" != current ]]; then
+    if ! "/usr/sbin/php-fpm$branch" -t || ! systemctl restart "$unit" \
+        || [[ "$(php_fpm_runtime_state "$branch")" != current ]]; then
         error "Could not verify active $unit after the PHP update."
         return 1
     fi

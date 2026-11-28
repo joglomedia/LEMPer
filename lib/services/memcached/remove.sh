@@ -19,8 +19,8 @@ function init_memcached_removal() {
     if [[ -f /etc/systemd/system/memcached@memcache.service.d/10-lemper-endpoints.conf ]]; then
         lemper_exec systemctl disable --now memcached@memcache.service memcached@www-data.service || return 1
         lemper_exec rm -f /etc/systemd/system/memcached@{memcache,www-data}.service.d/10-lemper-endpoints.conf || return 1
-        if [[ -f /etc/systemd/system/memcached@.service ]] &&
-            grep -Fq 'installed using LEMPer Stack' /etc/systemd/system/memcached@.service; then
+        if [[ -f /etc/systemd/system/memcached@.service ]] \
+            && grep -Fq 'installed using LEMPer Stack' /etc/systemd/system/memcached@.service; then
             lemper_exec rm -f /etc/systemd/system/memcached@.service || return 1
         fi
         if [[ "$(dpkg-query -W -f='${Status}' memcached 2>/dev/null)" == 'install ok installed' ]]; then

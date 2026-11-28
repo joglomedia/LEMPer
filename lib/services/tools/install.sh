@@ -25,18 +25,21 @@ function lemper_redis_panel_auth() (
     [[ -f "$config" && -f "$sample" ]] || return 1
     local placeholder="//'auth' => 'redispasswordhere'"
     local managed="'auth' => hex2bin\\('[0-9a-f]+'\\) /\\* LEMPer \\*/"
-    if ! cmp -s -- "$config" "$sample" &&
-        ! sed -E "s|$managed|$placeholder|" "$config" | cmp -s -- - "$sample"; then
+    if ! cmp -s -- "$config" "$sample" \
+        && ! sed -E "s|$managed|$placeholder|" "$config" | cmp -s -- - "$sample"; then
         info "Keeping the customized phpRedisAdmin config. Check its Redis credentials."
         return 0
     fi
-    [[ "$(grep -Fc "$placeholder" "$sample")" == 1 ]] || { error "Unsupported phpRedisAdmin authentication template."; return 1; }
+    [[ "$(grep -Fc "$placeholder" "$sample")" == 1 ]] || {
+        error "Unsupported phpRedisAdmin authentication template."
+        return 1
+    }
     temporary=$(mktemp "${config}.XXXXXXXX") || return 1
     trap 'rm -f -- "$temporary"' EXIT
     redis_hex=$(printf '%s' "$REDIS_PASSWORD" | od -An -v -tx1 | tr -d ' \n') || return 1
     [[ "$redis_hex" =~ ^([a-f0-9]{2})+$ ]] || return 1
-    printf "s|%s|'auth' => hex2bin('%s') /* LEMPer */|\n" "$placeholder" "$redis_hex" |
-        sed -f - "$sample" > "$temporary" || return 1
+    printf "s|%s|'auth' => hex2bin('%s') /* LEMPer */|\n" "$placeholder" "$redis_hex" \
+        | sed -f - "$sample" >"$temporary" || return 1
     chgrp www-data -- "$temporary" && chmod 0640 -- "$temporary" && mv -T -- "$temporary" "$config"
 )
 

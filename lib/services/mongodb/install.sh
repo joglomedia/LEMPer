@@ -49,7 +49,7 @@ function lemper_mongodb_security_unit() {
             printf '%s\n' 'PrivateNetwork=false'
         fi
         printf '%s\n' 'PrivateTmp=true'
-    } > "$staged" || ! chmod 0644 "$staged" || ! lemper_exec mv -Tf -- "$staged" "$file"; then
+    } >"$staged" || ! chmod 0644 "$staged" || ! lemper_exec mv -Tf -- "$staged" "$file"; then
         rm -f -- "$staged"
         return 1
     fi
@@ -146,11 +146,11 @@ function lemper_mongodb_managed_install() {
     elif [[ -f "$state/pending" && ! -L "$state/pending" && "$(stat -c '%u:%a' "$state/pending")" == 0:600 ]]; then
         {
             IFS= read -r mongo_user && IFS= read -r mongo_password
-        } < "$state/pending" || return 1
+        } <"$state/pending" || return 1
     else
-        if command -v mongod >/dev/null || [[ -e /etc/mongod.conf || -L /etc/mongod.conf ]] ||
-            [[ -d /var/lib/mongodb && -n "$(find /var/lib/mongodb -mindepth 1 -print -quit)" ]] ||
-            systemctl cat mongod.service >/dev/null 2>&1; then
+        if command -v mongod >/dev/null || [[ -e /etc/mongod.conf || -L /etc/mongod.conf ]] \
+            || [[ -d /var/lib/mongodb && -n "$(find /var/lib/mongodb -mindepth 1 -print -quit)" ]] \
+            || systemctl cat mongod.service >/dev/null 2>&1; then
             warning "Preserving existing MongoDB service and data. Review its authorization policy separately."
             return 0
         fi
@@ -164,8 +164,8 @@ function lemper_mongodb_managed_install() {
     lemper_exec install -d -m0700 "$state" || return 1
     if [[ "$phase" == bootstrap && ! -f "$state/pending" ]]; then
         staged=$(mktemp "$state/.pending.XXXXXXXX") || return 1
-        if ! printf '%s\n%s\n' "$mongo_user" "$mongo_password" > "$staged" ||
-            ! lemper_exec mv -Tf -- "$staged" "$state/pending"; then
+        if ! printf '%s\n%s\n' "$mongo_user" "$mongo_password" >"$staged" \
+            || ! lemper_exec mv -Tf -- "$staged" "$state/pending"; then
             rm -f -- "$staged"
             return 1
         fi
@@ -181,7 +181,10 @@ function lemper_mongodb_managed_install() {
         for attempt in {1..10}; do
             pid=$(systemctl show --property=MainPID --value mongod.service) || return 1
             if lemper_mongodb_admin_check bootstrap "$mongo_user" "$mongo_password" "$pid"; then break; fi
-            [[ "$attempt" != 10 ]] || { error "MongoDB isolated enrollment failed; retry the managed installation."; return 1; }
+            [[ "$attempt" != 10 ]] || {
+                error "MongoDB isolated enrollment failed; retry the managed installation."
+                return 1
+            }
             sleep 1
         done
         lemper_mongodb_save_profile "$mongo_user" "$mongo_password" || return 1

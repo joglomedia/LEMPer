@@ -48,17 +48,18 @@ function lemper_php_install_archive_keyring() (
     [[ "$(dpkg-deb -f "$work/keyring.deb" Package)" == debsuryorg-archive-keyring &&
     "$(dpkg-deb -f "$work/keyring.deb" Architecture)" == all ]] || return 1
     set -o pipefail
-    dpkg-deb --fsys-tarfile "$work/keyring.deb" |
-        tar -xO -f - ./usr/share/keyrings/debsuryorg-archive-keyring.gpg > "$work/keyring.gpg" || return 1
+    dpkg-deb --fsys-tarfile "$work/keyring.deb" \
+        | tar -xO -f - ./usr/share/keyrings/debsuryorg-archive-keyring.gpg >"$work/keyring.gpg" || return 1
     lemper_php_repository_key_valid "$work/keyring.gpg" || {
         error "Downloaded Sury archive keyring fingerprint does not match."
         return 1
     }
     local prepared
     prepared=$(mktemp "$key.XXXXXXXX") || return 1
-    if ! lemper_exec install -m0644 "$work/keyring.gpg" "$prepared" ||
-        ! lemper_exec mv -Tf "$prepared" "$key"; then
-        rm -f -- "$prepared"; return 1
+    if ! lemper_exec install -m0644 "$work/keyring.gpg" "$prepared" \
+        || ! lemper_exec mv -Tf "$prepared" "$key"; then
+        rm -f -- "$prepared"
+        return 1
     fi
     lemper_php_repository_key_valid "$key"
 )

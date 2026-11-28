@@ -56,10 +56,18 @@ function uat_case() {
         printf 'PASS %s\n' "$name"
     else
         printf 'FAIL %s (log: %s)\n' "$name" "$logs/$name.log"
+        if [[ "$name" == installation ]]; then
+            uat_apt_failure_summary "$logs/$name.log"
+            awk -F: '/\/lib\/services\/mail\// && $NF ~ /^[1-9][0-9]*$/ {print}' "$logs/install-locations" | tail -12
+            systemctl show lemper-mail-author -p ActiveState -p Result -p ExecMainStatus
+        fi
         exit 1
     fi
 }
-function install_mail() { bash /checkout/scripts/install_mailer.sh; }
+function install_mail() {
+    BASH_ENV=/source/tests/uat/bootstrap_trace.bash LEMPER_UAT_BOOTSTRAP_TRACE=true \
+        bash /checkout/scripts/install_mailer.sh 19>"$logs/install-locations"
+}
 function activate_cli() {
     bash -c '
         . /checkout/lib/core/loader.sh

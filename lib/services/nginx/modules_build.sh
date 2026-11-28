@@ -172,7 +172,10 @@ function download_geolite2_databases() (
         warning "GeoLite2 databases not fully installed. Check your license key."
         return 0
     fi
-    [[ "$GEOLITE2_LICENSE_KEY" =~ ^[A-Za-z0-9_-]+$ ]] || { error "Invalid GeoLite license key format."; return 1; }
+    [[ "$GEOLITE2_LICENSE_KEY" =~ ^[A-Za-z0-9_-]+$ ]] || {
+        error "Invalid GeoLite license key format."
+        return 1
+    }
     if [[ "${DRYRUN:-false}" == true ]]; then
         info "Would fetch the MaxMind GeoLite2 Country and City databases."
         return 0
@@ -184,8 +187,8 @@ function download_geolite2_databases() (
     work=$(mktemp -d "$NGINX_BUILD_DIR/geoip-db.XXXXXXXX") || return 1
     trap 'rm -rf -- "$work"' EXIT
     for edition in GeoLite2-Country GeoLite2-City; do
-        printf 'url = "https://download.maxmind.com/app/geoip_download?edition_id=%s&license_key=%s&suffix=tar.gz"\n' "$edition" "$GEOLITE2_LICENSE_KEY" |
-            curl -q -fsSL --proto '=https' --proto-redir '=https' --config - -o "$work/$edition.tar.gz" || return 1
+        printf 'url = "https://download.maxmind.com/app/geoip_download?edition_id=%s&license_key=%s&suffix=tar.gz"\n' "$edition" "$GEOLITE2_LICENSE_KEY" \
+            | curl -q -fsSL --proto '=https' --proto-redir '=https' --config - -o "$work/$edition.tar.gz" || return 1
         run tar -xf "$work/$edition.tar.gz" -C "$work" || return 1
         files+=("$work/${edition}_"*/"$edition.mmdb")
         [[ -f "${files[-1]}" && ! -L "${files[-1]}" ]] || return 1

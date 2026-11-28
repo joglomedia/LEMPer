@@ -261,14 +261,14 @@ function php_ensure_migrated_pool() {
     [[ ! -L "$src" && ! -L "$dest" ]] || return 1
     if [[ -f "${dest}" ]]; then
         mode=$(stat -c '%a' -- "$dest") || return 1
-        [[ "$(stat -c '%u' -- "$dest")" == "$EUID" ]] && (( (8#$mode & 0022) == 0 )) || return 1
+        [[ "$(stat -c '%u' -- "$dest")" == "$EUID" ]] && (((8#$mode & 0022) == 0)) || return 1
         info "PHP ${to} pool ${pool} already exists."
         return 0
     fi
-    [[ ! -e "$dest" && ( ! -e "$src" || -f "$src" ) ]] || return 1
+    [[ ! -e "$dest" && (! -e "$src" || -f "$src") ]] || return 1
     if [[ -f "$src" ]]; then
         mode=$(stat -c '%a' -- "$src") || return 1
-        [[ "$(stat -c '%u' -- "$src")" == "$EUID" ]] && (( (8#$mode & 0022) == 0 )) || return 1
+        [[ "$(stat -c '%u' -- "$src")" == "$EUID" ]] && (((8#$mode & 0022) == 0)) || return 1
     fi
     [[ "$pool" != www ]] || owner=www-data
     uid=$(id -u "$owner") && gid=$(id -g "$owner") && group=$(id -gn "$owner") && [[ "$uid" =~ ^[1-9][0-9]*$ ]] || {
@@ -278,14 +278,21 @@ function php_ensure_migrated_pool() {
     mkdir -p "${PHP_ETC_DIR}/${to}/fpm/pool.d" || return 1
     temporary=$(mktemp "${dest}.XXXXXXXX") || return 1
     if [[ -f "${src}" ]]; then
-        php_rewrite_pool_text "$from" "$to" "$log_root/$pool" <"$src" >"$temporary" || { rm -f -- "$temporary"; return 1; }
+        php_rewrite_pool_text "$from" "$to" "$log_root/$pool" <"$src" >"$temporary" || {
+            rm -f -- "$temporary"
+            return 1
+        }
     else
-        php_minimal_pool_text "$pool" "$to" "$log_root/$pool" "$group" >"$temporary" || { rm -f -- "$temporary"; return 1; }
+        php_minimal_pool_text "$pool" "$to" "$log_root/$pool" "$group" >"$temporary" || {
+            rm -f -- "$temporary"
+            return 1
+        }
     fi
-    if ! php_migrate_prepare_pool_dirs "$pool" "$owner" "$uid" "$gid" ||
-        ! php_migrate_prepare_log_dir "$log_root/$pool" "$to" "$uid" "$gid" ||
-        ! mv -T -- "$temporary" "$dest"; then
-        rm -f -- "$temporary"; return 1
+    if ! php_migrate_prepare_pool_dirs "$pool" "$owner" "$uid" "$gid" \
+        || ! php_migrate_prepare_log_dir "$log_root/$pool" "$to" "$uid" "$gid" \
+        || ! mv -T -- "$temporary" "$dest"; then
+        rm -f -- "$temporary"
+        return 1
     fi
     info "Created PHP $to pool $pool."
 }
@@ -331,9 +338,9 @@ function php_migrate_eol_sites() {
         error "PHP ${target} is not installed. Install it, then re-run with --migrate-to=${target}."
         return 1
     fi
-    if [[ "$sites" == /etc/nginx/sites-available ]] &&
-        { [[ "$(php_branch_state "$target" "$(php_package_version "$target")")" != patched ]] ||
-          [[ "$(php_fpm_runtime_state "$target")" != current ]]; }; then
+    if [[ "$sites" == /etc/nginx/sites-available ]] \
+        && { [[ "$(php_branch_state "$target" "$(php_package_version "$target")")" != patched ]] \
+            || [[ "$(php_fpm_runtime_state "$target")" != current ]]; }; then
         error "PHP $target must be patched and running its installed FPM binary before migration."
         return 1
     fi
@@ -438,8 +445,8 @@ function php_migrate_eol_sites() {
             php_migrate_restore_manifest "${manifest}"
             return 1
         fi
-        if ! php_reload_branch "$target" || [[ "$(php_fpm_runtime_state "$target")" != current ]] ||
-            ! systemctl reload nginx; then
+        if ! php_reload_branch "$target" || [[ "$(php_fpm_runtime_state "$target")" != current ]] \
+            || ! systemctl reload nginx; then
             error "Could not activate the PHP $target handlers; restoring vhosts."
             php_migrate_restore_manifest "$manifest"
             systemctl reload nginx || error "Could not reload restored Nginx configuration."

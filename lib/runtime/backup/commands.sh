@@ -472,9 +472,9 @@ function backup_restore_recover() {
         return
     fi
     warning "Reapplying the pre-restore snapshot: $snapshot"
-    if cp -- "$snapshot" "$staged/previous" && cp -- "$snapshot.sha256" "$staged/previous.sha256" &&
-        backup_verify_archive "$staged/previous" "$root" &&
-        backup_apply_restore "$staged/previous" "$root" "$staged/previous-services"; then
+    if cp -- "$snapshot" "$staged/previous" && cp -- "$snapshot.sha256" "$staged/previous.sha256" \
+        && backup_verify_archive "$staged/previous" "$root" \
+        && backup_apply_restore "$staged/previous" "$root" "$staged/previous-services"; then
         warning "Reapplied the pre-restore snapshot. Files absent from that snapshot may remain."
     else
         error "Recovery was incomplete. Review the affected paths and retain the snapshot at $snapshot."

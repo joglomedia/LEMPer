@@ -61,28 +61,31 @@ function securing_ssh() {
         return 1
     }
     if [[ -f "${profile}" ]]; then
-        cp -p "${profile}" "${snapshot}/profile" || { rm -rf -- "$snapshot"; return 1; }
+        cp -p "${profile}" "${snapshot}/profile" || {
+            rm -rf -- "$snapshot"
+            return 1
+        }
     fi
     if [[ "$key_only" == true ]]; then
-        if ! lemper_directory_trusted "${key_file%/*}" || [[ -L "$key_file" ]] ||
-            { [[ -e "$key_file" ]] && { [[ ! -f "$key_file" ]] || ! cp -p "$key_file" "$snapshot/key"; }; } ||
-            ! printf '%s\n' "$username" >"$snapshot/key-account"; then
+        if ! lemper_directory_trusted "${key_file%/*}" || [[ -L "$key_file" ]] \
+            || { [[ -e "$key_file" ]] && { [[ ! -f "$key_file" ]] || ! cp -p "$key_file" "$snapshot/key"; }; } \
+            || ! printf '%s\n' "$username" >"$snapshot/key-account"; then
             rm -rf -- "$snapshot"
             return 1
         fi
     fi
     LEMPER_SSH_SNAPSHOT="${snapshot}"
     # OpenSSH takes the first value; put this include before older directives.
-    if ! temporary=$(mktemp "${config}.XXXXXX") || ! cp -p "$config" "$temporary" ||
-        ! awk -v profile="$profile" '
+    if ! temporary=$(mktemp "${config}.XXXXXX") || ! cp -p "$config" "$temporary" \
+        || ! awk -v profile="$profile" '
             BEGIN { print "Include " profile }
             tolower($1) == "include" && $2 == profile && (NF == 2 || substr($3, 1, 1) == "#") { next }
             { print }
-        ' "$snapshot/sshd_config" >"$temporary" || ! mv -T -- "$temporary" "$config" ||
-        ! write_ssh_profile "${profile}" "${port}" "${key_only}" "${SSH_ROOT_LOGIN:-false}" ||
-        ! sshd -t -f "$config" ||
-        ! verify_effective_ssh_policy "$username" "$port" "$key_only" "${SSH_ROOT_LOGIN:-false}" "$config" ||
-        { [[ "$key_only" == true ]] && ! install_managed_ssh_key "$username" "$key"; }; then
+        ' "$snapshot/sshd_config" >"$temporary" || ! mv -T -- "$temporary" "$config" \
+        || ! write_ssh_profile "${profile}" "${port}" "${key_only}" "${SSH_ROOT_LOGIN:-false}" \
+        || ! sshd -t -f "$config" \
+        || ! verify_effective_ssh_policy "$username" "$port" "$key_only" "${SSH_ROOT_LOGIN:-false}" "$config" \
+        || { [[ "$key_only" == true ]] && ! install_managed_ssh_key "$username" "$key"; }; then
         [[ -z "$temporary" ]] || rm -f -- "$temporary"
         restore_ssh_configuration || return 1
         error "SSH policy validation failed; previous configuration restored."
@@ -95,9 +98,9 @@ function securing_ssh() {
 #
 function lemper_firewall_check_conflicts() {
     local selected="$1" backend ufw_status
-    if [[ -e /etc/lemper/firewall/managed ]] ||
-        systemctl is-active --quiet lemper-nftables.service ||
-        { command -v nft >/dev/null && nft list table inet lemper >/dev/null 2>&1; }; then
+    if [[ -e /etc/lemper/firewall/managed ]] \
+        || systemctl is-active --quiet lemper-nftables.service \
+        || { command -v nft >/dev/null && nft list table inet lemper >/dev/null 2>&1; }; then
         error "Migrate the existing native nftables policy before enabling $selected. The current firewall was preserved."
         return 1
     fi
@@ -107,8 +110,8 @@ function lemper_firewall_check_conflicts() {
             if ufw_status=$(LC_ALL=C ufw status 2>/dev/null) && grep -qx 'Status: inactive' <<<"$ufw_status"; then
                 continue
             fi
-        elif ! command -v "$backend" >/dev/null 2>&1 &&
-            ! systemctl is-active --quiet "$backend.service"; then
+        elif ! command -v "$backend" >/dev/null 2>&1 \
+            && ! systemctl is-active --quiet "$backend.service"; then
             continue
         fi
         error "Migrate the existing $backend policy before enabling $selected. The current firewall was preserved."
@@ -187,7 +190,7 @@ function install_ufw() {
             local dns_peer dns_protocol dns_peers=()
             case "${DNS_ROLE:-local}" in
                 public) dns_peers=(any) ;;
-                hidden) read -r -a dns_peers <<< "$DNS_TRANSFER_PEERS" ;;
+                hidden) read -r -a dns_peers <<<"$DNS_TRANSFER_PEERS" ;;
             esac
             for dns_peer in "${dns_peers[@]}"; do
                 for dns_protocol in udp tcp; do
@@ -204,7 +207,10 @@ function install_ufw() {
 
         # Restart
         if [[ "${DRYRUN}" != true ]]; then
-            systemctl restart ufw || { error "Could not activate UFW."; return 1; }
+            systemctl restart ufw || {
+                error "Could not activate UFW."
+                return 1
+            }
             success "UFW firewall installed successfully."
         else
             info "UFW firewall installed in dry run mode."
@@ -316,8 +322,8 @@ function install_csf() {
     run cd "${CURRENT_DIR}" || return 1
 
     if [[ "${DRYRUN}" != true ]]; then
-        if ! command -v csf >/dev/null || ! command -v lfd >/dev/null ||
-            ! systemctl restart csf || ! systemctl restart lfd; then
+        if ! command -v csf >/dev/null || ! command -v lfd >/dev/null \
+            || ! systemctl restart csf || ! systemctl restart lfd; then
             error "Could not activate CSF and LFD."
             return 1
         fi
@@ -490,7 +496,10 @@ An existing firewall must be migrated before switching backends."
             1 | ufw) SELECTED_FW_CONFIGURATOR=ufw ;;
             2 | csf) SELECTED_FW_CONFIGURATOR=csf ;;
             3 | apf) SELECTED_FW_CONFIGURATOR=apf ;;
-            *) error "Unknown firewall backend: ${SELECTED_FW_CONFIGURATOR}"; return 1 ;;
+            *)
+                error "Unknown firewall backend: ${SELECTED_FW_CONFIGURATOR}"
+                return 1
+                ;;
         esac
         lemper_firewall_check_conflicts "$SELECTED_FW_CONFIGURATOR" || return 1
 

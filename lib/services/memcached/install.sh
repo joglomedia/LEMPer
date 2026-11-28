@@ -35,12 +35,12 @@ function lemper_memcached_configure_sasl() {
     if ! (
         umask 077
         printf '%s\n' 'mech_list: plain' 'pwcheck_method: auxprop' 'auxprop_plugin: sasldb' \
-            "sasldb_path: $directory/sasldb" > "$stage/memcached.conf" &&
-            printf '%s\n' "$password" | saslpasswd2 -p -a memcached -f "$stage/sasldb" -c "$username" &&
-            chown root:memcache "$stage/memcached.conf" "$stage/sasldb" &&
-            chmod 0640 "$stage/memcached.conf" "$stage/sasldb" &&
-            mv -T "$stage/sasldb" "$directory/sasldb" &&
-            mv -T "$stage/memcached.conf" "$directory/memcached.conf"
+            "sasldb_path: $directory/sasldb" >"$stage/memcached.conf" \
+            && printf '%s\n' "$password" | saslpasswd2 -p -a memcached -f "$stage/sasldb" -c "$username" \
+            && chown root:memcache "$stage/memcached.conf" "$stage/sasldb" \
+            && chmod 0640 "$stage/memcached.conf" "$stage/sasldb" \
+            && mv -T "$stage/sasldb" "$directory/sasldb" \
+            && mv -T "$stage/memcached.conf" "$directory/memcached.conf"
     ); then
         rm -rf -- "$stage"
         return 1
@@ -70,21 +70,27 @@ function lemper_memcached_set_endpoints() {
     root=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../../.." && pwd) || return 1
     ram=$(get_ram_size) || return 1
     [[ "$ram" =~ ^[1-9][0-9]*$ ]] || return 1
-    if ((ram <= 2048)); then memory=$((ram / 16))
-    elif ((ram <= 8192)); then memory=$((ram / 8))
-    else memory=2048
+    if ((ram <= 2048)); then
+        memory=$((ram / 16))
+    elif ((ram <= 8192)); then
+        memory=$((ram / 8))
+    else
+        memory=2048
     fi
     ((memory >= 4)) || memory=4
     if [[ "${MEMCACHED_SASL:-false}" =~ ^(true|enable)$ ]]; then
-        command -v saslpasswd2 >/dev/null || { error "Install sasl2-bin to enable Memcached SASL."; return 1; }
+        command -v saslpasswd2 >/dev/null || {
+            error "Install sasl2-bin to enable Memcached SASL."
+            return 1
+        }
         lemper_memcached_configure_sasl || return 1
         mode=sasl
     fi
     stage=$(mktemp -d /etc/.lemper-memcached.XXXXXXXX) || return 1
     if ! (
         trap 'rm -rf -- "$stage"' EXIT
-        lemper_memcached_render_config memcache "$mode" "$root/etc/memcached/memcache.conf" "$memory" > "$stage/memcache.conf" &&
-            lemper_memcached_render_config www-data socket "$root/etc/memcached/www-data.conf" "$memory" > "$stage/www-data.conf" || return 1
+        lemper_memcached_render_config memcache "$mode" "$root/etc/memcached/memcache.conf" "$memory" >"$stage/memcache.conf" \
+            && lemper_memcached_render_config www-data socket "$root/etc/memcached/www-data.conf" "$memory" >"$stage/www-data.conf" || return 1
         lemper_memcached_disable_default || return 1
 
         install -d -m0755 /usr/local/lib/lemper/memcached || return 1
@@ -111,11 +117,11 @@ function lemper_memcached_set_endpoints() {
             install -Dm0644 "$root/etc/systemd/memcached-runtime.conf" \
                 "/etc/systemd/system/memcached@$instance.service.d/10-lemper-endpoints.conf" || return 1
         done
-        systemctl daemon-reload &&
-            systemctl enable memcached@memcache.service memcached@www-data.service &&
-            systemctl restart memcached@memcache.service memcached@www-data.service &&
-            systemctl is-active --quiet memcached@memcache.service &&
-            systemctl is-active --quiet memcached@www-data.service
+        systemctl daemon-reload \
+            && systemctl enable memcached@memcache.service memcached@www-data.service \
+            && systemctl restart memcached@memcache.service memcached@www-data.service \
+            && systemctl is-active --quiet memcached@memcache.service \
+            && systemctl is-active --quiet memcached@www-data.service
     ); then
         error "Could not activate the managed Memcached endpoints."
         return 1
@@ -199,8 +205,8 @@ function init_memcached_install() {
                     memcached_download_url="https://memcached.org/files/memcached-${MEMCACHED_VERSION}.tar.gz"
                 fi
 
-                run curl -q -fsSL --proto '=https' --proto-redir '=https' -o memcached.tar.gz "$memcached_download_url" &&
-                    run tar -zxf memcached.tar.gz && run cd memcached-*/ || return 1
+                run curl -q -fsSL --proto '=https' --proto-redir '=https' -o memcached.tar.gz "$memcached_download_url" \
+                    && run tar -zxf memcached.tar.gz && run cd memcached-*/ || return 1
                 if [[ "${MEMCACHED_SASL}" == "enable" || "${MEMCACHED_SASL}" == true ]]; then
                     run ./configure --enable-sasl --bindir=/usr/bin || return 1
                 else

@@ -37,7 +37,10 @@ function lemper_nginx_fail2ban_enable() {
         error "This site has no supported Fail2ban filter."
         return 1
     }
-    [[ "${DRYRUN:-false}" != true ]] || { info "Would enable Fail2ban for $domain."; return 0; }
+    [[ "${DRYRUN:-false}" != true ]] || {
+        info "Would enable Fail2ban for $domain."
+        return 0
+    }
     command -v fail2ban-client >/dev/null && [[ -f "/etc/fail2ban/filter.d/$filter.conf" ]] || {
         error "Install Fail2ban and the $filter filter before enabling the jail."
         return 1
@@ -45,10 +48,10 @@ function lemper_nginx_fail2ban_enable() {
     log="$logs/$domain.access.log"
     jail="$jails/$domain.conf"
 
-    if ! lemper_directory_trusted "$logs" || [[ ! -f "$log" || -L "$log" ]] ||
-        ! read -r owner mode < <(stat -c '%U %a' -- "$log") ||
-        [[ "$owner" != root && "$owner" != www-data ]] || (( (8#$mode & 0022) != 0 )) ||
-        ! awk -v wanted="$log" '
+    if ! lemper_directory_trusted "$logs" || [[ ! -f "$log" || -L "$log" ]] \
+        || ! read -r owner mode < <(stat -c '%U %a' -- "$log") \
+        || [[ "$owner" != root && "$owner" != www-data ]] || (((8#$mode & 0022) != 0)) \
+        || ! awk -v wanted="$log" '
             $1 == "access_log" { sub(/;$/, "", $2); if ($2 == wanted) found = 1 }
             END { exit !found }' "/etc/nginx/sites-available/$domain.conf"; then
         error "Activate the site's managed Nginx access log before enabling Fail2ban."
@@ -63,7 +66,7 @@ function lemper_nginx_fail2ban_enable() {
         fi
         previous=true
     fi
-    if ! cat >"$stage/new" <<EOL
+    if ! cat >"$stage/new" <<EOL; then
 [$domain]
 enabled = true
 port = http,https
@@ -74,7 +77,6 @@ bantime = $bantime
 findtime = 5m
 maxretry = 3
 EOL
-    then
         rm -rf -- "$stage"
         return 1
     fi
@@ -83,7 +85,8 @@ EOL
         return 1
     fi
     if ! lemper_exec service fail2ban reload; then
-        if [[ "$previous" == true ]]; then mv -T -- "$stage/previous" "$jail" || return 1
+        if [[ "$previous" == true ]]; then
+            mv -T -- "$stage/previous" "$jail" || return 1
         else rm -f -- "$jail" || return 1; fi
         rm -rf -- "$stage"
         error "Could not activate Fail2ban for $domain. The previous jail configuration was restored."

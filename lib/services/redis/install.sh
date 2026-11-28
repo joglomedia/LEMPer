@@ -63,8 +63,8 @@ function lemper_cache_install_gate() {
     lemper_exec install -d -m0755 "${gate%/*}" || return 1
     staged=$(mktemp "$gate.XXXXXXXX") || return 1
     if ! printf '%s\n' '# Managed by LEMPer' '[Unit]' \
-        'ConditionPathExists=/run/lemper/cache-package-install-complete' > "$staged" ||
-        ! chmod 0644 "$staged" || ! lemper_exec mv -Tf -- "$staged" "$gate"; then
+        'ConditionPathExists=/run/lemper/cache-package-install-complete' >"$staged" \
+        || ! chmod 0644 "$staged" || ! lemper_exec mv -Tf -- "$staged" "$gate"; then
         rm -f -- "$staged"
         return 1
     fi
@@ -80,13 +80,13 @@ function lemper_cache_configure() {
         /^# BEGIN LEMPer cache configuration$/ {managed=1; next}
         /^# END LEMPer cache configuration$/ {managed=0; next}
         !managed || (replace_auth != "true" && /^[[:space:]]*requirepass[[:space:]]/) {print}
-    ' "$config" > "$staged" || ! {
+    ' "$config" >"$staged" || ! {
         printf '\n%s\nmaxmemory %smb\n%s\n' '# BEGIN LEMPer cache configuration' \
             "$memory" 'maxmemory-policy allkeys-lru'
         if [[ -n "$password" ]]; then printf 'requirepass %s\n' "$password"; fi
         printf '%s\n' '# END LEMPer cache configuration'
-    } >> "$staged" || ! chgrp "$backend" "$staged" || ! chmod 0640 "$staged" ||
-        ! lemper_exec mv -Tf -- "$staged" "$config"; then
+    } >>"$staged" || ! chgrp "$backend" "$staged" || ! chmod 0640 "$staged" \
+        || ! lemper_exec mv -Tf -- "$staged" "$config"; then
         rm -f -- "$staged"
         return 1
     fi
@@ -323,9 +323,9 @@ function init_redis_install {
         fi
         ram=$(get_ram_size) || return 1
         [[ "$ram" =~ ^[0-9]+$ ]] || return 1
-        if (( ram <= 2048 )); then
+        if ((ram <= 2048)); then
             memory=$((ram / 8))
-        elif (( ram <= 8192 )); then
+        elif ((ram <= 8192)); then
             memory=$((ram / 4))
         else
             memory=2048
@@ -358,8 +358,8 @@ function init_redis_install {
             lemper_exec rm -f -- "$cache_gate" || return 1
         fi
         lemper_exec systemctl daemon-reload || return 1
-        if ! lemper_exec systemctl restart "$unit" || ! systemctl is-active --quiet "$unit" ||
-            ! lemper_cache_check_access "$REDIS_BACKEND" "$cache_password"; then
+        if ! lemper_exec systemctl restart "$unit" || ! systemctl is-active --quiet "$unit" \
+            || ! lemper_cache_check_access "$REDIS_BACKEND" "$cache_password"; then
             lemper_exec systemctl stop "$unit"
             [[ -z "$cache_gate" ]] || lemper_cache_install_gate "$cache_gate"
             error "Cache access policy could not be verified. The service was stopped."
@@ -378,7 +378,10 @@ function lemper_redis_install_entry() {
     case "$backend" in
         redis) other=valkey ;;
         valkey) other=redis ;;
-        *) error "Unsupported cache backend."; return 1 ;;
+        *)
+            error "Unsupported cache backend."
+            return 1
+            ;;
     esac
     if ! command -v "${backend}-server" >/dev/null && command -v "${other}-server" >/dev/null; then
         info "Preserving the installed ${other} server. Migrate it before selecting ${backend}."

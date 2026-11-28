@@ -23,8 +23,8 @@ function init_mongodb_removal() {
         lemper_exec systemctl stop mongod.service || return 1
         lemper_exec systemctl disable mongod.service || return 1
     fi
-    mapfile -t packages < <(dpkg-query -W -f='${binary:Package} ${db:Status-Status}\n' 'mongodb*' 2>/dev/null |
-        awk '$1 ~ /^mongodb-(org|database-tools|mongosh)([-:]|$)/ && $2 ~ /^(installed|config-files)$/ {print $1}')
+    mapfile -t packages < <(dpkg-query -W -f='${binary:Package} ${db:Status-Status}\n' 'mongodb*' 2>/dev/null \
+        | awk '$1 ~ /^mongodb-(org|database-tools|mongosh)([-:]|$)/ && $2 ~ /^(installed|config-files)$/ {print $1}')
     if [[ ${#packages[@]} -gt 0 ]]; then
         if [[ "${AUTO_REMOVE}" == true ]]; then
             if [[ "${FORCE_REMOVE}" == true ]]; then

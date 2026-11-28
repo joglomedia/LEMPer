@@ -57,12 +57,19 @@ function update_php() {
             patched)
                 runtime=$(php_fpm_runtime_state "$branch")
                 if [[ "$runtime" == stale ]]; then
-                    php_reload_branch "$branch" || { rc=1; continue; }
+                    php_reload_branch "$branch" || {
+                        rc=1
+                        continue
+                    }
                     runtime=$(php_fpm_runtime_state "$branch")
                 fi
                 case "$runtime" in
                     current | inactive | not-installed) ;;
-                    *) error "Could not verify the PHP $branch FPM runtime."; rc=1; continue ;;
+                    *)
+                        error "Could not verify the PHP $branch FPM runtime."
+                        rc=1
+                        continue
+                        ;;
                 esac
                 success "PHP ${branch} (${installed}) already includes the fix (FPM: $runtime)."
                 ;;
@@ -417,7 +424,10 @@ function init_lemper_update() (
         php | nginx | mariadb | lemper | all)
             if command -v flock >/dev/null 2>&1; then
                 lemper_lock_path /run/lemper/update.lock || return 1
-                (umask 077; : >> /run/lemper/update.lock) || return 1
+                (
+                    umask 077
+                    : >>/run/lemper/update.lock
+                ) || return 1
                 exec 200>>/run/lemper/update.lock || return 1
                 if ! flock -n 200; then
                     fail "Another LEMPer update is already running."

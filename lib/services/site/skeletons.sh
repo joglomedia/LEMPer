@@ -136,8 +136,8 @@ function install_wordpress() {
                 [[ -f "${WEBROOT}/wp-config.php" && ! -L "${WEBROOT}/wp-config.php" ]] || return 1
                 run sudo -u "${USERNAME}" -- chmod 0600 -- "${WEBROOT}/wp-config.php" || return 1
                 # The generated password is alphanumeric. Feed the edit on stdin.
-                printf 's|__LEMPER_DB_PASS__|%s|g\n' "${APP_DB_PASS}" |
-                    sudo -u "${USERNAME}" -- sed -i -f - -- "${WEBROOT}/wp-config.php" || return 1
+                printf 's|__LEMPER_DB_PASS__|%s|g\n' "${APP_DB_PASS}" \
+                    | sudo -u "${USERNAME}" -- sed -i -f - -- "${WEBROOT}/wp-config.php" || return 1
             fi
         else
             info "It seems that WordPress files already exists."

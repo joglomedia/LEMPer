@@ -104,6 +104,9 @@ function uat_case() {
         printf 'PASS %s\n' "$name"
     else
         printf 'FAIL %s (log: %s)\n' "$name" "$logs/$name.log"
+        if [[ "$name" == laravel_mount ]]; then
+            awk -F: '/\/lib\/(services|runtime)\// && $NF ~ /^[1-9][0-9]*$/ {print}' "$logs/mount-locations" | tail -12
+        fi
         grep -aE '^UAT assertion: [a-z ]+( \(HTTP [0-9]{3}\))?$' "$logs/$name.log" || true
         exit 1
     fi
@@ -282,7 +285,8 @@ uat_case encrypted_profile encrypt_profile
 uat_case php_default_selection_and_persistence php_default
 uat_case invalid_default_and_dry_run invalid_defaults
 uat_case full_laravel_uses_new_default full_laravel_site
-uat_case laravel_mount lemperctl site app add parent-uat.test --mount /demo --webroot /home/lemper/laravel-real --runtime=php@8.4
+uat_case laravel_mount env BASH_ENV=/source/tests/uat/bootstrap_trace.bash LEMPER_UAT_BOOTSTRAP_TRACE=true \
+    lemperctl site app add parent-uat.test --mount /demo --webroot /home/lemper/laravel-real --runtime=php@8.4 19>"$logs/mount-locations"
 uat_case second_mount_inherits_parent lemperctl site app add parent-uat.test --mount /other --webroot /home/lemper/second-app
 uat_case laravel_http_and_security http_checks
 uat_case references_and_purge_guards reference_guards

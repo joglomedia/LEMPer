@@ -47,9 +47,9 @@ function tools_decrypt_config() {
     pw=$(core_resolve_config_password) || return 1
 
     openssl enc -aes-256-cbc -a -d -salt -md sha256 -pbkdf2 \
-        -pass fd:3 3<<<"$pw" -in "${src}" -out "${dest}" 2>/dev/null ||
-        openssl enc -aes-256-cbc -a -d -salt -md sha256 \
-            -pass fd:3 3<<<"$pw" -in "${src}" -out "${dest}" 2>/dev/null
+        -pass fd:3 -in "${src}" -out "${dest}" 3<<<"$pw" 2>/dev/null \
+        || openssl enc -aes-256-cbc -a -d -salt -md sha256 \
+            -pass fd:3 -in "${src}" -out "${dest}" 3<<<"$pw" 2>/dev/null
 }
 
 ##

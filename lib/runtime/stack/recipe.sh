@@ -285,7 +285,7 @@ function lemper_remove() {
     fi
 
     if [[ ("${REMOVE_ACCOUNT}" == Y* || "${REMOVE_ACCOUNT}" == y*) &&
-        ( -f "/etc/lemper/installed/account-$LEMPER_USERNAME" || "${FORCE_REMOVE}" == true ) ]]; then
+        (-f "/etc/lemper/installed/account-$LEMPER_USERNAME" || "${FORCE_REMOVE}" == true) ]]; then
         if [[ "$(type -t delete_account)" == "function" ]]; then
             delete_account "${LEMPER_USERNAME}" || return 1
         fi

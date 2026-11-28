@@ -177,7 +177,7 @@ jobs:
             ss -ltn | grep -q ":21 "
             getent passwd ftp
             grep -qx "STANDALONE_OR_INETD=standalone" /etc/default/pure-ftpd-common
-            grep -qx "2" /etc/pure-ftpd/conf/TLS
+            grep -qx "3" /etc/pure-ftpd/conf/TLS
             test -f /etc/pure-ftpd/conf/PassivePortRange
             test -L /etc/pure-ftpd/auth/65unix
             test -L /etc/pure-ftpd/auth/70pam
@@ -267,11 +267,11 @@ jobs:
           sudo test -s /etc/ssl/private/pure-ftpd.pem
           sudo grep -q 'BEGIN CERTIFICATE' /etc/ssl/private/pure-ftpd.pem
           sudo grep -q 'PRIVATE KEY' /etc/ssl/private/pure-ftpd.pem
-          sudo grep -qx '2' /etc/pure-ftpd/conf/TLS
+          sudo grep -qx '3' /etc/pure-ftpd/conf/TLS
           sudo test -f /etc/pure-ftpd/conf/PassivePortRange
           sudo test -L /etc/pure-ftpd/auth/65unix
           sudo test -L /etc/pure-ftpd/auth/70pam
-          sudo /usr/sbin/pure-ftpd-wrapper --show-options | grep -q -- '-Y 2'
+          sudo /usr/sbin/pure-ftpd-wrapper --show-options | grep -q -- '-Y 3'
       - name: Verify vsftpd source build (issue #146)
         if: matrix.server == 'vsftpd'
         run: |

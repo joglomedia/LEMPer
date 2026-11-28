@@ -170,7 +170,7 @@ function backup_member_allowed() {
     fi
 
     case "/${member}/" in
-        *"/../"*|*"/./"*|*"//"*)
+        *"/../"* | *"/./"* | *"//"*)
             return 1
             ;;
     esac
@@ -178,7 +178,7 @@ function backup_member_allowed() {
     # Keep restore from reintroducing CLI code or LEMPer's rollback copies.
     case "${member}" in
         etc/lemper/core* | etc/lemper/runtime* | etc/lemper/services* | etc/lemper/compat* | etc/lemper/cli-plugins* | etc/lemper/backups* | \
-        etc/lemper-mail/.lemper-restore.* | etc/modsecurity/crs*)
+            etc/lemper-mail/.lemper-restore.* | etc/modsecurity/crs*)
             return 1
             ;;
     esac
@@ -223,12 +223,12 @@ function backup_symlink_allowed() {
 
     case "$member:$resolved" in
         etc/nginx/modules-enabled/*:/usr/share/nginx/modules-available/* | \
-        etc/mysql/my.cnf:/etc/alternatives/my.cnf | \
-        etc/postfix/makedefs.out:/usr/share/postfix/makedefs.out | \
-        etc/dovecot/private/dovecot.key:/etc/ssl/private/ssl-cert-snakeoil.key | \
-        etc/dovecot/private/dovecot.pem:/etc/ssl/certs/ssl-cert-snakeoil.pem | \
-        etc/systemd/system/pure-ftpd.service:/usr/lib/systemd/system/pure-ftpd.service | \
-        etc/systemd/system/pure-ftpd.service:/lib/systemd/system/pure-ftpd.service)
+            etc/mysql/my.cnf:/etc/alternatives/my.cnf | \
+            etc/postfix/makedefs.out:/usr/share/postfix/makedefs.out | \
+            etc/dovecot/private/dovecot.key:/etc/ssl/private/ssl-cert-snakeoil.key | \
+            etc/dovecot/private/dovecot.pem:/etc/ssl/certs/ssl-cert-snakeoil.pem | \
+            etc/systemd/system/pure-ftpd.service:/usr/lib/systemd/system/pure-ftpd.service | \
+            etc/systemd/system/pure-ftpd.service:/lib/systemd/system/pure-ftpd.service)
             return 0
             ;;
     esac
@@ -247,12 +247,12 @@ function backup_verify_members() {
 
     listing=$(LC_ALL=C tar --quoting-style=escape -tzf "$file") || return 1
     details=$(LC_ALL=C tar --quoting-style=escape --numeric-owner -tvzf "$file") || return 1
-    if ! grep -Fxq -- "$LEMPER_BACKUP_MANIFEST" <<< "$listing"; then
+    if ! grep -Fxq -- "$LEMPER_BACKUP_MANIFEST" <<<"$listing"; then
         error "Backup archive has no ${LEMPER_BACKUP_MANIFEST}."
         return 1
     fi
-    mapfile -t members <<< "$listing"
-    mapfile -t entries <<< "$details"
+    mapfile -t members <<<"$listing"
+    mapfile -t entries <<<"$details"
     mapfile -t paths < <(backup_path_list)
     [[ ${#members[@]} -eq ${#entries[@]} ]] || return 1
 
@@ -264,12 +264,12 @@ function backup_verify_members() {
             return 1
         fi
         entry="${entries[index]}"
-        read -r type _ _ _ _ target <<< "$entry"
+        read -r type _ _ _ _ target <<<"$entry"
         case "${type:0:1}" in
             - | d) ;;
             l)
-                if [[ "$member" == etc/knot/lemper/* || "$member" == etc/lemper/dns-keys/* || "$target" != "$name -> "* ]] ||
-                    ! backup_symlink_allowed "$member" "${target#"$name -> "}"; then
+                if [[ "$member" == etc/knot/lemper/* || "$member" == etc/lemper/dns-keys/* || "$target" != "$name -> "* ]] \
+                    || ! backup_symlink_allowed "$member" "${target#"$name -> "}"; then
                     error "Archive contains a symbolic link outside the managed configuration."
                     return 1
                 fi
@@ -289,7 +289,7 @@ function backup_verify_members() {
                 return 1
                 ;;
         esac
-        if [[ -n "${member_types[$member]:-}" || ( "$member" == "$LEMPER_BACKUP_MANIFEST" && "${type:0:1}" != - ) ]]; then
+        if [[ -n "${member_types[$member]:-}" || ("$member" == "$LEMPER_BACKUP_MANIFEST" && "${type:0:1}" != -) ]]; then
             error "Archive contains a duplicate member or an invalid manifest."
             return 1
         fi
@@ -308,7 +308,7 @@ function backup_verify_members() {
                     return 1
                 fi
                 live_tree="${restore_root%/}/$tree"
-                if [[ "$member" == "$tree" && ( -L "$live_tree" || ( -e "$live_tree" && ! -d "$live_tree" ) ) ]]; then
+                if [[ "$member" == "$tree" && (-L "$live_tree" || (-e "$live_tree" && ! -d "$live_tree")) ]]; then
                     error "Restore requires a real destination directory for managed service state."
                     return 1
                 fi
@@ -373,7 +373,7 @@ function backup_apply_restore() {
     done
     listing=$(LC_ALL=C tar --quoting-style=escape -tzf "$file") || return 1
     for tree in "${LEMPER_BACKUP_RESTORE_TREES[@]}"; do
-        if grep -Fxq -e "$tree" -e "$tree/" <<< "$listing"; then
+        if grep -Fxq -e "$tree" -e "$tree/" <<<"$listing"; then
             trees+=("$tree")
             excludes+=("--exclude=$tree")
         fi
@@ -525,7 +525,10 @@ function backup_create_archive() (
     fi
 
     output_dir=$(realpath -ms -- "$output_dir") || return 1
-    lemper_directory_trusted "$output_dir" || { error "Untrusted backup directory."; return 1; }
+    lemper_directory_trusted "$output_dir" || {
+        error "Untrusted backup directory."
+        return 1
+    }
     umask 077
     archive="${output_dir}/lemper-config-${host}-${stamp}${label:+-${label}}.tar.gz"
 
@@ -564,7 +567,7 @@ function backup_create_archive() (
     "${tar_cmd[@]}" && backup_verify_members "$tmpdir/archive" || return 1
     local digest
     digest=$(backup_sha256 "$tmpdir/archive") && [[ "$digest" =~ ^[a-f0-9]{64}$ ]] || return 1
-    printf '%s\n' "$digest" > "$tmpdir/checksum" || return 1
+    printf '%s\n' "$digest" >"$tmpdir/checksum" || return 1
     chmod 0600 -- "$tmpdir/archive" "$tmpdir/checksum" || return 1
     ln -T -- "$tmpdir/checksum" "$archive.sha256" || return 1
     if ! ln -T -- "$tmpdir/archive" "$archive"; then
@@ -615,5 +618,5 @@ function backup_artifact_trusted() {
     parent="${file%/*}"
     lemper_directory_trusted "${parent:-/}" || return 1
     read -r owner mode < <(stat -c '%u %a' -- "$file") || return 1
-    [[ "$owner" == "$EUID" && "$mode" =~ ^[0-7]{1,4}$ ]] && (( (8#$mode & 0022) == 0 ))
+    [[ "$owner" == "$EUID" && "$mode" =~ ^[0-7]{1,4}$ ]] && (((8#$mode & 0022) == 0))
 }
