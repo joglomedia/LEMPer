@@ -61,11 +61,9 @@ function uat_case() {
             awk -F: '/\/lib\/services\/mail\// && $NF ~ /^[1-9][0-9]*$/ {print}' "$logs/install-locations" | tail -12
             awk -F: '$3 ~ /^lemper_mail_(author_prepare|template|postfix_configure|check|reload)$/ {last[$3]=$0}
                 END {for (stage in last) print last[stage]}' "$logs/install-locations"
-            # Rollback removes the unit. Its journal retains startup errors without
-            # printing installer arguments, message content or fixture credentials.
-            journalctl -b -u lemper-mail-author.service --no-pager -o cat >"$logs/author-journal"
-            grep -Eio 'status=[0-9]+/[A-Z0-9_-]+|step [A-Z]+|permission denied|operation not permitted|no such file or directory|read-only file system|address already in use|segmentation fault|illegal instruction|out of memory|failed to (bind|open|load|read|parse|connect)|timed out|start-limit-hit' \
-                "$logs/author-journal" "$logs/$name.log" | sort -u || true
+            # This is the first case, before any SMTP traffic or account setup.
+            # Only the dedicated worker's startup journal survives unit rollback.
+            journalctl -b -u lemper-mail-author.service --no-pager -o cat -n 35
         fi
         exit 1
     fi

@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The DNS service participates in configuration backup and restore. CI exercises primary
   outage, replication, rollback and retirement on Debian 12 and Ubuntu 24.04.
 
+### Fixed
+
+- Generated Nginx vhosts load application mounts from the serving domain's directory.
+  See the [mount guide](docs/PHP_RUNTIME_LARAVEL.md) for correcting older vhosts.
+
 ### Security
 
 - Hardened hosting account isolation, mail submission identities, database and cache access,
